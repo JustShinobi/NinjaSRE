@@ -52,9 +52,8 @@ Ratified in [`.specify/memory/constitution.md`](.specify/memory/constitution.md)
 | [Vision](docs/vision.md) | The problem, the thesis, who it is for, what it is not |
 | [Architecture](docs/architecture.md) | Package tiers, runtime, capability model, data, trust boundary, evaluation |
 | [Roadmap](docs/roadmap.md) | 31 features across 8 waves, with dependencies and exit criteria |
-| [Provenance map](docs/provenance-map.md) | What was taken from each upstream, how, and why |
-| [ADRs](docs/adr/README.md) | The ten decisions that shape everything else |
-| [Specifications](specs/) | `spec.md` / `plan.md` / `tasks.md` per feature |
+| [ADRs](docs/adr/README.md) | The eleven decisions that shape everything else |
+| [Contributing](AGENTS.md) | Tier table, file placement, code style, footguns, and the one command CI runs |
 
 ## Built on
 
@@ -71,10 +70,11 @@ Apache-2.0 predecessors:
   configuration, the web console, and the credential proxy and sandbox isolation
   model.
 
-See [`docs/provenance-map.md`](docs/provenance-map.md) for the module-level record
-and [`NOTICE`](NOTICE) for attribution.
+This section and [`NOTICE`](NOTICE) are where that attribution lives, and the
+only place it appears — see
+[ADR 0011](docs/adr/0011-attribution-in-readme-only.md).
 
-Neither upstream is affiliated with this project.
+Neither project is affiliated with this one.
 
 ## Licence
 
