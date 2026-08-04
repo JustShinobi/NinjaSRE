@@ -1,0 +1,72 @@
+[project]
+name = "ninjasre"
+version = "0.1.0"
+description = "Self-hosted AI SRE platform that investigates incidents, learns from every run, and proves it improves."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "NinjaSRE contributors" }]
+keywords = ["sre", "incident-response", "observability", "agent", "self-hosted"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Monitoring",
+]
+
+# Runtime dependencies only. Anything matching the telemetry deny-list in
+# ``tools/check_dependencies.py`` is rejected in CI (Constitution Article X).
+dependencies = [
+    "structlog>=24.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.1",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+# The seven first-party runtime packages, and only those. Root ``tools/`` holds
+# repository tooling and ``tests/`` is not distributed — both are excluded by
+# omission rather than by a negative glob, so a new top-level directory cannot
+# leak into the wheel by accident.
+[tool.hatch.build.targets.wheel]
+packages = [
+    "capabilities",
+    "config",
+    "core",
+    "gateway",
+    "integrations",
+    "platform",
+    "surfaces",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/capabilities",
+    "/config",
+    "/core",
+    "/gateway",
+    "/integrations",
+    "/platform",
+    "/surfaces",
+    "/tests",
+    "/tools",
+    "/Makefile",
+    "/.importlinter",
+    "/mypy.ini",
+    "/pytest.ini",
+    "/ruff.toml",
+]

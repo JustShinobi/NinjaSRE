@@ -1,0 +1,35 @@
+# Normalise to LF in the repository and in every working copy.
+#
+# This is not cosmetic. GNU Make on Linux fails on a Makefile with CRLF line
+# endings, and a contributor on Windows with core.autocrlf=true would otherwise
+# produce exactly that. Pinning it here means the rule travels with the
+# repository instead of depending on each contributor's git configuration.
+* text=auto eol=lf
+
+# Files that must keep LF whatever a tool thinks.
+Makefile        text eol=lf
+*.sh            text eol=lf
+*.py            text eol=lf
+*.toml          text eol=lf
+*.ini           text eol=lf
+*.cfg           text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.md            text eol=lf
+.importlinter   text eol=lf
+.editorconfig   text eol=lf
+.gitattributes  text eol=lf
+
+# Generated and vendored: keep them out of diffs and language statistics.
+uv.lock         linguist-generated=true -diff
+
+# Binary, so git never tries to normalise or merge them.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.pdf           binary
+*.zip           binary
+*.gz            binary
+*.whl           binary

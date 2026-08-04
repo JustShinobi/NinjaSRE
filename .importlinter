@@ -1,0 +1,85 @@
+# One contract per rule, so a failure names the boundary it broke rather than
+# reporting an opaque "layers" violation.
+#
+# Every contract corresponds to exactly one rule in the tier table in AGENTS.md.
+# tests/architecture/test_contract_coverage.py asserts that correspondence, and
+# tests/architecture/test_import_contracts.py proves each contract actually fires.
+#
+# Root `tools/` is repository tooling, not a runtime package, and is deliberately
+# absent from root_packages.
+
+[importlinter]
+root_packages =
+    surfaces
+    gateway
+    capabilities
+    integrations
+    core
+    platform
+    config
+
+[importlinter:contract:layers]
+name = layers: dependencies point downward through the four tiers
+type = layers
+layers =
+    surfaces | gateway
+    capabilities
+    integrations
+    core : platform
+    config
+
+[importlinter:contract:config-is-a-leaf]
+name = config-is-a-leaf: config must not import any first-party package
+type = forbidden
+source_modules =
+    config
+forbidden_modules =
+    surfaces
+    gateway
+    capabilities
+    integrations
+    core
+    platform
+
+[importlinter:contract:integrations-below-capabilities]
+name = integrations-below-capabilities: integrations must not import capabilities
+type = forbidden
+source_modules =
+    integrations
+forbidden_modules =
+    capabilities
+
+[importlinter:contract:integrations-below-tier1]
+name = integrations-below-tier1: integrations must not import an entry point
+type = forbidden
+source_modules =
+    integrations
+forbidden_modules =
+    surfaces
+    gateway
+
+[importlinter:contract:capabilities-below-tier1]
+name = capabilities-below-tier1: capabilities must not import an entry point
+type = forbidden
+source_modules =
+    capabilities
+forbidden_modules =
+    surfaces
+    gateway
+
+[importlinter:contract:tier1-peers-independent]
+name = tier1-peers-independent: surfaces and gateway must not import each other
+type = independence
+modules =
+    surfaces
+    gateway
+
+[importlinter:contract:tier3-below-tier2]
+name = tier3-below-tier2: core and platform must not import a tier 2 package
+type = forbidden
+source_modules =
+    core
+    platform
+forbidden_modules =
+    capabilities
+    integrations

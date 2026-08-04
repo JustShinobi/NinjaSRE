@@ -1,0 +1,47 @@
+# The fast subset of `make verify`, on the files a commit touches.
+#
+# Every hook is `language: system` and runs through `uv run`, so it uses the
+# versions pinned in uv.lock rather than a second, independently-versioned copy
+# of ruff that pre-commit fetched from somewhere. A repository whose lint result
+# depends on which tool ran it has two linters, not one.
+#
+# The slower half of the gate — strict types, the telemetry deny-list, the
+# suite — stays in `make verify`. A pre-commit hook that takes a
+# minute is a pre-commit hook people pass `--no-verify` to.
+
+default_install_hook_types: [pre-commit]
+fail_fast: false
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff (lint)
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff (format)
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      # Import contracts are a property of the whole graph, so this one cannot
+      # be narrowed to the changed files: a boundary is broken by the edge
+      # between two modules, not by either one alone.
+      - id: check-imports
+        name: import contracts
+        entry: uv run lint-imports
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: check-constants
+        name: constants stay in config/constants
+        entry: uv run python tools/check_constants.py
+        language: system
+        pass_filenames: false
+        always_run: true
