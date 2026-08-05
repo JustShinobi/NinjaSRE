@@ -25,6 +25,36 @@ primitives, and pure domain rules.
 - A rule with no I/O and no dependency → `domain/`. That package is the one that
   stays testable without a single mock.
 
+## The agent runtime
+
+`agent/react_loop.py` is the runtime whose behaviour defines correctness.
+Everything Article II names lives inside its control flow, and lives there
+rather than in a wrapper because each bound needs to see the loop's state at a
+specific point: the iteration ceiling and the wall clock before a turn is built,
+the duplicate cache during execution, the stagnation breaker after it, and the
+context budget immediately before the model call.
+
+**The loop never raises at the caller.** A provider failure becomes a partial
+result carrying the evidence gathered so far; a tool exception is already a
+classified value by the time it arrives. An investigation that lost its model
+after eleven observations has produced eleven observations.
+
+**`pre_tool_use` is the only hook point that can change control flow.** It may
+deny a call and it may rewrite its arguments — that is where approval gating and
+masking attach. Every other point observes, and a hook that raises is recorded
+on the turn and swallowed. Concentrating the control-flow influence at one point
+is what keeps the security-relevant surface small enough to audit.
+
+**A sub-agent gets a fresh `Session` and returns a `Finding`.** Not a
+transcript: the parent's context is what the isolation was protecting. Depth,
+fan-out, and the child's token budget are all bounded from
+`config/constants/investigation.py`.
+
+**Alternative runtimes answer `False` to `is_canonical`.** They live in
+`agent/adapters/`, they document what they cannot enforce, and
+`agent/guard.py` refuses to let one produce a published number. See
+[`docs/experimental-runtimes.md`](../docs/experimental-runtimes.md).
+
 ## The LLM layer
 
 Callers see one function — `get_llm(role)` — and one client. Everything else is

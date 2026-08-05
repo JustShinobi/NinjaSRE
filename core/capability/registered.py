@@ -22,6 +22,7 @@ would leave no record.
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import time
 from collections.abc import Callable, Mapping
@@ -105,6 +106,26 @@ class RegisteredTool:
 
         return tuple(violations)
 
+    async def _call_body(self, arguments: Mapping[str, Any]) -> Any:
+        """Return what the declared body produced, off the event loop if it blocks.
+
+        Most vendor clients are synchronous. Calling one directly from the loop
+        thread stops every other call in the same batch for the duration, and
+        the symptom is a concurrent batch that is mysteriously serial — which
+        looks like a slow vendor rather than like a bug here.
+
+        A synchronous body that returns an awaitable is still awaited: building
+        a coroutine object touches no event loop, so a callable class with an
+        async ``__call__`` behaves the same either way.
+        """
+        if inspect.iscoroutinefunction(self.call):
+            return await self.call(**arguments)
+
+        produced = await asyncio.to_thread(lambda: self.call(**arguments))
+        if inspect.isawaitable(produced):
+            return await produced
+        return produced
+
     async def invoke(self, arguments: Mapping[str, Any]) -> CapabilityResult:
         """Return the outcome of one call. Never raises, whatever the tool does."""
         started = time.perf_counter()
@@ -119,9 +140,7 @@ class RegisteredTool:
             )
 
         try:
-            produced = self.call(**arguments)
-            if inspect.isawaitable(produced):
-                produced = await produced
+            produced = await self._call_body(arguments)
         except Exception as error:  # noqa: BLE001 — FR-017 is exactly this catch
             return CapabilityResult.failed(
                 self.name,

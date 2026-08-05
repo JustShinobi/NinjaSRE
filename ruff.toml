@@ -43,6 +43,18 @@ ignore = [
 # is what "no history, therefore no opinion" means — and it has to keep the
 # port's full signature to remain substitutable with the one feature 010 fills.
 "core/capability/ports.py" = ["ARG002"]
+# Same reason, one layer up: a conclusion policy that accepts everything reads
+# neither the session nor the answer, and narrowing its signature would stop it
+# being substitutable with the policies that do.
+"core/agent/conclusion.py" = ["ARG002"]
+# A hook keeps its point's full signature whether or not it reads every
+# argument — that is what makes one hook substitutable for another at the same
+# point, and the registry dispatches on arity it can rely on.
+"core/agent/hooks/builtin/*.py" = ["ARG001"]
+# The no-human channel ignores the question on purpose — that is what "there is
+# nobody attached to this run" means — and it keeps the port's full signature so
+# a surface can be substituted for it without the loop noticing.
+"core/agent/handoff.py" = ["ARG002"]
 # The architecture fixtures exist to violate import boundaries on purpose. They
 # are never imported by the real package graph (pytest skips the directory via
 # ``norecursedirs``), so their imports are unused by construction.
