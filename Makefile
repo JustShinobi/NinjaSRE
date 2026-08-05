@@ -16,7 +16,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
 .PHONY: install lint format format-check typecheck test \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
-	preflight verify clean help
+	preflight verify close-task clean help
 
 install: ## Provision the development environment from uv.lock
 	$(UV) sync
@@ -60,6 +60,9 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 # in seconds rather than after the suite.
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks test ## The single quality gate CI runs
+
+close-task: verify ## Fast-forward master to the current task branch and open the next one
+	$(RUN) python tools/close_task_branch.py
 
 clean: ## Remove caches and build artefacts
 	rm -rf build dist .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov
