@@ -16,7 +16,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
 .PHONY: install lint format format-check typecheck test \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
-	preflight verify close-task clean help
+	check-literals preflight verify close-task clean help
 
 install: ## Provision the development environment from uv.lock
 	$(UV) sync
@@ -51,6 +51,9 @@ check-deps: ## Reject a telemetry package in the runtime dependency tree
 check-vendor-sdks: ## Reject a vendor LLM SDK imported outside core/llm/
 	$(RUN) python tools/check_vendor_sdks.py
 
+check-literals: ## Reject a missing comma that merges two capability metadata entries
+	$(RUN) python tools/check_metadata_literals.py
+
 # Not part of `verify`: it spends real tokens against a configured provider.
 # Run it once per deployment, before anyone depends on that provider.
 preflight: ## Verify the configured LLM provider end to end (makes live calls)
@@ -59,7 +62,7 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 # The single gate CI runs. Ordered cheapest-first so an obvious failure reports
 # in seconds rather than after the suite.
 verify: lint format-check typecheck check-imports check-constants \
-	check-protocols check-deps check-vendor-sdks test ## The single quality gate CI runs
+	check-protocols check-deps check-vendor-sdks check-literals test ## The single quality gate CI runs
 
 close-task: verify ## Fast-forward master to the current task branch and open the next one
 	$(RUN) python tools/close_task_branch.py

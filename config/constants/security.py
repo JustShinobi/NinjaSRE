@@ -69,20 +69,36 @@ MASKING_ENABLED_BY_DEFAULT: Final[bool] = True
 
 # --- Side-effect classification ----------------------------------------------
 
-#: A capability that declares nothing is treated as a write, never as a read
-#: (Article III, clause 1). ``SIDE_EFFECT_LEVELS`` is ordered least to most
-#: dangerous; anything above read needs approval and a stored rollback plan.
+#: ``SIDE_EFFECT_LEVELS`` is ordered least to most dangerous, and the order is
+#: load-bearing: it is what "above ``read_sensitive``" means, and everything
+#: above it needs per-action approval and a stored rollback plan.
+#:
+#: The scale separates two distinctions that a single "write" level hides. A
+#: read that returns customer data is not the same risk as a read that returns
+#: a pod count, and restarting a deployment is not the same risk as deleting a
+#: snapshot — the first is undone by waiting, the second is not undone at all.
 SIDE_EFFECT_READ: Final = "read"
-SIDE_EFFECT_WRITE: Final = "write"
+SIDE_EFFECT_READ_SENSITIVE: Final = "read_sensitive"
+SIDE_EFFECT_WRITE_REVERSIBLE: Final = "write_reversible"
+SIDE_EFFECT_WRITE_IRREVERSIBLE: Final = "write_irreversible"
 SIDE_EFFECT_DESTRUCTIVE: Final = "destructive"
 
 SIDE_EFFECT_LEVELS: Final[tuple[str, ...]] = (
     SIDE_EFFECT_READ,
-    SIDE_EFFECT_WRITE,
+    SIDE_EFFECT_READ_SENSITIVE,
+    SIDE_EFFECT_WRITE_REVERSIBLE,
+    SIDE_EFFECT_WRITE_IRREVERSIBLE,
     SIDE_EFFECT_DESTRUCTIVE,
 )
 
-DEFAULT_SIDE_EFFECT_LEVEL: Final = SIDE_EFFECT_WRITE
+#: What a capability is assumed to do when it arrives carrying no declaration
+#: at all — a bridged protocol tool, for instance, described by a remote server
+#: that owes us nothing (Article III, clause 1). Absence is never permission.
+#:
+#: A first-party capability never reaches this. Omitting the level in the
+#: repository fails the build instead, because a default that is *usually* right
+#: is how an undeclared destructive tool eventually ships as a write.
+DEFAULT_SIDE_EFFECT_LEVEL: Final = SIDE_EFFECT_WRITE_IRREVERSIBLE
 
 #: An approval is per-action and per-session; it never generalises to a later
 #: action (Article III, clause 4). This is how long one stays valid.
@@ -110,7 +126,9 @@ __all__ = [
     "SIDE_EFFECT_DESTRUCTIVE",
     "SIDE_EFFECT_LEVELS",
     "SIDE_EFFECT_READ",
-    "SIDE_EFFECT_WRITE",
+    "SIDE_EFFECT_READ_SENSITIVE",
+    "SIDE_EFFECT_WRITE_IRREVERSIBLE",
+    "SIDE_EFFECT_WRITE_REVERSIBLE",
     "TEAM_CONTEXT_HEADER",
     "TENANT_CONTEXT_HEADER",
     "VAULT_KEY_VERSION_COLUMN",

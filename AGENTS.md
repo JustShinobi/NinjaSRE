@@ -136,6 +136,18 @@ tier's rules already stated. It deliberately does not edit `.importlinter` —
 deciding which boundaries a package sits behind is a judgement — and prints the
 follow-up steps that make the package actually enforced.
 
+## Adding a capability
+
+```bash
+uv run python tools/scaffold_capability.py <tool_name> --domain <domain> [--vendor <vendor>]
+```
+
+Three files, no edits: the tool module, a `SKILL.md`, and a contract test.
+Discovery walks the package, so there is no registry to register with — which
+is the property that keeps a catalogue of eighty-five integrations addable one
+package at a time. The scaffold prints what it deliberately cannot decide for
+you, starting with the side-effect level, which has no default.
+
 ## Before you push
 
 ```bash
@@ -143,8 +155,9 @@ make verify
 ```
 
 One gate: lint, format check, strict types, import contracts, constants,
-protocol bodies, the telemetry deny-list, the vendor-SDK boundary, and the test
-suite. It is what CI runs on Linux, macOS, and Windows, and it takes seconds.
+protocol bodies, the telemetry deny-list, the vendor-SDK boundary, capability
+metadata literals, and the test suite. It is what CI runs on Linux, macOS, and
+Windows, and it takes seconds.
 
 Verifying a *configured provider* is separate, because it spends real tokens:
 
