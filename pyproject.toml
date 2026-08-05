@@ -23,6 +23,30 @@ dependencies = [
     "structlog>=24.4.0",
 ]
 
+# Vendor LLM SDKs are extras, never runtime dependencies. A deployment that runs
+# on a local model installs ``ninjasre[ollama]`` and gets nothing from Anthropic,
+# OpenAI, or AWS in its dependency tree — which is what "provider neutral" has to
+# mean if it is going to mean anything. ``core/llm/transports/sdk.py`` imports
+# each of these inside a function and reports the missing extra by name.
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40"]
+openai = ["openai>=1.60"]
+# Azure OpenAI, OpenRouter, NVIDIA NIM, and Ollama/vLLM all speak the OpenAI
+# wire, so they share its client.
+azure = ["openai>=1.60"]
+openrouter = ["openai>=1.60"]
+nvidia = ["openai>=1.60"]
+ollama = ["openai>=1.60"]
+bedrock = ["boto3>=1.35"]
+google = ["google-genai>=1.0"]
+litellm = ["litellm>=1.50"]
+all-providers = [
+    "anthropic>=0.40",
+    "boto3>=1.35",
+    "google-genai>=1.0",
+    "openai>=1.60",
+]
+
 [dependency-groups]
 dev = [
     "import-linter>=2.1",

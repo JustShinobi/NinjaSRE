@@ -31,8 +31,14 @@ ignore = [
 [lint.per-file-ignores]
 # Package roots re-export their public surface; those imports are not unused.
 "**/__init__.py" = ["F401"]
-# pytest fixtures arrive as parameters that a test may never reference.
-"tests/**/*.py" = ["ARG001"]
+# pytest fixtures arrive as parameters that a test may never reference, and a
+# test double implementing a Protocol keeps the full signature.
+"tests/**/*.py" = ["ARG001", "ARG002"]
+# A Protocol implementation keeps every parameter whether or not it uses one —
+# that is what makes it substitutable, and narrowing a signature to satisfy a
+# linter is how an adapter stops being interchangeable with the others.
+"core/llm/providers/*.py" = ["ARG002"]
+"core/llm/transports/*.py" = ["ARG002"]
 # The architecture fixtures exist to violate import boundaries on purpose. They
 # are never imported by the real package graph (pytest skips the directory via
 # ``norecursedirs``), so their imports are unused by construction.

@@ -15,8 +15,8 @@ PYTHON_SOURCE_PATHS := config core platform integrations capabilities gateway su
 LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
 .PHONY: install lint format format-check typecheck test \
-	check-imports check-constants check-protocols check-deps \
-	verify clean help
+	check-imports check-constants check-protocols check-deps check-vendor-sdks \
+	preflight verify clean help
 
 install: ## Provision the development environment from uv.lock
 	$(UV) sync
@@ -48,10 +48,18 @@ check-protocols: ## Reject a Protocol method body that is more than a docstring
 check-deps: ## Reject a telemetry package in the runtime dependency tree
 	$(RUN) python tools/check_dependencies.py
 
+check-vendor-sdks: ## Reject a vendor LLM SDK imported outside core/llm/
+	$(RUN) python tools/check_vendor_sdks.py
+
+# Not part of `verify`: it spends real tokens against a configured provider.
+# Run it once per deployment, before anyone depends on that provider.
+preflight: ## Verify the configured LLM provider end to end (makes live calls)
+	$(RUN) python -m core.llm.preflight $(PROVIDER)
+
 # The single gate CI runs. Ordered cheapest-first so an obvious failure reports
 # in seconds rather than after the suite.
 verify: lint format-check typecheck check-imports check-constants \
-	check-protocols check-deps test ## The single quality gate CI runs
+	check-protocols check-deps check-vendor-sdks test ## The single quality gate CI runs
 
 clean: ## Remove caches and build artefacts
 	rm -rf build dist .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov

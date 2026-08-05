@@ -19,7 +19,7 @@ something in `make verify`, or it is not a rule.
 | **Read-only by default** | A capability with no `side_effect_level` is treated as a write. Anything above read needs per-action human approval *and* a stored rollback plan. |
 | **Secrets never reach the agent** | No credential in env, prompt, tool arguments, filesystem, or trace. Authenticated calls go through the credential proxy, which injects the secret at the network edge. |
 | **One canonical runtime** | The first-party ReAct loop is the only runtime that produces an evaluation number. Alternative adapters are experimental and never the default. |
-| **Provider neutrality** | No vendor LLM SDK outside `core/llm/`. A deployment where nothing leaves the operator's infrastructure must be fully functional. |
+| **Provider neutrality** | `make check-vendor-sdks` fails on a vendor LLM SDK imported outside `core/llm/`, including the `importlib` way round it. Every SDK is an optional extra, so a deployment where nothing leaves the operator's infrastructure installs none of them and is still fully functional. |
 | **Learning is measured or not claimed** | Every learning mechanism ships with an ablation that isolates its contribution. A scenario-score regression fails CI. |
 | **Layered architecture** | `make check-imports` fails, naming the boundary. It is not advisory. |
 | **Single datastore** | One Postgres. No SQL and no Cypher outside `platform/persistence/`. |
@@ -78,8 +78,11 @@ that are expensive to undo later.
   creating a cycle.
 - **No SQL and no Cypher outside `platform/persistence/`.** Storage is reached
   through repository ports.
-- **No vendor LLM SDK outside `core/llm/`.** Everything else goes through the
-  provider abstraction.
+- **No vendor LLM SDK outside `core/llm/`.** Everything else calls
+  `core.llm.get_llm(role)` and receives the same behaviour whichever provider is
+  configured. Adding a provider is one adapter under `core/llm/providers/` plus
+  a registry row — nothing above that layer changes, and a contract test proves
+  it by adding a tenth provider and driving the whole stack with it.
 - **Compatibility-forwarding modules are deleted in the change that migrates
   their callers.** Not in a follow-up. The follow-up does not happen.
 
@@ -140,8 +143,18 @@ make verify
 ```
 
 One gate: lint, format check, strict types, import contracts, constants,
-protocol bodies, the telemetry deny-list, and the test suite. It is what CI runs
-on Linux, macOS, and Windows, and it takes seconds.
+protocol bodies, the telemetry deny-list, the vendor-SDK boundary, and the test
+suite. It is what CI runs on Linux, macOS, and Windows, and it takes seconds.
+
+Verifying a *configured provider* is separate, because it spends real tokens:
+
+```bash
+make preflight PROVIDER=anthropic
+```
+
+Run it once per deployment, before anyone depends on that provider. It checks
+authentication, a tool call, a structured output, and a stream against the
+operator's own endpoint — the things a recorded fixture cannot.
 
 ## Per-package conventions
 
