@@ -22,7 +22,7 @@ something in `make verify`, or it is not a rule.
 | **Provider neutrality** | `make check-vendor-sdks` fails on a vendor LLM SDK imported outside `core/llm/`, including the `importlib` way round it. Every SDK is an optional extra, so a deployment where nothing leaves the operator's infrastructure installs none of them and is still fully functional. |
 | **Learning is measured or not claimed** | Every learning mechanism ships with an ablation that isolates its contribution. A scenario-score regression fails CI. |
 | **Layered architecture** | `make check-imports` fails, naming the boundary. It is not advisory. |
-| **Single datastore** | One Postgres. No SQL and no Cypher outside `platform/persistence/`. |
+| **Single datastore** | One Postgres, reached through the twelve repository ports. `make check-raw-sql` fails on SQL, Cypher, or a database driver imported outside `platform/persistence/`. |
 | **The operator owns their data** | No telemetry, analytics, crash reporting, or version check that transmits off-host. `make check-deps` enforces the dependency half. |
 | **Test-first** | The test lands before the implementation. A behaviour-preserving refactor gets a characterisation test first. |
 | **English** | All source, comments, identifiers, commit messages, documentation, prompts, and user-facing text — whatever language the conversation is happening in. |
@@ -77,7 +77,9 @@ that are expensive to undo later.
 - **Prompts live in `config/prompts/`.** Tier 4, so any tier may read one without
   creating a cycle.
 - **No SQL and no Cypher outside `platform/persistence/`.** Storage is reached
-  through repository ports.
+  through the repository ports in `platform.persistence.ports`, and a caller
+  holds a `PersistenceGateway` rather than a connection. `make check-raw-sql`
+  fails on a query, an `execute` call, or a driver import anywhere else.
 - **No vendor LLM SDK outside `core/llm/`.** Everything else calls
   `core.llm.get_llm(role)` and receives the same behaviour whichever provider is
   configured. Adding a provider is one adapter under `core/llm/providers/` plus
@@ -156,8 +158,20 @@ make verify
 
 One gate: lint, format check, strict types, import contracts, constants,
 protocol bodies, the telemetry deny-list, the vendor-SDK boundary, capability
-metadata literals, and the test suite. It is what CI runs on Linux, macOS, and
-Windows, and it takes seconds.
+metadata literals, the storage boundary, and the test suite. It is what CI runs
+on Linux, macOS, and Windows, and it takes seconds.
+
+The storage layer has a second gate, because it needs a database:
+
+```bash
+make test-postgres
+```
+
+It builds a PostgreSQL image carrying `pgvector` and Apache AGE, and runs the
+persistence contract suite against it as well as against the in-memory fakes.
+CI runs it as its own job. A change under `platform/persistence/` is not
+finished until it passes — `make verify` alone only proves the fakes agree with
+themselves.
 
 Verifying a *configured provider* is separate, because it spends real tokens:
 

@@ -255,17 +255,41 @@ flowchart TB
 | Port | Backs |
 |---|---|
 | `ConfigRepository` | Hierarchical org → team config nodes, effective-config computation |
-| `IdentityRepository` | Users, teams, tokens, roles, SSO bindings |
-| `AuditRepository` | Immutable audit events |
-| `RunTraceStore` | Agent runs, turns, tool calls, evidence, transcripts |
+| `IdentityRepository` | Users, teams, token hashes, roles, SSO bindings |
+| `AuditRepository` | Immutable audit events — append and read, and nothing else |
+| `RunTraceStore` | Agent runs, turns, tool calls, evidence, replay |
+| `SessionStore` | Resumable session state, as an opaque payload |
 | `EpisodeStore` | Episodic memory CRUD + lifecycle |
-| `VectorIndex` | Embedding upsert and similarity search |
-| `TopologyGraph` | Service nodes, dependency edges, blast-radius traversal |
-| `KnowledgeStore` | Runbooks, hierarchical knowledge tree, proposed changes |
+| `VectorIndex` | Embedding upsert, similarity search, re-embedding generations |
+| `TopologyGraph` | Service nodes, dependency edges, nine bounded traversals |
+| `KnowledgeStore` | Runbooks, hierarchical knowledge tree, retrievable chunks |
 | `ApprovalStore` | Pending changes, remediation approvals, rollback plans |
 | `ScheduleStore` | Recurring jobs and claims |
+| `CredentialStore` | Credentials encrypted at rest, revealed only to the proxy |
 
-No module outside `platform/persistence/` issues SQL or Cypher directly.
+All twelve are reached through a **unit of work**, which binds them to one
+transaction and one tenant:
+
+```python
+async with gateway.begin(scope) as uow:
+    await uow.run_traces.record_evidence(evidence)
+    await uow.episodes.save(episode)
+    await uow.vectors.upsert(EPISODE_VECTOR_NAMESPACE, [vector])
+    await uow.topology.upsert_edge(edge)
+```
+
+Leaving the block commits; raising inside it rolls back all four. That is the
+transactional consistency ADR 0004 chose one database to get, expressed as the
+only way to obtain a repository.
+
+Tenancy comes from the scope rather than from arguments: no port method takes an
+`org_id`, so a cross-tenant read cannot be phrased. The operations that
+genuinely precede tenancy — creating an organisation, resolving a token to its
+tenant, claiming due jobs across tenants, sweeping retention — are a separate,
+deliberately short system scope.
+
+No module outside `platform/persistence/` issues SQL or Cypher directly, and
+`make check-raw-sql` fails the build on one.
 
 ---
 

@@ -1,0 +1,263 @@
+"""Users, token hashes, and role bindings over PostgreSQL."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from platform.persistence.errors import DuplicateRecord
+from platform.persistence.ports.identity_repository import (
+    ApiToken,
+    PrincipalKind,
+    RoleBinding,
+    TokenResolution,
+    User,
+)
+from platform.persistence.postgres import models
+from platform.persistence.postgres.repositories.common import (
+    TenantBound,
+    as_list,
+    as_tuple,
+    as_utc,
+    translating,
+    utc_now,
+)
+
+
+def _to_user(row: models.User) -> User:
+    return User(
+        user_id=row.user_id,
+        email=row.email,
+        display_name=row.display_name,
+        kind=PrincipalKind(row.kind),
+        is_active=row.is_active,
+        external_subject=row.external_subject,
+        created_at=as_utc(row.created_at),
+    )
+
+
+def _to_token(row: models.ApiToken) -> ApiToken:
+    return ApiToken(
+        token_id=row.token_id,
+        user_id=row.user_id,
+        name=row.name,
+        token_hash=row.token_hash,
+        scopes=as_tuple(row.scopes),
+        created_at=as_utc(row.created_at),
+        expires_at=as_utc(row.expires_at),
+        revoked_at=as_utc(row.revoked_at),
+    )
+
+
+def _to_binding(row: models.RoleBinding) -> RoleBinding:
+    return RoleBinding(
+        binding_id=row.binding_id,
+        user_id=row.user_id,
+        role=row.role,
+        node_id=row.node_id,
+        granted_at=as_utc(row.granted_at),
+    )
+
+
+@dataclass(slots=True)
+class PostgresIdentityRepository(TenantBound):
+    """Users, tokens, and role bindings for one organisation."""
+
+    async def get_user(self, user_id: str) -> User | None:
+        """Return the user with ``user_id``, or ``None``."""
+        row = await self.session.get(models.User, (self.org_id, user_id))
+        return _to_user(row) if row is not None else None
+
+    async def find_user_by_email(self, email: str) -> User | None:
+        """Return the user with ``email``, or ``None``."""
+        row = await self.session.scalar(
+            select(models.User).where(
+                models.User.org_id == self.org_id,
+                models.User.email_folded == email.casefold(),
+            )
+        )
+        return _to_user(row) if row is not None else None
+
+    async def find_user_by_subject(self, external_subject: str) -> User | None:
+        """Return the user bound to an SSO subject identifier, or ``None``."""
+        row = await self.session.scalar(
+            select(models.User).where(
+                models.User.org_id == self.org_id,
+                models.User.external_subject == external_subject,
+            )
+        )
+        return _to_user(row) if row is not None else None
+
+    async def upsert_user(self, user: User) -> User:
+        """Store ``user`` and return it as stored."""
+        row = await self.session.get(models.User, (self.org_id, user.user_id))
+        if row is None:
+            row = models.User(org_id=self.org_id, user_id=user.user_id)
+            self.session.add(row)
+            row.created_at = user.created_at or utc_now()
+        elif user.created_at is not None:
+            row.created_at = user.created_at
+
+        row.email = user.email
+        # Stored beside the address rather than derived in a functional index:
+        # PostgreSQL's ``lower()`` and Python's ``casefold()`` disagree on
+        # non-ASCII, and a uniqueness rule that disagrees with the lookup that
+        # enforces it is worse than no rule.
+        row.email_folded = user.email.casefold()
+        row.display_name = user.display_name
+        row.kind = user.kind.value
+        row.is_active = user.is_active
+        row.external_subject = user.external_subject
+
+        with translating(kind="user", identifier=user.user_id):
+            await self.session.flush()
+        return _to_user(row)
+
+    async def list_users(self) -> tuple[User, ...]:
+        """Return every user in this tenant, ordered by email."""
+        rows = await self.session.scalars(
+            select(models.User)
+            .where(models.User.org_id == self.org_id)
+            .order_by(models.User.email, models.User.user_id)
+        )
+        return tuple(_to_user(row) for row in rows)
+
+    async def store_token(self, token: ApiToken) -> ApiToken:
+        """Store ``token`` by hash and return it."""
+        if await self.session.get(models.ApiToken, (self.org_id, token.token_id)) is not None:
+            raise DuplicateRecord(kind="api token", identifier=token.token_id)
+
+        row = models.ApiToken(
+            org_id=self.org_id,
+            token_id=token.token_id,
+            user_id=token.user_id,
+            name=token.name,
+            token_hash=token.token_hash,
+            scopes=as_list(token.scopes),
+            created_at=token.created_at or utc_now(),
+            expires_at=token.expires_at,
+            revoked_at=token.revoked_at,
+        )
+        self.session.add(row)
+        with translating(
+            kind="api token hash",
+            identifier=token.token_id,
+            referenced="user",
+            referenced_id=token.user_id,
+        ):
+            await self.session.flush()
+        return _to_token(row)
+
+    async def revoke_token(self, token_id: str, *, revoked_at: datetime) -> bool:
+        """Mark ``token_id`` revoked and return whether it existed and was live."""
+        row = await self.session.get(models.ApiToken, (self.org_id, token_id))
+        if row is None or row.revoked_at is not None:
+            return False
+        row.revoked_at = revoked_at
+        await self.session.flush()
+        return True
+
+    async def tokens_for_user(self, user_id: str) -> tuple[ApiToken, ...]:
+        """Return the user's tokens, newest first, revoked ones included."""
+        rows = await self.session.scalars(
+            select(models.ApiToken)
+            .where(
+                models.ApiToken.org_id == self.org_id,
+                models.ApiToken.user_id == user_id,
+            )
+            .order_by(models.ApiToken.created_at.desc(), models.ApiToken.token_id.desc())
+        )
+        return tuple(_to_token(row) for row in rows)
+
+    async def upsert_role_binding(self, binding: RoleBinding) -> RoleBinding:
+        """Store ``binding`` and return it as stored."""
+        row = await self.session.get(models.RoleBinding, (self.org_id, binding.binding_id))
+        if row is None:
+            row = models.RoleBinding(org_id=self.org_id, binding_id=binding.binding_id)
+            self.session.add(row)
+        row.user_id = binding.user_id
+        row.role = binding.role
+        row.node_id = binding.node_id
+        row.granted_at = binding.granted_at or utc_now()
+
+        with translating(
+            kind="role binding",
+            identifier=binding.binding_id,
+            referenced="user",
+            referenced_id=binding.user_id,
+        ):
+            await self.session.flush()
+        return _to_binding(row)
+
+    async def role_bindings_for_user(self, user_id: str) -> tuple[RoleBinding, ...]:
+        """Return every role binding held by ``user_id``."""
+        rows = await self.session.scalars(
+            select(models.RoleBinding)
+            .where(
+                models.RoleBinding.org_id == self.org_id,
+                models.RoleBinding.user_id == user_id,
+            )
+            .order_by(models.RoleBinding.role, models.RoleBinding.binding_id)
+        )
+        return tuple(_to_binding(row) for row in rows)
+
+    async def remove_role_binding(self, binding_id: str) -> bool:
+        """Remove ``binding_id`` and return whether it existed."""
+        row = await self.session.get(models.RoleBinding, (self.org_id, binding_id))
+        if row is None:
+            return False
+        await self.session.delete(row)
+        await self.session.flush()
+        return True
+
+
+@dataclass(slots=True)
+class PostgresTokenDirectory:
+    """Token resolution, across every organisation."""
+
+    session: AsyncSession
+
+    async def resolve_token(self, token_hash: str, *, now: datetime) -> TokenResolution | None:
+        """Return what ``token_hash`` identifies, or ``None``.
+
+        One query, joining the token to its user, because the alternative — read
+        the token, then read the user — is two round trips on the hot path of
+        every authenticated request.
+        """
+        row = (
+            await self.session.execute(
+                select(models.ApiToken, models.User)
+                .join(
+                    models.User,
+                    (models.User.org_id == models.ApiToken.org_id)
+                    & (models.User.user_id == models.ApiToken.user_id),
+                )
+                .where(models.ApiToken.token_hash == token_hash)
+            )
+        ).first()
+
+        if row is None:
+            return None
+
+        token, user = row
+        # Unknown, revoked, expired, and belonging to a deactivated user all
+        # return ``None``. Distinguishing them would tell an attacker which of
+        # their guesses was a real token.
+        if token.revoked_at is not None or not user.is_active:
+            return None
+        expires_at = as_utc(token.expires_at)
+        if expires_at is not None and expires_at <= now:
+            return None
+
+        return TokenResolution(
+            user_id=token.user_id,
+            org_id=token.org_id,
+            token_id=token.token_id,
+            scopes=as_tuple(token.scopes),
+        )
+
+
+__all__ = ["PostgresIdentityRepository", "PostgresTokenDirectory"]

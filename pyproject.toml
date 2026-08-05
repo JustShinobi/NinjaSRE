@@ -19,7 +19,18 @@ classifiers = [
 
 # Runtime dependencies only. Anything matching the telemetry deny-list in
 # ``tools/check_dependencies.py`` is rejected in CI (Constitution Article X).
+#
+# The datastore is not an extra, and the asymmetry with the LLM SDKs below is
+# deliberate. Provider neutrality (Article VI) says no vendor SDK may be
+# required; the single datastore (Article XI, ADR 0004) says exactly one store
+# is. A deployment installs PostgreSQL and these five, and chooses which model
+# provider — if any — to add.
 dependencies = [
+    "alembic>=1.14",
+    "asyncpg>=0.30",
+    "cryptography>=44.0",
+    "pgvector>=0.3.6",
+    "sqlalchemy[asyncio]>=2.0.36",
     "structlog>=24.4.0",
 ]
 
@@ -56,6 +67,10 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "ruff>=0.8",
+    # Provides the PostgreSQL the contract suite runs its second backend
+    # against. Absent a Docker daemon the suite still runs, against the fakes
+    # alone, and says so rather than reporting a pass it did not earn.
+    "testcontainers>=4.9",
 ]
 
 [build-system]

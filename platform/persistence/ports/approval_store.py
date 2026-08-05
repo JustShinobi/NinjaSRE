@@ -1,0 +1,164 @@
+"""Approvals and the rollback plans without which none of them may be granted.
+
+Article III says an action above read needs per-action human approval *and* a
+stored rollback plan. The "and" is enforced here rather than trusted: ``decide``
+refuses to record an approval for a request that has no rollback plan stored,
+and raises. A deployment can therefore not reach a state where something
+irreversible was authorised and nobody wrote down how to undo it — not because
+the calling code is careful, but because the store will not hold that state.
+
+Requests expire. An approval nobody answered during the incident must not still
+be answerable a week later, when the operator clicking it has forgotten what
+the cluster looked like. ``expire_due`` is what a caller runs to move those to
+``EXPIRED``, and a request that has expired is decided: it cannot come back.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import StrEnum
+from typing import Any, Protocol, runtime_checkable
+
+
+class ApprovalState(StrEnum):
+    """Where an approval request got to."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+    @property
+    def is_decided(self) -> bool:
+        """Return whether this state is final."""
+        return self is not ApprovalState.PENDING
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalRequest:
+    """One proposed action, awaiting a human.
+
+    ``arguments`` is the call as it would be made, stored verbatim. An approval
+    for "restart the checkout deployment" that was granted against different
+    arguments than the ones executed is not an approval, and keeping the exact
+    call is what lets the audit trail prove they matched.
+    """
+
+    approval_id: str
+    run_id: str
+    action: str
+    side_effect_level: str
+    summary: str
+    requested_at: datetime
+    expires_at: datetime
+    arguments: Mapping[str, Any] = field(default_factory=dict)
+    state: ApprovalState = ApprovalState.PENDING
+    decided_at: datetime | None = None
+    decided_by: str | None = None
+    reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RollbackStep:
+    """One step of undoing an action, as a capability call."""
+
+    ordinal: int
+    description: str
+    capability: str
+    arguments: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class RollbackPlan:
+    """How to undo the action an approval would authorise.
+
+    Steps are ordered as they would be executed, which for an undo is the
+    reverse of how the action was applied. Storing them ordered rather than
+    sorting at execution time keeps the ordering decision with the person who
+    understood the action.
+    """
+
+    plan_id: str
+    approval_id: str
+    steps: tuple[RollbackStep, ...] = ()
+    created_at: datetime | None = None
+    notes: str | None = None
+
+
+@runtime_checkable
+class ApprovalStore(Protocol):
+    """Approval requests and rollback plans, within one tenant."""
+
+    async def create_request(self, request: ApprovalRequest) -> ApprovalRequest:
+        """Store a pending request and return it.
+
+        Raises ``DuplicateRecord`` if ``approval_id`` already exists.
+        """
+
+    async def get_request(self, approval_id: str) -> ApprovalRequest | None:
+        """Return the request with ``approval_id``, or ``None``."""
+
+    async def decide(
+        self,
+        approval_id: str,
+        *,
+        state: ApprovalState,
+        decided_by: str,
+        decided_at: datetime,
+        reason: str | None = None,
+    ) -> ApprovalRequest:
+        """Record a decision and return the request as stored.
+
+        Raises ``RecordNotFound`` for an unknown request, ``AppendOnlyViolation``
+        for one that is already decided — a decision is made once — and
+        ``RecordNotFound`` naming the rollback plan when ``state`` is
+        ``APPROVED`` and none has been stored (Article III).
+        """
+
+    async def list_pending(
+        self,
+        *,
+        run_id: str | None = None,
+        limit: int = 50,
+    ) -> tuple[ApprovalRequest, ...]:
+        """Return undecided requests, oldest first — longest-waiting first."""
+
+    async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
+        """Move every pending request past its expiry to ``EXPIRED``, and return them."""
+
+    async def store_rollback_plan(self, plan: RollbackPlan) -> RollbackPlan:
+        """Store the plan for an approval and return it.
+
+        Raises ``RecordNotFound`` when the approval does not exist, and
+        ``AppendOnlyViolation`` when it has already been decided: rewriting the
+        undo procedure after somebody approved the action changes what they
+        approved.
+        """
+
+    async def rollback_plan_for(self, approval_id: str) -> RollbackPlan | None:
+        """Return the stored rollback plan for ``approval_id``, or ``None``."""
+
+    async def record_rollback_executed(
+        self,
+        plan_id: str,
+        *,
+        executed_at: datetime,
+        completed_steps: Sequence[int],
+    ) -> RollbackPlan:
+        """Record which steps of a rollback actually ran, and return the plan.
+
+        Partial rollbacks are the normal case when something has gone wrong
+        twice, and knowing which steps completed is the difference between a
+        safe retry and a second incident.
+        """
+
+
+__all__ = [
+    "ApprovalRequest",
+    "ApprovalState",
+    "ApprovalStore",
+    "RollbackPlan",
+    "RollbackStep",
+]

@@ -68,6 +68,14 @@ ignore = [
 # nobody attached to this run" means — and it keeps the port's full signature so
 # a surface can be substituted for it without the loop noticing.
 "core/agent/handoff.py" = ["ARG002"]
+# Alembic dictates ``include_object``'s signature and calls it with all five
+# arguments; this one decides from the first four. Narrowing it would stop
+# Alembic being able to call it.
+"platform/persistence/migrations/env.py" = ["ARG001"]
+# SQLAlchemy dictates a TypeDecorator's hook signature, and both hooks are
+# handed a dialect that AES-GCM has no opinion about. Narrowing the signature
+# would stop them being the hooks SQLAlchemy calls.
+"platform/persistence/postgres/crypto.py" = ["ARG002"]
 # The architecture fixtures exist to violate import boundaries on purpose. They
 # are never imported by the real package graph (pytest skips the directory via
 # ``norecursedirs``), so their imports are unused by construction.

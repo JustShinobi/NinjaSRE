@@ -55,3 +55,30 @@ jobs:
 
       - name: Run the quality gate
         run: make verify
+
+  persistence:
+    name: persistence contract suite (PostgreSQL)
+    # Linux only. The job needs a Docker daemon to build the PostgreSQL image
+    # that carries both pgvector and Apache AGE — nothing published carries
+    # both — and the hosted macOS and Windows runners have none. The ports are
+    # platform-independent; the database they run against is not.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Provision the environment
+        run: make install
+
+      # SC-005 is "the contract suite passes against the Postgres
+      # implementation *and* against the fakes". `make verify` above covers the
+      # fakes. This is the other half, and the feature is not done without it.
+      - name: Run the persistence contract suite against PostgreSQL
+        run: make test-postgres

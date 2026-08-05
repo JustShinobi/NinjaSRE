@@ -1,0 +1,616 @@
+"""The relational schema: every table, with tenancy in its primary key.
+
+FR-009 asks that every tenant-scoped table carry ``org_id``. It is not merely a
+column here — it is the first component of each primary key and of each foreign
+key. That costs a little index width and buys two things.
+
+A cross-tenant read is not just filtered out, it is *unrepresentable through a
+join*: a child row cannot reference a parent in another organisation, because
+the composite foreign key would have to name that organisation and the child's
+own ``org_id`` is what fills that slot. FR-010 stops depending on every query
+remembering a ``WHERE`` clause.
+
+And the natural index for every query the platform makes — always "this
+tenant's X" — is the primary key. There is no separate index to forget.
+
+Identifiers are the caller's own strings rather than surrogate integers. A run
+id, an episode id, and a credential handle are all meaningful outside the
+database, they appear in traces and URLs, and a surrogate key would mean
+carrying both.
+
+The one table without an ``org_id`` in its key is ``job_claims``: a claim is the
+record that hands work back *across* the tenant boundary, so it carries the
+organisation as an ordinary column and the dispatcher reads it without a scope.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+
+# The dialect's ARRAY, not the generic one: ``@>`` containment — which is
+# how ``by_component`` uses the GIN index on ``episodes.components`` — is
+# only defined on the PostgreSQL type. The generic one raises at query
+# construction, which is a pleasant place to find out.
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from platform.persistence.postgres.crypto import EncryptedSecret
+
+#: Long enough for a UUID, a URL-safe token id, or a human-chosen handle, and
+#: short enough that a composite primary key still fits comfortably in an index
+#: page.
+ID_LENGTH = 128
+
+#: Names, titles, and other short human text.
+NAME_LENGTH = 256
+
+
+class Base(DeclarativeBase):
+    """Declarative base for every NinjaSRE table."""
+
+
+def _id() -> Mapped[str]:
+    """Return a column holding one of the platform's string identifiers."""
+    return mapped_column(String(ID_LENGTH), primary_key=True)
+
+
+def _org() -> Mapped[str]:
+    """Return the tenant column, first component of every tenant-scoped key."""
+    return mapped_column(String(ID_LENGTH), primary_key=True)
+
+
+def _timestamp(*, nullable: bool = True) -> Mapped[datetime | None]:
+    """Return a timezone-aware timestamp column.
+
+    ``timezone=True`` throughout. A naive timestamp in an incident-response tool
+    is a bug waiting for the clocks to change, and PostgreSQL's ``timestamptz``
+    costs nothing over ``timestamp``.
+    """
+    return mapped_column(DateTime(timezone=True), nullable=nullable)
+
+
+def _json() -> Mapped[dict[str, Any]]:
+    """Return a JSONB payload column, defaulting to an empty object."""
+    return mapped_column(JSONB, nullable=False, default=dict)
+
+
+def _tenant_fk(table: str, column: str) -> ForeignKeyConstraint:
+    """Return a composite foreign key that cannot cross the tenant boundary."""
+    return ForeignKeyConstraint(
+        ["org_id", column],
+        [f"{table}.org_id", f"{table}.{column}"],
+        ondelete="CASCADE",
+    )
+
+
+# --- Tenancy and configuration ------------------------------------------------
+
+
+class Organisation(Base):
+    """A tenant."""
+
+    __tablename__ = "organisations"
+
+    org_id: Mapped[str] = _id()
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class ConfigNode(Base):
+    """One node of an organisation's hierarchy, with the config set at that level."""
+
+    __tablename__ = "config_nodes"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        # Self-referential and composite, so a node cannot be parented into
+        # another organisation's tree. No cascade: FR wants the delete refused,
+        # and ``ReferencedRecord`` is raised before the database is asked.
+        ForeignKeyConstraint(
+            ["org_id", "parent_id"], ["config_nodes.org_id", "config_nodes.node_id"]
+        ),
+        Index("ix_config_nodes_parent", "org_id", "parent_id"),
+    )
+
+    org_id: Mapped[str] = _org()
+    node_id: Mapped[str] = _id()
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    parent_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    values: Mapped[dict[str, Any]] = _json()
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime | None] = _timestamp()
+
+
+# --- Identity -----------------------------------------------------------------
+
+
+class User(Base):
+    """A person or service account within one organisation."""
+
+    __tablename__ = "users"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        # Case-insensitive uniqueness is enforced by the repository, which
+        # stores and compares a folded copy. A functional unique index would
+        # need the same fold and would disagree with Python's on non-ASCII.
+        Index("ix_users_email", "org_id", "email_folded", unique=True),
+        Index("ix_users_subject", "org_id", "external_subject"),
+    )
+
+    org_id: Mapped[str] = _org()
+    user_id: Mapped[str] = _id()
+    email: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    email_folded: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    external_subject: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
+    created_at: Mapped[datetime | None] = _timestamp()
+
+
+class ApiToken(Base):
+    """A bearer token, recorded by hash and never by value."""
+
+    __tablename__ = "api_tokens"
+    __table_args__ = (
+        _tenant_fk("users", "user_id"),
+        # Global rather than per-tenant: resolution happens before the tenant is
+        # known, so the hash has to identify one row in the whole deployment.
+        UniqueConstraint("token_hash", name="uq_api_tokens_hash"),
+        Index("ix_api_tokens_user", "org_id", "user_id"),
+    )
+
+    org_id: Mapped[str] = _org()
+    token_id: Mapped[str] = _id()
+    user_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    created_at: Mapped[datetime | None] = _timestamp()
+    expires_at: Mapped[datetime | None] = _timestamp()
+    revoked_at: Mapped[datetime | None] = _timestamp()
+
+
+class RoleBinding(Base):
+    """A role granted to a principal at a point in the hierarchy."""
+
+    __tablename__ = "role_bindings"
+    __table_args__ = (
+        _tenant_fk("users", "user_id"),
+        Index("ix_role_bindings_user", "org_id", "user_id"),
+    )
+
+    org_id: Mapped[str] = _org()
+    binding_id: Mapped[str] = _id()
+    user_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    role: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    node_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    granted_at: Mapped[datetime | None] = _timestamp()
+
+
+# --- Audit --------------------------------------------------------------------
+
+
+class AuditEvent(Base):
+    """One immutable record of something that happened.
+
+    No ``ON DELETE CASCADE`` from ``organisations``, unlike every other table
+    here. Removing a tenant must not silently remove the record of what was done
+    in it (FR-022), so the reference is declared and restricting.
+    """
+
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"]),
+        Index("ix_audit_events_time", "org_id", "occurred_at"),
+        Index("ix_audit_events_resource", "org_id", "resource_kind", "resource_id"),
+        Index("ix_audit_events_actor", "org_id", "actor_id"),
+    )
+
+    org_id: Mapped[str] = _org()
+    event_id: Mapped[str] = _id()
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    actor_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    actor_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    action: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    resource_kind: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    detail: Mapped[dict[str, Any]] = _json()
+
+
+# --- Traces and sessions -------------------------------------------------------
+
+
+class AgentRun(Base):
+    """One investigation."""
+
+    __tablename__ = "agent_runs"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_agent_runs_started", "org_id", "started_at"),
+        Index("ix_agent_runs_status", "org_id", "status"),
+        Index("ix_agent_runs_alert", "org_id", "alert_id"),
+    )
+
+    org_id: Mapped[str] = _org()
+    run_id: Mapped[str] = _id()
+    trigger: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    started_at: Mapped[datetime | None] = _timestamp()
+    finished_at: Mapped[datetime | None] = _timestamp()
+    alert_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    runtime: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
+    model_id: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    run_metadata: Mapped[dict[str, Any]] = _json()
+
+
+class RunTurn(Base):
+    """One iteration of the loop."""
+
+    __tablename__ = "run_turns"
+    __table_args__ = (
+        _tenant_fk("agent_runs", "run_id"),
+        Index("ix_run_turns_run", "org_id", "run_id", "index"),
+    )
+
+    org_id: Mapped[str] = _org()
+    turn_id: Mapped[str] = _id()
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    index: Mapped[int] = mapped_column(Integer, nullable=False)
+    started_at: Mapped[datetime | None] = _timestamp()
+    finished_at: Mapped[datetime | None] = _timestamp()
+    payload: Mapped[dict[str, Any]] = _json()
+    usage: Mapped[dict[str, Any]] = _json()
+
+
+class ToolCall(Base):
+    """One capability invocation."""
+
+    __tablename__ = "tool_calls"
+    __table_args__ = (
+        _tenant_fk("agent_runs", "run_id"),
+        Index("ix_tool_calls_run", "org_id", "run_id"),
+        Index("ix_tool_calls_name", "org_id", "tool_name"),
+    )
+
+    org_id: Mapped[str] = _org()
+    call_id: Mapped[str] = _id()
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    turn_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    tool_name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    arguments: Mapped[dict[str, Any]] = _json()
+    started_at: Mapped[datetime | None] = _timestamp()
+    finished_at: Mapped[datetime | None] = _timestamp()
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence_ids: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    recorded_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class Evidence(Base):
+    """One observation the system made, citable in a conclusion."""
+
+    __tablename__ = "evidence"
+    __table_args__ = (
+        _tenant_fk("agent_runs", "run_id"),
+        Index("ix_evidence_run", "org_id", "run_id"),
+        # The console filters on the source of an observation, and this is the
+        # targeted expression index the plan's clarification promises rather
+        # than a general query surface over JSONB.
+        Index("ix_evidence_source", "org_id", "source"),
+    )
+
+    org_id: Mapped[str] = _org()
+    evidence_id: Mapped[str] = _id()
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    evidence_type: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    observed_at: Mapped[datetime | None] = _timestamp()
+    body: Mapped[dict[str, Any]] = _json()
+    cited: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    recorded_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class Session(Base):
+    """Resumable conversation state, as an opaque payload."""
+
+    __tablename__ = "sessions"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_sessions_status", "org_id", "status", "updated_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    session_id: Mapped[str] = _id()
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload: Mapped[dict[str, Any]] = _json()
+    run_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    updated_at: Mapped[datetime | None] = _timestamp()
+    expires_at: Mapped[datetime | None] = _timestamp()
+
+
+# --- Memory and knowledge ------------------------------------------------------
+
+
+class Episode(Base):
+    """One investigation, reduced to what a later one would want to know."""
+
+    __tablename__ = "episodes"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_episodes_signature", "org_id", "signature", "occurred_at"),
+        Index("ix_episodes_occurred", "org_id", "occurred_at"),
+        Index("ix_episodes_run", "org_id", "run_id"),
+        # GIN over the component array: "which incidents involved this service"
+        # is a containment test, and a btree cannot answer it.
+        Index("ix_episodes_components", "components", postgresql_using="gin"),
+    )
+
+    org_id: Mapped[str] = _org()
+    episode_id: Mapped[str] = _id()
+    title: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    signature: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    run_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    occurred_at: Mapped[datetime | None] = _timestamp()
+    components: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    resolution: Mapped[str | None] = mapped_column(Text, nullable=True)
+    episode_metadata: Mapped[dict[str, Any]] = _json()
+
+
+class KnowledgeDocument(Base):
+    """One source document, as ingested."""
+
+    __tablename__ = "knowledge_documents"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_knowledge_documents_uri", "org_id", "source_uri"),
+        Index("ix_knowledge_documents_updated", "org_id", "updated_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    document_id: Mapped[str] = _id()
+    title: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    checksum: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    source_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_type: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    updated_at: Mapped[datetime | None] = _timestamp()
+    document_metadata: Mapped[dict[str, Any]] = _json()
+
+
+class KnowledgeChunk(Base):
+    """One retrievable passage of a document."""
+
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        _tenant_fk("knowledge_documents", "document_id"),
+        Index("ix_knowledge_chunks_document", "org_id", "document_id", "ordinal"),
+    )
+
+    org_id: Mapped[str] = _org()
+    chunk_id: Mapped[str] = _id()
+    document_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk_metadata: Mapped[dict[str, Any]] = _json()
+
+
+class VectorIndexRow(Base):
+    """One declared vector namespace, and which generation searches read.
+
+    The vectors themselves are not here. Each generation gets its own table,
+    created with that generation's dimension, because pgvector fixes a column's
+    width at creation and a re-embed may change it. This row is the pointer
+    ``activate_generation`` moves.
+    """
+
+    __tablename__ = "vector_indexes"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    namespace: Mapped[str] = _id()
+    active_generation: Mapped[int] = mapped_column(Integer, nullable=False)
+    m: Mapped[int] = mapped_column(Integer, nullable=False)
+    ef_construction: Mapped[int] = mapped_column(Integer, nullable=False)
+    ef_search: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime | None] = _timestamp()
+
+
+class VectorGenerationRow(Base):
+    """One population of a namespace, and the model that wrote it (FR-012)."""
+
+    __tablename__ = "vector_generations"
+    __table_args__ = (_tenant_fk("vector_indexes", "namespace"),)
+
+    org_id: Mapped[str] = _org()
+    namespace: Mapped[str] = mapped_column(String(ID_LENGTH), primary_key=True)
+    generation: Mapped[int] = mapped_column(Integer, primary_key=True)
+    model: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    dimension: Mapped[int] = mapped_column(Integer, nullable=False)
+    table_name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    created_at: Mapped[datetime | None] = _timestamp()
+
+
+# --- Governance ----------------------------------------------------------------
+
+
+class Approval(Base):
+    """One proposed action, awaiting a human."""
+
+    __tablename__ = "approvals"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_approvals_state", "org_id", "state", "requested_at"),
+        Index("ix_approvals_run", "org_id", "run_id"),
+    )
+
+    org_id: Mapped[str] = _org()
+    approval_id: Mapped[str] = _id()
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    action: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    side_effect_level: Mapped[str] = mapped_column(String(32), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    arguments: Mapped[dict[str, Any]] = _json()
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    decided_at: Mapped[datetime | None] = _timestamp()
+    decided_by: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class RollbackPlan(Base):
+    """How to undo the action an approval would authorise.
+
+    Keyed by approval rather than by plan id: Article III wants one undo per
+    authorised action, and a table that could hold two would need a rule for
+    which one runs.
+    """
+
+    __tablename__ = "rollback_plans"
+    __table_args__ = (
+        _tenant_fk("approvals", "approval_id"),
+        UniqueConstraint("org_id", "plan_id", name="uq_rollback_plans_plan"),
+    )
+
+    org_id: Mapped[str] = _org()
+    approval_id: Mapped[str] = mapped_column(String(ID_LENGTH), primary_key=True)
+    plan_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    steps: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime | None] = _timestamp()
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    executed_steps: Mapped[list[int] | None] = mapped_column(ARRAY(Integer), nullable=True)
+    executed_at: Mapped[datetime | None] = _timestamp()
+
+
+class ScheduledJob(Base):
+    """One piece of recurring work."""
+
+    __tablename__ = "scheduled_jobs"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        # The dispatcher's query: enabled jobs, due now, across every tenant.
+        # Organisation last, because it is not a filter there — it is what comes
+        # back with the answer.
+        Index("ix_scheduled_jobs_due", "enabled", "next_run_at"),
+        Index("ix_scheduled_jobs_kind", "org_id", "kind"),
+    )
+
+    org_id: Mapped[str] = _org()
+    job_id: Mapped[str] = _id()
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    kind: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    schedule: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    next_run_at: Mapped[datetime | None] = _timestamp()
+    payload: Mapped[dict[str, Any]] = _json()
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_run_at: Mapped[datetime | None] = _timestamp()
+    last_outcome: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime | None] = _timestamp()
+
+
+class JobClaim(Base):
+    """One worker's lease on one job.
+
+    The one table whose primary key is not tenant-scoped, because a claim is
+    what hands work back across the boundary. ``job_id`` is unique so two
+    workers cannot hold the same job: the uniqueness is the mutual exclusion,
+    rather than a lock somebody has to remember to take.
+    """
+
+    __tablename__ = "job_claims"
+    __table_args__ = (
+        _tenant_fk("scheduled_jobs", "job_id"),
+        UniqueConstraint("org_id", "job_id", name="uq_job_claims_job"),
+        Index("ix_job_claims_lease", "lease_expires_at"),
+    )
+
+    claim_id: Mapped[str] = mapped_column(String(ID_LENGTH), primary_key=True)
+    org_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    job_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    worker_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    lease_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    payload: Mapped[dict[str, Any]] = _json()
+
+
+class Credential(Base):
+    """One credential, encrypted at rest (FR-018).
+
+    ``secret`` is an ``EncryptedSecret`` column, so what reaches the table is an
+    AES-GCM envelope. A dump, a replica, or a psql session without the key sees
+    bytes. ``secret_raw`` is the same column read as bytes, which is how
+    ``verify_decryptable`` can check every row without decrypting through the
+    ORM and turning one bad key into an exception per credential.
+    """
+
+    __tablename__ = "credentials"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_credentials_integration", "org_id", "integration"),
+    )
+
+    org_id: Mapped[str] = _org()
+    handle: Mapped[str] = _id()
+    integration: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    secret: Mapped[str] = mapped_column("secret", EncryptedSecret, nullable=False)
+    key_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    labels: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    created_at: Mapped[datetime | None] = _timestamp()
+    updated_at: Mapped[datetime | None] = _timestamp()
+    rotated_at: Mapped[datetime | None] = _timestamp()
+    expires_at: Mapped[datetime | None] = _timestamp()
+
+
+#: Read-only view of the ciphertext, for the decryptability probe. Declared
+#: separately rather than as a second mapped attribute because SQLAlchemy would
+#: apply the column type to both.
+CREDENTIAL_SECRET_COLUMN = "secret"
+
+__all__ = [
+    "CREDENTIAL_SECRET_COLUMN",
+    "ID_LENGTH",
+    "NAME_LENGTH",
+    "AgentRun",
+    "ApiToken",
+    "Approval",
+    "AuditEvent",
+    "Base",
+    "ConfigNode",
+    "Credential",
+    "Episode",
+    "Evidence",
+    "JobClaim",
+    "KnowledgeChunk",
+    "KnowledgeDocument",
+    "Organisation",
+    "RoleBinding",
+    "RollbackPlan",
+    "RunTurn",
+    "ScheduledJob",
+    "Session",
+    "ToolCall",
+    "User",
+    "VectorGenerationRow",
+    "VectorIndexRow",
+]
