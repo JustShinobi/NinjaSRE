@@ -55,6 +55,48 @@ fan-out, and the child's token budget are all bounded from
 `agent/guard.py` refuses to let one produce a published number. See
 [`docs/experimental-runtimes.md`](../docs/experimental-runtimes.md).
 
+## The investigation pipeline
+
+`pipeline/lifecycle.py` runs six stages in a fixed order —
+`resolve_integrations`, `intake`, `plan_evidence`, `gather_evidence`,
+`diagnose`, `deliver` — over one shared `AgentState`. A pipeline assembled out
+of order fails when it is built.
+
+**A stage returns updates; it never mutates state.**
+`state.apply_state_updates` is the only merge path, and slices are replaced
+whole rather than edited. That is what makes "did this stage stay inside its
+slice" a value somebody can compare instead of a question about who held a
+reference to what.
+
+**Slice ownership is a table, not a habit.** `pipeline/ownership.py` declares
+what each stage may write, at `slice.field` granularity, and
+`tests/unit/core/pipeline/test_stage_purity.py` runs every stage and fails the
+build on a write outside it. Adding a field to a stage means adding it to the
+table in the same change.
+
+**Noise costs one model call.** `intake` classifies the input and, above the
+threshold in `config/constants/investigation.py`, writes an outcome whose kind
+halts the run — before a single capability executes. The same mechanism ends a
+run whose alert duplicates one already open, and one whose team has no
+capability it can run.
+
+**A claim is validated only if the run holds its evidence.** `diagnose` checks
+every citation against the evidence slice and demotes the rest. Demotes, not
+deletes: what an investigation believed and could not show is often the most
+useful line in the report.
+
+**A stage exception is annotated with its stage and re-raised.** Not wrapped —
+a caller that knows what to do with a provider timeout still sees one — and
+never swallowed, because a stage that failed must not look like a stage that
+had nothing to say. The run-end hooks fire exactly once either way.
+
+**What the pipeline needs from tier 2 and above is a port.** The catalogue
+resolver, the capability ranker, the recent-incident index, and the delivery
+destinations all live above `core/` in the tier table, so `pipeline/ports.py`
+declares each with a neutral default and the composition root substitutes the
+real one. Substituting the neutral implementation is also how an ablation is
+run.
+
 ## The LLM layer
 
 Callers see one function — `get_llm(role)` — and one client. Everything else is

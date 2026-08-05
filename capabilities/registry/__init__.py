@@ -42,6 +42,7 @@ from capabilities.registry.disclosure import (
     parse_skill_manifest,
 )
 from capabilities.registry.discovery import DiscoveredCatalogue, DiscoveryError, discover
+from capabilities.registry.planning import CatalogueRanker, TeamCatalogueResolver
 from capabilities.registry.scoring import Incident, ScoredCapability, rank, score_capability
 from capabilities.registry.selection import (
     SelectionError,
@@ -60,6 +61,7 @@ from capabilities.registry.validation import (
 
 __all__ = [
     "CatalogueError",
+    "CatalogueRanker",
     "DiscoveredCatalogue",
     "DiscoveredSkill",
     "DiscoveryError",
@@ -70,6 +72,7 @@ __all__ = [
     "SelectionError",
     "SelectionResult",
     "SkillManifestError",
+    "TeamCatalogueResolver",
     "ValidationError",
     "ValidationFailure",
     "body_violations",

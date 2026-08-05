@@ -124,8 +124,148 @@ SUBAGENT_UNKNOWN: Final[str] = (
 SUBAGENT_FINDING_SUMMARY: Final[str] = "{name} reported: {headline}"
 
 
+# --- Intake ------------------------------------------------------------------
+
+#: The system prompt for the single classification-and-extraction call. It says
+#: "err towards incident" out loud because the two mistakes cost differently: a
+#: greeting investigated costs one model call, and a real incident called noise
+#: costs an outage nobody looked at.
+INTAKE_SYSTEM_PROMPT: Final[str] = (
+    "You are the intake step of an SRE investigation pipeline. You are given one input — "
+    "an alert payload, a chat message, or both — and you decide two things: whether it "
+    "describes a production problem worth investigating, and what its structured fields "
+    "are.\n\n"
+    "Treat greetings, questions about the agent itself, acknowledgements, chatter, test "
+    "messages, and routine informational notifications as not-an-incident. Treat anything "
+    "reporting an error, a degradation, an outage, an unexpected behaviour, or an alert "
+    "firing as an incident.\n\n"
+    "When you are unsure, say it is an incident and give a low confidence. Investigating a "
+    "greeting costs one model call; dismissing a real incident costs an outage nobody "
+    "looked at.\n\n"
+    "Extract only what the input actually says. Leave a field empty rather than inferring "
+    "it — a component name you guessed will be queried as though somebody had measured it."
+)
+
+#: The user message for that call. The already-parsed fields are included so the
+#: model corrects and completes them rather than starting from the raw payload:
+#: an adapter that read ``service: checkout`` from a label is a fact, and asking
+#: the model to rediscover it is asking it to disagree.
+INTAKE_REQUEST: Final[str] = (
+    "Input received from {source}.\n\n"
+    "Fields already parsed from the payload (may be empty or incomplete):\n{parsed}\n\n"
+    "Recent conversation, oldest first (may be empty):\n{conversation}\n\n"
+    "Raw input:\n{raw}\n\n"
+    "Classify it and fill in what the parsed fields are missing."
+)
+
+#: Recorded as the classification reason when the model call itself failed.
+#: Default-continue rather than default-drop: the run costs a wasted
+#: investigation, which is the cheaper of the two mistakes.
+INTAKE_UNAVAILABLE: Final[str] = (
+    "The classification call did not return ({failure}). Treated as an incident with no "
+    "confidence, because a provider outage must not silently turn every alert into noise."
+)
+
+#: Recorded when intake stops the run.
+INTAKE_NOISE_HEADLINE: Final[str] = "Not an incident — nothing was investigated"
+INTAKE_NOISE_DETAIL: Final[str] = (
+    "Intake classified this input as not describing a production problem "
+    "(confidence {confidence:.2f}): {reason} No capability was executed and no evidence "
+    "was gathered."
+)
+
+#: Recorded when this alert is attached to an investigation already open.
+INTAKE_DUPLICATE_HEADLINE: Final[str] = "Linked to incident {incident_id}"
+INTAKE_DUPLICATE_DETAIL: Final[str] = (
+    "This alert was attached to an investigation already in progress rather than starting "
+    "a second one: {reason} The alert is recorded against that incident and nothing was "
+    "discarded."
+)
+
+# --- Diagnosis ---------------------------------------------------------------
+
+#: The system prompt for the structured-output call. Its whole job is Article I:
+#: a claim with no evidence identifier behind it is a hypothesis, and saying so
+#: is worth more than a confident sentence nobody can check.
+DIAGNOSE_SYSTEM_PROMPT: Final[str] = (
+    "You are the diagnosis step of an SRE investigation. You are given the investigation's "
+    "free-text conclusion and the evidence it gathered, and nothing else. Turn them into a "
+    "structured root cause.\n\n"
+    "Every claim you make must cite the identifiers of the evidence entries that support "
+    "it, exactly as they are listed. A claim you cannot cite evidence for still belongs in "
+    "the answer — put it in the claims list with no identifiers and it will be recorded as "
+    "unvalidated. Do not invent an identifier to make a claim look supported; every one is "
+    "checked against the evidence actually held.\n\n"
+    "Choose the root cause category from the closed list. If the evidence does not support "
+    "attributing a cause, choose 'unknown' rather than the closest-sounding category — an "
+    "investigation that says it could not tell is more useful than one that guesses.\n\n"
+    "Remediation steps are recommendations for a human. Nothing you write here is executed."
+)
+
+#: The user message for that call.
+DIAGNOSE_REQUEST: Final[str] = (
+    "Alert: {alert}\n"
+    "Incident window: {window}\n\n"
+    "Root cause categories:\n{categories}\n\n"
+    "Evidence gathered ({evidence_count} entries):\n{evidence}\n\n"
+    "The investigation's conclusion:\n{conclusion}\n\n"
+    "Produce the structured diagnosis."
+)
+
+#: One evidence entry as the diagnosis call sees it. The identifier leads,
+#: because citing it is the thing the model is being asked to do.
+DIAGNOSE_EVIDENCE_LINE: Final[str] = "[{id}] {capability} via {source}: {summary}{reference}"
+
+#: Recorded on a diagnosis the degraded parser produced.
+DIAGNOSE_FALLBACK_NOTE: Final[str] = (
+    "Structured output was unavailable ({failure}); this diagnosis was recovered from the "
+    "conclusion text by the fallback parser. Its category and claims are weaker evidence "
+    "than a structured result and are marked as such."
+)
+
+# --- Resolution and delivery -------------------------------------------------
+
+#: The zero-integration outcome (FR-007). Specific on purpose: "connect an
+#: integration" is not actionable, and naming the ones that would have served
+#: this alert source is something an operator can do in a minute.
+NO_INTEGRATIONS_HEADLINE: Final[str] = "Cannot investigate — no integrations are connected"
+NO_INTEGRATIONS_DETAIL: Final[str] = (
+    "This team has no capability that can run, so nothing could be gathered for a "
+    "{source} alert. {excluded_count} capabilities are declared and waiting on integrations "
+    "this team has not configured."
+)
+NO_INTEGRATIONS_STEP: Final[str] = (
+    "Connect {integration} — it would make {count} capability/capabilities available, "
+    "including {examples}."
+)
+NO_INTEGRATIONS_UNKNOWN_STEP: Final[str] = (
+    "No capability in the catalogue declares a requirement, so there is nothing to "
+    "connect. Check that the capability packages for this deployment are installed."
+)
+
+#: Recorded when every configured destination took the report, and when one did
+#: not. A delivery failure is a value, never an exception that ends the run:
+#: three destinations out of four is a delivered investigation.
+DELIVERY_FAILED_DETAIL: Final[str] = "{destination} did not accept the report: {error}"
+
 __all__ = [
     "DEFAULT_RUNTIME_SYSTEM_PROMPT",
+    "DELIVERY_FAILED_DETAIL",
+    "DIAGNOSE_EVIDENCE_LINE",
+    "DIAGNOSE_FALLBACK_NOTE",
+    "DIAGNOSE_REQUEST",
+    "DIAGNOSE_SYSTEM_PROMPT",
+    "INTAKE_DUPLICATE_DETAIL",
+    "INTAKE_DUPLICATE_HEADLINE",
+    "INTAKE_NOISE_DETAIL",
+    "INTAKE_NOISE_HEADLINE",
+    "INTAKE_REQUEST",
+    "INTAKE_SYSTEM_PROMPT",
+    "INTAKE_UNAVAILABLE",
+    "NO_INTEGRATIONS_DETAIL",
+    "NO_INTEGRATIONS_HEADLINE",
+    "NO_INTEGRATIONS_STEP",
+    "NO_INTEGRATIONS_UNKNOWN_STEP",
     "DEGRADED_EVIDENCE_LINE",
     "DEGRADED_INVESTIGATION_PREAMBLE",
     "DUPLICATE_TOOL_CALL_REPLAY",

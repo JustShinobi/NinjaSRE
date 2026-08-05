@@ -51,6 +51,19 @@ ignore = [
 # argument — that is what makes one hook substitutable for another at the same
 # point, and the registry dispatches on arity it can rely on.
 "core/agent/hooks/builtin/*.py" = ["ARG001"]
+# The neutral implementations of the pipeline's ports ignore their arguments on
+# purpose — an empty catalogue, a ranker with no opinion, an index that knows of
+# no incidents — and each keeps its port's full signature so an ablation can
+# substitute it for the real one without the stage noticing.
+"core/pipeline/ports.py" = ["ARG002"]
+# The incident-window guard keeps the hook point's full signature — it decides
+# from the call's arguments alone and never reads the tool context — so it stays
+# substitutable with the masking and approval hooks at the same point.
+"core/pipeline/stages/window_guard.py" = ["ARG002"]
+# The plain-text alert adapter matches everything, so its predicate reads
+# nothing — that is what "adapter of last resort" means. It keeps the port's
+# full signature so detection can try it alongside the seven that do look.
+"core/domain/alerts/normalisation.py" = ["ARG002"]
 # The no-human channel ignores the question on purpose — that is what "there is
 # nobody attached to this run" means — and it keeps the port's full signature so
 # a surface can be substituted for it without the loop noticing.

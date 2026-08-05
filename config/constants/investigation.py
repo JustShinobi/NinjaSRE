@@ -108,6 +108,97 @@ MESSAGE_QUEUE_DEBOUNCE_MS: Final[int] = 1500
 #: the question it needed a human for has learned to skip asking.
 HANDOFF_TIMEOUT_SECONDS: Final[float] = 900.0
 
+# --- Intake ------------------------------------------------------------------
+
+#: Confidence at or above which intake's "this is not an incident" verdict ends
+#: the run before a single capability executes. A threshold rather than a
+#: boolean because the cost of the two mistakes is not symmetric: dropping a
+#: real incident is an outage nobody looked at, and investigating a greeting is
+#: one wasted model call. It is tuned against the synthetic corpus, which is why
+#: it is here and not at the call site.
+NOISE_CLASSIFICATION_THRESHOLD: Final[float] = 0.7
+
+#: How far before the alert fired the incident window starts. The interesting
+#: change almost never happens at the instant the threshold was crossed — it
+#: happens during the deploy or the traffic shift that preceded it.
+INCIDENT_WINDOW_LEAD_MINUTES: Final[int] = 15
+
+#: The span used when nothing in the alert says when the incident began. Wide
+#: enough to contain a deploy and narrow enough that a log query over it still
+#: returns something an operator can read.
+DEFAULT_INCIDENT_WINDOW_MINUTES: Final[int] = 60
+
+#: Confidence recorded for a window derived from timestamps the alert carried.
+DERIVED_WINDOW_CONFIDENCE: Final[float] = 0.9
+
+#: Confidence recorded for the defaulted span above. Deliberately low: every
+#: time-bounded call downstream is bounded by a guess, and the trace has to say
+#: so rather than presenting it as a measurement.
+FALLBACK_WINDOW_CONFIDENCE: Final[float] = 0.2
+
+#: How far back deduplication looks for an incident this alert belongs to.
+#: An alert storm is the normal case in production, and re-investigating the
+#: sixth copy costs a full run to reach the conclusion the first one reached.
+DEDUPLICATION_WINDOW_MINUTES: Final[int] = 30
+
+# --- Planning ----------------------------------------------------------------
+
+#: Score below which a planned action is recorded but not treated as binding.
+#: The plan is advisory by design, and a shortlist assembled from weak matches
+#: is worse than no shortlist: it would hold the loop to capabilities that
+#: scored well only because nothing else did.
+PLAN_CONFIDENCE_FLOOR: Final[float] = 1.0
+
+# --- What a run carries about its incident -----------------------------------
+
+#: Keys on a run's context. Named because three parties read them — the model,
+#: the incident-window guard, and the evaluation suite — and a key spelled two
+#: ways is a context entry two of the three never find.
+CONTEXT_ALERT_NAME: Final[str] = "alert_name"
+CONTEXT_ALERT_SOURCE: Final[str] = "alert_source"
+CONTEXT_SEVERITY: Final[str] = "severity"
+CONTEXT_COMPONENTS: Final[str] = "components"
+CONTEXT_WINDOW_START: Final[str] = "incident_window_start"
+CONTEXT_WINDOW_END: Final[str] = "incident_window_end"
+CONTEXT_WINDOW_CONFIDENCE: Final[str] = "incident_window_confidence"
+CONTEXT_PLAN: Final[str] = "planned_capabilities"
+CONTEXT_PLAN_RATIONALE: Final[str] = "plan_rationale"
+
+# --- Incident-window enforcement ---------------------------------------------
+
+#: Argument names a time-bounded capability uses for the two ends of its range.
+#: Enforcement is by name because the alternative — a per-capability
+#: declaration — would be unenforced for every capability whose author forgot,
+#: which is exactly the set that needs it.
+TIME_WINDOW_START_ARGUMENTS: Final[tuple[str, ...]] = (
+    "start",
+    "start_at",
+    "start_time",
+    "since",
+    "from_time",
+)
+TIME_WINDOW_END_ARGUMENTS: Final[tuple[str, ...]] = (
+    "end",
+    "end_at",
+    "end_time",
+    "until",
+    "to_time",
+)
+
+# --- Diagnosis ---------------------------------------------------------------
+
+#: Schema caps on the structured diagnosis (Article II, clause 3). A model asked
+#: for an unbounded list produces one, and a causal chain of forty steps is not
+#: a causal chain — it is a transcript with numbers on it.
+MAX_DIAGNOSIS_CLAIMS: Final[int] = 12
+MAX_CAUSAL_CHAIN_STEPS: Final[int] = 8
+MAX_REMEDIATION_STEPS: Final[int] = 8
+
+#: Evidence entries offered to the diagnosis call. The call sees the conclusion
+#: and the evidence and nothing else, so this is the whole of its context
+#: budget; entries beyond it are dropped most-recent-first.
+MAX_DIAGNOSIS_EVIDENCE_ENTRIES: Final[int] = 40
+
 # --- Which runtime is in use -------------------------------------------------
 
 #: Selects the runtime. Anything but the canonical one is experimental, and the
@@ -149,32 +240,54 @@ INVESTIGATION_TOOL_CACHE_MAX_CHARS: Final[int] = 2_000_000
 
 
 __all__ = [
+    "CONTEXT_ALERT_NAME",
+    "CONTEXT_ALERT_SOURCE",
     "CONTEXT_BUDGET_WARNING_RATIO",
+    "CONTEXT_COMPONENTS",
     "CONTEXT_EVIDENCE_BUDGET_RATIO",
+    "CONTEXT_PLAN",
+    "CONTEXT_PLAN_RATIONALE",
+    "CONTEXT_SEVERITY",
+    "CONTEXT_WINDOW_CONFIDENCE",
+    "CONTEXT_WINDOW_END",
+    "CONTEXT_WINDOW_START",
+    "DEDUPLICATION_WINDOW_MINUTES",
+    "DEFAULT_INCIDENT_WINDOW_MINUTES",
     "DEFAULT_RUNTIME",
     "DEFAULT_SUBAGENT_ITERATIONS",
     "DEFAULT_TOOL_BUDGET",
+    "DERIVED_WINDOW_CONFIDENCE",
     "EVIDENCE_TRUNCATION_FLOOR_CHARS",
     "EVIDENCE_VALUE_CITED_BONUS",
     "EVIDENCE_VALUE_RECENCY_WEIGHT",
     "EVIDENCE_VALUE_SIZE_PENALTY",
     "EVIDENCE_VALUE_UNRELIABLE_PENALTY",
+    "FALLBACK_WINDOW_CONFIDENCE",
     "HANDOFF_TIMEOUT_SECONDS",
+    "INCIDENT_WINDOW_LEAD_MINUTES",
     "INVESTIGATION_TOOL_CACHE_MAX_CHARS",
     "INVESTIGATION_TOOL_CACHE_MAX_ENTRIES",
     "MAX_AGENT_TOOL_SCHEMAS",
+    "MAX_CAUSAL_CHAIN_STEPS",
+    "MAX_DIAGNOSIS_CLAIMS",
+    "MAX_DIAGNOSIS_EVIDENCE_ENTRIES",
     "MAX_INVESTIGATION_LOOPS",
     "MAX_PARALLEL_SUBAGENTS",
     "MAX_PARALLEL_TOOL_CALLS",
+    "MAX_REMEDIATION_STEPS",
     "MAX_SECONDARY_FALLBACK_TOOLS",
     "MAX_STAGNANT_ITERATIONS",
     "MAX_SUBAGENT_DEPTH",
     "MESSAGE_QUEUE_DEBOUNCE_MS",
     "NINJASRE_RUNTIME_ENV",
+    "NOISE_CLASSIFICATION_THRESHOLD",
+    "PLAN_CONFIDENCE_FLOOR",
     "RUNTIME_CANONICAL",
     "RUNTIME_CLAUDE_SDK",
     "RUN_WALL_CLOCK_SECONDS",
     "SUBAGENT_TOKEN_BUDGET_RATIO",
     "SUPPORTED_RUNTIMES",
+    "TIME_WINDOW_END_ARGUMENTS",
+    "TIME_WINDOW_START_ARGUMENTS",
     "UNRELIABLE_EVIDENCE_SOURCES",
 ]
