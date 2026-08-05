@@ -37,7 +37,12 @@ test: ## Run the test suite
 	$(RUN) pytest
 
 check-imports: ## Enforce the tier boundaries declared in .importlinter
-	$(RUN) lint-imports
+	# On Linux, stdlib uuid.py unconditionally does `import platform` to tell
+	# AIX from Linux, and click (imported by import-linter's CLI) pulls in uuid
+	# before the CLI adds the repo root to sys.path. That caches the stdlib
+	# platform module under the name our platform/ package needs. Leading
+	# PYTHONPATH with the repo root wins the name before click ever runs.
+	PYTHONPATH="$(CURDIR)" $(RUN) lint-imports
 
 check-constants: ## Reject environment-variable names outside config/constants/
 	$(RUN) python tools/check_constants.py

@@ -32,9 +32,13 @@ repos:
       # Import contracts are a property of the whole graph, so this one cannot
       # be narrowed to the changed files: a boundary is broken by the edge
       # between two modules, not by either one alone.
+      # PYTHONPATH=. wins the `platform` name for the first-party package
+      # before click (pulled in by import-linter) reaches stdlib uuid, which
+      # imports the real `platform` module on Linux at import time. See the
+      # matching comment on the check-imports Makefile target.
       - id: check-imports
         name: import contracts
-        entry: uv run lint-imports
+        entry: env PYTHONPATH=. uv run lint-imports
         language: system
         pass_filenames: false
         always_run: true

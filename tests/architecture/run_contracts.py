@@ -31,6 +31,14 @@ def main(argv: list[str]) -> int:
 
     package_root, config_filename = argv[1], argv[2]
 
+    # Import before touching sys.path or sys.modules. On Linux, click pulls in
+    # the stdlib uuid module, which does its own unguarded ``platform.system()``
+    # at import time (Windows and macOS skip that branch, which is why this
+    # never surfaced there). Resolving it now, while ``platform`` still means
+    # the real stdlib module, lets that value get baked into uuid's namespace
+    # before the fixture's inert platform stub is anywhere on the path.
+    from importlinter.cli import lint_imports
+
     # Ahead of site-packages *and* ahead of the stdlib, so the fixture's own
     # seven packages are the ones graphed. ``lint_imports`` then inserts the
     # working directory ahead of this entry, which is why the caller must start
@@ -38,8 +46,6 @@ def main(argv: list[str]) -> int:
     sys.path.insert(0, package_root)
     for shadowed in ("config", "core", "platform", "integrations", "capabilities"):
         sys.modules.pop(shadowed, None)
-
-    from importlinter.cli import lint_imports
 
     return int(lint_imports(config_filename=config_filename, no_cache=True))
 
