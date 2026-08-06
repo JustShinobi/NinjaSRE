@@ -118,6 +118,19 @@ EXECUTION_METHODS = frozenset(
 
 _DYNAMIC_IMPORT_FUNCTIONS = frozenset({"import_module", "__import__"})
 
+#: Receivers whose ``execute`` is not a database's.
+#:
+#: ``execute`` is a word two boundaries in this repository both want. A cursor
+#: executes a statement; a ``Sandbox`` executes a capability's command, and that
+#: verb is part of its port. Exempting the *receiver* rather than the method
+#: keeps the rule intact everywhere else — ``connection.execute`` and
+#: ``session.execute`` still fail, and so does a bare ``execute(...)``.
+#:
+#: Named receivers rather than a pattern, deliberately. A regular expression
+#: over variable names would eventually exempt something nobody intended, and
+#: this list is meant to stay short enough to read in one glance.
+NON_STORAGE_EXECUTE_RECEIVERS = frozenset({"sandbox"})
+
 #: Prose ends in a full stop; a statement does not. This one guard is what
 #: keeps "Select a provider from the registry." out of the report, and it costs
 #: nothing real — nobody writes ``"SELECT 1 FROM t."``.
@@ -263,6 +276,24 @@ def _called_name(node: ast.Call) -> str:
     return ""
 
 
+def _receiver_name(node: ast.Call) -> str:
+    """Return the identifier a method was called on, or the empty string.
+
+    ``sandbox.execute(...)`` gives ``sandbox`` and ``self._sandbox.execute(...)``
+    gives ``_sandbox``. A bare ``execute(...)`` gives nothing, which is what
+    stops an unqualified call being exempted by accident.
+    """
+    function = node.func
+    if not isinstance(function, ast.Attribute):
+        return ""
+    receiver = function.value
+    if isinstance(receiver, ast.Name):
+        return receiver.id
+    if isinstance(receiver, ast.Attribute):
+        return receiver.attr
+    return ""
+
+
 def _dynamic_import_literal(node: ast.Call) -> tuple[int, str] | None:
     """Return the module name a dynamic import names, if ``node`` is one."""
     if not node.args or _called_name(node) not in _DYNAMIC_IMPORT_FUNCTIONS:
@@ -304,7 +335,10 @@ def module_violations(path: Path, source: str) -> list[Violation]:
             dynamic = _dynamic_import_literal(node)
             if dynamic is not None and is_driver(dynamic[1]):
                 violations.append(Violation(path, dynamic[0], dynamic[1], DRIVER_IMPORT_RULE))
-            elif _called_name(node) in EXECUTION_METHODS:
+            elif (
+                _called_name(node) in EXECUTION_METHODS
+                and _receiver_name(node) not in NON_STORAGE_EXECUTE_RECEIVERS
+            ):
                 violations.append(
                     Violation(path, node.lineno, f"{_called_name(node)}(…)", QUERY_EXECUTION_RULE)
                 )

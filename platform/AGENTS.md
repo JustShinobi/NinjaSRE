@@ -162,6 +162,54 @@ everything still recorded — and that, not "no engine", is what the ablation in
 
 Operator-facing documentation is [`docs/guardrails-and-masking.md`](../docs/guardrails-and-masking.md).
 
+## The sandbox, in one page
+
+`credentials/` took the secrets out of the agent's reach and `guardrails/`
+handles what is left in the data. `sandbox/` is about the third thing: what the
+code the agent *runs* can consume and reach.
+
+Three profiles, one port, one contract suite. `process` for a contributor with
+neither a container runtime nor a cluster, `container` for a team, `kubernetes`
+for a deployment that has to defend its isolation in a review. Everything above
+this package holds a `Sandbox` and never asks which one it got —
+`tests/contract/sandbox/` runs the same suite three times, and a capability that
+passes on one profile and fails on another is a gap in that suite.
+
+Five things are load-bearing and non-obvious:
+
+- **The lighter profiles are only safe because of feature 007.** With no
+  credential anywhere in the agent's process, sandboxing is about resource and
+  egress control rather than secret containment. That is what makes `process`
+  worth having — and a profile nobody can run locally is a profile that gets
+  bypassed, which is worse than a lighter one that gets used.
+- **The kernel's limits sit *above* the ones the sampler holds.** If an rlimit
+  killed first, every limit would arrive as a bare signal and "which bound was
+  crossed" would be unanswerable. `profiles/process/monitor.py` polls and kills
+  with the reason known; the rlimits and the kubelet are the backstop for the
+  spike it polls straight past. `RLIMIT_NPROC` is deliberately unset — it counts
+  per *user*, and a sandbox runs as the same user as the agent.
+- **Egress is one list and three mechanisms.** `EgressPolicy` is the union of
+  the `InjectionRule.hosts` of the team's configured integrations — the same
+  tuple the credential proxy enforces — so adding an integration widens both by
+  construction. `process` routes through the proxy (and gets a loopback-only
+  network namespace where the kernel allows it), `container` joins a bridge with
+  no default route, `kubernetes` gets an Envoy sidecar plus a `NetworkPolicy`
+  denying direct egress. Only the last is enforced outside the application.
+- **A pooled Kubernetes instance has never held anybody's work, and a claimed
+  one is destroyed rather than returned.** That is what makes the single-tenant
+  guarantee hold without a reset step to get wrong: there is nothing to reset.
+  Claims, TTLs, and reaper leases are pod annotations, so the cluster is the
+  source of truth and a replica that starts after another died sees everything.
+- **There is no unsandboxed fallback, under any configuration.** A missing
+  runtime raises; it does not quietly select a lighter profile. A test walks the
+  package and fails on a name like `allow_unsandboxed`, because the exception
+  alone would still pass the day somebody adds one "for debugging".
+
+`selection.py` reports at start what the resolved profile actually enforces on
+*this* operating system — the Windows `process` profile has no CPU-time
+equivalent, and `process` anywhere shares the host's mount table. Those gaps are
+named in the boot log and in the health report rather than left in a document.
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -174,6 +222,8 @@ Operator-facing documentation is [`docs/guardrails-and-masking.md`](../docs/guar
   not into `core/`.
 - A new identifier shape → a `Detector` in `masking/detectors.py`, bounded, and
   contextual if the value could also be an ordinary English word.
+- A new isolation profile → a subpackage under `sandbox/profiles/`, and it is not
+  finished until the contract suite passes against it as a fourth row.
 - A new secret shape → a rule in `guardrails/defaults/rules.yml`, with a case in
   `tests/unit/platform/guardrails/test_engine.py` for the shape *and* one for a
   benign lookalike. A rule that fires on prose about a secret is a rule an

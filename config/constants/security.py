@@ -202,6 +202,175 @@ DEFAULT_MASKING_POLICY: Final = MASKING_POLICY_STANDARD
 #: backtracking is slower by one to two orders of magnitude, not by half.
 MASKING_BUDGET_SECONDS_PER_MEGABYTE: Final[float] = 0.60
 
+# --- Sandbox profiles --------------------------------------------------------
+
+#: Which isolation profile this deployment runs. Deployment-wide, never
+#: per-capability: a matrix of per-tool profiles is a matrix of behaviours
+#: nobody can reason about during an incident.
+NINJASRE_SANDBOX_PROFILE_ENV: Final = "NINJASRE_SANDBOX_PROFILE"
+
+#: Where the ``container`` and ``kubernetes`` profiles get the runtime image,
+#: which namespace the pods land in, and how many idle instances the pool holds.
+NINJASRE_SANDBOX_IMAGE_ENV: Final = "NINJASRE_SANDBOX_IMAGE"
+NINJASRE_SANDBOX_NAMESPACE_ENV: Final = "NINJASRE_SANDBOX_NAMESPACE"
+NINJASRE_SANDBOX_POOL_SIZE_ENV: Final = "NINJASRE_SANDBOX_POOL_SIZE"
+
+#: Which container binary the ``container`` profile drives. Docker and Podman
+#: take the same arguments for everything this profile asks for, so the choice
+#: is a name rather than a second adapter.
+NINJASRE_CONTAINER_RUNTIME_ENV: Final = "NINJASRE_CONTAINER_RUNTIME"
+
+#: What the kubelet puts in a pod's environment to say where the API server is.
+#: Not NinjaSRE's names — Kubernetes' — but they are environment-variable names,
+#: and every one of those lives in this tier whoever chose it.
+KUBERNETES_SERVICE_HOST_ENV: Final = "KUBERNETES_SERVICE_HOST"
+KUBERNETES_SERVICE_PORT_ENV: Final = "KUBERNETES_SERVICE_PORT"
+
+SANDBOX_PROFILE_PROCESS: Final = "process"
+SANDBOX_PROFILE_CONTAINER: Final = "container"
+SANDBOX_PROFILE_KUBERNETES: Final = "kubernetes"
+
+SANDBOX_PROFILES: Final[tuple[str, ...]] = (
+    SANDBOX_PROFILE_PROCESS,
+    SANDBOX_PROFILE_CONTAINER,
+    SANDBOX_PROFILE_KUBERNETES,
+)
+
+#: What an unconfigured deployment gets. ``process`` rather than a refusal to
+#: start, because a contributor cloning the repository has neither a container
+#: runtime nor a cluster and the alternative to the light profile is not a
+#: heavier one — it is no sandbox at all. The startup report names the profile
+#: and its guarantees so the weaker one is never mistaken for the strong one.
+DEFAULT_SANDBOX_PROFILE: Final = SANDBOX_PROFILE_PROCESS
+
+#: CPU seconds of *consumed* time, not wall clock. A capability that spends a
+#: minute on the CPU is looping; one that spends a minute waiting on a slow
+#: vendor is doing its job, and the two need different ceilings.
+SANDBOX_CPU_SECONDS_LIMIT: Final[int] = 60
+
+#: Address space, which is what the POSIX limit can actually bound. Sized for
+#: sorting a few hundred megabytes of log lines and nothing more ambitious.
+SANDBOX_MEMORY_BYTES_LIMIT: Final[int] = 512 * 1024 * 1024
+
+#: The outer bound on one execution, including everything it waits for. Above
+#: the per-tool timeout on purpose: this is the backstop for a capability that
+#: found a way not to honour its own.
+SANDBOX_WALL_CLOCK_SECONDS_LIMIT: Final[float] = 120.0
+
+#: The writable scratch mount. A capability downloading a large log needs room;
+#: a capability filling the host disk is a denial of service against every
+#: other investigation on the node.
+SANDBOX_SCRATCH_BYTES_LIMIT: Final[int] = 256 * 1024 * 1024
+
+#: Capabilities fork — a shell pipeline is three processes — so the limit is
+#: well above one and well below what a fork bomb needs.
+SANDBOX_MAX_PROCESSES: Final[int] = 64
+
+#: Where the writable scratch mount and the read-only content mount appear
+#: inside the sandbox. Fixed paths, because a capability's working directory
+#: has to be the same in all three profiles for its behaviour to be.
+SANDBOX_SCRATCH_MOUNT_PATH: Final = "/scratch"
+SANDBOX_CONTENT_MOUNT_PATH: Final = "/opt/ninjasre/content"
+
+#: How long a sandbox lives without a refresh. Long enough that a normal
+#: investigation never touches it, short enough that an agent killed mid-run
+#: does not leave a pod billing overnight.
+SANDBOX_TTL_SECONDS: Final[int] = 900
+
+#: How often an active investigation pushes its sandbox's expiry out. A third
+#: of the TTL, so two consecutive missed refreshes still leave margin.
+SANDBOX_TTL_REFRESH_INTERVAL_SECONDS: Final[float] = 300.0
+
+#: Idle instances the ``kubernetes`` profile keeps claimable. Two rather than
+#: one because the second concurrent alert is common and the third is not.
+SANDBOX_WARM_POOL_SIZE: Final[int] = 2
+
+#: What provisioning is allowed to cost when the pool has capacity, asserted in
+#: the contract suite. A claim is a label write; anything approaching a second
+#: means the pool is exhausted and the request went to on-demand provisioning.
+SANDBOX_PROVISIONING_LATENCY_BUDGET_SECONDS: Final[float] = 0.5
+
+#: How long a reaper holds a sandbox before another replica may take it. Longer
+#: than a delete round-trip and shorter than the sweep interval, so a reaper
+#: that dies mid-sweep releases its claims by expiry rather than by cleanup.
+SANDBOX_REAPER_LEASE_SECONDS: Final[float] = 30.0
+SANDBOX_REAPER_INTERVAL_SECONDS: Final[float] = 60.0
+
+#: How often the runner samples a running sandbox's resource usage.
+#:
+#: The operating system's own limits — rlimits, cgroups, a pod's ``resources``
+#: block — are the enforcement and are not negotiable. This poll is what makes
+#: the *reason* knowable: an rlimit kill arrives as a signal with no
+#: explanation, and what a caller needs is which bound was crossed. Fast enough
+#: that the
+#: sample which crosses a bound is the one that reports it, slow enough that
+#: watching costs nothing measurable against a capability's own work.
+SANDBOX_MONITOR_INTERVAL_SECONDS: Final[float] = 0.05
+
+#: How far above a declared bound the kernel's own ceiling is set.
+#:
+#: The two enforcement points are deliberately not at the same value. If the
+#: kernel killed first, every limit would arrive as a bare signal and "which
+#: bound was crossed" would be unanswerable — so NinjaSRE's sampler holds
+#: the declared bound and the kernel holds a looser one behind it. A capability
+#: that crosses the declared bound is stopped with a reason; one that crosses it
+#: faster than the sampler polls is stopped without one, which is the correct
+#: order of preference.
+SANDBOX_KERNEL_BACKSTOP_FACTOR: Final[int] = 4
+
+#: The floor under the memory backstop. CPython reserves far more *address
+#: space* than it resident-sets, and ``RLIMIT_AS`` bounds the first — an
+#: address-space ceiling sized from a modest memory bound would fail during
+#: interpreter startup rather than during the capability's own allocation.
+SANDBOX_MEMORY_BACKSTOP_FLOOR_BYTES: Final[int] = 512 * 1024 * 1024
+
+#: How much CPU the kernel's ``SIGXCPU`` sits above the declared budget. Seconds
+#: rather than a factor, because a one-second budget and a sixty-second budget
+#: need the same absolute margin for the sampler to win the race.
+SANDBOX_CPU_BACKSTOP_MARGIN_SECONDS: Final[int] = 5
+
+#: How long a terminated sandbox process is given to exit on a polite signal
+#: before it is killed outright. Long enough for a Python interpreter to run its
+#: exception handlers and flush the partial output that is usually the whole
+#: diagnosis; short enough that cancellation still feels immediate.
+SANDBOX_TERMINATION_GRACE_SECONDS: Final[float] = 2.0
+
+#: The proxy variables the sandbox environment carries. Named here because they
+#: are environment-variable names, and every one of those lives in this tier —
+#: none of them holds a credential, only the address of the thing that does.
+SANDBOX_HTTP_PROXY_ENV: Final = "HTTP_PROXY"
+SANDBOX_HTTPS_PROXY_ENV: Final = "HTTPS_PROXY"
+SANDBOX_NO_PROXY_ENV: Final = "NO_PROXY"
+
+#: The Envoy sidecar's listener and admin ports in the ``kubernetes`` profile.
+#: The listener is where the pod's egress is redirected; the admin interface is
+#: bound to loopback so the sandbox container cannot reconfigure the thing
+#: enforcing its allow-list.
+SANDBOX_ENVOY_LISTENER_PORT: Final[int] = 15001
+SANDBOX_ENVOY_ADMIN_PORT: Final[int] = 15000
+
+#: Container names inside a sandbox pod. Stable, because interruption and log
+#: streaming both address a container by name.
+SANDBOX_CONTAINER_NAME: Final = "sandbox"
+SANDBOX_EGRESS_SIDECAR_NAME: Final = "egress"
+
+#: Pod annotations and labels the pool, the claim, and the reaper read. The
+#: cluster is the source of truth for which sandboxes exist, so these are the
+#: schema of that record.
+SANDBOX_EXPIRES_AT_ANNOTATION: Final = "ninjasre.io/expires-at"
+SANDBOX_INVESTIGATION_LABEL: Final = "ninjasre.io/investigation"
+SANDBOX_ORG_LABEL: Final = "ninjasre.io/org"
+SANDBOX_TEAM_LABEL: Final = "ninjasre.io/team"
+SANDBOX_STATE_LABEL: Final = "ninjasre.io/state"
+SANDBOX_LEASE_HOLDER_ANNOTATION: Final = "ninjasre.io/lease-holder"
+SANDBOX_LEASE_EXPIRES_AT_ANNOTATION: Final = "ninjasre.io/lease-expires-at"
+
+#: What a sandbox lifecycle transition and a refused egress are called in the
+#: audit trail.
+SANDBOX_LIFECYCLE_AUDIT_ACTION: Final = "sandbox.lifecycle"
+SANDBOX_EGRESS_AUDIT_ACTION: Final = "sandbox.egress"
+SANDBOX_AUDIT_RESOURCE_KIND: Final = "sandbox"
+
 # --- Side-effect classification ----------------------------------------------
 
 #: ``SIDE_EFFECT_LEVELS`` is ordered least to most dangerous, and the order is
@@ -256,6 +425,7 @@ __all__ = [
     "CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND",
     "CREDENTIAL_VERSION_SEPARATOR",
     "DEFAULT_MASKING_POLICY",
+    "DEFAULT_SANDBOX_PROFILE",
     "DEFAULT_SIDE_EFFECT_LEVEL",
     "GOOGLE_QUOTA_PROJECT_HEADER",
     "GUARDRAIL_ACTIONS",
@@ -266,6 +436,8 @@ __all__ = [
     "GUARDRAIL_AUDIT_RESOURCE_KIND",
     "GUARDRAIL_RELOAD_INTERVAL_SECONDS",
     "INTEGRATION_CONTEXT_HEADER",
+    "KUBERNETES_SERVICE_HOST_ENV",
+    "KUBERNETES_SERVICE_PORT_ENV",
     "MASKING_BUDGET_SECONDS_PER_MEGABYTE",
     "MASKING_ENABLED_BY_DEFAULT",
     "MASKING_POLICY_LEVELS",
@@ -277,17 +449,61 @@ __all__ = [
     "MASK_TOKEN_SEPARATOR",
     "MAX_SCAN_INPUT_BYTES",
     "MAX_SCAN_MATCHES",
+    "NINJASRE_CONTAINER_RUNTIME_ENV",
     "NINJASRE_CREDENTIAL_PROXY_TOKEN_ENV",
     "NINJASRE_CREDENTIAL_PROXY_URL_ENV",
     "NINJASRE_GUARDRAIL_RULES_PATH_ENV",
     "NINJASRE_MASKING_ENABLED_ENV",
     "NINJASRE_MASKING_POLICY_ENV",
+    "NINJASRE_SANDBOX_IMAGE_ENV",
+    "NINJASRE_SANDBOX_NAMESPACE_ENV",
+    "NINJASRE_SANDBOX_POOL_SIZE_ENV",
+    "NINJASRE_SANDBOX_PROFILE_ENV",
     "NINJASRE_VAULT_KEY_FILE_ENV",
     "NINJASRE_VAULT_MASTER_KEY_ENV",
     "PATTERN_VALIDATION_BUDGET_SECONDS",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",
     "REDACTION_PLACEHOLDER",
+    "SANDBOX_AUDIT_RESOURCE_KIND",
+    "SANDBOX_CONTAINER_NAME",
+    "SANDBOX_CONTENT_MOUNT_PATH",
+    "SANDBOX_CPU_BACKSTOP_MARGIN_SECONDS",
+    "SANDBOX_CPU_SECONDS_LIMIT",
+    "SANDBOX_EGRESS_AUDIT_ACTION",
+    "SANDBOX_EGRESS_SIDECAR_NAME",
+    "SANDBOX_ENVOY_ADMIN_PORT",
+    "SANDBOX_ENVOY_LISTENER_PORT",
+    "SANDBOX_EXPIRES_AT_ANNOTATION",
+    "SANDBOX_HTTPS_PROXY_ENV",
+    "SANDBOX_HTTP_PROXY_ENV",
+    "SANDBOX_INVESTIGATION_LABEL",
+    "SANDBOX_KERNEL_BACKSTOP_FACTOR",
+    "SANDBOX_LEASE_EXPIRES_AT_ANNOTATION",
+    "SANDBOX_LEASE_HOLDER_ANNOTATION",
+    "SANDBOX_LIFECYCLE_AUDIT_ACTION",
+    "SANDBOX_MAX_PROCESSES",
+    "SANDBOX_MEMORY_BACKSTOP_FLOOR_BYTES",
+    "SANDBOX_MEMORY_BYTES_LIMIT",
+    "SANDBOX_MONITOR_INTERVAL_SECONDS",
+    "SANDBOX_NO_PROXY_ENV",
+    "SANDBOX_ORG_LABEL",
+    "SANDBOX_PROFILES",
+    "SANDBOX_PROFILE_CONTAINER",
+    "SANDBOX_PROFILE_KUBERNETES",
+    "SANDBOX_PROFILE_PROCESS",
+    "SANDBOX_PROVISIONING_LATENCY_BUDGET_SECONDS",
+    "SANDBOX_REAPER_INTERVAL_SECONDS",
+    "SANDBOX_REAPER_LEASE_SECONDS",
+    "SANDBOX_SCRATCH_BYTES_LIMIT",
+    "SANDBOX_SCRATCH_MOUNT_PATH",
+    "SANDBOX_STATE_LABEL",
+    "SANDBOX_TEAM_LABEL",
+    "SANDBOX_TERMINATION_GRACE_SECONDS",
+    "SANDBOX_TTL_REFRESH_INTERVAL_SECONDS",
+    "SANDBOX_TTL_SECONDS",
+    "SANDBOX_WALL_CLOCK_SECONDS_LIMIT",
+    "SANDBOX_WARM_POOL_SIZE",
     "SIDE_EFFECT_DESTRUCTIVE",
     "SIDE_EFFECT_LEVELS",
     "SIDE_EFFECT_READ",

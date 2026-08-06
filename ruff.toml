@@ -83,6 +83,15 @@ ignore = [
 # engine, which is the thing the declarative rule exists to remove.
 "platform/credentials/proxy/injection.py" = ["ARG002"]
 "platform/credentials/proxy/signing/vendor.py" = ["ARG002"]
+# A resource monitor that cannot read a host's process accounting still keeps
+# the port's full signature — that is what makes it substitutable for the one
+# that can, and the scratch quota it *does* report is enforced either way.
+"platform/sandbox/profiles/process/monitor.py" = ["ARG002"]
+# The lighter profiles' lease is unconditional and correct: a sandbox that lives
+# inside one process has no second reaper racing for it. The method keeps the
+# port's signature so the Kubernetes profile, where there is one, is a drop-in.
+"platform/sandbox/profiles/process/runner.py" = ["ARG002"]
+"platform/sandbox/profiles/container/runner.py" = ["ARG002"]
 # The architecture fixtures exist to violate import boundaries on purpose. They
 # are never imported by the real package graph (pytest skips the directory via
 # ``norecursedirs``), so their imports are unused by construction.

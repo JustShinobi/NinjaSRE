@@ -222,6 +222,39 @@ def test_a_test_that_reaches_behind_the_ports_still_fails(tmp_path: Path) -> Non
     assert rules == {DRIVER_IMPORT_RULE, QUERY_EXECUTION_RULE}
 
 
+def test_a_sandbox_executing_a_command_is_not_a_query(tmp_path: Path) -> None:
+    """``execute`` is a verb two boundaries want, and only one of them is storage.
+
+    The ``Sandbox`` port runs a capability's command; a cursor runs a statement.
+    Exempting the receiver keeps the rule intact for the second — the assertions
+    below are as much about what still fails as about what no longer does.
+    """
+    module = tmp_path / "core" / "runner.py"
+    module.parent.mkdir(parents=True)
+    module.write_text(
+        "async def run(sandbox: object, connection: object, request: object) -> None:\n"
+        "    await sandbox.execute(request)\n"
+        "    await connection.execute(request)\n",
+        encoding="utf-8",
+    )
+
+    violations = find_violations([tmp_path])
+
+    assert len(violations) == 1
+    assert violations[0].line == 3
+
+
+def test_an_unqualified_execute_is_never_exempt(tmp_path: Path) -> None:
+    """A bare call has no receiver to vouch for it, so it is still a violation."""
+    module = tmp_path / "core" / "runner.py"
+    module.parent.mkdir(parents=True)
+    module.write_text(
+        "def run(execute: object) -> None:\n    execute('anything')\n", encoding="utf-8"
+    )
+
+    assert [violation.rule for violation in find_violations([tmp_path])] == [QUERY_EXECUTION_RULE]
+
+
 def test_the_repository_writes_no_query_outside_the_storage_tree() -> None:
     """The check, run over the repository it guards."""
     assert find_violations([Path(__file__).resolve().parents[3]]) == []
