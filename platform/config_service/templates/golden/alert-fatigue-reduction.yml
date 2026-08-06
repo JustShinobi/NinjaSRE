@@ -1,0 +1,52 @@
+# The alerts that fire constantly are the ones nobody reads, and the one that
+# mattered arrives in the middle of them.
+#
+# This template is tuned for volume rather than depth: a short budget per alert,
+# aggressive deduplication, and memory writing on so the corpus can eventually
+# answer "this fires every Tuesday" without anybody having noticed the pattern.
+
+name: alert-fatigue-reduction
+title: Alert-fatigue reduction
+summary: >-
+  Classifies high-volume alerts as noise or signal on a short budget, and builds
+  the record that shows which alert sources are worth keeping.
+use_case: >-
+  A team drowning in alerts that wants to know which ones have never once led to
+  an action before it deletes them.
+
+settings:
+  agents:
+    max_iterations: 6
+    tool_budget: 4
+    prompts:
+      investigator: >-
+        You are classifying an alert that fires often. Decide whether anything
+        is actually wrong, using as few capability calls as the evidence allows,
+        and say which. Be explicit when the answer is "nothing is wrong": a
+        confident dismissal is the useful output here, and hedging every one of
+        them costs the team the same attention the alert already did. If this
+        alert has fired before with the same outcome, say how often.
+
+  capabilities:
+    disabled_tags:
+      - remediation
+
+  policies:
+    memory:
+      read_enabled: true
+      write_enabled: true
+    strategy:
+      enabled: true
+    knowledge:
+      topology_enabled: false
+      knowledge_base_enabled: false
+    approvals:
+      threshold: write_reversible
+
+  surfaces:
+    enabled:
+      - rest_api
+    channels:
+      - platform: slack
+        channel: "#alert-review"
+        min_severity: error

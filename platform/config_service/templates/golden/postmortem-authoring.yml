@@ -1,0 +1,56 @@
+# Writing the post-mortem is the part of incident response that gets skipped,
+# and the corpus it would have built is the thing every later investigation
+# would have read.
+#
+# The write switch is what makes this template different from the others: it
+# proposes knowledge-base entries. Nothing it writes reaches the corpus without
+# a human approving it — an agent that wrote knowledge it later read would build
+# a self-reinforcing belief system with no external correction.
+
+name: postmortem-authoring
+title: Post-mortem authoring
+summary: >-
+  Assembles a post-mortem from an investigation's own trace and proposes it to
+  the knowledge base for review.
+use_case: >-
+  A team that holds post-mortem reviews and wants the first draft assembled from
+  the evidence rather than from memory a week later.
+
+settings:
+  agents:
+    max_iterations: 16
+    tool_budget: 12
+    prompts:
+      investigator: >-
+        You are assembling a post-mortem from an investigation that has already
+        happened. Reconstruct the timeline from the evidence in the trace, state
+        the root cause with the observations that support it, and separate what
+        was established from what was inferred. Do not invent a contributing
+        factor to make the narrative complete: a gap in the timeline is a
+        finding, and writing over it is how a post-mortem becomes fiction.
+
+  capabilities:
+    disabled_tags:
+      - remediation
+
+  policies:
+    memory:
+      read_enabled: true
+      write_enabled: true
+    strategy:
+      enabled: true
+    knowledge:
+      topology_enabled: true
+      knowledge_base_enabled: true
+    approvals:
+      threshold: write_reversible
+      expiry_hours: 72.0
+
+  surfaces:
+    enabled:
+      - rest_api
+      - web_console
+    report_destinations:
+      - kind: knowledge_base
+        target: "postmortems"
+        format: markdown

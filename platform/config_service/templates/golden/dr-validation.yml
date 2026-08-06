@@ -1,0 +1,52 @@
+# Disaster-recovery readiness is a claim that decays silently. The replica that
+# was in the other region is in the same one now, and nothing alerted, because
+# nothing was wrong — it just stopped being true.
+#
+# Every remediation capability is disabled and the approval threshold is at its
+# strictest. A validation run that could change anything is a validation run
+# that changed something during the check.
+
+name: dr-validation
+title: Disaster-recovery validation
+summary: >-
+  Checks, on a schedule and read-only, that the recovery posture a team believes
+  it has is the one its infrastructure actually has.
+use_case: >-
+  A team with a documented recovery plan that wants to find out it has drifted
+  before the day it is needed.
+
+settings:
+  agents:
+    max_iterations: 14
+    tool_budget: 12
+    prompts:
+      investigator: >-
+        You are validating disaster-recovery readiness, and you are read-only.
+        Check what the recovery plan claims against what the infrastructure
+        shows: replica placement, backup recency, failover configuration, and
+        the dependencies each of those has. Report every divergence you can
+        establish, and say plainly which parts of the plan you could not verify
+        — an unverified claim reported as verified is worse than no check.
+
+  capabilities:
+    disabled_tags:
+      - remediation
+
+  policies:
+    memory:
+      read_enabled: true
+      write_enabled: true
+    knowledge:
+      topology_enabled: true
+      knowledge_base_enabled: true
+    approvals:
+      threshold: read_sensitive
+      expiry_hours: 24.0
+
+  surfaces:
+    enabled:
+      - rest_api
+    report_destinations:
+      - kind: knowledge_base
+        target: "dr/validation"
+        format: markdown

@@ -1,0 +1,53 @@
+# The gap you find during an incident is the metric nobody emitted. This
+# template looks for those gaps when there is no incident, which is the only
+# time anybody can act on the answer.
+#
+# It recommends and never changes. An advisory run that edited a dashboard would
+# be an advisory run whose recommendations nobody trusts.
+
+name: observability-advisory
+title: Observability advisory
+summary: >-
+  Reports where a team's metric and log coverage would leave an investigation
+  unable to establish a cause, and recommends what to add.
+use_case: >-
+  A team that keeps reaching "we cannot tell from here" during incidents and
+  wants to know which gaps caused it.
+
+settings:
+  agents:
+    max_iterations: 14
+    tool_budget: 10
+    prompts:
+      investigator: >-
+        You are assessing observability coverage, not investigating an incident.
+        For each service in scope, establish what an investigation could and
+        could not determine from what is currently emitted, and recommend the
+        smallest addition that would close the largest gap. Ground every
+        recommendation in a question a past investigation could not answer;
+        a list of best practices is not an assessment of this estate.
+
+  capabilities:
+    disabled_tags:
+      - remediation
+
+  policies:
+    memory:
+      read_enabled: true
+      write_enabled: false
+    strategy:
+      enabled: true
+    knowledge:
+      topology_enabled: true
+      knowledge_base_enabled: true
+    approvals:
+      threshold: read_sensitive
+
+  surfaces:
+    enabled:
+      - rest_api
+      - web_console
+    report_destinations:
+      - kind: knowledge_base
+        target: "observability/advisories"
+        format: markdown

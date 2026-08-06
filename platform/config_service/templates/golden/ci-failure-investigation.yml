@@ -1,0 +1,54 @@
+# A pipeline went red. The question is almost always "what changed", and the
+# answer is almost always in the diff.
+#
+# The code-historian sub-agent exists because reading recent changes is a
+# separate search with a separate budget: an investigator that spends its whole
+# iteration budget in git never gets to the test output.
+
+name: ci-failure-investigation
+title: CI failure investigation
+summary: >-
+  Investigates failing pipelines against the changes that preceded them, and
+  reports back on the pull request rather than in a channel.
+use_case: >-
+  A team whose build breaks often enough that "which commit did this" is worth
+  answering automatically.
+
+settings:
+  agents:
+    max_iterations: 15
+    tool_budget: 10
+    prompts:
+      investigator: >-
+        A continuous-integration run has failed. Work out whether the failure is
+        caused by a change in the code under test, a change in the environment,
+        or a flake — and say which, with the evidence for it. Read the failure
+        output before reading the diff: a diff read first turns every
+        investigation into a search for a plausible culprit. If the same test has
+        failed before on unrelated changes, say so.
+    subagents:
+      - name: code-historian
+        description: >-
+          Reads what changed between the last passing run and this one, and
+          reports the changes that could plausibly cause the observed failure.
+        system_prompt: >-
+          You are reading recent changes on behalf of an investigation into a
+          failed build. Report only changes that could plausibly cause the
+          failure you were told about, each with the reason it could. An
+          exhaustive changelog is not useful; three ranked candidates are.
+        max_iterations: 5
+
+  policies:
+    memory:
+      read_enabled: true
+      write_enabled: true
+    approvals:
+      threshold: write_reversible
+
+  surfaces:
+    enabled:
+      - rest_api
+    report_destinations:
+      - kind: pull_request_comment
+        target: "origin"
+        format: markdown

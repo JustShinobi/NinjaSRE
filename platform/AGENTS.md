@@ -345,6 +345,51 @@ runbooks help" are two experiments and one switch would answer neither.
 Operator-facing documentation is
 [`docs/topology-and-knowledge.md`](../docs/topology-and-knowledge.md).
 
+## The configuration service, in one page
+
+`config_service/` is the control plane. Everything the runtime reads — prompts,
+models, sub-agent topology, enabled capabilities, integration references, policy
+switches — resolves from one org → team tree by deep merge. Hold a
+`ConfigService`: it wires the resolver, the validator, the template library, and
+the auditor from one gateway and one scope, and `RuntimeBindings.of` turns one
+resolution into the memory, strategy, knowledge, trust, and sub-agent objects the
+rest of the platform holds.
+
+Five things are load-bearing and non-obvious:
+
+- **The merge interprets nothing.** Sections recurse, everything else replaces,
+  and no key is a directive. Lists replace rather than concatenate, because
+  merging them needs identity semantics per list, which is a control key, which
+  is a configuration language. A document behaves the way the reviewer read it.
+- **Policies live outside the settings, in an envelope.** A node stores
+  `{settings, field_policies}`. A lock stored *inside* the settings would be a
+  control key the merge could see, and that is the exact thing the previous
+  paragraph rules out. `NodeDocument` is the only thing that unpacks it.
+- **Locks are enforced twice and the halves do different jobs.** The write check
+  is what an operator meets, and it names the locking node because a constraint
+  with an invisible origin gets routed around. The merge check is what makes
+  SC-002 true regardless of how a value reached storage — a restored backup, a
+  lock added afterwards, a direct database write — and it *skips* rather than
+  raises, because failing to resolve is failing to investigate.
+- **The cache key is the ancestor chain's own row versions, not a counter.**
+  `ConfigNode.version` already moves on every write, so a write anywhere in a
+  chain changes the fingerprint of every node beneath it, with nothing to keep in
+  step and no cross-process coordination problem. A counter held in memory is
+  correct only while one process does all the writing.
+- **Resolution never raises on a bad stored document.** Validation refused it at
+  the write; anything reaching the read path predates a schema change or bypassed
+  the service, and whatever cannot be read falls back to its shipped default —
+  which is a working system. An incident is the wrong time to discover a document
+  somebody stored last month.
+
+Cross-referencing capability and integration names is why `catalogue.py` is a
+pair of protocols: this is tier 3 and the registries are tier 2, so the
+composition root supplies readers. A validator with no catalogue does not check
+references, which is a wiring bug the composition root prevents rather than a
+mode anybody should use.
+
+Operator-facing documentation is [`docs/configuration.md`](../docs/configuration.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -359,6 +404,15 @@ Operator-facing documentation is
   contextual if the value could also be an ordinary English word.
 - A new isolation profile → a subpackage under `sandbox/profiles/`, and it is not
   finished until the contract suite passes against it as a fourth row.
+- A new configuration field → a typed field on the owning section under
+  `config_service/schema/`, with a default sourced from `config/constants/` or
+  `config/prompts/`, and its name added to that section's `*_FIELDS` tuple. The
+  tuple is what `Reader.close` rejects unknown keys against, so a field added
+  without it is a field the schema refuses.
+- A new configuration template → a document under
+  `config_service/templates/golden/` **and** its name in `GOLDEN_TEMPLATES`.
+  The library loads by name and raises on a missing file, because a template
+  that quietly stopped loading is one that quietly stopped being offered.
 - A new secret shape → a rule in `guardrails/defaults/rules.yml`, with a case in
   `tests/unit/platform/guardrails/test_engine.py` for the shape *and* one for a
   benign lookalike. A rule that fires on prose about a secret is a rule an

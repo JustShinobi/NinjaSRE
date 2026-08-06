@@ -1,0 +1,56 @@
+# The default deployment: a page arrives, an investigation runs, the answer
+# lands in the channel the humans are already in.
+#
+# Triage is the one use case where latency beats depth. The iteration budget is
+# deliberately below the platform ceiling, because an investigation that is
+# still running when somebody has already restarted the pod contributed nothing.
+
+name: incident-triage-slack
+title: Incident triage in Slack
+summary: >-
+  Investigates pages as they arrive and reports into the on-call channel, with
+  a budget tuned for the first ten minutes of an incident rather than for depth.
+use_case: >-
+  A team with an on-call rotation that wants an evidence-backed first pass on
+  every page before a human has finished reading the alert.
+
+settings:
+  agents:
+    max_iterations: 12
+    tool_budget: 8
+    prompts:
+      investigator: >-
+        You are triaging a live production page. Establish what is broken, what
+        changed, and what the blast radius is — in that order, and stop as soon
+        as the evidence supports an answer. Every claim must rest on an
+        observation you actually made; if you could not establish something, say
+        so rather than inferring it. Name the affected services explicitly, and
+        end with the single most useful next action for the human reading this.
+
+  capabilities:
+    disabled_tags:
+      - remediation
+
+  policies:
+    memory:
+      read_enabled: true
+      write_enabled: true
+    knowledge:
+      topology_enabled: true
+      knowledge_base_enabled: true
+    approvals:
+      threshold: write_reversible
+      expiry_hours: 1.0
+
+  surfaces:
+    enabled:
+      - chat
+      - rest_api
+    channels:
+      - platform: slack
+        channel: "#incidents"
+        min_severity: warning
+    report_destinations:
+      - kind: chat
+        target: "#incidents"
+        format: markdown

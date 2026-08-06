@@ -1,0 +1,50 @@
+# Cost investigations are the one use case that is not triggered by an alert.
+# Nothing is broken; something is expensive, and the interesting question is
+# which change three weeks ago made it so.
+#
+# The budget is the highest of the seven templates on purpose. There is no
+# incident waiting on the answer, and a cost investigation that stops early
+# reports the largest line item rather than the cause of the increase.
+
+name: cost-investigation
+title: Cloud cost investigation
+summary: >-
+  Investigates spend changes against the infrastructure and deployment changes
+  that preceded them, on a schedule rather than on a page.
+use_case: >-
+  A team that owns its cloud bill and wants the monthly increase attributed
+  before the finance conversation rather than during it.
+
+settings:
+  agents:
+    max_iterations: 20
+    tool_budget: 16
+    prompts:
+      investigator: >-
+        You are investigating a change in cloud spend. Attribute the change to
+        something that happened — a deployment, a scaling event, a retention
+        setting, a region — rather than reporting which resource is most
+        expensive. The largest line item is usually not the thing that changed,
+        and the thing that changed is the whole question. Quantify the increase
+        and say when it started.
+
+  capabilities:
+    disabled_tags:
+      - remediation
+
+  policies:
+    memory:
+      read_enabled: true
+      write_enabled: true
+    knowledge:
+      topology_enabled: true
+    approvals:
+      threshold: write_reversible
+
+  surfaces:
+    enabled:
+      - rest_api
+    report_destinations:
+      - kind: knowledge_base
+        target: "cost/monthly"
+        format: markdown
