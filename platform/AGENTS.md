@@ -210,6 +210,47 @@ Five things are load-bearing and non-obvious:
 equivalent, and `process` anywhere shares the host's mount table. Those gaps are
 named in the boot log and in the health report rather than left in a document.
 
+## Episodic memory, in one page
+
+`memory/` turns each finished investigation into one durable record and searches
+those records on behalf of a later one. Hold a `MemoryService`: it wires the
+root-prompt guidance hook, the `on_run_end` finalisation hook, and the retriever
+from one policy and one tenant scope, which is what stops the three disagreeing
+about whose corpus they are working on.
+
+Five things are load-bearing and non-obvious:
+
+- **Recall is agent-driven and nothing is pre-injected.** The opening prompt gets
+  guidance about *when* to search, never an episode. On a vague alert, similarity
+  search returns episodes that share vocabulary rather than a cause, and an agent
+  handed one before it has looked at anything reasons from it to a conclusion. It
+  costs an extra capability call per investigation and it is worth it.
+- **`resolved` means a root cause was established with evidence — not that
+  production was fixed.** Ranking promotes resolved episodes, so conflating the
+  two would promote episodes because somebody restarted a pod. The distinction is
+  stated in the model, the extraction prompt, and the shaped result the agent
+  reads, and a test asserts all three keep saying it.
+- **Effectiveness and ranking are weighted sums with stored versions.** Both feed
+  decisions that change agent behaviour, so both are testable, arguable, and
+  greppable — and a weight change without a version bump would silently
+  reinterpret the whole corpus.
+- **Exactly one episode per conversation, guarded twice.** The lifecycle refuses a
+  conversation it has already finalised (closing the two-concurrent-turns window)
+  and the write is an upsert by correlation id (closing the two-processes one).
+  Neither alone is enough.
+- **"Memory off" installs no hooks.** Not a hook that returns early — a registered
+  no-op still dispatches, still appears in the trace, and still occupies a slot in
+  the ordering a trajectory comparison reads. Reading and writing switch
+  separately, because the ablation worth running is a populated corpus the agent
+  may not consult.
+
+The default embedder is in-process and reaches no network, so a no-egress
+deployment keeps full memory function; it is lexical rather than semantic, and a
+deployment that wants better installs a model behind the same three-member port
+and re-embeds. Changing the model is a generation swap, never a write.
+
+Operator-facing documentation is [`docs/episodic-memory.md`](../docs/episodic-memory.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -231,6 +272,13 @@ named in the boot log and in the health report rather than left in a document.
 - Anything that compiles a regular expression written outside this repository →
   through `patterns.compile_untrusted`. A second copy of that validation is a
   second copy that can be relaxed independently.
+- A new embedding model → an implementation of `memory/embeddings/port.py`, and
+  moving an existing corpus onto it is `reembed_episodes`, never a configuration
+  change. Declaring the index with a different model raises on purpose.
+- A change to how a past incident is ranked → a weight in
+  `config/constants/memory.py` **and** the formula version beside it, plus the
+  golden ordering test. A weight moved without the version makes two different
+  scores look like one number.
 
 ---
 

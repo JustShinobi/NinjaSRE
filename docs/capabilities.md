@@ -69,7 +69,7 @@ Judge whether the evidence gathered so far supports a conclusion, and name what 
 
 #### `recall_similar_incidents`
 
-Search previous investigations for incidents resembling this one, and return what was concluded and what resolved them. Use early, before gathering evidence a previous run already gathered.
+Search previous investigations for incidents resembling this one, and return what was concluded, what the cause turned out to be, and which capabilities found it. Search on evidence you have gathered — an error string, an exit code, a failing component — not on the alert text.
 
 - **Side effect:** `read` — reads only
 - **Evidence:** incident from memory
@@ -84,6 +84,7 @@ Search previous investigations for incidents resembling this one, and return wha
 **Not for:**
 
 - looking up current system state, which a vendor tool reads directly
+- searching on the raw alert text before any evidence has been gathered
 
 #### `record_hypothesis`
 
