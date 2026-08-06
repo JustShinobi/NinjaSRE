@@ -23,13 +23,18 @@ classifiers = [
 # The datastore is not an extra, and the asymmetry with the LLM SDKs below is
 # deliberate. Provider neutrality (Article VI) says no vendor SDK may be
 # required; the single datastore (Article XI, ADR 0004) says exactly one store
-# is. A deployment installs PostgreSQL and these five, and chooses which model
+# is. A deployment installs PostgreSQL and these six, and chooses which model
 # provider — if any — to add.
+#
+# ``pyyaml`` is here rather than in an extra because guardrail rules are an
+# operator-editable file that has to load in every deployment. A deployment that
+# could not parse its ruleset would start unguarded, which FR-012 forbids.
 dependencies = [
     "alembic>=1.14",
     "asyncpg>=0.30",
     "cryptography>=44.0",
     "pgvector>=0.3.6",
+    "pyyaml>=6.0",
     "sqlalchemy[asyncio]>=2.0.36",
     "structlog>=24.4.0",
 ]
@@ -67,6 +72,11 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "ruff>=0.8",
+    # PyYAML ships no inline types, and ``mypy --strict`` over ``platform/``
+    # covers the guardrail rule loader. A stubs package rather than an
+    # ``ignore_missing_imports`` entry: the loader is parsing an operator's file
+    # into security rules, and that is the last place to give up type coverage.
+    "types-PyYAML>=6.0",
     # Provides the PostgreSQL the contract suite runs its second backend
     # against. Absent a Docker daemon the suite still runs, against the fakes
     # alone, and says so rather than reporting a pass it did not earn.

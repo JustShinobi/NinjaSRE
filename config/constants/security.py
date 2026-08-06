@@ -124,16 +124,83 @@ GUARDRAIL_ACTIONS: Final[tuple[str, ...]] = (
 #: infer the value behind it.
 REDACTION_PLACEHOLDER: Final = "[REDACTED]"
 
+#: How many matches one scan reports before it stops looking. A payload that
+#: produces more than this is not a payload with a few secrets in it; it is one
+#: whose every line matches, and continuing to enumerate them spends the
+#: incident's time to produce a list nobody reads.
+MAX_SCAN_MATCHES: Final[int] = 1_000
+
+#: The largest input one scan reads. Beyond this the tail is truncated and the
+#: truncation is recorded, because a scan that silently stopped looking is
+#: indistinguishable from a scan that found nothing.
+MAX_SCAN_INPUT_BYTES: Final[int] = 4 * 1024 * 1024
+
+#: How long an operator-supplied pattern may spend on the adversarial corpus
+#: before it is rejected at load. Generous by three orders of magnitude against
+#: what a linear pattern costs, so only genuine backtracking trips it.
+PATTERN_VALIDATION_BUDGET_SECONDS: Final[float] = 0.25
+
+#: How stale a hot-reloaded ruleset may be. Polling the file's modification time
+#: costs one ``stat`` per scan, which is cheaper than a watcher thread and is
+#: deterministic in a test — a watcher's delivery latency is not.
+GUARDRAIL_RELOAD_INTERVAL_SECONDS: Final[float] = 1.0
+
+#: What a guardrail action is called in the audit trail.
+GUARDRAIL_AUDIT_ACTION: Final = "guardrail.match"
+GUARDRAIL_AUDIT_RESOURCE_KIND: Final = "guardrail_rule"
+
 # --- Identifier masking ------------------------------------------------------
 
 NINJASRE_MASKING_ENABLED_ENV: Final = "NINJASRE_MASKING_ENABLED"
+NINJASRE_MASKING_POLICY_ENV: Final = "NINJASRE_MASKING_POLICY"
 
 #: Masking is reversible and applied around every external LLM call, then undone
-#: only when rendering to an authorised human (Article IV, clause 5).
+#: only when rendering to an authorised human.
 MASK_TOKEN_PREFIX: Final = "NSRE_MASK_"
+
+#: Separates the kind from the ordinal inside a token: ``NSRE_MASK_POD_1``. An
+#: underscore rather than a hyphen because a token has to survive a round trip
+#: through a model that may be summarising code, and a hyphen is what a model
+#: line-wraps on.
+MASK_TOKEN_SEPARATOR: Final = "_"
 
 #: Disabling masking is an operator decision that has to be made explicitly.
 MASKING_ENABLED_BY_DEFAULT: Final[bool] = True
+
+#: The four policy levels, ordered by how much they hide.
+#:
+#: ``local_models_exempt`` is not a fifth amount of masking — it is
+#: ``standard`` resolved per call against the provider, and ``off`` when the
+#: provider runs on the operator's own host. It exists because a deployment
+#: where nothing leaves the network has nothing to mask, and masking it anyway
+#: costs investigation quality for no gain.
+MASKING_POLICY_OFF: Final = "off"
+MASKING_POLICY_STANDARD: Final = "standard"
+MASKING_POLICY_STRICT: Final = "strict"
+MASKING_POLICY_LOCAL_MODELS_EXEMPT: Final = "local_models_exempt"
+
+MASKING_POLICY_LEVELS: Final[tuple[str, ...]] = (
+    MASKING_POLICY_OFF,
+    MASKING_POLICY_STANDARD,
+    MASKING_POLICY_STRICT,
+    MASKING_POLICY_LOCAL_MODELS_EXEMPT,
+)
+
+#: The measured sweet spot. ``strict`` adds service and deployment names, which
+#: is where the evaluation suite starts showing a quality cost.
+DEFAULT_MASKING_POLICY: Final = MASKING_POLICY_STANDARD
+
+#: The wall-clock budget masking and guardrail scanning may each spend per
+#: megabyte of evidence, asserted in ``tests/benchmarks``.
+#:
+#: Measured rather than chosen. The benchmark's corpus is built to be maximally
+#: expensive — every line carries something each detector has to look at and
+#: mostly reject — and the strictest policy costs a little under 0.4s per
+#: megabyte on it. The budget is set at roughly 1.6 times that, which is loose
+#: enough that a busy CI machine does not fail the build and tight enough that
+#: the failure mode this exists to catch does: a pattern that has started
+#: backtracking is slower by one to two orders of magnitude, not by half.
+MASKING_BUDGET_SECONDS_PER_MEGABYTE: Final[float] = 0.60
 
 # --- Side-effect classification ----------------------------------------------
 
@@ -188,21 +255,36 @@ __all__ = [
     "CREDENTIAL_RESOLUTION_AUDIT_ACTION",
     "CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND",
     "CREDENTIAL_VERSION_SEPARATOR",
+    "DEFAULT_MASKING_POLICY",
     "DEFAULT_SIDE_EFFECT_LEVEL",
+    "GOOGLE_QUOTA_PROJECT_HEADER",
     "GUARDRAIL_ACTIONS",
     "GUARDRAIL_ACTION_AUDIT",
     "GUARDRAIL_ACTION_BLOCK",
-    "GOOGLE_QUOTA_PROJECT_HEADER",
     "GUARDRAIL_ACTION_REDACT",
+    "GUARDRAIL_AUDIT_ACTION",
+    "GUARDRAIL_AUDIT_RESOURCE_KIND",
+    "GUARDRAIL_RELOAD_INTERVAL_SECONDS",
     "INTEGRATION_CONTEXT_HEADER",
+    "MASKING_BUDGET_SECONDS_PER_MEGABYTE",
     "MASKING_ENABLED_BY_DEFAULT",
+    "MASKING_POLICY_LEVELS",
+    "MASKING_POLICY_LOCAL_MODELS_EXEMPT",
+    "MASKING_POLICY_OFF",
+    "MASKING_POLICY_STANDARD",
+    "MASKING_POLICY_STRICT",
     "MASK_TOKEN_PREFIX",
+    "MASK_TOKEN_SEPARATOR",
+    "MAX_SCAN_INPUT_BYTES",
+    "MAX_SCAN_MATCHES",
     "NINJASRE_CREDENTIAL_PROXY_TOKEN_ENV",
     "NINJASRE_CREDENTIAL_PROXY_URL_ENV",
     "NINJASRE_GUARDRAIL_RULES_PATH_ENV",
     "NINJASRE_MASKING_ENABLED_ENV",
+    "NINJASRE_MASKING_POLICY_ENV",
     "NINJASRE_VAULT_KEY_FILE_ENV",
     "NINJASRE_VAULT_MASTER_KEY_ENV",
+    "PATTERN_VALIDATION_BUDGET_SECONDS",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",
     "REDACTION_PLACEHOLDER",

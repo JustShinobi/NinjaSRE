@@ -1,0 +1,122 @@
+# The secret shapes NinjaSRE ships with, as defence in depth.
+#
+# The credential proxy already keeps the credentials NinjaSRE *manages* out of
+# the agent's reach. These rules are for the ones it does not manage: a
+# connection string in a log line, a bearer token in an error message, a private
+# key somebody pasted into a runbook. Data, not configuration — which is exactly
+# the half a credential proxy cannot help with.
+#
+# Every pattern here is bounded. An unbounded quantifier next to an overlapping
+# one backtracks exponentially, and the text these run against is a log line
+# somebody else wrote; `platform/patterns.py` rejects one at load, and
+# `tests/security/test_redos_corpus.py` times the whole set.
+#
+# `keywords` is a prefilter, not a second matcher. A rule whose keywords are
+# absent never runs its patterns, which is what keeps this set affordable on a
+# ten-megabyte evidence payload.
+#
+# To change any of this, write your own file and point
+# NINJASRE_GUARDRAIL_RULES_PATH at it. Rules there are merged onto these by
+# name: a new name is added, and a name that appears here is replaced — which is
+# how one of these gets disabled without editing the package.
+
+version: 1
+
+rules:
+  - name: aws-access-key-id
+    description: An AWS access key identifier, which names the secret beside it.
+    action: redact
+    keywords: ["akia", "asia", "abia", "acca"]
+    patterns:
+      - '\b(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}\b'
+
+  - name: aws-secret-access-key
+    description: A forty-character AWS secret, behind its own label.
+    action: block
+    keywords: ["secret", "aws_secret"]
+    patterns:
+      - '(?i)aws[_-]?secret[_-]?access[_-]?key["'']?\s{0,4}[=:]\s{0,4}["'']?[A-Za-z0-9/+=]{40}'
+
+  - name: private-key-block
+    description: A PEM private key of any flavour. Never legitimately in evidence.
+    action: block
+    keywords: ["begin", "private key"]
+    patterns:
+      - '-----BEGIN (?:RSA |DSA |EC |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY-----'
+
+  - name: json-web-token
+    description: A signed JWT, header and payload and signature.
+    action: redact
+    keywords: ["eyj"]
+    patterns:
+      - '\beyJ[A-Za-z0-9_-]{8,2048}\.[A-Za-z0-9_-]{8,4096}\.[A-Za-z0-9_-]{8,2048}\b'
+
+  - name: database-connection-string
+    description: A database URL carrying its own password.
+    action: redact
+    keywords: ["://"]
+    patterns:
+      - '\b(?:postgres|postgresql|mysql|mariadb|mongodb|redis|amqp|rediss|mongodb\+srv)://[^\s:@/]{1,128}:[^\s@/]{1,256}@[^\s/]{1,256}'
+
+  - name: bearer-token
+    description: An Authorization header value, however it reached the log.
+    action: redact
+    keywords: ["bearer", "authorization"]
+    patterns:
+      - '(?i)\bbearer\s{1,4}[A-Za-z0-9._~+/=-]{16,2048}'
+      - '(?i)\bauthorization["'']?\s{0,4}[=:]\s{0,4}["'']?(?:basic|token)\s{1,4}[A-Za-z0-9._~+/=-]{16,2048}'
+
+  - name: github-token
+    description: A GitHub personal access, app, or refresh token.
+    action: block
+    keywords: ["ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_"]
+    patterns:
+      - '\bgh[pousr]_[A-Za-z0-9]{36,255}\b'
+      - '\bgithub_pat_[A-Za-z0-9_]{22,255}\b'
+
+  - name: slack-token
+    description: A Slack bot, user, or app token.
+    action: block
+    keywords: ["xoxb-", "xoxp-", "xoxa-", "xoxs-", "xapp-"]
+    patterns:
+      - '\bxox[baprs]-[A-Za-z0-9-]{10,255}\b'
+      - '\bxapp-[0-9]-[A-Za-z0-9-]{10,255}\b'
+
+  - name: openai-style-api-key
+    description: The `sk-`-prefixed shape several vendors share.
+    action: block
+    keywords: ["sk-", "sk_live", "sk_test"]
+    patterns:
+      - '\bsk-(?:proj-|live-|test-|ant-)?[A-Za-z0-9_-]{20,255}\b'
+      - '\bsk_(?:live|test)_[A-Za-z0-9]{16,255}\b'
+
+  - name: google-api-key
+    description: A Google Cloud API key.
+    action: block
+    keywords: ["aiza"]
+    patterns:
+      - '\bAIza[0-9A-Za-z_-]{35}\b'
+
+  - name: generic-labelled-secret
+    description: >-
+      A value behind a label that says what it is. The catch-all: it fires on
+      shapes the specific rules above do not know, and it is why a vendor
+      NinjaSRE has never heard of still gets its token redacted.
+    action: redact
+    keywords: ["secret", "password", "passwd", "api_key", "apikey", "api-key", "token", "credential"]
+    patterns:
+      - '(?i)\b(?:api[_-]?key|apikey|secret[_-]?key|client[_-]?secret|access[_-]?token|refresh[_-]?token|auth[_-]?token|password|passwd|credential)["'']?\s{0,4}[=:]\s{0,4}["'']?[A-Za-z0-9._~+/=-]{12,512}'
+
+  - name: pem-certificate-key-material
+    description: An encrypted key body, which is still key material.
+    action: block
+    keywords: ["proc-type", "dek-info"]
+    patterns:
+      - '(?i)\bDEK-Info:\s{0,4}[A-Z0-9-]{3,32},[0-9A-Fa-f]{16,64}'
+
+  - name: kubernetes-service-account-token
+    description: A projected service-account token, which is a JWT with a home.
+    action: block
+    keywords: ["serviceaccount", "service-account", "service_account"]
+    patterns:
+      - '(?i)service[_-]?account[_-]?token["'']?\s{0,4}[=:]\s{0,4}["'']?[A-Za-z0-9._-]{20,4096}'

@@ -123,6 +123,45 @@ Adding a vendor means a package under `integrations/`, not a change here. A
 signing scheme is the exception: signing needs the key, so it is a
 `RequestSigner` in `proxy/signing/`.
 
+## Guardrails and masking, in one page
+
+`credentials/` keeps the secrets NinjaSRE *manages* out of the agent's reach.
+These two are for what is left: the identifiers legitimately in reach, and the
+secrets that turn up in *data* rather than in configuration.
+
+**`masking/` is reversible; `guardrails/` is not.** That difference is the whole
+design. An identifier is replaced by a stable token and put back for a reader
+entitled to it, because a report saying `[REDACTED] is OOMKilling` is a report
+nobody can act on. A secret is removed, because it should not have been there.
+
+Four things are load-bearing and non-obvious:
+
+- **Masking applies at one place and one place only** — `masking/llm.py`, a
+  decorator over `LLMClient`. Everything above it deals in real pod names, so
+  nothing downstream ever has to reproduce a token exactly. Putting it inside
+  `core/llm/` would mean nine adapters each of which could be the one that
+  forgot.
+- **A token is stable for the whole run.** Random per-occurrence tokens would be
+  marginally safer and would destroy the product: correlating one pod across two
+  evidence sources is most of what an investigation does. That costs a mapping
+  table, and the table is itself sensitive — its `repr` names nothing on purpose.
+- **Every pattern is bounded, and an outside pattern is validated at load.**
+  `patterns.py` rejects an unbounded quantifier inside a repeated group and times
+  everything else against short adversarial runs. The input these run against is
+  a log line somebody else wrote, so a backtracking pattern is a denial of
+  service reachable by writing a log message.
+- **Redaction happens at the sink, not at the call site** (`guardrails/sinks.py`).
+  The engineer at their own terminal is already authorised and sees the whole
+  failure; the same code path produces the safe summary for an HTTP response.
+  Redacting centrally would have made local debugging worse and nothing safer.
+
+The engine cannot be removed from the boundary. `GuardrailEngine.observing()`
+downgrades every action to `audit` — nothing altered, nothing blocked,
+everything still recorded — and that, not "no engine", is what the ablation in
+`trust_controls.py` flips.
+
+Operator-facing documentation is [`docs/guardrails-and-masking.md`](../docs/guardrails-and-masking.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -133,6 +172,15 @@ signing scheme is the exception: signing needs the key, so it is a
   `CredentialStore.reveal` returns secret material, and only the proxy calls it.
 - A service the agent uses but does not reason about → its own subpackage here,
   not into `core/`.
+- A new identifier shape → a `Detector` in `masking/detectors.py`, bounded, and
+  contextual if the value could also be an ordinary English word.
+- A new secret shape → a rule in `guardrails/defaults/rules.yml`, with a case in
+  `tests/unit/platform/guardrails/test_engine.py` for the shape *and* one for a
+  benign lookalike. A rule that fires on prose about a secret is a rule an
+  operator disables within a week, after which it protects nothing.
+- Anything that compiles a regular expression written outside this repository →
+  through `patterns.compile_untrusted`. A second copy of that validation is a
+  second copy that can be relaxed independently.
 
 ---
 
