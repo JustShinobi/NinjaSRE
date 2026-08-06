@@ -69,7 +69,7 @@ Judge whether the evidence gathered so far supports a conclusion, and name what 
 
 #### `recall_similar_incidents`
 
-Search previous investigations for incidents resembling this one, and return what was concluded, what the cause turned out to be, and which capabilities found it. Search on evidence you have gathered — an error string, an exit code, a failing component — not on the alert text.
+Search previous investigations for incidents resembling this one, and return what was concluded, what the cause turned out to be, and which capabilities found it. Where enough similar incidents exist, a synthesised playbook is returned alongside them — common causes, an effective investigation order, and approaches that previously led nowhere. Search on evidence you have gathered — an error string, an exit code, a failing component — not on the alert text.
 
 - **Side effect:** `read` — reads only
 - **Evidence:** incident from memory

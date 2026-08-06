@@ -31,7 +31,14 @@ from platform.memory.retrieval import RecallResult
 
 @runtime_checkable
 class RecallSource(Protocol):
-    """Whatever answers a recall. ``MemoryRetriever`` satisfies this structurally."""
+    """Whatever answers a recall.
+
+    ``MemoryRetriever`` satisfies this structurally, and so does
+    ``StrategyRecall`` — which is the whole reason playbooks arrive through this
+    capability rather than through a second one. The composition root decides
+    which of the two a deployment binds; the tool cannot tell them apart and does
+    not need to.
+    """
 
     async def search(self, query: RecallQuery) -> RecallResult:
         """Return the episodes resembling ``query``, ranked and team-scoped."""

@@ -1,4 +1,4 @@
-"""Episodic memory over PostgreSQL."""
+"""Episodic memory, and the playbooks synthesised from it, over PostgreSQL."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.sql.elements import ColumnElement
 
-from platform.persistence.ports.episode_store import Episode, EpisodeOutcome
+from platform.persistence.ports.episode_store import Episode, EpisodeOutcome, StoredStrategy
 from platform.persistence.postgres import models
 from platform.persistence.postgres.repositories.common import (
     TenantBound,
@@ -36,9 +36,20 @@ def _to_episode(row: models.Episode) -> Episode:
     )
 
 
+def _to_strategy(row: models.Strategy) -> StoredStrategy:
+    return StoredStrategy(
+        team_node_id=row.team_node_id,
+        issue_type=row.issue_type,
+        component_key=row.component_key,
+        content=dict(row.content),
+        generated_at=as_utc(row.generated_at),
+        stale=row.stale,
+    )
+
+
 @dataclass(slots=True)
 class PostgresEpisodeStore(TenantBound):
-    """Episodes for one organisation."""
+    """Episodes and synthesised strategies for one organisation."""
 
     async def save(self, episode: Episode) -> Episode:
         """Store ``episode``, replacing any earlier version, and return it."""
@@ -138,6 +149,113 @@ class PostgresEpisodeStore(TenantBound):
         await self.session.delete(row)
         await self.session.flush()
         return True
+
+    # -- synthesised strategies ------------------------------------------------
+
+    async def save_strategy(self, strategy: StoredStrategy) -> StoredStrategy:
+        """Store ``strategy``, replacing any earlier version, and return it."""
+        row = await self._strategy_row(
+            team_node_id=strategy.team_node_id,
+            issue_type=strategy.issue_type,
+            component_key=strategy.component_key,
+        )
+        if row is None:
+            row = models.Strategy(
+                org_id=self.org_id,
+                team_node_id=strategy.team_node_id,
+                issue_type=strategy.issue_type,
+                component_key=strategy.component_key,
+            )
+            self.session.add(row)
+
+        row.content = check_payload(strategy.content, kind="strategy content")
+        row.generated_at = strategy.generated_at
+        row.stale = strategy.stale
+
+        await self.session.flush()
+        return _to_strategy(row)
+
+    async def get_strategy(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> StoredStrategy | None:
+        """Return the strategy for this key, stale or not, or ``None``."""
+        row = await self._strategy_row(
+            team_node_id=team_node_id, issue_type=issue_type, component_key=component_key
+        )
+        return _to_strategy(row) if row is not None else None
+
+    async def list_strategies(
+        self,
+        *,
+        team_node_id: str,
+        limit: int = 50,
+    ) -> tuple[StoredStrategy, ...]:
+        """Return the team's strategies, most recently generated first."""
+        check_limit(limit)
+        rows = await self.session.scalars(
+            select(models.Strategy)
+            .where(
+                models.Strategy.org_id == self.org_id,
+                models.Strategy.team_node_id == team_node_id,
+            )
+            .order_by(
+                models.Strategy.generated_at.desc(),
+                models.Strategy.issue_type.desc(),
+                models.Strategy.component_key.desc(),
+            )
+            .limit(limit)
+        )
+        return tuple(_to_strategy(row) for row in rows)
+
+    async def mark_strategies_stale(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> int:
+        """Mark the matching strategies stale and return how many changed."""
+        row = await self._strategy_row(
+            team_node_id=team_node_id, issue_type=issue_type, component_key=component_key
+        )
+        if row is None or row.stale:
+            return 0
+        row.stale = True
+        await self.session.flush()
+        return 1
+
+    async def delete_strategy(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> bool:
+        """Delete the strategy for this key and return whether it existed."""
+        row = await self._strategy_row(
+            team_node_id=team_node_id, issue_type=issue_type, component_key=component_key
+        )
+        if row is None:
+            return False
+        await self.session.delete(row)
+        await self.session.flush()
+        return True
+
+    async def _strategy_row(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> models.Strategy | None:
+        """Return the row for one strategy key, or ``None``."""
+        return await self.session.get(
+            models.Strategy, (self.org_id, team_node_id, issue_type, component_key)
+        )
 
     async def _recent(self, clause: ColumnElement[bool], *, limit: int) -> tuple[Episode, ...]:
         rows = await self.session.scalars(

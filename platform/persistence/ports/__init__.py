@@ -57,7 +57,12 @@ from platform.persistence.ports.credential_store import (
     CredentialStore,
     SecretValue,
 )
-from platform.persistence.ports.episode_store import Episode, EpisodeOutcome, EpisodeStore
+from platform.persistence.ports.episode_store import (
+    Episode,
+    EpisodeOutcome,
+    EpisodeStore,
+    StoredStrategy,
+)
 from platform.persistence.ports.health import (
     ExtensionStatus,
     HealthState,
@@ -184,6 +189,7 @@ __all__ = [
     "SessionStore",
     "SimilarityMatch",
     "StoreHealth",
+    "StoredStrategy",
     "SystemUnitOfWork",
     "TenantScope",
     "TokenDirectory",

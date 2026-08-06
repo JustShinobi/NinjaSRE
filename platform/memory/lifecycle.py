@@ -50,6 +50,7 @@ from platform.memory.models import MemoryEpisode
 from platform.memory.models import now as _utc_now
 from platform.memory.policy import MemoryPolicy
 from platform.memory.retrieval import RecallLedger
+from platform.memory.strategy.invalidation import StrategyInvalidator
 from platform.observability.logging import get_logger
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 from platform.persistence.ports.vector_index import VectorRecord
@@ -92,6 +93,7 @@ class MemoryLifecycle:
     engine: GuardrailEngine | None = None
     ledger: RecallLedger = field(default_factory=RecallLedger)
     clock: Callable[[], datetime] = _utc_now
+    invalidator: StrategyInvalidator | None = None
     _finalised: set[str] = field(default_factory=set, repr=False)
 
     def __post_init__(self) -> None:
@@ -303,6 +305,11 @@ class MemoryLifecycle:
                     )
                 ],
             )
+            if self.invalidator is not None:
+                # In the same unit of work as the episode, so there is no window
+                # in which the new episode exists and a playbook it contradicts
+                # is still being served as current.
+                await self.invalidator.on_episode_written(uow, merged)
 
     @staticmethod
     def _correlation_id(session: Session) -> str:

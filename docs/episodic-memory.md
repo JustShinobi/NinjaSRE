@@ -145,3 +145,14 @@ Two numbers, both in the test suite rather than in a claim:
 - The same repeat, with recall switched off, has to take the first run's
   trajectory. If it did not, the reduction would be measuring something other
   than memory.
+
+## What is built on top of it
+
+Once a team has several episodes of the same failure on the same component,
+NinjaSRE synthesises a **playbook** from them and returns it alongside the
+individual episodes — common causes, an effective investigation order, and the
+approaches that previously led nowhere. It is generated from this corpus and has
+no existence without it: no episodes, no playbooks.
+
+It has its own switch, its own retention behaviour, and its own way of being
+wrong. See [`strategy-synthesis.md`](strategy-synthesis.md).

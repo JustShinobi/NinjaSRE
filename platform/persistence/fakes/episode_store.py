@@ -1,13 +1,13 @@
-"""In-memory episodic memory."""
+"""In-memory episodic memory, and the playbooks synthesised from it."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
 from platform.persistence.fakes.state import TenantState, check_limit, check_payload
-from platform.persistence.ports.episode_store import Episode, EpisodeOutcome
+from platform.persistence.ports.episode_store import Episode, EpisodeOutcome, StoredStrategy
 
 #: Sorts before any real timestamp, so an episode with no recorded time falls
 #: to the end of a "most recent first" listing rather than the front of it.
@@ -79,6 +79,65 @@ class FakeEpisodeStore:
         """Delete ``episode_id`` and return whether it existed."""
         return self.state.episodes.pop(episode_id, None) is not None
 
+    # -- synthesised strategies ------------------------------------------------
+
+    async def save_strategy(self, strategy: StoredStrategy) -> StoredStrategy:
+        """Store ``strategy``, replacing any earlier version, and return it."""
+        check_payload(strategy.content, kind="strategy content")
+        self.state.strategies[_key(strategy)] = strategy
+        return strategy
+
+    async def get_strategy(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> StoredStrategy | None:
+        """Return the strategy for this key, stale or not, or ``None``."""
+        return self.state.strategies.get((team_node_id, issue_type, component_key))
+
+    async def list_strategies(
+        self,
+        *,
+        team_node_id: str,
+        limit: int = 50,
+    ) -> tuple[StoredStrategy, ...]:
+        """Return the team's strategies, most recently generated first."""
+        check_limit(limit)
+        found = sorted(
+            (s for s in self.state.strategies.values() if s.team_node_id == team_node_id),
+            key=lambda s: (s.generated_at or _UNDATED, s.issue_type, s.component_key),
+            reverse=True,
+        )
+        return tuple(found[:limit])
+
+    async def mark_strategies_stale(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> int:
+        """Mark the matching strategies stale and return how many changed."""
+        key = (team_node_id, issue_type, component_key)
+        found = self.state.strategies.get(key)
+        if found is None or found.stale:
+            return 0
+        self.state.strategies[key] = replace(found, stale=True)
+        return 1
+
+    async def delete_strategy(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> bool:
+        """Delete the strategy for this key and return whether it existed."""
+        key = (team_node_id, issue_type, component_key)
+        return self.state.strategies.pop(key, None) is not None
+
     @staticmethod
     def _recent_first(episodes: Iterable[Episode], limit: int) -> tuple[Episode, ...]:
         found = sorted(
@@ -87,6 +146,11 @@ class FakeEpisodeStore:
             reverse=True,
         )
         return tuple(found[:limit])
+
+
+def _key(strategy: StoredStrategy) -> tuple[str, str, str]:
+    """Return the dictionary key ``strategy`` is stored under."""
+    return (strategy.team_node_id, strategy.issue_type, strategy.component_key)
 
 
 def _within(

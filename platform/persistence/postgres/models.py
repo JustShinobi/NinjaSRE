@@ -375,6 +375,30 @@ class Episode(Base):
     episode_metadata: Mapped[dict[str, Any]] = _json()
 
 
+class Strategy(Base):
+    """One playbook synthesised from a team's episodes.
+
+    The primary key is the synthesis key itself rather than a generated id.
+    A strategy *is* its key — there is one playbook per team, issue type, and
+    normalised component — so an upsert is a primary-key upsert, and two
+    concurrent syntheses cannot produce two rows however they interleave.
+    """
+
+    __tablename__ = "strategies"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_strategies_generated", "org_id", "team_node_id", "generated_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), primary_key=True)
+    issue_type: Mapped[str] = mapped_column(String(NAME_LENGTH), primary_key=True)
+    component_key: Mapped[str] = mapped_column(String(NAME_LENGTH), primary_key=True)
+    content: Mapped[dict[str, Any]] = _json()
+    generated_at: Mapped[datetime | None] = _timestamp()
+    stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class KnowledgeDocument(Base):
     """One source document, as ingested."""
 

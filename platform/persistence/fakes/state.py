@@ -33,7 +33,7 @@ from platform.persistence.ports.approval_store import ApprovalRequest, RollbackP
 from platform.persistence.ports.audit_repository import AuditEvent
 from platform.persistence.ports.config_repository import ConfigNode, Organisation
 from platform.persistence.ports.credential_store import CredentialMetadata, SecretValue
-from platform.persistence.ports.episode_store import Episode
+from platform.persistence.ports.episode_store import Episode, StoredStrategy
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
 from platform.persistence.ports.knowledge_store import KnowledgeChunk, KnowledgeDocument
 from platform.persistence.ports.run_trace_store import (
@@ -52,6 +52,12 @@ from platform.persistence.ports.vector_index import IndexDescriptor, VectorRecor
 #: collapsing those onto one edge would lose the distinction a dependency graph
 #: exists to record.
 EdgeKey = tuple[str, str, str]
+
+#: Identifies a synthesised playbook within one organisation: the team, the
+#: issue type, and the normalised component key. The team is in the key rather
+#: than beside it because a playbook is a team's accumulated experience, and one
+#: team reading another's would be the cross-team leak FR-018 exists to prevent.
+StrategyKey = tuple[str, str, str]
 
 
 def check_limit(limit: int, *, parameter: str = "limit") -> int:
@@ -159,6 +165,7 @@ class TenantState:
     evidence: dict[str, EvidenceRecord] = field(default_factory=dict)
     sessions: dict[str, SessionRecord] = field(default_factory=dict)
     episodes: dict[str, Episode] = field(default_factory=dict)
+    strategies: dict[StrategyKey, StoredStrategy] = field(default_factory=dict)
     vector_indexes: dict[str, VectorNamespace] = field(default_factory=dict)
     documents: dict[str, KnowledgeDocument] = field(default_factory=dict)
     chunks: dict[str, KnowledgeChunk] = field(default_factory=dict)
@@ -197,6 +204,7 @@ __all__ = [
     "EdgeKey",
     "State",
     "StoredCredential",
+    "StrategyKey",
     "TenantState",
     "VectorGeneration",
     "VectorNamespace",

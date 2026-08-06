@@ -25,6 +25,13 @@ from typing import Final
 NINJASRE_MEMORY_READ_ENV: Final = "NINJASRE_MEMORY_READ"
 NINJASRE_MEMORY_WRITE_ENV: Final = "NINJASRE_MEMORY_WRITE"
 
+#: Turn synthesised strategies off for a deployment, leaving episodes alone. A
+#: third switch rather than a mode of the other two, because the ablation this
+#: feature has to answer for is "episodes only" versus "episodes and playbooks":
+#: folding it into the read switch would make the baseline a run with no memory
+#: at all and the comparison would measure recall rather than synthesis.
+NINJASRE_MEMORY_STRATEGY_ENV: Final = "NINJASRE_MEMORY_STRATEGY"
+
 #: Names the embedding model an operator wants, when it is not the local default.
 NINJASRE_EMBEDDING_MODEL_ENV: Final = "NINJASRE_EMBEDDING_MODEL"
 
@@ -110,6 +117,57 @@ RANK_WEIGHT_RECENCY: Final[float] = 0.10
 #: same failure modes — deploys, dependency versions, and traffic shape all move.
 RANKING_RECENCY_HALF_LIFE_DAYS: Final[float] = 30.0
 
+# --- Strategy synthesis ------------------------------------------------------
+
+#: Episodes sharing an issue type and a normalised component key before a
+#: playbook is worth synthesising. Two episodes are a coincidence; three is the
+#: smallest set from which "this keeps happening for these reasons" can be said
+#: at all, and below it the anti-patterns section would be one failed run
+#: generalised into a rule.
+MIN_EPISODES_FOR_STRATEGY: Final[int] = 3
+
+#: Episodes fed to one synthesis call, highest-scoring first. A bound on cost
+#: and on quality both: a playbook drawn from forty episodes is a literature
+#: review, and the twelve best-ranked ones already carry the recurring causes.
+STRATEGY_MAX_INPUT_EPISODES: Final[int] = 12
+
+#: Ceiling on the synthesis call's reply. A playbook is read inside an
+#: investigation's context budget alongside the episodes it was drawn from, so
+#: one that does not fit is one the agent never finishes reading.
+STRATEGY_MAX_OUTPUT_TOKENS: Final[int] = 1_536
+
+#: Items one playbook section may carry. The sections are ordered by
+#: effectiveness, so the cut is at the tail — and a "recommended steps" list
+#: longer than this is a transcript rather than a recommendation.
+MAX_STRATEGY_SECTION_ITEMS: Final[int] = 8
+
+#: Characters one item in a section may carry, so a model that answers a bullet
+#: with a paragraph costs that bullet rather than the playbook.
+MAX_STRATEGY_ITEM_CHARS: Final[int] = 600
+
+#: Age at which a playbook is regenerated even though nothing invalidated it.
+#: Infrastructure moves without producing an episode — a service is retired, a
+#: dependency is replaced — and a playbook nobody contradicted is not thereby
+#: a playbook anybody confirmed.
+STRATEGY_MAX_AGE_DAYS: Final[float] = 30.0
+
+#: How long a caller that lost the race for a strategy key waits for the winner
+#: before generating for itself. Long enough for one structured call to finish,
+#: short enough that a wedged generation does not hold an incident response.
+STRATEGY_LOCK_WAIT_SECONDS: Final[float] = 60.0
+
+#: Strategy keys one recall may look up. A recall that returned five episodes
+#: touching six components would otherwise be six cache reads and, on a cold
+#: cache, six synthesis calls — on the critical path of an incident. Two, because
+#: the ranking already put the most relevant subject first and the second slot is
+#: what covers a failure that spans a service and its datastore.
+MAX_STRATEGY_KEYS_PER_RECALL: Final[int] = 2
+
+#: Operator amendments kept on one playbook. They survive regeneration, so
+#: without a bound a strategy edited weekly for a year would carry fifty-two
+#: notes into every future context window.
+MAX_STRATEGY_OPERATOR_EDITS: Final[int] = 10
+
 # --- Embeddings --------------------------------------------------------------
 
 #: The default embedder: in-process, deterministic, and reaching no network.
@@ -145,10 +203,16 @@ __all__ = [
     "MAX_EPISODE_KEY_FINDINGS",
     "MAX_EPISODE_SUMMARY_CHARS",
     "MAX_MEMORY_RECALL_RESULTS",
+    "MAX_STRATEGY_ITEM_CHARS",
+    "MAX_STRATEGY_KEYS_PER_RECALL",
+    "MAX_STRATEGY_OPERATOR_EDITS",
+    "MAX_STRATEGY_SECTION_ITEMS",
     "MEMORY_RECALL_CANDIDATE_FACTOR",
+    "MIN_EPISODES_FOR_STRATEGY",
     "MIN_EPISODE_RESULT_LENGTH",
     "NINJASRE_EMBEDDING_MODEL_ENV",
     "NINJASRE_MEMORY_READ_ENV",
+    "NINJASRE_MEMORY_STRATEGY_ENV",
     "NINJASRE_MEMORY_WRITE_ENV",
     "RANKING_FORMULA_VERSION",
     "RANKING_RECENCY_HALF_LIFE_DAYS",
@@ -157,4 +221,8 @@ __all__ = [
     "RANK_WEIGHT_RECENCY",
     "RANK_WEIGHT_RESOLVED",
     "RANK_WEIGHT_SIMILARITY",
+    "STRATEGY_LOCK_WAIT_SECONDS",
+    "STRATEGY_MAX_AGE_DAYS",
+    "STRATEGY_MAX_INPUT_EPISODES",
+    "STRATEGY_MAX_OUTPUT_TOKENS",
 ]

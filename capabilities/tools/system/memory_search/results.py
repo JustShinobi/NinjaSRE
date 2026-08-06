@@ -21,11 +21,20 @@ this", and the reference points at the episode so a reader can go and check. A
 finding lifted out of a past run and presented as an observation of this one
 would be a fabricated citation, which is the exact thing Article I exists to make
 impossible.
+
+A synthesised playbook is a lead of a weaker kind again, and it is labelled to
+say so. It is a *generalisation over* previous investigations, not an observation
+of any of them — so its heading says which failure and which component it
+generalises, how many runs it was drawn from, and the span of time they cover,
+and it says outright that evidence from this incident wins where the two
+disagree. All three of those are the difference between an agent weighing a
+playbook and an agent obeying one.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
 from config.prompts.memory import (
@@ -33,10 +42,17 @@ from config.prompts.memory import (
     MEMORY_RECALL_EPISODE,
     MEMORY_RECALL_HEADER,
 )
+from config.prompts.strategy import (
+    STRATEGY_RECALL_HEADER,
+    STRATEGY_RECALL_OPERATOR_EDITS,
+    STRATEGY_RECALL_SECTION,
+    STRATEGY_SECTION_TITLES,
+)
 from core.capability.metadata import EvidenceSource, EvidenceType
 from core.capability.result import Evidence
 from platform.memory.models import ScoredEpisode
 from platform.memory.retrieval import RecallResult
+from platform.memory.strategy.models import Strategy
 
 #: What one recalled episode's outcome reads as. Spelled out rather than
 #: ``True``/``False``, because the flag's meaning is not what the word "resolved"
@@ -65,8 +81,51 @@ def describe(found: ScoredEpisode, *, rank: int) -> str:
     )
 
 
+def describe_strategy(strategy: Strategy) -> str:
+    """Return one synthesised playbook as the model is shown it.
+
+    Empty sections are omitted rather than printed as headings with nothing under
+    them. A set of episodes that all resolved has no anti-patterns, and an empty
+    "Anti-patterns" heading reads as an assertion that none exist rather than as
+    the absence of an answer.
+    """
+    lines = [
+        STRATEGY_RECALL_HEADER.format(
+            label=strategy.key.label,
+            count=strategy.episode_count,
+            issue_type=strategy.key.issue_type,
+            component_key=strategy.key.component_key,
+            earliest=_when(strategy.earliest_episode_at),
+            latest=_when(strategy.latest_episode_at),
+        )
+    ]
+    for section, items in strategy.sections().items():
+        if items:
+            lines.append(
+                STRATEGY_RECALL_SECTION.format(
+                    title=STRATEGY_SECTION_TITLES[section.value], items=_bullets(items)
+                )
+            )
+    if strategy.operator_edits:
+        lines.append(
+            STRATEGY_RECALL_OPERATOR_EDITS.format(
+                items=_bullets(
+                    tuple(f"{edit.note} — {edit.author}" for edit in strategy.operator_edits)
+                )
+            )
+        )
+    return "\n".join(lines)
+
+
 def render(result: RecallResult) -> str:
-    """Return the whole recall as one block of text, empty results included."""
+    """Return the whole recall as one block of text, empty results included.
+
+    Episodes first, playbooks after. The order is the argument the guidance makes
+    in prose: a precedent is checked against what has actually been observed, and
+    a generalisation over precedents is checked against both. Leading with the
+    playbook would put the most confident and least specific thing in the model's
+    context first.
+    """
     if result.empty:
         return MEMORY_RECALL_EMPTY
     return "\n\n".join(
@@ -76,8 +135,24 @@ def render(result: RecallResult) -> str:
                 describe(found, rank=position)
                 for position, found in enumerate(result.episodes, start=1)
             ),
+            *(describe_strategy(strategy) for strategy in result.strategies),
         )
     )
+
+
+def _bullets(items: tuple[str, ...]) -> str:
+    """Return ``items`` as an indented list under a section heading."""
+    return "\n".join(f"    - {item}" for item in items)
+
+
+def _when(moment: datetime | None) -> str:
+    """Return a date as the playbook's range shows it."""
+    return moment.date().isoformat() if moment else "not recorded"
+
+
+def _iso(moment: datetime | None) -> str | None:
+    """Return an instant as the structured value carries it."""
+    return moment.isoformat() if moment else None
 
 
 def evidence_for(episodes: Sequence[ScoredEpisode]) -> tuple[Evidence, ...]:
@@ -98,6 +173,51 @@ def evidence_for(episodes: Sequence[ScoredEpisode]) -> tuple[Evidence, ...]:
     )
 
 
+def strategy_evidence(strategies: Sequence[Strategy]) -> tuple[Evidence, ...]:
+    """Return one evidence entry per playbook, referencing the playbook.
+
+    The summary says what the thing is — a generalisation over N investigations —
+    rather than what it concludes. An evidence entry that read "the cause is
+    usually a lowered memory limit" would enter the trace as an observation, and
+    a diagnosis citing it would be citing a summary of other incidents as though
+    it were a measurement of this one.
+    """
+    return tuple(
+        Evidence(
+            source=EvidenceSource.MEMORY,
+            evidence_type=EvidenceType.INCIDENT,
+            summary=(
+                f"A playbook synthesised from {strategy.episode_count} previous "
+                f"investigation(s) of {strategy.key.issue_type} on "
+                f"{strategy.key.component_key}. It generalises over those runs and is "
+                f"not an observation of this incident."
+            ),
+            reference=strategy.key.label,
+        )
+        for strategy in strategies
+    )
+
+
+def shape_strategy(strategy: Strategy) -> dict[str, Any]:
+    """Return one playbook as the trace, the console, and the harness read it."""
+    return {
+        "label": strategy.key.label,
+        "issue_type": strategy.key.issue_type,
+        "component_key": strategy.key.component_key,
+        "synthesised": True,
+        **{section.value: list(items) for section, items in strategy.sections().items()},
+        "episode_count": strategy.episode_count,
+        "source_episode_ids": list(strategy.source_episode_ids),
+        "anti_pattern_episode_ids": list(strategy.anti_pattern_episode_ids),
+        "earliest_episode_at": _iso(strategy.earliest_episode_at),
+        "latest_episode_at": _iso(strategy.latest_episode_at),
+        "generated_at": _iso(strategy.generated_at),
+        "prompt_version": strategy.prompt_version,
+        "stale": strategy.stale,
+        "operator_edits": [edit.to_record() for edit in strategy.operator_edits],
+    }
+
+
 def shape(result: RecallResult) -> dict[str, Any]:
     """Return the structured value the tool hands back.
 
@@ -111,7 +231,9 @@ def shape(result: RecallResult) -> dict[str, Any]:
         "component": result.query.component,
         "issue_type": result.query.issue_type,
         "count": len(result.episodes),
+        "strategy_count": len(result.strategies),
         "text": render(result),
+        "strategies": [shape_strategy(strategy) for strategy in result.strategies],
         "episodes": [
             {
                 "correlation_id": found.correlation_id,
@@ -140,7 +262,10 @@ __all__ = [
     "OUTCOME_RESOLVED",
     "OUTCOME_UNRESOLVED",
     "describe",
+    "describe_strategy",
     "evidence_for",
     "render",
     "shape",
+    "shape_strategy",
+    "strategy_evidence",
 ]

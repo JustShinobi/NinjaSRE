@@ -48,8 +48,11 @@ _RECALL_ANTI_EXAMPLES = (
     description=(
         "Search previous investigations for incidents resembling this one, and return "
         "what was concluded, what the cause turned out to be, and which capabilities "
-        "found it. Search on evidence you have gathered — an error string, an exit "
-        "code, a failing component — not on the alert text."
+        "found it. Where enough similar incidents exist, a synthesised playbook is "
+        "returned alongside them — common causes, an effective investigation order, "
+        "and approaches that previously led nowhere. Search on evidence you have "
+        "gathered — an error string, an exit code, a failing component — not on the "
+        "alert text."
     ),
     domain="methodology",
     evidence_source=EvidenceSource.MEMORY,
@@ -104,5 +107,8 @@ async def recall_similar_incidents(
     return CapabilityResult.ok(
         TOOL_NAME,
         value=results.shape(result),
-        evidence=results.evidence_for(result.episodes),
+        evidence=(
+            *results.evidence_for(result.episodes),
+            *results.strategy_evidence(result.strategies),
+        ),
     )

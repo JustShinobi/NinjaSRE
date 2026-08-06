@@ -27,7 +27,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from config.constants.memory import (
     DEFAULT_MEMORY_RECALL_RESULTS,
@@ -46,6 +46,9 @@ from platform.persistence.errors import PersistenceError, VectorNamespaceUnknown
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 from platform.persistence.ports.vector_index import SimilarityMatch
 
+if TYPE_CHECKING:  # The strategy package imports this module, so this is a name only.
+    from platform.memory.strategy.models import Strategy
+
 logger = get_logger(__name__)
 
 #: The metadata key the team filter is applied on. One name, used by the writer
@@ -57,12 +60,21 @@ TEAM_METADATA_KEY = "team_node_id"
 
 @dataclass(frozen=True, slots=True)
 class RecallResult:
-    """What one search returned, and whether it ran at all."""
+    """What one search returned, and whether it ran at all.
+
+    ``strategies`` is filled in by the synthesis layer *after* the search, never
+    by this module. Keeping the field here rather than in a second result type is
+    what lets one capability return both without every implementer of the recall
+    protocol learning about playbooks; ``empty`` and ``correlation_ids`` stay
+    about episodes for the same reason, because they answer "did this failure
+    happen before", which a generalisation cannot.
+    """
 
     query: RecallQuery
     episodes: tuple[ScoredEpisode, ...] = ()
     searched: bool = True
     reason: str = ""
+    strategies: tuple[Strategy, ...] = ()
 
     @property
     def empty(self) -> bool:
@@ -86,6 +98,12 @@ class RecallRecord:
     searched: bool = True
     reason: str = ""
     acted_on: bool = False
+    #: The playbooks this recall also surfaced, by label, and whether the run
+    #: went on to use one. Separate from ``acted_on`` because the ablation asks
+    #: whether *synthesis* changed the answer, and an agent that cited three
+    #: episodes and ignored the playbook has answered that question with a no.
+    strategies: tuple[str, ...] = ()
+    strategy_acted_on: bool = False
 
     def to_record(self) -> dict[str, Any]:
         """Return a JSON-serialisable record of this recall."""
@@ -97,6 +115,8 @@ class RecallRecord:
             "searched": self.searched,
             "reason": self.reason,
             "acted_on": self.acted_on,
+            "strategies": list(self.strategies),
+            "strategy_acted_on": self.strategy_acted_on,
         }
 
 
@@ -120,8 +140,21 @@ class RecallLedger:
             returned=result.correlation_ids,
             searched=result.searched,
             reason=result.reason,
+            strategies=tuple(strategy.key.label for strategy in result.strategies),
         )
         self.records.append(entry)
+        return entry
+
+    def attach_strategies(self, entry: RecallRecord, labels: Sequence[str]) -> RecallRecord:
+        """Note that ``entry``'s recall also surfaced these playbooks.
+
+        Separate from ``record`` because synthesis happens after the search: the
+        recall is already in the ledger by the time anybody knows whether a
+        playbook came with it, and rewriting history from the search path would
+        mean the search knew about strategies, which is the coupling this
+        arrangement exists to avoid.
+        """
+        entry.strategies = tuple(labels)
         return entry
 
     def mark_acted_on(self, text: str) -> int:
@@ -132,14 +165,18 @@ class RecallLedger:
         by accident, so a run whose answer contains one either cited it or was
         shown it by the shaped result and repeated it. Either way the recall
         reached the conclusion, which is what the number is about.
+
+        Playbook labels are matched the same way and counted separately. "The
+        agent had a playbook" and "the agent used it" are different facts, and
+        the ablation is about the second one.
         """
         marked = 0
         for entry in self.records:
-            if entry.acted_on or not entry.returned:
-                continue
-            if any(correlation_id in text for correlation_id in entry.returned):
+            if not entry.acted_on and entry.returned and _mentions(text, entry.returned):
                 entry.acted_on = True
                 marked += 1
+            if not entry.strategy_acted_on and entry.strategies:
+                entry.strategy_acted_on = _mentions(text, entry.strategies)
         return marked
 
     def trace_summary(self) -> dict[str, Any]:
@@ -148,8 +185,15 @@ class RecallLedger:
             "recalls": len(self.records),
             "recalls_with_results": sum(1 for entry in self.records if entry.returned),
             "recalls_acted_on": sum(1 for entry in self.records if entry.acted_on),
+            "strategies_returned": sum(len(entry.strategies) for entry in self.records),
+            "strategies_acted_on": sum(1 for entry in self.records if entry.strategy_acted_on),
             "records": [entry.to_record() for entry in self.records],
         }
+
+
+def _mentions(text: str, identifiers: Sequence[str]) -> bool:
+    """Return whether ``text`` names any of ``identifiers``."""
+    return any(identifier in text for identifier in identifiers)
 
 
 def bounded_limit(requested: int) -> int:
@@ -188,7 +232,7 @@ class MemoryRetriever:
                 "search is one that can return another team's incidents"
             )
 
-    async def search(self, query: RecallQuery) -> RecallResult:
+    async def search(self, query: RecallQuery, *, record: bool = True) -> RecallResult:
         """Return the episodes resembling ``query``, ranked, scoped to this team.
 
         Every outcome is a ``RecallResult``, and the line between the two kinds
@@ -198,10 +242,18 @@ class MemoryRetriever:
         deployment's first weeks look like. Anything else the store does wrong is
         an unavailability, because then there really was nowhere to look and the
         agent should not conclude anything from it.
+
+        ``record=False`` is for the searches the *system* makes on the agent's
+        behalf — widening an episode set before synthesising a playbook over it.
+        Those did not happen because the agent decided to look something up, and
+        counting them would make "how often does the agent consult memory, and
+        how often does it act on what comes back" a ratio between two different
+        populations.
         """
         if not self.policy.read_enabled:
             return self._recorded(
-                RecallResult(query=query, searched=False, reason=MEMORY_RECALL_DISABLED)
+                RecallResult(query=query, searched=False, reason=MEMORY_RECALL_DISABLED),
+                record=record,
             )
 
         limit = bounded_limit(query.limit)
@@ -210,10 +262,12 @@ class MemoryRetriever:
             episodes = await self._load(matches, query, limit=limit)
         except VectorNamespaceUnknown:
             logger.info("memory.corpus_empty", team=self.scope.team_node_id)
-            return self._recorded(RecallResult(query=query))
+            return self._recorded(RecallResult(query=query), record=record)
         except PersistenceError as error:
             logger.warning("memory.recall_unavailable", error=str(error))
-            return self._recorded(RecallResult(query=query, searched=False, reason=str(error)))
+            return self._recorded(
+                RecallResult(query=query, searched=False, reason=str(error)), record=record
+            )
 
         result = RecallResult(query=query, episodes=episodes)
         logger.info(
@@ -223,7 +277,7 @@ class MemoryRetriever:
             issue_type=query.issue_type,
             returned=len(episodes),
         )
-        return self._recorded(result)
+        return self._recorded(result, record=record)
 
     async def _neighbours(self, query: RecallQuery, *, limit: int) -> tuple[SimilarityMatch, ...]:
         """Return the raw similarity matches for ``query``, filtered in the index."""
@@ -325,9 +379,10 @@ class MemoryRetriever:
             for component in episode.components
         )
 
-    def _recorded(self, result: RecallResult) -> RecallResult:
+    def _recorded(self, result: RecallResult, *, record: bool = True) -> RecallResult:
         """Store ``result`` in the run's ledger and return it unchanged."""
-        self.ledger.record(result)
+        if record:
+            self.ledger.record(result)
         return result
 
 

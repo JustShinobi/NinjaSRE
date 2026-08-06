@@ -35,6 +35,7 @@ from platform.persistence.ports import (
     ScheduledJob,
     SecretValue,
     SessionRecord,
+    StoredStrategy,
     TenantScope,
     TopologyEdge,
     UnitOfWork,
@@ -101,6 +102,15 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
             occurred_at=at(),
         )
     )
+    await uow.episodes.save_strategy(
+        StoredStrategy(
+            team_node_id="payments",
+            issue_type="connection_pool_exhaustion",
+            component_key="service:checkout",
+            content={"common_root_causes": ["a retry storm"]},
+            generated_at=at(),
+        )
+    )
     await uow.vectors.ensure(EPISODE_VECTOR_NAMESPACE, model="m", dimension=2)
     await uow.topology.upsert_edge(TopologyEdge(from_node_id="web", to_node_id="checkout"))
     await uow.knowledge.upsert_document(
@@ -146,6 +156,15 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.sessions.load("s-1") is None
         assert await uow.episodes.get("ep-1") is None
         assert await uow.episodes.count() == 0
+        assert await uow.episodes.list_strategies(team_node_id="payments") == ()
+        assert (
+            await uow.episodes.get_strategy(
+                team_node_id="payments",
+                issue_type="connection_pool_exhaustion",
+                component_key="service:checkout",
+            )
+            is None
+        )
         assert await uow.knowledge.get_document("doc-1") is None
         assert await uow.approvals.get_request("a-1") is None
         assert await uow.approvals.list_pending() == ()
@@ -199,6 +218,7 @@ async def test_the_first_tenant_still_has_everything(
         assert await uow.config.get("payments") is not None
         assert await uow.run_traces.get_run("run-1") is not None
         assert await uow.episodes.count() == 1
+        assert await uow.episodes.list_strategies(team_node_id="payments") != ()
         assert await uow.credentials.get_metadata("slack-bot-token") is not None
 
 

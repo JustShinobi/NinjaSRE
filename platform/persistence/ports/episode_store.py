@@ -17,6 +17,14 @@ condition, computed by the caller. Storing it as a column rather than deriving
 it here keeps the fingerprinting rule in the feature that owns it, and keeps
 this port from becoming the place where "what counts as the same incident" is
 quietly decided.
+
+Synthesised strategies live here too, rather than behind a thirteenth port. A
+strategy is a cached derivation of a set of episodes and nothing else reads or
+writes one; the write that invalidates it is an episode write, and the two have
+to be able to happen in a single unit of work. As with the episode, the *shape*
+of a playbook is not this port's business — ``content`` is an opaque payload, and
+the sections, the source episode ids, and the prompt version are the vocabulary
+of the feature that synthesises them.
 """
 
 from __future__ import annotations
@@ -60,9 +68,33 @@ class Episode:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, slots=True)
+class StoredStrategy:
+    """One cached playbook, keyed on the team, the issue type, and the component.
+
+    ``stale`` rather than a delete. An episode write that contradicts a playbook
+    is a reason to regenerate it, not a reason to have nothing: the next
+    investigation into that failure would otherwise arrive at an empty shelf and
+    pay a synthesis call before it could read anything. Marking lets the reader
+    decide — serve the stale one, regenerate, or both — and it keeps the row for
+    the operator asking what the playbook said before it changed.
+
+    ``generated_at`` is what an age check reads, so it is a column rather than a
+    field of ``content``. A backend that had to parse the payload to answer "is
+    this older than thirty days" could not index the question.
+    """
+
+    team_node_id: str
+    issue_type: str
+    component_key: str
+    content: Mapping[str, Any] = field(default_factory=dict)
+    generated_at: datetime | None = None
+    stale: bool = False
+
+
 @runtime_checkable
 class EpisodeStore(Protocol):
-    """Episodic memory, within one tenant."""
+    """Episodic memory and the playbooks synthesised from it, within one tenant."""
 
     async def save(self, episode: Episode) -> Episode:
         """Store ``episode``, replacing any earlier version, and return it."""
@@ -110,9 +142,71 @@ class EpisodeStore(Protocol):
         index accumulates neighbours that resolve to nothing.
         """
 
+    # -- synthesised strategies ------------------------------------------------
+
+    async def save_strategy(self, strategy: StoredStrategy) -> StoredStrategy:
+        """Store ``strategy``, replacing any earlier version, and return it.
+
+        An upsert on ``(team_node_id, issue_type, component_key)``. That is what
+        makes concurrent synthesis converge on one row rather than on the last
+        writer: two processes that both generated for the same key have both
+        produced a playbook over the same episodes, and either is a correct
+        answer to the request that started them.
+        """
+
+    async def get_strategy(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> StoredStrategy | None:
+        """Return the strategy for this key, stale or not, or ``None``.
+
+        Staleness is returned rather than hidden, because the caller is the only
+        party that knows whether it can afford to regenerate.
+        """
+
+    async def list_strategies(
+        self,
+        *,
+        team_node_id: str,
+        limit: int = 50,
+    ) -> tuple[StoredStrategy, ...]:
+        """Return the team's strategies, most recently generated first.
+
+        ``limit`` is capped by ``MAX_QUERY_PAGE_SIZE``; above it,
+        ``BoundExceeded``.
+        """
+
+    async def mark_strategies_stale(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> int:
+        """Mark the matching strategies stale and return how many changed.
+
+        Returns the number *changed*, not the number matched: an episode write
+        that finds an already-stale playbook has invalidated nothing, and a
+        caller logging "invalidated 1 strategy" on every write would make the
+        signal meaningless.
+        """
+
+    async def delete_strategy(
+        self,
+        *,
+        team_node_id: str,
+        issue_type: str,
+        component_key: str,
+    ) -> bool:
+        """Delete the strategy for this key and return whether it existed."""
+
 
 __all__ = [
     "Episode",
     "EpisodeOutcome",
     "EpisodeStore",
+    "StoredStrategy",
 ]

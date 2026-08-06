@@ -251,6 +251,54 @@ and re-embeds. Changing the model is a generation swap, never a write.
 
 Operator-facing documentation is [`docs/episodic-memory.md`](../docs/episodic-memory.md).
 
+## Strategy synthesis, in one page
+
+`memory/strategy/` turns N episodes of the same failure on the same component
+into one **playbook**: recurring causes, an effectiveness-ordered investigation
+sequence, the capabilities that produced findings, and — the section that earns
+the feature — **anti-patterns mined from the runs that failed**. Runbooks describe
+what should work; only accumulated failure describes what looked promising and
+was not, and that is the one part of a playbook no document could have supplied.
+
+`MemoryService` wires it. Bind `service.recall` rather than `service.retriever`
+into the `memory-search` capability and playbooks arrive attached to the
+episodes; the tool cannot tell the two sources apart and does not need to.
+
+Five things are load-bearing:
+
+- **Component keys are normalised, and the bias is toward keeping things apart.**
+  Without normalisation, `payments`, `payments-api`, and `payments-7f9dd-x7gr9`
+  are three keys with two episodes each and the threshold is never reached. Done
+  carelessly, `payments` and `payment-gateway` become one playbook describing two
+  systems, every claim in it wrong for whichever one the reader wanted, and
+  nothing downstream can detect it. A missed merge costs a playbook that does not
+  exist yet; a wrong merge costs one that is confidently misleading. Anything the
+  rules do not cover needs an operator's alias, never an inference.
+- **The type is always part of the key.** A `service:payments` and a
+  `database:payments` are never one playbook, however their names fold together.
+- **Invalidation is a write-side fact.** The episode write marks the keys that
+  episode bears on stale, *in the same unit of work*, so there is no window in
+  which the new episode exists and a playbook it contradicts is still current.
+  The write side and the read side must use the same normaliser — two that
+  disagreed would produce a cache nothing ever invalidates, and the symptom is a
+  playbook that is merely out of date.
+- **Stale means regenerate on request, not delete.** The next investigation would
+  otherwise reach an empty shelf and pay a synthesis call before reading
+  anything; a stale playbook is served with its date range and episode count so
+  the agent can discount it. Age (`STRATEGY_MAX_AGE_DAYS`) forces regeneration on
+  its own, because infrastructure is retired without producing an episode.
+- **Operator edits survive regeneration, marked and attributed.** A human
+  correcting a playbook is the highest-quality signal this system receives, and
+  an operator whose correction disappears learns to stop correcting.
+
+The switch is separate from the two memory switches. The question is not "does
+memory help" but "do playbooks help, given the episodes were already there", and
+folding it into the read switch would make the baseline a run with no memory at
+all.
+
+Operator-facing documentation is
+[`docs/strategy-synthesis.md`](../docs/strategy-synthesis.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -279,6 +327,15 @@ Operator-facing documentation is [`docs/episodic-memory.md`](../docs/episodic-me
   `config/constants/memory.py` **and** the formula version beside it, plus the
   golden ordering test. A weight moved without the version makes two different
   scores look like one number.
+- A change to the synthesis prompt → `config/prompts/strategy.py` **and**
+  `STRATEGY_PROMPT_VERSION` in the same file, in the same change. Without the
+  bump, an edit silently reinterprets every cached playbook in the deployment and
+  the quality shift has no attributable cause.
+- A word added to the component affix lists → a row in *both* fixture tables in
+  `tests/unit/platform/memory/strategy/test_normalisation.py`. The review question
+  is not "is this a common suffix" but "is there any deployment in which this word
+  distinguishes two systems" — which is why `gateway`, `proxy`, `db`, and `cache`
+  are not in them.
 
 ---
 
