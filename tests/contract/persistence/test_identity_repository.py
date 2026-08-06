@@ -161,3 +161,138 @@ async def test_a_token_that_should_not_work_resolves_to_nothing(
     async with gateway.begin_system() as system:
         assert await system.tokens.resolve_token("sha256:aaa", now=at()) is None
         assert await system.tokens.resolve_token("sha256:unknown", now=at()) is None
+
+
+async def test_a_token_carries_its_team_description_and_last_use(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # Everything that bounds what a token may do is on the record, and survives
+    # the round trip. A backend that dropped the team would produce a token that
+    # silently reached the whole organisation.
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(ADA)
+        stored = await uow.identity.store_token(
+            ApiToken(
+                token_id="t-1",
+                user_id="u-ada",
+                name="payments bot",
+                token_hash="sha256:aaa",
+                scopes=("config.read",),
+                team_node_id="payments",
+                description="posts investigations into the payments channel",
+                expires_at=at(60),
+            )
+        )
+
+    assert stored.team_node_id == "payments"
+    assert stored.description == "posts investigations into the payments channel"
+    assert stored.last_used_at is None
+
+    async with gateway.begin(scope) as uow:
+        assert await uow.identity.record_token_use("t-1", used_at=at(5)) is True
+        assert await uow.identity.record_token_use("t-unknown", used_at=at(5)) is False
+        [reread] = await uow.identity.tokens_for_user("u-ada")
+
+    assert reread.last_used_at == at(5)
+
+
+async def test_a_scoped_token_resolves_to_its_team(gateway: PersistenceGateway) -> None:
+    # The resolution is what a request's permissions are then narrowed against,
+    # so a backend that lost the team here would widen every scoped token.
+    async with gateway.begin(TenantScope(org_id=PRIMARY_ORG)) as uow:
+        await uow.identity.upsert_user(ADA)
+        await uow.identity.store_token(
+            ApiToken(
+                token_id="t-1",
+                user_id="u-ada",
+                name="payments bot",
+                token_hash="sha256:aaa",
+                team_node_id="payments",
+            )
+        )
+
+    async with gateway.begin_system() as system:
+        resolved = await system.tokens.resolve_token("sha256:aaa", now=at())
+
+    assert resolved is not None
+    assert resolved.team_node_id == "payments"
+
+
+async def test_listing_covers_every_token_in_the_tenant(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # What the inactivity policy and the expiry sweep read. Per-user listing
+    # would miss the tokens of a user somebody had already deactivated.
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(ADA)
+        await uow.identity.upsert_user(User(user_id="u-grace", email="g@e.com", display_name="G"))
+        for index, owner in enumerate(("u-ada", "u-grace", "u-ada")):
+            await uow.identity.store_token(
+                ApiToken(
+                    token_id=f"t-{index}",
+                    user_id=owner,
+                    name=f"token {index}",
+                    token_hash=f"sha256:{index}",
+                    created_at=at(index),
+                )
+            )
+        listed = await uow.identity.list_tokens()
+
+    assert [token.token_id for token in listed] == ["t-2", "t-1", "t-0"]
+
+
+async def test_bulk_revocation_reports_only_what_it_changed(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # An id that was already revoked, or that belongs to nothing, is absent from
+    # the answer rather than counted — an incident response that reported having
+    # revoked something it had not is worse than one that reported less.
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(ADA)
+        for index in range(3):
+            await uow.identity.store_token(
+                ApiToken(
+                    token_id=f"t-{index}",
+                    user_id="u-ada",
+                    name=f"token {index}",
+                    token_hash=f"sha256:{index}",
+                )
+            )
+        await uow.identity.revoke_token("t-0", revoked_at=at(-1))
+
+        revoked = await uow.identity.revoke_tokens(
+            ("t-0", "t-1", "t-2", "t-absent"), revoked_at=at()
+        )
+        assert set(revoked) == {"t-1", "t-2"}
+
+        assert await uow.identity.revoke_tokens((), revoked_at=at()) == ()
+        assert await uow.identity.revoke_tokens(("t-1",), revoked_at=at()) == ()
+
+
+async def test_a_token_hash_is_locatable_for_the_audit_trail(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # ``resolve_token`` refuses to say why a token failed, which is right on the
+    # authentication path and is also why a rejected attempt would otherwise
+    # have no tenant to be recorded against.
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(ADA)
+        await uow.identity.store_token(
+            ApiToken(
+                token_id="t-1",
+                user_id="u-ada",
+                name="expired",
+                token_hash="sha256:aaa",
+                expires_at=at(-1),
+            )
+        )
+
+    async with gateway.begin_system() as system:
+        assert await system.tokens.resolve_token("sha256:aaa", now=at()) is None
+
+        located = await system.tokens.find_token_by_hash("sha256:aaa")
+        assert located is not None
+        assert located.org_id == PRIMARY_ORG
+        assert located.token.token_id == "t-1"
+
+        assert await system.tokens.find_token_by_hash("sha256:unknown") is None

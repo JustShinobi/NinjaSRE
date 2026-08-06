@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from platform.persistence.errors import DuplicateRecord
@@ -13,6 +14,7 @@ from platform.persistence.ports.identity_repository import (
     ApiToken,
     PrincipalKind,
     RoleBinding,
+    TokenLocation,
     TokenResolution,
     User,
 )
@@ -46,9 +48,12 @@ def _to_token(row: models.ApiToken) -> ApiToken:
         name=row.name,
         token_hash=row.token_hash,
         scopes=as_tuple(row.scopes),
+        team_node_id=row.team_node_id,
+        description=row.description,
         created_at=as_utc(row.created_at),
         expires_at=as_utc(row.expires_at),
         revoked_at=as_utc(row.revoked_at),
+        last_used_at=as_utc(row.last_used_at),
     )
 
 
@@ -137,9 +142,12 @@ class PostgresIdentityRepository(TenantBound):
             name=token.name,
             token_hash=token.token_hash,
             scopes=as_list(token.scopes),
+            team_node_id=token.team_node_id,
+            description=token.description,
             created_at=token.created_at or utc_now(),
             expires_at=token.expires_at,
             revoked_at=token.revoked_at,
+            last_used_at=token.last_used_at,
         )
         self.session.add(row)
         with translating(
@@ -157,6 +165,50 @@ class PostgresIdentityRepository(TenantBound):
         if row is None or row.revoked_at is not None:
             return False
         row.revoked_at = revoked_at
+        await self.session.flush()
+        return True
+
+    async def revoke_tokens(
+        self, token_ids: Sequence[str], *, revoked_at: datetime
+    ) -> tuple[str, ...]:
+        """Revoke every id in ``token_ids`` and return those that were live.
+
+        One statement, and it reports what it changed rather than what it was
+        asked to change: an id that was already revoked, or belongs to another
+        tenant, is simply absent from the answer.
+        """
+        wanted = tuple(dict.fromkeys(token_ids))
+        if not wanted:
+            return ()
+        revoked = await self.session.scalars(
+            update(models.ApiToken)
+            .where(
+                models.ApiToken.org_id == self.org_id,
+                models.ApiToken.token_id.in_(wanted),
+                models.ApiToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=revoked_at)
+            .returning(models.ApiToken.token_id)
+        )
+        changed = frozenset(revoked)
+        await self.session.flush()
+        return tuple(token_id for token_id in wanted if token_id in changed)
+
+    async def list_tokens(self) -> tuple[ApiToken, ...]:
+        """Return every token in this tenant, newest first."""
+        rows = await self.session.scalars(
+            select(models.ApiToken)
+            .where(models.ApiToken.org_id == self.org_id)
+            .order_by(models.ApiToken.created_at.desc(), models.ApiToken.token_id.desc())
+        )
+        return tuple(_to_token(row) for row in rows)
+
+    async def record_token_use(self, token_id: str, *, used_at: datetime) -> bool:
+        """Record that ``token_id`` was used, and return whether it existed."""
+        row = await self.session.get(models.ApiToken, (self.org_id, token_id))
+        if row is None:
+            return False
+        row.last_used_at = used_at
         await self.session.flush()
         return True
 
@@ -256,8 +308,20 @@ class PostgresTokenDirectory:
             user_id=token.user_id,
             org_id=token.org_id,
             token_id=token.token_id,
+            team_node_id=token.team_node_id,
             scopes=as_tuple(token.scopes),
         )
+
+    async def find_token_by_hash(self, token_hash: str) -> TokenLocation | None:
+        """Return where ``token_hash`` lives, ignoring whether it is usable."""
+        row = (
+            await self.session.scalars(
+                select(models.ApiToken).where(models.ApiToken.token_hash == token_hash)
+            )
+        ).first()
+        if row is None:
+            return None
+        return TokenLocation(org_id=row.org_id, token=_to_token(row))
 
 
 __all__ = ["PostgresIdentityRepository", "PostgresTokenDirectory"]

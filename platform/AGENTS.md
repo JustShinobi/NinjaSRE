@@ -397,6 +397,50 @@ mode anybody should use.
 
 Operator-facing documentation is [`docs/configuration.md`](../docs/configuration.md).
 
+## Identity, access, and the audit trail, in one page
+
+`identity/` answers three questions and keeps the answers separable: who is
+acting (`models`, `tokens`, `sessions`, `oidc`, `break_glass`), what they may do
+(`permissions`, `authorisation`), and what they did (`audit/`). Five things
+about it are load-bearing.
+
+**The permission check lives at the API boundary, not in business logic.** A
+check inside a service method covers today's callers and not the one somebody
+adds next quarter. `gateway/http/security/route_permissions.py` is the *only*
+place a guard can be obtained from, so a route that never declared a permission
+has nothing to depend on and fails at wiring time — `tests/security/
+test_route_permissions.py` is what turns "we should remember to add a check"
+into a build failure.
+
+**The roles nest, strictly.** `viewer` ⊂ `responder` ⊂ `operator` ⊂ `admin` ⊂
+`owner`, built by accumulating increments rather than by writing five sets out,
+and a test asserts the containment. That is why a denial can always answer "you
+need the next role up" instead of handing somebody a matrix. Narrower access is
+expressed by *scoping* a role to a node, never by inventing a sixth role.
+
+**A grant inherits downward and only downward.** One tree, two uses:
+configuration merges down it and permissions resolve down it, so an operator has
+one mental model rather than two. Resolving against a node that is not in the
+tree denies — a typo in a path parameter must not become an organisation-wide
+check.
+
+**The audit log is append-only in three places.** The port has no mutator, a
+startup guard (`audit/guard.py`) fails the process if any repository grows one,
+and a database trigger rejects `UPDATE`, `DELETE`, and `TRUNCATE`. The
+duplication is the design: the first two are code and can be refactored, and the
+trigger is what survives the refactor. A failed audit write is never swallowed —
+it goes to a durable file, raises an alert, and tells the caller.
+
+**Attribution comes from the acting context, never from a caller's payload.**
+`AuditRecorder.event` merges the context's keys *after* the caller's, so a
+`real_principal_id` in a request body cannot become one in a record.
+`ConfigAuditor` takes the same keys as a plain mapping rather than importing the
+identity layer, because the identity layer already imports this package's
+hierarchy and one of the two directions has to give.
+
+Operator-facing documentation is
+[`docs/identity-and-audit.md`](../docs/identity-and-audit.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -420,6 +464,15 @@ Operator-facing documentation is [`docs/configuration.md`](../docs/configuration
   `config_service/templates/golden/` **and** its name in `GOLDEN_TEMPLATES`.
   The library loads by name and raises on a missing file, because a template
   that quietly stopped loading is one that quietly stopped being offered.
+- A new privileged HTTP route → a row in
+  `gateway/http/security/route_permissions.py`, carrying either a permission or
+  written prose saying why it is public. There is no third option: `Route`
+  refuses to be constructed without one of them, and `guard_for` refuses a route
+  the table does not know about.
+- A new class of audited action → a name in `config/constants/security.py` *and*
+  an entry in `AUDITED_ACTIONS`. The security suite iterates that tuple to assert
+  the dual-principal property, so a class left out of it is a class nothing has
+  asserted about.
 - A new secret shape → a rule in `guardrails/defaults/rules.yml`, with a case in
   `tests/unit/platform/guardrails/test_engine.py` for the shape *and* one for a
   benign lookalike. A rule that fires on prose about a secret is a rule an

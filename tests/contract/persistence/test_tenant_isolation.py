@@ -149,6 +149,9 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.config.get("payments") is None
         assert await uow.config.children(SECOND_ORG) == ()
         assert await uow.identity.tokens_for_user("u-ada") == ()
+        assert await uow.identity.list_tokens() == ()
+        assert await uow.identity.record_token_use("t-1", used_at=at()) is False
+        assert await uow.identity.revoke_tokens(("t-1",), revoked_at=at()) == ()
         assert await uow.audit.get("e-1") is None
         assert await uow.audit.query() == ()
         assert await uow.run_traces.get_run("run-1") is None

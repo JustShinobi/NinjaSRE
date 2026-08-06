@@ -75,6 +75,7 @@ from platform.persistence.ports.identity_repository import (
     PrincipalKind,
     RoleBinding,
     TokenDirectory,
+    TokenLocation,
     TokenResolution,
     User,
 )
@@ -193,6 +194,7 @@ __all__ = [
     "SystemUnitOfWork",
     "TenantScope",
     "TokenDirectory",
+    "TokenLocation",
     "TokenResolution",
     "ToolCallRecord",
     "ToolCallStatus",

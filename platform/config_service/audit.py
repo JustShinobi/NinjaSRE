@@ -21,6 +21,14 @@ silently shortening.
 something" is not reviewable. A row per changed path is what makes an audit
 query about a field — "who has ever changed the masking policy" — answerable at
 all.
+
+**Attribution arrives as a mapping rather than as an identity type.** Every
+builder here takes an ``attribution`` payload — the impersonation and
+source-address keys the identity layer produces — and merges it into the detail.
+Passing the identity layer's own context object instead would mean this package
+imported it, and this package is already imported *by* it: the permission model
+resolves grants against this hierarchy. One mapping keeps the record complete
+and the dependency pointing one way.
 """
 
 from __future__ import annotations
@@ -104,6 +112,7 @@ class ConfigAuditor:
         actor_kind: ActorKind = ActorKind.USER,
         outcome: AuditOutcome = AuditOutcome.ALLOWED,
         action: str | None = None,
+        attribution: Mapping[str, Any] | None = None,
     ) -> tuple[AuditEvent, ...]:
         """Return one audit event per change, with both values filtered."""
         at = self.clock()
@@ -121,6 +130,7 @@ class ConfigAuditor:
                     "field": change.path,
                     "previous_value": self.filtered(change.before),
                     "new_value": self.filtered(change.after),
+                    **dict(attribution or {}),
                 },
             )
             for change in changes
@@ -134,6 +144,7 @@ class ConfigAuditor:
         *,
         actor_id: str,
         actor_kind: ActorKind = ActorKind.USER,
+        attribution: Mapping[str, Any] | None = None,
     ) -> AuditEvent:
         """Return the event recording that a field policy was declared or lifted.
 
@@ -150,7 +161,7 @@ class ConfigAuditor:
             resource_kind=CONFIG_AUDIT_RESOURCE_KIND,
             resource_id=node_id,
             outcome=AuditOutcome.ALLOWED,
-            detail={"field": path, **dict(summary)},
+            detail={"field": path, **dict(summary), **dict(attribution or {})},
         )
 
     def template_events(
@@ -162,6 +173,7 @@ class ConfigAuditor:
         *,
         actor_id: str,
         actor_kind: ActorKind = ActorKind.USER,
+        attribution: Mapping[str, Any] | None = None,
     ) -> tuple[AuditEvent, ...]:
         """Return the events recording a template application (FR-019, FR-021).
 
@@ -174,6 +186,7 @@ class ConfigAuditor:
             actor_id=actor_id,
             actor_kind=actor_kind,
             action=CONFIG_AUDIT_ACTION_TEMPLATE,
+            attribution=attribution,
         )
         return tuple(
             AuditEvent(
@@ -197,6 +210,7 @@ class ConfigAuditor:
         *,
         actor_id: str,
         actor_kind: ActorKind = ActorKind.USER,
+        attribution: Mapping[str, Any] | None = None,
     ) -> tuple[AuditEvent, ...]:
         """Return the events recording a refused write, without its values.
 
@@ -216,7 +230,7 @@ class ConfigAuditor:
                 resource_kind=CONFIG_AUDIT_RESOURCE_KIND,
                 resource_id=node_id,
                 outcome=AuditOutcome.DENIED,
-                detail={"field": path, "reason": reason},
+                detail={"field": path, "reason": reason, **dict(attribution or {})},
             )
             for path, reason in paths_and_reasons
         )

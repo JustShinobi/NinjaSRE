@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
@@ -10,6 +11,7 @@ from platform.persistence.fakes.state import State, TenantState
 from platform.persistence.ports.identity_repository import (
     ApiToken,
     RoleBinding,
+    TokenLocation,
     TokenResolution,
     User,
 )
@@ -72,10 +74,35 @@ class FakeIdentityRepository:
         self.state.tokens[token_id] = replace(token, revoked_at=revoked_at)
         return True
 
+    async def revoke_tokens(
+        self, token_ids: Sequence[str], *, revoked_at: datetime
+    ) -> tuple[str, ...]:
+        """Revoke every id in ``token_ids`` and return those that were live."""
+        revoked: list[str] = []
+        for token_id in token_ids:
+            token = self.state.tokens.get(token_id)
+            if token is None or token.is_revoked:
+                continue
+            self.state.tokens[token_id] = replace(token, revoked_at=revoked_at)
+            revoked.append(token_id)
+        return tuple(revoked)
+
     async def tokens_for_user(self, user_id: str) -> tuple[ApiToken, ...]:
         """Return the user's tokens, newest first, revoked ones included."""
         owned = [t for t in self.state.tokens.values() if t.user_id == user_id]
         return tuple(sorted(owned, key=_token_order, reverse=True))
+
+    async def list_tokens(self) -> tuple[ApiToken, ...]:
+        """Return every token in this tenant, newest first."""
+        return tuple(sorted(self.state.tokens.values(), key=_token_order, reverse=True))
+
+    async def record_token_use(self, token_id: str, *, used_at: datetime) -> bool:
+        """Record that ``token_id`` was used, and return whether it existed."""
+        token = self.state.tokens.get(token_id)
+        if token is None:
+            return False
+        self.state.tokens[token_id] = replace(token, last_used_at=used_at)
+        return True
 
     async def upsert_role_binding(self, binding: RoleBinding) -> RoleBinding:
         """Store ``binding`` and return it as stored."""
@@ -129,8 +156,17 @@ class FakeTokenDirectory:
                     user_id=token.user_id,
                     org_id=org_id,
                     token_id=token.token_id,
+                    team_node_id=token.team_node_id,
                     scopes=token.scopes,
                 )
+        return None
+
+    async def find_token_by_hash(self, token_hash: str) -> TokenLocation | None:
+        """Return where ``token_hash`` lives, ignoring whether it is usable."""
+        for org_id, tenant in self.state.tenants.items():
+            for token in tenant.tokens.values():
+                if token.token_hash == token_hash:
+                    return TokenLocation(org_id=org_id, token=token)
         return None
 
 

@@ -179,9 +179,12 @@ class ApiToken(Base):
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     token_hash: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    team_node_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime | None] = _timestamp()
     expires_at: Mapped[datetime | None] = _timestamp()
     revoked_at: Mapped[datetime | None] = _timestamp()
+    last_used_at: Mapped[datetime | None] = _timestamp()
 
 
 class RoleBinding(Base):

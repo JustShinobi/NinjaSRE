@@ -371,6 +371,182 @@ SANDBOX_LIFECYCLE_AUDIT_ACTION: Final = "sandbox.lifecycle"
 SANDBOX_EGRESS_AUDIT_ACTION: Final = "sandbox.egress"
 SANDBOX_AUDIT_RESOURCE_KIND: Final = "sandbox"
 
+# --- Human sessions ----------------------------------------------------------
+
+#: Two limits, because they answer two different questions. The idle timeout
+#: bounds an unattended laptop; the absolute lifetime bounds a session that is
+#: being kept warm on purpose. Only having the first means a stolen session
+#: lives as long as somebody keeps touching it.
+SESSION_IDLE_TIMEOUT_SECONDS: Final[int] = 30 * 60
+SESSION_ABSOLUTE_LIFETIME_SECONDS: Final[int] = 12 * 60 * 60
+
+#: Entropy in a session identifier. 256 bits, so guessing one is not an attack
+#: anybody attempts twice.
+SESSION_ID_BYTES: Final[int] = 32
+
+#: What the session cookie is called. Named here because a surface, the console,
+#: and the API all have to agree on it, and a second spelling is a sign-out
+#: nobody can reproduce.
+SESSION_COOKIE_NAME: Final = "ninjasre_session"
+
+# --- Machine tokens ----------------------------------------------------------
+
+#: Every issued token starts with this, so a leaked string is recognisable as a
+#: NinjaSRE credential by a secret scanner and by a human reading a paste.
+API_TOKEN_PREFIX: Final = "nsre_"
+
+#: Entropy in the secret half of a token.
+API_TOKEN_SECRET_BYTES: Final[int] = 32
+
+#: How many leading characters of the secret are kept in cleartext as the
+#: token's public identifier. Enough to tell two of a team's tokens apart in a
+#: list; far too few to shorten a search for the rest.
+API_TOKEN_HINT_CHARS: Final[int] = 6
+
+#: What a token gets when the caller names no expiry, and the ceiling on what
+#: one may ask for. There is no "never expires": a token nobody remembers
+#: issuing is the one still working after the person who made it left.
+API_TOKEN_DEFAULT_LIFETIME_DAYS: Final[int] = 90
+API_TOKEN_MAX_LIFETIME_DAYS: Final[int] = 365
+
+#: How long a token may go unused before the policy revokes it, and how far
+#: ahead of expiry its owner is warned.
+TOKEN_INACTIVITY_REVOCATION_DAYS: Final[int] = 60
+TOKEN_EXPIRY_WARNING_DAYS: Final[int] = 14
+
+#: The tolerance applied to a token's expiry comparison. Clocks on two hosts
+#: disagree, and a token rejected a second early during an incident is a page
+#: nobody can act on. Applied to expiry only — never to revocation, which is
+#: immediate by definition.
+TOKEN_CLOCK_SKEW_SECONDS: Final[int] = 60
+
+#: How long a resolution may be reused before it is looked up again. Short, and
+#: paired with an explicit invalidation on revoke: the TTL is the backstop for a
+#: replica that missed the broadcast, not the mechanism.
+TOKEN_RESOLUTION_CACHE_TTL_SECONDS: Final[float] = 5.0
+
+#: How many resolutions one process caches. A bound rather than a guess: an
+#: unbounded cache keyed by token hash is a memory leak an attacker can drive.
+MAX_CACHED_TOKEN_RESOLUTIONS: Final[int] = 1_000
+
+#: How many tokens one bulk revocation may cover. High enough for "revoke
+#: everything this team holds" during an incident, bounded because a single
+#: statement that could revoke an entire deployment is not a control.
+MAX_BULK_REVOCATIONS: Final[int] = 500
+
+# --- Impersonation and break-glass -------------------------------------------
+
+#: How long an admin may act in a team's context before the grant lapses
+#: Long enough to reproduce a report, short enough that a forgotten session is
+#: not a standing privilege.
+IMPERSONATION_MAX_DURATION_SECONDS: Final[int] = 60 * 60
+
+#: How long a break-glass session lasts. Deliberately shorter than
+#: impersonation: this is the path that exists because the identity provider is
+#: down, and it should expire before the outage is over.
+BREAK_GLASS_MAX_DURATION_SECONDS: Final[int] = 15 * 60
+
+#: The reason an operator gives when opening a break-glass session must be at
+#: least this long. A one-character justification is not one, and this is the
+#: cheapest way to make the audit row worth reading afterwards.
+BREAK_GLASS_MIN_REASON_CHARS: Final[int] = 16
+
+#: The local admin's login name. Fixed, because a break-glass account whose name
+#: an operator has to look up during an outage is one they cannot use.
+BREAK_GLASS_PRINCIPAL_ID: Final = "break-glass"
+
+# --- Single sign-on ----------------------------------------------------------
+
+#: PKCE, always. ``plain`` is in the specification and is not offered here: an
+#: operator who could choose it would eventually choose it by accident.
+OIDC_CODE_CHALLENGE_METHOD: Final = "S256"
+
+#: Entropy in the state parameter and the PKCE verifier.
+OIDC_STATE_BYTES: Final[int] = 32
+OIDC_CODE_VERIFIER_BYTES: Final[int] = 64
+
+#: How long an in-flight authorisation request stays valid. A redirect that
+#: takes longer than this is one the user abandoned.
+OIDC_AUTHORISATION_TTL_SECONDS: Final[int] = 10 * 60
+
+#: What NinjaSRE asks the provider for. ``groups`` is requested and never
+#: required: a provider that returns no group claim maps the user to the default
+#: team rather than having the sign-in refused.
+OIDC_DEFAULT_SCOPES: Final[tuple[str, ...]] = ("openid", "profile", "email", "groups")
+
+#: Which claim carries which fact. Overridable per provider, because "groups"
+#: is spelled four ways across the providers operators actually run.
+OIDC_SUBJECT_CLAIM: Final = "sub"
+OIDC_EMAIL_CLAIM: Final = "email"
+OIDC_NAME_CLAIM: Final = "name"
+OIDC_GROUPS_CLAIM: Final = "groups"
+
+#: How much clock disagreement an identity token's ``exp`` and ``iat`` are
+#: allowed. Same reasoning as the token skew above, same magnitude.
+OIDC_CLOCK_SKEW_SECONDS: Final[int] = 60
+
+# --- Identity audit ----------------------------------------------------------
+
+#: What each class of privileged action is called in the audit trail.
+#: One vocabulary, in one place, because an audit query is written against these
+#: strings and a second spelling of "the token was revoked" is a query that
+#: silently returns half the answer.
+AUTH_AUDIT_ACTION_SIGN_IN: Final = "auth.sign_in"
+AUTH_AUDIT_ACTION_SIGN_OUT: Final = "auth.sign_out"
+AUTH_AUDIT_ACTION_DENIED: Final = "auth.denied"
+TOKEN_AUDIT_ACTION_ISSUE: Final = "token.issue"
+TOKEN_AUDIT_ACTION_REVOKE: Final = "token.revoke"
+TOKEN_AUDIT_ACTION_REJECT: Final = "token.reject"
+TOKEN_AUDIT_ACTION_EXPIRY_WARNING: Final = "token.expiry_warning"
+PERMISSION_AUDIT_ACTION_GRANT: Final = "permission.grant"
+PERMISSION_AUDIT_ACTION_REVOKE: Final = "permission.revoke"
+PERMISSION_AUDIT_ACTION_DENIED: Final = "permission.denied"
+IMPERSONATION_AUDIT_ACTION_START: Final = "impersonation.start"
+IMPERSONATION_AUDIT_ACTION_END: Final = "impersonation.end"
+BREAK_GLASS_AUDIT_ACTION: Final = "break_glass.open"
+SSO_AUDIT_ACTION_TEST: Final = "sso.test"
+SSO_AUDIT_ACTION_ACTIVATE: Final = "sso.activate"
+SSO_AUDIT_ACTION_GROUP_FALLBACK: Final = "sso.group_fallback"
+
+#: What identity actions name as the thing they acted on.
+IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL: Final = "principal"
+IDENTITY_AUDIT_RESOURCE_KIND_TOKEN: Final = "api_token"
+IDENTITY_AUDIT_RESOURCE_KIND_SESSION: Final = "session"
+IDENTITY_AUDIT_RESOURCE_KIND_ROUTE: Final = "route"
+IDENTITY_AUDIT_RESOURCE_KIND_SSO: Final = "sso_config"
+
+#: The keys an impersonated action puts in its audit detail, so a reviewer's
+#: query for "everything done under impersonation" is one filter rather than a
+#: join somebody has to remember to write.
+AUDIT_DETAIL_REAL_PRINCIPAL: Final = "real_principal_id"
+AUDIT_DETAIL_IMPERSONATED_PRINCIPAL: Final = "impersonated_principal_id"
+AUDIT_DETAIL_IMPERSONATED_NODE: Final = "impersonated_node_id"
+AUDIT_DETAIL_BREAK_GLASS: Final = "break_glass"
+AUDIT_DETAIL_SOURCE_ADDRESS: Final = "source_address"
+
+#: Where an audit event goes when the database will not take it. A
+#: file, because the fallback has to work in exactly the situation where the
+#: datastore does not, and because an operator can ship a file to their SIEM
+#: with tooling they already have.
+NINJASRE_AUDIT_FALLBACK_PATH_ENV: Final = "NINJASRE_AUDIT_FALLBACK_PATH"
+AUDIT_FALLBACK_FILENAME: Final = "audit-fallback.jsonl"
+
+#: What the export writes. Newline-delimited JSON: every SIEM ingests it, it
+#: streams without holding the result set in memory, and a truncated file is
+#: still parseable up to the truncation.
+AUDIT_EXPORT_CONTENT_TYPE: Final = "application/x-ndjson"
+
+#: How many events one export page reads from storage at a time. The export is
+#: expected to cover months; reading it in one query is how an export of a busy
+#: deployment becomes an outage of its own.
+AUDIT_EXPORT_PAGE_SIZE: Final[int] = 100
+
+#: The database object that refuses an update or a delete on the audit table
+#: Named here because the migration creates it and the security suite asserts it
+#: exists, and those two must not drift.
+AUDIT_IMMUTABILITY_TRIGGER_NAME: Final = "audit_events_append_only"
+AUDIT_IMMUTABILITY_FUNCTION_NAME: Final = "reject_audit_mutation"
+
 # --- Side-effect classification ----------------------------------------------
 
 #: ``SIDE_EFFECT_LEVELS`` is ordered least to most dangerous, and the order is
@@ -410,7 +586,29 @@ APPROVAL_EXPIRY_SECONDS: Final[int] = 300
 
 
 __all__ = [
+    "API_TOKEN_DEFAULT_LIFETIME_DAYS",
+    "API_TOKEN_HINT_CHARS",
+    "API_TOKEN_MAX_LIFETIME_DAYS",
+    "API_TOKEN_PREFIX",
+    "API_TOKEN_SECRET_BYTES",
     "APPROVAL_EXPIRY_SECONDS",
+    "AUDIT_DETAIL_BREAK_GLASS",
+    "AUDIT_DETAIL_IMPERSONATED_NODE",
+    "AUDIT_DETAIL_IMPERSONATED_PRINCIPAL",
+    "AUDIT_DETAIL_REAL_PRINCIPAL",
+    "AUDIT_DETAIL_SOURCE_ADDRESS",
+    "AUDIT_EXPORT_CONTENT_TYPE",
+    "AUDIT_EXPORT_PAGE_SIZE",
+    "AUDIT_FALLBACK_FILENAME",
+    "AUDIT_IMMUTABILITY_FUNCTION_NAME",
+    "AUDIT_IMMUTABILITY_TRIGGER_NAME",
+    "AUTH_AUDIT_ACTION_DENIED",
+    "AUTH_AUDIT_ACTION_SIGN_IN",
+    "AUTH_AUDIT_ACTION_SIGN_OUT",
+    "BREAK_GLASS_AUDIT_ACTION",
+    "BREAK_GLASS_MAX_DURATION_SECONDS",
+    "BREAK_GLASS_MIN_REASON_CHARS",
+    "BREAK_GLASS_PRINCIPAL_ID",
     "CAPABILITY_CONTEXT_HEADER",
     "CREDENTIAL_EXPIRY_RETRY_ATTEMPTS",
     "CREDENTIAL_HANDLE_HEADER",
@@ -435,6 +633,14 @@ __all__ = [
     "GUARDRAIL_AUDIT_ACTION",
     "GUARDRAIL_AUDIT_RESOURCE_KIND",
     "GUARDRAIL_RELOAD_INTERVAL_SECONDS",
+    "IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL",
+    "IDENTITY_AUDIT_RESOURCE_KIND_ROUTE",
+    "IDENTITY_AUDIT_RESOURCE_KIND_SESSION",
+    "IDENTITY_AUDIT_RESOURCE_KIND_SSO",
+    "IDENTITY_AUDIT_RESOURCE_KIND_TOKEN",
+    "IMPERSONATION_AUDIT_ACTION_END",
+    "IMPERSONATION_AUDIT_ACTION_START",
+    "IMPERSONATION_MAX_DURATION_SECONDS",
     "INTEGRATION_CONTEXT_HEADER",
     "KUBERNETES_SERVICE_HOST_ENV",
     "KUBERNETES_SERVICE_PORT_ENV",
@@ -447,8 +653,11 @@ __all__ = [
     "MASKING_POLICY_STRICT",
     "MASK_TOKEN_PREFIX",
     "MASK_TOKEN_SEPARATOR",
+    "MAX_BULK_REVOCATIONS",
+    "MAX_CACHED_TOKEN_RESOLUTIONS",
     "MAX_SCAN_INPUT_BYTES",
     "MAX_SCAN_MATCHES",
+    "NINJASRE_AUDIT_FALLBACK_PATH_ENV",
     "NINJASRE_CONTAINER_RUNTIME_ENV",
     "NINJASRE_CREDENTIAL_PROXY_TOKEN_ENV",
     "NINJASRE_CREDENTIAL_PROXY_URL_ENV",
@@ -461,7 +670,20 @@ __all__ = [
     "NINJASRE_SANDBOX_PROFILE_ENV",
     "NINJASRE_VAULT_KEY_FILE_ENV",
     "NINJASRE_VAULT_MASTER_KEY_ENV",
+    "OIDC_AUTHORISATION_TTL_SECONDS",
+    "OIDC_CLOCK_SKEW_SECONDS",
+    "OIDC_CODE_CHALLENGE_METHOD",
+    "OIDC_CODE_VERIFIER_BYTES",
+    "OIDC_DEFAULT_SCOPES",
+    "OIDC_EMAIL_CLAIM",
+    "OIDC_GROUPS_CLAIM",
+    "OIDC_NAME_CLAIM",
+    "OIDC_STATE_BYTES",
+    "OIDC_SUBJECT_CLAIM",
     "PATTERN_VALIDATION_BUDGET_SECONDS",
+    "PERMISSION_AUDIT_ACTION_DENIED",
+    "PERMISSION_AUDIT_ACTION_GRANT",
+    "PERMISSION_AUDIT_ACTION_REVOKE",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",
     "REDACTION_PLACEHOLDER",
@@ -504,14 +726,29 @@ __all__ = [
     "SANDBOX_TTL_SECONDS",
     "SANDBOX_WALL_CLOCK_SECONDS_LIMIT",
     "SANDBOX_WARM_POOL_SIZE",
+    "SESSION_ABSOLUTE_LIFETIME_SECONDS",
+    "SESSION_COOKIE_NAME",
+    "SESSION_IDLE_TIMEOUT_SECONDS",
+    "SESSION_ID_BYTES",
     "SIDE_EFFECT_DESTRUCTIVE",
     "SIDE_EFFECT_LEVELS",
     "SIDE_EFFECT_READ",
     "SIDE_EFFECT_READ_SENSITIVE",
     "SIDE_EFFECT_WRITE_IRREVERSIBLE",
     "SIDE_EFFECT_WRITE_REVERSIBLE",
+    "SSO_AUDIT_ACTION_ACTIVATE",
+    "SSO_AUDIT_ACTION_GROUP_FALLBACK",
+    "SSO_AUDIT_ACTION_TEST",
     "TEAM_CONTEXT_HEADER",
     "TENANT_CONTEXT_HEADER",
+    "TOKEN_AUDIT_ACTION_EXPIRY_WARNING",
+    "TOKEN_AUDIT_ACTION_ISSUE",
+    "TOKEN_AUDIT_ACTION_REJECT",
+    "TOKEN_AUDIT_ACTION_REVOKE",
+    "TOKEN_CLOCK_SKEW_SECONDS",
+    "TOKEN_EXPIRY_WARNING_DAYS",
+    "TOKEN_INACTIVITY_REVOCATION_DAYS",
+    "TOKEN_RESOLUTION_CACHE_TTL_SECONDS",
     "VAULT_ACTIVE_VERSION_LABEL_PREFIX",
     "VAULT_INITIAL_CREDENTIAL_VERSION",
     "VAULT_KEY_VERSION_COLUMN",
