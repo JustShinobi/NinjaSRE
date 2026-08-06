@@ -21,9 +21,10 @@ second copy to keep in step with the records it was derived from.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 
 from config.constants.runs import (
     DEFAULT_RUN_HISTORY_PAGE_SIZE,
@@ -35,7 +36,14 @@ from config.constants.runs import (
     TURN_USAGE_COST,
     TURN_USAGE_PROMPT_TOKENS,
 )
+from core.agent.interaction.attention import (
+    RUN_ATTENTION_KEY,
+    RUN_ATTENTION_SINCE_KEY,
+    Attention,
+)
+from core.agent.interaction.models import AttentionState
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, RunTraceStore
+from platform.runs.events import TraceEventKind
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +74,37 @@ class RunQuery:
         if self.job_id is not None and metadata.get(RUN_METADATA_JOB) != self.job_id:
             return False
         return not (self.trigger is not None and run.trigger != self.trigger)
+
+
+#: Sorts last a run whose metadata says it is waiting but not since when. It has
+#: not waited longer than anybody; the writer simply did not say, and putting it
+#: at the head of a queue ordered by how long people have been ignored would put
+#: it in front of runs that actually have been.
+_NEVER = datetime.max.replace(tzinfo=UTC)
+
+
+def attention_from(recorded: Mapping[str, Any]) -> Attention:
+    """Return the attention state a metadata map or an event payload describes."""
+    state = str(recorded.get(RUN_ATTENTION_KEY, "") or "")
+    if not state:
+        return Attention()
+    try:
+        resolved = AttentionState(state)
+    except ValueError:
+        # A value nothing recognises means the writer and the reader disagree
+        # about the vocabulary. Reporting "nothing needed" is the safe direction
+        # to be wrong in for a filter, and the run still appears in an
+        # unfiltered listing.
+        return Attention()
+
+    since = str(recorded.get(RUN_ATTENTION_SINCE_KEY, "") or "")
+    return Attention(
+        state=resolved,
+        questions=int(recorded.get("questions", 0) or 0),
+        approvals=int(recorded.get("approvals", 0) or 0),
+        waiting_since=datetime.fromisoformat(since) if since else None,
+        summary=str(recorded.get("summary", "") or ""),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +146,49 @@ class RunHistory:
             limit=asked.limit,
         )
         return tuple(run for run in page if asked.matches(run))
+
+    async def attention_of(self, run_id: str) -> Attention:
+        """Return what ``run_id`` is currently waiting on, from its own log.
+
+        The latest ``attention_changed`` event wins. A run blocks and unblocks
+        several times, and the run row is written once at the start and once at
+        the end — so the log is the only place the intermediate states exist.
+        A run that has finished needs nobody, whatever its last event said.
+        """
+        run = await self.store.get_run(run_id)
+        if run is None or run.status is not RunStatus.RUNNING:
+            return Attention()
+
+        latest = Attention()
+        cursor: int | None = None
+        while True:
+            page = await self.store.events_for_run(
+                run_id, after=cursor, limit=DEFAULT_RUN_HISTORY_PAGE_SIZE
+            )
+            if not page:
+                return latest
+            for event in page:
+                if event.kind == TraceEventKind.ATTENTION_CHANGED.value:
+                    latest = attention_from(event.payload)
+            cursor = page[-1].sequence
+
+    async def awaiting_a_human(
+        self, query: RunQuery | None = None
+    ) -> tuple[tuple[AgentRun, Attention], ...]:
+        """Return the runs that have stopped for somebody, longest-waiting first.
+
+        Each run comes back with why it is waiting rather than only that it is.
+        A console listing twenty investigations is read to decide where to spend
+        the next twenty minutes, and "waiting on an approval since 11:12" is an
+        answer to that where a flag is not.
+        """
+        asked = query or RunQuery()
+        blocked: list[tuple[AgentRun, Attention]] = []
+        for run in await self.list_runs(asked):
+            attention = await self.attention_of(run.run_id)
+            if attention.needs_attention:
+                blocked.append((run, attention))
+        return tuple(sorted(blocked, key=lambda pair: pair[1].waiting_since or _NEVER))
 
     async def children_of(
         self, run_id: str, *, limit: int = DEFAULT_RUN_HISTORY_PAGE_SIZE
@@ -173,4 +255,4 @@ class _Tally:
         )
 
 
-__all__ = ["CostSummary", "RunHistory", "RunQuery"]
+__all__ = ["CostSummary", "RunHistory", "RunQuery", "attention_from"]

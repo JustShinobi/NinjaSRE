@@ -4,7 +4,7 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-14 tools and 4 skills, 8 of them approval-gated.
+15 tools and 4 skills, 8 of them approval-gated.
 
 ## Skills
 
@@ -57,6 +57,26 @@ What must be true before acting, and what the action must carry with it.
 ## Tools
 
 ### methodology
+
+#### `ask_human`
+
+Ask a person something only they can know — whether a change was expected, what a service is meant to do, whether an alert is a known false positive. Give a reason saying what you will do differently depending on the answer, and offer options when the question has a small closed set. You may not ask anyone for a password, key, token, or any other credential; that request is refused. If nobody answers in time you will be told so, and you must then record the gap rather than fill it in.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from human
+- **Parallel safe:** no
+
+**Use when:**
+
+- check whether a deploy, migration, or failover happening now was intended
+- confirm what a service is supposed to do when no runbook says
+- ask whether an alert is a known false positive during a maintenance window
+
+**Not for:**
+
+- anything another capability could establish by reading the system
+- asking for a password, key, token, or any other credential — always refused
+- asking a person to run a command on your behalf, which is a remediation
 
 #### `assess_evidence_sufficiency`
 

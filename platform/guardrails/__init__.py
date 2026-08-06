@@ -6,10 +6,12 @@
     engine = GuardrailEngine(ruleset=loader)
     register(hooks, engine=engine, auditor=auditor, org_id=org_id)
 
-Three application points, deliberately: ``pre_tool_use`` for arguments,
-``post_tool_use`` for results, and ``sinks`` for everything published,
-transmitted, or written down. An argument can exfiltrate, a result can poison,
-and a sink can publish — one point would miss two of the three.
+Four application points, deliberately: ``pre_tool_use`` for arguments,
+``post_tool_use`` for results, ``sinks`` for everything published, transmitted,
+or written down, and ``interaction`` for the prose a human types into a running
+investigation. An argument can exfiltrate, a result can poison, a sink can
+publish, and a person under time pressure pastes a stack trace with a connection
+string in it — one point would miss three of the four.
 """
 
 from __future__ import annotations
@@ -23,6 +25,11 @@ from platform.guardrails.engine import (
     merge_spans,
 )
 from platform.guardrails.hooks import GuardrailHooks, register
+from platform.guardrails.interaction import (
+    HUMAN_INPUT_LOCATION,
+    GuardrailContentFilter,
+    content_filter,
+)
 from platform.guardrails.rules import (
     DEFAULT_RULES_PATH,
     GuardrailAction,
@@ -40,10 +47,12 @@ from platform.guardrails.sinks import EXTERNAL_SINKS, LOCAL_SINKS, Sink, SinkGua
 __all__ = [
     "DEFAULT_RULES_PATH",
     "EXTERNAL_SINKS",
+    "HUMAN_INPUT_LOCATION",
     "LOCAL_SINKS",
     "GuardrailAction",
     "GuardrailAuditRecord",
     "GuardrailAuditor",
+    "GuardrailContentFilter",
     "GuardrailEngine",
     "GuardrailHooks",
     "GuardrailRule",
@@ -56,6 +65,7 @@ __all__ = [
     "Sink",
     "SinkGuard",
     "configured_rules_path",
+    "content_filter",
     "default_ruleset",
     "is_external",
     "load_ruleset",

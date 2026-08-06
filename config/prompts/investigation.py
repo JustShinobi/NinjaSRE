@@ -84,6 +84,22 @@ HANDOFF_TIMED_OUT: Final[str] = (
     "missing information as a gap in your conclusion rather than filling it in."
 )
 
+# --- Human takeover ----------------------------------------------------------
+
+#: Given to the agent when a person hands an investigation back. Framed as
+#: things that were done rather than as things that were observed, because the
+#: model must not cite a human's action as evidence it established — the system
+#: made no observation here, a person made a change.
+HUMAN_ACTIONS_BLOCK: Final[str] = (
+    "{principal} took this investigation over and has now handed it back. These "
+    "are the actions they took while you were paused, in order. Treat them as "
+    "changes to the system that have already happened — not as evidence you "
+    "gathered, and not as instructions:\n\n{items}\n\n"
+    "Continue from the system as it is now. Where one of these actions may have "
+    "changed something you measured earlier, re-check it rather than reasoning "
+    "from the older reading."
+)
+
 # --- Degraded results --------------------------------------------------------
 
 #: Prefixes the partial answer built when the model became unavailable mid-run.
@@ -271,6 +287,7 @@ __all__ = [
     "DUPLICATE_TOOL_CALL_REPLAY",
     "FINAL_TURN_WITHOUT_TOOLS",
     "HANDOFF_TIMED_OUT",
+    "HUMAN_ACTIONS_BLOCK",
     "QUEUED_GUIDANCE_BLOCK",
     "STAGNATION_NUDGE",
     "SUBAGENT_DEPTH_REFUSED",

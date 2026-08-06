@@ -103,10 +103,40 @@ UNRELIABLE_EVIDENCE_SOURCES: Final[tuple[str, ...]] = ("reasoning",)
 #: merging them at the boundary keeps it that way.
 MESSAGE_QUEUE_DEBOUNCE_MS: Final[int] = 1500
 
+#: The shortest remaining wait the debounce will actually wait out. Below this
+#: the window is spent, and the floor is what stops it spinning: the remaining
+#: time is a difference of two floats, so it converges on a residue too small to
+#: add to the clock — and a loop that sleeps for that residue forever never
+#: delivers the guidance it is holding. A millisecond, because the window is
+#: specified in milliseconds and finer precision than the unit is not a wait.
+MESSAGE_QUEUE_DEBOUNCE_FLOOR_SECONDS: Final[float] = 0.001
+
 #: How long a question put to a human stays open. On expiry the handoff
 #: resolves to a refusal, never to a guess: an agent that invents the answer to
 #: the question it needed a human for has learned to skip asking.
 HANDOFF_TIMEOUT_SECONDS: Final[float] = 900.0
+
+#: How long an interaction — a question or an approval — may stay open before it
+#: is closed as expired. The same number for both on purpose: "the run is
+#: waiting on a human" is one situation, and two windows would mean a Slack
+#: thread where the question and the approval beside it lapse on different days.
+INTERACTION_EXPIRY_SECONDS: Final[float] = HANDOFF_TIMEOUT_SECONDS
+
+#: How long the closure of an interaction may take to reach every surface it was
+#: raised on. A budget rather than a timeout: nothing is cancelled when it is
+#: exceeded, but the run records that a surface may still be showing a live
+#: button, which is the fact an operator needs and a silent slow path hides.
+INTERACTION_CLOSURE_BUDGET_SECONDS: Final[float] = 5.0
+
+#: How often a long-running investigation reports that it is still going. Nobody
+#: waiting on an incident should have to guess whether the agent is working or
+#: wedged.
+PROGRESS_NOTIFICATION_INTERVAL_SECONDS: Final[float] = 300.0
+
+#: The quiet period after a progress notification during which another one is
+#: suppressed. Without it a run long enough to need progress reporting is a run
+#: long enough to train everybody to mute the channel.
+PROGRESS_NOTIFICATION_COOLDOWN_SECONDS: Final[float] = 600.0
 
 # --- Intake ------------------------------------------------------------------
 
@@ -265,6 +295,8 @@ __all__ = [
     "FALLBACK_WINDOW_CONFIDENCE",
     "HANDOFF_TIMEOUT_SECONDS",
     "INCIDENT_WINDOW_LEAD_MINUTES",
+    "INTERACTION_CLOSURE_BUDGET_SECONDS",
+    "INTERACTION_EXPIRY_SECONDS",
     "INVESTIGATION_TOOL_CACHE_MAX_CHARS",
     "INVESTIGATION_TOOL_CACHE_MAX_ENTRIES",
     "MAX_AGENT_TOOL_SCHEMAS",
@@ -278,10 +310,13 @@ __all__ = [
     "MAX_SECONDARY_FALLBACK_TOOLS",
     "MAX_STAGNANT_ITERATIONS",
     "MAX_SUBAGENT_DEPTH",
+    "MESSAGE_QUEUE_DEBOUNCE_FLOOR_SECONDS",
     "MESSAGE_QUEUE_DEBOUNCE_MS",
     "NINJASRE_RUNTIME_ENV",
     "NOISE_CLASSIFICATION_THRESHOLD",
     "PLAN_CONFIDENCE_FLOOR",
+    "PROGRESS_NOTIFICATION_COOLDOWN_SECONDS",
+    "PROGRESS_NOTIFICATION_INTERVAL_SECONDS",
     "RUNTIME_CANONICAL",
     "RUNTIME_CLAUDE_SDK",
     "RUN_WALL_CLOCK_SECONDS",

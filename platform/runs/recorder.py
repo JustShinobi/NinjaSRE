@@ -52,6 +52,11 @@ from config.constants.runs import (
     TURN_USAGE_MODEL,
     TURN_USAGE_PROMPT_TOKENS,
 )
+from core.agent.interaction.attention import (
+    RUN_ATTENTION_KEY,
+    RUN_ATTENTION_SINCE_KEY,
+    Attention,
+)
 from platform.guardrails.engine import GuardrailEngine
 from platform.observability.logging import get_logger
 from platform.persistence.ports.run_trace_store import (
@@ -248,6 +253,29 @@ class RunRecorder:
             payload={"status": status.value},
         )
         return closed
+
+    async def record_attention(self, run_id: str, attention: Attention) -> TraceEventRecord:
+        """Record that ``run_id`` started or stopped waiting on a person.
+
+        Written as an event rather than onto the run, because the run row is
+        written twice — once at the start and once at the end — and an
+        investigation blocks and unblocks several times in between. A field
+        would record only the state the run happened to be in when it finished,
+        which for a run that concluded is always "waiting on nobody".
+        """
+        return await self.record_event(
+            run_id,
+            TraceEventKind.ATTENTION_CHANGED,
+            payload={
+                RUN_ATTENTION_KEY: attention.state.value,
+                RUN_ATTENTION_SINCE_KEY: (
+                    attention.waiting_since.isoformat() if attention.waiting_since else ""
+                ),
+                "questions": attention.questions,
+                "approvals": attention.approvals,
+                "summary": attention.summary,
+            },
+        )
 
     async def mark_interrupted(self, run_id: str, *, reason: str) -> AgentRun:
         """Close ``run_id`` as interrupted, keeping whatever was captured.

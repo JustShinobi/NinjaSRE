@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from platform.runs.cursor import Cursor
 from platform.runs.events import TraceEventKind
-from platform.runs.history import CostSummary, RunHistory, RunQuery
+from platform.runs.history import CostSummary, RunHistory, RunQuery, attention_from
 from platform.runs.recorder import RecordedCall, RecordedTurn, RunRecorder
 from platform.runs.replay import ReplayedCall, ReplayedRun, ReplayedTurn, replay_trace
 from platform.runs.retention import TraceRetention, TraceRetentionReport
@@ -39,6 +39,7 @@ __all__ = [
     "TraceRetention",
     "TraceRetentionReport",
     "Truncation",
+    "attention_from",
     "truncate",
     "replay_trace",
 ]

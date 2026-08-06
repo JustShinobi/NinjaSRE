@@ -34,6 +34,11 @@ class TraceEventKind(StrEnum):
     MASKING_APPLIED = "masking_applied"
     BUDGET_EVICTION = "budget_eviction"
     APPROVAL_REQUESTED = "approval_requested"
+    #: The run started or stopped waiting on a person. An event rather than a
+    #: field on the run, because the run row is written once at the start and
+    #: once at the end, and a run blocks and unblocks several times in between —
+    #: a field would only ever record the state it was in when it finished.
+    ATTENTION_CHANGED = "attention_changed"
     RUN_INTERRUPTED = "run_interrupted"
     RUN_FINISHED = "run_finished"
 

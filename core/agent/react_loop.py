@@ -89,6 +89,14 @@ CANONICAL_RUNTIME_NAME = "ninjasre.react"
 #: Returned by ``run`` when a run is cancelled before it produced an answer.
 CANCELLED_ANSWER = "Investigation cancelled before a conclusion was reached."
 
+#: What a paused run reports while a person is driving it. Says resumable
+#: explicitly, because the alternative reading — that the investigation stopped
+#: — is what a takeover exists to avoid producing two records of.
+PAUSED_ANSWER = (
+    "Investigation suspended so a person could take it over. The evidence "
+    "gathered so far is intact and the run is resumable."
+)
+
 
 class ReActLoop:
     """The first-party ReAct runtime.
@@ -141,6 +149,10 @@ class ReActLoop:
         self._clock = clock
         self._session_ids = session_ids or (lambda: f"run-{uuid.uuid4().hex[:12]}")
         self._cancelled: set[str] = set()
+        self._paused: set[str] = set()
+        # Children by parent, so a takeover can reap what a run has in flight
+        # without a second registry to keep in step with the dispatcher.
+        self._children: dict[str, list[str]] = {}
 
         self._catalogue = SubAgentCatalogue(definitions=tuple(subagents))
         self._dispatcher = (
@@ -207,6 +219,35 @@ class ReActLoop:
         """
         self._cancelled.add(session_id)
 
+    async def pause(self, session_id: str) -> None:
+        """Ask ``session_id`` to suspend at its next safe point, for a human.
+
+        Distinct from ``cancel`` in the state it leaves behind and in nothing
+        else about how it stops. A paused run is ``SUSPENDED`` and resumable
+        with its evidence intact; a cancelled one is over. Both stop between
+        iterations rather than mid-call, because a tool result that happened and
+        was never written down is the one thing a resumable session cannot
+        survive.
+        """
+        self._paused.add(session_id)
+
+    def children_of(self, session_id: str) -> tuple[str, ...]:
+        """Return the sub-agent sessions ``session_id`` has dispatched."""
+        return tuple(self._children.get(session_id, ()))
+
+    def share_control_with(self, parent: ReActLoop) -> None:
+        """Adopt ``parent``'s stop signals, so cancelling it reaches this loop.
+
+        A specialist runs in its own loop instance, which means the parent's
+        ``cancel`` and ``pause`` sets are not the ones it checks. Sharing the
+        sets rather than copying them is what makes reaping work: a takeover
+        that stops the parent has to reach the sub-agent that is halfway
+        through a call against the system the person is about to change.
+        """
+        self._cancelled = parent._cancelled  # noqa: SLF001 — one loop's own kind
+        self._paused = parent._paused  # noqa: SLF001 — one loop's own kind
+        self._children = parent._children  # noqa: SLF001 — one loop's own kind
+
     # -- seeds ----------------------------------------------------------------
 
     def _seed_calls(self, session: Session, request: RunRequest) -> tuple[SeedCall, ...]:
@@ -249,6 +290,12 @@ class ReActLoop:
         while session.iteration < session.max_iterations:
             if session.id in self._cancelled:
                 return await self._finish(self._cancelled_result(session), run_failures)
+
+            # Checked after cancellation, because a run that is both cancelled
+            # and paused is over: suspending it would leave a session somebody
+            # is invited to resume when the decision to end it was already made.
+            if session.id in self._paused:
+                return await self._finish(self._paused_result(session), run_failures)
 
             pending = self._bounds_reached(session, deadline=deadline)
             outcome = await self._iterate(session, cache=cache, policy=policy, pending=pending)
@@ -379,6 +426,11 @@ class ReActLoop:
                 reason=f"{len(drained)} queued message(s) merged at the turn boundary",
             )
         )
+        # Acknowledged after the transcript already holds it. A receipt that
+        # went out first would tell somebody the agent had read their message
+        # in the window where a crash means it never did — and they would not
+        # send it again, because they were told it landed.
+        await self._messages.acknowledge(drained)
         logger.info("agent.message_queued", session_id=session.id, messages=len(drained))
 
     # -- sub-agents -----------------------------------------------------------
@@ -455,6 +507,10 @@ class ReActLoop:
             wall_clock_seconds=parent.wall_clock_seconds,
             context_budget_tokens=child_budget(parent, definition),
         )
+        # Recorded before the specialist starts, so a takeover arriving while it
+        # is mid-flight finds it. Recorded after would leave exactly the window
+        # a reaper exists to close.
+        self._children.setdefault(parent.id, []).append(child.id)
 
         specialist = ReActLoop(
             llm=self._llm,
@@ -464,6 +520,7 @@ class ReActLoop:
             hooks=self._hooks,
             clock=self._clock,
         )
+        specialist.share_control_with(self)
         result = await specialist.resume(child)
 
         return SubAgentRun(
@@ -668,9 +725,24 @@ class ReActLoop:
         logger.info("agent.cancelled", session_id=session.id, iteration=session.iteration)
         return RunResult(session=session, status=RunStatus.CANCELLED, answer=CANCELLED_ANSWER)
 
+    def _paused_result(self, session: Session) -> RunResult:
+        """Return the result for a run suspended so a person can drive it.
+
+        ``PARTIAL`` rather than ``CANCELLED``: what the run gathered is intact
+        and the investigation is not over, which is the same shape as a run the
+        model went unavailable during. The session status is what says the
+        difference, and it is what a resumption reads.
+        """
+        session.status = SessionStatus.SUSPENDED
+        session.touch()
+        self._paused.discard(session.id)
+        logger.info("agent.paused", session_id=session.id, iteration=session.iteration)
+        return RunResult(session=session, status=RunStatus.PARTIAL, answer=PAUSED_ANSWER)
+
 
 __all__ = [
     "CANCELLED_ANSWER",
     "CANONICAL_RUNTIME_NAME",
+    "PAUSED_ANSWER",
     "ReActLoop",
 ]
