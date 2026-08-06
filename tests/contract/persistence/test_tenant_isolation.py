@@ -38,6 +38,7 @@ from platform.persistence.ports import (
     StoredStrategy,
     TenantScope,
     TopologyEdge,
+    TraceEventRecord,
     UnitOfWork,
     User,
 )
@@ -92,6 +93,9 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
         )
     )
     await uow.run_traces.start_run(AgentRun(run_id="run-1", trigger="alert", started_at=at()))
+    await uow.run_traces.record_event(
+        TraceEventRecord(event_id="ev-1", run_id="run-1", kind="run_started", occurred_at=at())
+    )
     await uow.sessions.save(SessionRecord(session_id="s-1", status="suspended"))
     await uow.episodes.save(
         Episode(
@@ -156,6 +160,7 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.audit.query() == ()
         assert await uow.run_traces.get_run("run-1") is None
         assert await uow.run_traces.list_runs() == ()
+        assert await uow.run_traces.events_for_run("run-1") == ()
         assert await uow.sessions.load("s-1") is None
         assert await uow.episodes.get("ep-1") is None
         assert await uow.episodes.count() == 0

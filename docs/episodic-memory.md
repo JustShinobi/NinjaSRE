@@ -126,8 +126,8 @@ nothing can find.
 ```python
 from platform.memory import purge_episodes, purge_expired
 
-await purge_episodes(gateway, scope, ["conv-1", "conv-2"])   # named episodes
-await purge_expired(gateway, scope)                          # past the retention window
+await purge_episodes(gateway, scope, ["conv-1", "conv-2"])  # named episodes
+await purge_expired(gateway, scope)  # past the retention window
 ```
 
 The retention window defaults to 730 days — far longer than run traces, on

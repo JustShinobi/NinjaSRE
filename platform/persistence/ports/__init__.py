@@ -99,6 +99,7 @@ from platform.persistence.ports.run_trace_store import (
     RunTraceStore,
     ToolCallRecord,
     ToolCallStatus,
+    TraceEventRecord,
     TurnRecord,
 )
 from platform.persistence.ports.schedule_store import (
@@ -202,6 +203,7 @@ __all__ = [
     "TopologyEdge",
     "TopologyGraph",
     "TopologyNode",
+    "TraceEventRecord",
     "TraversalResult",
     "TurnRecord",
     "UnitOfWork",

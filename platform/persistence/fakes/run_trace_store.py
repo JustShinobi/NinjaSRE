@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
+from config.constants.persistence import MAX_QUERY_PAGE_SIZE
 from platform.persistence.errors import DuplicateRecord, RecordNotFound
 from platform.persistence.fakes.state import TenantState, check_limit, check_payload
 from platform.persistence.ports.run_trace_store import (
@@ -13,6 +14,7 @@ from platform.persistence.ports.run_trace_store import (
     RunStatus,
     RunTrace,
     ToolCallRecord,
+    TraceEventRecord,
     TurnRecord,
 )
 
@@ -118,6 +120,47 @@ class FakeRunTraceStore:
         """Return the run's evidence in the order it was observed."""
         return tuple(e for e in self.state.evidence.values() if e.run_id == run_id)
 
+    async def record_event(self, event: TraceEventRecord) -> TraceEventRecord:
+        """Append ``event`` to its run's log and return it carrying its cursor."""
+        self._require_run(event.run_id)
+        check_payload(event.payload, kind="trace event")
+        stored = replace(event, sequence=self._next_sequence(event.run_id))
+        self.state.trace_events[stored.event_id] = stored
+        return stored
+
+    async def events_for_run(
+        self,
+        run_id: str,
+        *,
+        after: int | None = None,
+        limit: int = 50,
+    ) -> tuple[TraceEventRecord, ...]:
+        """Return the run's events in log order, strictly after ``after``."""
+        check_limit(limit)
+        matches = [
+            event
+            for event in self.state.trace_events.values()
+            if event.run_id == run_id and (after is None or event.sequence > after)
+        ]
+        matches.sort(key=lambda event: event.sequence)
+        return tuple(matches[:limit])
+
+    async def strip_trace(self, run_id: str) -> int:
+        """Delete the run's turns, calls, evidence, and events; keep the run."""
+        self._require_run(run_id)
+        removed = 0
+        for held in (
+            self.state.turns,
+            self.state.tool_calls,
+            self.state.evidence,
+            self.state.trace_events,
+        ):
+            expired = [key for key, record in held.items() if record.run_id == run_id]
+            for key in expired:
+                del held[key]
+            removed += len(expired)
+        return removed
+
     async def replay(self, run_id: str) -> RunTrace:
         """Return the whole trace of ``run_id``, assembled."""
         run = self._require_run(run_id)
@@ -126,7 +169,20 @@ class FakeRunTraceStore:
             turns=await self.turns_for_run(run_id),
             tool_calls=await self.tool_calls_for_run(run_id),
             evidence=await self.evidence_for_run(run_id),
+            events=await self.events_for_run(run_id, limit=MAX_QUERY_PAGE_SIZE),
         )
+
+    def _next_sequence(self, run_id: str) -> int:
+        """Return the next position in one run's log.
+
+        Per run rather than global: the cursor a client holds is a position
+        within the run it is watching, and a deployment-wide counter would leak
+        how busy the rest of the deployment was between two of its events.
+        """
+        held = [
+            event.sequence for event in self.state.trace_events.values() if event.run_id == run_id
+        ]
+        return max(held, default=-1) + 1
 
     def _require_run(self, run_id: str) -> AgentRun:
         run = self.state.runs.get(run_id)

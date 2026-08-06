@@ -152,9 +152,9 @@ for the resolution and read the provenance rather than walking the tree by hand:
 
 ```python
 effective = await service.resolve("team-payments")
-effective.value_at("models.investigator.model")   # 'claude-sonnet-5'
+effective.value_at("models.investigator.model")  # 'claude-sonnet-5'
 effective.source_of("models.investigator.model")  # 'acme' — set at the org
-effective.locked_by("policies.masking.level")     # 'acme' — and pinned there
+effective.locked_by("policies.masking.level")  # 'acme' — and pinned there
 ```
 
 `effective.explain()` returns every path with its value and its source, which is

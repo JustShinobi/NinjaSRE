@@ -120,16 +120,17 @@ _DYNAMIC_IMPORT_FUNCTIONS = frozenset({"import_module", "__import__"})
 
 #: Receivers whose ``execute`` is not a database's.
 #:
-#: ``execute`` is a word two boundaries in this repository both want. A cursor
-#: executes a statement; a ``Sandbox`` executes a capability's command, and that
-#: verb is part of its port. Exempting the *receiver* rather than the method
-#: keeps the rule intact everywhere else — ``connection.execute`` and
-#: ``session.execute`` still fail, and so does a bare ``execute(...)``.
+#: ``execute`` is a word several boundaries in this repository want. A cursor
+#: executes a statement; a ``Sandbox`` executes a capability's command and a
+#: ``JobExecutor`` executes a scheduled firing, and that verb is part of both
+#: their ports. Exempting the *receiver* rather than the method keeps the rule
+#: intact everywhere else — ``connection.execute`` and ``session.execute`` still
+#: fail, and so does a bare ``execute(...)``.
 #:
 #: Named receivers rather than a pattern, deliberately. A regular expression
 #: over variable names would eventually exempt something nobody intended, and
 #: this list is meant to stay short enough to read in one glance.
-NON_STORAGE_EXECUTE_RECEIVERS = frozenset({"sandbox"})
+NON_STORAGE_EXECUTE_RECEIVERS = frozenset({"sandbox", "executor"})
 
 #: Prose ends in a full stop; a statement does not. This one guard is what
 #: keeps "Select a provider from the registry." out of the report, and it costs

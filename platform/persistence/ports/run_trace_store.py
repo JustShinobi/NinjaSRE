@@ -33,6 +33,13 @@ class RunStatus(StrEnum):
     Mirrors the runtime's own session status rather than inventing a second
     vocabulary: an operator reading a stored trace and an operator watching a
     live run should not have to translate between two sets of words.
+
+    ``INTERRUPTED`` is the one word the runtime has no use for, because a
+    process that vanished did not get to record anything. It is written *for* a
+    run by whoever noticed it stopped — a reaper finding an expired lease, a
+    replica finding a run still marked running at boot — and it says something
+    ``FAILED`` does not: nobody knows how far this got. Recording it as a
+    failure would put a conclusion in the history that nothing established.
     """
 
     RUNNING = "running"
@@ -40,6 +47,7 @@ class RunStatus(StrEnum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     FAILED = "failed"
+    INTERRUPTED = "interrupted"
 
 
 class ToolCallStatus(StrEnum):
@@ -114,6 +122,31 @@ class EvidenceRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class TraceEventRecord:
+    """One thing that happened during a run, at its position in the run's log.
+
+    The four records above are *state*: what the run is, what it thought, what
+    it called, what it saw. This one is the *order those arrived in*, and it is
+    a separate record because a client that disconnects and comes back has to
+    ask a question the other four cannot answer — "what happened after position
+    N" — without replaying the whole investigation to find out.
+
+    ``sequence`` is assigned by the store, not by the caller. It is the cursor a
+    reconnecting client presents, so two writers must not be able to choose the
+    same one, and a caller that picked its own would be choosing on behalf of
+    every other writer to the same run.
+    """
+
+    event_id: str
+    run_id: str
+    kind: str
+    occurred_at: datetime | None = None
+    turn_id: str | None = None
+    payload: Mapping[str, Any] = field(default_factory=dict)
+    sequence: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class RunTrace:
     """A run and everything under it, assembled for replay."""
 
@@ -121,6 +154,7 @@ class RunTrace:
     turns: tuple[TurnRecord, ...] = ()
     tool_calls: tuple[ToolCallRecord, ...] = ()
     evidence: tuple[EvidenceRecord, ...] = ()
+    events: tuple[TraceEventRecord, ...] = ()
 
 
 @runtime_checkable
@@ -189,6 +223,39 @@ class RunTraceStore(Protocol):
     async def evidence_for_run(self, run_id: str) -> tuple[EvidenceRecord, ...]:
         """Return the run's evidence in the order it was observed."""
 
+    async def record_event(self, event: TraceEventRecord) -> TraceEventRecord:
+        """Append ``event`` to its run's log and return it carrying its cursor.
+
+        The returned ``sequence`` is the store's, whatever the caller passed.
+        Raises ``RecordNotFound`` when the run does not exist.
+        """
+
+    async def events_for_run(
+        self,
+        run_id: str,
+        *,
+        after: int | None = None,
+        limit: int = 50,
+    ) -> tuple[TraceEventRecord, ...]:
+        """Return the run's events in log order, strictly after ``after``.
+
+        ``after`` is a cursor a client held when it lost its connection, so the
+        bound is exclusive: an event it already saw must not arrive twice.
+        ``limit`` is capped by ``MAX_QUERY_PAGE_SIZE``; above it,
+        ``BoundExceeded``.
+        """
+
+    async def strip_trace(self, run_id: str) -> int:
+        """Delete the run's turns, calls, evidence, and events; keep the run.
+
+        Returns how many records went. The run row itself — its identity,
+        status, timings, and outcome summary — survives, which is what lets
+        retention reclaim the bulk of a trace without erasing the fact that the
+        investigation happened or what it concluded. Raises ``RecordNotFound``
+        when the run does not exist: stripping a trace that is not there is
+        almost always a caller working from a stale list.
+        """
+
     async def replay(self, run_id: str) -> RunTrace:
         """Return the whole trace of ``run_id``, assembled.
 
@@ -207,5 +274,6 @@ __all__ = [
     "RunTraceStore",
     "ToolCallRecord",
     "ToolCallStatus",
+    "TraceEventRecord",
     "TurnRecord",
 ]

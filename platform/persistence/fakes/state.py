@@ -40,6 +40,7 @@ from platform.persistence.ports.run_trace_store import (
     AgentRun,
     EvidenceRecord,
     ToolCallRecord,
+    TraceEventRecord,
     TurnRecord,
 )
 from platform.persistence.ports.schedule_store import JobClaim, ScheduledJob
@@ -163,6 +164,7 @@ class TenantState:
     turns: dict[str, TurnRecord] = field(default_factory=dict)
     tool_calls: dict[str, ToolCallRecord] = field(default_factory=dict)
     evidence: dict[str, EvidenceRecord] = field(default_factory=dict)
+    trace_events: dict[str, TraceEventRecord] = field(default_factory=dict)
     sessions: dict[str, SessionRecord] = field(default_factory=dict)
     episodes: dict[str, Episode] = field(default_factory=dict)
     strategies: dict[StrategyKey, StoredStrategy] = field(default_factory=dict)

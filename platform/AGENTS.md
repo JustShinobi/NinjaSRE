@@ -499,6 +499,67 @@ absence of the reverse import.
 Operator-facing documentation is
 [`docs/change-approval.md`](../docs/change-approval.md).
 
+## Runs, traces, and the scheduler, in one page
+
+`runs/` is the durable record of an investigation and the live view of one in
+flight; `scheduler/` starts the recurring ones. They are one feature because
+they share a lifecycle: a scheduled run *is* a run, and everything downstream of
+a run therefore has one case rather than two. Six things are load-bearing.
+
+**The event log is the source of truth and the pub/sub is a delivery
+optimisation.** Every event reaches `RunTraceStore` before the broker sees it,
+and a subscriber attaches *before* the catch-up read rather than after. That
+ordering is the whole of the exactly-once reconnection property: a client
+presents the cursor it last acknowledged, is served from the log until the log
+has nothing newer, and the overlap with what the broker buffered is removed by
+the subscription's own cursor. Publish-then-log would deliver an event the log
+cannot serve again, and "exactly once" would become "usually once".
+
+**A slow subscriber is dropped, not buffered.** It reconnects with its cursor
+and misses nothing, because the log still holds everything. An unbounded queue
+is a memory leak with a client attached, and it fails the process rather than
+the one reader.
+
+**Guardrails run before persistence and truncation before the store's bound.** A
+secret that reached the trace is a secret in a second store, one nobody audits
+and retention keeps for ninety days — so `RunRecorder` scans every string at
+every depth on the way in, and there is no path to the store that skips it.
+Truncation is separate and earlier than the store's megabyte ceiling, because a
+payload that only fails at the storage layer fails after the run already spent
+the time producing it. **Nothing is cut silently**: the value carries a visible
+suffix and the payload carries a marker object, because a truncated payload that
+looked complete is worse than no payload.
+
+**A sub-agent is a nested run, not a nested field.** Its turns and calls are its
+own records linked to the parent. Flattening them would hide what a sub-agent
+was given and what it returned, which is precisely what is worth auditing about
+delegation.
+
+**Exactly-once scheduling is two layers and no lock service.** A lease claimed
+per job stops the common case; a run id derived from `(job_id, fire_time)` stops
+the case where the lease was wrong, because the second `start_run` for a firing
+is a duplicate the store refuses. Leases rather than locks, because a lock held
+by a crashed process needs a human to clear it and it will be a human who is
+already busy. The reaper's two phases are in two transactions on purpose —
+releasing leases is cross-tenant and marking a run is tenant-scoped, and there
+is no way to hold both units of work at once.
+
+**Retention strips the trace and keeps the run.** `runs/retention.py` removes
+turns, calls, evidence, and events, and leaves the run row with its status,
+timings, and summary; the audit trail has no deletion path at all. The
+persistence layer's own sweeper deletes runs whole, which is the other, blunter
+policy — a run whose row went is, as far as anything downstream can tell, an
+investigation that never happened.
+
+DST is written here rather than inherited from a cron library, because libraries
+handle it differently and silently. Spring forward fires once at the instant the
+job would have fired anyway (02:30 BST for a 01:30 GMT schedule), marked
+`shifted`; fall back fires on the first occurrence, and the claim key makes the
+second unreachable even for a scheduler that evaluated both.
+
+Operator-facing documentation is
+[`docs/runs-and-scheduling.md`](../docs/runs-and-scheduling.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -575,6 +636,19 @@ Operator-facing documentation is
   recover from it (`Conflict.is_recoverable`). An unrecoverable conflict is one
   where approving it later could not be honoured — a deleted target, not a
   changed one.
+- A new kind of thing worth seeing in a trace → a member of
+  `runs.events.TraceEventKind`, never a string at a call site. The enum is
+  closed because an event nobody named is one a console cannot render, a replay
+  cannot label, and an evaluation cannot count.
+- A new attribution on a run → a key in `config/constants/runs.py` and its use
+  in *both* `runs/recorder.py` and `runs/history.py`. The recorder writes run
+  metadata and the history filters on it, and a typo in one of the two produces
+  an empty result rather than an error.
+- A new reason a schedule stops running → a member of
+  `scheduler.models.DisabledReason`. Never a bare `enabled=False`: an operator's
+  decision, a deleted team, and an expression that stopped parsing are three
+  states a boolean collapses into one, and the second is the one somebody needs
+  to be told about.
 
 ---
 

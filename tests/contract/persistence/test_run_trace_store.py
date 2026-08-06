@@ -14,6 +14,7 @@ from platform.persistence.ports import (
     RunStatus,
     TenantScope,
     ToolCallRecord,
+    TraceEventRecord,
     TurnRecord,
 )
 
@@ -154,3 +155,164 @@ async def test_an_oversized_body_is_refused_rather_than_stored(
                     body={"lines": "x" * (MAX_JSONB_PAYLOAD_BYTES + 1)},
                 )
             )
+
+
+async def test_events_are_appended_with_a_monotonic_cursor(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # The cursor is what a reconnecting client presents, so it has to be
+    # assigned by the store rather than by whoever happened to write the event.
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run())
+        first = await uow.run_traces.record_event(
+            TraceEventRecord(event_id="ev-1", run_id="run-1", kind="run_started")
+        )
+        second = await uow.run_traces.record_event(
+            TraceEventRecord(event_id="ev-2", run_id="run-1", kind="guardrail_action")
+        )
+
+    assert first.sequence < second.sequence
+
+
+async def test_events_are_read_back_after_a_cursor(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run())
+        recorded = [
+            await uow.run_traces.record_event(
+                TraceEventRecord(event_id=f"ev-{index}", run_id="run-1", kind="turn_completed")
+            )
+            for index in range(4)
+        ]
+
+        missed = await uow.run_traces.events_for_run("run-1", after=recorded[1].sequence)
+
+    assert [event.event_id for event in missed] == ["ev-2", "ev-3"]
+
+
+async def test_an_event_for_an_unknown_run_is_refused(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        with pytest.raises(RecordNotFound):
+            await uow.run_traces.record_event(
+                TraceEventRecord(event_id="ev-1", run_id="ghost", kind="run_started")
+            )
+
+
+async def test_replay_carries_the_event_log(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run())
+        await uow.run_traces.record_event(
+            TraceEventRecord(event_id="ev-1", run_id="run-1", kind="masking_applied")
+        )
+
+        trace = await uow.run_traces.replay("run-1")
+
+    assert [event.kind for event in trace.events] == ["masking_applied"]
+
+
+async def test_stripping_a_trace_keeps_the_run_and_its_summary(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # FR-025: retention removes the trace, never the record that the
+    # investigation happened and what it concluded.
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run())
+        await uow.run_traces.complete_run(
+            "run-1", status=RunStatus.COMPLETED, finished_at=at(5), summary="Pool exhaustion."
+        )
+        await uow.run_traces.record_turn(TurnRecord(turn_id="t-1", run_id="run-1", index=0))
+        await uow.run_traces.record_tool_call(
+            ToolCallRecord(call_id="c-1", run_id="run-1", turn_id="t-1", tool_name="k8s.pods")
+        )
+        await uow.run_traces.record_evidence(
+            EvidenceRecord(evidence_id="e-1", run_id="run-1", source="loki", evidence_type="log")
+        )
+        await uow.run_traces.record_event(
+            TraceEventRecord(event_id="ev-1", run_id="run-1", kind="run_started")
+        )
+
+        removed = await uow.run_traces.strip_trace("run-1")
+        trace = await uow.run_traces.replay("run-1")
+
+    assert removed == 4
+    assert trace.turns == () and trace.tool_calls == () and trace.evidence == ()
+    assert trace.events == ()
+    assert trace.run.summary == "Pool exhaustion."
+    assert trace.run.status is RunStatus.COMPLETED
+
+
+async def test_stripping_a_run_that_does_not_exist_raises(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        with pytest.raises(RecordNotFound):
+            await uow.run_traces.strip_trace("ghost")
+
+
+async def test_tool_calls_replay_in_the_order_they_arrived(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # Not by id and not by timestamp. Two calls in one concurrent batch share a
+    # microsecond, and ids sort lexically — so an arrival counter that stopped
+    # advancing would leave the replay ordered by neither, silently.
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run())
+        await uow.run_traces.record_turn(TurnRecord(turn_id="t-1", run_id="run-1", index=0))
+        for name in ("zeta", "alpha", "mu"):
+            await uow.run_traces.record_tool_call(
+                ToolCallRecord(
+                    call_id=f"c-{name}",
+                    run_id="run-1",
+                    turn_id="t-1",
+                    tool_name=name,
+                    started_at=at(),
+                )
+            )
+
+        trace = await uow.run_traces.replay("run-1")
+
+    assert [call.tool_name for call in trace.tool_calls] == ["zeta", "alpha", "mu"]
+
+
+async def test_evidence_replays_in_the_order_it_was_observed(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run())
+        for name in ("zeta", "alpha", "mu"):
+            await uow.run_traces.record_evidence(
+                EvidenceRecord(
+                    evidence_id=f"e-{name}",
+                    run_id="run-1",
+                    source=name,
+                    evidence_type="log",
+                    observed_at=at(),
+                )
+            )
+
+        trace = await uow.run_traces.replay("run-1")
+
+    assert [item.source for item in trace.evidence] == ["zeta", "alpha", "mu"]
+
+
+async def test_every_event_gets_its_own_position(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # Stated as a set rather than as "the last one is bigger": a counter that
+    # stopped advancing after the first record still satisfies the weaker check
+    # on two events and fails here on five.
+    async with gateway.begin(scope) as uow:
+        await uow.run_traces.start_run(run())
+        recorded = [
+            await uow.run_traces.record_event(
+                TraceEventRecord(event_id=f"ev-{index}", run_id="run-1", kind="turn_completed")
+            )
+            for index in range(5)
+        ]
+
+    assert [event.sequence for event in recorded] == [0, 1, 2, 3, 4]

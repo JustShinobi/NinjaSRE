@@ -81,9 +81,9 @@ def _purge_tenant(tenant: TenantState, data_class: DataClass, cutoff: datetime) 
 def _purge_runs(tenant: TenantState, cutoff: datetime) -> int:
     """Delete expired runs and everything hanging off them.
 
-    Turns, tool calls, and evidence go with their run. A trace missing its
-    evidence is not a smaller trace, it is a misleading one — it shows what the
-    model said with no record of what the system observed.
+    Turns, tool calls, evidence, and the event log go with their run. A trace
+    missing its evidence is not a smaller trace, it is a misleading one — it
+    shows what the model said with no record of what the system observed.
     """
     expired = {
         run_id
@@ -101,6 +101,8 @@ def _purge_runs(tenant: TenantState, cutoff: datetime) -> int:
         del tenant.tool_calls[key]
     for key in [k for k, item in tenant.evidence.items() if item.run_id in expired]:
         del tenant.evidence[key]
+    for key in [k for k, event in tenant.trace_events.items() if event.run_id in expired]:
+        del tenant.trace_events[key]
     return len(expired)
 
 

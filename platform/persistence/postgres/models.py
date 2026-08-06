@@ -329,6 +329,34 @@ class Evidence(Base):
     recorded_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
+class TraceEvent(Base):
+    """One thing that happened during a run, at its position in the run's log.
+
+    ``sequence`` is per run and assigned inside the run's own transaction, for
+    the same reason ``recorded_seq`` is above: a cursor a client presents after
+    a dropped connection has to mean the same position on the next read, and two
+    events in one concurrent batch routinely share a microsecond.
+    """
+
+    __tablename__ = "trace_events"
+    __table_args__ = (
+        _tenant_fk("agent_runs", "run_id"),
+        # The two queries this table serves: catch up a reconnecting client
+        # from a cursor, and count what a class of event did across a tenant.
+        Index("ix_trace_events_cursor", "org_id", "run_id", "sequence"),
+        Index("ix_trace_events_kind", "org_id", "kind"),
+    )
+
+    org_id: Mapped[str] = _org()
+    event_id: Mapped[str] = _id()
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    turn_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    kind: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    occurred_at: Mapped[datetime | None] = _timestamp()
+    payload: Mapped[dict[str, Any]] = _json()
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
 class Session(Base):
     """Resumable conversation state, as an opaque payload."""
 
