@@ -153,11 +153,29 @@ class IntakeClassification:
 
 @dataclass(frozen=True, slots=True)
 class TeamContext:
-    """Who this run is for, and what they have.
+    """Who this run is for, who caused it, and what they have.
 
     Everything a stage needs about the deployment that is not a capability and
     not a secret. Hierarchical configuration resolves it; the pipeline only
     reads it.
+
+    ``actor_id`` and ``actor_kind`` are what make a tool call attributable. They
+    ride here rather than in a slice or a second parameter because this is the
+    one value every stage already holds — an attribution that had to be threaded
+    separately is one that gets dropped on whichever path nobody remembered, and
+    the path it is dropped on is the one somebody will ask about. The state
+    serialises this whole context, so the trace records who caused the run
+    without anything else having to remember to.
+
+    They are plain strings rather than the identity layer's ``Principal``
+    because `core/` describes what an investigation *is* and does not need to
+    know how somebody signed in. A transport fills them from the principal it
+    authenticated: ``actor_id=principal.principal_id`` and
+    ``actor_kind=principal.actor_kind.value``.
+
+    Empty is a real answer, and the honest one: a run nothing human started —
+    a scheduled sweep, a replayed fixture — has no principal, and a trace that
+    invented one would be worse than a trace that says so.
     """
 
     team_id: str = ""
@@ -165,10 +183,17 @@ class TeamContext:
     sandbox_profiles: tuple[str, ...] = ()
     destinations: tuple[str, ...] = ()
     tool_budget: int = DEFAULT_TOOL_BUDGET
+    actor_id: str = ""
+    actor_kind: str = ""
 
     def __post_init__(self) -> None:
         if self.tool_budget < 0:
             raise ValueError("tool_budget must not be negative")
+
+    @property
+    def is_attributed(self) -> bool:
+        """Return whether this run names the principal that caused it."""
+        return bool(self.actor_id)
 
     def to_record(self) -> dict[str, Any]:
         """Return a JSON-serialisable record of this context."""
@@ -178,6 +203,8 @@ class TeamContext:
             "sandbox_profiles": list(self.sandbox_profiles),
             "destinations": list(self.destinations),
             "tool_budget": self.tool_budget,
+            "actor_id": self.actor_id,
+            "actor_kind": self.actor_kind,
         }
 
     @classmethod
@@ -189,6 +216,8 @@ class TeamContext:
             sandbox_profiles=tuple(str(item) for item in record.get("sandbox_profiles") or ()),
             destinations=tuple(str(item) for item in record.get("destinations") or ()),
             tool_budget=int(record.get("tool_budget", DEFAULT_TOOL_BUDGET)),
+            actor_id=str(record.get("actor_id", "")),
+            actor_kind=str(record.get("actor_kind", "")),
         )
 
 

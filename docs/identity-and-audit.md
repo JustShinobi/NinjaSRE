@@ -234,6 +234,17 @@ an outage merges with what you exported before it.
 Take a window with `since` and `until`, archive it, and keep going. Nothing is
 deleted at this end — that is the point.
 
+## Attribution inside an investigation
+
+An investigation carries the principal that caused it, so every capability it
+executes is attributable. It rides on the run's team context, which every stage
+already holds and which the trace serialises whole — a resumed session keeps it,
+and no stage has to remember to write it down.
+
+A run nothing human started — a scheduled sweep, a replayed fixture — records no
+principal, and says so rather than naming one. That distinction is visible in
+the trace and is the honest one.
+
 ## What is audited
 
 At minimum: authentication, token lifecycle, configuration changes, credential

@@ -90,6 +90,16 @@ a caller that knows what to do with a provider timeout still sees one — and
 never swallowed, because a stage that failed must not look like a stage that
 had nothing to say. The run-end hooks fire exactly once either way.
 
+**Who caused the run rides on `TeamContext`.** `actor_id` and `actor_kind` sit
+beside the team because that is the one value every stage already holds, so
+every capability a run executes is attributable without a second thing to
+thread. `AgentState.to_record` serialises the whole context, which means the
+trace records it and a resumed session keeps it, and neither took a stage
+remembering to. They are plain strings: `core/` describes what an investigation
+is and does not need to know how anybody signed in — a transport fills them
+from the principal it authenticated. Empty is a real answer for a run nothing
+human started, and a better one than an invented principal.
+
 **What the pipeline needs from tier 2 and above is a port.** The catalogue
 resolver, the capability ranker, the recent-incident index, and the delivery
 destinations all live above `core/` in the tier table, so `pipeline/ports.py`
