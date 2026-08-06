@@ -83,6 +83,19 @@ class FakeTopologyGraph:
         self.state.topology_edges[key] = merged
         return merged
 
+    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
+        """Return the edges leaving ``node_id``, with their stored properties."""
+        self._require_available()
+        found = [edge for edge in self._dependency_edges() if edge.from_node_id == node_id]
+        found.sort(key=lambda edge: (edge.to_node_id, edge.kind.value))
+        return tuple(found[:MAX_GRAPH_RESULTS])
+
+    async def delete_edge(self, edge: TopologyEdge) -> bool:
+        """Delete one edge and return whether it existed. Endpoints are kept."""
+        self._require_available()
+        key = (edge.from_node_id, edge.to_node_id, edge.kind.value)
+        return self.state.topology_edges.pop(key, None) is not None
+
     async def direct_dependencies(self, node_id: str) -> TraversalResult:
         """Return what ``node_id`` depends on, one hop out."""
         self._require_available()

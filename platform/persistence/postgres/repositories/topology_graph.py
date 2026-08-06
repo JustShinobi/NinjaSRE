@@ -102,6 +102,33 @@ class PostgresTopologyGraph(TenantBound):
         )
         return merged
 
+    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
+        """Return the edges leaving ``node_id``, with their stored properties."""
+        self._require_available()
+        rows = await self._run(queries.EDGES_FROM, {"node_id": self._scoped(node_id)})
+        return tuple(
+            TopologyEdge(
+                from_node_id=node_id,
+                to_node_id=self._unscoped(str(agtype.loads(raw_target))),
+                kind=EdgeKind(str(agtype.loads(raw_kind))),
+                properties=agtype.decode_properties(agtype.loads(raw_properties)),
+            )
+            for raw_target, raw_kind, raw_properties in rows
+        )
+
+    async def delete_edge(self, edge: TopologyEdge) -> bool:
+        """Delete one edge and return whether it existed. Endpoints are kept."""
+        self._require_available()
+        rows = await self._run(
+            queries.DELETE_EDGE,
+            {
+                "from_node_id": self._scoped(edge.from_node_id),
+                "to_node_id": self._scoped(edge.to_node_id),
+                "kind": edge.kind.value,
+            },
+        )
+        return bool(rows)
+
     async def direct_dependencies(self, node_id: str) -> TraversalResult:
         """Return what ``node_id`` depends on, one hop out."""
         return await self._nodes(queries.DIRECT_DEPENDENCIES, node_id)

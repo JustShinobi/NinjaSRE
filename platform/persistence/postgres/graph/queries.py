@@ -1,4 +1,4 @@
-"""The nine traversals, as openCypher that no caller ever contributes text to.
+"""The catalogue, as openCypher that no caller ever contributes text to.
 
 FR-016 says LLM-generated Cypher must not be executed, and the port makes that
 true of its signatures: nothing there takes a query. This module is where the
@@ -126,6 +126,31 @@ READ_EDGE = statement(
     "properties ag_catalog.agtype",
 )
 
+DELETE_EDGE = statement(
+    f"""
+    MATCH (a:{NODE_LABEL} {{node_id: $from_node_id}})
+          -[e:{EDGE_LABEL} {{kind: $kind}}]->
+          (b:{NODE_LABEL} {{node_id: $to_node_id}})
+    DELETE e
+    RETURN $kind
+    """,
+    "kind ag_catalog.agtype",
+)
+
+#: The one shape that returns edges rather than nodes. Reconciliation needs the
+#: properties on an edge — the operator's annotation, and whether a human drew it
+#: — and no traversal above can carry them, because they all return nodes.
+EDGES_FROM = statement(
+    f"""
+    MATCH (a:{NODE_LABEL} {{node_id: $node_id}})-[e:{EDGE_LABEL}]->(b:{NODE_LABEL})
+    WHERE e.kind <> '{INVOLVED_KIND}'
+    RETURN b.node_id, e.kind, e.properties
+    ORDER BY b.node_id, e.kind
+    LIMIT {MAX_GRAPH_RESULTS}
+    """,
+    "to_node_id ag_catalog.agtype, kind ag_catalog.agtype, properties ag_catalog.agtype",
+)
+
 
 # --- One-hop reads --------------------------------------------------------------
 
@@ -244,6 +269,8 @@ STATEMENTS: Final[frozenset[str]] = frozenset(
         READ_NODE,
         UPSERT_EDGE,
         READ_EDGE,
+        DELETE_EDGE,
+        EDGES_FROM,
         DIRECT_DEPENDENCIES,
         DIRECT_DEPENDENTS,
         COMPONENTS_FOR_EPISODE,
@@ -257,8 +284,10 @@ STATEMENTS: Final[frozenset[str]] = frozenset(
 __all__ = [
     "BLAST_RADIUS_BY_DEPTH",
     "COMPONENTS_FOR_EPISODE",
+    "DELETE_EDGE",
     "DIRECT_DEPENDENCIES",
     "DIRECT_DEPENDENTS",
+    "EDGES_FROM",
     "EDGE_LABEL",
     "EPISODES_FOR_COMPONENT",
     "GRAPH",

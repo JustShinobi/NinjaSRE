@@ -1,6 +1,6 @@
 """Service topology, reachable only through a closed set of bounded traversals.
 
-Nine query shapes, and no method on this port accepts a query string. That is
+Eleven shapes, and no method on this port accepts a query string. That is
 FR-016 expressed as a signature rather than as a rule somebody has to remember:
 there is no way to hand this port Cypher, so there is no way for a model to
 generate Cypher that reaches it. The upstream implementation this replaces let
@@ -12,10 +12,20 @@ The plan's catalogue names the two writes ``upsert_service`` and
 ``upsert_dependency``. They are ``upsert_node`` and ``upsert_edge`` here, which
 is FR-015's own wording and one generalisation step: episodes are nodes in this
 graph too, so ``components_for_episode`` and ``episodes_for_component`` have
-something to traverse without a tenth query shape existing to write the link.
-Adding a shape beyond these nine is a deliberate act — a row in the plan's
-table, a contract test, and a review — and not something a caller can do by
-composing.
+something to traverse without another query shape existing to write the link.
+Adding a shape is a deliberate act — a row in the plan's table, a contract test,
+and a review — and not something a caller can do by composing.
+
+``edges_from`` and ``delete_edge`` are the two that were added deliberately, and
+the reason is worth stating because it is the only reason either exists.
+Discovery has to *reconcile* rather than replace: keep the operator annotations
+on an edge, keep the edges a human drew that no scraper can see, remove the ones
+that are genuinely gone. Every traversal above returns *nodes*, so a caller
+reading them cannot tell an annotated edge from a bare one, cannot tell an
+operator's edge from a scraper's, and has no way to remove one. Reconciliation is
+unwritable without these two, and a "soft delete" written through ``upsert_edge``
+would not work either — a retired edge still leads a node-returning traversal to
+the node behind it.
 
 **Every traversal is bounded twice.** Depth is capped by ``MAX_GRAPH_DEPTH`` and
 a request above it raises rather than being clamped, because a blast radius
@@ -137,7 +147,7 @@ class TopologyAvailability:
 
 @runtime_checkable
 class TopologyGraph(Protocol):
-    """The nine parameterised traversals, within one tenant."""
+    """The eleven parameterised shapes, within one tenant."""
 
     async def availability(self) -> TopologyAvailability:
         """Return whether graph storage is usable right now (FR-002).
@@ -160,6 +170,24 @@ class TopologyGraph(Protocol):
         Endpoints are created as bare nodes rather than rejected. Discovery
         sees an edge before it sees both ends often enough that failing here
         would mean dropping real topology on ordering alone.
+        """
+
+    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
+        """Return the edges leaving ``node_id``, with their stored properties.
+
+        The only method that returns edges rather than nodes, and it exists for
+        reconciliation: preserving an operator's annotation and refusing to
+        delete an operator's edge both require reading what is on the edge.
+        Ordered by target then kind, so two runs over an unchanged graph produce
+        the same diff. Bounded by ``MAX_GRAPH_RESULTS``.
+        """
+
+    async def delete_edge(self, edge: TopologyEdge) -> bool:
+        """Delete the edge with these endpoints and kind, and return whether it existed.
+
+        Endpoints are left in place. A service whose last dependency was retired
+        is still a service, and deleting the node would take its annotations,
+        its owner, and its environment with it.
         """
 
     async def direct_dependencies(self, node_id: str) -> TraversalResult:

@@ -1,4 +1,4 @@
-"""Contract: the nine bounded traversals, and what happens without a graph."""
+"""Contract: the bounded catalogue, and what happens without a graph."""
 
 from __future__ import annotations
 
@@ -28,6 +28,8 @@ QUERY_CATALOGUE = frozenset(
     {
         "upsert_node",
         "upsert_edge",
+        "delete_edge",
+        "edges_from",
         "direct_dependencies",
         "direct_dependents",
         "transitive_dependents",
@@ -91,6 +93,94 @@ async def test_an_edge_creates_endpoints_it_has_never_seen(
         dependencies = await uow.topology.direct_dependencies("checkout")
 
     assert [node.node_id for node in dependencies.nodes] == ["postgres"]
+
+
+async def test_edges_from_carries_the_properties_a_traversal_cannot(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The one shape that returns edges, and why reconciliation needs it.
+
+    Every traversal returns nodes, so a caller reading one cannot tell an
+    annotated edge from a bare one. Discovery has to, or it deletes the
+    annotation an operator wrote on the dependency it could not observe.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.topology.upsert_edge(
+            TopologyEdge(
+                from_node_id="checkout",
+                to_node_id="payments",
+                kind=EdgeKind.CALLS,
+                properties={"note": "only during failover"},
+            )
+        )
+        await uow.topology.upsert_edge(
+            TopologyEdge(from_node_id="checkout", to_node_id="postgres", kind=EdgeKind.READS_FROM)
+        )
+        edges = await uow.topology.edges_from("checkout")
+
+    assert [(edge.to_node_id, edge.kind) for edge in edges] == [
+        ("payments", EdgeKind.CALLS),
+        ("postgres", EdgeKind.READS_FROM),
+    ]
+    assert edges[0].properties["note"] == "only during failover"
+
+
+async def test_deleting_an_edge_keeps_both_endpoints(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # A service whose last dependency was retired is still a service, and
+    # deleting the node would take its annotations and its owner with it.
+    async with gateway.begin(scope) as uow:
+        await uow.topology.upsert_node(TopologyNode(node_id="payments", name="payments"))
+        await uow.topology.upsert_edge(
+            TopologyEdge(from_node_id="checkout", to_node_id="payments", kind=EdgeKind.CALLS)
+        )
+
+        removed = await uow.topology.delete_edge(
+            TopologyEdge(from_node_id="checkout", to_node_id="payments", kind=EdgeKind.CALLS)
+        )
+        again = await uow.topology.delete_edge(
+            TopologyEdge(from_node_id="checkout", to_node_id="payments", kind=EdgeKind.CALLS)
+        )
+
+        assert removed is True
+        assert again is False
+        assert await uow.topology.edges_from("checkout") == ()
+        assert (await uow.topology.direct_dependencies("checkout")).nodes == ()
+        path = await uow.topology.shortest_path("payments", "payments")
+
+    assert [node.node_id for node in path] == ["payments"]
+
+
+async def test_deleting_one_kind_leaves_the_other_edge_between_the_same_pair(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    # Two services can genuinely relate twice — a service that both calls an API
+    # and reads its database has two dependencies, and collapsing them would lose
+    # one on every reconciliation.
+    async with gateway.begin(scope) as uow:
+        await uow.topology.upsert_edge(
+            TopologyEdge(from_node_id="checkout", to_node_id="payments", kind=EdgeKind.CALLS)
+        )
+        await uow.topology.upsert_edge(
+            TopologyEdge(from_node_id="checkout", to_node_id="payments", kind=EdgeKind.READS_FROM)
+        )
+        await uow.topology.delete_edge(
+            TopologyEdge(from_node_id="checkout", to_node_id="payments", kind=EdgeKind.CALLS)
+        )
+        edges = await uow.topology.edges_from("checkout")
+
+    assert [edge.kind for edge in edges] == [EdgeKind.READS_FROM]
+
+
+async def test_edges_from_excludes_involvement(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.topology.upsert_edge(
+            TopologyEdge(from_node_id="ep-1", to_node_id="checkout", kind=EdgeKind.INVOLVED)
+        )
+        assert await uow.topology.edges_from("ep-1") == ()
 
 
 async def test_dependencies_and_dependents_are_the_same_edge_read_both_ways(

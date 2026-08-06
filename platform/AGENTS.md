@@ -299,6 +299,52 @@ all.
 Operator-facing documentation is
 [`docs/strategy-synthesis.md`](../docs/strategy-synthesis.md).
 
+## Topology and the knowledge base, in one page
+
+`memory/` holds what NinjaSRE learned from its own runs. `knowledge/` holds what
+is true of the operator's estate: a **topology graph** of what depends on what,
+and a **knowledge base** of the runbooks and post-mortems their team wrote. Hold
+a `KnowledgeService`: it wires the guidance hook, the two read paths, ingestion,
+and the review queue from one policy and one tenant scope.
+
+Five things are load-bearing and non-obvious:
+
+- **Both are agent-driven and nothing is pre-injected**, for the same reason
+  memory is not. An alert names one service and the graph around it names twenty;
+  a runbook retrieved on alert text is retrieved on vocabulary. Guidance says
+  *when* to ask — after an affected service is identified, after concrete
+  symptoms exist — and the answers arrive when there is something to ask about.
+- **Discovery reconciles, and a degraded source removes nothing.** The three-way
+  merge keeps operator annotations, never removes an operator-authored edge, and
+  — the row that earns the design — marks rather than deletes when the source
+  says it only saw part of the estate. Replace-on-discovery deletes a team's
+  topology the first time a control plane has a bad minute, and the symptom
+  appears days later as a blast radius that is quietly wrong.
+- **`edges_from` and `delete_edge` exist for reconciliation and nothing else.**
+  Every traversal in the port returns *nodes*, so a caller cannot tell an
+  annotated edge from a bare one or an operator's from a scraper's. Those two
+  shapes were added deliberately, with contract tests, because FR-007 is
+  unwritable without them — and a soft delete would not work either, since a
+  retired edge still leads a node-returning traversal to the node behind it.
+- **A document carrying a secret is refused, not redacted.** Evidence is
+  redacted because it arrives from a system nobody controls; a knowledge document
+  is authored, and storing it redacted leaves a runbook with a hole nobody knows
+  about while the credential stays wherever it was pasted. The refusal names the
+  rule, the section, and the line, and never the match. This is the one place the
+  package deviates from the guardrail ablation's "nothing is blocked": that
+  ablation is reversible run to run and a corpus holding a credential is not.
+- **There is no path from an agent's proposal to the corpus without a human.**
+  `ProposalQueue.apply` reads the approval store and refuses on anything but a
+  recorded approval, and it is public precisely so the test can attempt the
+  bypass. An agent that wrote knowledge it later read would build a
+  self-reinforcing belief system with no external correction.
+
+The two switches are independent, because "does the graph help" and "do the
+runbooks help" are two experiments and one switch would answer neither.
+
+Operator-facing documentation is
+[`docs/topology-and-knowledge.md`](../docs/topology-and-knowledge.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -320,6 +366,16 @@ Operator-facing documentation is
 - Anything that compiles a regular expression written outside this repository →
   through `patterns.compile_untrusted`. A second copy of that validation is a
   second copy that can be relaxed independently.
+- A new topology discovery source → an adapter under
+  `knowledge/topology/discovery/`, taking a *reader* protocol rather than a
+  vendor client — tier 3 cannot import `integrations/` — and reporting
+  `DiscoveryHealth` rather than raising. A source that raised would make "the
+  cluster is unreachable" indistinguishable from a bug in the adapter, and
+  reconciliation has to tell those apart to decide whether an absence is a
+  deletion.
+- A new documentation source → an adapter under `knowledge/base/sync/`, same
+  shape: a reader protocol plus a mapping. The mapping is the whole job, and it
+  is what is wrong when a citation points at the wrong page.
 - A new embedding model → an implementation of `memory/embeddings/port.py`, and
   moving an existing corpus onto it is `reembed_episodes`, never a configuration
   change. Declaring the index with a different model raises on purpose.

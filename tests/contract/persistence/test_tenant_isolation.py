@@ -190,8 +190,19 @@ async def test_topology_is_not_shared_between_tenants(
 ) -> None:
     async with populated.begin(TenantScope(org_id=SECOND_ORG)) as uow:
         dependents = await uow.topology.direct_dependents("checkout")
+        edges = await uow.topology.edges_from("web")
+        removed = await uow.topology.delete_edge(
+            TopologyEdge(from_node_id="web", to_node_id="checkout")
+        )
 
     assert dependents.nodes == ()
+    # The edge-shaped half of the catalogue is scoped like everything else: the
+    # other tenant's edge is neither readable nor deletable from here.
+    assert edges == ()
+    assert removed is False
+
+    async with populated.begin(TenantScope(org_id=PRIMARY_ORG)) as uow:
+        assert [edge.to_node_id for edge in await uow.topology.edges_from("web")] == ["checkout"]
 
 
 async def test_a_record_that_exists_elsewhere_is_missing_here_not_forbidden(
