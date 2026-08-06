@@ -584,19 +584,116 @@ DEFAULT_SIDE_EFFECT_LEVEL: Final = SIDE_EFFECT_WRITE_IRREVERSIBLE
 #: action (Article III, clause 4). This is how long one stays valid.
 APPROVAL_EXPIRY_SECONDS: Final[int] = 300
 
+# --- Change approval ---------------------------------------------------------
+
+#: The five kinds of change that go through one approval mechanism. Ordered as
+#: a reviewer meets them: the three an operator edits, the one an agent
+#: proposes, and the one that touches production.
+#:
+#: One tuple rather than five queues. A configuration edit, a prompt change, a
+#: capability toggle, an agent's knowledge proposal, and a production
+#: remediation are the same shape — proposal, reviewer, decision, audit — and
+#: five mechanisms would drift until one of them was weaker than the rest.
+CHANGE_TYPE_CONFIGURATION: Final = "configuration"
+CHANGE_TYPE_PROMPT: Final = "prompt"
+CHANGE_TYPE_CAPABILITY: Final = "capability"
+CHANGE_TYPE_KNOWLEDGE: Final = "knowledge"
+CHANGE_TYPE_REMEDIATION: Final = "remediation"
+
+CHANGE_TYPES: Final[tuple[str, ...]] = (
+    CHANGE_TYPE_CONFIGURATION,
+    CHANGE_TYPE_PROMPT,
+    CHANGE_TYPE_CAPABILITY,
+    CHANGE_TYPE_KNOWLEDGE,
+    CHANGE_TYPE_REMEDIATION,
+)
+
+#: How long a queued change stays answerable, and the ceiling an operator may
+#: configure. Far longer than the per-action approval above, because a prompt
+#: change is not something anybody should be asked to approve mid-incident —
+#: and bounded, because a change nobody answered in a month is one whose
+#: reviewer has forgotten what the system looked like when it was proposed.
+PENDING_CHANGE_EXPIRY_HOURS: Final[float] = 72.0
+PENDING_CHANGE_MAX_EXPIRY_HOURS: Final[float] = 24.0 * 30
+
+#: How many queued changes one listing returns. A review queue longer than this
+#: is not a queue anybody is working through, and paging it is the caller's
+#: decision rather than a limit they discover by losing rows.
+MAX_PENDING_CHANGES_LISTED: Final[int] = 200
+
+#: The point past which a diff is summarised rather than shown whole, and how
+#: much of each section survives the summary.
+#:
+#: Summarised, never truncated. A truncated diff that looks complete is worse
+#: than no diff at all: the reviewer approves what they were shown and the rest
+#: applies unread. A summary says how much it left out and can be drilled into.
+DIFF_SUMMARY_THRESHOLD_LINES: Final[int] = 200
+DIFF_SUMMARY_SECTION_LINES: Final[int] = 20
+
+#: The longest single value a diff renders inline. Above it the value is
+#: reported by its size and its fingerprint, which is what a reviewer can
+#: actually compare — a ten-kilobyte certificate rendered in full is a diff
+#: nobody reads.
+MAX_DIFF_VALUE_CHARS: Final[int] = 2_000
+
+#: How many reviewers one queued change notifies. High enough for a division's
+#: on-call rota, bounded because a change that pages two hundred people is how
+#: an organisation learns to filter the notification.
+MAX_REVIEWER_NOTIFICATIONS: Final[int] = 25
+
+#: How many affected nodes a blast radius enumerates before it reports a count
+#: instead. A reviewer reads a list of ten teams; they read "412 teams" the same
+#: way whether the list is there or not.
+MAX_BLAST_RADIUS_NODES_REPORTED: Final[int] = 100
+
+#: What a policy says about self-approval when it says nothing. Forbidden,
+#: because the multi-person deployment is where the control matters and the
+#: single-operator deployment can turn it off deliberately.
+ALLOW_SELF_APPROVAL_BY_DEFAULT: Final[bool] = False
+
+#: What each stage of a change's life is called in the audit trail. The
+#: vocabulary an audit query is written against, so a second spelling of "the
+#: change was queued" is a query that silently returns half the answer.
+APPROVAL_AUDIT_ACTION_QUEUE: Final = "approval.queue"
+APPROVAL_AUDIT_ACTION_EXPIRE: Final = "approval.expire"
+APPROVAL_AUDIT_ACTION_CONFLICT: Final = "approval.conflict"
+SECURITY_POLICY_AUDIT_ACTION_CHANGE: Final = "security_policy.change"
+
+#: What an approval action names as the thing it acted on.
+APPROVAL_AUDIT_RESOURCE_KIND_CHANGE: Final = "pending_change"
+APPROVAL_AUDIT_RESOURCE_KIND_POLICY: Final = "security_policy"
+
+#: The keys an approval record puts in its audit detail. ``AUDIT_DETAIL_DIFF``
+#: is the one that makes a past decision reconstructable: the record holds the
+#: diff that was shown, not a pointer to state that has since moved on.
+AUDIT_DETAIL_CHANGE_TYPE: Final = "change_type"
+AUDIT_DETAIL_DIFF: Final = "diff"
+AUDIT_DETAIL_TARGET: Final = "target"
+AUDIT_DETAIL_TARGET_FINGERPRINT: Final = "target_fingerprint"
+
 
 __all__ = [
+    "ALLOW_SELF_APPROVAL_BY_DEFAULT",
     "API_TOKEN_DEFAULT_LIFETIME_DAYS",
     "API_TOKEN_HINT_CHARS",
     "API_TOKEN_MAX_LIFETIME_DAYS",
     "API_TOKEN_PREFIX",
     "API_TOKEN_SECRET_BYTES",
+    "APPROVAL_AUDIT_ACTION_CONFLICT",
+    "APPROVAL_AUDIT_ACTION_EXPIRE",
+    "APPROVAL_AUDIT_ACTION_QUEUE",
+    "APPROVAL_AUDIT_RESOURCE_KIND_CHANGE",
+    "APPROVAL_AUDIT_RESOURCE_KIND_POLICY",
     "APPROVAL_EXPIRY_SECONDS",
     "AUDIT_DETAIL_BREAK_GLASS",
+    "AUDIT_DETAIL_CHANGE_TYPE",
+    "AUDIT_DETAIL_DIFF",
     "AUDIT_DETAIL_IMPERSONATED_NODE",
     "AUDIT_DETAIL_IMPERSONATED_PRINCIPAL",
     "AUDIT_DETAIL_REAL_PRINCIPAL",
     "AUDIT_DETAIL_SOURCE_ADDRESS",
+    "AUDIT_DETAIL_TARGET",
+    "AUDIT_DETAIL_TARGET_FINGERPRINT",
     "AUDIT_EXPORT_CONTENT_TYPE",
     "AUDIT_EXPORT_PAGE_SIZE",
     "AUDIT_FALLBACK_FILENAME",
@@ -610,6 +707,12 @@ __all__ = [
     "BREAK_GLASS_MIN_REASON_CHARS",
     "BREAK_GLASS_PRINCIPAL_ID",
     "CAPABILITY_CONTEXT_HEADER",
+    "CHANGE_TYPES",
+    "CHANGE_TYPE_CAPABILITY",
+    "CHANGE_TYPE_CONFIGURATION",
+    "CHANGE_TYPE_KNOWLEDGE",
+    "CHANGE_TYPE_PROMPT",
+    "CHANGE_TYPE_REMEDIATION",
     "CREDENTIAL_EXPIRY_RETRY_ATTEMPTS",
     "CREDENTIAL_HANDLE_HEADER",
     "CREDENTIAL_HANDLE_SEPARATOR",
@@ -625,6 +728,8 @@ __all__ = [
     "DEFAULT_MASKING_POLICY",
     "DEFAULT_SANDBOX_PROFILE",
     "DEFAULT_SIDE_EFFECT_LEVEL",
+    "DIFF_SUMMARY_SECTION_LINES",
+    "DIFF_SUMMARY_THRESHOLD_LINES",
     "GOOGLE_QUOTA_PROJECT_HEADER",
     "GUARDRAIL_ACTIONS",
     "GUARDRAIL_ACTION_AUDIT",
@@ -653,8 +758,12 @@ __all__ = [
     "MASKING_POLICY_STRICT",
     "MASK_TOKEN_PREFIX",
     "MASK_TOKEN_SEPARATOR",
+    "MAX_BLAST_RADIUS_NODES_REPORTED",
     "MAX_BULK_REVOCATIONS",
     "MAX_CACHED_TOKEN_RESOLUTIONS",
+    "MAX_DIFF_VALUE_CHARS",
+    "MAX_PENDING_CHANGES_LISTED",
+    "MAX_REVIEWER_NOTIFICATIONS",
     "MAX_SCAN_INPUT_BYTES",
     "MAX_SCAN_MATCHES",
     "NINJASRE_AUDIT_FALLBACK_PATH_ENV",
@@ -681,6 +790,8 @@ __all__ = [
     "OIDC_STATE_BYTES",
     "OIDC_SUBJECT_CLAIM",
     "PATTERN_VALIDATION_BUDGET_SECONDS",
+    "PENDING_CHANGE_EXPIRY_HOURS",
+    "PENDING_CHANGE_MAX_EXPIRY_HOURS",
     "PERMISSION_AUDIT_ACTION_DENIED",
     "PERMISSION_AUDIT_ACTION_GRANT",
     "PERMISSION_AUDIT_ACTION_REVOKE",
@@ -726,6 +837,7 @@ __all__ = [
     "SANDBOX_TTL_SECONDS",
     "SANDBOX_WALL_CLOCK_SECONDS_LIMIT",
     "SANDBOX_WARM_POOL_SIZE",
+    "SECURITY_POLICY_AUDIT_ACTION_CHANGE",
     "SESSION_ABSOLUTE_LIFETIME_SECONDS",
     "SESSION_COOKIE_NAME",
     "SESSION_IDLE_TIMEOUT_SECONDS",

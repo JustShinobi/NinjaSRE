@@ -441,6 +441,64 @@ hierarchy and one of the two directions has to give.
 Operator-facing documentation is
 [`docs/identity-and-audit.md`](../docs/identity-and-audit.md).
 
+## Change approval, in one page
+
+`approvals/` is one review mechanism serving five kinds of change —
+configuration, prompts, capability enablement, agent-proposed knowledge, and
+production remediation — plus the organisation policy that decides which of
+them are gated. They are one mechanism because they are the same problem: a
+proposal, a reviewer, a decision, and a record that outlives both people. Six
+things about it are load-bearing.
+
+**Every transition happens in `service.py`, and that is a tested property.**
+`decide` re-checks the permission, refuses self-approval, re-checks the policy,
+compares the fingerprint, records the decision, and only then applies — a second
+path into the applied state would be one missing one of those, and it would not
+be obvious from reading it. `tests/security/test_approval_no_bypass.py` drives
+every entry point and asserts the target was untouched, *and* parses this
+package's own source to refuse any module outside the service and the state
+machine that can produce `ChangeState.APPROVED`.
+
+**A change carries a fingerprint of its target, taken at queue time.** Compared
+again at the decision. A reviewer approving a two-day-old diff is otherwise
+approving a description of state they never saw, which is the specific way
+approval workflows produce incidents. Divergence marks the change `conflicted`;
+approving one of several changes to the same target marks the rest conflicted
+rather than applying them on top of each other.
+
+**`conflicted` is open, not terminal.** It is reachable back to `pending`
+through re-review, which re-fingerprints against current state and replaces the
+"current" side of the diff. Making it terminal would mean an operator's edit
+disappeared because a colleague touched a neighbouring field.
+
+**Permission is re-checked at decision time.** Offboarding between the queue and
+the decision is the ordinary case. Self-approval reads the *real* principal as
+well as the presented one, so acting as the requester through an impersonation
+is refused — a control an impersonation steps around is not one.
+
+**`SecurityPolicy.check_settings` takes settings and nothing else.** No
+principal, no role, no permission set. That is the requirement rather than an
+omission: an owner who can quietly exceed a ceiling means the ceiling is
+documentation. Raising one requires changing the policy, which is audited and
+may itself be gated.
+
+**A large diff is summarised, never truncated.** A truncated diff looks exactly
+like a small one, so the reviewer approves what they were shown and the rest
+applies unread. `summarise` states that it is a summary, how much it omitted per
+section, and offers `drill_down` for any of them; the suite asserts it against
+a ten-thousand-line diff. Every rendered value passes the guardrail engine before
+display *and* before the audit record, because that record is the one nobody may
+delete from.
+
+The dependency runs one way. `approvals/` imports `config_service/` — it needs
+the hierarchy for a blast radius and the path helpers for a diff — so
+`config_service/` must not import back. It declares `GatedChangeQueue` instead
+and is handed `approvals.appliers.ApprovalQueueAdapter`; a test asserts the
+absence of the reverse import.
+
+Operator-facing documentation is
+[`docs/change-approval.md`](../docs/change-approval.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -506,6 +564,17 @@ Operator-facing documentation is
   is not "is this a common suffix" but "is there any deployment in which this word
   distinguishes two systems" — which is why `gateway`, `proxy`, `db`, and `cache`
   are not in them.
+- A new kind of gated change → a member of `approvals.models.ChangeType`, a
+  renderer in `approvals/diff/renderers/` **and** its entry in `RENDERERS`, and
+  an applier in `approvals/appliers.py`. The registry refuses to import with a
+  change type it has no renderer for, because a change nobody can review is one
+  that gets approved unread. Never a second approval mechanism: the whole point
+  of this package is that there is one.
+- A new way for a queued change to become invalid → a member of
+  `approvals.models.ConflictReason`, and a decision about whether re-review can
+  recover from it (`Conflict.is_recoverable`). An unrecoverable conflict is one
+  where approving it later could not be honoured — a deleted target, not a
+  changed one.
 
 ---
 

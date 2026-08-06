@@ -35,6 +35,9 @@ from config.constants.config_service import (
     CONFIG_AUDIT_ACTION_TEMPLATE,
 )
 from config.constants.security import (
+    APPROVAL_AUDIT_ACTION_CONFLICT,
+    APPROVAL_AUDIT_ACTION_EXPIRE,
+    APPROVAL_AUDIT_ACTION_QUEUE,
     AUDIT_DETAIL_BREAK_GLASS,
     AUDIT_DETAIL_IMPERSONATED_NODE,
     AUDIT_DETAIL_IMPERSONATED_PRINCIPAL,
@@ -52,6 +55,7 @@ from config.constants.security import (
     PERMISSION_AUDIT_ACTION_DENIED,
     PERMISSION_AUDIT_ACTION_GRANT,
     PERMISSION_AUDIT_ACTION_REVOKE,
+    SECURITY_POLICY_AUDIT_ACTION_CHANGE,
     SSO_AUDIT_ACTION_ACTIVATE,
     SSO_AUDIT_ACTION_GROUP_FALLBACK,
     SSO_AUDIT_ACTION_TEST,
@@ -73,11 +77,15 @@ from platform.persistence.ports import (
 
 _LOG = get_logger(__name__)
 
-#: Approvals and remediation land in features 015 and 017. Their action names are
-#: reserved here so the vocabulary is complete on the day this feature ships:
-#: the security suite asserts the dual-principal property *across every action
-#: class*, and a class that only appears later would be a class nothing had
-#: asserted about.
+#: Remediation lands in feature 017. Its action names are reserved here so the
+#: vocabulary is complete before the code is: the security suite asserts the
+#: dual-principal property *across every action class*, and a class that only
+#: appeared later would be a class nothing had asserted about.
+#:
+#: The approval names are here rather than in the constants tier because
+#: ``approval.request`` and ``approval.decide`` were reserved alongside them.
+#: The rest of the approval vocabulary — queue, expire, conflict — lives in
+#: ``config.constants.security`` with everything else the approval layer names.
 APPROVAL_AUDIT_ACTION_REQUEST: Final = "approval.request"
 APPROVAL_AUDIT_ACTION_DECIDE: Final = "approval.decide"
 REMEDIATION_AUDIT_ACTION_EXECUTE: Final = "remediation.execute"
@@ -105,6 +113,10 @@ AUDITED_ACTIONS: Final[tuple[str, ...]] = (
     CREDENTIAL_RESOLUTION_AUDIT_ACTION,
     APPROVAL_AUDIT_ACTION_REQUEST,
     APPROVAL_AUDIT_ACTION_DECIDE,
+    APPROVAL_AUDIT_ACTION_QUEUE,
+    APPROVAL_AUDIT_ACTION_EXPIRE,
+    APPROVAL_AUDIT_ACTION_CONFLICT,
+    SECURITY_POLICY_AUDIT_ACTION_CHANGE,
     REMEDIATION_AUDIT_ACTION_EXECUTE,
     REMEDIATION_AUDIT_ACTION_ROLLBACK,
     IMPERSONATION_AUDIT_ACTION_START,

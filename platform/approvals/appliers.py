@@ -1,0 +1,273 @@
+"""What actually happens when a change is approved, one adapter per change type.
+
+The service knows how to decide. It deliberately does not know how to write a
+configuration node, install a prompt, enable a capability, or ingest a knowledge
+document — those belong to the packages that own them, and a service that
+reached into all four would be the place every one of their invariants got
+re-implemented slightly differently.
+
+So each adapter here is thin by design: read the current value, and apply the
+proposed one through the owning package's own write path. That is what keeps the
+configuration schema validated by the configuration service, and the knowledge
+corpus written by the ingestor that knows how to chunk and embed it.
+
+**The dependency runs one way.** This module imports the configuration service
+and the knowledge queue; neither imports the approval layer. A gated write there
+hands the approval layer a callback (``GatedChangeQueue``) rather than importing
+it, so the two packages stay separable and the import graph stays a graph.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any
+
+from platform.approvals.models import ChangeTarget, ChangeType, PendingChange
+from platform.approvals.service import ApprovalService
+from platform.config_service.document import NodeDocument
+from platform.config_service.errors import UnknownNode
+from platform.config_service.service import ConfigService
+from platform.knowledge.proposals import ProposalQueue
+from platform.persistence.ports import ActorKind
+
+
+@dataclass(slots=True)
+class ConfigurationApplier:
+    """Reads and writes a configuration node's own settings (feature 013).
+
+    Reads the node's *own* document rather than its effective configuration.
+    The change is to what this node declares; diffing against what it resolves
+    to would show a reviewer every value it inherits and never changed, and
+    fingerprinting against it would mark every ancestor edit as a conflict on
+    every descendant's queued change.
+    """
+
+    service: ConfigService
+
+    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+        """Return the node's own settings, or ``None`` if the node is gone."""
+        try:
+            document = await self.service.document(target.identifier)
+        except UnknownNode:
+            return None
+        return document.settings
+
+    async def apply(self, change: PendingChange) -> None:
+        """Write the approved settings through the configuration service.
+
+        Through the service, so the write is validated, lock-checked, and
+        audited exactly as an ungated one is. Writing the node directly would
+        make an approved change the one path into storage that skipped the
+        schema — and the changes worth gating are the ones worth validating.
+
+        ``replace`` because the queued document is the whole of what the node
+        should declare: it was captured as a complete document at queue time and
+        re-reviewed against a complete one, and merging it as a patch would
+        silently keep fields the reviewer saw being removed.
+        """
+        await self.service.set_settings(
+            change.target.identifier,
+            change.proposed,
+            actor_id=change.requester,
+            actor_kind=ActorKind.USER,
+            replace=True,
+        )
+
+
+@dataclass(slots=True)
+class PromptApplier:
+    """Installs an approved prompt, which is a configuration write underneath.
+
+    A separate type from ``ConfigurationApplier`` because a prompt change is a
+    separate thing to gate — an organisation that wants prompts reviewed and
+    ordinary configuration not is the common case — even though what happens on
+    approval is the same write.
+    """
+
+    service: ConfigService
+
+    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+        """Return the prompt values the node declares, or ``None`` if it is gone."""
+        try:
+            document = await self.service.document(target.identifier)
+        except UnknownNode:
+            return None
+        return _at(document, target.path)
+
+    async def apply(self, change: PendingChange) -> None:
+        """Write the approved prompt through the configuration service."""
+        await self.service.set_settings(
+            change.target.identifier,
+            _under(change.target.path, change.proposed),
+            actor_id=change.requester,
+            actor_kind=ActorKind.USER,
+        )
+
+
+@dataclass(slots=True)
+class CapabilityApplier:
+    """Enables or disables capabilities at a node (Article IX).
+
+    A capability toggle is configuration too, and it is a distinct change type
+    because it is the one that widens what an agent may do during somebody
+    else's incident. Everything about it that is not the diff renderer is a
+    configuration write.
+    """
+
+    service: ConfigService
+    path: str = "capabilities"
+
+    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+        """Return the node's capability settings, or ``None`` if it is gone."""
+        try:
+            document = await self.service.document(target.identifier)
+        except UnknownNode:
+            return None
+        return _at(document, target.path or self.path)
+
+    async def apply(self, change: PendingChange) -> None:
+        """Write the approved capability set through the configuration service."""
+        await self.service.set_settings(
+            change.target.identifier,
+            _under(change.target.path or self.path, change.proposed),
+            actor_id=change.requester,
+            actor_kind=ActorKind.USER,
+        )
+
+
+@dataclass(slots=True)
+class KnowledgeApplier:
+    """Accepts an agent-proposed document into the corpus (feature 012).
+
+    The proposal itself is the target, not the document: a knowledge proposal
+    that has been *superseded* by a second proposal for the same document is a
+    conflict worth catching, and the proposal identifier is what makes the two
+    distinguishable.
+    """
+
+    proposals: ProposalQueue
+
+    async def read(self, target: ChangeTarget) -> Mapping[str, Any] | None:
+        """Return the proposal as it stands, or ``None`` if it is gone.
+
+        ``None`` for an unknown proposal is what turns "the agent withdrew it"
+        or "another team's queue" into an unrecoverable conflict rather than an
+        approval of nothing.
+        """
+        proposal = await self.proposals.get(target.identifier)
+        if proposal is None:
+            return None
+        return {
+            "document_id": proposal.document_id,
+            "title": proposal.title,
+            "body": proposal.body,
+            "state": proposal.state.value,
+        }
+
+    async def apply(self, change: PendingChange) -> None:
+        """Accept the proposal into the knowledge base.
+
+        Through feature 012's own approval path, which records the decision
+        before it writes the document — so a crash between the two leaves a
+        recorded approval and no document rather than a document nobody
+        approved.
+        """
+        await self.proposals.approve(
+            change.target.identifier,
+            reviewer=change.decision.decided_by if change.decision else change.requester,
+            reason=change.decision.reason or "" if change.decision else "",
+        )
+
+
+def appliers_for(
+    *,
+    config: ConfigService | None = None,
+    proposals: ProposalQueue | None = None,
+) -> dict[ChangeType, Any]:
+    """Return the applier map a deployment wires its approval service with.
+
+    Only the types this deployment can actually apply. A change type with no
+    applier cannot be queued, which is the correct failure: a deployment with no
+    knowledge base should refuse a knowledge proposal at the queue rather than
+    accept one it could never honour.
+
+    Remediation is absent and stays absent until feature 017 fills it. Its diff
+    renderer and its side-effect gating are already here, so wiring it is one
+    entry in this map rather than a second approval mechanism.
+    """
+    built: dict[ChangeType, Any] = {}
+    if config is not None:
+        built[ChangeType.CONFIGURATION] = ConfigurationApplier(service=config)
+        built[ChangeType.PROMPT] = PromptApplier(service=config)
+        built[ChangeType.CAPABILITY] = CapabilityApplier(service=config)
+    if proposals is not None:
+        built[ChangeType.KNOWLEDGE] = KnowledgeApplier(proposals=proposals)
+    return built
+
+
+@dataclass(slots=True)
+class ApprovalQueueAdapter:
+    """The callback a gated write hands to the approval layer.
+
+    Satisfies the configuration service's ``GatedChangeQueue``, which is
+    declared there as a protocol so that package never imports this one. That
+    is what keeps the dependency running one way: the approval layer knows about
+    configuration, and configuration knows only that *something* takes its gated
+    writes away.
+    """
+
+    service: ApprovalService
+    change_type: ChangeType = ChangeType.CONFIGURATION
+
+    async def __call__(
+        self,
+        *,
+        node_id: str,
+        settings: Mapping[str, Any],
+        gated_paths: tuple[str, ...],
+        actor_id: str,
+    ) -> str:
+        """Queue the gated write and return the identifier the caller reports."""
+        change = await self.service.queue(
+            change_type=self.change_type,
+            target=ChangeTarget(
+                identifier=node_id,
+                node_id=node_id,
+                path=gated_paths[0] if len(gated_paths) == 1 else None,
+            ),
+            proposed=settings,
+            requester=actor_id,
+            rationale=f"Changes {', '.join(sorted(gated_paths))}, which this organisation gates.",
+        )
+        return change.change_id
+
+
+def _at(document: NodeDocument, path: str | None) -> Mapping[str, Any]:
+    """Return the sub-document at ``path``, or the whole thing when there is none."""
+    if path is None:
+        return document.settings
+    from platform.config_service import paths
+
+    value = paths.value_at(document.settings, path)
+    return value if isinstance(value, Mapping) else {path.rpartition(".")[2]: value}
+
+
+def _under(path: str | None, values: Mapping[str, Any]) -> dict[str, Any]:
+    """Return ``values`` nested beneath ``path``, as a patch the service accepts."""
+    if path is None:
+        return dict(values)
+    nested: Any = dict(values)
+    for segment in reversed(path.split(".")):
+        nested = {segment: nested}
+    return dict(nested)
+
+
+__all__ = [
+    "ApprovalQueueAdapter",
+    "CapabilityApplier",
+    "ConfigurationApplier",
+    "KnowledgeApplier",
+    "PromptApplier",
+    "appliers_for",
+]

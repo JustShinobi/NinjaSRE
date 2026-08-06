@@ -132,6 +132,60 @@ async def test_the_undo_cannot_be_rewritten_after_it_was_approved(
             await uow.approvals.store_rollback_plan(plan_for())
 
 
+async def test_an_undecided_request_can_be_amended(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """A review that outlives the state it was raised against has to record that.
+
+    A change queued on Monday and approved on Wednesday may have to note that
+    the target moved in between, and be re-raised against what the target says
+    now. Neither is a decision, and neither should mean discarding the request.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.approvals.create_request(request_for())
+
+        amended = await uow.approvals.amend_request(
+            "a-1", arguments={"namespace": "prod", "deployment": "checkout", "conflict": "stale"}
+        )
+
+    assert amended.arguments["conflict"] == "stale"
+    assert amended.state is ApprovalState.PENDING
+
+
+async def test_an_amendment_leaves_everything_but_the_arguments_alone(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        original = await uow.approvals.create_request(request_for())
+        amended = await uow.approvals.amend_request("a-1", arguments={"replaced": True})
+
+    assert amended.requested_at == original.requested_at
+    assert amended.expires_at == original.expires_at
+    assert amended.action == original.action
+    assert amended.summary == original.summary
+
+
+async def test_a_decided_request_cannot_be_amended(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Rewriting the call after somebody approved it changes what they approved."""
+    async with gateway.begin(scope) as uow:
+        await uow.approvals.create_request(request_for())
+        await uow.approvals.store_rollback_plan(plan_for())
+        await approve(uow)
+
+        with pytest.raises(AppendOnlyViolation):
+            await uow.approvals.amend_request("a-1", arguments={"deployment": "something-else"})
+
+
+async def test_amending_an_unknown_request_names_it(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        with pytest.raises(RecordNotFound):
+            await uow.approvals.amend_request("a-nothing", arguments={})
+
+
 async def test_the_longest_waiting_request_is_listed_first(
     gateway: PersistenceGateway, scope: TenantScope
 ) -> None:

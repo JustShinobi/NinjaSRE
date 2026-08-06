@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from typing import Any
 
 from platform.persistence.errors import (
     AppendOnlyViolation,
@@ -68,6 +69,18 @@ class FakeApprovalStore:
         )
         self.state.approvals[approval_id] = decided
         return decided
+
+    async def amend_request(
+        self, approval_id: str, *, arguments: Mapping[str, Any]
+    ) -> ApprovalRequest:
+        """Replace an undecided request's arguments and return it as stored."""
+        request = self._require_request(approval_id)
+        if request.state.is_decided:
+            raise AppendOnlyViolation(kind="approval arguments", identifier=approval_id)
+
+        amended = replace(request, arguments=check_payload(arguments, kind="approval arguments"))
+        self.state.approvals[approval_id] = amended
+        return amended
 
     async def list_pending(
         self,

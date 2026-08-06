@@ -117,6 +117,25 @@ class ApprovalStore(Protocol):
         ``APPROVED`` and none has been stored (Article III).
         """
 
+    async def amend_request(
+        self, approval_id: str, *, arguments: Mapping[str, Any]
+    ) -> ApprovalRequest:
+        """Replace an undecided request's ``arguments`` and return it as stored.
+
+        The one thing about a request that may change while it waits, and it may
+        change only while it waits: a request that has been decided is refused
+        with ``AppendOnlyViolation``, because rewriting the call after somebody
+        approved it changes what they approved.
+
+        This exists for the reviews that outlive the state they were raised
+        against. A change queued on Monday and approved on Wednesday may have to
+        record that the target moved in between, and be re-raised against what
+        the target says now — neither of which is a decision, and neither of
+        which should require discarding the request and losing its history.
+
+        Raises ``RecordNotFound`` for an unknown request.
+        """
+
     async def list_pending(
         self,
         *,

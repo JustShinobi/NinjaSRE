@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -137,6 +137,18 @@ class PostgresApprovalStore(TenantBound):
         row.decided_by = decided_by
         row.decided_at = decided_at
         row.reason = reason
+        await self.session.flush()
+        return _to_request(row)
+
+    async def amend_request(
+        self, approval_id: str, *, arguments: Mapping[str, Any]
+    ) -> ApprovalRequest:
+        """Replace an undecided request's arguments and return it as stored."""
+        row = await self._require_request(approval_id)
+        if ApprovalState(row.state).is_decided:
+            raise AppendOnlyViolation(kind="approval arguments", identifier=approval_id)
+
+        row.arguments = check_payload(arguments, kind="approval arguments")
         await self.session.flush()
         return _to_request(row)
 

@@ -28,7 +28,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from platform.config_service.audit import ConfigAuditor, record, settings_after
 from platform.config_service.catalogue import (
@@ -81,6 +81,34 @@ CONFIG_APPROVAL_ACTION = "config.change"
 CONFIG_APPROVAL_EXPIRY_HOURS = 72.0
 
 
+@runtime_checkable
+class GatedChangeQueue(Protocol):
+    """Whatever takes a gated write away and gives back something to quote.
+
+    Declared here and implemented elsewhere, on purpose. A deployment routes
+    gated configuration writes through the platform's one approval mechanism —
+    conflict detection, decision-time permission re-checking, blast radius,
+    cross-surface closure — and this service must not import that layer to say
+    so. The approval layer knows about configuration; configuration knows only
+    that *something* takes its gated writes.
+
+    Without one, ``set_settings`` still refuses to apply a gated change and
+    still queues a request. It just queues the plain one this service can write
+    on its own, which is the correct degraded behaviour: less review machinery,
+    never less gating.
+    """
+
+    async def __call__(
+        self,
+        *,
+        node_id: str,
+        settings: Mapping[str, Any],
+        gated_paths: tuple[str, ...],
+        actor_id: str,
+    ) -> str:
+        """Queue the change and return the identifier the refusal will name."""
+
+
 def _utc_now() -> datetime:
     """Return the current instant in UTC."""
     return datetime.now(UTC)
@@ -90,6 +118,7 @@ class ConfigService:
     """The hierarchy, its configuration, and everything that guards a write."""
 
     __slots__ = (
+        "_approvals",
         "_auditor",
         "_catalogue",
         "_clock",
@@ -111,6 +140,7 @@ class ConfigService:
         guardrails: GuardrailEngine | None = None,
         templates: TemplateLibrary | None = None,
         cache: EffectiveConfigCache | None = None,
+        approvals: GatedChangeQueue | None = None,
         clock: Callable[[], datetime] = _utc_now,
     ) -> None:
         engine = guardrails if guardrails is not None else GuardrailEngine()
@@ -118,6 +148,7 @@ class ConfigService:
         self._scope = scope
         self._catalogue = catalogue
         self._integrations = integrations
+        self._approvals = approvals
         self._clock = clock
         self._templates = templates if templates is not None else TemplateLibrary.golden()
         self._validator = ConfigValidator(
@@ -207,8 +238,9 @@ class ConfigService:
         changed = changed_paths(document.settings, proposed)
         gated = gated_paths(changed, merged_along(_policies(chain)))
         if gated:
-            request = await self._queue(node_id, proposed, gated, actor_id)
-            raise ChangeRequiresApproval(node_id, gated, request.approval_id)
+            raise ChangeRequiresApproval(
+                node_id, gated, await self._queue(node_id, proposed, gated, actor_id)
+            )
 
         stored = await self._store(node, document.with_settings(proposed))
         await record(
@@ -422,14 +454,29 @@ class ConfigService:
         settings: Mapping[str, Any],
         gated: Sequence[str],
         actor_id: str,
-    ) -> ApprovalRequest:
-        """Queue an approval-gated change and return the request (FR-007).
+    ) -> str:
+        """Queue an approval-gated change and return its identifier (FR-007).
+
+        Through the platform's approval mechanism when one is wired, so a
+        configuration change gets the same conflict detection, decision-time
+        permission re-checking, blast radius, and cross-surface closure as every
+        other gated change. Without one, the plain request below is written
+        instead — the change is still gated, it just carries less review
+        machinery with it.
 
         The proposed settings are stored on the request verbatim, filtered the
         same way an audit value is. An approval granted against different
         settings from the ones applied is not an approval, and keeping the exact
         document is what lets the trail prove they matched.
         """
+        if self._approvals is not None:
+            return await self._approvals(
+                node_id=node_id,
+                settings=self._auditor.filtered(dict(settings)),
+                gated_paths=tuple(sorted(gated)),
+                actor_id=actor_id,
+            )
+
         at = self._clock()
         request = ApprovalRequest(
             approval_id=str(uuid.uuid4()),
@@ -447,7 +494,8 @@ class ConfigService:
             },
         )
         async with self._gateway.begin(self._scope) as uow:
-            return await uow.approvals.create_request(request)
+            stored = await uow.approvals.create_request(request)
+        return stored.approval_id
 
 
 def _policies(chain: Sequence[ConfigNode]) -> tuple[PolicySet, ...]:
@@ -468,4 +516,5 @@ __all__ = [
     "CONFIG_APPROVAL_ACTION",
     "CONFIG_APPROVAL_EXPIRY_HOURS",
     "ConfigService",
+    "GatedChangeQueue",
 ]
