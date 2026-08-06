@@ -4,7 +4,7 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-10 tools and 4 skills, 4 of them approval-gated.
+14 tools and 4 skills, 8 of them approval-gated.
 
 ## Skills
 
@@ -47,8 +47,12 @@ What must be true before acting, and what the action must carry with it.
 **Directs:**
 
 - `restart_workload`
-- `rollback_release`
+- `rollback_deployment`
 - `scale_workload`
+- `cordon_drain_node`
+- `update_resource_limits`
+- `toggle_feature_flag`
+- `clear_cache`
 
 ## Tools
 
@@ -168,6 +172,44 @@ Search this team's runbooks, post-mortems, architecture notes, and operational p
 
 ### remediation
 
+#### `clear_cache`
+
+Empty a cache, or one namespace within it. There is no rollback: the entries are gone and only traffic repopulates them, so every miss goes to the origin until it does.
+
+- **Side effect:** `write_irreversible` — changes something that cannot be undone
+- **Evidence:** change from control_plane
+- **Parallel safe:** no
+- **Approval:** required — A cleared cache cannot be restored, and every request that would have hit it goes to the origin until traffic refills it. On a busy service that is a second incident.
+
+**Use when:**
+
+- clear a cache holding a value a deploy has since made wrong
+- empty a cache whose corruption is established as the cause
+
+**Not for:**
+
+- clearing a cache to see whether it helps, which is an irreversible experiment
+- clearing during peak load, which sends every miss to the origin at once
+
+#### `cordon_drain_node`
+
+Stop a node accepting new work, and optionally evict what is running on it. Reversible by uncordoning; the evicted workloads stay where they rescheduled.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from control_plane
+- **Parallel safe:** no
+- **Approval:** required — Cordoning removes capacity from the pool, and draining moves running workloads. In a pool with little headroom the two together are an outage.
+
+**Use when:**
+
+- take a node with failing hardware out of service before it takes workloads with it
+- stop new work landing on a node while its disk pressure is investigated
+
+**Not for:**
+
+- cordoning the last healthy node in a pool, which has nowhere to reschedule to
+- draining during a capacity shortage, which moves the outage rather than fixing it
+
 #### `restart_workload`
 
 Restart a workload's instances. Drops in-flight requests and destroys the process state an investigation may still need, so use only after the cause is established.
@@ -187,7 +229,7 @@ Restart a workload's instances. Drops in-flight requests and destroys the proces
 - restarting before the cause is understood, which destroys the evidence
 - restarting a workload whose failure will recur immediately
 
-#### `rollback_release`
+#### `rollback_deployment`
 
 Return a workload to a previous release. Reversible by re-deploying the revision it is on now, which the rollback plan records first.
 
@@ -214,6 +256,44 @@ Change a workload's replica count. Reversible by restoring the count recorded in
 
 - add capacity to a workload saturating its current replicas
 - reduce a replica count raised during an earlier incident
+
+#### `toggle_feature_flag`
+
+Change a feature flag's value or rollout percentage. Reversible by restoring both, which the rollback plan records before the change.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from control_plane
+- **Parallel safe:** no
+- **Approval:** required — A flag changes behaviour for real users immediately and without a deploy, which is what makes it the fastest mitigation and the easiest to get wrong.
+
+**Use when:**
+
+- turn off a flag whose rollout correlates with the onset of the symptom
+- reduce a rollout percentage while the cause is established
+
+**Not for:**
+
+- toggling flags one at a time to see which helps, which is a change per attempt
+- turning a flag on as a mitigation, which is a launch nobody reviewed
+
+#### `update_resource_limits`
+
+Change a workload's CPU and memory requests and limits. Reversible by restoring the values recorded in the rollback plan before the change.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from control_plane
+- **Parallel safe:** no
+- **Approval:** required — Changing limits restarts the workload on most control planes, and a limit set below current usage turns a slow degradation into an immediate kill.
+
+**Use when:**
+
+- raise a memory limit for a workload the kernel is killing under normal load
+- restore a limit lowered during an earlier cost exercise
+
+**Not for:**
+
+- raising a limit to hide a leak, which delays the failure rather than fixing it
+- lowering a limit during an incident, which is a second change nobody asked for
 
 ### topology
 

@@ -671,6 +671,86 @@ AUDIT_DETAIL_DIFF: Final = "diff"
 AUDIT_DETAIL_TARGET: Final = "target"
 AUDIT_DETAIL_TARGET_FINGERPRINT: Final = "target_fingerprint"
 
+# --- Remediation and rollback ------------------------------------------------
+
+#: The levels a deployment gates before anybody configures anything: everything
+#: above ``read_sensitive``. Written out rather than derived by rank, because a
+#: policy that gated "everything above X" would silently start gating a level
+#: added later, and a control whose coverage changes when somebody edits an enum
+#: is not one an operator agreed to.
+DEFAULT_GATED_SIDE_EFFECT_LEVELS: Final[tuple[str, ...]] = (
+    SIDE_EFFECT_WRITE_REVERSIBLE,
+    SIDE_EFFECT_WRITE_IRREVERSIBLE,
+    SIDE_EFFECT_DESTRUCTIVE,
+)
+
+#: How long a remediation approval stays answerable. Minutes rather than the
+#: days a configuration change gets, because the two are answered on different
+#: clocks: an approval that arrives forty minutes into an incident may apply to
+#: a cluster that has already moved, and applying it would be a change nobody
+#: reviewed against the system it lands on. Expiry is default-deny.
+REMEDIATION_APPROVAL_EXPIRY_SECONDS: Final[int] = 15 * 60
+
+#: How long after an execution its recorded plan may still be applied. Long
+#: enough that the engineer who approved the change is still awake and still
+#: holds the context; short enough that "roll it back" a day later goes through
+#: a fresh approval against fresh state rather than through a stale handle.
+REMEDIATION_ROLLBACK_WINDOW_SECONDS: Final[int] = 60 * 60
+
+#: How deep the topology traversal at request time goes. Three hops is where the
+#: answer stops changing an approver's decision: the first hop is who breaks,
+#: the second is who notices, and past the third every estate is connected to
+#: every other part of itself.
+REMEDIATION_BLAST_RADIUS_DEPTH: Final[int] = 3
+
+#: How many affected services a remediation approval request enumerates before
+#: it reports a count instead.
+MAX_REMEDIATION_BLAST_RADIUS_REPORTED: Final[int] = 25
+
+#: How long a caller waits for another action's hold on the same target before
+#: giving up. Waiting is correct — two concurrent writes to one workload is the
+#: case serialisation exists for — and waiting forever is not, because an
+#: execution that hung holding the lock would block every later one silently.
+REMEDIATION_TARGET_LOCK_TIMEOUT_SECONDS: Final[float] = 30.0
+
+#: What an allow-list entry permits when it names no rate of its own, counted
+#: over a fixed window per team and action type. Three per hour is enough for a
+#: bad afternoon and few enough that a loop is visible before it is expensive.
+AUTONOMY_DEFAULT_RATE_LIMIT: Final[int] = 3
+AUTONOMY_RATE_LIMIT_WINDOW_SECONDS: Final[float] = 60 * 60.0
+
+#: The blast radius an allow-list entry tolerates when it names no ceiling.
+#: Deliberately small: autonomy is for the action nobody would have paged a
+#: human about, and an action reaching six downstream services is not that.
+AUTONOMY_DEFAULT_MAX_BLAST_RADIUS: Final[int] = 5
+
+#: The environment autonomy never covers unless an entry names it explicitly.
+#: A default that included production would be a default nobody chose.
+PRODUCTION_ENVIRONMENT: Final = "production"
+
+#: What each stage of a remediation is called in the audit trail. Execution and
+#: rollback are named in ``platform.identity.audit.recorder`` alongside the other
+#: audited action classes; these are the three that are specific to this
+#: feature's own decisions rather than to the action itself.
+REMEDIATION_AUDIT_ACTION_WAIVER: Final = "remediation.waiver"
+REMEDIATION_AUDIT_ACTION_AUTONOMOUS: Final = "remediation.autonomous"
+REMEDIATION_AUDIT_ACTION_KILL_SWITCH: Final = "remediation.kill_switch"
+
+#: What a remediation action names as the thing it acted on.
+REMEDIATION_AUDIT_RESOURCE_KIND: Final = "remediation_action"
+
+#: The keys a remediation payload carries through the approval store. The
+#: reviewer's diff is rendered from ``steps`` and ``rollback``; the rest is what
+#: makes the decision an informed one rather than a yes/no on a tool name.
+REMEDIATION_PAYLOAD_STEPS: Final = "steps"
+REMEDIATION_PAYLOAD_ROLLBACK: Final = "rollback"
+REMEDIATION_PAYLOAD_BLAST_RADIUS: Final = "blast_radius"
+REMEDIATION_PAYLOAD_EVIDENCE: Final = "evidence"
+REMEDIATION_PAYLOAD_CAPABILITY: Final = "capability"
+REMEDIATION_PAYLOAD_ARGUMENTS: Final = "arguments"
+REMEDIATION_PAYLOAD_ENVIRONMENT: Final = "environment"
+REMEDIATION_PAYLOAD_WAIVER: Final = "rollback_waiver"
+
 
 __all__ = [
     "ALLOW_SELF_APPROVAL_BY_DEFAULT",
@@ -702,6 +782,9 @@ __all__ = [
     "AUTH_AUDIT_ACTION_DENIED",
     "AUTH_AUDIT_ACTION_SIGN_IN",
     "AUTH_AUDIT_ACTION_SIGN_OUT",
+    "AUTONOMY_DEFAULT_MAX_BLAST_RADIUS",
+    "AUTONOMY_DEFAULT_RATE_LIMIT",
+    "AUTONOMY_RATE_LIMIT_WINDOW_SECONDS",
     "BREAK_GLASS_AUDIT_ACTION",
     "BREAK_GLASS_MAX_DURATION_SECONDS",
     "BREAK_GLASS_MIN_REASON_CHARS",
@@ -725,6 +808,7 @@ __all__ = [
     "CREDENTIAL_RESOLUTION_AUDIT_ACTION",
     "CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND",
     "CREDENTIAL_VERSION_SEPARATOR",
+    "DEFAULT_GATED_SIDE_EFFECT_LEVELS",
     "DEFAULT_MASKING_POLICY",
     "DEFAULT_SANDBOX_PROFILE",
     "DEFAULT_SIDE_EFFECT_LEVEL",
@@ -763,6 +847,7 @@ __all__ = [
     "MAX_CACHED_TOKEN_RESOLUTIONS",
     "MAX_DIFF_VALUE_CHARS",
     "MAX_PENDING_CHANGES_LISTED",
+    "MAX_REMEDIATION_BLAST_RADIUS_REPORTED",
     "MAX_REVIEWER_NOTIFICATIONS",
     "MAX_SCAN_INPUT_BYTES",
     "MAX_SCAN_MATCHES",
@@ -795,9 +880,26 @@ __all__ = [
     "PERMISSION_AUDIT_ACTION_DENIED",
     "PERMISSION_AUDIT_ACTION_GRANT",
     "PERMISSION_AUDIT_ACTION_REVOKE",
+    "PRODUCTION_ENVIRONMENT",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",
     "REDACTION_PLACEHOLDER",
+    "REMEDIATION_APPROVAL_EXPIRY_SECONDS",
+    "REMEDIATION_AUDIT_ACTION_AUTONOMOUS",
+    "REMEDIATION_AUDIT_ACTION_KILL_SWITCH",
+    "REMEDIATION_AUDIT_ACTION_WAIVER",
+    "REMEDIATION_AUDIT_RESOURCE_KIND",
+    "REMEDIATION_BLAST_RADIUS_DEPTH",
+    "REMEDIATION_PAYLOAD_ARGUMENTS",
+    "REMEDIATION_PAYLOAD_BLAST_RADIUS",
+    "REMEDIATION_PAYLOAD_CAPABILITY",
+    "REMEDIATION_PAYLOAD_ENVIRONMENT",
+    "REMEDIATION_PAYLOAD_EVIDENCE",
+    "REMEDIATION_PAYLOAD_ROLLBACK",
+    "REMEDIATION_PAYLOAD_STEPS",
+    "REMEDIATION_PAYLOAD_WAIVER",
+    "REMEDIATION_ROLLBACK_WINDOW_SECONDS",
+    "REMEDIATION_TARGET_LOCK_TIMEOUT_SECONDS",
     "SANDBOX_AUDIT_RESOURCE_KIND",
     "SANDBOX_CONTAINER_NAME",
     "SANDBOX_CONTENT_MOUNT_PATH",

@@ -7,8 +7,12 @@ applies_when:
   tags: [remediation, restart, rollback, scale, mitigation]
 directs_tools:
   - restart_workload
-  - rollback_release
+  - rollback_deployment
   - scale_workload
+  - cordon_drain_node
+  - update_resource_limits
+  - toggle_feature_flag
+  - clear_cache
 use_cases:
   - a cause is established and the question is what to do about it
   - choosing between mitigating now and continuing to investigate
@@ -60,7 +64,11 @@ it beforehand.
 
 | Situation | Action | Why this one |
 |---|---|---|
-| A change correlates with the onset and the mechanism connects them | `rollback_release` | Highest confidence available, and the most reversible |
+| A change correlates with the onset and the mechanism connects them | `rollback_deployment` | Highest confidence available, and the most reversible |
+| A flag rollout correlates with the onset | `toggle_feature_flag` | Faster than a deploy and reversible in both value and rollout |
+| A workload is being killed for exceeding what it was given | `update_resource_limits` | Addresses the bound rather than the symptom; restarts the workload on most control planes |
+| A node is failing and its workloads can go elsewhere | `cordon_drain_node` | Reversible by uncordoning; the drained workloads stay where they land |
+| A cached value is established as wrong | `clear_cache` | Irreversible, and every miss goes to the origin until traffic refills it |
 | A resource that can be added has run out, and the demand is real | `scale_workload` | Addresses the cause rather than the symptom — but scaling into a retry storm makes it worse |
 | Process state is corrupt and the cause is understood | `restart_workload` | Last resort. It most often *appears* to work, because it clears the state that would have explained the problem |
 

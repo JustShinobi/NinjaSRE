@@ -191,6 +191,7 @@ class ApprovalService:
         requester: str,
         rationale: str,
         side_effect_level: str = SIDE_EFFECT_WRITE_REVERSIBLE,
+        expiry_hours: float | None = None,
         context: AuditContext | None = None,
     ) -> PendingChange:
         """Queue a change against ``target``'s current state, and return it.
@@ -205,6 +206,13 @@ class ApprovalService:
         Article III's "and" made structural — so writing it here is what makes
         the change approvable at all, and doing both in one unit of work is what
         stops a crash leaving a change nobody can decide.
+
+        ``expiry_hours`` narrows the organisation's window for one change and
+        never widens it. A production remediation is answered on incident
+        timescales rather than on the days a prompt change gets, and an approval
+        that outlived the incident would apply to a system nobody reviewed it
+        against. A caller asking for longer than the policy allows gets the
+        policy's number, because the window is the organisation's decision.
         """
         self.policy.check_settings(proposed)
 
@@ -219,7 +227,11 @@ class ApprovalService:
             requester=requester,
             rationale=rationale,
             at=at,
-            expiry_hours=self.policy.change_expiry_hours,
+            expiry_hours=(
+                min(expiry_hours, self.policy.change_expiry_hours)
+                if expiry_hours is not None
+                else self.policy.change_expiry_hours
+            ),
             side_effect_level=side_effect_level,
         )
 
