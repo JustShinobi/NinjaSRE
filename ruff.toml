@@ -76,6 +76,13 @@ ignore = [
 # handed a dialect that AES-GCM has no opinion about. Narrowing the signature
 # would stop them being the hooks SQLAlchemy calls.
 "platform/persistence/postgres/crypto.py" = ["ARG002"]
+# Every injection takes the request clock whether or not its scheme dates
+# anything — a header injection does not, a signature does — and they keep one
+# signature so the engine can apply a declared list without asking which kind
+# each one is. Narrowing the ones that ignore it would put a branch back in the
+# engine, which is the thing the declarative rule exists to remove.
+"platform/credentials/proxy/injection.py" = ["ARG002"]
+"platform/credentials/proxy/signing/vendor.py" = ["ARG002"]
 # The architecture fixtures exist to violate import boundaries on purpose. They
 # are never imported by the real package graph (pytest skips the directory via
 # ``norecursedirs``), so their imports are unused by construction.

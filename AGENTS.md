@@ -17,7 +17,7 @@ something in `make verify`, or it is not a rule.
 | **Evidence over assertion** | A conclusion carries the observations that support it. An unbacked claim is a hypothesis, never a finding, and a tool result that never entered the trace did not happen. |
 | **Bounded autonomy** | Every loop ceiling, context budget, and schema cap is a named constant in `config/constants/`. A magic number at a call site is a defect, not a style preference. |
 | **Read-only by default** | A capability with no `side_effect_level` is treated as a write. Anything above read needs per-action human approval *and* a stored rollback plan. |
-| **Secrets never reach the agent** | No credential in env, prompt, tool arguments, filesystem, or trace. Authenticated calls go through the credential proxy, which injects the secret at the network edge. |
+| **Secrets never reach the agent** | No credential in env, prompt, tool arguments, filesystem, or trace. Authenticated calls go through the credential proxy, which injects the secret at the network edge. `make check-credentials` fails on a `reveal` outside the proxy, or on an integration reading the process environment at all. |
 | **One canonical runtime** | The first-party ReAct loop is the only runtime that produces an evaluation number. Alternative adapters are experimental and never the default. |
 | **Provider neutrality** | `make check-vendor-sdks` fails on a vendor LLM SDK imported outside `core/llm/`, including the `importlib` way round it. Every SDK is an optional extra, so a deployment where nothing leaves the operator's infrastructure installs none of them and is still fully functional. |
 | **Learning is measured or not claimed** | Every learning mechanism ships with an ablation that isolates its contribution. A scenario-score regression fails CI. |
@@ -80,6 +80,13 @@ that are expensive to undo later.
   through the repository ports in `platform.persistence.ports`, and a caller
   holds a `PersistenceGateway` rather than a connection. `make check-raw-sql`
   fails on a query, an `execute` call, or a driver import anywhere else.
+- **No credential outside `platform/credentials/proxy/`.** An integration client
+  carries a tenant-and-team-scoped handle and the proxy injects the secret at
+  the network edge; `integrations/_base/client.py` is the only sanctioned path
+  for an authenticated external call, and it has no constructor parameter that
+  could accept a credential. Signing schemes that need the key at
+  request-construction time — SigV4 and its relatives — run proxy-side, in
+  `platform/credentials/proxy/signing/`.
 - **No vendor LLM SDK outside `core/llm/`.** Everything else calls
   `core.llm.get_llm(role)` and receives the same behaviour whichever provider is
   configured. Adding a provider is one adapter under `core/llm/providers/` plus
@@ -158,8 +165,8 @@ make verify
 
 One gate: lint, format check, strict types, import contracts, constants,
 protocol bodies, the telemetry deny-list, the vendor-SDK boundary, capability
-metadata literals, the storage boundary, and the test suite. It is what CI runs
-on Linux, macOS, and Windows, and it takes seconds.
+metadata literals, the storage boundary, the credential boundary, and the test
+suite. It is what CI runs on Linux, macOS, and Windows, and it takes seconds.
 
 The storage layer has a second gate, because it needs a database:
 

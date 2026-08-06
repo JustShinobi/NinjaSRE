@@ -23,6 +23,26 @@ NINJASRE_VAULT_KEY_FILE_ENV: Final = "NINJASRE_VAULT_KEY_FILE"
 #: records which key version encrypted each row.
 VAULT_KEY_VERSION_COLUMN: Final = "key_version"
 
+#: A credential handle is ``<integration>/<team>``; a stored version appends
+#: ``@v<n>``. Rotation writes a new version rather than overwriting the old one,
+#: so rolling back is a pointer move and not a restore from somebody's notes.
+CREDENTIAL_HANDLE_SEPARATOR: Final = "/"
+CREDENTIAL_VERSION_SEPARATOR: Final = "@v"
+
+#: The team component of a handle that belongs to the organisation rather than
+#: to one team. A literal is needed because the empty string would make
+#: ``datadog/`` and ``datadog`` two spellings of the same thing.
+CREDENTIAL_ORG_WIDE_TEAM: Final = "-"
+
+#: The first version the vault writes. Versions count up and are never reused,
+#: so an audit line naming version 4 means the same row forever.
+VAULT_INITIAL_CREDENTIAL_VERSION: Final[int] = 1
+
+#: The label the vault puts on the pointer row's metadata to name the live
+#: version. Metadata, so health checks, the console, and the operator CLI can
+#: read which version is active without any code path touching a value.
+VAULT_ACTIVE_VERSION_LABEL_PREFIX: Final = "active-version="
+
 # --- Credential proxy --------------------------------------------------------
 
 #: Mandatory in every deployment profile, including local development
@@ -36,7 +56,55 @@ CREDENTIAL_HANDLE_HEADER: Final = "X-NinjaSRE-Credential-Handle"
 TENANT_CONTEXT_HEADER: Final = "X-NinjaSRE-Tenant"
 TEAM_CONTEXT_HEADER: Final = "X-NinjaSRE-Team"
 
+#: Names the capability whose call this is, so an audit line answers "which
+#: tool used this credential" rather than only "something did".
+CAPABILITY_CONTEXT_HEADER: Final = "X-NinjaSRE-Capability"
+
+#: Names the integration whose injection rule applies. Separate from the handle
+#: because the proxy resolves the rule before it resolves the credential — an
+#: undeclared host is rejected without a vault read.
+INTEGRATION_CONTEXT_HEADER: Final = "X-NinjaSRE-Integration"
+
+#: Google wants the billing project in a header of its own rather than in the
+#: token. It lives here rather than beside the signer because every
+#: vendor-shaped literal that is not a secret belongs in this tier, and because
+#: a ``GOOGLE_``-prefixed name written anywhere else fails ``check-constants``.
+GOOGLE_QUOTA_PROJECT_HEADER: Final = "x-goog-user-project"
+
 CREDENTIAL_PROXY_TIMEOUT_SECONDS: Final[float] = 30.0
+
+#: The proxy's internal API. Two paths and nothing else: one that forwards a
+#: request and one that reports health. There is deliberately no path that
+#: returns a credential, because FR-010 says no configuration may enable one.
+PROXY_FORWARD_PATH: Final = "/internal/forward"
+PROXY_HEALTH_PATH: Final = "/internal/health"
+
+#: Per-tenant ceiling, counted over a fixed window. A tenant that exceeds it is
+#: refused rather than queued: a queue turns a runaway loop into latency
+#: everybody else pays, and the refusal is what tells the operator it happened.
+CREDENTIAL_PROXY_RATE_LIMIT_WINDOW_SECONDS: Final[float] = 60.0
+CREDENTIAL_PROXY_MAX_REQUESTS_PER_TENANT: Final[int] = 600
+
+#: How long before expiry a short-lived credential (OAuth, STS) is refreshed.
+#: Wide enough that a request starting just inside the margin still finishes
+#: with a valid token, narrow enough that refreshes stay rare.
+CREDENTIAL_REFRESH_MARGIN_SECONDS: Final[float] = 120.0
+
+#: Exactly one (FR-013). A second retry on an expiry failure is a retry against
+#: a credential that has already been refreshed once, so the failure is
+#: something other than expiry and repeating it only spends the vendor's rate
+#: limit.
+CREDENTIAL_EXPIRY_RETRY_ATTEMPTS: Final[int] = 1
+
+#: The p50 overhead the proxy hop is allowed to add, measured in
+#: ``tests/benchmarks``. A capability's own network call dominates this by two
+#: orders of magnitude; the budget exists so a regression that changes that is
+#: a test failure rather than a slow week.
+CREDENTIAL_PROXY_OVERHEAD_BUDGET_SECONDS: Final[float] = 0.005
+
+#: What a resolution is called in the audit trail (FR-019).
+CREDENTIAL_RESOLUTION_AUDIT_ACTION: Final = "credential.resolve"
+CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND: Final = "integration"
 
 # --- Guardrails --------------------------------------------------------------
 
@@ -107,13 +175,26 @@ APPROVAL_EXPIRY_SECONDS: Final[int] = 300
 
 __all__ = [
     "APPROVAL_EXPIRY_SECONDS",
+    "CAPABILITY_CONTEXT_HEADER",
+    "CREDENTIAL_EXPIRY_RETRY_ATTEMPTS",
     "CREDENTIAL_HANDLE_HEADER",
+    "CREDENTIAL_HANDLE_SEPARATOR",
+    "CREDENTIAL_ORG_WIDE_TEAM",
+    "CREDENTIAL_PROXY_MAX_REQUESTS_PER_TENANT",
+    "CREDENTIAL_PROXY_OVERHEAD_BUDGET_SECONDS",
+    "CREDENTIAL_PROXY_RATE_LIMIT_WINDOW_SECONDS",
     "CREDENTIAL_PROXY_TIMEOUT_SECONDS",
+    "CREDENTIAL_REFRESH_MARGIN_SECONDS",
+    "CREDENTIAL_RESOLUTION_AUDIT_ACTION",
+    "CREDENTIAL_RESOLUTION_AUDIT_RESOURCE_KIND",
+    "CREDENTIAL_VERSION_SEPARATOR",
     "DEFAULT_SIDE_EFFECT_LEVEL",
     "GUARDRAIL_ACTIONS",
     "GUARDRAIL_ACTION_AUDIT",
     "GUARDRAIL_ACTION_BLOCK",
+    "GOOGLE_QUOTA_PROJECT_HEADER",
     "GUARDRAIL_ACTION_REDACT",
+    "INTEGRATION_CONTEXT_HEADER",
     "MASKING_ENABLED_BY_DEFAULT",
     "MASK_TOKEN_PREFIX",
     "NINJASRE_CREDENTIAL_PROXY_TOKEN_ENV",
@@ -122,6 +203,8 @@ __all__ = [
     "NINJASRE_MASKING_ENABLED_ENV",
     "NINJASRE_VAULT_KEY_FILE_ENV",
     "NINJASRE_VAULT_MASTER_KEY_ENV",
+    "PROXY_FORWARD_PATH",
+    "PROXY_HEALTH_PATH",
     "REDACTION_PLACEHOLDER",
     "SIDE_EFFECT_DESTRUCTIVE",
     "SIDE_EFFECT_LEVELS",
@@ -131,5 +214,7 @@ __all__ = [
     "SIDE_EFFECT_WRITE_REVERSIBLE",
     "TEAM_CONTEXT_HEADER",
     "TENANT_CONTEXT_HEADER",
+    "VAULT_ACTIVE_VERSION_LABEL_PREFIX",
+    "VAULT_INITIAL_CREDENTIAL_VERSION",
     "VAULT_KEY_VERSION_COLUMN",
 ]

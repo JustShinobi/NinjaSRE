@@ -16,7 +16,8 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
 .PHONY: install lint format format-check typecheck test \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
-	check-literals check-raw-sql preflight verify test-postgres close-task clean help
+	check-literals check-raw-sql check-credentials preflight verify test-postgres \
+	close-task clean help
 
 install: ## Provision the development environment from uv.lock
 	$(UV) sync
@@ -68,6 +69,9 @@ check-literals: ## Reject a missing comma that merges two capability metadata en
 check-raw-sql: ## Reject SQL, Cypher, or a database driver outside platform/persistence/
 	$(RUN) python tools/check_raw_sql.py
 
+check-credentials: ## Reject a credential read outside the vault and the proxy (FR-017)
+	$(RUN) python tools/check_direct_credentials.py
+
 # Not part of `verify`: it spends real tokens against a configured provider.
 # Run it once per deployment, before anyone depends on that provider.
 preflight: ## Verify the configured LLM provider end to end (makes live calls)
@@ -77,7 +81,7 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 # in seconds rather than after the suite.
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
-	test ## The single quality gate CI runs
+	check-credentials test ## The single quality gate CI runs
 
 close-task: verify ## Fast-forward master to the current task branch and open the next one
 	$(RUN) python tools/close_task_branch.py
