@@ -29,11 +29,18 @@ classifiers = [
 # ``pyyaml`` is here rather than in an extra because guardrail rules are an
 # operator-editable file that has to load in every deployment. A deployment that
 # could not parse its ruleset would start unguarded, which FR-012 forbids.
+#
+# ``pydantic`` is here for the same class of reason. Configuration is the one
+# subsystem whose input is written by an operator rather than produced by the
+# platform, and every deployment has to reject a malformed document with an
+# error naming the field. It is not an extra because a deployment that could not
+# validate its configuration would resolve to defaults nobody chose.
 dependencies = [
     "alembic>=1.14",
     "asyncpg>=0.30",
     "cryptography>=44.0",
     "pgvector>=0.3.6",
+    "pydantic>=2.13.4",
     "pyyaml>=6.0",
     "sqlalchemy[asyncio]>=2.0.36",
     "structlog>=24.4.0",

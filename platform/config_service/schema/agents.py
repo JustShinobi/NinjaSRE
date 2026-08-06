@@ -20,8 +20,9 @@ security team's — and it is not worth a code change.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass, field
+from typing import Annotated
+
+from pydantic import Field, field_validator, model_validator
 
 from config.constants.config_service import MODEL_ROLES, PROMPT_ROLES
 from config.constants.investigation import (
@@ -33,112 +34,87 @@ from config.constants.investigation import (
 )
 from config.constants.llm import DEFAULT_MODEL_ID, DEFAULT_PROVIDER, SUPPORTED_PROVIDERS
 from config.prompts.investigation import DEFAULT_RUNTIME_SYSTEM_PROMPT
-from platform.config_service.schema.reader import Reader
-
-#: What a sub-agent declaration may say. Anything else is a typo, and a typo in
-#: a topology entry is a specialist that is configured and never dispatched.
-SUBAGENT_FIELDS: tuple[str, ...] = (
-    "name",
-    "description",
-    "system_prompt",
-    "capabilities",
-    "max_iterations",
-    "model_role",
-    "enabled",
+from platform.config_service.schema.types import (
+    ConfigSection,
+    ConfiguredInt,
+    ConfiguredStr,
+    ConfiguredStrList,
 )
 
-AGENTS_FIELDS: tuple[str, ...] = (
-    "prompts",
-    "subagents",
-    "max_iterations",
-    "max_subagent_iterations",
-    "max_parallel_subagents",
-    "max_subagent_depth",
-    "tool_budget",
-)
 
-MODELS_FIELDS: tuple[str, ...] = MODEL_ROLES
+class PromptOverrides(ConfigSection):
+    """A system prompt per agent role, each falling back to the shipped one.
+
+    Three fields rather than an open mapping, because a role nobody declared is
+    a prompt nobody sends — and the failure is silent: the console shows the
+    override, the agent never receives it.
+    """
+
+    investigator: ConfiguredStr = ""
+    intake: ConfiguredStr = ""
+    diagnose: ConfiguredStr = ""
+
+    def for_role(self, role: str) -> str:
+        """Return the override for ``role``, or empty if there is none."""
+        return str(getattr(self, role, "")) if role in PROMPT_ROLES else ""
 
 
-@dataclass(frozen=True, slots=True)
-class SubAgentConfig:
+class SubAgentConfig(ConfigSection):
     """One specialist in a team's topology."""
 
-    name: str
-    description: str = ""
-    system_prompt: str = ""
-    capabilities: tuple[str, ...] = ()
-    max_iterations: int = DEFAULT_SUBAGENT_ITERATIONS
-    model_role: str = "subagent"
+    #: Required: a specialist with no name is one nothing can dispatch, and a
+    #: default here would let the omission validate silently.
+    name: ConfiguredStr
+    description: ConfiguredStr = ""
+    system_prompt: ConfiguredStr = ""
+    capabilities: ConfiguredStrList = ()
+    max_iterations: Annotated[ConfiguredInt, Field(ge=1, le=MAX_INVESTIGATION_LOOPS)] = (
+        DEFAULT_SUBAGENT_ITERATIONS
+    )
+    model_role: ConfiguredStr = "subagent"
     enabled: bool = True
 
+    @field_validator("model_role")
     @classmethod
-    def of(cls, reader: Reader) -> SubAgentConfig:
-        """Return the sub-agent ``reader`` describes, recording what it cannot read."""
-        reader.close(SUBAGENT_FIELDS)
-        name = reader.string("name")
-        if not name:
-            reader.fail("name", "a sub-agent needs a name to be dispatched by")
-        return cls(
-            name=name,
-            description=reader.string("description"),
-            system_prompt=reader.string("system_prompt"),
-            capabilities=reader.strings("capabilities"),
-            max_iterations=reader.integer(
-                "max_iterations",
-                DEFAULT_SUBAGENT_ITERATIONS,
-                minimum=1,
-                maximum=MAX_INVESTIGATION_LOOPS,
-            ),
-            model_role=reader.string("model_role", "subagent", allowed=MODEL_ROLES),
-            enabled=reader.boolean("enabled", True),
-        )
+    def _known_role(cls, value: str) -> str:
+        """Refuse a model role nothing resolves."""
+        if value not in MODEL_ROLES:
+            raise ValueError(f"must be one of {', '.join(MODEL_ROLES)}; found {value!r}")
+        return value
 
 
-@dataclass(frozen=True, slots=True)
-class AgentsConfig:
+class AgentsConfig(ConfigSection):
     """Prompts, topology, and the budgets one run may spend."""
 
-    prompts: Mapping[str, str] = field(default_factory=dict)
+    prompts: PromptOverrides = PromptOverrides()
     subagents: tuple[SubAgentConfig, ...] = ()
-    max_iterations: int = MAX_INVESTIGATION_LOOPS
-    max_subagent_iterations: int = DEFAULT_SUBAGENT_ITERATIONS
-    max_parallel_subagents: int = MAX_PARALLEL_SUBAGENTS
-    max_subagent_depth: int = MAX_SUBAGENT_DEPTH
-    tool_budget: int = DEFAULT_TOOL_BUDGET
+    max_iterations: Annotated[ConfiguredInt, Field(ge=1, le=MAX_INVESTIGATION_LOOPS)] = (
+        MAX_INVESTIGATION_LOOPS
+    )
+    max_subagent_iterations: Annotated[ConfiguredInt, Field(ge=1, le=MAX_INVESTIGATION_LOOPS)] = (
+        DEFAULT_SUBAGENT_ITERATIONS
+    )
+    max_parallel_subagents: Annotated[ConfiguredInt, Field(ge=1, le=MAX_PARALLEL_SUBAGENTS)] = (
+        MAX_PARALLEL_SUBAGENTS
+    )
+    max_subagent_depth: Annotated[ConfiguredInt, Field(ge=0, le=MAX_SUBAGENT_DEPTH)] = (
+        MAX_SUBAGENT_DEPTH
+    )
+    tool_budget: Annotated[ConfiguredInt, Field(ge=1)] = DEFAULT_TOOL_BUDGET
 
-    @classmethod
-    def of(cls, reader: Reader) -> AgentsConfig:
-        """Return the agent configuration ``reader`` describes."""
-        reader.close(AGENTS_FIELDS)
-        subagents = tuple(SubAgentConfig.of(each) for each in reader.sections("subagents"))
-        _report_duplicate_names(reader, subagents)
-        return cls(
-            prompts=reader.keyed_strings("prompts", keys=PROMPT_ROLES),
-            subagents=subagents,
-            max_iterations=reader.integer(
-                "max_iterations",
-                MAX_INVESTIGATION_LOOPS,
-                minimum=1,
-                maximum=MAX_INVESTIGATION_LOOPS,
-            ),
-            max_subagent_iterations=reader.integer(
-                "max_subagent_iterations",
-                DEFAULT_SUBAGENT_ITERATIONS,
-                minimum=1,
-                maximum=MAX_INVESTIGATION_LOOPS,
-            ),
-            max_parallel_subagents=reader.integer(
-                "max_parallel_subagents",
-                MAX_PARALLEL_SUBAGENTS,
-                minimum=1,
-                maximum=MAX_PARALLEL_SUBAGENTS,
-            ),
-            max_subagent_depth=reader.integer(
-                "max_subagent_depth", MAX_SUBAGENT_DEPTH, minimum=0, maximum=MAX_SUBAGENT_DEPTH
-            ),
-            tool_budget=reader.integer("tool_budget", DEFAULT_TOOL_BUDGET, minimum=1),
-        )
+    @model_validator(mode="after")
+    def _names_are_distinct(self) -> AgentsConfig:
+        """Refuse two specialists sharing one name.
+
+        A dispatch would otherwise reach whichever the merge happened to order
+        last, which is not a decision anybody made.
+        """
+        seen: set[str] = set()
+        for subagent in self.subagents:
+            if subagent.name in seen:
+                raise ValueError(f"declares {subagent.name!r} more than once")
+            seen.add(subagent.name)
+        return self
 
     def prompt_for(self, role: str) -> str:
         """Return the system prompt for ``role``, falling back to the shipped one.
@@ -146,8 +122,7 @@ class AgentsConfig:
         The fallback is what makes a zero-configuration deployment work: no
         prompt is stored anywhere until somebody chooses to change one.
         """
-        override = self.prompts.get(role, "").strip()
-        return override or DEFAULT_RUNTIME_SYSTEM_PROMPT
+        return self.prompts.for_role(role).strip() or DEFAULT_RUNTIME_SYSTEM_PROMPT
 
     def subagent(self, name: str) -> SubAgentConfig | None:
         """Return the sub-agent called ``name``, or ``None``."""
@@ -161,74 +136,70 @@ class AgentsConfig:
         return tuple(subagent for subagent in self.subagents if subagent.enabled)
 
 
-@dataclass(frozen=True, slots=True)
-class ModelSelection:
+class ModelSelection(ConfigSection):
     """The provider and model one role runs on."""
 
-    provider: str = DEFAULT_PROVIDER
-    model: str = DEFAULT_MODEL_ID
+    provider: ConfiguredStr = DEFAULT_PROVIDER
+    model: ConfiguredStr = DEFAULT_MODEL_ID
 
+    @field_validator("provider")
     @classmethod
-    def of(cls, reader: Reader) -> ModelSelection:
-        """Return the selection ``reader`` describes."""
-        reader.close(("provider", "model"))
-        return cls(
-            provider=reader.string("provider", DEFAULT_PROVIDER, allowed=SUPPORTED_PROVIDERS),
-            model=reader.string("model", DEFAULT_MODEL_ID),
-        )
+    def _installed(cls, value: str) -> str:
+        """Refuse a provider no adapter answers to."""
+        if value not in SUPPORTED_PROVIDERS:
+            raise ValueError(f"must be one of {', '.join(SUPPORTED_PROVIDERS)}; found {value!r}")
+        return value
 
 
-@dataclass(frozen=True, slots=True)
-class ModelsConfig:
+class ModelsConfig(ConfigSection):
     """Which provider and model each role resolves to.
+
+    One field per role rather than an open mapping. A typo in a role name would
+    otherwise be configuration nobody ever reads, leaving that role on the
+    default while the console showed it bound.
 
     A role nobody configured resolves to the deployment default rather than
     failing: an investigation that cannot start is worse than one that starts on
     the default model and records which one in its trace.
     """
 
-    roles: Mapping[str, ModelSelection] = field(default_factory=dict)
-
-    @classmethod
-    def of(cls, reader: Reader) -> ModelsConfig:
-        """Return the model bindings ``reader`` describes."""
-        reader.close(MODELS_FIELDS)
-        return cls(
-            roles={
-                role: ModelSelection.of(reader.section(role))
-                for role in MODEL_ROLES
-                if reader.has(role)
-            }
-        )
+    investigator: ModelSelection = ModelSelection()
+    subagent: ModelSelection = ModelSelection()
+    intake: ModelSelection = ModelSelection()
+    diagnose: ModelSelection = ModelSelection()
+    extraction: ModelSelection = ModelSelection()
+    embedding: ModelSelection = ModelSelection()
 
     def for_role(self, role: str) -> ModelSelection:
         """Return what ``role`` runs on, or the deployment default."""
-        return self.roles.get(role, ModelSelection())
+        selection = getattr(self, role, None) if role in MODEL_ROLES else None
+        return selection if isinstance(selection, ModelSelection) else ModelSelection()
 
     def bound_roles(self) -> tuple[str, ...]:
-        """Return the roles this configuration binds explicitly, in role order."""
-        return tuple(role for role in MODEL_ROLES if role in self.roles)
+        """Return the roles this configuration binds explicitly, in role order.
+
+        Explicitly: a role resolving to the deployment default must not appear
+        as though somebody had chosen it.
+        """
+        declared = self.declared()
+        return tuple(role for role in MODEL_ROLES if role in declared)
 
 
-def _report_duplicate_names(reader: Reader, subagents: tuple[SubAgentConfig, ...]) -> None:
-    """Record an error per repeated sub-agent name.
-
-    Two sub-agents with one name is a dispatch that reaches whichever the merge
-    happened to order last, which is not a decision anybody made.
-    """
-    seen: set[str] = set()
-    for subagent in subagents:
-        if subagent.name and subagent.name in seen:
-            reader.fail("subagents", f"declares {subagent.name!r} more than once")
-        seen.add(subagent.name)
+#: What each section declares, for the console's form. Read off the models
+#: rather than repeated beside them, so a field cannot be added without the
+#: form learning about it.
+AGENTS_FIELDS: tuple[str, ...] = tuple(AgentsConfig.model_fields)
+MODELS_FIELDS: tuple[str, ...] = tuple(ModelsConfig.model_fields)
+SUBAGENT_FIELDS: tuple[str, ...] = tuple(SubAgentConfig.model_fields)
 
 
 __all__ = [
     "AGENTS_FIELDS",
-    "AgentsConfig",
     "MODELS_FIELDS",
+    "SUBAGENT_FIELDS",
+    "AgentsConfig",
     "ModelSelection",
     "ModelsConfig",
-    "SUBAGENT_FIELDS",
+    "PromptOverrides",
     "SubAgentConfig",
 ]

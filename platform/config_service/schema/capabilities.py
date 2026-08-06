@@ -20,41 +20,21 @@ two statements.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
 from typing import Any
 
-from platform.config_service.schema.reader import Reader
-
-CAPABILITIES_FIELDS: tuple[str, ...] = ("enabled", "disabled", "disabled_tags", "parameters")
+from platform.config_service.schema.types import ConfigSection, ConfiguredStrList
 
 
-@dataclass(frozen=True, slots=True)
-class CapabilitiesConfig:
+class CapabilitiesConfig(ConfigSection):
     """The capability allow-list, deny-list, and per-capability parameters."""
 
-    enabled: tuple[str, ...] | None = None
-    disabled: tuple[str, ...] = ()
-    disabled_tags: tuple[str, ...] = ()
-    parameters: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
-
-    @classmethod
-    def of(cls, reader: Reader) -> CapabilitiesConfig:
-        """Return the capability configuration ``reader`` describes."""
-        reader.close(CAPABILITIES_FIELDS)
-        overrides = reader.free_mapping("parameters")
-        parameters: dict[str, Mapping[str, Any]] = {}
-        for name, value in overrides.items():
-            if isinstance(value, Mapping):
-                parameters[name] = dict(value)
-            else:
-                reader.fail(f"parameters.{name}", "expected a section of parameter values")
-
-        return cls(
-            enabled=reader.strings("enabled") if reader.has("enabled") else None,
-            disabled=reader.strings("disabled"),
-            disabled_tags=reader.strings("disabled_tags"),
-            parameters=parameters,
-        )
+    enabled: ConfiguredStrList | None = None
+    disabled: ConfiguredStrList = ()
+    disabled_tags: ConfiguredStrList = ()
+    #: The one open door in the schema, and deliberately narrow: a capability's
+    #: parameters are defined by that capability, not here. Everything else is a
+    #: declared field.
+    parameters: Mapping[str, Mapping[str, Any]] = {}
 
     def allows(self, name: str, tags: tuple[str, ...] = ()) -> bool:
         """Return whether a capability called ``name`` carrying ``tags`` may run."""
@@ -93,6 +73,9 @@ class CapabilitiesConfig:
         """
         named = list(self.enabled or ()) + list(self.disabled) + list(self.parameters)
         return tuple(dict.fromkeys(named))
+
+
+CAPABILITIES_FIELDS: tuple[str, ...] = tuple(CapabilitiesConfig.model_fields)
 
 
 __all__ = ["CAPABILITIES_FIELDS", "CapabilitiesConfig"]

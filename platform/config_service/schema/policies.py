@@ -16,14 +16,16 @@ The masking and guardrail sections carry the one asymmetry in the package.
 ``guardrails.mode`` may be set to observe-only, which downgrades every action to
 audit — nothing altered, nothing blocked, everything still recorded. There is no
 value that removes the engine, because the constitution's claim is that it
-cannot be removed from the boundary, and a configuration field that could
-remove it would make the claim a preference.
+cannot be removed from the boundary, and a configuration field that could remove
+it would make the claim a preference.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from typing import Annotated, Final, Literal
+
+from pydantic import Field, field_validator
 
 from config.constants.security import (
     DEFAULT_MASKING_POLICY,
@@ -31,28 +33,21 @@ from config.constants.security import (
     SIDE_EFFECT_LEVELS,
     SIDE_EFFECT_WRITE_REVERSIBLE,
 )
-from platform.config_service.schema.reader import Reader
+from platform.config_service.schema.types import (
+    ConfigSection,
+    ConfiguredFloat,
+    ConfiguredStr,
+    ConfiguredStrList,
+)
 
 #: Guardrails run, or guardrails run and record without altering anything.
-#: There is deliberately no third value.
-GUARDRAIL_MODE_ENFORCING = "enforcing"
-GUARDRAIL_MODE_OBSERVING = "observing"
-GUARDRAIL_MODES: tuple[str, ...] = (GUARDRAIL_MODE_ENFORCING, GUARDRAIL_MODE_OBSERVING)
+#: There is deliberately no third value — no configuration removes the engine
+#: from the boundary, because the constitution's claim is that it cannot be.
+GuardrailMode = Literal["enforcing", "observing"]
 
-MEMORY_FIELDS: tuple[str, ...] = ("read_enabled", "write_enabled")
-STRATEGY_FIELDS: tuple[str, ...] = ("enabled",)
-KNOWLEDGE_FIELDS: tuple[str, ...] = ("topology_enabled", "knowledge_base_enabled")
-MASKING_FIELDS: tuple[str, ...] = ("enabled", "level", "custom_patterns")
-GUARDRAILS_FIELDS: tuple[str, ...] = ("mode", "ruleset", "disabled_rules")
-APPROVALS_FIELDS: tuple[str, ...] = ("threshold", "autonomous_capabilities", "expiry_hours")
-POLICIES_FIELDS: tuple[str, ...] = (
-    "memory",
-    "strategy",
-    "knowledge",
-    "masking",
-    "guardrails",
-    "approvals",
-)
+GUARDRAIL_MODE_ENFORCING: Final[GuardrailMode] = "enforcing"
+GUARDRAIL_MODE_OBSERVING: Final[GuardrailMode] = "observing"
+GUARDRAIL_MODES: tuple[GuardrailMode, ...] = (GUARDRAIL_MODE_ENFORCING, GUARDRAIL_MODE_OBSERVING)
 
 #: What an approval request stays answerable for. Long enough for an on-call
 #: rotation to see it, short enough that nobody approves a plan for a cluster
@@ -60,117 +55,63 @@ POLICIES_FIELDS: tuple[str, ...] = (
 DEFAULT_APPROVAL_EXPIRY_HOURS = 4.0
 MAX_APPROVAL_EXPIRY_HOURS = 168.0
 
-#: A custom masking pattern is a name and a regular expression. The name is what
-#: the token is built from, so ``NSRE_MASK_TICKET_1`` reads in a prompt where
-#: ``NSRE_MASK_CUSTOM_1`` does not.
-CUSTOM_PATTERN_FIELDS: tuple[str, ...] = ("name", "pattern")
 
-
-@dataclass(frozen=True, slots=True)
-class MemoryPolicySettings:
+class MemoryPolicySettings(ConfigSection):
     """Whether this team's investigations read from and write to episodic memory."""
 
     read_enabled: bool = True
     write_enabled: bool = True
 
-    @classmethod
-    def of(cls, reader: Reader) -> MemoryPolicySettings:
-        """Return the memory switches ``reader`` describes."""
-        reader.close(MEMORY_FIELDS)
-        return cls(
-            read_enabled=reader.boolean("read_enabled", True),
-            write_enabled=reader.boolean("write_enabled", True),
-        )
 
-
-@dataclass(frozen=True, slots=True)
-class StrategyPolicySettings:
+class StrategyPolicySettings(ConfigSection):
     """Whether synthesised playbooks are offered alongside episodes."""
 
     enabled: bool = True
 
-    @classmethod
-    def of(cls, reader: Reader) -> StrategyPolicySettings:
-        """Return the strategy switch ``reader`` describes."""
-        reader.close(STRATEGY_FIELDS)
-        return cls(enabled=reader.boolean("enabled", True))
 
-
-@dataclass(frozen=True, slots=True)
-class KnowledgePolicySettings:
+class KnowledgePolicySettings(ConfigSection):
     """Whether the topology graph and the knowledge base are reachable."""
 
     topology_enabled: bool = True
     knowledge_base_enabled: bool = True
 
-    @classmethod
-    def of(cls, reader: Reader) -> KnowledgePolicySettings:
-        """Return the knowledge switches ``reader`` describes."""
-        reader.close(KNOWLEDGE_FIELDS)
-        return cls(
-            topology_enabled=reader.boolean("topology_enabled", True),
-            knowledge_base_enabled=reader.boolean("knowledge_base_enabled", True),
-        )
+
+class CustomMaskingPattern(ConfigSection):
+    """One operator-supplied identifier shape.
+
+    The name becomes part of the token, so ``NSRE_MASK_TICKET_1`` reads in a
+    prompt where ``NSRE_MASK_CUSTOM_1`` does not — which is why it is required
+    rather than generated.
+    """
+
+    #: Both required. A pattern with no name produces an unreadable token and
+    #: one with no expression matches nothing; defaults would hide either.
+    name: ConfiguredStr
+    pattern: ConfiguredStr
 
 
-@dataclass(frozen=True, slots=True)
-class CustomMaskingPattern:
-    """One operator-supplied identifier shape."""
-
-    name: str
-    pattern: str
-
-    @classmethod
-    def of(cls, reader: Reader) -> CustomMaskingPattern:
-        """Return the pattern ``reader`` describes."""
-        reader.close(CUSTOM_PATTERN_FIELDS)
-        name = reader.string("name")
-        pattern = reader.string("pattern")
-        if not name:
-            reader.fail("name", "a custom pattern needs a name; it becomes part of the token")
-        if not pattern:
-            reader.fail("pattern", "a custom pattern needs an expression to match")
-        return cls(name=name, pattern=pattern)
-
-
-@dataclass(frozen=True, slots=True)
-class MaskingPolicySettings:
+class MaskingPolicySettings(ConfigSection):
     """How much of the operator's estate may reach a model they do not host."""
 
     enabled: bool = True
-    level: str = DEFAULT_MASKING_POLICY
+    level: ConfiguredStr = DEFAULT_MASKING_POLICY
     custom_patterns: tuple[CustomMaskingPattern, ...] = ()
 
+    @field_validator("level")
     @classmethod
-    def of(cls, reader: Reader) -> MaskingPolicySettings:
-        """Return the masking policy ``reader`` describes."""
-        reader.close(MASKING_FIELDS)
-        return cls(
-            enabled=reader.boolean("enabled", True),
-            level=reader.string("level", DEFAULT_MASKING_POLICY, allowed=MASKING_POLICY_LEVELS),
-            custom_patterns=tuple(
-                CustomMaskingPattern.of(each) for each in reader.sections("custom_patterns")
-            ),
-        )
+    def _known_level(cls, value: str) -> str:
+        """Refuse a level the masking layer does not implement."""
+        if value not in MASKING_POLICY_LEVELS:
+            raise ValueError(f"must be one of {', '.join(MASKING_POLICY_LEVELS)}; found {value!r}")
+        return value
 
 
-@dataclass(frozen=True, slots=True)
-class GuardrailPolicySettings:
+class GuardrailPolicySettings(ConfigSection):
     """Which secret shapes are looked for, and whether a match is acted on."""
 
-    mode: str = GUARDRAIL_MODE_ENFORCING
-    ruleset: str | None = None
-    disabled_rules: tuple[str, ...] = ()
-
-    @classmethod
-    def of(cls, reader: Reader) -> GuardrailPolicySettings:
-        """Return the guardrail policy ``reader`` describes."""
-        reader.close(GUARDRAILS_FIELDS)
-        return cls(
-            mode=reader.string("mode", GUARDRAIL_MODE_ENFORCING, allowed=GUARDRAIL_MODES),
-            ruleset=reader.optional_string("ruleset"),
-            disabled_rules=reader.strings("disabled_rules"),
-        )
+    mode: GuardrailMode = GUARDRAIL_MODE_ENFORCING
+    ruleset: ConfiguredStr | None = None
+    disabled_rules: ConfiguredStrList = ()
 
     @property
     def enforcing(self) -> bool:
@@ -178,8 +119,7 @@ class GuardrailPolicySettings:
         return self.mode == GUARDRAIL_MODE_ENFORCING
 
 
-@dataclass(frozen=True, slots=True)
-class ApprovalPolicySettings:
+class ApprovalPolicySettings(ConfigSection):
     """Where the line between "do it" and "ask first" sits for this team.
 
     ``threshold`` is the lowest side-effect level that needs a human. It cannot
@@ -188,36 +128,24 @@ class ApprovalPolicySettings:
     could switch that off would make the article advisory.
     """
 
-    threshold: str = SIDE_EFFECT_WRITE_REVERSIBLE
-    autonomous_capabilities: tuple[str, ...] = ()
-    expiry_hours: float = DEFAULT_APPROVAL_EXPIRY_HOURS
+    threshold: ConfiguredStr = SIDE_EFFECT_WRITE_REVERSIBLE
+    autonomous_capabilities: ConfiguredStrList = ()
+    expiry_hours: Annotated[ConfiguredFloat, Field(ge=0.25, le=MAX_APPROVAL_EXPIRY_HOURS)] = (
+        DEFAULT_APPROVAL_EXPIRY_HOURS
+    )
 
+    @field_validator("threshold")
     @classmethod
-    def of(cls, reader: Reader) -> ApprovalPolicySettings:
-        """Return the approval policy ``reader`` describes."""
-        reader.close(APPROVALS_FIELDS)
-        threshold = reader.string(
-            "threshold", SIDE_EFFECT_WRITE_REVERSIBLE, allowed=SIDE_EFFECT_LEVELS
-        )
-        if SIDE_EFFECT_LEVELS.index(threshold) > SIDE_EFFECT_LEVELS.index(
-            SIDE_EFFECT_WRITE_REVERSIBLE
-        ):
-            reader.fail(
-                "threshold",
+    def _within_the_article(cls, value: str) -> str:
+        """Refuse a threshold that would leave a write unapproved."""
+        if value not in SIDE_EFFECT_LEVELS:
+            raise ValueError(f"must be one of {', '.join(SIDE_EFFECT_LEVELS)}; found {value!r}")
+        if SIDE_EFFECT_LEVELS.index(value) > SIDE_EFFECT_LEVELS.index(SIDE_EFFECT_WRITE_REVERSIBLE):
+            raise ValueError(
                 f"cannot sit above {SIDE_EFFECT_WRITE_REVERSIBLE!r}: every write needs "
-                f"per-action approval and a stored rollback plan",
+                f"per-action approval and a stored rollback plan"
             )
-            threshold = SIDE_EFFECT_WRITE_REVERSIBLE
-        return cls(
-            threshold=threshold,
-            autonomous_capabilities=reader.strings("autonomous_capabilities"),
-            expiry_hours=reader.number(
-                "expiry_hours",
-                DEFAULT_APPROVAL_EXPIRY_HOURS,
-                minimum=0.25,
-                maximum=MAX_APPROVAL_EXPIRY_HOURS,
-            ),
-        )
+        return value
 
     def requires_approval(self, side_effect_level: str, capability: str = "") -> bool:
         """Return whether an action at ``side_effect_level`` needs a human first."""
@@ -230,29 +158,15 @@ class ApprovalPolicySettings:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class PoliciesConfig:
+class PoliciesConfig(ConfigSection):
     """Every policy switch, in one section."""
 
-    memory: MemoryPolicySettings = field(default_factory=MemoryPolicySettings)
-    strategy: StrategyPolicySettings = field(default_factory=StrategyPolicySettings)
-    knowledge: KnowledgePolicySettings = field(default_factory=KnowledgePolicySettings)
-    masking: MaskingPolicySettings = field(default_factory=MaskingPolicySettings)
-    guardrails: GuardrailPolicySettings = field(default_factory=GuardrailPolicySettings)
-    approvals: ApprovalPolicySettings = field(default_factory=ApprovalPolicySettings)
-
-    @classmethod
-    def of(cls, reader: Reader) -> PoliciesConfig:
-        """Return the policies ``reader`` describes."""
-        reader.close(POLICIES_FIELDS)
-        return cls(
-            memory=MemoryPolicySettings.of(reader.section("memory")),
-            strategy=StrategyPolicySettings.of(reader.section("strategy")),
-            knowledge=KnowledgePolicySettings.of(reader.section("knowledge")),
-            masking=MaskingPolicySettings.of(reader.section("masking")),
-            guardrails=GuardrailPolicySettings.of(reader.section("guardrails")),
-            approvals=ApprovalPolicySettings.of(reader.section("approvals")),
-        )
+    memory: MemoryPolicySettings = MemoryPolicySettings()
+    strategy: StrategyPolicySettings = StrategyPolicySettings()
+    knowledge: KnowledgePolicySettings = KnowledgePolicySettings()
+    masking: MaskingPolicySettings = MaskingPolicySettings()
+    guardrails: GuardrailPolicySettings = GuardrailPolicySettings()
+    approvals: ApprovalPolicySettings = ApprovalPolicySettings()
 
     def ablation_summary(self) -> Mapping[str, object]:
         """Return what a run trace records about how learning was configured.
@@ -272,24 +186,35 @@ class PoliciesConfig:
         }
 
 
+POLICIES_FIELDS: tuple[str, ...] = tuple(PoliciesConfig.model_fields)
+MEMORY_FIELDS: tuple[str, ...] = tuple(MemoryPolicySettings.model_fields)
+STRATEGY_FIELDS: tuple[str, ...] = tuple(StrategyPolicySettings.model_fields)
+KNOWLEDGE_FIELDS: tuple[str, ...] = tuple(KnowledgePolicySettings.model_fields)
+MASKING_FIELDS: tuple[str, ...] = tuple(MaskingPolicySettings.model_fields)
+GUARDRAILS_FIELDS: tuple[str, ...] = tuple(GuardrailPolicySettings.model_fields)
+APPROVALS_FIELDS: tuple[str, ...] = tuple(ApprovalPolicySettings.model_fields)
+CUSTOM_PATTERN_FIELDS: tuple[str, ...] = tuple(CustomMaskingPattern.model_fields)
+
+
 __all__ = [
     "APPROVALS_FIELDS",
-    "ApprovalPolicySettings",
     "CUSTOM_PATTERN_FIELDS",
-    "CustomMaskingPattern",
     "GUARDRAILS_FIELDS",
     "GUARDRAIL_MODES",
     "GUARDRAIL_MODE_ENFORCING",
     "GUARDRAIL_MODE_OBSERVING",
-    "GuardrailPolicySettings",
+    "GuardrailMode",
     "KNOWLEDGE_FIELDS",
-    "KnowledgePolicySettings",
     "MASKING_FIELDS",
     "MEMORY_FIELDS",
+    "POLICIES_FIELDS",
+    "STRATEGY_FIELDS",
+    "ApprovalPolicySettings",
+    "CustomMaskingPattern",
+    "GuardrailPolicySettings",
+    "KnowledgePolicySettings",
     "MaskingPolicySettings",
     "MemoryPolicySettings",
-    "POLICIES_FIELDS",
     "PoliciesConfig",
-    "STRATEGY_FIELDS",
     "StrategyPolicySettings",
 ]

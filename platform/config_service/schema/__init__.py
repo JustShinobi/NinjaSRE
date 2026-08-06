@@ -31,13 +31,13 @@ from platform.config_service.schema.policies import (
     PoliciesConfig,
     StrategyPolicySettings,
 )
-from platform.config_service.schema.reader import Reader
 from platform.config_service.schema.root import ROOT_SECTIONS, RootConfig, section_fields
 from platform.config_service.schema.surfaces import (
     ChannelSettings,
     DestinationSettings,
     SurfacesConfig,
 )
+from platform.config_service.schema.types import ConfigSection, field_errors
 
 __all__ = [
     "ROOT_SECTIONS",
@@ -45,6 +45,7 @@ __all__ = [
     "ApprovalPolicySettings",
     "CapabilitiesConfig",
     "ChannelSettings",
+    "ConfigSection",
     "CustomMaskingPattern",
     "DestinationSettings",
     "GuardrailPolicySettings",
@@ -56,10 +57,10 @@ __all__ = [
     "ModelSelection",
     "ModelsConfig",
     "PoliciesConfig",
-    "Reader",
     "RootConfig",
     "StrategyPolicySettings",
     "SubAgentConfig",
     "SurfacesConfig",
+    "field_errors",
     "section_fields",
 ]

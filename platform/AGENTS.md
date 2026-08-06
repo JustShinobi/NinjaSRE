@@ -365,6 +365,13 @@ Five things are load-bearing and non-obvious:
   `{settings, field_policies}`. A lock stored *inside* the settings would be a
   control key the merge could see, and that is the exact thing the previous
   paragraph rules out. `NodeDocument` is the only thing that unpacks it.
+- **`RootConfig.read` never raises, and pays a salvage pass for it.** Pydantic
+  validates a document whole, so one bad field would take every good one with
+  it and a team would lose its model binding to an unrelated typo. `read`
+  prunes the failed paths and revalidates; a bad entry inside a list drops the
+  entry, not the list. Validation already refused the document at the write, so
+  this path only runs for something that predates a schema change or bypassed
+  the service.
 - **Locks are enforced twice and the halves do different jobs.** The write check
   is what an operator meets, and it names the locking node because a constraint
   with an invisible origin gets routed around. The merge check is what makes

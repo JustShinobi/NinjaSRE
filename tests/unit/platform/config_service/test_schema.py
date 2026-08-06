@@ -320,3 +320,65 @@ def test_the_console_can_ask_which_fields_a_section_declares() -> None:
     fields = section_fields()
     assert set(fields) == set(ROOT_SECTIONS)
     assert "masking" in fields["policies"]
+
+
+# --- The salvage pass: reading never raises ----------------------------------
+
+
+def test_a_bad_field_does_not_take_the_good_ones_with_it() -> None:
+    """The resolution path must produce a configuration whatever it was handed.
+
+    Validation refused this document at the write, so reaching ``read`` means it
+    predates a schema change or bypassed the service. Losing the team's model
+    binding because of an unrelated typo would be a second incident.
+    """
+    config, errors = RootConfig.read(
+        {
+            "agents": {"tool_budget": "eight"},
+            "models": {"investigator": {"provider": "ollama", "model": "llama3"}},
+        }
+    )
+
+    assert [error.path for error in errors] == ["agents.tool_budget"]
+    assert config.models.for_role("investigator").model == "llama3"
+    assert config.agents.tool_budget == DEFAULT_TOOL_BUDGET
+
+
+def test_a_bad_entry_in_a_list_drops_the_entry_rather_than_the_list() -> None:
+    config, errors = RootConfig.read(
+        {
+            "agents": {
+                "subagents": [
+                    {"name": "usable", "description": "d"},
+                    {"description": "nameless"},
+                ]
+            }
+        }
+    )
+
+    assert [error.path for error in errors] == ["agents.subagents[1].name"]
+    assert [each.name for each in config.agents.subagents] == ["usable"]
+
+
+def test_an_undeclared_section_is_dropped_and_the_rest_survives() -> None:
+    config, errors = RootConfig.read({"agentz": {}, "agents": {"tool_budget": 3}})
+
+    assert [error.path for error in errors] == ["agentz"]
+    assert config.agents.tool_budget == 3
+
+
+def test_a_document_that_cannot_be_salvaged_falls_back_to_defaults() -> None:
+    config, errors = RootConfig.read({"agents": "not a section"})
+
+    assert errors
+    assert config == RootConfig()
+
+
+def test_an_effective_configuration_cannot_be_mutated_by_whoever_holds_it() -> None:
+    """It is cached and handed out; a mutable one is a cache that drifts."""
+    import pydantic
+
+    config = RootConfig.of({"agents": {"tool_budget": 4}})
+
+    with pytest.raises(pydantic.ValidationError):
+        config.agents.tool_budget = 9  # type: ignore[misc]

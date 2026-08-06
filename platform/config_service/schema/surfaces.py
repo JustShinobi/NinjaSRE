@@ -13,18 +13,15 @@ is not a secret and is the thing an operator actually edits.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from typing import Literal
+
+from pydantic import field_validator
 
 from config.constants.surfaces import CHAT_PLATFORMS, SURFACE_IDENTIFIERS
-from platform.config_service.schema.reader import Reader
-
-CHANNEL_FIELDS: tuple[str, ...] = ("platform", "channel", "min_severity", "enabled")
-DESTINATION_FIELDS: tuple[str, ...] = ("kind", "target", "format", "enabled")
-SURFACES_FIELDS: tuple[str, ...] = (
-    "enabled",
-    "channels",
-    "report_destinations",
-    "notification_sinks",
+from platform.config_service.schema.types import (
+    ConfigSection,
+    ConfiguredStr,
+    ConfiguredStrList,
 )
 
 #: Where a finished investigation can be delivered. Closed, because each one is
@@ -42,31 +39,23 @@ DESTINATION_KINDS: tuple[str, ...] = (
 SEVERITIES: tuple[str, ...] = ("info", "warning", "error", "critical")
 
 
-@dataclass(frozen=True, slots=True)
-class ChannelSettings:
+class ChannelSettings(ConfigSection):
     """One chat destination, and what it is willing to be told about."""
 
-    platform: str
-    channel: str
-    min_severity: str = "info"
+    #: Both required: a channel entry naming neither a platform nor a channel
+    #: is configuration that delivers nowhere.
+    platform: ConfiguredStr
+    channel: ConfiguredStr
+    min_severity: Literal["info", "warning", "error", "critical"] = "info"
     enabled: bool = True
 
+    @field_validator("platform")
     @classmethod
-    def of(cls, reader: Reader) -> ChannelSettings:
-        """Return the channel ``reader`` describes."""
-        reader.close(CHANNEL_FIELDS)
-        platform = reader.string("platform", allowed=CHAT_PLATFORMS)
-        channel = reader.string("channel")
-        if not platform:
-            reader.fail("platform", f"must be one of {', '.join(CHAT_PLATFORMS)}")
-        if not channel:
-            reader.fail("channel", "a channel entry needs the channel to post in")
-        return cls(
-            platform=platform,
-            channel=channel,
-            min_severity=reader.string("min_severity", "info", allowed=SEVERITIES),
-            enabled=reader.boolean("enabled", True),
-        )
+    def _known_platform(cls, value: str) -> str:
+        """Refuse a chat platform nothing adapts."""
+        if value not in CHAT_PLATFORMS:
+            raise ValueError(f"must be one of {', '.join(CHAT_PLATFORMS)}; found {value!r}")
+        return value
 
     def accepts(self, severity: str) -> bool:
         """Return whether an alert of ``severity`` reaches this channel."""
@@ -75,56 +64,42 @@ class ChannelSettings:
         return SEVERITIES.index(severity) >= SEVERITIES.index(self.min_severity)
 
 
-@dataclass(frozen=True, slots=True)
-class DestinationSettings:
+class DestinationSettings(ConfigSection):
     """One place a finished investigation is delivered."""
 
-    kind: str
-    target: str
-    format: str = "markdown"
+    #: Both required, for the same reason a channel needs both of its.
+    kind: ConfiguredStr
+    target: ConfiguredStr
+    format: Literal["markdown", "html", "json"] = "markdown"
     enabled: bool = True
 
+    @field_validator("kind")
     @classmethod
-    def of(cls, reader: Reader) -> DestinationSettings:
-        """Return the destination ``reader`` describes."""
-        reader.close(DESTINATION_FIELDS)
-        kind = reader.string("kind", allowed=DESTINATION_KINDS)
-        target = reader.string("target")
-        if not kind:
-            reader.fail("kind", f"must be one of {', '.join(DESTINATION_KINDS)}")
-        if not target:
-            reader.fail("target", "a destination needs somewhere to deliver to")
-        return cls(
-            kind=kind,
-            target=target,
-            format=reader.string("format", "markdown", allowed=("markdown", "html", "json")),
-            enabled=reader.boolean("enabled", True),
-        )
+    def _known_kind(cls, value: str) -> str:
+        """Refuse a destination kind no adapter delivers to."""
+        if value not in DESTINATION_KINDS:
+            raise ValueError(f"must be one of {', '.join(DESTINATION_KINDS)}; found {value!r}")
+        return value
 
 
-@dataclass(frozen=True, slots=True)
-class SurfacesConfig:
+class SurfacesConfig(ConfigSection):
     """Which surfaces this team uses, and where their output goes."""
 
-    enabled: tuple[str, ...] = ()
+    enabled: ConfiguredStrList = ()
     channels: tuple[ChannelSettings, ...] = ()
     report_destinations: tuple[DestinationSettings, ...] = ()
     notification_sinks: tuple[DestinationSettings, ...] = ()
 
+    @field_validator("enabled")
     @classmethod
-    def of(cls, reader: Reader) -> SurfacesConfig:
-        """Return the surface configuration ``reader`` describes."""
-        reader.close(SURFACES_FIELDS)
-        return cls(
-            enabled=reader.strings("enabled", allowed=SURFACE_IDENTIFIERS),
-            channels=tuple(ChannelSettings.of(each) for each in reader.sections("channels")),
-            report_destinations=tuple(
-                DestinationSettings.of(each) for each in reader.sections("report_destinations")
-            ),
-            notification_sinks=tuple(
-                DestinationSettings.of(each) for each in reader.sections("notification_sinks")
-            ),
-        )
+    def _known_surfaces(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Refuse a surface this deployment does not have."""
+        unknown = [name for name in value if name not in SURFACE_IDENTIFIERS]
+        if unknown:
+            raise ValueError(
+                f"names {', '.join(unknown)}; must be from {', '.join(SURFACE_IDENTIFIERS)}"
+            )
+        return value
 
     def channels_for(self, severity: str) -> tuple[ChannelSettings, ...]:
         """Return the channels an alert of ``severity`` reaches, in declared order."""
@@ -135,13 +110,18 @@ class SurfacesConfig:
         return tuple(entry for entry in self.report_destinations if entry.enabled)
 
 
+SURFACES_FIELDS: tuple[str, ...] = tuple(SurfacesConfig.model_fields)
+CHANNEL_FIELDS: tuple[str, ...] = tuple(ChannelSettings.model_fields)
+DESTINATION_FIELDS: tuple[str, ...] = tuple(DestinationSettings.model_fields)
+
+
 __all__ = [
     "CHANNEL_FIELDS",
-    "ChannelSettings",
     "DESTINATION_FIELDS",
     "DESTINATION_KINDS",
-    "DestinationSettings",
     "SEVERITIES",
     "SURFACES_FIELDS",
+    "ChannelSettings",
+    "DestinationSettings",
     "SurfacesConfig",
 ]
