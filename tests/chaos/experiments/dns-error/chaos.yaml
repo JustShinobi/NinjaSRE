@@ -1,0 +1,20 @@
+# checkout's name lookups for payments all fail.
+#
+# The suite appends the run identifier to metadata.name and adds the labels a
+# sweep finds an orphan by, so nothing here needs to know which run applied it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: DNSChaos
+metadata:
+  name: dns-error
+  namespace: chaos-testing
+spec:
+  action: error
+  mode: all
+  selector:
+    namespaces:
+      - payments
+    labelSelectors:
+      app: checkout
+  patterns:
+    - payments.payments.svc.cluster.local
+  duration: "300s"

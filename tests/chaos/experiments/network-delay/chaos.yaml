@@ -1,0 +1,23 @@
+# every packet checkout sends is delayed by 300ms.
+#
+# The suite appends the run identifier to metadata.name and adds the labels a
+# sweep finds an orphan by, so nothing here needs to know which run applied it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: network-delay
+  namespace: chaos-testing
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - payments
+    labelSelectors:
+      app: checkout
+  delay:
+    latency: "300ms"
+    jitter: "50ms"
+    correlation: "50"
+  direction: to
+  duration: "300s"

@@ -19,6 +19,9 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 	check-literals check-raw-sql check-credentials check-integrations \
 	check-integration-docs preflight verify test-postgres test-synthetic \
 	evaluate record-baseline benchmark benchmark-export \
+	chaos-setup chaos-teardown chaos-setup-eks chaos-teardown-eks \
+	chaos-list chaos-run chaos-sweep \
+	e2e-demo-setup e2e-demo-teardown e2e-demo e2e-cloud e2e-reap \
 	close-task clean help
 
 install: ## Provision the development environment from uv.lock
@@ -88,6 +91,72 @@ benchmark-export: ## Splice the benchmark table into INTO (default docs/evaluati
 	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.benchmarks.export \
 		$(if $(RECORD),--record $(RECORD),--corpus tests/synthetic) \
 		--into $(if $(INTO),$(INTO),docs/evaluation-results.md) $(EVALUATE_ARGS)
+
+# The expensive suites. Not part of `verify` and not a pull-request gate: they
+# need a cluster, they break it on purpose, and one of them spends money. They
+# run before a release and on a schedule, and every miss they find is turned
+# into a synthetic scenario so the cheap gate covers it from then on.
+#
+# Every one of these skips cleanly with a message when its infrastructure is not
+# there, rather than failing — a suite that went red on every laptop is a suite
+# somebody deletes.
+#
+# INVESTIGATOR names your deployment's composition root as `module:factory`.
+# Composing an investigation needs a provider and the credential proxy, which is
+# a deployment question; guessing it here would run against whatever ambient
+# configuration happened to be lying around.
+CHAOS := PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.chaos
+E2E := PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.e2e
+INVESTIGATOR ?=
+INVESTIGATOR_ARG = $(if $(INVESTIGATOR),--investigator $(INVESTIGATOR),--investigator "")
+
+chaos-setup: ## Create the local cluster and install the chaos framework
+	sh test-infra/kind/setup.sh
+
+chaos-teardown: ## Delete the local cluster
+	sh test-infra/kind/teardown.sh
+
+chaos-setup-eks: ## Create the cloud-backed cluster (this costs money)
+	sh test-infra/eks/setup.sh
+
+chaos-teardown-eks: ## Delete the cloud-backed cluster and report what is left
+	sh test-infra/eks/teardown.sh
+
+chaos-list: ## Print the chaos experiment catalogue (needs no cluster)
+	$(CHAOS) list
+
+# Variables: INVESTIGATOR (required), EXPERIMENT, RUN_ID, ARTIFACTS.
+chaos-run: ## Inject every experiment, investigate, score, and clean up
+	$(CHAOS) run $(INVESTIGATOR_ARG) \
+		$(if $(EXPERIMENT),--experiment $(EXPERIMENT),) \
+		$(if $(RUN_ID),--run-id $(RUN_ID),) \
+		$(if $(ARTIFACTS),--artifacts $(ARTIFACTS),)
+
+chaos-sweep: ## Remove faults a killed run left on the cluster
+	$(CHAOS) sweep
+
+e2e-demo-setup: ## Install the demo application and its observability stack
+	$(E2E) demo-setup
+
+e2e-demo-teardown: ## Remove the demo application
+	$(E2E) demo-teardown
+
+# Variables: INVESTIGATOR (required), FAULT, RUN_ID, ARTIFACTS.
+e2e-demo: ## Run every demo feature-flag fault end to end
+	$(E2E) $(if $(ARTIFACTS),--artifacts $(ARTIFACTS),) demo $(INVESTIGATOR_ARG) \
+		$(if $(FAULT),--fault $(FAULT),) $(if $(RUN_ID),--run-id $(RUN_ID),)
+
+# Variables: INVESTIGATOR (required), SCENARIO, RUN_ID, ARTIFACTS.
+e2e-cloud: ## Provision, investigate, and destroy the cloud scenarios (this costs money)
+	NINJASRE_E2E_CLOUD=1 $(E2E) $(if $(ARTIFACTS),--artifacts $(ARTIFACTS),) \
+		cloud $(INVESTIGATOR_ARG) \
+		$(if $(SCENARIO),--scenario $(SCENARIO),) $(if $(RUN_ID),--run-id $(RUN_ID),)
+
+# Reports by default. DESTROY=1 is the second run, after somebody has read the
+# first one — a sweep that destroys on its first invocation is one nobody dares
+# point at an account that holds something else.
+e2e-reap: ## Find (DESTROY=1 to remove) cloud resources a killed run left behind
+	$(E2E) reap $(if $(DESTROY),--destroy,) $(if $(HOLDING),--holding $(HOLDING),)
 
 check-imports: ## Enforce the tier boundaries declared in .importlinter
 	# On Linux, stdlib uuid.py unconditionally does `import platform` to tell

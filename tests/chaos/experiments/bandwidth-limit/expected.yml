@@ -1,0 +1,41 @@
+# What this experiment says it will produce, written down before it runs.
+#
+# The validity probe is the load-bearing field: without it a flaky injection and
+# an agent regression are the same failed score.
+experiment_id: bandwidth-limit
+title: checkout's egress is capped at one megabit
+injected_fault: bandwidth_restriction
+failure_mode: throttled_quota
+severity: medium
+difficulty: 3
+team_id: payments
+
+integrations:
+- kubernetes
+- prometheus
+available_evidence:
+- kubernetes
+- prometheus
+
+expected_symptom:
+- throughput_collapsed
+- transfer_timeouts
+expected_root_cause_category: capacity_limit
+required_keywords:
+- bandwidth
+- throughput
+- saturat
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- prometheus
+optimal_trajectory:
+- prometheus_metric_statistics
+max_investigation_loops: 7
+
+validity_probe:
+  # How the suite confirms the fault took effect before the agent is scored.
+  check: throughput_below_threshold
+  namespace: payments
+  timeout_seconds: 60

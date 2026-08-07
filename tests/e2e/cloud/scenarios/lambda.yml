@@ -1,0 +1,55 @@
+# a function times out on every invocation.
+#
+# `bound_usd` is what one run of this scenario may cost and `resources` is what
+# it is made of. Together they are what turns "the cloud suite is expensive"
+# into a number a report can be compared against.
+scenario_id: lambda
+title: a function times out on every invocation
+module: lambda
+region: eu-west-1
+service: lambda
+team_id: payments
+
+injected_fault: function_timeout
+failure_mode: dependency_timeout
+severity: high
+difficulty: 2
+
+integrations:
+- aws_lambda
+- aws
+available_evidence:
+- aws_lambda
+- aws
+
+expected_symptom:
+- invocation_errors_rising
+- duration_at_limit
+expected_root_cause_category: dependency_failure
+required_keywords:
+- lambda
+- timeout
+- duration
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- aws_lambda
+optimal_trajectory:
+- aws_lambda_resource_inventory
+- aws_filter_log_events
+max_investigation_loops: 6
+
+# What one run may cost, and what it is made of.
+bound_usd: 0.25
+resources:
+- kind: lambda_function
+  hourly_usd: 0.0005
+  count: 1
+- kind: log_group
+  hourly_usd: 0.002
+  count: 1
+
+validity_probe:
+  check: function_error_rate_above_threshold
+  timeout_seconds: 300

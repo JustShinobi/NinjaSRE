@@ -1,0 +1,49 @@
+# The product catalogue fails on lookups for one product, so the failure is
+# partial — which is the interesting case: the service is up and most requests
+# succeed.
+fault_id: product-catalogue-failure
+title: the product catalogue fails on one product
+flag: productCatalogFailure
+variant: "on"
+off_variant: "off"
+service: productcatalog
+namespace: otel-demo
+team_id: payments
+
+failure_mode: dependency_outage
+severity: high
+difficulty: 3
+
+integrations:
+- kubernetes
+- prometheus
+- loki
+- flagd
+available_evidence:
+- kubernetes
+- prometheus
+- loki
+- flagd
+
+expected_symptom:
+- product_lookup_errors
+- frontend_partial_failures
+expected_root_cause_category: dependency_failure
+required_keywords:
+- product
+- catalog
+- error
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- loki
+optimal_trajectory:
+- loki_sample_logs
+- prometheus_metric_statistics
+max_investigation_loops: 7
+
+validity_probe:
+  check: service_error_rate_above_threshold
+  namespace: otel-demo
+  timeout_seconds: 90

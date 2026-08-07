@@ -1,0 +1,49 @@
+# The recommendation service's cache grows without bound. The symptom is memory,
+# the cause is caching, and the two are far enough apart that this is the fault
+# most likely to be diagnosed as "it needs a bigger limit".
+fault_id: recommendation-cache-failure
+title: the recommendation cache grows without bound
+flag: recommendationCacheFailure
+variant: "on"
+off_variant: "off"
+service: recommendation
+namespace: otel-demo
+team_id: payments
+
+failure_mode: memory_exhaustion
+severity: high
+difficulty: 3
+
+integrations:
+- kubernetes
+- prometheus
+- loki
+- flagd
+available_evidence:
+- kubernetes
+- prometheus
+- loki
+- flagd
+
+expected_symptom:
+- recommendation_memory_rising
+- recommendation_latency_rising
+expected_root_cause_category: resource_exhaustion
+required_keywords:
+- recommendation
+- cache
+- memory
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- prometheus
+optimal_trajectory:
+- prometheus_metric_statistics
+- kubernetes_workload_events
+max_investigation_loops: 7
+
+validity_probe:
+  check: service_memory_above_threshold
+  namespace: otel-demo
+  timeout_seconds: 90

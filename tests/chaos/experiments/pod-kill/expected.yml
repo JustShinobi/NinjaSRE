@@ -1,0 +1,41 @@
+# What this experiment says it will produce, written down before it runs.
+#
+# The validity probe is the load-bearing field: without it a flaky injection and
+# an agent regression are the same failed score.
+experiment_id: pod-kill
+title: a checkout pod is killed out from under the deployment
+injected_fault: pod_termination
+failure_mode: node_failure
+severity: critical
+difficulty: 2
+team_id: payments
+
+integrations:
+- kubernetes
+- prometheus
+available_evidence:
+- kubernetes
+- prometheus
+
+expected_symptom:
+- pod_restarts
+- requests_failing
+expected_root_cause_category: infrastructure_failure
+required_keywords:
+- pod
+- terminated
+- restart
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- kubernetes
+optimal_trajectory:
+- kubernetes_workload_events
+max_investigation_loops: 6
+
+validity_probe:
+  # How the suite confirms the fault took effect before the agent is scored.
+  check: pod_restart_count_rises
+  namespace: payments
+  timeout_seconds: 60

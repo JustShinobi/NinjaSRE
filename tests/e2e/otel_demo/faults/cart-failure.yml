@@ -1,0 +1,51 @@
+# The cart service fails on every write, through the demo's own feature flag.
+#
+# Written before the run. An expected cause decided after seeing the answer is
+# not an expectation, and this file is what makes that structural rather than
+# cultural.
+fault_id: cart-failure
+title: the cart service fails every call
+flag: cartFailure
+variant: "on"
+off_variant: "off"
+service: cart
+namespace: otel-demo
+team_id: payments
+
+failure_mode: dependency_outage
+severity: critical
+difficulty: 2
+
+integrations:
+- kubernetes
+- prometheus
+- loki
+- flagd
+available_evidence:
+- kubernetes
+- prometheus
+- loki
+- flagd
+
+expected_symptom:
+- cart_error_rate_rising
+- checkout_failing
+expected_root_cause_category: dependency_failure
+required_keywords:
+- cart
+- error
+- fail
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- prometheus
+optimal_trajectory:
+- prometheus_metric_statistics
+- loki_sample_logs
+max_investigation_loops: 6
+
+validity_probe:
+  check: service_error_rate_above_threshold
+  namespace: otel-demo
+  timeout_seconds: 90

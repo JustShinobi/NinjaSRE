@@ -1,0 +1,44 @@
+# What this experiment says it will produce, written down before it runs.
+#
+# The validity probe is the load-bearing field: without it a flaky injection and
+# an agent regression are the same failed score.
+experiment_id: io-latency
+title: every write checkout makes takes 200ms longer
+injected_fault: io_latency
+failure_mode: disk_pressure
+severity: high
+difficulty: 3
+team_id: payments
+
+integrations:
+- kubernetes
+- prometheus
+- loki
+available_evidence:
+- kubernetes
+- prometheus
+- loki
+
+expected_symptom:
+- disk_latency_rising
+- slow_writes
+expected_root_cause_category: resource_exhaustion
+required_keywords:
+- disk
+- io
+- latency
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- prometheus
+optimal_trajectory:
+- prometheus_metric_statistics
+- loki_log_statistics
+max_investigation_loops: 7
+
+validity_probe:
+  # How the suite confirms the fault took effect before the agent is scored.
+  check: io_latency_above_threshold
+  namespace: payments
+  timeout_seconds: 60

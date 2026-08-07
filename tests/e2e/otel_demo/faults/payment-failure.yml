@@ -1,0 +1,48 @@
+# Payment fails, which fails checkout, which is where the alert comes from. The
+# distance between the alert and the cause is the whole exercise.
+fault_id: payment-failure
+title: the payment service fails every charge
+flag: paymentFailure
+variant: "on"
+off_variant: "off"
+service: payment
+namespace: otel-demo
+team_id: payments
+
+failure_mode: dependency_outage
+severity: critical
+difficulty: 3
+
+integrations:
+- kubernetes
+- prometheus
+- loki
+- flagd
+available_evidence:
+- kubernetes
+- prometheus
+- loki
+- flagd
+
+expected_symptom:
+- payment_error_rate_rising
+- checkout_failing
+expected_root_cause_category: dependency_failure
+required_keywords:
+- payment
+- charge
+- fail
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- loki
+optimal_trajectory:
+- loki_sample_logs
+- prometheus_metric_statistics
+max_investigation_loops: 7
+
+validity_probe:
+  check: service_error_rate_above_threshold
+  namespace: otel-demo
+  timeout_seconds: 90

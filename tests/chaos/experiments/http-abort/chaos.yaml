@@ -1,0 +1,20 @@
+# payments aborts every request checkout makes.
+#
+# The suite appends the run identifier to metadata.name and adds the labels a
+# sweep finds an orphan by, so nothing here needs to know which run applied it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: HTTPChaos
+metadata:
+  name: http-abort
+  namespace: chaos-testing
+spec:
+  mode: all
+  selector:
+    namespaces:
+      - payments
+    labelSelectors:
+      app: payments
+  target: Request
+  port: 8080
+  abort: true
+  duration: "300s"

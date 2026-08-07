@@ -40,6 +40,7 @@ surfaces/        Tier 1 — human clients: CLI, REPL, console backend-for-fronte
 
 tools/           Repository tooling. NOT agent-callable, NOT packaged, NOT import-linted.
 tests/           architecture/ unit/ contract/ synthetic/ chaos/ e2e/ benchmarks/
+test-infra/      Cluster definitions and one-command setup/teardown for the expensive suites.
 ```
 
 ## The tier table
@@ -201,6 +202,21 @@ persistence contract suite against it as well as against the in-memory fakes.
 CI runs it as its own job. A change under `platform/persistence/` is not
 finished until it passes — `make verify` alone only proves the fakes agree with
 themselves.
+
+The chaos and end-to-end suites are separate too, because they need a cluster
+and one of them spends money:
+
+```bash
+make chaos-setup && make chaos-run INVESTIGATOR=your.deployment:build
+```
+
+They run before a release and on a schedule, never as a pull-request gate — a
+gate that creates a cluster is one people learn to skip. Without infrastructure
+every one of them **skips with a message naming what is missing**, so
+`make verify` is green on a laptop with no cluster on it. Their value is finding
+failure modes the synthetic corpus does not know to contain, and every one they
+find is captured into a synthetic scenario that then runs on every change.
+[`docs/chaos-and-e2e-suites.md`](docs/chaos-and-e2e-suites.md) is the long form.
 
 Verifying a *configured provider* is separate, because it spends real tokens:
 

@@ -1,0 +1,21 @@
+# checkout's CPU is pinned at its limit.
+#
+# The suite appends the run identifier to metadata.name and adds the labels a
+# sweep finds an orphan by, so nothing here needs to know which run applied it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: cpu-stress
+  namespace: chaos-testing
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - payments
+    labelSelectors:
+      app: checkout
+  stressors:
+    cpu:
+      workers: 4
+      load: 100
+  duration: "300s"

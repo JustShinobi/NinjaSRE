@@ -1,0 +1,36 @@
+# The cloud-backed cluster: a managed control plane, and as little else as the
+# suite can get away with.
+#
+# Three nodes for the same reason the local cluster has three, and the smallest
+# instance type that will run the demo application, because this cluster's
+# hourly rate is the largest single line in the cloud suite's cost bound.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: ninjasre-e2e
+  region: eu-west-1
+  version: "1.31"
+  tags:
+    # The same tags the cloud suite puts on everything, so the reaper can find a
+    # cluster somebody created and forgot exactly as it finds any other resource.
+    ninjasre:suite: e2e
+    ninjasre:scenario: test-infra
+
+managedNodeGroups:
+  - name: workers
+    instanceType: t3.large
+    desiredCapacity: 3
+    minSize: 3
+    maxSize: 3
+    volumeSize: 40
+    privateNetworking: true
+    tags:
+      ninjasre:suite: e2e
+      ninjasre:scenario: test-infra
+
+cloudWatch:
+  clusterLogging:
+    # Off. The suite reads the cluster's own telemetry through its integrations;
+    # control-plane logs would be a per-run cost with no scenario reading them.
+    enableTypes: []

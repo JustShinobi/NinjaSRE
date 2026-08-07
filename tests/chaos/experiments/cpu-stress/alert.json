@@ -1,0 +1,22 @@
+{
+  "payload": {
+    "alerts": [
+      {
+        "annotations": {
+          "summary": "checkout p99 latency is above its objective"
+        },
+        "endsAt": "0001-01-01T00:00:00Z",
+        "labels": {
+          "alertname": "CheckoutLatencyHigh",
+          "namespace": "payments",
+          "service": "checkout",
+          "severity": "high"
+        },
+        "status": "firing"
+      }
+    ],
+    "receiver": "payments-oncall",
+    "status": "firing"
+  },
+  "source_hint": "alertmanager"
+}

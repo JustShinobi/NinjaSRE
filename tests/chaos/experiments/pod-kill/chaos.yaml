@@ -1,0 +1,18 @@
+# a checkout pod is killed out from under the deployment.
+#
+# The suite appends the run identifier to metadata.name and adds the labels a
+# sweep finds an orphan by, so nothing here needs to know which run applied it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: pod-kill
+  namespace: chaos-testing
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    namespaces:
+      - payments
+    labelSelectors:
+      app: checkout
+  duration: "60s"

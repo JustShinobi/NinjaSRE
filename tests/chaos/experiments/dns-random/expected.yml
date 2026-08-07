@@ -1,0 +1,44 @@
+# What this experiment says it will produce, written down before it runs.
+#
+# The validity probe is the load-bearing field: without it a flaky injection and
+# an agent regression are the same failed score.
+experiment_id: dns-random
+title: checkout's name lookups return an address nobody is listening on
+injected_fault: dns_random_resolution
+failure_mode: dns_failure
+severity: high
+difficulty: 3
+team_id: payments
+
+integrations:
+- kubernetes
+- prometheus
+- loki
+available_evidence:
+- kubernetes
+- prometheus
+- loki
+
+expected_symptom:
+- connection_refused_errors
+- misrouted_requests
+expected_root_cause_category: network_failure
+required_keywords:
+- dns
+- resolution
+- wrong
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- loki
+optimal_trajectory:
+- loki_sample_logs
+- kubernetes_workload_events
+max_investigation_loops: 7
+
+validity_probe:
+  # How the suite confirms the fault took effect before the agent is scored.
+  check: dns_lookup_returns_unexpected_address
+  namespace: payments
+  timeout_seconds: 60

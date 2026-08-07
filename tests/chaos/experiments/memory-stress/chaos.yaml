@@ -1,0 +1,21 @@
+# checkout is driven past its memory limit.
+#
+# The suite appends the run identifier to metadata.name and adds the labels a
+# sweep finds an orphan by, so nothing here needs to know which run applied it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: memory-stress
+  namespace: chaos-testing
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - payments
+    labelSelectors:
+      app: checkout
+  stressors:
+    memory:
+      workers: 2
+      size: "512MB"
+  duration: "300s"

@@ -1,0 +1,22 @@
+# every write checkout makes takes 200ms longer.
+#
+# The suite appends the run identifier to metadata.name and adds the labels a
+# sweep finds an orphan by, so nothing here needs to know which run applied it.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: io-latency
+  namespace: chaos-testing
+spec:
+  action: latency
+  mode: one
+  selector:
+    namespaces:
+      - payments
+    labelSelectors:
+      app: checkout
+  volumePath: /data
+  path: "/data/**/*"
+  delay: "200ms"
+  percent: 100
+  duration: "300s"

@@ -1,0 +1,48 @@
+# The ad service fails. Nothing customer-facing breaks, which is the point: a
+# correct investigation says so rather than escalating.
+fault_id: ad-failure
+title: the ad service fails on every request
+flag: adFailure
+variant: "on"
+off_variant: "off"
+service: ad
+namespace: otel-demo
+team_id: payments
+
+failure_mode: dependency_outage
+severity: medium
+difficulty: 2
+
+integrations:
+- kubernetes
+- prometheus
+- loki
+- flagd
+available_evidence:
+- kubernetes
+- prometheus
+- loki
+- flagd
+
+expected_symptom:
+- ad_error_rate_rising
+- frontend_degraded
+expected_root_cause_category: dependency_failure
+required_keywords:
+- ad
+- error
+- fail
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- prometheus
+optimal_trajectory:
+- prometheus_metric_statistics
+- loki_sample_logs
+max_investigation_loops: 6
+
+validity_probe:
+  check: service_error_rate_above_threshold
+  namespace: otel-demo
+  timeout_seconds: 90

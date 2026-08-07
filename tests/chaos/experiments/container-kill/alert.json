@@ -1,0 +1,22 @@
+{
+  "payload": {
+    "alerts": [
+      {
+        "annotations": {
+          "summary": "the checkout container is crash-looping"
+        },
+        "endsAt": "0001-01-01T00:00:00Z",
+        "labels": {
+          "alertname": "CheckoutContainerCrashLooping",
+          "namespace": "payments",
+          "service": "checkout",
+          "severity": "critical"
+        },
+        "status": "firing"
+      }
+    ],
+    "receiver": "payments-oncall",
+    "status": "firing"
+  },
+  "source_hint": "alertmanager"
+}

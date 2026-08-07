@@ -1,0 +1,29 @@
+# A local cluster large enough for the chaos suite and the demo application.
+#
+# Three workers rather than one: the network experiments partition one workload
+# from another, and on a single node the partition is between two processes that
+# never crossed a network. The fault would apply, produce no symptom, and be
+# correctly reported invalid every single time.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ninjasre
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # The demo's frontend and its Grafana, so an operator can look at what the
+      # agent was looking at.
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 30300
+        hostPort: 3000
+        protocol: TCP
+  - role: worker
+  - role: worker
+  - role: worker

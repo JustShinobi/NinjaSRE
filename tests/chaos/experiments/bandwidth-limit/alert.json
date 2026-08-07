@@ -1,0 +1,22 @@
+{
+  "payload": {
+    "alerts": [
+      {
+        "annotations": {
+          "summary": "checkout throughput has collapsed"
+        },
+        "endsAt": "0001-01-01T00:00:00Z",
+        "labels": {
+          "alertname": "CheckoutThroughputCollapsed",
+          "namespace": "payments",
+          "service": "checkout",
+          "severity": "medium"
+        },
+        "status": "firing"
+      }
+    ],
+    "receiver": "payments-oncall",
+    "status": "firing"
+  },
+  "source_hint": "alertmanager"
+}
