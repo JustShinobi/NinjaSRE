@@ -46,6 +46,11 @@ dependencies = [
     "alembic>=1.14",
     "asyncpg>=0.30",
     "cryptography>=44.0",
+    # The REST/SSE surface (feature 020). Unlike the credential proxy's
+    # hand-written ASGI, this surface is dozens of versioned routes with a
+    # generated OpenAPI document (FR-006) — routing and schema by hand at that
+    # size is where the hand-rolled approach stops paying for itself.
+    "fastapi>=0.115",
     "pgvector>=0.3.6",
     # The interactive session's input: history, completion, and the terminal
     # handling that lets Ctrl+C reach the loop rather than the process.
@@ -60,6 +65,10 @@ dependencies = [
     "structlog>=24.4.0",
     # The CLI framework, and the shell completion that comes with it.
     "typer>=0.15",
+    # The REST/SSE server. A production deployment runs behind whatever ASGI
+    # server the operator already trusts; this is the one that ships so
+    # ``ninjasre serve`` works with nothing extra to install.
+    "uvicorn>=0.32",
 ]
 
 # Vendor LLM SDKs are extras, never runtime dependencies. A deployment that runs
@@ -88,6 +97,9 @@ all-providers = [
 
 [dependency-groups]
 dev = [
+    # Drives the ASGI app under test — FastAPI's own TestClient is built on it.
+    # Never imported outside test code.
+    "httpx>=0.27",
     "import-linter>=2.1",
     "mypy>=1.13",
     "pre-commit>=4.0",

@@ -1,0 +1,88 @@
+"""What the REST surface needs from a running investigation, as a seam.
+
+``InvestigationRunner`` is a protocol rather than a concrete composition root,
+for the same reason ``surfaces/cli/client.py``'s ``LocalServices`` is one:
+composing a runtime — the LLM client, the capability catalogue, the credential
+proxy — is a deployment concern (feature 030). This is the seam a deployment
+profile fills in, and it is what lets this whole surface be driven in a test by
+a fake that records what it was asked to do.
+
+Everything that does *not* need a live runtime — runs, replay, streaming,
+configuration, schedules, memory, capabilities, health — is wired directly to
+the tier-3 ports in the route handlers, because those already work without a
+model attached.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
+
+from core.agent.interaction.models import Interaction
+
+
+@dataclass(frozen=True, slots=True)
+class InvestigationStart:
+    """One investigation, as the API states it.
+
+    ``run_id`` is already reserved — ``RunRecorder.start_run`` has already
+    written the row — by the time a runner sees this, which is what lets the
+    route respond with the run's identity before this ever executes.
+    """
+
+    run_id: str
+    objective: str
+    team_node_id: str
+    principal_id: str
+    alert_source: str = ""
+    context: Mapping[str, str] = field(default_factory=dict)
+
+
+@runtime_checkable
+class InvestigationRunner(Protocol):
+    """What the API asks of a running platform to start and steer an investigation."""
+
+    async def investigate(self, request: InvestigationStart) -> str:
+        """Run the investigation to completion and return its summary.
+
+        Called from a background task; the route that triggered it has already
+        responded with ``request.run_id``. Never awaited by the request itself.
+        """
+
+    async def cancel(self, run_id: str) -> None:
+        """Ask ``run_id`` to stop at its next safe point."""
+
+    async def queue_message(self, run_id: str, text: str) -> None:
+        """Queue ``text`` for delivery on the run's next turn."""
+
+    async def pending_interactions(self, run_id: str) -> tuple[Interaction, ...]:
+        """Return the run's open questions and approvals, longest-waiting first."""
+
+    async def find_interaction(self, interaction_id: str) -> Interaction | None:
+        """Return one interaction wherever it is, or ``None``.
+
+        Read before ``answer_interaction`` mutates anything, so a route can
+        check the interaction's run against the caller's team first — an
+        interaction belongs to a run, and a run belongs to a team, and that
+        chain is what makes cross-team access to somebody else's pending
+        question unreachable (FR-003, SC-006).
+        """
+
+    async def answer_interaction(
+        self,
+        interaction_id: str,
+        *,
+        text: str,
+        principal: str,
+        selected_option: str = "",
+    ) -> Interaction:
+        """Answer one interaction and return it, closed.
+
+        Approving and rejecting are answers too: ``selected_option`` carries
+        ``"approve"`` or ``"reject"`` for an approval interaction, so the route
+        layer needs no second vocabulary for what closing one means.
+        """
+
+
+__all__ = ["InvestigationRunner", "InvestigationStart"]

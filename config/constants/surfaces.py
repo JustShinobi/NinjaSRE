@@ -68,6 +68,41 @@ SSE_KEEPALIVE_INTERVAL_SECONDS: Final[float] = 15.0
 #: from where it left off (feature 016).
 SSE_REPLAY_WINDOW_SECONDS: Final[float] = 300.0
 
+# --- REST API rate limiting ---------------------------------------------------
+
+#: Requests one principal may make per window. Separate from the team limit
+#: below because a single misbehaving token must not be able to spend a whole
+#: team's share before anyone else's calls are affected.
+API_RATE_LIMIT_WINDOW_SECONDS: Final[float] = 60.0
+API_MAX_REQUESTS_PER_PRINCIPAL: Final[int] = 300
+API_MAX_REQUESTS_PER_TEAM: Final[int] = 1_200
+
+# --- Webhook ingestion ---------------------------------------------------------
+
+#: Largest webhook body accepted before verification is even attempted. Above
+#: this the payload is rejected with a named reason (FR-021) rather than read
+#: into memory — an oversize body is refused cheaply, not parsed first.
+WEBHOOK_MAX_PAYLOAD_BYTES: Final[int] = 1_048_576
+
+#: Window a repeat alert is linked to an existing investigation rather than
+#: starting a new one (FR-018). Long enough to cover a flapping check's retries,
+#: short enough that a genuinely new incident an hour later is not swallowed.
+ALERT_DEDUP_WINDOW_SECONDS: Final[float] = 600.0
+
+#: Inbound webhooks accepted per source per team, per window, before ingestion
+#: sheds load (FR-020). An alert storm past this is recorded as shed, never
+#: silently dropped.
+WEBHOOK_RATE_LIMIT_WINDOW_SECONDS: Final[float] = 60.0
+WEBHOOK_MAX_REQUESTS_PER_TEAM: Final[int] = 500
+
+# --- Graceful shutdown ---------------------------------------------------------
+
+#: How long shutdown waits for investigations already running to reach a safe
+#: point before asking them to stop there directly (FR-025). Long enough for a
+#: tool call in flight to finish; not so long that a deploy hangs on one slow
+#: run.
+GATEWAY_SHUTDOWN_DRAIN_SECONDS: Final[float] = 30.0
+
 # --- CLI ---------------------------------------------------------------------
 
 CLI_COMMAND_NAME: Final = "ninjasre"
@@ -171,6 +206,10 @@ REPL_CANCEL_GRACE_SECONDS: Final[float] = 10.0
 
 
 __all__ = [
+    "ALERT_DEDUP_WINDOW_SECONDS",
+    "API_MAX_REQUESTS_PER_PRINCIPAL",
+    "API_MAX_REQUESTS_PER_TEAM",
+    "API_RATE_LIMIT_WINDOW_SECONDS",
     "CHAT_PLATFORMS",
     "CHAT_PLATFORM_DISCORD",
     "CHAT_PLATFORM_MICROSOFT_TEAMS",
@@ -193,6 +232,7 @@ __all__ = [
     "EXIT_UNAVAILABLE",
     "EXIT_USAGE",
     "FORCE_COLOR_ENV",
+    "GATEWAY_SHUTDOWN_DRAIN_SECONDS",
     "JSON_ENVELOPE_KEYS",
     "JSON_SCHEMA_PREFIX",
     "JSON_SCHEMA_VERSION",
@@ -224,4 +264,7 @@ __all__ = [
     "TERM_ENV",
     "TRANSPORT_LOCAL",
     "TRANSPORT_REMOTE",
+    "WEBHOOK_MAX_PAYLOAD_BYTES",
+    "WEBHOOK_MAX_REQUESTS_PER_TEAM",
+    "WEBHOOK_RATE_LIMIT_WINDOW_SECONDS",
 ]
