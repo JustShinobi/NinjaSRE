@@ -203,7 +203,27 @@ a { color: var(--accent); }
 .shell__nav ul { display: flex; flex-wrap: wrap; gap: .25rem; list-style: none; margin: 0; padding: .5rem; }
 .shell__nav a { display: block; padding: .5rem .75rem; border-radius: .375rem; text-decoration: none; }
 .shell__nav a[aria-current="page"] { background: var(--accent); color: var(--accent-text); }
-main { padding: 1rem; flex: 1; }
+main { padding: 1rem; flex: 1; width: 100%; max-width: 80rem; margin: 0 auto; }
+h1 { margin-top: 0; }
+/* Every control the console renders comes from ``shell.form_field``, which wraps
+   the label and the input in a ``.field``. Without a rule here the two sit flush
+   against each other — "API token[input]" — on every form on every page. */
+.field { display: flex; flex-direction: column; gap: .25rem; margin-bottom: .75rem; }
+.field:has(> input[type="checkbox"]), .field:has(> input[type="radio"]) {
+  flex-direction: row-reverse; align-items: center; justify-content: flex-end; gap: .5rem;
+}
+.field > label { font-weight: 600; }
+.field > p { margin: 0; font-size: .875rem; }
+input, select, textarea {
+  font: inherit; padding: .5rem; max-width: 32rem;
+  border: 1px solid var(--border); border-radius: .375rem;
+  background: var(--surface); color: var(--text);
+}
+input[type="checkbox"], input[type="radio"] { width: auto; padding: 0; }
+textarea { min-height: 4.5rem; }
+fieldset { border: 1px solid var(--border); border-radius: .375rem; padding: .75rem 1rem; margin: 0 0 1rem; }
+legend { font-weight: 600; padding: 0 .25rem; }
+form > button, form > .button { margin-top: .25rem; }
 .banner--impersonation {
   background: var(--warning); color: var(--surface);
   padding: .75rem 1rem; font-weight: 700;

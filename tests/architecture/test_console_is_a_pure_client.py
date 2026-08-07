@@ -42,6 +42,11 @@ ALLOWED_PLATFORM_MODULES = {
     # The masking token pattern, so a masked identifier can be shown as masked
     # rather than read as a hostname. Recognising a token is not restoring one.
     "platform.masking.mapping",
+    # The deployment's structured logger, for the one console module that is a
+    # process rather than a renderer. A console that logged through a second
+    # mechanism would be a console whose sign-in refusals did not appear in the
+    # deployment's log stream — which is where an operator looks for them.
+    "platform.observability.logging",
 }
 
 #: Names that would mean the console is doing the platform's job. Matched
@@ -121,13 +126,28 @@ def test_the_console_opens_no_database_connection_of_any_kind() -> None:
             assert root not in drivers, f"{source.name} imports {imported}"
 
 
+#: Modules that can actually send a request. ``urllib.parse`` and
+#: ``http.cookies`` are deliberately absent: they parse, and a server that reads
+#: a query string is not a second place a call gets made. Matching the whole
+#: ``urllib`` package instead would make the rule about the wrong thing.
+REQUESTING_MODULES = (
+    "urllib.request",
+    "urllib.error",
+    "http.client",
+    "httpx",
+    "requests",
+)
+
+
 def test_the_console_has_exactly_one_module_that_makes_a_request() -> None:
     """A second one would be a second place for a call to be made unlike the first."""
     http_modules = {
         source.name
         for source in _modules()
         for imported in _imports(source)
-        if imported.split(".")[0] in {"urllib", "http", "httpx", "requests"}
+        if any(
+            imported == module or imported.startswith(f"{module}.") for module in REQUESTING_MODULES
+        )
     }
 
     assert http_modules == {"client.py"}
