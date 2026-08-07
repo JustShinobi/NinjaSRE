@@ -18,6 +18,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
 	check-integration-docs preflight verify test-postgres test-synthetic \
+	evaluate record-baseline benchmark benchmark-export \
 	close-task clean help
 
 install: ## Provision the development environment from uv.lock
@@ -59,6 +60,34 @@ SYNTHETIC_ARGS := $(if $(FILTER),--scenario $(FILTER),) \
 
 test-synthetic: ## Run the synthetic scenario corpus offline (no credentials, no tokens)
 	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.harness $(SYNTHETIC_ARGS)
+
+# The evaluation half. Where `test-synthetic` reports whether each scenario
+# passed, these score every attempt on five independent axes and compare the
+# result against a stored point, which is what makes "it got worse" a sentence
+# with a number in it.
+#
+# Variables: BASELINE (the stored baseline's identifier), ATTEMPTS.
+BASELINE ?= release
+EVALUATE_ARGS := $(if $(ATTEMPTS),--attempts $(ATTEMPTS),)
+
+evaluate: ## Score the corpus on five axes and gate it against BASELINE
+	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.harness.regression.ci \
+		--baseline $(BASELINE) $(EVALUATE_ARGS)
+
+record-baseline: ## Store the current corpus run as the baseline named BASELINE
+	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.harness.regression.ci \
+		--record $(BASELINE) --note "$(NOTE)" $(EVALUATE_ARGS)
+
+# Variables: INTO (a document to splice the table into), RECORD (a stored
+# cross-model benchmark record to render instead of running the corpus).
+benchmark: ## Produce the benchmark table from the corpus, on the canonical runtime
+	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.benchmarks.export \
+		$(if $(RECORD),--record $(RECORD),--corpus tests/synthetic) $(EVALUATE_ARGS)
+
+benchmark-export: ## Splice the benchmark table into INTO (default docs/evaluation-results.md)
+	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.benchmarks.export \
+		$(if $(RECORD),--record $(RECORD),--corpus tests/synthetic) \
+		--into $(if $(INTO),$(INTO),docs/evaluation-results.md) $(EVALUATE_ARGS)
 
 check-imports: ## Enforce the tier boundaries declared in .importlinter
 	# On Linux, stdlib uuid.py unconditionally does `import platform` to tell

@@ -59,6 +59,22 @@ jobs:
             ATTEMPTS="${{ github.event.inputs.attempts || '5' }}" \
             ARTIFACTS=scenario-verdicts.jsonl
 
+      # The gate, on the scheduled path only. It scores every attempt on five
+      # independent axes and compares the result against the stored release
+      # baseline, failing with the scenarios and axes named. A cost regression
+      # fails on its own, so a change that bought accuracy at triple the price
+      # is visible as the trade-off it is rather than as a silent pass.
+      #
+      # It runs even when the corpus reported a failure above, because a failing
+      # scenario and a regression against the baseline are different findings
+      # and the second is the one that says whether anything changed.
+      - name: Gate against the stored baseline
+        if: always()
+        run: |
+          make evaluate \
+            BASELINE=release \
+            ATTEMPTS="${{ github.event.inputs.attempts || '5' }}"
+
       - name: Publish the verdict records
         if: always()
         uses: actions/upload-artifact@v4
