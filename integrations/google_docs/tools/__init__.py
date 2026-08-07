@@ -1,0 +1,21 @@
+"""Google Docs's agent-callable capabilities.
+
+2, and the set is the methodology rather than the API surface.
+Google Docs has many more endpoints than this; what an investigation needs is
+the shape of the answer and then a handful of records, in that order, and a
+package offering both makes the wrong order possible while a package offering
+only the second makes it inevitable.
+
+Discovery walks this package, so adding a capability is one module and no edit
+anywhere else.
+"""
+
+from __future__ import annotations
+
+from integrations.google_docs.tools.issue_statistics import google_docs_issue_statistics
+from integrations.google_docs.tools.recent_issues import google_docs_recent_issues
+
+__all__ = [
+    "google_docs_issue_statistics",
+    "google_docs_recent_issues",
+]

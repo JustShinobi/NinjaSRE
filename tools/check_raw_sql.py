@@ -27,13 +27,16 @@ Three rules, in ascending order of how much they actually hold the line.
     reaching for it is solving a problem, not evading a rule, and the boundary
     is gone either way.
 
-``tests/`` is scanned for the last two rules but not for the literal ones, for
-the same reason ``check_constants.py`` does not scan it at all: a test whose
-fixture is a query-shaped string is doing its job — ``test_redaction.py`` proves
-a leaked ``SELECT`` gets redacted, and it needs a ``SELECT`` to do it. A test
-that *imports a driver* or *calls execute* is reaching behind the ports, is
-asserting something they do not promise, and will keep passing after they stop
-promising it. That still fails.
+``tests/`` and ``integrations/`` are scanned for the last two rules but not for
+the literal ones. A test whose fixture is a query-shaped string is doing its
+job — ``test_redaction.py`` proves a leaked ``SELECT`` gets redacted, and it
+needs a ``SELECT`` to do it. A vendor client whose API *is* SQL is doing its job
+too: ClickHouse and Snowflake take a statement as the body of an HTTP request,
+which is their request grammar rather than access to this system's storage.
+
+A module in either tree that *imports a driver* or *calls execute* is reaching
+behind the ports, is asserting something they do not promise, and will keep
+passing after they stop promising it. That still fails.
 
 Usage::
 
@@ -65,6 +68,12 @@ ALLOWED_TREE_PARTS = ("platform", "persistence")
 
 #: Path part marking the test suite, where the literal rules do not apply.
 TEST_TREE_PART = "tests"
+
+#: Path part marking the vendor tree, where the literal rules do not apply
+#: either. A handful of catalogued vendors take SQL as their request payload
+#: over HTTP; see ``scans_literals`` for why that is a different thing from
+#: reaching this repository's own datastore, and for what still applies there.
+VENDOR_QUERY_TREE_PART = "integrations"
 
 #: The one test tree that is *about* storage. Its whole job is to drive the
 #: repositories against a real PostgreSQL, which means creating databases,
@@ -194,13 +203,25 @@ def is_allowed(path: Path) -> bool:
 def scans_literals(path: Path) -> bool:
     """Return whether the literal rules apply to ``path``.
 
-    They do not apply inside ``tests/``. The literal rules are a heuristic over
-    string contents, and a test suite is full of strings that look like queries
-    precisely because something has to prove queries are handled correctly. The
-    driver-import and execution rules still apply there, and they are the ones
-    that actually hold the boundary.
+    They do not apply in two trees, for the same reason in both.
+
+    ``tests/`` is full of strings that look like queries precisely because
+    something has to prove queries are handled correctly.
+
+    ``integrations/`` holds vendors whose *API* is SQL. ClickHouse, Snowflake,
+    and OpenObserve take a statement as the request payload of an HTTP call;
+    the statement is the vendor's request grammar, the way a LogQL selector or
+    a JQL expression is elsewhere in that tree, and there is no repository port
+    to bypass because the data is not this system's.
+
+    The exemption is narrow on purpose: it is the *literal* heuristic that stops
+    applying. The driver-import and execution rules — the two the module
+    docstring calls the ones that hold the line — still apply in both trees, so
+    a module under ``integrations/`` still cannot import ``asyncpg`` or call
+    ``execute``, and a client that reached this repository's own datastore would
+    fail here exactly as it does anywhere else.
     """
-    return TEST_TREE_PART not in path.parts
+    return TEST_TREE_PART not in path.parts and VENDOR_QUERY_TREE_PART not in path.parts
 
 
 def root_module(name: str) -> str:

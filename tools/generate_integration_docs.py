@@ -30,6 +30,7 @@ from pathlib import Path
 
 from integrations._catalogue.discovery import catalogue
 from integrations._catalogue.entry import CatalogueEntry
+from integrations._catalogue.gaps import gaps
 from integrations._catalogue.validation import Artefact, artefacts, cost_of
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -94,12 +95,40 @@ def _render_entry(entry: CatalogueEntry) -> list[str]:
     return lines
 
 
+def _render_gaps() -> list[str]:
+    """Return the table of vendors the catalogue deliberately does not reach (FR-003)."""
+    recorded = gaps()
+    if not recorded:
+        return []
+    lines = [
+        "## Recorded gaps",
+        "",
+        "A vendor nobody wrote is a vendor nobody is told about, so the omissions are a "
+        "declaration rather than an absence. Each names why it cannot be built the way every "
+        "other integration is, and what would have to change.",
+        "",
+    ]
+    for gap in recorded:
+        lines.extend(
+            [
+                f"### `{gap.integration}` — {gap.display_name}",
+                "",
+                f"- **Category:** {gap.category}",
+                f"- **Why not:** {gap.reason}",
+                f"- **What would change it:** {gap.what_would_change_it}",
+                "",
+            ]
+        )
+    return lines
+
+
 def render(entries: Sequence[CatalogueEntry]) -> str:
     """Return the catalogue page for ``entries``."""
     complete = sum(1 for entry in entries if not entry.parity.missing)
     lines = [
         _HEADER,
-        f"{len(entries)} integration(s), {complete} at full parity.",
+        f"{len(entries)} integration(s), {complete} at full parity, "
+        f"{len(gaps())} recorded as unreachable.",
         "",
     ]
     lines.extend(_render_artefacts())
@@ -115,6 +144,8 @@ def render(entries: Sequence[CatalogueEntry]) -> str:
         lines.extend([f"### {category}", ""])
         for entry in by_category[category]:
             lines.extend(_render_entry(entry))
+
+    lines.extend(_render_gaps())
 
     return "\n".join(lines).rstrip("\n") + "\n"
 

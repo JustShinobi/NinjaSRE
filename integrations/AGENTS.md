@@ -82,6 +82,17 @@ Three things deserve care:
 - Connectivity and permission probes → `<vendor>/verifier.py`.
 - The agent-callable capabilities → `<vendor>/tools/`.
 - `DESCRIPTOR` and `PROFILE` → `<vendor>/__init__.py`.
+- Reading a vendor's answer — a value several levels down, the record list, a
+  cursor, an XML document, a column-and-row result, or counts grouped by one
+  field → `_base/payload.py`. None of those belongs in a client: written per
+  vendor they are index expressions, and an index expression on an error body
+  that arrived with the same content type raises inside a capability, which
+  ends the turn and takes the trace with it.
+- A vendor the catalogue **cannot** reach → `_catalogue/gaps.py`, with the
+  reason and what would change it. The parity check walks the packages that
+  exist, so a vendor nobody wrote is a vendor nobody is told about; the
+  omission has to be a declaration or the catalogue reports full parity while
+  an operator discovers the absence by looking for it.
 - Anything that needs the secret at request-construction time — a signing
   scheme — is *not* here. It is a `RequestSigner` in
   `platform/credentials/proxy/signing/`, because signing requires the key.

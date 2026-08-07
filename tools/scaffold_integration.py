@@ -195,7 +195,7 @@ from integrations.{integration}.schema import HOSTS, INTEGRATION, REGIONS, RULE,
 from integrations.{integration}.verifier import PERMISSIONS, {verifier_class}
 from platform.credentials.descriptor import IntegrationDescriptor, SdkStrategy
 
-{constant}: Final = IntegrationDescriptor(
+DESCRIPTOR: Final = IntegrationDescriptor(
     name=INTEGRATION,
     schema=SCHEMA,
     rule=RULE,
@@ -213,8 +213,6 @@ from platform.credentials.descriptor import IntegrationDescriptor, SdkStrategy
     ),
 )
 
-DESCRIPTOR: Final = {constant}
-
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
     category=IntegrationCategory.{category},
@@ -225,7 +223,6 @@ PROFILE: Final = IntegrationProfile(
 )
 
 __all__ = [
-    "{constant}",
     "DESCRIPTOR",
     "HOSTS",
     "INTEGRATION",
@@ -819,7 +816,6 @@ def scaffold_integration(
         "title": _titled(integration),
         "domain": domain,
         "category": _CATEGORY_MEMBERS[domain],
-        "constant": integration.upper(),
         "client_class": f"{_class_prefix(integration)}Client",
         "verifier_class": f"{_class_prefix(integration)}Verifier",
         "provenance": _PROVENANCE,

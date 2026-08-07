@@ -15,6 +15,7 @@ already done, so paying for it at import is free.
 
 from __future__ import annotations
 
+import importlib
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -61,19 +62,24 @@ def integration_ids() -> tuple[str, ...]:
 
 #: A syntactically valid credential per integration, in the shape each schema
 #: requires. Not secrets — they are made up, and the suite asserts that none of
-#: them reaches a client, which is the property SC-004 is about.
-CREDENTIALS: dict[str, dict[str, str]] = {
-    "datadog": {
-        "api_key": "0123456789abcdef0123456789abcdef",
-        "app_key": "0123456789abcdef0123456789abcdef01234567",
-    },
-    "kubernetes": {"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.contract"},
-    "aws": {
-        "access_key_id": "AKIAIOSFODNN7EXAMPLE",
-        "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-        "region": "us-east-1",
-    },
-}
+#: them reaches a client, which is the property SC-003 is about.
+#:
+#: Read from each integration's synthetic scenario rather than written out here.
+#: A second copy of eighty-odd credential shapes is a second thing to update when
+#: a schema gains a field, and the copy nobody updates is the one that turns a
+#: real contract failure into a fixture failure somewhere else in the suite.
+def _declared_credentials() -> dict[str, dict[str, str]]:
+    """Return each integration's scenario credential, keyed by integration."""
+    found: dict[str, dict[str, str]] = {}
+    for entry in CATALOGUE:
+        module = importlib.import_module(f"tests.synthetic.integration_scenarios.{entry.name}")
+        credential = getattr(module, "CREDENTIAL", None)
+        if credential is not None:
+            found[entry.name] = dict(credential)
+    return found
+
+
+CREDENTIALS: dict[str, dict[str, str]] = _declared_credentials()
 
 
 @dataclass(slots=True)

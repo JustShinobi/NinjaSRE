@@ -268,3 +268,48 @@ def test_an_unparseable_module_is_reported_rather_than_skipped(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="could not be parsed"):
         module_violations(broken, broken.read_text(encoding="utf-8"))
+
+
+class TestVendorQueryLanguages:
+    """A vendor whose API *is* SQL is not this repository's datastore.
+
+    ClickHouse, Snowflake, and OpenObserve take a statement as their request
+    payload over HTTP. There is no repository port for a client to bypass — the
+    data is not ours — and the two rules that actually hold the boundary still
+    apply: a module under ``integrations/`` still cannot import a driver or call
+    ``execute``.
+    """
+
+    def test_a_vendor_client_may_carry_the_statement_its_api_takes(self, tmp_path: Path) -> None:
+        path = tmp_path / "integrations" / "clickhouse" / "client.py"
+        path.parent.mkdir(parents=True)
+        path.write_text('QUERY = "SELECT query_id FROM system.processes"\n', encoding="utf-8")
+
+        assert not module_violations(path, path.read_text(encoding="utf-8"))
+
+    def test_a_driver_import_under_integrations_still_fails(self, tmp_path: Path) -> None:
+        path = tmp_path / "integrations" / "clickhouse" / "client.py"
+        path.parent.mkdir(parents=True)
+        path.write_text("import asyncpg\n", encoding="utf-8")
+
+        assert [
+            found.rule for found in module_violations(path, path.read_text(encoding="utf-8"))
+        ] == [DRIVER_IMPORT_RULE]
+
+    def test_calling_execute_under_integrations_still_fails(self, tmp_path: Path) -> None:
+        path = tmp_path / "integrations" / "clickhouse" / "client.py"
+        path.parent.mkdir(parents=True)
+        path.write_text("connection.execute(statement)\n", encoding="utf-8")
+
+        assert [
+            found.rule for found in module_violations(path, path.read_text(encoding="utf-8"))
+        ] == [QUERY_EXECUTION_RULE]
+
+    def test_a_statement_outside_both_trees_still_fails(self, tmp_path: Path) -> None:
+        path = tmp_path / "core" / "pipeline" / "stage.py"
+        path.parent.mkdir(parents=True)
+        path.write_text('QUERY = "SELECT id FROM investigations"\n', encoding="utf-8")
+
+        assert [
+            found.rule for found in module_violations(path, path.read_text(encoding="utf-8"))
+        ] == [SQL_LITERAL_RULE]

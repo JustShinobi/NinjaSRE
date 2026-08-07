@@ -17,22 +17,30 @@ So ``Pages.truncated`` exists and callers are expected to surface it. An
 investigation that says "the first 500 matches, and there were more" is doing
 its job; one that says "500 matches" is wrong.
 
-## Three styles, and why the third one is a real difference
+## Four styles, and two real differences among them
 
-FR-005 names cursor, offset, and page-token. Two of those are the same
-mechanism: the vendor hands back an opaque string, and the walk ends when it
-stops handing one back. They are kept as separate members because an integration
-author reads their vendor's documentation and writes down the word they find
-there, and a taxonomy that forces them to translate is a taxonomy they get wrong.
+FR-005 names cursor, offset, and page-token; page-number is the fourth, and it
+is here because a large catalogue turns out to contain a great many vendors that
+count pages rather than records.
 
-Offset is genuinely different, and the difference is where the walk *ends*. A
-cursor API says so; an offset API does not, and the only signal that the results
-have run out is a page shorter than the one that was asked for. A client that
-assumed the cursor rule against an offset endpoint reads page one forever, and a
-client that assumed the offset rule against a cursor endpoint stops at the first
-page a vendor happens to return short. Both failures look like "the vendor has
-less data than it does", which is the worst way for an investigation to be
-wrong.
+**Cursor and page-token are one mechanism.** The vendor hands back an opaque
+string and the walk ends when it stops handing one back. They are separate
+members because an integration author reads their vendor's documentation and
+writes down the word they find there, and a taxonomy that forces them to
+translate is a taxonomy they get wrong.
+
+**Offset and page-number share a termination rule and not a parameter.** Both
+end on a page shorter than the one asked for, because nothing else says the
+results ran out; what differs is what the caller sends — a count of records
+already read, or a page ordinal counting from one. Sending one where the other
+was meant reads from a completely unrelated part of the result set and answers
+with data that looks plausible, so they cannot be collapsed either.
+
+A client that assumed the cursor rule against a counted endpoint reads page one
+forever, and one that assumed a counted rule against a cursor endpoint stops at
+the first page a vendor happens to return short. Both failures look like "the
+vendor has less data than it does", which is the worst way for an investigation
+to be wrong.
 
 The style is declared **per endpoint**, not per vendor. A single vendor commonly
 cursors its log search and offsets its user list, and there is no version of
@@ -156,6 +164,12 @@ class PaginationStyle(StrEnum):
     #: An opaque token, under the name most vendors that call it that use. Walks
     #: exactly as ``CURSOR`` does; see the module docstring.
     PAGE_TOKEN = "page_token"
+    #: The caller asks for page *n*, counting from one. Terminates the way offset
+    #: does — on a short page — and is a separate style because the number sent
+    #: is a page count and not a record count. A vendor handed a record count in
+    #: its page parameter reads from somewhere entirely unrelated and answers
+    #: with data that looks plausible, which is the worst kind of wrong.
+    PAGE_NUMBER = "page_number"
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +184,14 @@ class Position:
     def is_first(self) -> bool:
         """Return whether nothing has been read yet."""
         return self.index == 0
+
+
+#: The styles whose walk ends on a short page rather than on an absent token.
+#: Both count something the caller tracks, so both need a declared page size —
+#: without one there is no "short" to compare against and the walk cannot stop.
+_COUNTED_STYLES: frozenset[PaginationStyle] = frozenset(
+    {PaginationStyle.OFFSET, PaginationStyle.PAGE_NUMBER}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,10 +216,10 @@ class EndpointPagination:
             raise ValueError(
                 f"{self.endpoint}: a pagination style with no parameter cannot ask for page two"
             )
-        if self.style is PaginationStyle.OFFSET and self.page_size < 1:
+        if self.style in _COUNTED_STYLES and self.page_size < 1:
             raise ValueError(
-                f"{self.endpoint}: an offset endpoint must declare its page size, because a "
-                f"short page is the only signal that the results have run out"
+                f"{self.endpoint}: a {self.style.value} endpoint must declare its page size, "
+                f"because a short page is the only signal that the results have run out"
             )
 
     def parameters(self, position: Position) -> dict[str, str]:
@@ -205,6 +227,8 @@ class EndpointPagination:
         asked: dict[str, str] = {}
         if self.style is PaginationStyle.OFFSET:
             asked[self.parameter] = str(position.offset)
+        elif self.style is PaginationStyle.PAGE_NUMBER:
+            asked[self.parameter] = str(position.index + 1)
         elif position.token:
             asked[self.parameter] = position.token
         if self.page_size_parameter and self.page_size:
@@ -213,13 +237,13 @@ class EndpointPagination:
 
     def has_more[Item](self, page: Page[Item]) -> bool:
         """Return whether ``page`` says there is another one after it."""
-        if self.style is PaginationStyle.OFFSET:
+        if self.style in _COUNTED_STYLES:
             return len(page.items) >= self.page_size > 0
         return bool(page.cursor)
 
     def advance[Item](self, position: Position, page: Page[Item]) -> Position:
         """Return where the request after ``page`` starts."""
-        if self.style is PaginationStyle.OFFSET:
+        if self.style in _COUNTED_STYLES:
             return Position(offset=position.offset + len(page.items), index=position.index + 1)
         return Position(token=page.cursor, index=position.index + 1)
 

@@ -155,6 +155,16 @@ async def run_scenario(
     return ScenarioOutcome(result=result, vendor=vendor)
 
 
+def xml_response(document: str, *, status: int = 200) -> OutboundResponse:
+    """Return a scripted response carrying ``document`` as XML.
+
+    The query-protocol vendors — the AWS services that predate JSON — answer
+    with this and have no JSON dialect to ask for, so their scenarios script the
+    shape they really send.
+    """
+    return OutboundResponse(status, {"content-type": "text/xml"}, document.encode("utf-8"))
+
+
 def json_response(payload: object, *, status: int = 200) -> OutboundResponse:
     """Return a scripted response carrying ``payload`` as JSON."""
     import json
@@ -175,4 +185,5 @@ __all__ = [
     "capability_named",
     "json_response",
     "run_scenario",
+    "xml_response",
 ]

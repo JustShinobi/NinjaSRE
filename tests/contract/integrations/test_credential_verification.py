@@ -33,6 +33,7 @@ from platform.credentials.vault import Vault
 from platform.credentials.verification import CredentialVerification
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import TenantScope
+from tests.contract.integrations import conftest
 
 pytestmark = pytest.mark.contract
 
@@ -41,19 +42,11 @@ TEAM_ID = "payments"
 SCOPE = TenantScope(org_id=ORG_ID, team_node_id=TEAM_ID)
 CONTEXT = RequestContext(org_id=ORG_ID, team_id=TEAM_ID, capability="credential_verify")
 
-#: One credential per reference integration, in the format each schema requires.
-CREDENTIALS: dict[str, dict[str, str]] = {
-    "datadog": {
-        "api_key": "0123456789abcdef0123456789abcdef",
-        "app_key": "0123456789abcdef0123456789abcdef01234567",
-    },
-    "kubernetes": {"token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.probe"},
-    "aws": {
-        "access_key_id": "AKIAIOSFODNN7EXAMPLE",
-        "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-        "region": "us-east-1",
-    },
-}
+#: One credential per catalogued integration, in the format each schema requires.
+#: The same mapping the rest of this suite uses, so a catalogue of eighty-odd
+#: does not need a second hand-written copy here — and "verify everything"
+#: below really does mean everything rather than the three somebody remembered.
+CREDENTIALS = conftest.CREDENTIALS
 
 
 @dataclass(slots=True)

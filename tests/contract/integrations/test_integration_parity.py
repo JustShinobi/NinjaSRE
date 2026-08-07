@@ -57,8 +57,10 @@ from capabilities.registry.validation import DANGLING_DIRECTED_TOOL, failures
 from integrations._base.client import IntegrationClient
 from integrations._base.errors import ErrorCategory, IntegrationError, category_for
 from integrations._base.pagination import PaginationStyle, supported_styles
-from integrations._catalogue.entry import IntegrationCategory, ParityStatus
+from integrations._catalogue.entry import CatalogueEntry, IntegrationCategory, ParityStatus
 from integrations._catalogue.validation import Artefact
+from platform.credentials.proxy.injection import PathSegmentInjection
+from platform.credentials.proxy.model import OutboundRequest
 from tests.contract.integrations.conftest import (
     CATALOGUE,
     CONTEXT,
@@ -177,9 +179,7 @@ async def test_every_call_reaches_the_vendor_through_the_proxy(name: str) -> Non
     assert entry.descriptor.rule.permits(sent.host), (
         f"{name}: reached {sent.host}, which its own allow-list does not permit"
     )
-    assert _authenticated(sent.headers, sent.url), (
-        f"{name}: the vendor received nothing the proxy injected"
-    )
+    assert _authenticated(entry, sent), f"{name}: the vendor received nothing the proxy injected"
 
 
 @pytest.mark.parametrize("name", IDS)
@@ -331,9 +331,24 @@ def test_a_synthetic_scenario_exercises_the_integration(name: str) -> None:
 # --- Helpers -----------------------------------------------------------------
 
 
-def _authenticated(headers: dict[str, str], url: str) -> bool:
-    """Return whether the proxy put anything into the request the client did not."""
-    return bool(headers) or "?" in url
+def _authenticated(entry: CatalogueEntry, sent: OutboundRequest) -> bool:
+    """Return whether the proxy put anything into the request the client did not.
+
+    Three shapes, and the third is the one a header check misses. A header or a
+    query parameter is visible on the request; a *path* injection is visible
+    only as an absence — the client sends ``/bot{token}/getMe`` and the vendor
+    receives a path with the placeholder gone. Reading that as "nothing was
+    injected" would let the one vendor whose credential travels in the URL pass
+    this test for the wrong reason.
+    """
+    if sent.headers or "?" in sent.url:
+        return True
+    placeholders = [
+        "{" + injection.placeholder + "}"
+        for injection in entry.descriptor.rule.injections
+        if isinstance(injection, PathSegmentInjection)
+    ]
+    return bool(placeholders) and not any(marker in sent.url for marker in placeholders)
 
 
 def _slots_of(cls: type) -> tuple[str, ...]:

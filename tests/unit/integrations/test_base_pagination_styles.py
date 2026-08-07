@@ -36,6 +36,13 @@ OFFSET_PAGES = EndpointPagination(
     page_size_parameter="limit",
     page_size=2,
 )
+NUMBERED_PAGES = EndpointPagination(
+    endpoint="list_projects",
+    style=PaginationStyle.PAGE_NUMBER,
+    parameter="page",
+    page_size_parameter="per_page",
+    page_size=2,
+)
 
 
 def scripted(pages: list[Page[str]]) -> tuple[object, list[Mapping[str, str]]]:
@@ -49,11 +56,12 @@ def scripted(pages: list[Page[str]]) -> tuple[object, list[Mapping[str, str]]]:
     return fetch, asked
 
 
-def test_all_three_declared_styles_are_walkable() -> None:
-    """FR-005 names three; a fourth in the enum with no walk would pass silently."""
+def test_every_declared_style_is_walkable() -> None:
+    """A style in the enum with no walk behind it would pass every other check silently."""
     assert set(supported_styles()) == {
         PaginationStyle.CURSOR,
         PaginationStyle.OFFSET,
+        PaginationStyle.PAGE_NUMBER,
         PaginationStyle.PAGE_TOKEN,
     }
 
@@ -95,6 +103,39 @@ async def test_a_full_offset_page_with_no_cursor_still_asks_for_the_next_one() -
 
     assert found.items == ("a", "b", "c", "d", "e")
     assert found.pages_followed == 3
+
+
+async def test_a_numbered_walk_counts_pages_rather_than_records() -> None:
+    """A page-number vendor handed a record count reads from the wrong place entirely."""
+    fetch, asked = scripted([Page(items=("a", "b")), Page(items=("c",))])
+
+    found = await walk(NUMBERED_PAGES, fetch)
+
+    assert found.items == ("a", "b", "c")
+    assert asked == [{"page": "1", "per_page": "2"}, {"page": "2", "per_page": "2"}]
+
+
+async def test_a_numbered_walk_stops_on_a_short_page() -> None:
+    """Same termination rule as offset, and the same reason: nothing else says it ended."""
+    fetch, _ = scripted([Page(items=("a", "b")), Page(items=("c",)), Page(items=("d", "e"))])
+
+    found = await walk(NUMBERED_PAGES, fetch)
+
+    assert found.items == ("a", "b", "c")
+    assert found.pages_followed == 2
+
+
+def test_a_numbered_endpoint_that_declares_no_page_size_is_refused() -> None:
+    """Without one there is no short page to detect, so the walk cannot terminate."""
+    with pytest.raises(ValueError, match="short page"):
+        EndpointPagination(
+            endpoint="list_projects", style=PaginationStyle.PAGE_NUMBER, parameter="page"
+        )
+
+
+def test_the_page_numbering_starts_at_one_because_that_is_what_vendors_count_from() -> None:
+    """A first request asking for page zero is answered with an empty list or a 400."""
+    assert NUMBERED_PAGES.parameters(Position()) == {"page": "1", "per_page": "2"}
 
 
 async def test_the_page_ceiling_is_reported_rather_than_hidden() -> None:
