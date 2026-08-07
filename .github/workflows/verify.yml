@@ -117,6 +117,41 @@ jobs:
       - name: Measure the path from nothing to a usable command
         run: python tools/measure_first_investigation.py --json
 
+  docs:
+    name: build the documentation site
+    # `make verify` already fails on a stale generated reference and on a
+    # documented command that no longer works. This job exists for the artefact:
+    # the site is published from the repository build rather than from anybody's
+    # laptop, so what a reader gets is what this commit produces.
+    #
+    # Uploaded rather than deployed. Where the site is hosted is the operator's
+    # decision — some run it on an internal host and some do not host it at all,
+    # because it builds and serves offline from the checkout.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Provision the environment
+        run: make install
+
+      - name: Build the site
+        run: make docs-build
+
+      - name: Publish the built site
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-site
+          path: docs/site/build
+          if-no-files-found: error
+
   scenarios:
     name: synthetic scenario corpus (offline)
     # Every pull request, and it costs nothing. The corpus runs against
