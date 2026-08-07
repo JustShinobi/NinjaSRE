@@ -7,9 +7,12 @@ would confirm it exists, and never the record itself.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from httpx import AsyncClient
 
+from core.agent.interaction.models import Question
 from platform.identity.permissions import Role
 from tests.unit.gateway.http.conftest import TEAM_PAYMENTS, TEAM_PLATFORM, Deployment, issue_token
 
@@ -103,3 +106,89 @@ async def test_a_team_cannot_read_another_teams_schedule(
 
     cross_team = await client.get("/v1/schedules/nightly", headers=platform)
     assert cross_team.status_code == 404
+
+
+async def test_a_team_cannot_read_or_replay_another_teams_run(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    payments = await _token_for(deployment, "ada", TEAM_PAYMENTS)
+    platform = await _token_for(deployment, "bob", TEAM_PLATFORM)
+
+    created = await client.post("/v1/investigations", json={"objective": "x"}, headers=payments)
+    run_id = created.json()["run_id"]
+
+    assert (await client.get(f"/v1/runs/{run_id}", headers=platform)).status_code == 404
+    assert (await client.get(f"/v1/runs/{run_id}/replay", headers=platform)).status_code == 404
+
+    assert (await client.get(f"/v1/runs/{run_id}", headers=payments)).status_code == 200
+    assert (await client.get(f"/v1/runs/{run_id}/replay", headers=payments)).status_code == 200
+
+
+async def test_a_teams_run_list_excludes_other_teams(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    payments = await _token_for(deployment, "ada", TEAM_PAYMENTS)
+    platform = await _token_for(deployment, "bob", TEAM_PLATFORM)
+
+    created = await client.post("/v1/investigations", json={"objective": "x"}, headers=payments)
+    run_id = created.json()["run_id"]
+
+    listed = await client.get("/v1/runs", headers=platform)
+    assert all(item["run_id"] != run_id for item in listed.json()["runs"])
+
+
+async def test_a_team_cannot_list_another_teams_interactions(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    payments = await _token_for(deployment, "ada", TEAM_PAYMENTS)
+    platform = await _token_for(deployment, "bob", TEAM_PLATFORM)
+
+    created = await client.post("/v1/investigations", json={"objective": "x"}, headers=payments)
+    run_id = created.json()["run_id"]
+    deployment.runner.interactions["q-1"] = Question(
+        interaction_id="q-1",
+        run_id=run_id,
+        raised_at=datetime.now(UTC),
+        expires_at=datetime(2099, 1, 1, tzinfo=UTC),
+        text="Did the deploy finish?",
+    )
+
+    response = await client.get(f"/v1/investigations/{run_id}/interactions", headers=platform)
+    assert response.status_code == 404
+
+
+async def test_a_team_cannot_answer_another_teams_interaction(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    payments = await _token_for(deployment, "ada", TEAM_PAYMENTS)
+    platform = await _token_for(deployment, "bob", TEAM_PLATFORM)
+
+    created = await client.post("/v1/investigations", json={"objective": "x"}, headers=payments)
+    run_id = created.json()["run_id"]
+    deployment.runner.interactions["q-1"] = Question(
+        interaction_id="q-1",
+        run_id=run_id,
+        raised_at=datetime.now(UTC),
+        expires_at=datetime(2099, 1, 1, tzinfo=UTC),
+        text="Did the deploy finish?",
+    )
+
+    response = await client.post(
+        "/v1/interactions/q-1/answer", json={"text": "yes"}, headers=platform
+    )
+    assert response.status_code == 404
+    # unresolved: nothing about a real answer reached the runner from the wrong team
+    assert deployment.runner.interactions["q-1"].is_open
+
+
+async def test_a_team_cannot_stream_another_teams_investigation(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    payments = await _token_for(deployment, "ada", TEAM_PAYMENTS)
+    platform = await _token_for(deployment, "bob", TEAM_PLATFORM)
+
+    created = await client.post("/v1/investigations", json={"objective": "x"}, headers=payments)
+    run_id = created.json()["run_id"]
+
+    response = await client.get(f"/v1/investigations/{run_id}/stream", headers=platform)
+    assert response.status_code == 404
