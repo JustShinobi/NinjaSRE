@@ -82,3 +82,37 @@ jobs:
       # fakes. This is the other half, and the feature is not done without it.
       - name: Run the persistence contract suite against PostgreSQL
         run: make test-postgres
+
+  first-run:
+    name: install to first investigation (${{ matrix.os }})
+    # SC-001 gives a clean machine ten minutes to get from nothing to a working
+    # investigation, on all three platforms. The deterministic part of that
+    # path is measured here on every pull request; the part that spends real
+    # tokens against an operator's own provider is measured by
+    # `make preflight`, and the script says which is which rather than
+    # reporting a total that quietly excludes the slow leg.
+    #
+    # A separate job from `verify` because it installs into an empty
+    # environment. Reusing the gate's environment would measure an install onto
+    # a machine that already had every dependency, which is the one machine
+    # SC-001 is not about.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Deliberately no uv, and deliberately nothing installed first. The
+      # script builds the distribution and installs it into a venv it creates,
+      # which is the closest a hosted runner gets to a clean machine.
+      - name: Measure the path from nothing to a usable command
+        run: python tools/measure_first_investigation.py --json

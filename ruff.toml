@@ -92,6 +92,18 @@ ignore = [
 # port's signature so the Kubernetes profile, where there is one, is a drop-in.
 "platform/sandbox/profiles/process/runner.py" = ["ARG002"]
 "platform/sandbox/profiles/container/runner.py" = ["ARG002"]
+# Two eager options exist for their callbacks alone: the framework calls the
+# callback and exits before the body runs, so the body has nothing to read.
+# Removing the parameters would remove the flags.
+"surfaces/cli/app.py" = ["ARG001"]
+# Every slash-command handler takes the same two arguments so the registry can
+# dispatch them uniformly. A handler that takes no arguments — /status, /cost —
+# still keeps the signature, because narrowing it would stop it being a handler.
+"surfaces/repl/commands/*.py" = ["ARG001"]
+# The scripted prompter records its guidance and answers from a script, so a
+# question's default is not always read. It keeps the protocol's full signature
+# so it stays substitutable for the one that asks a person.
+"surfaces/cli/wizard/prompts.py" = ["ARG002"]
 # The architecture fixtures exist to violate import boundaries on purpose. They
 # are never imported by the real package graph (pytest skips the directory via
 # ``norecursedirs``), so their imports are unused by construction.

@@ -35,15 +35,31 @@ classifiers = [
 # platform, and every deployment has to reject a malformed document with an
 # error naming the field. It is not an extra because a deployment that could not
 # validate its configuration would resolve to defaults nobody chose.
+#
+# The last three are the ``ninjasre`` command. Not an extra, because the CLI is
+# how the platform is operated, debugged, and demonstrated — a deployment that
+# installed the platform and could not run the command would have installed a
+# library. Every one of them renders and prompts; none of them transmits
+# anything, which is what keeps the telemetry deny-list satisfied by
+# construction rather than by review.
 dependencies = [
     "alembic>=1.14",
     "asyncpg>=0.30",
     "cryptography>=44.0",
     "pgvector>=0.3.6",
+    # The interactive session's input: history, completion, and the terminal
+    # handling that lets Ctrl+C reach the loop rather than the process.
+    "prompt-toolkit>=3.0",
     "pydantic>=2.13.4",
     "pyyaml>=6.0",
+    # Rendering for a person. The degradation layer decides what a terminal can
+    # show before this is asked to draw anything, so a terminal with no colour
+    # and no Unicode is served by the same code path.
+    "rich>=13.9",
     "sqlalchemy[asyncio]>=2.0.36",
     "structlog>=24.4.0",
+    # The CLI framework, and the shell completion that comes with it.
+    "typer>=0.15",
 ]
 
 # Vendor LLM SDKs are extras, never runtime dependencies. A deployment that runs
@@ -89,6 +105,12 @@ dev = [
     # alone, and says so rather than reporting a pass it did not earn.
     "testcontainers>=4.9",
 ]
+
+# The one command an operator runs. Nothing else is exposed: a second entry
+# point would be a second surface, and every surface has to produce the same
+# result and the same trace.
+[project.scripts]
+ninjasre = "surfaces.entrypoint:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]

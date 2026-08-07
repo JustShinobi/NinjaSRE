@@ -19,6 +19,25 @@ from typing import Final
 #: Hard iteration ceiling. The worst-case runtime bound for one investigation.
 MAX_INVESTIGATION_LOOPS: Final[int] = 20
 
+#: How hard the model is asked to think, where the provider exposes the choice.
+#: A bounded set rather than a number, because the providers that support this
+#: expose a level and not a dial — and a surface that let somebody type an
+#: arbitrary value would be inventing a parameter the provider will reject.
+REASONING_EFFORT_LOW: Final = "low"
+REASONING_EFFORT_MEDIUM: Final = "medium"
+REASONING_EFFORT_HIGH: Final = "high"
+
+REASONING_EFFORT_LEVELS: Final[tuple[str, ...]] = (
+    REASONING_EFFORT_LOW,
+    REASONING_EFFORT_MEDIUM,
+    REASONING_EFFORT_HIGH,
+)
+
+#: What a run uses when nothing chose. Medium rather than high: the ceiling is
+#: a ceiling, and spending the most a provider will let you spend on every
+#: investigation is a default nobody picked.
+DEFAULT_REASONING_EFFORT: Final = REASONING_EFFORT_MEDIUM
+
 #: Iterations that may pass producing no new evidence before the loop is
 #: stripped of tool access and forced to conclude in text (Article II, clause 5).
 MAX_STAGNANT_ITERATIONS: Final[int] = 3
@@ -283,6 +302,7 @@ __all__ = [
     "CONTEXT_WINDOW_START",
     "DEDUPLICATION_WINDOW_MINUTES",
     "DEFAULT_INCIDENT_WINDOW_MINUTES",
+    "DEFAULT_REASONING_EFFORT",
     "DEFAULT_RUNTIME",
     "DEFAULT_SUBAGENT_ITERATIONS",
     "DEFAULT_TOOL_BUDGET",
@@ -317,6 +337,10 @@ __all__ = [
     "PLAN_CONFIDENCE_FLOOR",
     "PROGRESS_NOTIFICATION_COOLDOWN_SECONDS",
     "PROGRESS_NOTIFICATION_INTERVAL_SECONDS",
+    "REASONING_EFFORT_HIGH",
+    "REASONING_EFFORT_LEVELS",
+    "REASONING_EFFORT_LOW",
+    "REASONING_EFFORT_MEDIUM",
     "RUNTIME_CANONICAL",
     "RUNTIME_CLAUDE_SDK",
     "RUN_WALL_CLOCK_SECONDS",
