@@ -560,6 +560,62 @@ second unreachable even for a scheduler that evaluated both.
 Operator-facing documentation is
 [`docs/runs-and-scheduling.md`](../docs/runs-and-scheduling.md).
 
+## Reporting and notifications, in one page
+
+`reporting/` turns a concluded investigation into a document and delivers it;
+`notifications/` decides whether to interrupt a human and by which route. They
+are separate packages because a deployment can have either without the other,
+and because "what does the report say" and "should this wake somebody" are tuned
+by different people. Six things are load-bearing.
+
+**One report, formatted per destination — never one report per destination.**
+Thirteen destinations collapse into five formatter classes over one shared set
+of sections (`formatters/sections.py`), so a formatter owns markup and ordering
+and nothing else. Generating a report per destination would be thirteen chances
+for one of them to be redacted wrongly, and a change to what a report says would
+have to be made thirteen times.
+
+**A validated claim cannot exist without its evidence.** `ReportClaim` refuses
+to be filed as validated with no reference, and the builder *demotes* a claim
+citing an identifier the run does not hold. There is no path by which an unbacked
+assertion reaches a reader wearing the word "validated" (Article I). Confidence
+is derived from the diagnosis's score, so no formatter can promote a hedge into a
+finding by choosing a friendlier word.
+
+**Oversized is summarised, structurally.** A formatter hands over its body *and
+its blocks*, and `sizing.py` shortens by dropping whole blocks — there is no code
+path that slices report content at an arbitrary offset. A truncated report reads
+exactly like a short one, so the reader never learns that the section answering
+their question was the part that did not fit.
+
+**Delivery is isolated, idempotent, and refuses the unverified.** One
+destination's failure — declared or entirely unexpected — is caught, recorded,
+and left behind; nothing re-raises into the run, because an investigation made
+*less* reliable by having somewhere to publish would be a bad trade. The
+idempotency key is the run and the destination and is passed on every attempt, so
+a retry after a timeout cannot duplicate. An unverified destination is skipped:
+it fails at 03:00 otherwise, which is the worst moment to discover a wrong token.
+
+**Every decision that sent nothing is recorded.** Suppressions, rate-limit
+refusals, and severities that routed nowhere all produce a record and a
+`notification_decided` trace event. A cooldown that quietly drops notifications
+is indistinguishable from a broken notification system, and the first time
+anybody looks is after an incident nobody was told about.
+
+**The cooldown window opens only once something arrived.** `NotificationPolicy`
+splits `route` from `commit`, and `NotificationService` commits after delivery —
+so a notification that reached no working sink does not open a fifteen-minute
+quiet window, which is how one vendor's outage would otherwise become an outage
+in the notification system.
+
+Escalation cancels rather than fires late: `resolve` is a write that removes the
+pending escalation, so there is no state in which the item has resolved and the
+escalation is still live. An approval granted at minute nine does not page
+somebody at minute ten.
+
+Operator-facing documentation is
+[`docs/notifications-and-reporting.md`](../docs/notifications-and-reporting.md).
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -640,6 +696,23 @@ Operator-facing documentation is
   `runs.events.TraceEventKind`, never a string at a call site. The enum is
   closed because an event nobody named is one a console cannot render, a replay
   cannot label, and an evaluation cannot count.
+- A new report destination → a row in `DESTINATION_CLASS_OF` and one in
+  `DESTINATION_SIZE_LIMITS` in `config/constants/notifications.py`, plus a case
+  in `tests/contract/reporting/test_thirteen_destinations.py`. Never a sixth
+  formatter unless the *shape* is genuinely new: five classes are what make the
+  fourteenth destination configuration rather than code.
+- A new section in a report → `formatters/sections.py`, and a heading for it in
+  `POSTMORTEM_HEADINGS`. The document formatter reads that mapping by key and
+  raises on one it has no heading for, which is what stops a section arriving
+  unlabelled.
+- A new notification sink → a module under `notifications/sinks/` with the same
+  two-method shape plus a `call_for` that builds the request without sending it,
+  a member of `SinkKind`, and a row in `SEVERITY_ROUTING`. A sink absent from
+  that table routes to nobody, silently.
+- A new reason a notification was not sent → a member of
+  `notifications.models.NotificationDecision`, never a bare "we did not send
+  it". Suppressed, rate-limited, diverted, and "no sink" send an operator to
+  four different places.
 - A new attribution on a run → a key in `config/constants/runs.py` and its use
   in *both* `runs/recorder.py` and `runs/history.py`. The recorder writes run
   metadata and the history filters on it, and a typo in one of the two produces

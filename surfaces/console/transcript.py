@@ -58,6 +58,8 @@ EVENT_LABELS: Final[Mapping[TraceEventKind, str]] = {
     TraceEventKind.BUDGET_EVICTION: "Context budget",
     TraceEventKind.APPROVAL_REQUESTED: "Approval requested",
     TraceEventKind.ATTENTION_CHANGED: "Waiting for a person",
+    TraceEventKind.REPORT_DELIVERED: "Report delivered",
+    TraceEventKind.NOTIFICATION_DECIDED: "Notification",
     TraceEventKind.RUN_INTERRUPTED: "Interrupted",
     TraceEventKind.RUN_FINISHED: "Finished",
 }

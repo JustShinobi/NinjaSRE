@@ -39,6 +39,15 @@ class TraceEventKind(StrEnum):
     #: once at the end, and a run blocks and unblocks several times in between —
     #: a field would only ever record the state it was in when it finished.
     ATTENTION_CHANGED = "attention_changed"
+    #: One destination's copy of the report, and what happened to it. Per
+    #: destination rather than per run: the question an operator asks the
+    #: morning after is "did the Jira ticket get created", and a single
+    #: run-level "reports delivered" cannot answer it.
+    REPORT_DELIVERED = "report_delivered"
+    #: What a notification policy decided, including the decisions that sent
+    #: nothing. A suppression that left no event is the reason "why wasn't I
+    #: told" has no answer.
+    NOTIFICATION_DECIDED = "notification_decided"
     RUN_INTERRUPTED = "run_interrupted"
     RUN_FINISHED = "run_finished"
 

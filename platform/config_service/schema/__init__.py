@@ -35,12 +35,13 @@ from platform.config_service.schema.root import ROOT_SECTIONS, RootConfig, secti
 from platform.config_service.schema.surfaces import (
     ChannelSettings,
     DestinationSettings,
+    NotificationPolicySettings,
+    SinkSettings,
     SurfacesConfig,
 )
 from platform.config_service.schema.types import ConfigSection, field_errors
 
 __all__ = [
-    "ROOT_SECTIONS",
     "AgentsConfig",
     "ApprovalPolicySettings",
     "CapabilitiesConfig",
@@ -56,8 +57,11 @@ __all__ = [
     "MemoryPolicySettings",
     "ModelSelection",
     "ModelsConfig",
+    "NotificationPolicySettings",
     "PoliciesConfig",
+    "ROOT_SECTIONS",
     "RootConfig",
+    "SinkSettings",
     "StrategyPolicySettings",
     "SubAgentConfig",
     "SurfacesConfig",
