@@ -62,6 +62,7 @@ to find out whether they fixed it.
 | `make console-test` | a failing unit test, or coverage below the declared floor |
 | `make console-client-check` | the committed API client is not what the document generates |
 | `make console-build` | the production build |
+| `make console-budget` | the compiled stylesheet or the icon set is over its declared budget |
 | `make console-e2e` | a browser test against the built console |
 | `make console-visual` | a screen that differs from its committed baseline |
 
@@ -72,6 +73,61 @@ on is a gate they learn to bypass. CI sets `NINJASRE_CONSOLE_TOOLCHAIN=required`
 and then a skip is a failure. Three things are never skipped, whatever the
 machine: a drifted lockfile, a stale committed client, and a check that ran and
 failed.
+
+## The design system
+
+`src/design/` is the vocabulary and `src/components/` is what it composes into.
+Everything on a screen comes from there; a screen that needs something absent
+adds it to the library rather than styling locally.
+
+**Tokens are data.** `src/design/tokens.ts` is the single input to three
+readers: `css.ts` renders it into the custom properties the document carries,
+the `@theme` block in `src/app/globals.css` maps it onto Tailwind utilities, and
+`contrast.ts` measures it. The token names are compared against the Tailwind
+theme in both directions by `tests/unit/design/css.test.ts` — a utility pointing
+at a token nobody declares fails, and a token no utility exposes fails too,
+because a token a component cannot reach is one somebody works around with a
+literal.
+
+**Colour is declared by role.** `surface`, `sunken`, `raised`, `text`, `muted`,
+`accent`, `border`, `border-strong`, and five semantic roles each with a
+foreground and a tint. Both themes declare the same names at different values,
+so a screen written against tokens works in both by construction. Every pair is
+measured on every run: body text at 4.5:1, control boundaries at 3:1. `border`
+is decorative and deliberately exempt — collapsing it into `border-strong` would
+either make every table line heavy or every control boundary non-compliant.
+
+**Status never rides on colour alone.** A status maps to a role and a shape
+through `src/design/status.ts`, and nothing else decides. A status the console
+has never heard of is neutral with its own raw text — never blank, never an
+error.
+
+**The scales are closed sets**, and they are enforced twice. Tailwind is given
+the seven spacing steps explicitly and no base, so `p-9` is not a utility and
+produces no CSS at all. And `eslint-rules/no-design-literals.mjs` rejects a
+colour, an off-scale length, a raw duration and every arbitrary-value utility in
+`src/`, with `scripts/check-css-literals.mjs` covering the stylesheets ESLint
+does not parse. Two files are exempt, and both are where values are *declared*:
+`src/design/tokens.ts` and `src/design/css.ts`.
+
+**Reduced motion removes the animation.** One rule in the base layer sets every
+duration to `--dur-none`, which is a member of the duration scale rather than an
+absence. A component that wrote its own inline duration would escape it, which
+is why durations are the `motion-*` utilities and never a number.
+
+## The gallery is the contract
+
+`/gallery` renders every primitive in every declared variant and state. It is
+what the visual suite screenshots and what the accessibility audit walks, and
+`tests/unit/gallery.test.tsx` compares it against the barrel in
+`src/components/index.ts` — a primitive that is exported and not registered
+fails by name. Nothing in the console links to it, and a test asserts that.
+
+The audit is in `tests/unit/support/accessibility.ts` rather than in a
+dependency, for the reason every other dependency is refused here. Its declared
+level is: no violation of any rule it implements, anywhere in the gallery. Rules
+needing layout or a real screen reader sit outside it and are covered elsewhere
+— contrast by the token test, overflow and theme parity by the browser suite.
 
 ## The API client is generated, never written
 

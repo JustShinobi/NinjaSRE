@@ -11,12 +11,19 @@ import { expect, test } from '@playwright/test';
  * suite that fails for reasons which have nothing to do with the pixels, and
  * the fixture set already carries a fixed reference instant so that two runs a
  * week apart produce the same image.
+ *
+ * A screen is a route *at a width in a theme*, not a route. The design declares
+ * three widths and two themes; a baseline that only ever saw one of the six
+ * says nothing about the other five, which is exactly where a responsive
+ * regression lives.
  */
 
 interface Screen {
   readonly id: string;
   readonly route: string;
   readonly status: string;
+  readonly viewport?: number;
+  readonly theme?: string;
 }
 
 interface Registry {
@@ -56,6 +63,8 @@ const ENDPOINT_FOR: Readonly<Record<string, string>> = {
 
 for (const screen of registry().screens.filter((each) => each.status === 'baselined')) {
   test(`${screen.id} matches its baseline`, async ({ page }) => {
+    await page.setViewportSize({ width: screen.viewport ?? 1440, height: 900 });
+
     await page.route('**/v1/**', async (route) => {
       const path = new URL(route.request().url()).pathname;
       const endpoint = ENDPOINT_FOR[path];
@@ -69,6 +78,13 @@ for (const screen of registry().screens.filter((each) => each.status === 'baseli
         body: JSON.stringify(fixtureBody('populated', endpoint)),
       });
     });
+
+    // Set before navigating, so the theme is the one the first paint used and
+    // the capture is not of a page that changed theme under itself.
+    const theme = screen.theme ?? 'light';
+    await page.addInitScript((chosen: string) => {
+      window.localStorage.setItem('ninjasre.theme', chosen);
+    }, theme);
 
     await page.goto(screen.route);
     await expect(page).toHaveScreenshot(`${screen.id}.png`, { fullPage: true });

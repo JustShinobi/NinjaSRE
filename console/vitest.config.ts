@@ -23,6 +23,10 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // The no-flash property is about a script that runs before the first paint,
+    // and the only honest way to test it is to let the document run the script
+    // rather than to call a function that resembles it.
+    environmentOptions: { jsdom: { runScripts: 'dangerously' } },
     globals: false,
     include: ['tests/unit/**/*.test.ts', 'tests/unit/**/*.test.tsx'],
     setupFiles: ['tests/unit/setup.ts'],

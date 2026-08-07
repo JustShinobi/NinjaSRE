@@ -1,33 +1,241 @@
 @import 'tailwindcss';
 
 /*
- * The design system arrives with its own feature. What is here is the minimum a
- * rendered page needs to be legible and to screenshot deterministically: a
- * system font stack (no font is fetched from anywhere), and the two ground
- * colours the theme switch will later drive.
+ * The Tailwind theme, which is the token table's second reader.
+ *
+ * Every entry here is a `var()` into a token and never a value: the values live
+ * in `src/design/tokens.ts` and are written into the document by
+ * `tokenStylesheet()`. `tests/unit/design/css.test.ts` compares the two sets of
+ * names in both directions, so a utility pointing at a token nobody declares
+ * fails, and a token no utility exposes fails too — a token a component cannot
+ * reach is a token somebody works around with a literal.
+ *
+ * `inline` matters: it makes a utility emit `var(--surface)` rather than
+ * `var(--color-surface)`, so switching the theme swaps the token underneath the
+ * utility and nothing has to re-render.
  */
-:root {
-  --console-background: #ffffff;
-  --console-foreground: #101418;
+@theme inline {
+  /* Colour, by role. */
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-raised: var(--raised);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-bg: var(--accent-bg);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-success: var(--success);
+  --color-on-success: var(--on-success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-on-warning: var(--on-warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-on-info: var(--on-info);
+  --color-info-bg: var(--info-bg);
+  --color-neutral: var(--neutral);
+  --color-on-neutral: var(--on-neutral);
+  --color-neutral-bg: var(--neutral-bg);
+
+  /*
+   * Spacing, as an explicit scale rather than a multiplier.
+   *
+   * Declaring the seven steps and no base is what makes `p-5` a real utility
+   * and `p-9` no utility at all — an off-scale value produces no CSS, which is
+   * a stronger guarantee than a lint rule and arrives earlier.
+   */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-density: var(--density-gap);
+  --spacing-row: var(--density-row);
+  --spacing-control: var(--density-control);
+
+  /* Corners. */
+  --radius-1: var(--corner-1);
+  --radius-2: var(--corner-2);
+  --radius-3: var(--corner-3);
+  --radius-4: var(--corner-4);
+
+  /* Elevation: two, because depth beyond two levels reads as decoration. */
+  --shadow-1: var(--elev-1);
+  --shadow-2: var(--elev-2);
+
+  /* Families. Both come from the operating system; no font is fetched. */
+  --font-sans: var(--family-sans);
+  --font-mono: var(--family-mono);
+
+  /* Type: one utility per step, carrying its size, line, weight and tracking. */
+  --text-display: var(--size-display);
+  --text-display--line-height: var(--line-display);
+  --text-display--font-weight: var(--weight-display);
+  --text-display--letter-spacing: var(--track-display);
+  --text-title: var(--size-title);
+  --text-title--line-height: var(--line-title);
+  --text-title--font-weight: var(--weight-title);
+  --text-title--letter-spacing: var(--track-title);
+  --text-section: var(--size-section);
+  --text-section--line-height: var(--line-section);
+  --text-section--font-weight: var(--weight-section);
+  --text-section--letter-spacing: var(--track-section);
+  --text-strong: var(--size-strong);
+  --text-strong--line-height: var(--line-strong);
+  --text-strong--font-weight: var(--weight-strong);
+  --text-strong--letter-spacing: var(--track-strong);
+  --text-body: var(--size-body);
+  --text-body--line-height: var(--line-body);
+  --text-body--font-weight: var(--weight-body);
+  --text-body--letter-spacing: var(--track-body);
+  --text-small: var(--size-small);
+  --text-small--line-height: var(--line-small);
+  --text-small--font-weight: var(--weight-small);
+  --text-small--letter-spacing: var(--track-small);
+  --text-meta: var(--size-meta);
+  --text-meta--line-height: var(--line-meta);
+  --text-meta--font-weight: var(--weight-meta);
+  --text-meta--letter-spacing: var(--track-meta);
+  --text-micro: var(--size-micro);
+  --text-micro--line-height: var(--line-micro);
+  --text-micro--font-weight: var(--weight-micro);
+  --text-micro--letter-spacing: var(--track-micro);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --console-background: #0d1117;
-    --console-foreground: #e6edf3;
+/*
+ * Border widths, motion and icon sizes.
+ *
+ * Tailwind has no theme namespace for any of the three, so they are utilities
+ * of their own rather than values a component may write. The rule is the same
+ * either way: a component names a step, never a number.
+ */
+@utility edge {
+  border-width: var(--stroke-1);
+  border-style: solid;
+}
+
+@utility edge-ring {
+  border-width: var(--stroke-2);
+  border-style: solid;
+}
+
+@utility edge-emphasis {
+  border-width: var(--stroke-3);
+  border-style: solid;
+}
+
+@utility motion-hover {
+  transition-duration: var(--dur-hover);
+  transition-timing-function: ease-out;
+}
+
+@utility motion-overlay {
+  transition-duration: var(--dur-overlay);
+  transition-timing-function: ease-out;
+}
+
+@utility motion-toast {
+  transition-duration: var(--dur-toast);
+  transition-timing-function: ease-out;
+}
+
+@utility icon-inline {
+  width: var(--icon-inline);
+  height: var(--icon-inline);
+}
+
+@utility icon-nav {
+  width: var(--icon-nav);
+  height: var(--icon-nav);
+}
+
+@utility icon-head {
+  width: var(--icon-head);
+  height: var(--icon-head);
+}
+
+@utility icon-empty {
+  width: var(--icon-empty);
+  height: var(--icon-empty);
+}
+
+/* The control height a density decides, which is half of what a density is. */
+@utility h-control {
+  height: var(--density-control);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    background: var(--sunken);
+    color: var(--text);
+    font-family: var(--family-sans);
+    font-size: var(--size-body);
+    line-height: var(--line-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /*
+   * The focus ring, once, on everything.
+   *
+   * A design system that leaves focus to each component is a design system with
+   * one component that forgot. `:focus-visible` rather than `:focus` so a
+   * pointer user does not get a ring they did not ask for, and an offset so the
+   * ring is outside the control's own boundary rather than on top of it.
+   */
+  :focus-visible {
+    outline: var(--stroke-3) solid var(--accent);
+    outline-offset: var(--stroke-2);
+  }
+
+  /*
+   * Reduced motion is satisfied by removal, not by shortening.
+   *
+   * `--dur-none` is a member of the duration scale for exactly this reason: the
+   * removal is a token like any other, so it appears in the gallery and in the
+   * test rather than as an `!important` somebody has to find.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: var(--dur-none) !important;
+      animation-duration: var(--dur-none) !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--console-background);
-  color: var(--console-foreground);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+/*
+ * The one shape a border-radius cannot make.
+ *
+ * The triangle is the warning status, and it has to be a shape rather than a
+ * character: a glyph would be a font's opinion about how a triangle looks, and
+ * the shape is carrying meaning that colour is not allowed to carry alone.
+ */
+@utility clip-triangle {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/*
+ * The content width cap.
+ *
+ * A measure rather than a breakpoint: past this width a line of prose stops
+ * being scannable, and an operations console is read by scanning.
+ */
+@theme inline {
+  --container-page: var(--width-page);
 }

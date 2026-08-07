@@ -1,6 +1,8 @@
 import nextWebVitals from 'eslint-config-next/core-web-vitals';
 import tseslint from 'typescript-eslint';
 
+import design from './eslint-rules/no-design-literals.mjs';
+
 /**
  * The console's lint rules.
  *
@@ -62,11 +64,41 @@ export default tseslint.config(
     },
   },
   {
+    // The no-literals rule, over the console's own source.
+    //
+    // Only `src/`: the tests state the values the design publishes and compare
+    // them against the table, which is the opposite of hard-coding one, and a
+    // rule that forbade it would forbid the assertion that keeps the table
+    // honest.
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    plugins: { design },
+    rules: {
+      'design/no-design-literals': 'error',
+    },
+  },
+  {
+    // The two files where a value is *declared* rather than used. This is the
+    // whole exemption: the token table is the design, and the renderer turns it
+    // into custom properties. Everything downstream names a token.
+    files: ['src/design/tokens.ts', 'src/design/css.ts'],
+    rules: {
+      'design/no-design-literals': 'off',
+    },
+  },
+  {
     // The configuration files are ES modules outside the TypeScript project, so
     // there is no type information to lint them against. Linting them without
     // it is still worth doing; pretending otherwise is what breaks the run.
     files: ['**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
+    rules: {
+      ...tseslint.configs.disableTypeChecked.rules,
+      // JavaScript has no type annotations to write, so the rule can only ever
+      // be satisfied by moving the file into the TypeScript project — and an
+      // ESLint rule module cannot live there, because the lint configuration
+      // that loads it is itself JavaScript.
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+    },
   },
   {
     files: ['tests/**/*.ts', 'tests/**/*.tsx'],

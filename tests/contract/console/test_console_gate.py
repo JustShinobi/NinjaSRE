@@ -68,6 +68,10 @@ SEEDED = (
     SeededFailure("format-violation.ts", "src/lib/crooked.ts", "format-check", "crooked.ts"),
     SeededFailure("lint-violation.ts", "src/lib/reaching.ts", "lint", "reaching.ts"),
     SeededFailure("type-error.tsx", "src/lib/broken.tsx", "typecheck", "broken.tsx"),
+    # A colour written out, a length off the spacing scale, and a duration
+    # written out. The design system is a set of closed sets, and a closed set
+    # nothing enforces is a suggestion.
+    SeededFailure("design-literal-violation.tsx", "src/lib/swatch.tsx", "lint", "swatch.tsx"),
     SeededFailure("failing.test.ts", "tests/unit/seeded.test.ts", "test", "seeded.test.ts"),
 )
 

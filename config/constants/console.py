@@ -97,6 +97,24 @@ CONSOLE_PLATFORM_KEYS: Final[tuple[str, ...]] = (
 #: asserted against that configuration by the suite, so the two cannot drift.
 CONSOLE_COVERAGE_THRESHOLD: Final = 90.0
 
+#: The compiled stylesheet for the whole design system, in bytes.
+#:
+#: A design system that has stopped being a system shows up here first: every
+#: component that writes its own values adds rules nothing else shares, and the
+#: sheet grows faster than the console does. The number is generous enough to
+#: hold the screens features 035 to 037 add and tight enough that a doubling
+#: fails rather than being noticed a year later.
+CONSOLE_STYLESHEET_BUDGET_BYTES: Final = 40960
+
+#: The whole icon set, in bytes, as it would ship to a page that used every icon.
+#:
+#: Measured against the set rather than against a page, because the per-page
+#: figure depends on which icons that page happens to use — and the property
+#: worth holding is that the *set* stays small enough that carrying all of it
+#: would still be acceptable. Each icon is a named export, so a page carries
+#: only what it imports; this is the ceiling, not the typical case.
+CONSOLE_ICON_BUDGET_BYTES: Final = 16384
+
 #: One image captures every baseline and every comparison. Font rendering
 #: differs between platforms, so a baseline captured anywhere else produces a
 #: difference that means nothing. Pinned by digest rather than by tag: a tag
@@ -134,6 +152,7 @@ __all__ = [
     "CONSOLE_COVERAGE_THRESHOLD",
     "CONSOLE_DIR_NAME",
     "CONSOLE_E2E_MOCK_PORT",
+    "CONSOLE_ICON_BUDGET_BYTES",
     "CONSOLE_E2E_PORT",
     "CONSOLE_GENERATED_CLIENT_PATH",
     "CONSOLE_LOCKFILE_FILENAME",
@@ -142,6 +161,7 @@ __all__ = [
     "CONSOLE_NODE_VERSION_FILENAME",
     "CONSOLE_PLATFORM_KEYS",
     "CONSOLE_SCREEN_REGISTRY_FILENAME",
+    "CONSOLE_STYLESHEET_BUDGET_BYTES",
     "CONSOLE_TOOLCHAIN_DIR_NAME",
     "CONSOLE_TOOLCHAIN_LOCK_FILENAME",
     "CONSOLE_VISUAL_DIR_NAME",

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { ApiError, read } from '@/lib/api';
-import { roleFor } from '@/lib/status';
+import { roleFor } from '@/design/status';
 
 /**
  * The first screen there is: what the deployment has been doing.

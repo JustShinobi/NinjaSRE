@@ -17,7 +17,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 .PHONY: install lint format format-check typecheck test \
 	console-setup console-install console-format console-format-check \
 	console-lockfile console-lint console-typecheck console-test console-build \
-	console-client console-client-check console-e2e console-e2e-run \
+	console-client console-client-check console-budget console-e2e console-e2e-run \
 	console-e2e-sweep console-visual console-visual-accept console-check \
 	check-console-boundary \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
@@ -212,6 +212,9 @@ console-client: ## Regenerate the API client from the committed OpenAPI document
 
 console-client-check: ## Fail if the committed API client is not what the document generates
 	$(RUN) python -m tools.console_gate client-check
+
+console-budget: ## Fail if the stylesheet or the icon set is over its declared budget
+	$(RUN) python -m tools.console_budget
 
 console-e2e: ## Drive a browser against the built console and the committed dataset
 	$(RUN) python -m tools.console_gate e2e

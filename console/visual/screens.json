@@ -1,28 +1,96 @@
 {
-  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched.",
+  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five.",
   "screens": [
     {
       "id": "runs",
       "route": "/",
       "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The first screen the toolchain had to prove itself against. It is not one of the designed screens — it renders the run list with no design system behind it — so there is no reference to review it against, and it is expected to be replaced rather than restyled."
+      }
+    },
+    {
+      "id": "gallery-1440-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "01-tokens-colour.png",
+        "reason": "The colour section renders every role pair with the ratio computed from the token table, and every status with its documented shape. Reviewed side by side against the reference: the values match to the byte and the shapes match the seven documented states."
+      }
+    },
+    {
+      "id": "gallery-1440-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": "08-theme-dark.png",
+        "reason": "The same geometry under the dark token set. The browser suite asserts the stronger form of this claim — every box, to the pixel, identical between the two themes — and this baseline is the picture of it."
+      }
+    },
+    {
+      "id": "gallery-768-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "light",
+      "accepted": {
+        "against": "02-tokens-scales.png",
+        "reason": "The scale section renders the type, spacing, radius, border and duration scales as the closed sets the reference documents. Reviewed against it: eight type steps, seven spacing steps, four radii, and no additional step in any of them."
+      }
+    },
+    {
+      "id": "gallery-768-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The middle breakpoint in the dark token set. There is no reference for this combination — the design documents three widths and two themes but draws one picture of each — so this baseline exists to catch a regression rather than to record a review."
+      }
+    },
+    {
+      "id": "gallery-320-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "light",
+      "accepted": {
+        "against": "07-states-empty-error.png",
+        "reason": "The empty and error states, at the narrowest width the console declares. Reviewed against the reference: icon, one-line heading, one sentence saying what would be here, and an action, in that order, with the error state naming its dependency in monospace."
+      }
+    },
+    {
+      "id": "gallery-320-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The narrowest width in the dark token set. As with the 768 dark capture there is no reference for the combination, so this baseline catches a regression rather than recording a review."
       }
     }
   ],
   "mockups": [
     {
       "file": "01-tokens-colour.png",
-      "status": "pending",
+      "status": "baselined",
       "surface": "the console design system",
-      "note": "The colour token table and its contrast pairs. Baselined by the gallery route the design system introduces, not by a product screen."
+      "note": "The colour token table and its contrast pairs. Baselined by the gallery route rather than by a product screen, because the token table is not something any product screen shows."
     },
     {
       "file": "02-tokens-scales.png",
-      "status": "pending",
+      "status": "baselined",
       "surface": "the console design system",
-      "note": "Spacing, type and radius scales. Same gallery route."
+      "note": "Spacing, type and radius scales. Same gallery route, captured at the middle breakpoint."
     },
     {
       "file": "03-screen-dashboard.png",
@@ -50,15 +118,15 @@
     },
     {
       "file": "07-states-empty-error.png",
-      "status": "pending",
+      "status": "baselined",
       "surface": "the console design system",
-      "note": "The empty, error and loading states every surface reuses."
+      "note": "The empty, error and loading states every surface reuses. They are primitives rather than a screen, so the gallery is where they are reviewed."
     },
     {
       "file": "08-theme-dark.png",
-      "status": "pending",
-      "surface": "the console application shell",
-      "note": "The dark theme. Captured as a second baseline of the same screens with the theme switched, once the shell owns the switch."
+      "status": "baselined",
+      "surface": "the console design system",
+      "note": "The dark theme: the same token names at different values and identical geometry. Reviewed against the gallery in dark rather than against a product screen, because what it documents is the token set."
     }
   ]
 }

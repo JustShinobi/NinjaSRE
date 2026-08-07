@@ -46,6 +46,7 @@ from config.constants.console import (
     CONSOLE_GENERATED_CLIENT_PATH,
     NINJASRE_CONSOLE_TOOLCHAIN_ENV,
 )
+from tools.console_budget import EXIT_NOTHING_TO_MEASURE
 from tools.console_toolchain import (
     StaleLockfile,
     Toolchain,
@@ -87,6 +88,7 @@ ORDER: Final[tuple[str, ...]] = (
     "test",
     "client-check",
     "build",
+    "budget",
     "e2e",
     "visual",
 )
@@ -197,6 +199,22 @@ def _module(name: str, arguments: Sequence[str]) -> int:
     return finished.returncode
 
 
+def budget() -> int:
+    """Fail when the compiled stylesheet or the icon set is over its budget.
+
+    Needs the build, so it runs straight after it. A design system whose
+    stylesheet has doubled is a design system whose components have started
+    writing their own values, and that shows up here before it shows up as two
+    cards with different padding.
+    """
+    status = _module("tools.console_budget", [])
+    if status == EXIT_NOTHING_TO_MEASURE:
+        return _skip("there is no console build to measure")
+    if status != 0:
+        return _fail("budget", "a bundle is over its declared budget — see the output above")
+    return 0
+
+
 def end_to_end() -> int:
     """Drive a browser against the built console and the committed dataset."""
     status = _module("tools.console_e2e", ["run"])
@@ -235,6 +253,8 @@ def one(name: str) -> int:
         return lockfile(toolchain)
     if name == "client-check":
         return client_check(toolchain)
+    if name == "budget":
+        return budget()
     if name == "e2e":
         return end_to_end()
     for check in SCRIPTED:
