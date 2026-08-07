@@ -21,6 +21,10 @@ SURFACE_REPL: Final = "repl"
 SURFACE_REST_API: Final = "rest_api"
 SURFACE_WEB_CONSOLE: Final = "web_console"
 SURFACE_CHAT: Final = "chat"
+#: NinjaSRE's own MCP server, for another team's agent to compose with. Absent
+#: from a team's enabled list means absent full stop: a listener nobody asked
+#: for is an attack surface nobody is watching.
+SURFACE_PROTOCOL_SERVER: Final = "protocol_server"
 
 SURFACE_IDENTIFIERS: Final[tuple[str, ...]] = (
     SURFACE_CLI,
@@ -28,6 +32,7 @@ SURFACE_IDENTIFIERS: Final[tuple[str, ...]] = (
     SURFACE_REST_API,
     SURFACE_WEB_CONSOLE,
     SURFACE_CHAT,
+    SURFACE_PROTOCOL_SERVER,
 )
 
 # --- Chat platforms ----------------------------------------------------------
@@ -363,6 +368,7 @@ __all__ = [
     "SURFACE_CHAT",
     "SURFACE_CLI",
     "SURFACE_IDENTIFIERS",
+    "SURFACE_PROTOCOL_SERVER",
     "SURFACE_REPL",
     "SURFACE_REST_API",
     "SURFACE_WEB_CONSOLE",

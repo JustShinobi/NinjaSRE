@@ -2,8 +2,9 @@
 
 **Tier 2.** May import: `integrations`, `core`, `platform`, `config`. Must never import: `gateway`, `surfaces`.
 
-Typed tools, methodology skills, the registry, auto-discovery, scoring, and
-bounded selection. Two layers, one catalogue.
+Typed tools, methodology skills, the registry, auto-discovery, scoring, bounded
+selection, and the bridges that let a capability arrive from outside this
+repository. Three sources, one catalogue.
 
 ## Conventions
 
@@ -34,6 +35,37 @@ bounded selection. Two layers, one catalogue.
   belongs in `integrations/<vendor>/tools/` instead.
 - Methodology, with progressive disclosure → `skills/<skill-id>/SKILL.md`.
 - Discovery, validation, scoring, and selection → `registry/`.
+- A capability arriving over a wire protocol — MCP, ACP, OpenClaw →
+  `protocols/`. A fourth protocol is one adapter satisfying `protocols/port.py`
+  and no governance of its own: the cap, the namespacing, the classification
+  gate, and the registration are applied in `protocols/catalogue.py` over
+  whatever an adapter returns.
+
+## Bridged capabilities
+
+Two rules that are specific to a capability the repository did not declare.
+
+- **A server's declaration of its own side effect is a suggestion.** It is shown
+  to the operator and acted on by nothing. A third-party server annotating its
+  `delete_everything` tool read-only must not be able to make it so, and a
+  declaration nobody can verify is the same as no declaration — which Article
+  III already answers.
+- **Unclassified means it cannot execute.** The registration exists, is scored,
+  and appears in the console awaiting a decision; its body refuses before any
+  argument reaches the server, so the refusal is a property of the call rather
+  than of whoever remembered to check. Everything else — guardrails, approval
+  gating, the cache, the trace — reaches a bridged tool because it *is* an
+  ordinary `RegisteredTool` dispatched through the ordinary path, and
+  `tests/contract/protocols/` asserts that by comparison against a native one
+  rather than by inspection.
+
+Bridged names are `<server>__<tool>`. No native capability name contains `__`,
+which is what makes a collision structurally impossible rather than unlikely,
+and a test asserts it against the shipped catalogue.
+
+[`docs/protocol-bridges.md`](../docs/protocol-bridges.md) is the operator's
+version: registering a server, classifying its tools, and what NinjaSRE's own
+MCP server does and does not expose.
 
 ## The two budgets
 
