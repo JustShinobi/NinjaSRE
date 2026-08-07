@@ -1,0 +1,155 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "node_id": "env-production",
+        "provenance": {
+          "approval.required_above": "org-northwind",
+          "investigation.max_loops": "org-northwind",
+          "investigation.reasoning_effort": "env-production",
+          "retention.audit_days": "org-northwind"
+        },
+        "values": {
+          "approval.required_above": "read",
+          "investigation.max_loops": 12,
+          "investigation.reasoning_effort": "medium",
+          "retention.audit_days": 365
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-effective",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "node_id": "env-staging",
+        "provenance": {
+          "approval.required_above": "org-northwind",
+          "investigation.max_loops": "org-northwind",
+          "investigation.reasoning_effort": "env-staging",
+          "retention.audit_days": "org-northwind"
+        },
+        "values": {
+          "approval.required_above": "read",
+          "investigation.max_loops": 12,
+          "investigation.reasoning_effort": "medium",
+          "retention.audit_days": 365
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-effective",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "node_id": "org-northwind",
+        "provenance": {
+          "approval.required_above": "org-northwind",
+          "investigation.max_loops": "org-northwind",
+          "investigation.reasoning_effort": "org-northwind",
+          "retention.audit_days": "org-northwind"
+        },
+        "values": {
+          "approval.required_above": "read",
+          "investigation.max_loops": 12,
+          "investigation.reasoning_effort": "medium",
+          "retention.audit_days": 365
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-effective",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "node_id": "team-platform",
+        "provenance": {
+          "approval.required_above": "org-northwind",
+          "investigation.max_loops": "org-northwind",
+          "investigation.reasoning_effort": "team-platform",
+          "retention.audit_days": "org-northwind"
+        },
+        "values": {
+          "approval.required_above": "read",
+          "investigation.max_loops": 12,
+          "investigation.reasoning_effort": "medium",
+          "retention.audit_days": 365
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-effective",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "node_id": "team-storage",
+        "provenance": {
+          "approval.required_above": "org-northwind",
+          "investigation.max_loops": "org-northwind",
+          "investigation.reasoning_effort": "team-storage",
+          "retention.audit_days": "org-northwind"
+        },
+        "values": {
+          "approval.required_above": "read",
+          "investigation.max_loops": 12,
+          "investigation.reasoning_effort": "medium",
+          "retention.audit_days": 365
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-effective",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-effective"
+}

@@ -1,0 +1,127 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "events": [
+          {
+            "action": "investigation.start",
+            "actor_id": "user-automation",
+            "actor_kind": "machine",
+            "detail": {
+              "trigger": "alert"
+            },
+            "event_id": "aud-0008",
+            "occurred_at": "2026-08-07T11:54:00+00:00",
+            "outcome": "succeeded",
+            "resource_id": "run-0003",
+            "resource_kind": "run"
+          },
+          {
+            "action": "approval.request",
+            "actor_id": "user-automation",
+            "actor_kind": "machine",
+            "detail": {
+              "side_effect_level": "write"
+            },
+            "event_id": "aud-0007",
+            "occurred_at": "2026-08-07T11:39:00+00:00",
+            "outcome": "succeeded",
+            "resource_id": "apr-0001",
+            "resource_kind": "approval"
+          },
+          {
+            "action": "config.write",
+            "actor_id": "user-operator",
+            "actor_kind": "person",
+            "detail": {
+              "key": "investigation.reasoning_effort"
+            },
+            "event_id": "aud-0006",
+            "occurred_at": "2026-08-07T07:00:00+00:00",
+            "outcome": "succeeded",
+            "resource_id": "env-production",
+            "resource_kind": "config-node"
+          },
+          {
+            "action": "approval.reject",
+            "actor_id": "user-reviewer",
+            "actor_kind": "person",
+            "detail": {
+              "reason": "the datastore has room; grow the volume in the window"
+            },
+            "event_id": "aud-0005",
+            "occurred_at": "2026-08-06T10:00:00+00:00",
+            "outcome": "succeeded",
+            "resource_id": "apr-0002",
+            "resource_kind": "approval"
+          },
+          {
+            "action": "investigation.finish",
+            "actor_id": "user-automation",
+            "actor_kind": "machine",
+            "detail": {
+              "status": "succeeded"
+            },
+            "event_id": "aud-0004",
+            "occurred_at": "2026-08-05T11:33:00+00:00",
+            "outcome": "succeeded",
+            "resource_id": "run-0001",
+            "resource_kind": "run"
+          },
+          {
+            "action": "investigation.finish",
+            "actor_id": "user-automation",
+            "actor_kind": "machine",
+            "detail": {
+              "status": "failed"
+            },
+            "event_id": "aud-0003",
+            "occurred_at": "2026-08-04T06:09:00+00:00",
+            "outcome": "failed",
+            "resource_id": "run-0004",
+            "resource_kind": "run"
+          },
+          {
+            "action": "token.create",
+            "actor_id": "user-operator",
+            "actor_kind": "person",
+            "detail": {
+              "name": "scheduler"
+            },
+            "event_id": "aud-0002",
+            "occurred_at": "2026-08-03T12:00:00+00:00",
+            "outcome": "succeeded",
+            "resource_id": "tok-0002",
+            "resource_kind": "token"
+          },
+          {
+            "action": "identity.grant",
+            "actor_id": "user-operator",
+            "actor_kind": "person",
+            "detail": {
+              "role": "viewer"
+            },
+            "event_id": "aud-0001",
+            "occurred_at": "2026-07-29T12:00:00+00:00",
+            "outcome": "succeeded",
+            "resource_id": "grant-0003",
+            "resource_kind": "grant"
+          }
+        ],
+        "total": 8
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "audit-events",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "audit-events"
+}

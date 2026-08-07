@@ -1,0 +1,84 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "approval_id": "apr-0001"
+      },
+      "body": {
+        "action": "estate.enable_backup_job",
+        "approval_id": "apr-0001",
+        "arguments": {
+          "job_id": "backup-7d831311"
+        },
+        "decided_at": null,
+        "decided_by": null,
+        "expires_at": "2026-08-07T13:39:00+00:00",
+        "reason": null,
+        "requested_at": "2026-08-07T11:39:00+00:00",
+        "rollback_plan": {
+          "approval_id": "apr-0001",
+          "notes": "Disabling it again restores the state exactly, and takes one call.",
+          "plan_id": "plan-0001",
+          "steps": [
+            {
+              "arguments": {
+                "job_id": "backup-7d831311"
+              },
+              "capability": "estate.disable_backup_job",
+              "description": "Disable the job again",
+              "ordinal": 1
+            }
+          ]
+        },
+        "run_id": "run-0005",
+        "side_effect_level": "write",
+        "state": "pending",
+        "summary": "Enable the disabled job so the primary's guests are covered at all."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "approval-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "approval_id": "apr-0002"
+      },
+      "body": {
+        "action": "estate.expand_volume",
+        "approval_id": "apr-0002",
+        "arguments": {
+          "add_bytes": 16000000000,
+          "volume_id": "vm-100-disk-0"
+        },
+        "decided_at": null,
+        "decided_by": null,
+        "expires_at": "2026-08-06T11:27:00+00:00",
+        "reason": null,
+        "requested_at": "2026-08-05T11:27:00+00:00",
+        "rollback_plan": null,
+        "run_id": "run-0001",
+        "side_effect_level": "write",
+        "state": "pending",
+        "summary": "Grow the volume that is at the ceiling of its own allocation."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "approval-detail",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "approval-detail"
+}

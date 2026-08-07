@@ -1,0 +1,30 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "interaction_id": "int-0001",
+        "is_open": false,
+        "kind": "question",
+        "options": [
+          "yes",
+          "no"
+        ],
+        "reason": "answered",
+        "run_id": "run-0003",
+        "text": "The hardening unit failed at boot. Should the investigation read the boot journal as well?"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "interaction-answer",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "interaction-answer"
+}

@@ -1,0 +1,21 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "detail": "there is nothing here yet"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "run-threads",
+        "query": {}
+      },
+      "status": 404
+    }
+  ],
+  "slug": "run-threads"
+}

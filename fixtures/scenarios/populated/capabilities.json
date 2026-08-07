@@ -1,0 +1,60 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "skills": [
+          {
+            "description": "How to tell a full datastore from a full volume.",
+            "name": "storage-pressure"
+          },
+          {
+            "description": "What losing a node costs when there is no margin.",
+            "name": "quorum-margin"
+          }
+        ],
+        "tools": [
+          {
+            "description": "Datastore fill and per-guest volume fill, together.",
+            "display_name": "Storage pressure",
+            "domain": "rushes.example.invalid",
+            "name": "estate.storage_pressure",
+            "side_effect_level": "read"
+          },
+          {
+            "description": "What is failed on a node, which no API level reports.",
+            "display_name": "Failed units",
+            "domain": "rushes.example.invalid",
+            "name": "estate.failed_units",
+            "side_effect_level": "read"
+          },
+          {
+            "description": "Enable a job that exists and is switched off.",
+            "display_name": "Enable backup job",
+            "domain": "rushes.example.invalid",
+            "name": "estate.enable_backup_job",
+            "side_effect_level": "write"
+          },
+          {
+            "description": "Find the runbook or postmortem that covers this.",
+            "display_name": "Search knowledge",
+            "domain": "quartz.example.invalid",
+            "name": "knowledge.search",
+            "side_effect_level": "read"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "capabilities",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "capabilities"
+}

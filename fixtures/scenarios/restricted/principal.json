@@ -1,0 +1,37 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "display_name": "Reese Underhill",
+        "email": "reese.underhill@example.invalid",
+        "impersonated_by": null,
+        "impersonating": false,
+        "kind": "person",
+        "permissions": [
+          "approval.read",
+          "config.read",
+          "investigation.read",
+          "knowledge.read",
+          "memory.read"
+        ],
+        "principal_id": "user-viewer",
+        "roles": [
+          "viewer"
+        ],
+        "team_node_id": "org-northwind"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "principal",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "principal"
+}

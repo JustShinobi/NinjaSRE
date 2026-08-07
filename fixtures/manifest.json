@@ -1,0 +1,56 @@
+{
+  "$comment": "Every named dataset the mock can serve, and how one is composed from another. A scenario that differs from populated in three endpoints holds three files; degraded holds none at all, because it is populated plus a declaration of which endpoints misbehave. Adding a scenario here requires no change to the console.",
+  "default": "populated",
+  "scenarios": [
+    {
+      "name": "populated",
+      "description": "A full deployment mid-operation: ninety-odd resources, open incidents, waiting approvals, running and completed runs, episodes, a topology and an audit trail.",
+      "principal_role": "owner"
+    },
+    {
+      "name": "empty",
+      "description": "A brand-new deployment with nothing in it. Every screen shows its empty state, which is how the empty states get reviewed at all.",
+      "principal_role": "owner"
+    },
+    {
+      "name": "first-run",
+      "description": "Configured and not finished: the organisation exists, no provider is configured, no integration holds a credential, and readiness says so. This is what the setup checklist renders against.",
+      "principal_role": "owner"
+    },
+    {
+      "name": "degraded",
+      "description": "The populated deployment with individual endpoints misbehaving in declared ways, so panel-level error handling is exercised on every screen that fetches.",
+      "derives_from": "populated",
+      "principal_role": "owner",
+      "overrides": [
+        { "slug": "estate-storage", "latency_ms": 2500 },
+        { "slug": "incidents", "status": 500 },
+        { "slug": "audit-events", "status": 403 },
+        { "slug": "topology", "status": 404 },
+        { "slug": "documents", "truncate": true },
+        { "slug": "integrations", "refuse": true },
+        { "slug": "observations", "empty": true },
+        { "slug": "estate-resources", "latency_ms": 1200 }
+      ]
+    },
+    {
+      "name": "incident-live",
+      "description": "A run in flight, streaming. The longer event sequence the live layer's reducer is proved against, including the point a reconnection lands in the middle of a turn.",
+      "derives_from": "populated",
+      "principal_role": "owner"
+    },
+    {
+      "name": "restricted",
+      "description": "The same deployment seen by a viewer. The data does not change; what may be done with it does, which is what the role matrix screens are for.",
+      "derives_from": "populated",
+      "principal_role": "viewer"
+    },
+    {
+      "name": "scale",
+      "description": "Ten thousand runs, ten thousand events, ten thousand resources and a five-hundred-node configuration tree. Generated from a fixed seed rather than committed, so a measurement taken against it today is comparable with one taken last month.",
+      "derives_from": "populated",
+      "generated": true,
+      "principal_role": "owner"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "queued": true,
+        "run_id": "run-0003"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "investigation-message",
+        "query": {}
+      },
+      "status": 202
+    }
+  ],
+  "slug": "investigation-message"
+}

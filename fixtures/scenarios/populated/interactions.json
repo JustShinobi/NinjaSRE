@@ -1,0 +1,95 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "run_id": "run-0001"
+      },
+      "body": {
+        "interactions": [
+          {
+            "interaction_id": "int-0003",
+            "is_open": false,
+            "kind": "question",
+            "options": [
+              "the guest volume",
+              "the datastore"
+            ],
+            "reason": "answered",
+            "run_id": "run-0001",
+            "text": "Which datastore should the freed space be measured against?"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "interactions",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0003"
+      },
+      "body": {
+        "interactions": [
+          {
+            "interaction_id": "int-0001",
+            "is_open": true,
+            "kind": "question",
+            "options": [
+              "yes",
+              "no"
+            ],
+            "reason": "",
+            "run_id": "run-0003",
+            "text": "The hardening unit failed at boot. Should the investigation read the boot journal as well?"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "interactions",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "run_id": "run-0005"
+      },
+      "body": {
+        "interactions": [
+          {
+            "interaction_id": "int-0002",
+            "is_open": true,
+            "kind": "approval",
+            "options": [],
+            "reason": "",
+            "run_id": "run-0005",
+            "text": "Enable the disabled backup job covering the primary's guests."
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "interactions",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "interactions"
+}

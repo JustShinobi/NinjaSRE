@@ -1,0 +1,181 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "datastores": [
+          {
+            "kind": "cifs",
+            "name": "store-cove",
+            "node": "node01",
+            "status": "available",
+            "total_bytes": 8002000000000,
+            "used_bytes": 7654000000000,
+            "used_percent": 95.65
+          },
+          {
+            "kind": "cifs",
+            "name": "store-ridge",
+            "node": "node01",
+            "status": "available",
+            "total_bytes": 2000000000000,
+            "used_bytes": 1869000000000,
+            "used_percent": 93.45
+          },
+          {
+            "kind": "lvmthin",
+            "name": "local-lvm",
+            "node": "node02",
+            "status": "available",
+            "total_bytes": 375000000000,
+            "used_bytes": 315000000000,
+            "used_percent": 84.0
+          },
+          {
+            "kind": "dir",
+            "name": "local",
+            "node": "node02",
+            "status": "available",
+            "total_bytes": 103000000000,
+            "used_bytes": 82600000000,
+            "used_percent": 80.19
+          },
+          {
+            "kind": "cifs",
+            "name": "store-fjord",
+            "node": "node01",
+            "status": "available",
+            "total_bytes": 4000000000000,
+            "used_bytes": 3200000000000,
+            "used_percent": 80.0
+          },
+          {
+            "kind": "nfs",
+            "name": "store-meadow",
+            "node": "node01",
+            "status": "available",
+            "total_bytes": 2000000000000,
+            "used_bytes": 1540000000000,
+            "used_percent": 77.0
+          },
+          {
+            "kind": "dir",
+            "name": "store-linen",
+            "node": "node02",
+            "status": "available",
+            "total_bytes": 1000000000000,
+            "used_bytes": 750000000000,
+            "used_percent": 75.0
+          },
+          {
+            "kind": "lvmthin",
+            "name": "local-lvm",
+            "node": "node01",
+            "status": "available",
+            "total_bytes": 375000000000,
+            "used_bytes": 210000000000,
+            "used_percent": 56.0
+          },
+          {
+            "kind": "cifs",
+            "name": "store-tundra",
+            "node": "node01",
+            "status": "available",
+            "total_bytes": 2000000000000,
+            "used_bytes": 380000000000,
+            "used_percent": 19.0
+          },
+          {
+            "kind": "nfs",
+            "name": "store-osprey",
+            "node": "node01",
+            "status": "unknown",
+            "total_bytes": null,
+            "used_bytes": null,
+            "used_percent": null
+          },
+          {
+            "kind": "nfs",
+            "name": "store-kelp",
+            "node": "node01",
+            "status": "unknown",
+            "total_bytes": null,
+            "used_bytes": null,
+            "used_percent": null
+          }
+        ],
+        "thin_pools": [
+          {
+            "data_percent": 84.46,
+            "metadata_percent": 3.35,
+            "name": "pool-system",
+            "node": "node02",
+            "size_bytes": 375722000000,
+            "volume_group": "pool-system"
+          },
+          {
+            "data_percent": 72.38,
+            "metadata_percent": 31.98,
+            "name": "pool-bulk",
+            "node": "node02",
+            "size_bytes": 999750000000,
+            "volume_group": "pool-bulk"
+          }
+        ],
+        "volumes": [
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-100",
+            "size_bytes": 64000000000,
+            "used_percent": 99.6,
+            "volume_id": "vm-100-disk-0"
+          },
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-115",
+            "size_bytes": 64000000000,
+            "used_percent": 94.96,
+            "volume_id": "vm-115-disk-0"
+          },
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-140",
+            "size_bytes": 64000000000,
+            "used_percent": 93.0,
+            "volume_id": "vm-140-disk-0"
+          },
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-142",
+            "size_bytes": 64000000000,
+            "used_percent": 74.21,
+            "volume_id": "vm-142-disk-0"
+          },
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-161",
+            "size_bytes": 64000000000,
+            "used_percent": 76.88,
+            "volume_id": "vm-161-disk-0"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "estate-storage"
+}

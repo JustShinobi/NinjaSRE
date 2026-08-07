@@ -1,0 +1,325 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "blocked_by_integration": {
+          "metrics-store": [
+            "metrics.range_query"
+          ]
+        },
+        "entries": [
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": false,
+            "kind": "tool",
+            "name": "metrics.range_query",
+            "reason": "the metrics integration holds no credential here",
+            "required_integrations": [
+              "metrics-store"
+            ],
+            "side_effect_level": "read",
+            "summary": "Query the metrics store over a window.",
+            "tags": [
+              "metrics"
+            ]
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-catalogue",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "blocked_by_integration": {
+          "metrics-store": [
+            "metrics.range_query"
+          ]
+        },
+        "entries": [
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": false,
+            "kind": "tool",
+            "name": "metrics.range_query",
+            "reason": "the metrics integration holds no credential here",
+            "required_integrations": [
+              "metrics-store"
+            ],
+            "side_effect_level": "read",
+            "summary": "Query the metrics store over a window.",
+            "tags": [
+              "metrics"
+            ]
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-catalogue",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "blocked_by_integration": {
+          "metrics-store": [
+            "metrics.range_query"
+          ]
+        },
+        "entries": [
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": false,
+            "kind": "tool",
+            "name": "metrics.range_query",
+            "reason": "the metrics integration holds no credential here",
+            "required_integrations": [
+              "metrics-store"
+            ],
+            "side_effect_level": "read",
+            "summary": "Query the metrics store over a window.",
+            "tags": [
+              "metrics"
+            ]
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-catalogue",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "blocked_by_integration": {
+          "metrics-store": [
+            "metrics.range_query"
+          ]
+        },
+        "entries": [
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": false,
+            "kind": "tool",
+            "name": "metrics.range_query",
+            "reason": "the metrics integration holds no credential here",
+            "required_integrations": [
+              "metrics-store"
+            ],
+            "side_effect_level": "read",
+            "summary": "Query the metrics store over a window.",
+            "tags": [
+              "metrics"
+            ]
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-catalogue",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "blocked_by_integration": {
+          "metrics-store": [
+            "metrics.range_query"
+          ]
+        },
+        "entries": [
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": false,
+            "kind": "tool",
+            "name": "metrics.range_query",
+            "reason": "the metrics integration holds no credential here",
+            "required_integrations": [
+              "metrics-store"
+            ],
+            "side_effect_level": "read",
+            "summary": "Query the metrics store over a window.",
+            "tags": [
+              "metrics"
+            ]
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-catalogue",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-catalogue"
+}

@@ -1,0 +1,24 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "revoked": 1,
+        "token_ids": [
+          "tok-0002"
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "token-revoke",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "token-revoke"
+}

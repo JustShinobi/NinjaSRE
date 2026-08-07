@@ -1,0 +1,26 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "finished_at": null,
+        "run_id": "run-0007",
+        "started_at": "2026-08-07T12:00:00+00:00",
+        "status": "running",
+        "summary": null,
+        "trigger": "console"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "investigation-start",
+        "query": {}
+      },
+      "status": 202
+    }
+  ],
+  "slug": "investigation-start"
+}

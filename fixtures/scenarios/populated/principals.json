@@ -1,0 +1,50 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "users": [
+          {
+            "display_name": "Avery Lockhart",
+            "email": "avery.lockhart@example.invalid",
+            "is_active": true,
+            "kind": "person",
+            "user_id": "user-operator"
+          },
+          {
+            "display_name": "Morgan Thorne",
+            "email": "morgan.thorne@example.invalid",
+            "is_active": true,
+            "kind": "person",
+            "user_id": "user-reviewer"
+          },
+          {
+            "display_name": "Reese Underhill",
+            "email": "reese.underhill@example.invalid",
+            "is_active": true,
+            "kind": "person",
+            "user_id": "user-viewer"
+          },
+          {
+            "display_name": "Scheduler",
+            "email": "scheduler@example.invalid",
+            "is_active": true,
+            "kind": "machine",
+            "user_id": "user-automation"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "principals",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "principals"
+}

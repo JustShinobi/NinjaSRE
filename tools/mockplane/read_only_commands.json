@@ -1,0 +1,120 @@
+{
+  "$comment": "Every read the infrastructure capture may make. A command that is not here does not run — the capture fails naming it, before anything is sent. Adding one is a change to this file, which is a diff a reviewer sees; that is the whole mechanism. Nothing here may write, restart, migrate, or alter any state, and a reviewer's first question about a new entry should be whether that still holds.",
+  "commands": [
+    {
+      "command": "pvesh get /cluster/status --output-format json",
+      "reads": "cluster membership, quorum votes and which node is which",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /cluster/resources --output-format json",
+      "reads": "every guest and storage the cluster knows about, in one answer",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /cluster/backup --output-format json",
+      "reads": "the backup jobs, their schedules and whether each is enabled",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /cluster/replication --output-format json",
+      "reads": "the replication jobs, and whether there are any at all",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes --output-format json",
+      "reads": "the nodes, their uptime and their coarse load",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/status --output-format json",
+      "reads": "one node's CPU, memory, root filesystem and running kernel",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/storage --output-format json",
+      "reads": "one node's datastores, their fill and their status",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/lxc --output-format json",
+      "reads": "one node's containers and their run state",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/qemu --output-format json",
+      "reads": "one node's virtual machines and their run state",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/lxc/{vmid}/config --output-format json",
+      "reads": "one container's declared configuration",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/qemu/{vmid}/config --output-format json",
+      "reads": "one virtual machine's declared configuration",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/apt/update --output-format json",
+      "reads": "the packages pending on one node, security updates among them",
+      "kind": "pvesh"
+    },
+    {
+      "command": "pvesh get /nodes/{node}/tasks --output-format json",
+      "reads": "one node's recent task log, including what a failed backup said",
+      "kind": "pvesh"
+    },
+    {
+      "command": "systemctl list-units --failed --no-legend --plain --no-pager",
+      "reads": "failed units, which no API level reports and which is where a silent degradation becomes visible",
+      "kind": "shell"
+    },
+    {
+      "command": "lvs --reportformat json --units b --options lv_name,vg_name,lv_size,data_percent,metadata_percent,pool_lv",
+      "reads": "thin-pool data and metadata percentages, and per-guest volume fill — a datastore threshold cannot make either distinction",
+      "kind": "shell"
+    },
+    {
+      "command": "cat /etc/pve/corosync.conf",
+      "reads": "the corosync configuration as written, so a missing quorum device or two_node clause is seen rather than inferred",
+      "kind": "shell"
+    },
+    {
+      "command": "pvecm status",
+      "reads": "quorum as the cluster stack itself reports it, including a device present in the membership view with no votes",
+      "kind": "shell"
+    },
+    {
+      "command": "findmnt --json",
+      "reads": "mount state, so a network share that is down is distinguishable from one that is merely quiet",
+      "kind": "shell"
+    },
+    {
+      "command": "journalctl --list-boots --no-pager",
+      "reads": "boot history, which is how a kernel installed and never booted is caught",
+      "kind": "shell"
+    },
+    {
+      "command": "uname -r",
+      "reads": "the kernel actually running, against the one installed",
+      "kind": "shell"
+    },
+    {
+      "command": "ip -json link show",
+      "reads": "the interfaces and bridges that exist, against the ones the configuration names",
+      "kind": "shell"
+    },
+    {
+      "command": "zpool list -H",
+      "reads": "whether there is any ZFS at all, which decides whether a whole class of detector applies",
+      "kind": "shell"
+    },
+    {
+      "command": "apt list --upgradable",
+      "reads": "pending packages as the package manager lists them, for the security subset",
+      "kind": "shell"
+    }
+  ]
+}

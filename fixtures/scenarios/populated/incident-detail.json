@@ -1,0 +1,1448 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "incident_id": "inc-0001"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "backup-job-disabled",
+          "incident_id": "inc-0001",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "critical",
+          "state": "open",
+          "subjects": [
+            "backup-1f376301",
+            "backup-7d831311"
+          ],
+          "summary": "2 subjects: primary baseline exists on schedule 08:00 and is disabled",
+          "title": "Backup job exists and is disabled"
+        },
+        "observations": [
+          {
+            "detail": "primary baseline exists on schedule 08:00 and is disabled",
+            "detector": "backup-job-disabled",
+            "evidence": {
+              "covers_all": true,
+              "schedule": "08:00"
+            },
+            "observation_id": "obs-0003",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "backup-7d831311",
+            "verdict": "finding"
+          },
+          {
+            "detail": "relational store exists on schedule 02:30,22:30 and is disabled",
+            "detector": "backup-job-disabled",
+            "evidence": {
+              "covers_all": false,
+              "schedule": "02:30,22:30"
+            },
+            "observation_id": "obs-0006",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "backup-1f376301",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "backup-job-disabled found 2 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-0002"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "datastore-near-full",
+          "incident_id": "inc-0002",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "critical",
+          "state": "open",
+          "subjects": [
+            "store-cove",
+            "store-ridge"
+          ],
+          "summary": "2 subjects: store-cove is 95.65% full",
+          "title": "Datastore near full"
+        },
+        "observations": [
+          {
+            "detail": "store-cove is 95.65% full",
+            "detector": "datastore-near-full",
+            "evidence": {
+              "node": "node01",
+              "used_percent": 95.65
+            },
+            "observation_id": "obs-0082",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "store-cove",
+            "verdict": "finding"
+          },
+          {
+            "detail": "store-ridge is 93.45% full",
+            "detector": "datastore-near-full",
+            "evidence": {
+              "node": "node01",
+              "used_percent": 93.45
+            },
+            "observation_id": "obs-0083",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "store-ridge",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "datastore-near-full found 2 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-0003"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "guest-uncovered-by-backup",
+          "incident_id": "inc-0003",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "critical",
+          "state": "open",
+          "subjects": [
+            "ct-101",
+            "ct-103",
+            "ct-105",
+            "ct-107",
+            "ct-109",
+            "ct-111",
+            "ct-113",
+            "ct-115",
+            "ct-117",
+            "ct-119",
+            "ct-120",
+            "ct-121",
+            "ct-122",
+            "ct-123",
+            "ct-124",
+            "ct-125",
+            "ct-126",
+            "ct-127",
+            "ct-128",
+            "ct-129",
+            "ct-130",
+            "ct-131",
+            "ct-132",
+            "ct-133",
+            "ct-134",
+            "ct-135",
+            "ct-136",
+            "ct-137",
+            "ct-138",
+            "ct-139",
+            "ct-140",
+            "ct-141",
+            "ct-142",
+            "ct-143",
+            "ct-144",
+            "ct-145",
+            "ct-146",
+            "ct-147",
+            "ct-148",
+            "ct-149",
+            "ct-150",
+            "ct-151",
+            "ct-152",
+            "ct-153",
+            "ct-154",
+            "ct-155",
+            "ct-156",
+            "ct-157",
+            "ct-158",
+            "ct-159",
+            "ct-160",
+            "ct-161",
+            "ct-162",
+            "ct-163",
+            "ct-164",
+            "ct-165",
+            "ct-166",
+            "ct-167",
+            "ct-168",
+            "ct-169",
+            "ct-170",
+            "ct-171",
+            "ct-172",
+            "ct-173",
+            "ct-174",
+            "ct-175",
+            "ct-176",
+            "ct-177",
+            "ct-178",
+            "ct-179",
+            "ct-180",
+            "ct-181",
+            "vm-182",
+            "vm-183"
+          ],
+          "summary": "74 subjects: amber is named by no enabled backup job",
+          "title": "Guest covered by no enabled backup job"
+        },
+        "observations": [
+          {
+            "detail": "amber is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0008",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-101",
+            "verdict": "finding"
+          },
+          {
+            "detail": "arbour is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0009",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-103",
+            "verdict": "finding"
+          },
+          {
+            "detail": "basalt is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0010",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-105",
+            "verdict": "finding"
+          },
+          {
+            "detail": "beryl is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0011",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-107",
+            "verdict": "finding"
+          },
+          {
+            "detail": "bramble is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0012",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-109",
+            "verdict": "finding"
+          },
+          {
+            "detail": "cairn is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0013",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-111",
+            "verdict": "finding"
+          },
+          {
+            "detail": "cinder is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0014",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-113",
+            "verdict": "finding"
+          },
+          {
+            "detail": "quartz is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0015",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-115",
+            "verdict": "finding"
+          },
+          {
+            "detail": "cove is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0016",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-117",
+            "verdict": "finding"
+          },
+          {
+            "detail": "cypress is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0017",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-119",
+            "verdict": "finding"
+          },
+          {
+            "detail": "delta is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0018",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-120",
+            "verdict": "finding"
+          },
+          {
+            "detail": "dune is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0019",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-121",
+            "verdict": "finding"
+          },
+          {
+            "detail": "ember is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0020",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-122",
+            "verdict": "finding"
+          },
+          {
+            "detail": "fathom is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0021",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-123",
+            "verdict": "finding"
+          },
+          {
+            "detail": "fennel is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0022",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-124",
+            "verdict": "finding"
+          },
+          {
+            "detail": "fjord is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0023",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-125",
+            "verdict": "finding"
+          },
+          {
+            "detail": "flint is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0024",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-126",
+            "verdict": "finding"
+          },
+          {
+            "detail": "gable is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0025",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-127",
+            "verdict": "finding"
+          },
+          {
+            "detail": "garnet is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0026",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-128",
+            "verdict": "finding"
+          },
+          {
+            "detail": "granite is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0027",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-129",
+            "verdict": "finding"
+          },
+          {
+            "detail": "harbour is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0028",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-130",
+            "verdict": "finding"
+          },
+          {
+            "detail": "hazel is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0029",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-131",
+            "verdict": "finding"
+          },
+          {
+            "detail": "heather is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0030",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-132",
+            "verdict": "finding"
+          },
+          {
+            "detail": "hollow is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0031",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-133",
+            "verdict": "finding"
+          },
+          {
+            "detail": "indigo is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0032",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-134",
+            "verdict": "finding"
+          },
+          {
+            "detail": "ivory is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0033",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-135",
+            "verdict": "finding"
+          },
+          {
+            "detail": "jasper is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0034",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-136",
+            "verdict": "finding"
+          },
+          {
+            "detail": "juniper is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0035",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-137",
+            "verdict": "finding"
+          },
+          {
+            "detail": "kelp is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0036",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-138",
+            "verdict": "finding"
+          },
+          {
+            "detail": "lagoon is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0037",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-139",
+            "verdict": "finding"
+          },
+          {
+            "detail": "sorrel is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0038",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-140",
+            "verdict": "finding"
+          },
+          {
+            "detail": "laurel is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0039",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-141",
+            "verdict": "finding"
+          },
+          {
+            "detail": "harbour is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0040",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-142",
+            "verdict": "finding"
+          },
+          {
+            "detail": "linen is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0041",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-143",
+            "verdict": "finding"
+          },
+          {
+            "detail": "lumen is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0042",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-144",
+            "verdict": "finding"
+          },
+          {
+            "detail": "maple is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0043",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-145",
+            "verdict": "finding"
+          },
+          {
+            "detail": "marble is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0044",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-146",
+            "verdict": "finding"
+          },
+          {
+            "detail": "meadow is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0045",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-147",
+            "verdict": "finding"
+          },
+          {
+            "detail": "mesa is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0046",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-148",
+            "verdict": "finding"
+          },
+          {
+            "detail": "mica is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0047",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-149",
+            "verdict": "finding"
+          },
+          {
+            "detail": "mint is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0048",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-150",
+            "verdict": "finding"
+          },
+          {
+            "detail": "moss is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0049",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-151",
+            "verdict": "finding"
+          },
+          {
+            "detail": "nickel is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0050",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-152",
+            "verdict": "finding"
+          },
+          {
+            "detail": "nimbus is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0051",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-153",
+            "verdict": "finding"
+          },
+          {
+            "detail": "oakum is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0052",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-154",
+            "verdict": "finding"
+          },
+          {
+            "detail": "obsidian is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0053",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-155",
+            "verdict": "finding"
+          },
+          {
+            "detail": "onyx is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0054",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-156",
+            "verdict": "finding"
+          },
+          {
+            "detail": "opal is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0055",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-157",
+            "verdict": "finding"
+          },
+          {
+            "detail": "orchard is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0056",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-158",
+            "verdict": "finding"
+          },
+          {
+            "detail": "osprey is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0057",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-159",
+            "verdict": "finding"
+          },
+          {
+            "detail": "pebble is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0058",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-160",
+            "verdict": "finding"
+          },
+          {
+            "detail": "lumen is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node02"
+            },
+            "observation_id": "obs-0059",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-161",
+            "verdict": "finding"
+          },
+          {
+            "detail": "pine is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0060",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-162",
+            "verdict": "finding"
+          },
+          {
+            "detail": "plateau is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0061",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-163",
+            "verdict": "finding"
+          },
+          {
+            "detail": "poplar is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0062",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-164",
+            "verdict": "finding"
+          },
+          {
+            "detail": "quarry is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0063",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-165",
+            "verdict": "finding"
+          },
+          {
+            "detail": "quartz is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0064",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-166",
+            "verdict": "finding"
+          },
+          {
+            "detail": "quill is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0065",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-167",
+            "verdict": "finding"
+          },
+          {
+            "detail": "ridge is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0066",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-168",
+            "verdict": "finding"
+          },
+          {
+            "detail": "rowan is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0067",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-169",
+            "verdict": "finding"
+          },
+          {
+            "detail": "rushes is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0068",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-170",
+            "verdict": "finding"
+          },
+          {
+            "detail": "sable is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0069",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-171",
+            "verdict": "finding"
+          },
+          {
+            "detail": "saffron is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0070",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-172",
+            "verdict": "finding"
+          },
+          {
+            "detail": "sandstone is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0071",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-173",
+            "verdict": "finding"
+          },
+          {
+            "detail": "sequoia is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0072",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-174",
+            "verdict": "finding"
+          },
+          {
+            "detail": "shale is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0073",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-175",
+            "verdict": "finding"
+          },
+          {
+            "detail": "shingle is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0074",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-176",
+            "verdict": "finding"
+          },
+          {
+            "detail": "silver is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0075",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-177",
+            "verdict": "finding"
+          },
+          {
+            "detail": "slate is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0076",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-178",
+            "verdict": "finding"
+          },
+          {
+            "detail": "sorrel is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0077",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-179",
+            "verdict": "finding"
+          },
+          {
+            "detail": "spruce is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0078",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-180",
+            "verdict": "finding"
+          },
+          {
+            "detail": "stone is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0079",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "ct-181",
+            "verdict": "finding"
+          },
+          {
+            "detail": "sumac is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0080",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "vm-182",
+            "verdict": "finding"
+          },
+          {
+            "detail": "tamarisk is named by no enabled backup job",
+            "detector": "guest-uncovered-by-backup",
+            "evidence": {
+              "node": "node01"
+            },
+            "observation_id": "obs-0081",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "vm-183",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "guest-uncovered-by-backup found 74 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-0004"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "guest-volume-near-full",
+          "incident_id": "inc-0004",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "ct-100",
+            "ct-115",
+            "ct-140"
+          ],
+          "summary": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
+          "title": "Guest volume near full"
+        },
+        "observations": [
+          {
+            "detail": "vm-100-disk-0 is at 99.6% of its own volume",
+            "detector": "guest-volume-near-full",
+            "evidence": {
+              "node": "node02",
+              "pool": "pool-bulk"
+            },
+            "observation_id": "obs-0089",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "ct-100",
+            "verdict": "finding"
+          },
+          {
+            "detail": "vm-115-disk-0 is at 94.96% of its own volume",
+            "detector": "guest-volume-near-full",
+            "evidence": {
+              "node": "node02",
+              "pool": "pool-bulk"
+            },
+            "observation_id": "obs-0090",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "ct-115",
+            "verdict": "finding"
+          },
+          {
+            "detail": "vm-140-disk-0 is at 93.0% of its own volume",
+            "detector": "guest-volume-near-full",
+            "evidence": {
+              "node": "node02",
+              "pool": "pool-bulk"
+            },
+            "observation_id": "obs-0091",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "ct-140",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "guest-volume-near-full found 3 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-0005"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "kernel-never-booted",
+          "incident_id": "inc-0005",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "node-node01",
+            "node-node02"
+          ],
+          "summary": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
+          "title": "Kernel installed and never booted"
+        },
+        "observations": [
+          {
+            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
+            "detector": "kernel-never-booted",
+            "evidence": {
+              "installed": "7.0.14-9",
+              "running": "7.0.14-8"
+            },
+            "observation_id": "obs-0087",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "node-node01",
+            "verdict": "finding"
+          },
+          {
+            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
+            "detector": "kernel-never-booted",
+            "evidence": {
+              "installed": "7.0.14-9",
+              "running": "7.0.14-8"
+            },
+            "observation_id": "obs-0094",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "node-node02",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "kernel-never-booted found 2 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-0006"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "no-replication-node-local-storage",
+          "incident_id": "inc-0006",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "cluster"
+          ],
+          "summary": "no replication job exists while guests are on node-local storage",
+          "title": "No replication with node-local guest storage"
+        },
+        "observations": [
+          {
+            "detail": "no replication job exists while guests are on node-local storage",
+            "detector": "no-replication-node-local-storage",
+            "evidence": {
+              "guests": 84
+            },
+            "observation_id": "obs-0096",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "cluster",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "no-replication-node-local-storage found 1 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-0007"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "quorum-device-not-contributing",
+          "incident_id": "inc-0007",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "critical",
+          "state": "open",
+          "subjects": [
+            "cluster"
+          ],
+          "summary": "a quorum device appears in the membership view and the configuration declares none",
+          "title": "Quorum device configured but contributing nothing"
+        },
+        "observations": [
+          {
+            "detail": "a quorum device appears in the membership view and the configuration declares none",
+            "detector": "quorum-device-not-contributing",
+            "evidence": {
+              "device_declared": false,
+              "device_in_membership": true
+            },
+            "observation_id": "obs-0002",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "cluster",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "quorum-device-not-contributing found 1 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-0008"
+      },
+      "body": {
+        "incident": {
+          "closed_at": null,
+          "detector": "quorum-margin-zero",
+          "incident_id": "inc-0008",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "run_id": null,
+          "severity": "critical",
+          "state": "open",
+          "subjects": [
+            "cluster"
+          ],
+          "summary": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+          "title": "Quorum margin is zero"
+        },
+        "observations": [
+          {
+            "detail": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+            "detector": "quorum-margin-zero",
+            "evidence": {
+              "quorum": 2,
+              "total_votes": 2,
+              "two_node": false,
+              "wait_for_all": false
+            },
+            "observation_id": "obs-0001",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "cluster",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "at": "2026-08-07T12:00:00+00:00",
+            "detail": "quorum-margin-zero found 1 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "incident-detail"
+}

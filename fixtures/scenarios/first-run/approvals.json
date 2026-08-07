@@ -1,0 +1,21 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "approvals": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "approvals",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "approvals"
+}

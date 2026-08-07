@@ -1,0 +1,176 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "detectors": [
+          {
+            "description": "Losing either node drops the cluster below its quorum, at which point the cluster filesystem goes read-only and no guest can be started, stopped or migrated.",
+            "detector_id": "quorum-margin-zero",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Quorum margin is zero",
+            "severity": "critical",
+            "subjects_covered": 1,
+            "subjects_total": 86
+          },
+          {
+            "description": "A quorum device appears in the membership view and carries no votes, which reads as configured to anything that counts devices rather than votes.",
+            "detector_id": "quorum-device-not-contributing",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Quorum device configured but contributing nothing",
+            "severity": "critical",
+            "subjects_covered": 1,
+            "subjects_total": 86
+          },
+          {
+            "description": "A disabled job is indistinguishable from a job that ran, in every view that lists jobs.",
+            "detector_id": "backup-job-disabled",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Backup job exists and is disabled",
+            "severity": "critical",
+            "subjects_covered": 2,
+            "subjects_total": 86
+          },
+          {
+            "description": "Coverage is the question, not job count: a guest named only by a disabled job has none.",
+            "detector_id": "guest-uncovered-by-backup",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Guest covered by no enabled backup job",
+            "severity": "critical",
+            "subjects_covered": 74,
+            "subjects_total": 86
+          },
+          {
+            "description": "A datastore above its threshold, measured against the datastore rather than against any one guest on it.",
+            "detector_id": "datastore-near-full",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Datastore near full",
+            "severity": "critical",
+            "subjects_covered": 2,
+            "subjects_total": 86
+          },
+          {
+            "description": "A guest at the ceiling of its own volume while its datastore still reads comfortable — the distinction a datastore-level threshold cannot make.",
+            "detector_id": "guest-volume-near-full",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Guest volume near full",
+            "severity": "high",
+            "subjects_covered": 3,
+            "subjects_total": 86
+          },
+          {
+            "description": "Metadata exhaustion takes a pool offline while its data percentage still looks fine.",
+            "detector_id": "thin-pool-metadata-pressure",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Thin-pool metadata under pressure",
+            "severity": "medium",
+            "subjects_covered": 1,
+            "subjects_total": 86
+          },
+          {
+            "description": "The first real boot of an installed-but-unbooted kernel will be an unplanned one.",
+            "detector_id": "kernel-never-booted",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Kernel installed and never booted",
+            "severity": "high",
+            "subjects_covered": 2,
+            "subjects_total": 86
+          },
+          {
+            "description": "Losing a node makes its guests unavailable until they are restored from a backup.",
+            "detector_id": "no-replication-node-local-storage",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "No replication with node-local guest storage",
+            "severity": "high",
+            "subjects_covered": 1,
+            "subjects_total": 86
+          },
+          {
+            "description": "Absent from every API level, and where a silent degradation becomes visible.",
+            "detector_id": "failed-systemd-units",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Failed units on a node",
+            "severity": "medium",
+            "subjects_covered": 2,
+            "subjects_total": 86
+          },
+          {
+            "description": "A share that is down still appears in the inventory; only its status says so.",
+            "detector_id": "datastore-status-unknown",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Datastore reporting unknown",
+            "severity": "medium",
+            "subjects_covered": 2,
+            "subjects_total": 86
+          },
+          {
+            "description": "Counted separately from the rest, because the rest can wait for a window.",
+            "detector_id": "security-updates-pending",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Security updates pending",
+            "severity": "medium",
+            "subjects_covered": 2,
+            "subjects_total": 86
+          },
+          {
+            "description": "Everything depends on the bridge and nothing watches it; a rename underneath it took a whole cluster off the network.",
+            "detector_id": "bridge-absent",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "ok",
+            "name": "A configured bridge does not exist",
+            "severity": "high",
+            "subjects_covered": 0,
+            "subjects_total": 86
+          },
+          {
+            "description": "With two recovery points, the second failed backup destroys what the first left.",
+            "detector_id": "shallow-backup-retention",
+            "enabled": true,
+            "last_evaluated_at": "2026-08-07T12:00:00+00:00",
+            "last_verdict": "finding",
+            "name": "Backup retention shallow",
+            "severity": "medium",
+            "subjects_covered": 3,
+            "subjects_total": 86
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "detectors"
+}

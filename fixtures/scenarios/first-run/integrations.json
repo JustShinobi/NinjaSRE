@@ -1,0 +1,44 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "integrations": [
+          {
+            "capabilities": [
+              "metrics.range_query"
+            ],
+            "category": "observability",
+            "health": "unconfigured",
+            "health_detail": "no credential is stored anywhere in this deployment",
+            "hosts": [
+              "metrics.example.invalid"
+            ],
+            "missing_artefacts": [],
+            "name": "metrics-store",
+            "parity": "full",
+            "regions": [],
+            "required_credentials": [
+              "api_token"
+            ],
+            "required_permissions": [
+              "metrics:read"
+            ],
+            "summary": "Range queries against the metrics store."
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "integrations",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "integrations"
+}

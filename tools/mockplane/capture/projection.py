@@ -1,0 +1,843 @@
+"""Turning a direct read of the cluster into the shapes the future endpoints return.
+
+Nothing serves the estate inventory, continuous observation, or anything
+Proxmox-shaped yet, and the screens this dataset exists for are built around all
+three. So the reads are projected: assembled here into the response bodies
+``fixtures/contract/projected.json`` declares, so the fixtures are wrong in the
+same way the real endpoints would be wrong rather than in a way of their own.
+
+The observation half is derived rather than invented. Each detector is a
+predicate over what was actually read — a quorum with no margin, a guest at 99%
+of its own volume while its datastore reads 84%, a backup job that exists and is
+switched off — and an observation exists because a read made it true. Inventing
+incidents would have produced a tidy dataset and would have told the console
+nothing about what it will meet.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
+from typing import Any, Final
+
+from tools.mockplane.capture.parsers import (
+    BootReading,
+    MountReading,
+    PackageReading,
+    QuorumReading,
+    ThinPoolReading,
+    VolumeReading,
+)
+from tools.mockplane.records import CapturedRecord, Provenance, Request
+
+#: A datastore this full is a finding rather than a warning: there is no
+#: sequence of events from here that ends well without somebody acting.
+DATASTORE_CRITICAL_PERCENT: Final = 95.0
+DATASTORE_HIGH_PERCENT: Final = 90.0
+
+#: A guest at this much of its own volume, which is a different question from
+#: its datastore's fill and the one a datastore-level threshold cannot ask.
+VOLUME_HIGH_PERCENT: Final = 93.0
+
+#: Thin-pool metadata exhaustion takes a pool offline while its data percentage
+#: still reads comfortable. Absent from every API level.
+POOL_METADATA_HIGH_PERCENT: Final = 30.0
+
+#: Retention this shallow means the second failed backup destroys the recovery
+#: point the first one left.
+SHALLOW_RETENTION_KEEP_LAST: Final = 2
+
+
+@dataclass(frozen=True, slots=True)
+class GuestReading:
+    """One guest as the cluster's own API reports it."""
+
+    vmid: str
+    name: str
+    kind: str
+    node: str
+    state: str
+    cpu_percent: float = 0.0
+    memory_percent: float = 0.0
+    tags: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
+class DatastoreReading:
+    """One datastore, including the two that answer ``unknown``."""
+
+    name: str
+    node: str
+    kind: str
+    used_bytes: int | None
+    total_bytes: int | None
+    status: str
+
+
+@dataclass(frozen=True, slots=True)
+class BackupJobReading:
+    """One backup job, including the ones that exist and are switched off."""
+
+    job_id: str
+    comment: str
+    node: str | None
+    schedule: str
+    enabled: bool
+    covers_all: bool
+    vmids: tuple[str, ...]
+    keep_last: int
+    last_run_at: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class NodeReading:
+    """Everything read from one node, from both the API and the shell."""
+
+    name: str
+    role: str
+    version: str
+    kernel_running: str
+    kernel_installed: str
+    cpu_percent: float
+    memory_percent: float
+    root_filesystem_percent: float
+    failed_units: tuple[str, ...] = field(default_factory=tuple)
+    thin_pools: tuple[ThinPoolReading, ...] = field(default_factory=tuple)
+    volumes: tuple[VolumeReading, ...] = field(default_factory=tuple)
+    mounts: tuple[MountReading, ...] = field(default_factory=tuple)
+    boots: tuple[BootReading, ...] = field(default_factory=tuple)
+    packages: tuple[PackageReading, ...] = field(default_factory=tuple)
+    bridges: tuple[str, ...] = field(default_factory=tuple)
+    zfs_pools: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
+class ClusterReading:
+    """One capture of one cluster, both sources merged."""
+
+    captured_at: str
+    nodes: tuple[NodeReading, ...]
+    guests: tuple[GuestReading, ...]
+    datastores: tuple[DatastoreReading, ...]
+    backup_jobs: tuple[BackupJobReading, ...]
+    quorum: QuorumReading
+    replication_jobs: tuple[Mapping[str, Any], ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
+class Detector:
+    """One shipped check, and the severity a finding from it carries."""
+
+    detector_id: str
+    name: str
+    description: str
+    severity: str
+
+
+#: The detectors, each corresponding to a condition observed in a real cluster
+#: or named in a real postmortem. Declared here because the projection is what
+#: evaluates them; the shipped implementations arrive with the guardian work.
+DETECTORS: Final[tuple[Detector, ...]] = (
+    Detector(
+        "quorum-margin-zero",
+        "Quorum margin is zero",
+        "Losing either node drops the cluster below its quorum, at which point the "
+        "cluster filesystem goes read-only and no guest can be started, stopped or migrated.",
+        "critical",
+    ),
+    Detector(
+        "quorum-device-not-contributing",
+        "Quorum device configured but contributing nothing",
+        "A quorum device appears in the membership view and carries no votes, which reads "
+        "as configured to anything that counts devices rather than votes.",
+        "critical",
+    ),
+    Detector(
+        "backup-job-disabled",
+        "Backup job exists and is disabled",
+        "A disabled job is indistinguishable from a job that ran, in every view that lists jobs.",
+        "critical",
+    ),
+    Detector(
+        "guest-uncovered-by-backup",
+        "Guest covered by no enabled backup job",
+        "Coverage is the question, not job count: a guest named only by a disabled job has none.",
+        "critical",
+    ),
+    Detector(
+        "datastore-near-full",
+        "Datastore near full",
+        "A datastore above its threshold, measured against the datastore rather than "
+        "against any one guest on it.",
+        "critical",
+    ),
+    Detector(
+        "guest-volume-near-full",
+        "Guest volume near full",
+        "A guest at the ceiling of its own volume while its datastore still reads "
+        "comfortable — the distinction a datastore-level threshold cannot make.",
+        "high",
+    ),
+    Detector(
+        "thin-pool-metadata-pressure",
+        "Thin-pool metadata under pressure",
+        "Metadata exhaustion takes a pool offline while its data percentage still looks fine.",
+        "medium",
+    ),
+    Detector(
+        "kernel-never-booted",
+        "Kernel installed and never booted",
+        "The first real boot of an installed-but-unbooted kernel will be an unplanned one.",
+        "high",
+    ),
+    Detector(
+        "no-replication-node-local-storage",
+        "No replication with node-local guest storage",
+        "Losing a node makes its guests unavailable until they are restored from a backup.",
+        "high",
+    ),
+    Detector(
+        "failed-systemd-units",
+        "Failed units on a node",
+        "Absent from every API level, and where a silent degradation becomes visible.",
+        "medium",
+    ),
+    Detector(
+        "datastore-status-unknown",
+        "Datastore reporting unknown",
+        "A share that is down still appears in the inventory; only its status says so.",
+        "medium",
+    ),
+    Detector(
+        "security-updates-pending",
+        "Security updates pending",
+        "Counted separately from the rest, because the rest can wait for a window.",
+        "medium",
+    ),
+    Detector(
+        "bridge-absent",
+        "A configured bridge does not exist",
+        "Everything depends on the bridge and nothing watches it; a rename underneath it "
+        "took a whole cluster off the network.",
+        "high",
+    ),
+    Detector(
+        "shallow-backup-retention",
+        "Backup retention shallow",
+        "With two recovery points, the second failed backup destroys what the first left.",
+        "medium",
+    ),
+)
+
+
+@dataclass(frozen=True, slots=True)
+class Observation:
+    """What one detector saw about one subject, at one instant."""
+
+    observation_id: str
+    detector: str
+    subject: str
+    verdict: str
+    severity: str
+    observed_at: str
+    detail: str
+    evidence: Mapping[str, Any]
+
+
+def resource_id_of(guest: GuestReading) -> str:
+    """Return the estate identifier of one guest."""
+    return f"{'ct' if guest.kind == 'container' else 'vm'}-{guest.vmid}"
+
+
+def node_resource_id(name: str) -> str:
+    """Return the estate identifier of one node."""
+    return f"node-{name}"
+
+
+def project(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
+    """Return one record per projected endpoint, from one cluster reading.
+
+    Every record is marked ``pvesh`` or ``shell`` according to which source
+    carried the fact it rests on. A projection built from both is attributed to
+    the shell, because the shell half is the part that has no gateway
+    equivalent and therefore the part that survives the handover.
+    """
+    observations = tuple(_observations(reading))
+    incidents = tuple(_incidents(reading, observations))
+
+    records: list[CapturedRecord] = [
+        _record("estate-summary", {}, _summary(reading, observations), Provenance.PVESH),
+        _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.PVESH),
+        _record("estate-nodes", {}, {"nodes": _nodes(reading)}, Provenance.SHELL),
+        _record("estate-storage", {}, _storage(reading), Provenance.SHELL),
+        _record("estate-backups", {}, {"jobs": _backups(reading)}, Provenance.PVESH),
+        _record("incidents", {}, {"incidents": list(incidents)}, Provenance.SHELL),
+        _record(
+            "detectors", {}, {"detectors": _detectors(reading, observations)}, Provenance.SHELL
+        ),
+        _record(
+            "observations",
+            {},
+            {"observations": [_as_json(item) for item in observations]},
+            Provenance.SHELL,
+        ),
+    ]
+
+    resources = _resources(reading)
+    volumes = _volumes(reading)
+    for resource in resources:
+        records.append(
+            _record(
+                "estate-resource-detail",
+                {"resource_id": resource["resource_id"]},
+                {
+                    "resource": resource,
+                    "health": _health(resource, observations),
+                    "volumes": [
+                        volume
+                        for volume in volumes
+                        if volume["resource_id"] == resource["resource_id"]
+                    ],
+                    "incidents": [
+                        incident["incident_id"]
+                        for incident in incidents
+                        if resource["resource_id"] in incident["subjects"]
+                    ],
+                },
+                Provenance.PVESH,
+            )
+        )
+
+    for incident in incidents:
+        records.append(
+            _record(
+                "incident-detail",
+                {"incident_id": incident["incident_id"]},
+                {
+                    "incident": incident,
+                    "observations": [
+                        _as_json(item)
+                        for item in observations
+                        if item.detector == incident["detector"]
+                        and item.subject in incident["subjects"]
+                    ],
+                    "timeline": _timeline(incident),
+                },
+                Provenance.SHELL,
+            )
+        )
+
+    return tuple(records)
+
+
+# --- The estate ------------------------------------------------------------------
+
+
+def _record(
+    slug: str, arguments: Mapping[str, str], body: Any, provenance: Provenance
+) -> CapturedRecord:
+    return CapturedRecord(
+        slug=slug,
+        arguments=dict(arguments),
+        status=200,
+        body=body,
+        provenance=provenance,
+        request=Request(command=f"projected from a direct read ({provenance.value})"),
+    )
+
+
+def _resources(reading: ClusterReading) -> list[dict[str, Any]]:
+    covered = _covered_resource_ids(reading)
+    volumes_by_resource = {volume["resource_id"]: volume for volume in _volumes(reading)}
+    resources: list[dict[str, Any]] = []
+    for guest in reading.guests:
+        identifier = resource_id_of(guest)
+        volume = volumes_by_resource.get(identifier)
+        resources.append(
+            {
+                "resource_id": identifier,
+                "name": guest.name,
+                "kind": guest.kind,
+                "node": guest.node,
+                "state": guest.state,
+                "owner": None,
+                "tags": list(guest.tags),
+                "cpu_percent": guest.cpu_percent if guest.state == "running" else None,
+                "memory_percent": guest.memory_percent if guest.state == "running" else None,
+                "volume_percent": volume["used_percent"] if volume else None,
+                "volume_id": volume["volume_id"] if volume else None,
+                "backed_up": identifier in covered,
+                "last_seen_at": reading.captured_at,
+            }
+        )
+    for node in reading.nodes:
+        resources.append(
+            {
+                "resource_id": node_resource_id(node.name),
+                "name": node.name,
+                "kind": "node",
+                "node": node.name,
+                "state": "running",
+                "owner": None,
+                "tags": [node.role],
+                "cpu_percent": node.cpu_percent,
+                "memory_percent": node.memory_percent,
+                "volume_percent": node.root_filesystem_percent,
+                "volume_id": None,
+                "backed_up": False,
+                "last_seen_at": reading.captured_at,
+            }
+        )
+    return sorted(resources, key=lambda resource: str(resource["resource_id"]))
+
+
+def _nodes(reading: ClusterReading) -> list[dict[str, Any]]:
+    return [
+        {
+            "node_id": node_resource_id(node.name),
+            "name": node.name,
+            "role": node.role,
+            "version": node.version,
+            "kernel_running": node.kernel_running,
+            "kernel_installed": node.kernel_installed,
+            "cpu_percent": node.cpu_percent,
+            "memory_percent": node.memory_percent,
+            "root_filesystem_percent": node.root_filesystem_percent,
+            "guests": sum(1 for guest in reading.guests if guest.node == node.name),
+            "quorum_votes": 1,
+            "expected_votes": reading.quorum.expected_votes,
+            "failed_units": list(node.failed_units),
+            "bridges": list(node.bridges),
+            "pending_updates": len(node.packages),
+            "security_updates": sum(1 for package in node.packages if package.is_security),
+        }
+        for node in reading.nodes
+    ]
+
+
+def _volumes(reading: ClusterReading) -> list[dict[str, Any]]:
+    by_vmid = {guest.vmid: resource_id_of(guest) for guest in reading.guests}
+    volumes: list[dict[str, Any]] = []
+    for node in reading.nodes:
+        for volume in node.volumes:
+            vmid = _vmid_of(volume.name)
+            resource = by_vmid.get(vmid, "")
+            if not resource:
+                continue
+            volumes.append(
+                {
+                    "volume_id": volume.name,
+                    "resource_id": resource,
+                    "node": node.name,
+                    "pool": volume.pool,
+                    "used_percent": volume.used_percent,
+                    "size_bytes": volume.size_bytes,
+                }
+            )
+    return sorted(volumes, key=lambda volume: str(volume["volume_id"]))
+
+
+def _storage(reading: ClusterReading) -> dict[str, Any]:
+    return {
+        "datastores": [
+            {
+                "name": datastore.name,
+                "node": datastore.node,
+                "kind": datastore.kind,
+                "used_bytes": datastore.used_bytes,
+                "total_bytes": datastore.total_bytes,
+                "used_percent": _fill(datastore),
+                "status": datastore.status,
+            }
+            for datastore in reading.datastores
+        ],
+        "thin_pools": [
+            {
+                "name": pool.name,
+                "volume_group": pool.volume_group,
+                "node": node.name,
+                "size_bytes": pool.size_bytes,
+                "data_percent": pool.data_percent,
+                "metadata_percent": pool.metadata_percent,
+            }
+            for node in reading.nodes
+            for pool in node.thin_pools
+        ],
+        "volumes": _volumes(reading),
+    }
+
+
+def _backups(reading: ClusterReading) -> list[dict[str, Any]]:
+    guests = {resource_id_of(guest) for guest in reading.guests}
+    jobs: list[dict[str, Any]] = []
+    for job in reading.backup_jobs:
+        covered = (
+            guests
+            if job.covers_all
+            else {resource_id_of(guest) for guest in reading.guests if guest.vmid in set(job.vmids)}
+        )
+        jobs.append(
+            {
+                "job_id": job.job_id,
+                "comment": job.comment,
+                "node": job.node,
+                "schedule": job.schedule,
+                "enabled": job.enabled,
+                "covers_all": job.covers_all,
+                "resource_ids": sorted(covered),
+                "keep_last": job.keep_last,
+                "last_run_at": job.last_run_at,
+                "covered": len(covered),
+                "uncovered": len(guests) - len(covered),
+            }
+        )
+    return jobs
+
+
+def _summary(reading: ClusterReading, observations: Sequence[Observation]) -> dict[str, Any]:
+    resources = _resources(reading)
+    by_kind: dict[str, int] = {}
+    for resource in resources:
+        by_kind[str(resource["kind"])] = by_kind.get(str(resource["kind"])) or 0
+        by_kind[str(resource["kind"])] += 1
+    findings = {item.subject for item in observations if item.verdict == "finding"}
+    unknown = {item.subject for item in observations if item.verdict == "unknown"}
+    return {
+        "captured_at": reading.captured_at,
+        "resources": len(resources),
+        "by_kind": [{"kind": kind, "count": count} for kind, count in sorted(by_kind.items())],
+        "nodes": len(reading.nodes),
+        "healthy": len(resources) - len(findings | unknown),
+        "degraded": len(findings),
+        "unknown": len(unknown),
+        "open_findings": sum(1 for item in observations if item.verdict == "finding"),
+    }
+
+
+def _health(
+    resource: Mapping[str, Any], observations: Sequence[Observation]
+) -> list[dict[str, str]]:
+    mine = [item for item in observations if item.subject == resource["resource_id"]]
+    if not mine:
+        return [{"check": "estate", "verdict": "ok", "detail": "nothing was found about it"}]
+    return [
+        {"check": item.detector, "verdict": item.verdict, "detail": item.detail} for item in mine
+    ]
+
+
+# --- Observation -----------------------------------------------------------------
+
+
+def _observations(reading: ClusterReading) -> Iterator[Observation]:
+    for ordinal, observation in enumerate(_findings(reading), start=1):
+        yield Observation(
+            observation_id=f"obs-{ordinal:04d}",
+            detector=observation[0],
+            subject=observation[1],
+            verdict=observation[2],
+            severity=observation[3],
+            observed_at=reading.captured_at,
+            detail=observation[4],
+            evidence=observation[5],
+        )
+
+
+def _findings(
+    reading: ClusterReading,
+) -> Iterator[tuple[str, str, str, str, str, dict[str, Any]]]:
+    severity = {detector.detector_id: detector.severity for detector in DETECTORS}
+    cluster = "cluster"
+
+    quorum = reading.quorum
+    if quorum.margin == 0 and quorum.expected_votes:
+        yield (
+            "quorum-margin-zero",
+            cluster,
+            "finding",
+            severity["quorum-margin-zero"],
+            f"{quorum.total_votes} of {quorum.quorum} required votes, so losing one node "
+            f"makes the cluster filesystem read-only",
+            {
+                "total_votes": quorum.total_votes,
+                "quorum": quorum.quorum,
+                "two_node": quorum.two_node,
+                "wait_for_all": quorum.wait_for_all,
+            },
+        )
+    if quorum.device_in_membership and not quorum.device_declared:
+        yield (
+            "quorum-device-not-contributing",
+            cluster,
+            "finding",
+            severity["quorum-device-not-contributing"],
+            "a quorum device appears in the membership view and the configuration declares none",
+            {"device_in_membership": True, "device_declared": False},
+        )
+
+    covered = _covered_resource_ids(reading)
+    for job in reading.backup_jobs:
+        if not job.enabled:
+            yield (
+                "backup-job-disabled",
+                job.job_id,
+                "finding",
+                severity["backup-job-disabled"],
+                f"{job.comment or job.job_id} exists on schedule {job.schedule} and is disabled",
+                {"schedule": job.schedule, "covers_all": job.covers_all},
+            )
+        if job.keep_last <= SHALLOW_RETENTION_KEEP_LAST:
+            yield (
+                "shallow-backup-retention",
+                job.job_id,
+                "finding",
+                severity["shallow-backup-retention"],
+                f"retention is keep-last={job.keep_last}",
+                {"keep_last": job.keep_last},
+            )
+
+    for guest in reading.guests:
+        identifier = resource_id_of(guest)
+        if identifier not in covered:
+            yield (
+                "guest-uncovered-by-backup",
+                identifier,
+                "finding",
+                severity["guest-uncovered-by-backup"],
+                f"{guest.name} is named by no enabled backup job",
+                {"node": guest.node},
+            )
+
+    for datastore in reading.datastores:
+        if datastore.status == "unknown":
+            yield (
+                "datastore-status-unknown",
+                datastore.name,
+                "unknown",
+                severity["datastore-status-unknown"],
+                f"{datastore.name} answers unknown, so its fill is not a number anybody has",
+                {"node": datastore.node, "kind": datastore.kind},
+            )
+            continue
+        fill = _fill(datastore)
+        if fill is None:
+            continue
+        if fill >= DATASTORE_HIGH_PERCENT:
+            yield (
+                "datastore-near-full",
+                datastore.name,
+                "finding",
+                "critical" if fill >= DATASTORE_CRITICAL_PERCENT else "high",
+                f"{datastore.name} is {fill}% full",
+                {"used_percent": fill, "node": datastore.node},
+            )
+
+    for node in reading.nodes:
+        for volume in node.volumes:
+            if volume.used_percent >= VOLUME_HIGH_PERCENT:
+                subject = _subject_for_volume(reading, volume.name)
+                yield (
+                    "guest-volume-near-full",
+                    subject,
+                    "finding",
+                    severity["guest-volume-near-full"],
+                    f"{volume.name} is at {volume.used_percent}% of its own volume",
+                    {"pool": volume.pool, "node": node.name},
+                )
+        for pool in node.thin_pools:
+            if pool.metadata_percent >= POOL_METADATA_HIGH_PERCENT:
+                yield (
+                    "thin-pool-metadata-pressure",
+                    pool.name,
+                    "finding",
+                    severity["thin-pool-metadata-pressure"],
+                    f"{pool.name} metadata is at {pool.metadata_percent}% while its data "
+                    f"reads {pool.data_percent}%",
+                    {"node": node.name, "metadata_percent": pool.metadata_percent},
+                )
+        if node.failed_units:
+            yield (
+                "failed-systemd-units",
+                node_resource_id(node.name),
+                "finding",
+                severity["failed-systemd-units"],
+                f"{len(node.failed_units)} failed units on {node.name}",
+                {"units": list(node.failed_units)},
+            )
+        if node.kernel_installed and node.kernel_installed != node.kernel_running:
+            yield (
+                "kernel-never-booted",
+                node_resource_id(node.name),
+                "finding",
+                severity["kernel-never-booted"],
+                f"{node.kernel_installed} is installed and {node.kernel_running} is running",
+                {"installed": node.kernel_installed, "running": node.kernel_running},
+            )
+        security = sum(1 for package in node.packages if package.is_security)
+        if security:
+            yield (
+                "security-updates-pending",
+                node_resource_id(node.name),
+                "finding",
+                severity["security-updates-pending"],
+                f"{security} security updates pending on {node.name}",
+                {"pending": len(node.packages), "security": security},
+            )
+        if not node.bridges:
+            yield (
+                "bridge-absent",
+                node_resource_id(node.name),
+                "finding",
+                severity["bridge-absent"],
+                f"{node.name} has no bridge interface at all",
+                {},
+            )
+
+    if not reading.replication_jobs and reading.guests:
+        yield (
+            "no-replication-node-local-storage",
+            cluster,
+            "finding",
+            severity["no-replication-node-local-storage"],
+            "no replication job exists while guests are on node-local storage",
+            {"guests": len(reading.guests)},
+        )
+
+
+def _detectors(
+    reading: ClusterReading, observations: Sequence[Observation]
+) -> list[dict[str, Any]]:
+    subjects = len(reading.guests) + len(reading.nodes)
+    seen = {item.detector for item in observations}
+    return [
+        {
+            "detector_id": detector.detector_id,
+            "name": detector.name,
+            "description": detector.description,
+            "severity": detector.severity,
+            "enabled": True,
+            "subjects_covered": sum(
+                1 for item in observations if item.detector == detector.detector_id
+            ),
+            "subjects_total": subjects,
+            "last_evaluated_at": reading.captured_at,
+            "last_verdict": "finding" if detector.detector_id in seen else "ok",
+        }
+        for detector in DETECTORS
+    ]
+
+
+def _incidents(
+    reading: ClusterReading, observations: Sequence[Observation]
+) -> Iterator[dict[str, Any]]:
+    """Yield one incident per detector that found something worth waking somebody for.
+
+    Grouped by detector rather than by subject: fifty-five guests with no backup
+    is one finding about a job, not fifty-five incidents, and a console that
+    showed the second would be a console nobody could read.
+    """
+    grouped: dict[str, list[Observation]] = {}
+    for item in observations:
+        if item.verdict != "finding" or item.severity not in {"critical", "high"}:
+            continue
+        grouped.setdefault(item.detector, []).append(item)
+
+    names = {detector.detector_id: detector for detector in DETECTORS}
+    for ordinal, (detector_id, found) in enumerate(sorted(grouped.items()), start=1):
+        detector = names[detector_id]
+        yield {
+            "incident_id": f"inc-{ordinal:04d}",
+            "title": detector.name,
+            "severity": max(
+                (item.severity for item in found),
+                key=lambda level: ["low", "medium", "high", "critical"].index(level),
+            ),
+            "state": "open",
+            "opened_at": reading.captured_at,
+            "closed_at": None,
+            "subjects": sorted({item.subject for item in found}),
+            "detector": detector_id,
+            "run_id": None,
+            "summary": found[0].detail
+            if len(found) == 1
+            else f"{len(found)} subjects: {found[0].detail}",
+        }
+
+
+def _timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
+    return [
+        {
+            "at": str(incident["opened_at"]),
+            "kind": "opened",
+            "detail": f"{incident['detector']} found {len(incident['subjects'])} subject(s)",
+        }
+    ]
+
+
+def _as_json(observation: Observation) -> dict[str, Any]:
+    return {
+        "observation_id": observation.observation_id,
+        "detector": observation.detector,
+        "subject": observation.subject,
+        "verdict": observation.verdict,
+        "severity": observation.severity,
+        "observed_at": observation.observed_at,
+        "detail": observation.detail,
+        "evidence": dict(observation.evidence),
+    }
+
+
+def _covered_resource_ids(reading: ClusterReading) -> set[str]:
+    """Return the guests an *enabled* backup job names.
+
+    Coverage is the question, not job count. A guest named only by a disabled
+    job has no backup, and every view that lists jobs rather than coverage
+    reports the opposite.
+    """
+    covered: set[str] = set()
+    for job in reading.backup_jobs:
+        if not job.enabled:
+            continue
+        if job.covers_all:
+            return {resource_id_of(guest) for guest in reading.guests}
+        named = set(job.vmids)
+        covered |= {resource_id_of(guest) for guest in reading.guests if guest.vmid in named}
+    return covered
+
+
+def _subject_for_volume(reading: ClusterReading, volume_name: str) -> str:
+    vmid = _vmid_of(volume_name)
+    for guest in reading.guests:
+        if guest.vmid == vmid:
+            return resource_id_of(guest)
+    return volume_name
+
+
+def _vmid_of(volume_name: str) -> str:
+    parts = volume_name.split("-")
+    return parts[1] if len(parts) > 2 and parts[1].isdigit() else ""
+
+
+def _fill(datastore: DatastoreReading) -> float | None:
+    if datastore.used_bytes is None or not datastore.total_bytes:
+        return None
+    return round(datastore.used_bytes * 100.0 / datastore.total_bytes, 2)
+
+
+__all__ = [
+    "DATASTORE_CRITICAL_PERCENT",
+    "DATASTORE_HIGH_PERCENT",
+    "DETECTORS",
+    "POOL_METADATA_HIGH_PERCENT",
+    "SHALLOW_RETENTION_KEEP_LAST",
+    "VOLUME_HIGH_PERCENT",
+    "BackupJobReading",
+    "ClusterReading",
+    "DatastoreReading",
+    "Detector",
+    "GuestReading",
+    "NodeReading",
+    "Observation",
+    "node_resource_id",
+    "project",
+    "resource_id_of",
+]

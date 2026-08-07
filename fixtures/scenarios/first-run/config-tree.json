@@ -1,0 +1,28 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "nodes": [
+          {
+            "kind": "organisation",
+            "name": "Northwind",
+            "node_id": "org-northwind",
+            "parent_id": null
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-tree",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-tree"
+}

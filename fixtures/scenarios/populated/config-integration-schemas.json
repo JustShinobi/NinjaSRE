@@ -1,0 +1,310 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "schemas": [
+          {
+            "credential_fields": [
+              {
+                "help": "A read-only token. It is stored by the proxy, never by the console.",
+                "label": "API token",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Metrics store",
+            "hosts": [
+              "metrics.example.invalid"
+            ],
+            "name": "metrics-store",
+            "settings_fields": [
+              {
+                "help": "Where the metrics store answers.",
+                "label": "Base URL",
+                "name": "base_url",
+                "required": true,
+                "secret": false
+              }
+            ]
+          },
+          {
+            "credential_fields": [
+              {
+                "help": "Used to post investigation summaries.",
+                "label": "Bot token",
+                "name": "bot_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Chat",
+            "hosts": [
+              "chat.example.invalid"
+            ],
+            "name": "chat",
+            "settings_fields": []
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-integration-schemas",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "schemas": [
+          {
+            "credential_fields": [
+              {
+                "help": "A read-only token. It is stored by the proxy, never by the console.",
+                "label": "API token",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Metrics store",
+            "hosts": [
+              "metrics.example.invalid"
+            ],
+            "name": "metrics-store",
+            "settings_fields": [
+              {
+                "help": "Where the metrics store answers.",
+                "label": "Base URL",
+                "name": "base_url",
+                "required": true,
+                "secret": false
+              }
+            ]
+          },
+          {
+            "credential_fields": [
+              {
+                "help": "Used to post investigation summaries.",
+                "label": "Bot token",
+                "name": "bot_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Chat",
+            "hosts": [
+              "chat.example.invalid"
+            ],
+            "name": "chat",
+            "settings_fields": []
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-integration-schemas",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "schemas": [
+          {
+            "credential_fields": [
+              {
+                "help": "A read-only token. It is stored by the proxy, never by the console.",
+                "label": "API token",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Metrics store",
+            "hosts": [
+              "metrics.example.invalid"
+            ],
+            "name": "metrics-store",
+            "settings_fields": [
+              {
+                "help": "Where the metrics store answers.",
+                "label": "Base URL",
+                "name": "base_url",
+                "required": true,
+                "secret": false
+              }
+            ]
+          },
+          {
+            "credential_fields": [
+              {
+                "help": "Used to post investigation summaries.",
+                "label": "Bot token",
+                "name": "bot_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Chat",
+            "hosts": [
+              "chat.example.invalid"
+            ],
+            "name": "chat",
+            "settings_fields": []
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-integration-schemas",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "schemas": [
+          {
+            "credential_fields": [
+              {
+                "help": "A read-only token. It is stored by the proxy, never by the console.",
+                "label": "API token",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Metrics store",
+            "hosts": [
+              "metrics.example.invalid"
+            ],
+            "name": "metrics-store",
+            "settings_fields": [
+              {
+                "help": "Where the metrics store answers.",
+                "label": "Base URL",
+                "name": "base_url",
+                "required": true,
+                "secret": false
+              }
+            ]
+          },
+          {
+            "credential_fields": [
+              {
+                "help": "Used to post investigation summaries.",
+                "label": "Bot token",
+                "name": "bot_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Chat",
+            "hosts": [
+              "chat.example.invalid"
+            ],
+            "name": "chat",
+            "settings_fields": []
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-integration-schemas",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "schemas": [
+          {
+            "credential_fields": [
+              {
+                "help": "A read-only token. It is stored by the proxy, never by the console.",
+                "label": "API token",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Metrics store",
+            "hosts": [
+              "metrics.example.invalid"
+            ],
+            "name": "metrics-store",
+            "settings_fields": [
+              {
+                "help": "Where the metrics store answers.",
+                "label": "Base URL",
+                "name": "base_url",
+                "required": true,
+                "secret": false
+              }
+            ]
+          },
+          {
+            "credential_fields": [
+              {
+                "help": "Used to post investigation summaries.",
+                "label": "Bot token",
+                "name": "bot_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "display_name": "Chat",
+            "hosts": [
+              "chat.example.invalid"
+            ],
+            "name": "chat",
+            "settings_fields": []
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-integration-schemas",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-integration-schemas"
+}

@@ -1,0 +1,21 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "users": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "principals",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "principals"
+}

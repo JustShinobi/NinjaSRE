@@ -1,0 +1,90 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "integrations": [
+          {
+            "capabilities": [
+              "metrics.range_query"
+            ],
+            "category": "observability",
+            "health": "unconfigured",
+            "health_detail": "no credential is stored for this node",
+            "hosts": [
+              "metrics.example.invalid"
+            ],
+            "missing_artefacts": [],
+            "name": "metrics-store",
+            "parity": "full",
+            "regions": [],
+            "required_credentials": [
+              "api_token"
+            ],
+            "required_permissions": [
+              "metrics:read"
+            ],
+            "summary": "Range queries against the metrics store."
+          },
+          {
+            "capabilities": [
+              "chat.post_message"
+            ],
+            "category": "collaboration",
+            "health": "healthy",
+            "health_detail": "verified 3 hours ago",
+            "hosts": [
+              "chat.example.invalid"
+            ],
+            "missing_artefacts": [],
+            "name": "chat",
+            "parity": "full",
+            "regions": [],
+            "required_credentials": [
+              "bot_token"
+            ],
+            "required_permissions": [
+              "chat:write"
+            ],
+            "summary": "Posts investigation summaries and takes approvals."
+          },
+          {
+            "capabilities": [
+              "ticketing.open_ticket"
+            ],
+            "category": "workflow",
+            "health": "degraded",
+            "health_detail": "the last verification timed out",
+            "hosts": [
+              "tickets.example.invalid"
+            ],
+            "missing_artefacts": [
+              "synthetic scenario"
+            ],
+            "name": "ticketing",
+            "parity": "partial",
+            "regions": [],
+            "required_credentials": [
+              "api_token"
+            ],
+            "required_permissions": [
+              "issues:write"
+            ],
+            "summary": "Opens and updates tickets from findings."
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "integrations",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "integrations"
+}

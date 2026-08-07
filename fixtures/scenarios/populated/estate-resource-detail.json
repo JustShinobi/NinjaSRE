@@ -1,0 +1,3776 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "resource_id": "ct-100"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-volume-near-full",
+            "detail": "vm-100-disk-0 is at 99.6% of its own volume",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0004"
+        ],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 0.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 18.0,
+          "name": "plateau",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-100",
+          "state": "running",
+          "tags": [
+            "stateful"
+          ],
+          "volume_id": "vm-100-disk-0",
+          "volume_percent": 99.6
+        },
+        "volumes": [
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-100",
+            "size_bytes": 64000000000,
+            "used_percent": 99.6,
+            "volume_id": "vm-100-disk-0"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-101"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "amber is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 1.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 20.9,
+          "name": "amber",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-101",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-102"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 3.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 23.8,
+          "name": "anchor",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-102",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-103"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "arbour is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 5.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 26.7,
+          "name": "arbour",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-103",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-104"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 6.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 29.6,
+          "name": "aspen",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-104",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-105"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "basalt is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 8.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 32.5,
+          "name": "basalt",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-105",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-106"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 10.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 35.4,
+          "name": "beacon",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-106",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-107"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "beryl is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 11.9,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 38.3,
+          "name": "beryl",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-107",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-108"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 13.6,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 41.2,
+          "name": "birch",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-108",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-109"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "bramble is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 15.3,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 44.1,
+          "name": "bramble",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-109",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-110"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 17.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 47.0,
+          "name": "brook",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-110",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-111"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "cairn is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 18.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 49.9,
+          "name": "cairn",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-111",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-112"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 20.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 52.8,
+          "name": "cedar",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-112",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-113"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "cinder is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 22.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 55.7,
+          "name": "cinder",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-113",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-114"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 23.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 58.6,
+          "name": "cobalt",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-114",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-115"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "quartz is named by no enabled backup job",
+            "verdict": "finding"
+          },
+          {
+            "check": "guest-volume-near-full",
+            "detail": "vm-115-disk-0 is at 94.96% of its own volume",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003",
+          "inc-0004"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 25.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 61.5,
+          "name": "quartz",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-115",
+          "state": "running",
+          "tags": [
+            "stateful"
+          ],
+          "volume_id": "vm-115-disk-0",
+          "volume_percent": 94.96
+        },
+        "volumes": [
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-115",
+            "size_bytes": 64000000000,
+            "used_percent": 94.96,
+            "volume_id": "vm-115-disk-0"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-116"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": 27.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 64.4,
+          "name": "coral",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-116",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-117"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "cove is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 0.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 67.3,
+          "name": "cove",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-117",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-118"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "estate",
+            "detail": "nothing was found about it",
+            "verdict": "ok"
+          }
+        ],
+        "incidents": [],
+        "resource": {
+          "backed_up": true,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "crag",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-118",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-119"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "cypress is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "cypress",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-119",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-120"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "delta is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "delta",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-120",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-121"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "dune is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "dune",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-121",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-122"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "ember is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "ember",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-122",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-123"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "fathom is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "fathom",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-123",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-124"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "fennel is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "fennel",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-124",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-125"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "fjord is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "fjord",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-125",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-126"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "flint is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "flint",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-126",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-127"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "gable is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "gable",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-127",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-128"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "garnet is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "garnet",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-128",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-129"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "granite is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 20.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 35.4,
+          "name": "granite",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-129",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-130"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "harbour is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 22.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 38.3,
+          "name": "harbour",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-130",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-131"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "hazel is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 23.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 41.2,
+          "name": "hazel",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-131",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-132"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "heather is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 25.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 44.1,
+          "name": "heather",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-132",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-133"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "hollow is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 27.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 47.0,
+          "name": "hollow",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-133",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-134"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "indigo is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 0.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 49.9,
+          "name": "indigo",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-134",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-135"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "ivory is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 1.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 52.8,
+          "name": "ivory",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-135",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-136"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "jasper is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 3.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 55.7,
+          "name": "jasper",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-136",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-137"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "juniper is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 5.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 58.6,
+          "name": "juniper",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-137",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-138"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "kelp is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 6.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 61.5,
+          "name": "kelp",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-138",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-139"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "lagoon is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 8.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 64.4,
+          "name": "lagoon",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-139",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-140"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "sorrel is named by no enabled backup job",
+            "verdict": "finding"
+          },
+          {
+            "check": "guest-volume-near-full",
+            "detail": "vm-140-disk-0 is at 93.0% of its own volume",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003",
+          "inc-0004"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 10.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 67.3,
+          "name": "sorrel",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-140",
+          "state": "running",
+          "tags": [
+            "stateful"
+          ],
+          "volume_id": "vm-140-disk-0",
+          "volume_percent": 93.0
+        },
+        "volumes": [
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-140",
+            "size_bytes": 64000000000,
+            "used_percent": 93.0,
+            "volume_id": "vm-140-disk-0"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-141"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "laurel is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 11.9,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 70.2,
+          "name": "laurel",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-141",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-142"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "harbour is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 13.6,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 73.1,
+          "name": "harbour",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-142",
+          "state": "running",
+          "tags": [
+            "stateful"
+          ],
+          "volume_id": "vm-142-disk-0",
+          "volume_percent": 74.21
+        },
+        "volumes": [
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-142",
+            "size_bytes": 64000000000,
+            "used_percent": 74.21,
+            "volume_id": "vm-142-disk-0"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-143"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "linen is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 15.3,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 76.0,
+          "name": "linen",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-143",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-144"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "lumen is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 17.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 78.9,
+          "name": "lumen",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-144",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-145"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "maple is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 18.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 81.8,
+          "name": "maple",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-145",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-146"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "marble is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 20.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 18.0,
+          "name": "marble",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-146",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-147"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "meadow is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 22.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 20.9,
+          "name": "meadow",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-147",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-148"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "mesa is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 23.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 23.8,
+          "name": "mesa",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-148",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-149"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "mica is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 25.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 26.7,
+          "name": "mica",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-149",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-150"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "mint is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 27.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 29.6,
+          "name": "mint",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-150",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-151"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "moss is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 0.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 32.5,
+          "name": "moss",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-151",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-152"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "nickel is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 1.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 35.4,
+          "name": "nickel",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-152",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-153"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "nimbus is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 3.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 38.3,
+          "name": "nimbus",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-153",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-154"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "oakum is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 5.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 41.2,
+          "name": "oakum",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-154",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-155"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "obsidian is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 6.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 44.1,
+          "name": "obsidian",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-155",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-156"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "onyx is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 8.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 47.0,
+          "name": "onyx",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-156",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-157"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "opal is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 10.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 49.9,
+          "name": "opal",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-157",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-158"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "orchard is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 11.9,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 52.8,
+          "name": "orchard",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-158",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-159"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "osprey is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 13.6,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 55.7,
+          "name": "osprey",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-159",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-160"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "pebble is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 15.3,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 58.6,
+          "name": "pebble",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-160",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-161"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "lumen is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 17.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 61.5,
+          "name": "lumen",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "ct-161",
+          "state": "running",
+          "tags": [
+            "stateful"
+          ],
+          "volume_id": "vm-161-disk-0",
+          "volume_percent": 76.88
+        },
+        "volumes": [
+          {
+            "node": "node02",
+            "pool": "pool-bulk",
+            "resource_id": "ct-161",
+            "size_bytes": 64000000000,
+            "used_percent": 76.88,
+            "volume_id": "vm-161-disk-0"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-162"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "pine is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 18.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 64.4,
+          "name": "pine",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-162",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-163"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "plateau is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 20.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 67.3,
+          "name": "plateau",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-163",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-164"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "poplar is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 22.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 70.2,
+          "name": "poplar",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-164",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-165"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "quarry is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 23.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 73.1,
+          "name": "quarry",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-165",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-166"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "quartz is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 25.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 76.0,
+          "name": "quartz",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-166",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-167"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "quill is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 27.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 78.9,
+          "name": "quill",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-167",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-168"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "ridge is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 0.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 81.8,
+          "name": "ridge",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-168",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-169"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "rowan is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 1.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 18.0,
+          "name": "rowan",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-169",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-170"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "rushes is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 3.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 20.9,
+          "name": "rushes",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-170",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-171"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "sable is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 5.1,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 23.8,
+          "name": "sable",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-171",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-172"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "saffron is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 6.8,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 26.7,
+          "name": "saffron",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-172",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-173"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "sandstone is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 8.5,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 29.6,
+          "name": "sandstone",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-173",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-174"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "sequoia is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 10.2,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 32.5,
+          "name": "sequoia",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-174",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-175"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "shale is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 11.9,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 35.4,
+          "name": "shale",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-175",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-176"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "shingle is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 13.6,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 38.3,
+          "name": "shingle",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-176",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-177"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "silver is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 15.3,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 41.2,
+          "name": "silver",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-177",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-178"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "slate is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 17.0,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 44.1,
+          "name": "slate",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-178",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-179"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "sorrel is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 18.7,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 47.0,
+          "name": "sorrel",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-179",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-180"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "spruce is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 20.4,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 49.9,
+          "name": "spruce",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-180",
+          "state": "running",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "ct-181"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "stone is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "container",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "stone",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "ct-181",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "node-node01"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "failed-systemd-units",
+            "detail": "9 failed units on node01",
+            "verdict": "finding"
+          },
+          {
+            "check": "kernel-never-booted",
+            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
+            "verdict": "finding"
+          },
+          {
+            "check": "security-updates-pending",
+            "detail": "6 security updates pending on node01",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0005"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 63.0,
+          "kind": "node",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 58.0,
+          "name": "node01",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "node-node01",
+          "state": "running",
+          "tags": [
+            "primary"
+          ],
+          "volume_id": null,
+          "volume_percent": 33.0
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "node-node02"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "failed-systemd-units",
+            "detail": "1 failed units on node02",
+            "verdict": "finding"
+          },
+          {
+            "check": "kernel-never-booted",
+            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
+            "verdict": "finding"
+          },
+          {
+            "check": "security-updates-pending",
+            "detail": "6 security updates pending on node02",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0005"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": 9.0,
+          "kind": "node",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": 51.0,
+          "name": "node02",
+          "node": "node02",
+          "owner": null,
+          "resource_id": "node-node02",
+          "state": "running",
+          "tags": [
+            "secondary"
+          ],
+          "volume_id": null,
+          "volume_percent": 80.0
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "vm-182"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "sumac is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "virtual-machine",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "sumac",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "vm-182",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "resource_id": "vm-183"
+      },
+      "body": {
+        "health": [
+          {
+            "check": "guest-uncovered-by-backup",
+            "detail": "tamarisk is named by no enabled backup job",
+            "verdict": "finding"
+          }
+        ],
+        "incidents": [
+          "inc-0003"
+        ],
+        "resource": {
+          "backed_up": false,
+          "cpu_percent": null,
+          "kind": "virtual-machine",
+          "last_seen_at": "2026-08-07T12:00:00+00:00",
+          "memory_percent": null,
+          "name": "tamarisk",
+          "node": "node01",
+          "owner": null,
+          "resource_id": "vm-183",
+          "state": "stopped",
+          "tags": [],
+          "volume_id": null,
+          "volume_percent": null
+        },
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "estate-resource-detail"
+}

@@ -41,7 +41,15 @@ surfaces/        Tier 1 — human clients: CLI, REPL, console backend-for-fronte
 tools/           Repository tooling. NOT agent-callable, NOT packaged, NOT import-linted.
 tests/           architecture/ unit/ contract/ synthetic/ chaos/ e2e/ benchmarks/
 test-infra/      Cluster definitions and one-command setup/teardown for the expensive suites.
+fixtures/        The mock data plane: one deterministic, anonymised deployment.
 ```
+
+`fixtures/` belongs to none of the packages on purpose. It is read by the console,
+by the demo seeder and by both test suites, so putting it under any one of them
+would make the others reach across a boundary the import contracts exist to
+police. [`fixtures/README.md`](fixtures/README.md) is the long form; the short
+version is `python -m tools.mockplane console`, which serves the console against a
+full deployment with no backend, no cluster and no database behind it.
 
 ## The tier table
 

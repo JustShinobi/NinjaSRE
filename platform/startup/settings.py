@@ -55,6 +55,17 @@ from config.constants.evaluation import (
     NINJASRE_EVALUATION_BASELINES_ENV,
     NINJASRE_SCENARIO_ARTIFACTS_ENV,
 )
+from config.constants.fixtures import (
+    NINJASRE_CAPTURE_ENDPOINT_ENV,
+    NINJASRE_CAPTURE_NODES_ENV,
+    NINJASRE_CAPTURE_RAW_DIR_ENV,
+    NINJASRE_CAPTURE_SSH_USER_ENV,
+    NINJASRE_CAPTURE_TOKEN_ENV,
+    NINJASRE_FIXTURE_ROOT_ENV,
+    NINJASRE_FIXTURE_SCENARIO_ENV,
+    NINJASRE_IDENTIFIER_FILE_ENV,
+    NINJASRE_PSEUDONYM_KEY_ENV,
+)
 from config.constants.investigation import (
     DEFAULT_RUNTIME,
     NINJASRE_RUNTIME_ENV,
@@ -713,6 +724,20 @@ NOT_A_DEPLOYMENT_SETTING: Final[tuple[str, ...]] = (
     # pull-request gate, let alone something an operator configures.
     NINJASRE_CHAOS_KUBECONFIG_ENV,
     NINJASRE_E2E_ARTIFACTS_ENV,
+    # The mock data plane: which fixture scenario to serve, where the tree is,
+    # and what a capture reads. A deployment never runs any of it — it is how
+    # the console is built and reviewed with no backend behind it — and two of
+    # them carry secrets that deliberately have no default: the pseudonym key
+    # and the operator's list of real values both stay with the operator.
+    NINJASRE_FIXTURE_SCENARIO_ENV,
+    NINJASRE_FIXTURE_ROOT_ENV,
+    NINJASRE_PSEUDONYM_KEY_ENV,
+    NINJASRE_IDENTIFIER_FILE_ENV,
+    NINJASRE_CAPTURE_ENDPOINT_ENV,
+    NINJASRE_CAPTURE_TOKEN_ENV,
+    NINJASRE_CAPTURE_NODES_ENV,
+    NINJASRE_CAPTURE_SSH_USER_ENV,
+    NINJASRE_CAPTURE_RAW_DIR_ENV,
 )
 
 

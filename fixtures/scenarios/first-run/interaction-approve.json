@@ -1,0 +1,27 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "interaction_id": "int-0002",
+        "is_open": false,
+        "kind": "approval",
+        "options": [],
+        "reason": "approved",
+        "run_id": "run-0005",
+        "text": "Enable the disabled backup job covering the primary's guests."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "interaction-approve",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "interaction-approve"
+}

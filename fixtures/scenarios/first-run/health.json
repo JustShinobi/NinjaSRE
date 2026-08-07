@@ -1,0 +1,31 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "connected": true,
+        "migrations_current": true,
+        "providers_configured": [],
+        "ready": false,
+        "reasons": [
+          "no model provider is configured",
+          "no integration holds a credential",
+          "no principal other than the first operator exists"
+        ],
+        "recent_shedding": [],
+        "store_state": "ready"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "health",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "health"
+}

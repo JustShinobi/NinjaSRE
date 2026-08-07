@@ -1,0 +1,46 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "display_name": "Avery Lockhart",
+        "email": "avery.lockhart@example.invalid",
+        "impersonated_by": null,
+        "impersonating": false,
+        "kind": "person",
+        "permissions": [
+          "approval.read",
+          "audit.read",
+          "config.read",
+          "config.write",
+          "identity.read",
+          "integration.manage",
+          "investigation.read",
+          "investigation.run",
+          "knowledge.read",
+          "memory.read",
+          "remediation.approve",
+          "remediation.execute",
+          "schedule.manage",
+          "token.manage"
+        ],
+        "principal_id": "user-operator",
+        "roles": [
+          "owner"
+        ],
+        "team_node_id": "org-northwind"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "principal",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "principal"
+}

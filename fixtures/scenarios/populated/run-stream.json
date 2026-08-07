@@ -1,0 +1,114 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "run_id": "run-0003"
+      },
+      "body": {
+        "events": [
+          {
+            "kind": "run_started",
+            "occurred_at": "2026-08-07T11:56:00+00:00",
+            "payload": {
+              "objective": "A hardening unit failed at boot on the primary."
+            },
+            "run_id": "run-0003",
+            "sequence": 0,
+            "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "turn_started",
+            "occurred_at": "2026-08-07T11:56:00+00:00",
+            "payload": {
+              "index": 0
+            },
+            "run_id": "run-0003",
+            "sequence": 1,
+            "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "tool_called",
+            "occurred_at": "2026-08-07T11:57:00+00:00",
+            "payload": {
+              "arguments": {
+                "node": "node01"
+              },
+              "name": "estate.failed_units"
+            },
+            "run_id": "run-0003",
+            "sequence": 2,
+            "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "tool_succeeded",
+            "occurred_at": "2026-08-07T11:57:00+00:00",
+            "payload": {
+              "duration_ms": 233,
+              "name": "estate.failed_units",
+              "units": 9
+            },
+            "run_id": "run-0003",
+            "sequence": 3,
+            "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "observation_recorded",
+            "occurred_at": "2026-08-07T11:57:00+00:00",
+            "payload": {
+              "detail": "nine failed units on the primary, two of them network shares"
+            },
+            "run_id": "run-0003",
+            "sequence": 4,
+            "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "turn_completed",
+            "occurred_at": "2026-08-07T11:58:00+00:00",
+            "payload": {
+              "index": 0,
+              "tokens": 1840
+            },
+            "run_id": "run-0003",
+            "sequence": 5,
+            "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "turn_started",
+            "occurred_at": "2026-08-07T11:58:00+00:00",
+            "payload": {
+              "index": 1
+            },
+            "run_id": "run-0003",
+            "sequence": 6,
+            "turn_id": "turn-0003-1"
+          },
+          {
+            "kind": "tool_called",
+            "occurred_at": "2026-08-07T11:59:00+00:00",
+            "payload": {
+              "arguments": {
+                "query": "hardening"
+              },
+              "name": "knowledge.search"
+            },
+            "run_id": "run-0003",
+            "sequence": 7,
+            "turn_id": "turn-0003-1"
+          }
+        ],
+        "run_id": "run-0003"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "/v1/investigations/run-0003/stream",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "run-stream"
+}

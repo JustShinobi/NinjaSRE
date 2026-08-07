@@ -1,0 +1,23 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "datastores": [],
+        "thin_pools": [],
+        "volumes": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "estate-storage",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "estate-storage"
+}

@@ -1,0 +1,585 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NinjaSRE API — projected endpoints",
+    "version": "1.0.0",
+    "description": "The response shapes of the endpoints the gateway does not serve yet: the estate inventory, continuous observation, and the Proxmox integration. Fixtures for these paths are projected from a direct, read-only read of the cluster, so they are wrong in the same way the future endpoints would be wrong rather than in a way of their own. Each path is deleted from this file by the change that makes the gateway serve it; the fixture then comes from the gateway like every other."
+  },
+  "paths": {
+    "/v1/estate/summary": {
+      "get": {
+        "summary": "The estate in the counts a dashboard tile shows",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EstateSummary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/estate/resources": {
+      "get": {
+        "summary": "Every discovered resource",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceList" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/estate/resources/{resource_id}": {
+      "get": {
+        "summary": "One resource, its health and its storage",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResourceDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/estate/nodes": {
+      "get": {
+        "summary": "The cluster's nodes, their load and their failed units",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NodeList" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/estate/storage": {
+      "get": {
+        "summary": "Datastores, thin pools and per-guest volume fill",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StorageView" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/estate/backups": {
+      "get": {
+        "summary": "Backup jobs, what they cover and whether they are enabled",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BackupJobList" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/incidents": {
+      "get": {
+        "summary": "Open and recently closed incidents",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IncidentList" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/incidents/{incident_id}": {
+      "get": {
+        "summary": "One incident, its subjects and the observations behind it",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/IncidentDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/detectors": {
+      "get": {
+        "summary": "Every shipped detector, its coverage and its last verdict",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DetectorList" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/observations": {
+      "get": {
+        "summary": "What the detectors saw, most recent first",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ObservationList" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "NullableString": {
+        "anyOf": [{ "type": "string" }, { "type": "null" }]
+      },
+      "NullableNumber": {
+        "anyOf": [{ "type": "number" }, { "type": "null" }]
+      },
+      "NullableInteger": {
+        "anyOf": [{ "type": "integer" }, { "type": "null" }]
+      },
+      "KindCount": {
+        "type": "object",
+        "required": ["kind", "count"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "type": "string" },
+          "count": { "type": "integer" }
+        }
+      },
+      "EstateSummary": {
+        "type": "object",
+        "required": [
+          "captured_at",
+          "resources",
+          "by_kind",
+          "nodes",
+          "healthy",
+          "degraded",
+          "unknown",
+          "open_findings"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "captured_at": { "type": "string" },
+          "resources": { "type": "integer" },
+          "by_kind": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/KindCount" }
+          },
+          "nodes": { "type": "integer" },
+          "healthy": { "type": "integer" },
+          "degraded": { "type": "integer" },
+          "unknown": { "type": "integer" },
+          "open_findings": { "type": "integer" }
+        }
+      },
+      "Resource": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "name",
+          "kind",
+          "node",
+          "state",
+          "owner",
+          "tags",
+          "cpu_percent",
+          "memory_percent",
+          "volume_percent",
+          "volume_id",
+          "backed_up",
+          "last_seen_at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "resource_id": { "type": "string" },
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["container", "virtual-machine", "node"] },
+          "node": { "type": "string" },
+          "state": { "type": "string", "enum": ["running", "stopped", "paused", "unknown"] },
+          "owner": { "$ref": "#/components/schemas/NullableString" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "cpu_percent": { "$ref": "#/components/schemas/NullableNumber" },
+          "memory_percent": { "$ref": "#/components/schemas/NullableNumber" },
+          "volume_percent": { "$ref": "#/components/schemas/NullableNumber" },
+          "volume_id": { "$ref": "#/components/schemas/NullableString" },
+          "backed_up": { "type": "boolean" },
+          "last_seen_at": { "type": "string" }
+        }
+      },
+      "ResourceList": {
+        "type": "object",
+        "required": ["resources"],
+        "additionalProperties": false,
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Resource" }
+          }
+        }
+      },
+      "HealthCheck": {
+        "type": "object",
+        "required": ["check", "verdict", "detail"],
+        "additionalProperties": false,
+        "properties": {
+          "check": { "type": "string" },
+          "verdict": { "type": "string", "enum": ["ok", "finding", "unknown"] },
+          "detail": { "type": "string" }
+        }
+      },
+      "ResourceDetail": {
+        "type": "object",
+        "required": ["resource", "health", "volumes", "incidents"],
+        "additionalProperties": false,
+        "properties": {
+          "resource": { "$ref": "#/components/schemas/Resource" },
+          "health": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/HealthCheck" }
+          },
+          "volumes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Volume" }
+          },
+          "incidents": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Node": {
+        "type": "object",
+        "required": [
+          "node_id",
+          "name",
+          "role",
+          "version",
+          "kernel_running",
+          "kernel_installed",
+          "cpu_percent",
+          "memory_percent",
+          "root_filesystem_percent",
+          "guests",
+          "quorum_votes",
+          "expected_votes",
+          "failed_units",
+          "bridges",
+          "pending_updates",
+          "security_updates"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "node_id": { "type": "string" },
+          "name": { "type": "string" },
+          "role": { "type": "string", "enum": ["primary", "secondary"] },
+          "version": { "type": "string" },
+          "kernel_running": { "type": "string" },
+          "kernel_installed": { "type": "string" },
+          "cpu_percent": { "type": "number" },
+          "memory_percent": { "type": "number" },
+          "root_filesystem_percent": { "type": "number" },
+          "guests": { "type": "integer" },
+          "quorum_votes": { "type": "integer" },
+          "expected_votes": { "type": "integer" },
+          "failed_units": { "type": "array", "items": { "type": "string" } },
+          "bridges": { "type": "array", "items": { "type": "string" } },
+          "pending_updates": { "type": "integer" },
+          "security_updates": { "type": "integer" }
+        }
+      },
+      "NodeList": {
+        "type": "object",
+        "required": ["nodes"],
+        "additionalProperties": false,
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Node" }
+          }
+        }
+      },
+      "Datastore": {
+        "type": "object",
+        "required": ["name", "node", "kind", "used_bytes", "total_bytes", "used_percent", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "node": { "type": "string" },
+          "kind": { "type": "string" },
+          "used_bytes": { "$ref": "#/components/schemas/NullableInteger" },
+          "total_bytes": { "$ref": "#/components/schemas/NullableInteger" },
+          "used_percent": { "$ref": "#/components/schemas/NullableNumber" },
+          "status": { "type": "string", "enum": ["available", "unknown", "unavailable"] }
+        }
+      },
+      "ThinPool": {
+        "type": "object",
+        "required": [
+          "name",
+          "volume_group",
+          "node",
+          "size_bytes",
+          "data_percent",
+          "metadata_percent"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string" },
+          "volume_group": { "type": "string" },
+          "node": { "type": "string" },
+          "size_bytes": { "type": "integer" },
+          "data_percent": { "type": "number" },
+          "metadata_percent": { "type": "number" }
+        }
+      },
+      "Volume": {
+        "type": "object",
+        "required": ["volume_id", "resource_id", "node", "pool", "used_percent", "size_bytes"],
+        "additionalProperties": false,
+        "properties": {
+          "volume_id": { "type": "string" },
+          "resource_id": { "type": "string" },
+          "node": { "type": "string" },
+          "pool": { "type": "string" },
+          "used_percent": { "type": "number" },
+          "size_bytes": { "type": "integer" }
+        }
+      },
+      "StorageView": {
+        "type": "object",
+        "required": ["datastores", "thin_pools", "volumes"],
+        "additionalProperties": false,
+        "properties": {
+          "datastores": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Datastore" }
+          },
+          "thin_pools": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ThinPool" }
+          },
+          "volumes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Volume" }
+          }
+        }
+      },
+      "BackupJob": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "comment",
+          "node",
+          "schedule",
+          "enabled",
+          "covers_all",
+          "resource_ids",
+          "keep_last",
+          "last_run_at",
+          "covered",
+          "uncovered"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "job_id": { "type": "string" },
+          "comment": { "type": "string" },
+          "node": { "$ref": "#/components/schemas/NullableString" },
+          "schedule": { "type": "string" },
+          "enabled": { "type": "boolean" },
+          "covers_all": { "type": "boolean" },
+          "resource_ids": { "type": "array", "items": { "type": "string" } },
+          "keep_last": { "type": "integer" },
+          "last_run_at": { "$ref": "#/components/schemas/NullableString" },
+          "covered": { "type": "integer" },
+          "uncovered": { "type": "integer" }
+        }
+      },
+      "BackupJobList": {
+        "type": "object",
+        "required": ["jobs"],
+        "additionalProperties": false,
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/BackupJob" }
+          }
+        }
+      },
+      "Incident": {
+        "type": "object",
+        "required": [
+          "incident_id",
+          "title",
+          "severity",
+          "state",
+          "opened_at",
+          "closed_at",
+          "subjects",
+          "detector",
+          "run_id",
+          "summary"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "incident_id": { "type": "string" },
+          "title": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "state": { "type": "string", "enum": ["open", "acknowledged", "closed"] },
+          "opened_at": { "type": "string" },
+          "closed_at": { "$ref": "#/components/schemas/NullableString" },
+          "subjects": { "type": "array", "items": { "type": "string" } },
+          "detector": { "type": "string" },
+          "run_id": { "$ref": "#/components/schemas/NullableString" },
+          "summary": { "type": "string" }
+        }
+      },
+      "IncidentList": {
+        "type": "object",
+        "required": ["incidents"],
+        "additionalProperties": false,
+        "properties": {
+          "incidents": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Incident" }
+          }
+        }
+      },
+      "TimelineEntry": {
+        "type": "object",
+        "required": ["at", "kind", "detail"],
+        "additionalProperties": false,
+        "properties": {
+          "at": { "type": "string" },
+          "kind": { "type": "string" },
+          "detail": { "type": "string" }
+        }
+      },
+      "IncidentDetail": {
+        "type": "object",
+        "required": ["incident", "observations", "timeline"],
+        "additionalProperties": false,
+        "properties": {
+          "incident": { "$ref": "#/components/schemas/Incident" },
+          "observations": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Observation" }
+          },
+          "timeline": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TimelineEntry" }
+          }
+        }
+      },
+      "Detector": {
+        "type": "object",
+        "required": [
+          "detector_id",
+          "name",
+          "description",
+          "severity",
+          "enabled",
+          "subjects_covered",
+          "subjects_total",
+          "last_evaluated_at",
+          "last_verdict"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "detector_id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "enabled": { "type": "boolean" },
+          "subjects_covered": { "type": "integer" },
+          "subjects_total": { "type": "integer" },
+          "last_evaluated_at": { "$ref": "#/components/schemas/NullableString" },
+          "last_verdict": { "type": "string", "enum": ["ok", "finding", "unknown"] }
+        }
+      },
+      "DetectorList": {
+        "type": "object",
+        "required": ["detectors"],
+        "additionalProperties": false,
+        "properties": {
+          "detectors": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Detector" }
+          }
+        }
+      },
+      "Observation": {
+        "type": "object",
+        "required": [
+          "observation_id",
+          "detector",
+          "subject",
+          "verdict",
+          "severity",
+          "observed_at",
+          "detail",
+          "evidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "observation_id": { "type": "string" },
+          "detector": { "type": "string" },
+          "subject": { "type": "string" },
+          "verdict": { "type": "string", "enum": ["ok", "finding", "unknown"] },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "observed_at": { "type": "string" },
+          "detail": { "type": "string" },
+          "evidence": { "type": "object" }
+        }
+      },
+      "ObservationList": {
+        "type": "object",
+        "required": ["observations"],
+        "additionalProperties": false,
+        "properties": {
+          "observations": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Observation" }
+          }
+        }
+      }
+    }
+  }
+}

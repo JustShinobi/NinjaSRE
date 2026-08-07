@@ -1,0 +1,26 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "finished_at": null,
+        "run_id": "run-0003",
+        "started_at": "2026-08-07T11:56:00+00:00",
+        "status": "cancelling",
+        "summary": "Cancellation was requested; it stops at the next safe point.",
+        "trigger": "alert"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "investigation-cancel",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "investigation-cancel"
+}

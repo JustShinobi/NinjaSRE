@@ -1,0 +1,46 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "grants": [
+          {
+            "grant_id": "grant-0001",
+            "node_id": "org-northwind",
+            "principal_id": "user-operator",
+            "role": "owner"
+          },
+          {
+            "grant_id": "grant-0002",
+            "node_id": "team-platform",
+            "principal_id": "user-reviewer",
+            "role": "approver"
+          },
+          {
+            "grant_id": "grant-0003",
+            "node_id": "org-northwind",
+            "principal_id": "user-viewer",
+            "role": "viewer"
+          },
+          {
+            "grant_id": "grant-0004",
+            "node_id": "team-storage",
+            "principal_id": "user-automation",
+            "role": "operator"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "grants",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "grants"
+}

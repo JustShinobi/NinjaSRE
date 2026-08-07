@@ -1,0 +1,1020 @@
+"""The half of the dataset a live deployment already answers.
+
+Runs, transcripts, interactions, approvals, memory, knowledge, configuration,
+identity and audit — recorded rather than projected, because the gateway serves
+every one of them today.
+
+Two properties are load-bearing and neither is visible in any single record.
+The history is coherent: a run starts before it finishes, an episode is created
+after the run that produced it, an approval is requested before it expires. And
+the two halves agree: the investigations here are about the guests and the
+findings the estate half actually contains, so a screen that joins a run to its
+subject has something to join to.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from datetime import datetime, timedelta
+from typing import Any, Final
+
+from tools.mockplane.dataset import profile
+from tools.mockplane.records import CapturedRecord, Provenance, Request
+
+_CAPTURED: Final = datetime.fromisoformat(profile.CAPTURED_AT)
+
+ORG_NODE: Final = "org-northwind"
+PLATFORM_TEAM_NODE: Final = "team-platform"
+STORAGE_TEAM_NODE: Final = "team-storage"
+
+OPERATOR: Final = "user-operator"
+REVIEWER: Final = "user-reviewer"
+VIEWER: Final = "user-viewer"
+AUTOMATION: Final = "user-automation"
+
+#: The permissions a full operator holds here. Spelled rather than imported so
+#: the fixture states what it claims rather than tracking a runtime enum — a
+#: fixture that changed when a permission was renamed would hide the change the
+#: console has to cope with.
+OPERATOR_PERMISSIONS: Final[tuple[str, ...]] = (
+    "approval.read",
+    "audit.read",
+    "config.read",
+    "config.write",
+    "identity.read",
+    "integration.manage",
+    "investigation.read",
+    "investigation.run",
+    "knowledge.read",
+    "memory.read",
+    "remediation.approve",
+    "remediation.execute",
+    "schedule.manage",
+    "token.manage",
+)
+
+VIEWER_PERMISSIONS: Final[tuple[str, ...]] = (
+    "approval.read",
+    "config.read",
+    "investigation.read",
+    "knowledge.read",
+    "memory.read",
+)
+
+
+def at(*, days: int = 0, hours: int = 0, minutes: int = 0) -> str:
+    """Return an instant that far before the survey, as the API spells one."""
+    return (_CAPTURED - timedelta(days=days, hours=hours, minutes=minutes)).isoformat()
+
+
+def _record(slug: str, arguments: Mapping[str, str], body: Any) -> CapturedRecord:
+    return CapturedRecord(
+        slug=slug,
+        arguments=dict(arguments),
+        status=200,
+        body=body,
+        provenance=Provenance.GATEWAY,
+        request=Request(method="GET", path=slug),
+    )
+
+
+# --- Runs -------------------------------------------------------------------------
+
+RUNS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "run_id": "run-0001",
+        "status": "succeeded",
+        "trigger": "alert",
+        "started_at": at(days=2, minutes=41),
+        "finished_at": at(days=2, minutes=27),
+        "summary": "A guest reached the ceiling of its own volume while the datastore "
+        "under it still read comfortable.",
+    },
+    {
+        "run_id": "run-0002",
+        "status": "succeeded",
+        "trigger": "schedule",
+        "started_at": at(days=1, hours=3),
+        "finished_at": at(days=1, hours=2, minutes=48),
+        "summary": "Quorum has no margin: two of two required votes, and the device in "
+        "the membership view carries none.",
+    },
+    {
+        "run_id": "run-0003",
+        "status": "running",
+        "trigger": "alert",
+        "started_at": at(minutes=4),
+        "finished_at": None,
+        "summary": None,
+    },
+    {
+        "run_id": "run-0004",
+        "status": "failed",
+        "trigger": "manual",
+        "started_at": at(days=3, hours=6),
+        "finished_at": at(days=3, hours=5, minutes=51),
+        "summary": "The investigation could not reach the metrics agent; it is one of the "
+        "failed units on the primary.",
+    },
+    {
+        "run_id": "run-0005",
+        "status": "awaiting_approval",
+        "trigger": "alert",
+        "started_at": at(minutes=22),
+        "finished_at": None,
+        "summary": "A remediation is proposed and is waiting for a decision.",
+    },
+    {
+        "run_id": "run-0006",
+        "status": "cancelled",
+        "trigger": "manual",
+        "started_at": at(days=5, hours=1),
+        "finished_at": at(days=5, minutes=58),
+        "summary": "Cancelled by the operator after the cause was identified by hand.",
+    },
+)
+
+_TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
+    "run-0001": (
+        {
+            "turn_id": "turn-0001-1",
+            "index": 0,
+            "model": "operator-configured",
+            "selection_rationale": "storage pressure is a first-party domain",
+            "calls": [
+                {
+                    "call_id": "call-0001-1",
+                    "name": "estate.storage_pressure",
+                    "status": "succeeded",
+                    "duration_ms": 412,
+                    "error": None,
+                }
+            ],
+        },
+        {
+            "turn_id": "turn-0001-2",
+            "index": 1,
+            "model": "operator-configured",
+            "selection_rationale": "the datastore reading disagrees with the volume reading",
+            "calls": [
+                {
+                    "call_id": "call-0001-2",
+                    "name": "estate.volume_fill",
+                    "status": "succeeded",
+                    "duration_ms": 188,
+                    "error": None,
+                },
+                {
+                    "call_id": "call-0001-3",
+                    "name": "knowledge.search",
+                    "status": "succeeded",
+                    "duration_ms": 96,
+                    "error": None,
+                },
+            ],
+        },
+        {
+            "turn_id": "turn-0001-3",
+            "index": 2,
+            "model": "operator-configured",
+            "selection_rationale": "enough evidence to conclude",
+            "calls": [],
+        },
+    ),
+    "run-0003": (
+        {
+            "turn_id": "turn-0003-1",
+            "index": 0,
+            "model": "operator-configured",
+            "selection_rationale": "the alert names a unit, so start at the node",
+            "calls": [
+                {
+                    "call_id": "call-0003-1",
+                    "name": "estate.failed_units",
+                    "status": "succeeded",
+                    "duration_ms": 233,
+                    "error": None,
+                }
+            ],
+        },
+        {
+            "turn_id": "turn-0003-2",
+            "index": 1,
+            "model": "operator-configured",
+            "selection_rationale": "one of the failed units is the hardening script",
+            "calls": [
+                {
+                    "call_id": "call-0003-2",
+                    "name": "knowledge.search",
+                    "status": "running",
+                    "duration_ms": 0,
+                    "error": None,
+                }
+            ],
+        },
+    ),
+}
+
+
+def runs_records() -> tuple[CapturedRecord, ...]:
+    """Return the run list, each run's detail, its transcript and its replay."""
+    records: list[CapturedRecord] = [_record("runs", {}, {"runs": list(RUNS)})]
+    for run in RUNS:
+        identifier = str(run["run_id"])
+        records.append(_record("run-detail", {"run_id": identifier}, dict(run)))
+        turns = list(_TURNS.get(identifier, ()))
+        records.append(
+            _record("run-threads", {"run_id": identifier}, {"run_id": identifier, "turns": turns})
+        )
+        records.append(
+            _record(
+                "run-replay",
+                {"run_id": identifier},
+                {
+                    "run_id": identifier,
+                    "turns": turns,
+                    "total_cost": round(0.031 * (len(turns) + 1), 4),
+                    "total_tokens": 1840 * (len(turns) + 1),
+                    "is_interrupted": run["status"] == "cancelled",
+                },
+            )
+        )
+    return tuple(records)
+
+
+# --- Interactions and approvals ----------------------------------------------------
+
+INTERACTIONS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
+    "run-0003": (
+        {
+            "interaction_id": "int-0001",
+            "run_id": "run-0003",
+            "kind": "question",
+            "text": "The hardening unit failed at boot. Should the investigation read the "
+            "boot journal as well?",
+            "options": ["yes", "no"],
+            "is_open": True,
+            "reason": "",
+        },
+    ),
+    "run-0005": (
+        {
+            "interaction_id": "int-0002",
+            "run_id": "run-0005",
+            "kind": "approval",
+            "text": "Enable the disabled backup job covering the primary's guests.",
+            "options": [],
+            "is_open": True,
+            "reason": "",
+        },
+    ),
+    "run-0001": (
+        {
+            "interaction_id": "int-0003",
+            "run_id": "run-0001",
+            "kind": "question",
+            "text": "Which datastore should the freed space be measured against?",
+            "options": ["the guest volume", "the datastore"],
+            "is_open": False,
+            "reason": "answered",
+        },
+    ),
+}
+
+APPROVALS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "approval_id": "apr-0001",
+        "run_id": "run-0005",
+        "action": "estate.enable_backup_job",
+        "side_effect_level": "write",
+        "summary": "Enable the disabled job so the primary's guests are covered at all.",
+        "requested_at": at(minutes=21),
+        "expires_at": at(minutes=-99),
+        "state": "pending",
+        "arguments": {"job_id": "backup-7d831311"},
+        "decided_at": None,
+        "decided_by": None,
+        "reason": None,
+        "rollback_plan": {
+            "plan_id": "plan-0001",
+            "approval_id": "apr-0001",
+            "notes": "Disabling it again restores the state exactly, and takes one call.",
+            "steps": [
+                {
+                    "ordinal": 1,
+                    "description": "Disable the job again",
+                    "capability": "estate.disable_backup_job",
+                    "arguments": {"job_id": "backup-7d831311"},
+                }
+            ],
+        },
+    },
+    {
+        "approval_id": "apr-0002",
+        "run_id": "run-0001",
+        "action": "estate.expand_volume",
+        "side_effect_level": "write",
+        "summary": "Grow the volume that is at the ceiling of its own allocation.",
+        "requested_at": at(days=2, minutes=33),
+        "expires_at": at(days=1, minutes=33),
+        "state": "pending",
+        "arguments": {"volume_id": "vm-100-disk-0", "add_bytes": 16_000_000_000},
+        "decided_at": None,
+        "decided_by": None,
+        "reason": None,
+        "rollback_plan": None,
+    },
+)
+
+
+def interaction_records() -> tuple[CapturedRecord, ...]:
+    """Return each run's open questions and approvals, and the approval queue."""
+    records = [
+        _record("interactions", {"run_id": run_id}, {"interactions": list(found)})
+        for run_id, found in INTERACTIONS.items()
+    ]
+    records.append(_record("approvals", {}, {"approvals": list(APPROVALS)}))
+    for approval in APPROVALS:
+        records.append(
+            _record(
+                "approval-detail", {"approval_id": str(approval["approval_id"])}, dict(approval)
+            )
+        )
+    return tuple(records)
+
+
+# --- Memory and knowledge ----------------------------------------------------------
+
+EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "episode_id": "ep-0001",
+        "run_id": "run-0001",
+        "title": "A guest volume filled while its datastore looked fine",
+        "summary": "The datastore read 84% and the guest read 99.6%. The threshold that "
+        "matters is the one on the volume.",
+        "outcome": "resolved",
+        "components": ["plateau", "store-linen"],
+        "occurred_at": at(days=2, minutes=26),
+    },
+    {
+        "episode_id": "ep-0002",
+        "run_id": "run-0002",
+        "title": "Quorum has no margin",
+        "summary": "Two of two required votes, and the device in the membership view carries none.",
+        "outcome": "acknowledged",
+        "components": ["cluster"],
+        "occurred_at": at(days=1, hours=2, minutes=47),
+    },
+    {
+        "episode_id": "ep-0003",
+        "run_id": "run-0004",
+        "title": "The investigation could not reach the metrics agent",
+        "summary": "The agent is one of the failed units on the primary; nothing was "
+        "watching the watcher.",
+        "outcome": "unresolved",
+        "components": ["node01", "metrics-agent.service"],
+        "occurred_at": at(days=3, hours=5, minutes=50),
+    },
+    {
+        "episode_id": "ep-0004",
+        "run_id": "run-0006",
+        "title": "Name resolution stalled twice in one week",
+        "summary": "Both guests responsible were near the ceiling of their own volumes.",
+        "outcome": "resolved",
+        "components": ["quartz", "sorrel"],
+        "occurred_at": at(days=5, minutes=57),
+    },
+    {
+        "episode_id": "ep-0005",
+        "run_id": "run-0002",
+        "title": "A kernel was installed and never booted",
+        "summary": "The usual signal did not fire, so the first real boot of it will be "
+        "an unplanned one.",
+        "outcome": "acknowledged",
+        "components": ["node01", "node02"],
+        "occurred_at": at(days=1, hours=2, minutes=40),
+    },
+)
+
+DOCUMENTS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "document_id": "doc-0001",
+        "title": "Runbook: a guest volume near its ceiling",
+        "content_type": "text/markdown",
+        "checksum": "b6f1c0d2e4a58937",
+        "source_uri": "knowledge://runbooks/volume-near-ceiling",
+        "updated_at": at(days=12),
+        "metadata": {"kind": "runbook", "reviewed": True},
+    },
+    {
+        "document_id": "doc-0002",
+        "title": "Postmortem: both nodes lost networking at boot",
+        "content_type": "text/markdown",
+        "checksum": "1d9a73be05c4f218",
+        "source_uri": "knowledge://postmortems/network-at-boot",
+        "updated_at": at(days=1, hours=9),
+        "metadata": {"kind": "postmortem", "severity": "critical"},
+    },
+    {
+        "document_id": "doc-0003",
+        "title": "Runbook: quorum with no margin",
+        "content_type": "text/markdown",
+        "checksum": "77c0aa41e2b6d905",
+        "source_uri": "knowledge://runbooks/quorum-margin",
+        "updated_at": at(days=30),
+        "metadata": {"kind": "runbook", "reviewed": False},
+    },
+)
+
+_PASSAGES: Final[Mapping[str, Sequence[str]]] = {
+    "doc-0001": (
+        "A datastore threshold cannot see a guest at the ceiling of its own volume. "
+        "Read both, and alert on whichever is worse.",
+        "Growing the volume is reversible; growing the datastore usually is not.",
+    ),
+    "doc-0002": (
+        "An upgrade renamed the interfaces. The bridge could not be built, and every "
+        "service that depended on it failed at once, including the monitoring.",
+        "The recovery needed physical access to both machines, because the path in "
+        "depended on the thing that was down.",
+    ),
+    "doc-0003": (
+        "With two nodes and no quorum device, losing either one makes the cluster "
+        "filesystem read-only. The guests already running keep running.",
+    ),
+}
+
+
+def memory_records() -> tuple[CapturedRecord, ...]:
+    """Return the episodic corpus, its statistics, and the knowledge documents."""
+    records: list[CapturedRecord] = [
+        _record("episodes", {}, {"episodes": list(EPISODES)}),
+        _record("memory-stats", {}, {"episode_count": len(EPISODES)}),
+        _record("documents", {}, {"documents": list(DOCUMENTS)}),
+    ]
+    for document in DOCUMENTS:
+        identifier = str(document["document_id"])
+        records.append(
+            _record(
+                "document-detail",
+                {"document_id": identifier},
+                {
+                    "document": dict(document),
+                    "chunks": [
+                        {"chunk_id": f"{identifier}-{index}", "ordinal": index, "text": text}
+                        for index, text in enumerate(_PASSAGES.get(identifier, ()))
+                    ],
+                },
+            )
+        )
+    return tuple(records)
+
+
+def topology_records() -> tuple[CapturedRecord, ...]:
+    """Return one service's dependencies, dependents and blast radius."""
+
+    def node(identifier: str, name: str, kind: str) -> dict[str, Any]:
+        return {
+            "node_id": identifier,
+            "name": name,
+            "kind": kind,
+            "owner_node_id": PLATFORM_TEAM_NODE,
+            "properties": {"tier": kind},
+        }
+
+    view = {
+        "node_id": "svc-ledger",
+        "available": True,
+        "reason": None,
+        "truncated": False,
+        "dependencies": [
+            node("svc-store", "store-linen", "datastore"),
+            node("svc-resolver", "quartz", "service"),
+        ],
+        "dependents": [
+            node("svc-gateway", "harbour", "service"),
+            node("svc-reporting", "lumen", "service"),
+        ],
+        "blast_radius": [
+            {"depth": 1, "node": node("svc-gateway", "harbour", "service")},
+            {"depth": 2, "node": node("svc-reporting", "lumen", "service")},
+        ],
+    }
+    return (_record("topology", {"node_id": "svc-ledger"}, view),)
+
+
+# --- Configuration -----------------------------------------------------------------
+
+CONFIG_NODES: Final[tuple[Mapping[str, Any], ...]] = (
+    {"node_id": ORG_NODE, "name": "Northwind", "kind": "organisation", "parent_id": None},
+    {"node_id": PLATFORM_TEAM_NODE, "name": "Platform", "kind": "team", "parent_id": ORG_NODE},
+    {"node_id": STORAGE_TEAM_NODE, "name": "Storage", "kind": "team", "parent_id": ORG_NODE},
+    {
+        "node_id": "env-production",
+        "name": "Production",
+        "kind": "environment",
+        "parent_id": PLATFORM_TEAM_NODE,
+    },
+    {
+        "node_id": "env-staging",
+        "name": "Staging",
+        "kind": "environment",
+        "parent_id": PLATFORM_TEAM_NODE,
+    },
+)
+
+
+def config_records() -> tuple[CapturedRecord, ...]:
+    """Return the organisation tree, and each node's effective configuration."""
+    records: list[CapturedRecord] = [_record("config-tree", {}, {"nodes": list(CONFIG_NODES)})]
+    for entry in CONFIG_NODES:
+        identifier = str(entry["node_id"])
+        inherited = entry["parent_id"] is not None
+        records.append(
+            _record(
+                "config-effective",
+                {"node_id": identifier},
+                {
+                    "node_id": identifier,
+                    "values": {
+                        "investigation.max_loops": 12,
+                        "investigation.reasoning_effort": "medium",
+                        "approval.required_above": "read",
+                        "retention.audit_days": 365,
+                    },
+                    "provenance": {
+                        "investigation.max_loops": ORG_NODE if inherited else identifier,
+                        "investigation.reasoning_effort": identifier,
+                        "approval.required_above": ORG_NODE if inherited else identifier,
+                        "retention.audit_days": ORG_NODE if inherited else identifier,
+                    },
+                },
+            )
+        )
+        records.append(
+            _record(
+                "config-catalogue",
+                {"node_id": identifier},
+                {
+                    "entries": [
+                        {
+                            "name": "estate.storage_pressure",
+                            "kind": "tool",
+                            "summary": "Read datastore fill and per-guest volume fill together.",
+                            "side_effect_level": "read",
+                            "available": True,
+                            "reason": None,
+                            "required_integrations": [],
+                            "tags": ["estate", "storage"],
+                        },
+                        {
+                            "name": "estate.enable_backup_job",
+                            "kind": "tool",
+                            "summary": "Enable a backup job that exists and is disabled.",
+                            "side_effect_level": "write",
+                            "available": True,
+                            "reason": None,
+                            "required_integrations": [],
+                            "tags": ["estate", "backup"],
+                        },
+                        {
+                            "name": "metrics.range_query",
+                            "kind": "tool",
+                            "summary": "Query the metrics store over a window.",
+                            "side_effect_level": "read",
+                            "available": False,
+                            "reason": "the metrics integration holds no credential here",
+                            "required_integrations": ["metrics-store"],
+                            "tags": ["metrics"],
+                        },
+                    ],
+                    "blocked_by_integration": {"metrics-store": ["metrics.range_query"]},
+                },
+            )
+        )
+        records.append(
+            _record(
+                "config-integration-schemas",
+                {"node_id": identifier},
+                {
+                    "schemas": [
+                        {
+                            "name": "metrics-store",
+                            "display_name": "Metrics store",
+                            "hosts": ["metrics.example.invalid"],
+                            "credential_fields": [
+                                {
+                                    "name": "api_token",
+                                    "label": "API token",
+                                    "help": "A read-only token. It is stored by the proxy, "
+                                    "never by the console.",
+                                    "required": True,
+                                    "secret": True,
+                                }
+                            ],
+                            "settings_fields": [
+                                {
+                                    "name": "base_url",
+                                    "label": "Base URL",
+                                    "help": "Where the metrics store answers.",
+                                    "required": True,
+                                    "secret": False,
+                                }
+                            ],
+                        },
+                        {
+                            "name": "chat",
+                            "display_name": "Chat",
+                            "hosts": ["chat.example.invalid"],
+                            "credential_fields": [
+                                {
+                                    "name": "bot_token",
+                                    "label": "Bot token",
+                                    "help": "Used to post investigation summaries.",
+                                    "required": True,
+                                    "secret": True,
+                                }
+                            ],
+                            "settings_fields": [],
+                        },
+                    ]
+                },
+            )
+        )
+    return tuple(records)
+
+
+def integration_records() -> tuple[CapturedRecord, ...]:
+    """Return every installed integration, one of them unhealthy."""
+    return (
+        _record(
+            "integrations",
+            {},
+            {
+                "integrations": [
+                    {
+                        "name": "metrics-store",
+                        "category": "observability",
+                        "summary": "Range queries against the metrics store.",
+                        "health": "unconfigured",
+                        "health_detail": "no credential is stored for this node",
+                        "hosts": ["metrics.example.invalid"],
+                        "regions": [],
+                        "capabilities": ["metrics.range_query"],
+                        "required_credentials": ["api_token"],
+                        "required_permissions": ["metrics:read"],
+                        "parity": "full",
+                        "missing_artefacts": [],
+                    },
+                    {
+                        "name": "chat",
+                        "category": "collaboration",
+                        "summary": "Posts investigation summaries and takes approvals.",
+                        "health": "healthy",
+                        "health_detail": "verified 3 hours ago",
+                        "hosts": ["chat.example.invalid"],
+                        "regions": [],
+                        "capabilities": ["chat.post_message"],
+                        "required_credentials": ["bot_token"],
+                        "required_permissions": ["chat:write"],
+                        "parity": "full",
+                        "missing_artefacts": [],
+                    },
+                    {
+                        "name": "ticketing",
+                        "category": "workflow",
+                        "summary": "Opens and updates tickets from findings.",
+                        "health": "degraded",
+                        "health_detail": "the last verification timed out",
+                        "hosts": ["tickets.example.invalid"],
+                        "regions": [],
+                        "capabilities": ["ticketing.open_ticket"],
+                        "required_credentials": ["api_token"],
+                        "required_permissions": ["issues:write"],
+                        "parity": "partial",
+                        "missing_artefacts": ["synthetic scenario"],
+                    },
+                ]
+            },
+        ),
+    )
+
+
+# --- Identity and audit ------------------------------------------------------------
+
+USERS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "user_id": OPERATOR,
+        "display_name": "Avery Lockhart",
+        "email": "avery.lockhart@example.invalid",
+        "kind": "person",
+        "is_active": True,
+    },
+    {
+        "user_id": REVIEWER,
+        "display_name": "Morgan Thorne",
+        "email": "morgan.thorne@example.invalid",
+        "kind": "person",
+        "is_active": True,
+    },
+    {
+        "user_id": VIEWER,
+        "display_name": "Reese Underhill",
+        "email": "reese.underhill@example.invalid",
+        "kind": "person",
+        "is_active": True,
+    },
+    {
+        "user_id": AUTOMATION,
+        "display_name": "Scheduler",
+        "email": "scheduler@example.invalid",
+        "kind": "machine",
+        "is_active": True,
+    },
+)
+
+GRANTS: Final[tuple[Mapping[str, Any], ...]] = (
+    {"grant_id": "grant-0001", "principal_id": OPERATOR, "role": "owner", "node_id": ORG_NODE},
+    {
+        "grant_id": "grant-0002",
+        "principal_id": REVIEWER,
+        "role": "approver",
+        "node_id": PLATFORM_TEAM_NODE,
+    },
+    {"grant_id": "grant-0003", "principal_id": VIEWER, "role": "viewer", "node_id": ORG_NODE},
+    {
+        "grant_id": "grant-0004",
+        "principal_id": AUTOMATION,
+        "role": "operator",
+        "node_id": STORAGE_TEAM_NODE,
+    },
+)
+
+AUDIT_EVENTS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "event_id": "aud-0008",
+        "occurred_at": at(minutes=6),
+        "actor_id": AUTOMATION,
+        "actor_kind": "machine",
+        "action": "investigation.start",
+        "resource_kind": "run",
+        "resource_id": "run-0003",
+        "outcome": "succeeded",
+        "detail": {"trigger": "alert"},
+    },
+    {
+        "event_id": "aud-0007",
+        "occurred_at": at(minutes=21),
+        "actor_id": AUTOMATION,
+        "actor_kind": "machine",
+        "action": "approval.request",
+        "resource_kind": "approval",
+        "resource_id": "apr-0001",
+        "outcome": "succeeded",
+        "detail": {"side_effect_level": "write"},
+    },
+    {
+        "event_id": "aud-0006",
+        "occurred_at": at(hours=5),
+        "actor_id": OPERATOR,
+        "actor_kind": "person",
+        "action": "config.write",
+        "resource_kind": "config-node",
+        "resource_id": "env-production",
+        "outcome": "succeeded",
+        "detail": {"key": "investigation.reasoning_effort"},
+    },
+    {
+        "event_id": "aud-0005",
+        "occurred_at": at(days=1, hours=2),
+        "actor_id": REVIEWER,
+        "actor_kind": "person",
+        "action": "approval.reject",
+        "resource_kind": "approval",
+        "resource_id": "apr-0002",
+        "outcome": "succeeded",
+        "detail": {"reason": "the datastore has room; grow the volume in the window"},
+    },
+    {
+        "event_id": "aud-0004",
+        "occurred_at": at(days=2, minutes=27),
+        "actor_id": AUTOMATION,
+        "actor_kind": "machine",
+        "action": "investigation.finish",
+        "resource_kind": "run",
+        "resource_id": "run-0001",
+        "outcome": "succeeded",
+        "detail": {"status": "succeeded"},
+    },
+    {
+        "event_id": "aud-0003",
+        "occurred_at": at(days=3, hours=5, minutes=51),
+        "actor_id": AUTOMATION,
+        "actor_kind": "machine",
+        "action": "investigation.finish",
+        "resource_kind": "run",
+        "resource_id": "run-0004",
+        "outcome": "failed",
+        "detail": {"status": "failed"},
+    },
+    {
+        "event_id": "aud-0002",
+        "occurred_at": at(days=4),
+        "actor_id": OPERATOR,
+        "actor_kind": "person",
+        "action": "token.create",
+        "resource_kind": "token",
+        "resource_id": "tok-0002",
+        "outcome": "succeeded",
+        "detail": {"name": "scheduler"},
+    },
+    {
+        "event_id": "aud-0001",
+        "occurred_at": at(days=9),
+        "actor_id": OPERATOR,
+        "actor_kind": "person",
+        "action": "identity.grant",
+        "resource_kind": "grant",
+        "resource_id": "grant-0003",
+        "outcome": "succeeded",
+        "detail": {"role": "viewer"},
+    },
+)
+
+
+def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
+    """Return the principal, the directory, the grants, the tokens and the audit trail.
+
+    ``role`` decides who is looking, which is the whole of the restricted
+    scenario: the same deployment, seen by somebody who may not act on it.
+    """
+    viewer = role == "viewer"
+    principal = VIEWER if viewer else OPERATOR
+    display = next(user for user in USERS if user["user_id"] == principal)
+    return (
+        _record(
+            "principal",
+            {},
+            {
+                "principal_id": principal,
+                "display_name": display["display_name"],
+                "email": display["email"],
+                "kind": "person",
+                "roles": [role],
+                "permissions": list(VIEWER_PERMISSIONS if viewer else OPERATOR_PERMISSIONS),
+                "team_node_id": ORG_NODE,
+                "impersonating": False,
+                "impersonated_by": None,
+            },
+        ),
+        _record("principals", {}, {"users": list(USERS)}),
+        _record("grants", {}, {"grants": list(GRANTS)}),
+        _record(
+            "tokens",
+            {},
+            {
+                "tokens": [
+                    {
+                        "token_id": "tok-0001",
+                        "name": "console",
+                        "user_id": OPERATOR,
+                        "team_node_id": ORG_NODE,
+                        "scopes": ["investigation.read", "investigation.run"],
+                        "created_at": at(days=40),
+                        "expires_at": at(days=-325),
+                        "last_used_at": at(minutes=2),
+                        "revoked": False,
+                        "description": "The browser session's token.",
+                    },
+                    {
+                        "token_id": "tok-0002",
+                        "name": "scheduler",
+                        "user_id": AUTOMATION,
+                        "team_node_id": STORAGE_TEAM_NODE,
+                        "scopes": ["investigation.run"],
+                        "created_at": at(days=4),
+                        "expires_at": None,
+                        "last_used_at": at(minutes=6),
+                        "revoked": False,
+                        "description": None,
+                    },
+                ]
+            },
+        ),
+        _record(
+            "audit-events",
+            {},
+            {"events": list(AUDIT_EVENTS), "total": len(AUDIT_EVENTS)},
+        ),
+    )
+
+
+def platform_records() -> tuple[CapturedRecord, ...]:
+    """Return the capability catalogue and what the deployment says about itself."""
+    return (
+        _record(
+            "capabilities",
+            {},
+            {
+                "tools": [
+                    {
+                        "name": "estate.storage_pressure",
+                        "display_name": "Storage pressure",
+                        "description": "Datastore fill and per-guest volume fill, together.",
+                        "domain": "estate",
+                        "side_effect_level": "read",
+                    },
+                    {
+                        "name": "estate.failed_units",
+                        "display_name": "Failed units",
+                        "description": "What is failed on a node, which no API level reports.",
+                        "domain": "estate",
+                        "side_effect_level": "read",
+                    },
+                    {
+                        "name": "estate.enable_backup_job",
+                        "display_name": "Enable backup job",
+                        "description": "Enable a job that exists and is switched off.",
+                        "domain": "estate",
+                        "side_effect_level": "write",
+                    },
+                    {
+                        "name": "knowledge.search",
+                        "display_name": "Search knowledge",
+                        "description": "Find the runbook or postmortem that covers this.",
+                        "domain": "knowledge",
+                        "side_effect_level": "read",
+                    },
+                ],
+                "skills": [
+                    {
+                        "name": "storage-pressure",
+                        "description": "How to tell a full datastore from a full volume.",
+                    },
+                    {
+                        "name": "quorum-margin",
+                        "description": "What losing a node costs when there is no margin.",
+                    },
+                ],
+            },
+        ),
+        _record(
+            "health",
+            {},
+            {
+                "ready": True,
+                "connected": True,
+                "store_state": "ready",
+                "migrations_current": True,
+                "providers_configured": ["operator-configured"],
+                "reasons": [],
+                "recent_shedding": [],
+            },
+        ),
+    )
+
+
+def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
+    """Return every record the gateway half of the dataset holds."""
+    return (
+        *runs_records(),
+        *interaction_records(),
+        *memory_records(),
+        *topology_records(),
+        *config_records(),
+        *integration_records(),
+        *identity_records(role=role),
+        *platform_records(),
+    )
+
+
+__all__ = [
+    "APPROVALS",
+    "AUDIT_EVENTS",
+    "AUTOMATION",
+    "CONFIG_NODES",
+    "DOCUMENTS",
+    "EPISODES",
+    "GRANTS",
+    "INTERACTIONS",
+    "OPERATOR",
+    "OPERATOR_PERMISSIONS",
+    "ORG_NODE",
+    "PLATFORM_TEAM_NODE",
+    "REVIEWER",
+    "RUNS",
+    "STORAGE_TEAM_NODE",
+    "USERS",
+    "VIEWER",
+    "VIEWER_PERMISSIONS",
+    "at",
+    "config_records",
+    "identity_records",
+    "integration_records",
+    "interaction_records",
+    "memory_records",
+    "platform_records",
+    "runs_records",
+    "served_records",
+    "topology_records",
+]

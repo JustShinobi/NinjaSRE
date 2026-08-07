@@ -1,0 +1,28 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "grants": [
+          {
+            "grant_id": "grant-0001",
+            "node_id": "org-northwind",
+            "principal_id": "user-operator",
+            "role": "owner"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "grants",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "grants"
+}

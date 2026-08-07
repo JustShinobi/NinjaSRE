@@ -1,0 +1,212 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "incidents": [
+          {
+            "closed_at": null,
+            "detector": "backup-job-disabled",
+            "incident_id": "inc-0001",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "backup-1f376301",
+              "backup-7d831311"
+            ],
+            "summary": "2 subjects: primary baseline exists on schedule 08:00 and is disabled",
+            "title": "Backup job exists and is disabled"
+          },
+          {
+            "closed_at": null,
+            "detector": "datastore-near-full",
+            "incident_id": "inc-0002",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "store-cove",
+              "store-ridge"
+            ],
+            "summary": "2 subjects: store-cove is 95.65% full",
+            "title": "Datastore near full"
+          },
+          {
+            "closed_at": null,
+            "detector": "guest-uncovered-by-backup",
+            "incident_id": "inc-0003",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "ct-101",
+              "ct-103",
+              "ct-105",
+              "ct-107",
+              "ct-109",
+              "ct-111",
+              "ct-113",
+              "ct-115",
+              "ct-117",
+              "ct-119",
+              "ct-120",
+              "ct-121",
+              "ct-122",
+              "ct-123",
+              "ct-124",
+              "ct-125",
+              "ct-126",
+              "ct-127",
+              "ct-128",
+              "ct-129",
+              "ct-130",
+              "ct-131",
+              "ct-132",
+              "ct-133",
+              "ct-134",
+              "ct-135",
+              "ct-136",
+              "ct-137",
+              "ct-138",
+              "ct-139",
+              "ct-140",
+              "ct-141",
+              "ct-142",
+              "ct-143",
+              "ct-144",
+              "ct-145",
+              "ct-146",
+              "ct-147",
+              "ct-148",
+              "ct-149",
+              "ct-150",
+              "ct-151",
+              "ct-152",
+              "ct-153",
+              "ct-154",
+              "ct-155",
+              "ct-156",
+              "ct-157",
+              "ct-158",
+              "ct-159",
+              "ct-160",
+              "ct-161",
+              "ct-162",
+              "ct-163",
+              "ct-164",
+              "ct-165",
+              "ct-166",
+              "ct-167",
+              "ct-168",
+              "ct-169",
+              "ct-170",
+              "ct-171",
+              "ct-172",
+              "ct-173",
+              "ct-174",
+              "ct-175",
+              "ct-176",
+              "ct-177",
+              "ct-178",
+              "ct-179",
+              "ct-180",
+              "ct-181",
+              "vm-182",
+              "vm-183"
+            ],
+            "summary": "74 subjects: amber is named by no enabled backup job",
+            "title": "Guest covered by no enabled backup job"
+          },
+          {
+            "closed_at": null,
+            "detector": "guest-volume-near-full",
+            "incident_id": "inc-0004",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "high",
+            "state": "open",
+            "subjects": [
+              "ct-100",
+              "ct-115",
+              "ct-140"
+            ],
+            "summary": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
+            "title": "Guest volume near full"
+          },
+          {
+            "closed_at": null,
+            "detector": "kernel-never-booted",
+            "incident_id": "inc-0005",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "high",
+            "state": "open",
+            "subjects": [
+              "node-node01",
+              "node-node02"
+            ],
+            "summary": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
+            "title": "Kernel installed and never booted"
+          },
+          {
+            "closed_at": null,
+            "detector": "no-replication-node-local-storage",
+            "incident_id": "inc-0006",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "high",
+            "state": "open",
+            "subjects": [
+              "cluster"
+            ],
+            "summary": "no replication job exists while guests are on node-local storage",
+            "title": "No replication with node-local guest storage"
+          },
+          {
+            "closed_at": null,
+            "detector": "quorum-device-not-contributing",
+            "incident_id": "inc-0007",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "cluster"
+            ],
+            "summary": "a quorum device appears in the membership view and the configuration declares none",
+            "title": "Quorum device configured but contributing nothing"
+          },
+          {
+            "closed_at": null,
+            "detector": "quorum-margin-zero",
+            "incident_id": "inc-0008",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "run_id": null,
+            "severity": "critical",
+            "state": "open",
+            "subjects": [
+              "cluster"
+            ],
+            "summary": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+            "title": "Quorum margin is zero"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "incidents"
+}

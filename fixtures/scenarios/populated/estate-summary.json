@@ -1,0 +1,41 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "by_kind": [
+          {
+            "count": 82,
+            "kind": "container"
+          },
+          {
+            "count": 2,
+            "kind": "node"
+          },
+          {
+            "count": 2,
+            "kind": "virtual-machine"
+          }
+        ],
+        "captured_at": "2026-08-07T12:00:00+00:00",
+        "degraded": 84,
+        "healthy": 0,
+        "nodes": 2,
+        "open_findings": 94,
+        "resources": 86,
+        "unknown": 2
+      },
+      "contract_version": "1.0.0",
+      "provenance": "pvesh",
+      "request": {
+        "command": "projected from a direct read (pvesh)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "estate-summary"
+}

@@ -1,0 +1,74 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "nodes": [
+          {
+            "bridges": [
+              "bridge0"
+            ],
+            "cpu_percent": 63.0,
+            "expected_votes": 2,
+            "failed_units": [
+              "corosync-qdevice.service",
+              "gateway-hardening.service",
+              "metrics-agent.service",
+              "mnt-archive.mount",
+              "mnt-media.mount",
+              "mnt-vault.mount",
+              "netbios.service",
+              "platform-management.service",
+              "vault-route.service"
+            ],
+            "guests": 52,
+            "kernel_installed": "7.0.14-9",
+            "kernel_running": "7.0.14-8",
+            "memory_percent": 58.0,
+            "name": "node01",
+            "node_id": "node-node01",
+            "pending_updates": 24,
+            "quorum_votes": 1,
+            "role": "primary",
+            "root_filesystem_percent": 33.0,
+            "security_updates": 6,
+            "version": "9.2.6"
+          },
+          {
+            "bridges": [
+              "bridge0"
+            ],
+            "cpu_percent": 9.0,
+            "expected_votes": 2,
+            "failed_units": [
+              "platform-management.service"
+            ],
+            "guests": 32,
+            "kernel_installed": "7.0.14-9",
+            "kernel_running": "7.0.14-8",
+            "memory_percent": 51.0,
+            "name": "node02",
+            "node_id": "node-node02",
+            "pending_updates": 24,
+            "quorum_votes": 1,
+            "role": "secondary",
+            "root_filesystem_percent": 80.0,
+            "security_updates": 6,
+            "version": "9.2.6"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "shell",
+      "request": {
+        "command": "projected from a direct read (shell)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "estate-nodes"
+}

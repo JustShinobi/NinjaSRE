@@ -1,0 +1,21 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "episode_count": 5
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "memory-stats",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "memory-stats"
+}

@@ -1,0 +1,52 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "approval_gated": [
+          "investigation.max_loops"
+        ],
+        "changes": [
+          {
+            "after": 16,
+            "before": 12,
+            "path": "investigation.max_loops"
+          },
+          {
+            "after": "high",
+            "before": "medium",
+            "path": "investigation.reasoning_effort"
+          }
+        ],
+        "locked": {
+          "approval.required_above": "org-northwind"
+        },
+        "node_id": "env-production",
+        "provenance": {
+          "approval.required_above": "org-northwind",
+          "investigation.max_loops": "env-production",
+          "investigation.reasoning_effort": "env-production",
+          "retention.audit_days": "org-northwind"
+        },
+        "requires_approval": true,
+        "values": {
+          "approval.required_above": "read",
+          "investigation.max_loops": 16,
+          "investigation.reasoning_effort": "high",
+          "retention.audit_days": 365
+        }
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "config-preview",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-preview"
+}

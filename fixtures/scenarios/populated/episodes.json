@@ -1,0 +1,81 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "episodes": [
+          {
+            "components": [
+              "plateau",
+              "store-linen"
+            ],
+            "episode_id": "ep-0001",
+            "occurred_at": "2026-08-05T11:34:00+00:00",
+            "outcome": "resolved",
+            "run_id": "run-0001",
+            "summary": "The datastore read 84% and the guest read 99.6%. The threshold that matters is the one on the volume.",
+            "title": "A guest volume filled while its datastore looked fine"
+          },
+          {
+            "components": [
+              "cluster"
+            ],
+            "episode_id": "ep-0002",
+            "occurred_at": "2026-08-06T09:13:00+00:00",
+            "outcome": "acknowledged",
+            "run_id": "run-0002",
+            "summary": "Two of two required votes, and the device in the membership view carries none.",
+            "title": "Quorum has no margin"
+          },
+          {
+            "components": [
+              "node01",
+              "metrics-agent.service"
+            ],
+            "episode_id": "ep-0003",
+            "occurred_at": "2026-08-04T06:10:00+00:00",
+            "outcome": "unresolved",
+            "run_id": "run-0004",
+            "summary": "The agent is one of the failed units on the primary; nothing was watching the watcher.",
+            "title": "The investigation could not reach the metrics agent"
+          },
+          {
+            "components": [
+              "quartz",
+              "sorrel"
+            ],
+            "episode_id": "ep-0004",
+            "occurred_at": "2026-08-02T11:03:00+00:00",
+            "outcome": "resolved",
+            "run_id": "run-0006",
+            "summary": "Both guests responsible were near the ceiling of their own volumes.",
+            "title": "Name resolution stalled twice in one week"
+          },
+          {
+            "components": [
+              "node01",
+              "node02"
+            ],
+            "episode_id": "ep-0005",
+            "occurred_at": "2026-08-06T09:20:00+00:00",
+            "outcome": "acknowledged",
+            "run_id": "run-0002",
+            "summary": "The usual signal did not fire, so the first real boot of it will be an unplanned one.",
+            "title": "A kernel was installed and never booted"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "episodes",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "episodes"
+}

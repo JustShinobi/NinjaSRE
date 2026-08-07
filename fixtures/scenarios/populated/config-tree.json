@@ -1,0 +1,52 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "nodes": [
+          {
+            "kind": "organisation",
+            "name": "Northwind",
+            "node_id": "org-northwind",
+            "parent_id": null
+          },
+          {
+            "kind": "team",
+            "name": "Platform",
+            "node_id": "team-platform",
+            "parent_id": "org-northwind"
+          },
+          {
+            "kind": "team",
+            "name": "Storage",
+            "node_id": "team-storage",
+            "parent_id": "org-northwind"
+          },
+          {
+            "kind": "environment",
+            "name": "Production",
+            "node_id": "env-production",
+            "parent_id": "team-platform"
+          },
+          {
+            "kind": "environment",
+            "name": "Staging",
+            "node_id": "env-staging",
+            "parent_id": "team-platform"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-tree",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-tree"
+}

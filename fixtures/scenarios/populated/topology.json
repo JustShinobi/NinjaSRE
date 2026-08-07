@@ -1,0 +1,92 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "svc-ledger"
+      },
+      "body": {
+        "available": true,
+        "blast_radius": [
+          {
+            "depth": 1,
+            "node": {
+              "kind": "service",
+              "name": "harbour",
+              "node_id": "svc-gateway",
+              "owner_node_id": "team-platform",
+              "properties": {
+                "tier": "service"
+              }
+            }
+          },
+          {
+            "depth": 2,
+            "node": {
+              "kind": "service",
+              "name": "lumen",
+              "node_id": "svc-reporting",
+              "owner_node_id": "team-platform",
+              "properties": {
+                "tier": "service"
+              }
+            }
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "datastore",
+            "name": "store-linen",
+            "node_id": "svc-store",
+            "owner_node_id": "team-platform",
+            "properties": {
+              "tier": "datastore"
+            }
+          },
+          {
+            "kind": "service",
+            "name": "quartz",
+            "node_id": "svc-resolver",
+            "owner_node_id": "team-platform",
+            "properties": {
+              "tier": "service"
+            }
+          }
+        ],
+        "dependents": [
+          {
+            "kind": "service",
+            "name": "harbour",
+            "node_id": "svc-gateway",
+            "owner_node_id": "team-platform",
+            "properties": {
+              "tier": "service"
+            }
+          },
+          {
+            "kind": "service",
+            "name": "lumen",
+            "node_id": "svc-reporting",
+            "owner_node_id": "team-platform",
+            "properties": {
+              "tier": "service"
+            }
+          }
+        ],
+        "node_id": "svc-ledger",
+        "reason": null,
+        "truncated": false
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "topology",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "topology"
+}
