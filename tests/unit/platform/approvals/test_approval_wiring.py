@@ -243,26 +243,47 @@ async def test_the_applier_map_holds_only_what_a_deployment_can_apply(
     assert isinstance(built[ChangeType.PROMPT], PromptApplier)
 
 
+async def test_a_deployment_that_can_remediate_wires_remediation_through_the_same_map(
+    config: ConfigService,
+) -> None:
+    """The failure this prevents: an approval nobody can honour, found on grant.
+
+    The map is what a deployment hands its approval service, and the service
+    indexes it by the change's own type. A deployment that offered remediation
+    but built its appliers here got a map without one, so the remediation was
+    queueable, reviewable, and approvable — and the grant raised ``KeyError``
+    on somebody's incident rather than at wiring time.
+    """
+    from platform.remediation.components import ComponentRegistry
+    from platform.remediation.execution import RemediationApplier
+
+    built = appliers_for(config=config, remediation=ComponentRegistry())
+
+    assert isinstance(built[ChangeType.REMEDIATION], RemediationApplier)
+
+
 async def test_an_empty_deployment_wires_nothing() -> None:
     assert appliers_for() == {}
 
 
-# --- Remediation, reserved (T049) --------------------------------------------
+# --- Remediation ---------------------------------------------------------------
 
 
-def test_remediation_has_a_renderer_and_a_gate_but_no_applier() -> None:
-    """What "reserved" means, concretely.
+def test_remediation_is_rendered_gated_and_appliable() -> None:
+    """All three halves of a change type, for the one that performs a write.
 
-    A remediation can already be described to a reviewer and can already be
-    gated by side-effect level. What it cannot do is apply, which is exactly the
-    piece feature 017 owns — and wiring it is one entry in the applier map
-    rather than a second approval mechanism.
+    A remediation can be described to a reviewer, gated by side-effect level,
+    and applied — where "applied" means the grant is recorded and the executor
+    performs the action, which is the one change type where approving is not
+    itself the change.
     """
     from config.constants.security import SIDE_EFFECT_DESTRUCTIVE
     from platform.approvals.diff.renderers import RENDERERS
     from platform.approvals.policy import SecurityPolicy
+    from platform.remediation.components import ComponentRegistry
 
     assert ChangeType.REMEDIATION in RENDERERS
     assert SecurityPolicy(
         require_approval_for_side_effect_levels=(SIDE_EFFECT_DESTRUCTIVE,)
     ).requires_approval_for_level(SIDE_EFFECT_DESTRUCTIVE)
+    assert ChangeType.REMEDIATION in appliers_for(remediation=ComponentRegistry())

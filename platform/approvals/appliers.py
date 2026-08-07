@@ -30,6 +30,8 @@ from platform.config_service.errors import UnknownNode
 from platform.config_service.service import ConfigService
 from platform.knowledge.proposals import ProposalQueue
 from platform.persistence.ports import ActorKind
+from platform.remediation.components import ComponentRegistry
+from platform.remediation.execution import RemediationApplier
 
 
 @dataclass(slots=True)
@@ -184,6 +186,7 @@ def appliers_for(
     *,
     config: ConfigService | None = None,
     proposals: ProposalQueue | None = None,
+    remediation: ComponentRegistry | None = None,
 ) -> dict[ChangeType, Any]:
     """Return the applier map a deployment wires its approval service with.
 
@@ -192,9 +195,15 @@ def appliers_for(
     knowledge base should refuse a knowledge proposal at the queue rather than
     accept one it could never honour.
 
-    Remediation is absent and stays absent until feature 017 fills it. Its diff
-    renderer and its side-effect gating are already here, so wiring it is one
-    entry in this map rather than a second approval mechanism.
+    ``remediation`` is the registry of what this deployment can remediate with,
+    which is assembled where the capabilities are. It is a parameter rather than
+    something built here because this module is below that assembly and would
+    otherwise have to reach up into it.
+
+    The remediation applier is the one that does not itself apply. Approval
+    authorises; the executor re-evaluates the conditions, locks the target, and
+    performs the action. Its ``read`` is what conflict detection fingerprints
+    against, which is why it belongs in this map rather than beside it.
     """
     built: dict[ChangeType, Any] = {}
     if config is not None:
@@ -203,6 +212,8 @@ def appliers_for(
         built[ChangeType.CAPABILITY] = CapabilityApplier(service=config)
     if proposals is not None:
         built[ChangeType.KNOWLEDGE] = KnowledgeApplier(proposals=proposals)
+    if remediation is not None:
+        built[ChangeType.REMEDIATION] = RemediationApplier(registry=remediation)
     return built
 
 
