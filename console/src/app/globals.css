@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+/*
+ * The design system arrives with its own feature. What is here is the minimum a
+ * rendered page needs to be legible and to screenshot deterministically: a
+ * system font stack (no font is fetched from anywhere), and the two ground
+ * colours the theme switch will later drive.
+ */
+:root {
+  --console-background: #ffffff;
+  --console-foreground: #101418;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --console-background: #0d1117;
+    --console-foreground: #e6edf3;
+  }
+}
+
+body {
+  background: var(--console-background);
+  color: var(--console-foreground);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}

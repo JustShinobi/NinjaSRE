@@ -37,6 +37,7 @@ integrations/    Tier 2 — one package per vendor: config, credential schema, v
 capabilities/    Tier 2 — the agent-callable surface: typed tools, skills, registry, selection.
 gateway/         Tier 1 — inbound transports: REST/SSE, webhooks, chat platforms.
 surfaces/        Tier 1 — human clients: CLI, REPL, console backend-for-frontend.
+console/         The web console. TypeScript, not a Python package, not a tier.
 
 tools/           Repository tooling. NOT agent-callable, NOT packaged, NOT import-linted.
 tests/           architecture/ unit/ contract/ synthetic/ chaos/ e2e/ benchmarks/
@@ -62,12 +63,18 @@ Dependencies point downward only, and CI proves it.
 | 2 | `integrations` | `core`, `platform`, `config` | `capabilities`, `surfaces`, `gateway` |
 | 3 | `core`, `platform` | `config`, and each other | tiers 1 and 2 |
 | 4 | `config` | — | everything |
+| — | `console` | the REST API, over HTTP | every Python package |
 
 **This table is the source of truth.** Seven contracts in
-[`.importlinter`](.importlinter) enforce it, one per rule, so a failure names the
-boundary you broke rather than reporting "layers".
-`tests/architecture/test_contract_coverage.py` asserts that the two stay in
-agreement: edit the table without revisiting the contracts and the build fails.
+[`.importlinter`](.importlinter) enforce the seven Python rows, one per rule, so
+a failure names the boundary you broke rather than reporting "layers". The
+`console` row is enforced by `make check-console-boundary` instead, because
+`import-linter` reasons about importable Python packages and the console is not
+one — giving it an `__init__.py` so a contract could name it would create the
+very thing the row forbids.
+`tests/architecture/test_contract_coverage.py` asserts that the table and its
+enforcement stay in agreement: edit the table without revisiting them and the
+build fails.
 
 ## File placement
 
@@ -268,4 +275,5 @@ than an operator.
 - [`gateway/AGENTS.md`](gateway/AGENTS.md)
 - [`integrations/AGENTS.md`](integrations/AGENTS.md)
 - [`platform/AGENTS.md`](platform/AGENTS.md)
+- [`console/AGENTS.md`](console/AGENTS.md)
 - [`surfaces/AGENTS.md`](surfaces/AGENTS.md)

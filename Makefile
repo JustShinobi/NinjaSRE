@@ -15,6 +15,11 @@ PYTHON_SOURCE_PATHS := config core platform integrations capabilities gateway su
 LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
 .PHONY: install lint format format-check typecheck test \
+	console-setup console-install console-format console-format-check \
+	console-lockfile console-lint console-typecheck console-test console-build \
+	console-client console-client-check console-e2e console-e2e-run \
+	console-e2e-sweep console-visual console-visual-accept console-check \
+	check-console-boundary \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
 	check-integration-docs check-env-example env-example \
@@ -161,6 +166,80 @@ e2e-cloud: ## Provision, investigate, and destroy the cloud scenarios (this cost
 e2e-reap: ## Find (DESTROY=1 to remove) cloud resources a killed run left behind
 	$(E2E) reap $(if $(DESTROY),--destroy,) $(if $(HOLDING),--holding $(HOLDING),)
 
+# --- The console ---------------------------------------------------------------
+#
+# The console is TypeScript, so none of the Python tooling above sees it. These
+# targets are how it is held to the same standard: every one of them is part of
+# `verify`, and every one of them is individually runnable, because a
+# contributor fixing a type error should not have to sit through a browser suite
+# to find out whether they fixed it.
+#
+# Each is a thin wrapper over `tools/console_gate.py`, which owns the one piece
+# of policy that cannot live in a Makefile: what to do on a machine that has no
+# Node and no container runtime. It reports a named skip and succeeds, unless
+# NINJASRE_CONSOLE_TOOLCHAIN=required is set — which CI sets, so the gate is
+# complete where it is enforced.
+
+console-setup: ## Provision the pinned Node, pnpm, and the console's dependencies
+	$(RUN) python -m tools.console_toolchain setup
+
+console-install: ## Update the committed lockfile from the manifest
+	$(RUN) python -m tools.console_toolchain run install
+
+console-format: ## Rewrite console files with the formatter
+	$(RUN) python -m tools.console_toolchain run run format
+
+console-format-check: ## Fail if any console file is not formatted
+	$(RUN) python -m tools.console_gate format-check
+
+console-lockfile: ## Fail if the committed lockfile has drifted from the manifest
+	$(RUN) python -m tools.console_gate lockfile
+
+console-lint: ## Run the console's lint rules
+	$(RUN) python -m tools.console_gate lint
+
+console-typecheck: ## Type-check the console
+	$(RUN) python -m tools.console_gate typecheck
+
+console-test: ## Run the console's unit suite against its coverage threshold
+	$(RUN) python -m tools.console_gate test
+
+console-build: ## Produce the console's standalone production build
+	$(RUN) python -m tools.console_gate build
+
+console-client: ## Regenerate the API client from the committed OpenAPI document
+	$(RUN) python -m tools.console_toolchain run run client
+
+console-client-check: ## Fail if the committed API client is not what the document generates
+	$(RUN) python -m tools.console_gate client-check
+
+console-e2e: ## Drive a browser against the built console and the committed dataset
+	$(RUN) python -m tools.console_gate e2e
+
+# Variables: BACKING (mock or compose), REPEAT (how many times to run it).
+console-e2e-run: ## Run the browser suite against BACKING, REPEAT times
+	$(RUN) python -m tools.console_e2e run \
+		$(if $(BACKING),--backing $(BACKING),) $(if $(REPEAT),--repeat $(REPEAT),)
+
+# The determinism sweep. Twenty runs, and a single flake is a defect to fix or a
+# behaviour to demote to a unit test — never a test to disable.
+console-e2e-sweep: ## Run the browser suite twenty times and fail on any flake
+	$(RUN) python -m tools.console_e2e run --repeat 20
+
+console-visual: ## Compare every registered screen against its committed baseline
+	$(RUN) python -m tools.console_gate visual
+
+# Not a flag on the comparison: accepting a baseline rewrites committed PNGs, so
+# the acceptance is the commit somebody reviews.
+console-visual-accept: ## Recapture the baselines, for review as a committed change
+	$(RUN) python -m tools.console_visual accept
+
+console-check: ## Every console check, cheapest failure first
+	$(RUN) python -m tools.console_gate all
+
+check-console-boundary: ## Reject a Python import of the console, or the reverse
+	$(RUN) python tools/check_console_boundary.py
+
 check-imports: ## Enforce the tier boundaries declared in .importlinter
 	# On Linux, stdlib uuid.py unconditionally does `import platform` to tell
 	# AIX from Linux, and click (imported by import-linter's CLI) pulls in uuid
@@ -259,11 +338,14 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 
 # The single gate CI runs. Ordered cheapest-first so an obvious failure reports
 # in seconds rather than after the suite.
+# The console's checks come after the Python ones and before the Python suite:
+# they are the ones a contributor is most likely to have broken while working on
+# the console, and the Python suite is the longest single step in the gate.
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
-	check-credentials check-integrations check-integration-docs \
-	check-env-example check-docs check-doc-examples \
-	test ## The single quality gate CI runs
+	check-credentials check-console-boundary check-integrations \
+	check-integration-docs check-env-example check-docs check-doc-examples \
+	console-check test ## The single quality gate CI runs
 
 # Which wave of specs the branch/slug contract reads. Override per invocation
 # (`make close-task SPECS_DIR=specs_v2`) or export NINJASRE_SPECS_DIR once for a

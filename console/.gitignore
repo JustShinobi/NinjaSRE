@@ -1,0 +1,11 @@
+# Everything here is provisioned, generated, or captured by a run. What is
+# committed is the manifest, the lockfile, the pins, the source, and the
+# baselines.
+.next/
+.toolchain/
+node_modules/
+coverage/
+test-results/
+playwright-report/
+next-env.d.ts
+*.tsbuildinfo

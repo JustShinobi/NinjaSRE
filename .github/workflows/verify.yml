@@ -36,6 +36,13 @@ jobs:
         # rules out requiring WSL.
         shell: bash
 
+    env:
+      # A machine with no toolchain gets a named skip locally, because a gate
+      # that goes red for a reason a contributor cannot act on is a gate they
+      # learn to bypass. Here there is no such excuse: this is where the console
+      # half is enforced, so a skip is a failure.
+      NINJASRE_CONSOLE_TOOLCHAIN: required
+
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -50,11 +57,177 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
 
+      # The pinned Node distribution, the pinned pnpm, the browser and the
+      # installed dependencies. Keyed on the files that decide what any of them
+      # are, so a run that changes no dependency restores rather than reinstalls
+      # — and a run that changes one cannot restore a cache built from the old
+      # one.
+      - name: Restore the console toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            console/.toolchain
+            console/node_modules
+          key: >-
+            console-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('console/toolchain.lock.json', 'console/.node-version',
+            'console/pnpm-lock.yaml', 'console/package.json') }}
+
       - name: Provision the environment
         run: make install
 
+      # Provisioned before the gate rather than inside it, so a slow first
+      # install shows up as its own step with its own duration instead of
+      # disappearing into the gate's total.
+      - name: Provision the console toolchain
+        run: make console-setup
+
+      - name: Install the pinned browser
+        run: >-
+          PLAYWRIGHT_BROWSERS_PATH="$PWD/console/.toolchain/browsers"
+          uv run python -m tools.console_toolchain run exec playwright install chromium
+
       - name: Run the quality gate
         run: make verify
+
+  console-visual:
+    name: console visual regression (pinned image)
+    # Linux only, and one job rather than three. The baselines are captured in
+    # one pinned container image and compared only against captures from it —
+    # font rasterisation differs between platforms, so a comparison anywhere
+    # else reports differences that mean nothing. The hosted macOS runner has no
+    # container runtime and the Windows one runs Windows containers, so this is
+    # the only place the comparison is meaningful.
+    #
+    # `make verify` runs it too, and skips with a name where it cannot. This job
+    # is where it is enforced.
+    runs-on: ubuntu-latest
+
+    env:
+      NINJASRE_CONSOLE_TOOLCHAIN: required
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Restore the console toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            console/.toolchain
+            console/node_modules
+          key: >-
+            console-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('console/toolchain.lock.json', 'console/.node-version',
+            'console/pnpm-lock.yaml', 'console/package.json') }}
+
+      - name: Provision the environment
+        run: make install
+
+      - name: Provision the console toolchain
+        run: make console-setup
+
+      - name: Build the console
+        run: make console-build
+
+      - name: Compare every screen against its baseline
+        run: make console-visual
+
+      # The artefact is the point. A run that failed with "images differ" and no
+      # image is a run people accept blind.
+      - name: Publish the differences
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-visual-differences
+          path: |
+            console/test-results
+            console/playwright-report
+          if-no-files-found: warn
+
+  console-e2e-compose:
+    name: console end to end (compose stack)
+    # The deployment's own compose definition: a real gateway against a real
+    # database. `make verify` runs the same suite against the committed dataset,
+    # which is deterministic and fast; this is the half that would catch a
+    # console working against the dataset and not against the application.
+    #
+    # Its own job because it builds four images and brings up a stack, which is
+    # minutes rather than seconds.
+    runs-on: ubuntu-latest
+
+    env:
+      NINJASRE_CONSOLE_TOOLCHAIN: required
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Restore the console toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            console/.toolchain
+            console/node_modules
+          key: >-
+            console-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('console/toolchain.lock.json', 'console/.node-version',
+            'console/pnpm-lock.yaml', 'console/package.json') }}
+
+      - name: Provision the environment
+        run: make install
+
+      - name: Provision the console toolchain
+        run: make console-setup
+
+      - name: Install the pinned browser
+        run: >-
+          PLAYWRIGHT_BROWSERS_PATH="$PWD/console/.toolchain/browsers"
+          uv run python -m tools.console_toolchain run exec playwright install --with-deps chromium
+
+      - name: Build the console
+        run: make console-build
+
+      - name: Drive a browser against the compose stack
+        run: make console-e2e-run BACKING=compose
+
+  console-budget:
+    name: the gate's cold and warm budgets
+    # NFR-001 as a number rather than an intention. Cold is a runner with
+    # nothing cached; warm is the same runner immediately afterwards. Reporting
+    # both from one job is what makes the difference between them meaningful.
+    runs-on: ubuntu-latest
+
+    env:
+      NINJASRE_CONSOLE_TOOLCHAIN: required
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Provision the environment
+        run: make install
+
+      - name: Time a cold gate
+        run: uv run python -m tools.measure_verify --profile cold
+
+      - name: Time a warm gate
+        run: uv run python -m tools.measure_verify --profile warm
 
   persistence:
     name: persistence contract suite (PostgreSQL)

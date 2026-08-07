@@ -1,0 +1,10 @@
+# pnpm reads its settings from here rather than from package.json.
+#
+# A dependency's install script runs arbitrary code from the registry on the
+# machine doing the install, so pnpm refuses to run any that is not named here.
+# This is the whole list, and adding to it is a decision somebody makes on
+# purpose rather than one an install makes for them.
+allowBuilds:
+  # The native module resolver behind the import lint rules. Without its build
+  # step the rules fall back to a slower JavaScript resolver, silently.
+  unrs-resolver: true

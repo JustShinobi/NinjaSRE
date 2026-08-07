@@ -1,0 +1,64 @@
+{
+  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched.",
+  "screens": [
+    {
+      "id": "runs",
+      "route": "/",
+      "status": "baselined",
+      "accepted": {
+        "against": null,
+        "reason": "The first screen the toolchain had to prove itself against. It is not one of the designed screens — it renders the run list with no design system behind it — so there is no reference to review it against, and it is expected to be replaced rather than restyled."
+      }
+    }
+  ],
+  "mockups": [
+    {
+      "file": "01-tokens-colour.png",
+      "status": "pending",
+      "surface": "the console design system",
+      "note": "The colour token table and its contrast pairs. Baselined by the gallery route the design system introduces, not by a product screen."
+    },
+    {
+      "file": "02-tokens-scales.png",
+      "status": "pending",
+      "surface": "the console design system",
+      "note": "Spacing, type and radius scales. Same gallery route."
+    },
+    {
+      "file": "03-screen-dashboard.png",
+      "status": "pending",
+      "surface": "the console data surfaces",
+      "note": "The deployment overview."
+    },
+    {
+      "file": "04-screen-incident.png",
+      "status": "pending",
+      "surface": "the console live layer",
+      "note": "One investigation, live: transcript, evidence and the decisions waiting on a person."
+    },
+    {
+      "file": "05-screen-estate.png",
+      "status": "pending",
+      "surface": "the console data surfaces",
+      "note": "The estate inventory."
+    },
+    {
+      "file": "06-screen-autonomy.png",
+      "status": "pending",
+      "surface": "the console data surfaces",
+      "note": "The autonomy policy screen."
+    },
+    {
+      "file": "07-states-empty-error.png",
+      "status": "pending",
+      "surface": "the console design system",
+      "note": "The empty, error and loading states every surface reuses."
+    },
+    {
+      "file": "08-theme-dark.png",
+      "status": "pending",
+      "surface": "the console application shell",
+      "note": "The dark theme. Captured as a second baseline of the same screens with the theme switched, once the shell owns the switch."
+    }
+  ]
+}

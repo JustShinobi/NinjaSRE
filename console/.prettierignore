@@ -1,0 +1,17 @@
+.next
+.toolchain
+coverage
+node_modules
+test-results
+playwright-report
+pnpm-lock.yaml
+src/api/schema.ts
+visual/baselines
+visual/mockups
+fixtures
+next-env.d.ts
+
+# Prose is written in the repository's house style, which is the same style as
+# every other document here. A second formatter with its own opinion about line
+# breaks would make the console's documents look unlike the rest.
+*.md
