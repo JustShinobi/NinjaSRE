@@ -59,6 +59,7 @@ from platform.config_service.field_policy import (
     merged_along,
 )
 from platform.config_service.hierarchy import Hierarchy
+from platform.config_service.preview import ConfigPreview, preview_of
 from platform.config_service.templates import TemplateDiff, TemplateLibrary
 from platform.config_service.validation import ConfigValidator
 from platform.guardrails.engine import GuardrailEngine
@@ -207,6 +208,15 @@ class ConfigService:
         """Return what applying ``template`` to ``node_id`` would change (FR-019)."""
         document = await self.document(node_id)
         return self._templates.preview(template, document.settings)
+
+    async def preview_settings(self, node_id: str, patch: Mapping[str, Any]) -> ConfigPreview:
+        """Return what applying ``patch`` to ``node_id`` would resolve to, storing nothing.
+
+        The same chain, the same merge, and the same lock and gate rules
+        ``set_settings`` applies — which is the only thing that makes the answer
+        worth showing somebody before they commit to it.
+        """
+        return preview_of(node_id, await self._chain(node_id), patch)
 
     # --- Writing -------------------------------------------------------------
 

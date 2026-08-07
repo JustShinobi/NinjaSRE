@@ -10,16 +10,21 @@ from gateway.http.correlation import CorrelationIdMiddleware
 from gateway.http.errors import install_error_handlers
 from gateway.http.lifespan import lifespan
 from gateway.http.routes import (
+    approvals,
+    audit,
     capabilities,
     config,
     health,
+    identity,
     integrations,
     interactions,
     investigations,
+    knowledge,
     memory,
     runs,
     schedules,
     threads,
+    topology,
 )
 from gateway.http.state import GatewayState
 from gateway.webhooks.router import WebhookSourceConfig, build_webhook_router
@@ -71,6 +76,12 @@ def create_app(
         memory.router,
         schedules.router,
         capabilities.router,
+        approvals.router,
+        topology.router,
+        knowledge.router,
+        identity.auth_router,
+        identity.identity_router,
+        audit.router,
         health.router,
     ):
         app.include_router(router)

@@ -11,6 +11,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 from gateway.http.rate_limit import ApiRateLimiter
+from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES, WEBHOOK_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE, RouteTable
 from gateway.http.services import InvestigationRunner
@@ -23,11 +24,13 @@ from platform.persistence.ports.transaction import PersistenceGateway
 from platform.runs.stream import RunEventBroker
 
 #: The table this deployment actually serves: feature 014's identity routes,
-#: extended with this feature's own — beside the handlers that serve them,
-#: per ``gateway/AGENTS.md``. Every request is checked against this, never
-#: against ``ROUTE_TABLE`` alone.
-APPLICATION_ROUTE_TABLE: RouteTable = ROUTE_TABLE.extended_with(GATEWAY_ROUTES).extended_with(
-    WEBHOOK_ROUTES
+#: extended with the API's own and with the console's — each beside the handlers
+#: that serve them, per ``gateway/AGENTS.md``. Every request is checked against
+#: this, never against ``ROUTE_TABLE`` alone.
+APPLICATION_ROUTE_TABLE: RouteTable = (
+    ROUTE_TABLE.extended_with(GATEWAY_ROUTES)
+    .extended_with(WEBHOOK_ROUTES)
+    .extended_with(CONSOLE_ROUTES)
 )
 
 
