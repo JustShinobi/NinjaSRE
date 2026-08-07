@@ -1,0 +1,29 @@
+root_cause_category: deployment_regression
+required_keywords:
+- revision
+- rollout
+- '412'
+forbidden_categories:
+- healthy
+- unknown
+- capacity_limit
+ruling_out_keywords:
+- traffic is within
+- not a capacity
+required_evidence_sources:
+- kubernetes
+optimal_trajectory:
+- kubernetes_rollout_history
+- kubernetes_workload_events
+golden_trajectory:
+  ordered_actions:
+  - kubernetes_workload_events
+  - kubernetes_rollout_history
+  matching: set
+  max_extra_actions: 2
+  max_redundancy: 0
+max_investigation_loops: 5
+model_response: 'ROOT_CAUSE: revision 412 of the search deployment regressed p99 latency;
+  the traffic rise in the same window is within the range the previous revision served.
+
+  '

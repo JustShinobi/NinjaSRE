@@ -1,0 +1,36 @@
+{
+  "integration": "github",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/search/issues"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "items": [
+          {
+            "number": 903,
+            "title": "chore: set PRICING_CACHE_ENABLED=false while we migrate the cache cluster",
+            "user": {
+              "login": "ana"
+            },
+            "closed_at": "2026-08-07T12:15:00Z"
+          },
+          {
+            "number": 901,
+            "title": "docs: rewrite the onboarding guide",
+            "user": {
+              "login": "sam"
+            },
+            "closed_at": "2026-08-07T12:12:00Z"
+          }
+        ]
+      },
+      "adversarial_signals": [
+        "unrelated_recent_change"
+      ]
+    }
+  ]
+}

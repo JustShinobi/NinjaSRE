@@ -1,0 +1,66 @@
+{
+  "provider_id": "recorded",
+  "model_id": "recorded-transcript",
+  "scenario": "kubernetes/001-oom-kill",
+  "entries": [
+    {
+      "kind": "structured",
+      "structured": {
+        "is_incident": true,
+        "confidence": 0.95,
+        "reason": "an alert is firing on a production service",
+        "alert_name": "HighErrorRate",
+        "severity": "critical",
+        "summary": "checkout error rate above 5%",
+        "components": [
+          "checkout"
+        ],
+        "error_text": ""
+      }
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "kubernetes_workload_events",
+          "arguments": {
+            "namespace": "payments",
+            "object_name": "checkout-7f4c",
+            "limit": 10
+          }
+        }
+      ]
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "stop",
+      "text": "The checkout container was OOMKilled three times inside the incident window [e1], and each kill was followed by a back-off restart. Its memory limit is 512Mi."
+    },
+    {
+      "kind": "structured",
+      "structured": {
+        "root_cause": "the checkout container exceeded its 512Mi memory limit",
+        "root_cause_category": "resource_exhaustion",
+        "summary": "checkout was OOMKilled three times inside the window [e1]; requests failed during each restart. The memory limit is 512Mi and the process exceeded it.",
+        "causal_chain": [
+          "memory use grew past the 512Mi limit",
+          "the kernel killed the container",
+          "requests failed while it restarted"
+        ],
+        "claims": [],
+        "remediation_steps": [
+          "raise the checkout memory limit to 1Gi",
+          "profile the allocation growth under load"
+        ],
+        "recommended_actions": [
+          "raise the checkout memory limit to 1Gi",
+          "profile the allocation growth under load"
+        ],
+        "contributing_factors": [],
+        "confidence": 0.85
+      }
+    }
+  ]
+}

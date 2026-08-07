@@ -1,0 +1,68 @@
+# The full scenario corpus, on a schedule and before a release.
+#
+# The pull-request path runs the corpus offline, against recorded transcripts,
+# because a gate that spent tokens on every push is a gate somebody eventually
+# turns off. That path proves the harness, the fixtures, and the pipeline; it
+# cannot prove anything about a model, because no model runs.
+#
+# This job is the other half. It repeats every scenario so variance is visible,
+# publishes a verdict record per attempt, and reports by difficulty level — the
+# stratification that distinguishes an improvement which helped everywhere from
+# one that helped on the easy cases.
+#
+# It is deliberately not a pull-request gate. A scheduled run that regresses is
+# a finding somebody reads; a per-push run that regresses on sampling noise is a
+# gate people learn to re-run until it goes green.
+
+name: scenarios
+
+on:
+  schedule:
+    # 04:00 UTC daily, which is after the day's merges and before anyone reads
+    # the result.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      attempts:
+        description: Attempts per scenario, for variance
+        required: false
+        default: "5"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    name: full scenario corpus
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Provision the environment
+        run: make install
+
+      - name: Run every scenario, repeatedly
+        run: |
+          make test-synthetic \
+            ATTEMPTS="${{ github.event.inputs.attempts || '5' }}" \
+            ARTIFACTS=scenario-verdicts.jsonl
+
+      - name: Publish the verdict records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-verdicts
+          path: scenario-verdicts.jsonl
+          if-no-files-found: warn

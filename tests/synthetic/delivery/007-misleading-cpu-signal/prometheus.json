@@ -1,0 +1,72 @@
+{
+  "integration": "prometheus",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/api/v1/query_range"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "status": "success",
+        "data": {
+          "resultType": "matrix",
+          "result": [
+            {
+              "metric": {
+                "job": "checkout",
+                "series": "cpu_usage_ratio"
+              },
+              "values": [
+                [
+                  1754570000,
+                  "0.41"
+                ],
+                [
+                  1754570300,
+                  "0.97"
+                ]
+              ]
+            },
+            {
+              "metric": {
+                "job": "checkout",
+                "series": "cache_hit_ratio"
+              },
+              "values": [
+                [
+                  1754570000,
+                  "0.94"
+                ],
+                [
+                  1754570300,
+                  "0.00"
+                ]
+              ]
+            },
+            {
+              "metric": {
+                "job": "checkout",
+                "series": "request_rate"
+              },
+              "values": [
+                [
+                  1754570000,
+                  "1180"
+                ],
+                [
+                  1754570300,
+                  "1194"
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "adversarial_signals": [
+        "louder_secondary_symptom"
+      ]
+    }
+  ]
+}

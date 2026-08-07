@@ -1,0 +1,14 @@
+schema_version: '1'
+scenario_id: 002-liveness-probe-killing
+title: a liveness probe restarts a healthy container
+failure_mode: probe_misconfiguration
+severity: critical
+scenario_difficulty: 2
+adversarial_signals:
+- healthy_replicas_present
+- benign_prior_event
+available_evidence:
+- kubernetes
+integrations:
+- kubernetes
+team_id: payments

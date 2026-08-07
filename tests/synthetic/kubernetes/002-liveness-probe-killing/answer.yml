@@ -1,0 +1,30 @@
+root_cause_category: configuration_error
+required_keywords:
+- liveness
+- probe
+- restart
+forbidden_categories:
+- resource_exhaustion
+- healthy
+- unknown
+ruling_out_keywords:
+- no OOMKilled
+- memory is within
+required_evidence_sources:
+- kubernetes
+optimal_trajectory:
+- kubernetes_workload_events
+- kubernetes_rollout_history
+golden_trajectory:
+  ordered_actions:
+  - kubernetes_workload_events
+  - kubernetes_rollout_history
+  matching: lcs
+  max_edit_distance: 1
+  max_extra_actions: 1
+  max_redundancy: 0
+max_investigation_loops: 4
+model_response: 'ROOT_CAUSE: the liveness probe''s timeout is shorter than the endpoint''s
+  cold-start latency, so Kubernetes restarts a container that is working.
+
+  '

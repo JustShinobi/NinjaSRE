@@ -1,0 +1,29 @@
+{
+  "integration": "aws_rds",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "query_contains": "Action=DescribeDBInstances"
+      },
+      "status": 200,
+      "content_type": "text/xml",
+      "body_text": "<?xml version=\"1.0\"?><DescribeDBInstancesResponse><DBInstances><DBInstance><DBInstanceIdentifier>checkout</DBInstanceIdentifier><DBInstanceStatus>available</DBInstanceStatus></DBInstance><DBInstance><DBInstanceIdentifier>reporting</DBInstanceIdentifier><DBInstanceStatus>available</DBInstanceStatus></DBInstance></DBInstances></DescribeDBInstancesResponse>",
+      "adversarial_signals": [
+        "misattributed_saturation"
+      ]
+    },
+    {
+      "match": {
+        "method": "GET",
+        "query_contains": "Action=DescribeEvents"
+      },
+      "status": 200,
+      "content_type": "text/xml",
+      "body_text": "<?xml version=\"1.0\"?><DescribeEventsResponse><Events><Event><SourceIdentifier>checkout</SourceIdentifier><Message>Multi-AZ failover completed at 11:02 and the instance has been available since</Message></Event><Event><SourceIdentifier>reporting</SourceIdentifier><Message>The reporting job opened 96 of the 100 available connections against the checkout database at 12:16</Message></Event></Events></DescribeEventsResponse>",
+      "adversarial_signals": [
+        "recovered_dependency"
+      ]
+    }
+  ]
+}

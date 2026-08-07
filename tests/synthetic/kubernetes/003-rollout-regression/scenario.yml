@@ -1,0 +1,14 @@
+schema_version: '1'
+scenario_id: 003-rollout-regression
+title: a rollout doubles p99 latency while traffic is also rising
+failure_mode: bad_deployment
+severity: high
+scenario_difficulty: 3
+adversarial_signals:
+- coincident_traffic_spike
+- misleading_error_log
+available_evidence:
+- kubernetes
+integrations:
+- kubernetes
+team_id: search

@@ -1,0 +1,119 @@
+{
+  "integration": "kubernetes",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/events"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "items": [
+          {
+            "reason": "Unhealthy",
+            "type": "Warning",
+            "message": "Liveness probe failed: Get http://10.4.2.9:8080/healthz: context deadline exceeded (Client.Timeout exceeded while awaiting headers)",
+            "count": 9,
+            "involvedObject": {
+              "name": "checkout-9b21",
+              "kind": "Pod"
+            },
+            "lastTimestamp": "2026-08-07T12:26:11Z"
+          },
+          {
+            "reason": "Killing",
+            "type": "Normal",
+            "message": "Container checkout failed liveness probe, will be restarted",
+            "count": 9,
+            "involvedObject": {
+              "name": "checkout-9b21",
+              "kind": "Pod"
+            },
+            "lastTimestamp": "2026-08-07T12:26:12Z"
+          },
+          {
+            "reason": "Started",
+            "type": "Normal",
+            "message": "Started container checkout; 3/3 replicas are Ready",
+            "count": 9,
+            "involvedObject": {
+              "name": "checkout-9b21",
+              "kind": "Pod"
+            },
+            "lastTimestamp": "2026-08-07T12:26:40Z"
+          },
+          {
+            "reason": "ScalingReplicaSet",
+            "type": "Normal",
+            "message": "Scaled up replica set checkout-9b21 to 3 six days ago",
+            "count": 1,
+            "involvedObject": {
+              "name": "checkout",
+              "kind": "Deployment"
+            },
+            "lastTimestamp": "2026-08-01T09:02:00Z"
+          }
+        ],
+        "metadata": {
+          "continue": ""
+        }
+      },
+      "adversarial_signals": [
+        "healthy_replicas_present",
+        "benign_prior_event"
+      ]
+    },
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/deployments/"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "kind": "Deployment",
+        "metadata": {
+          "name": "checkout"
+        },
+        "spec": {
+          "selector": {
+            "matchLabels": {
+              "app": "checkout"
+            }
+          }
+        }
+      }
+    },
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/replicasets"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "items": [
+          {
+            "metadata": {
+              "name": "checkout-9b21",
+              "creationTimestamp": "2026-08-01T09:02:00Z",
+              "annotations": {
+                "deployment.kubernetes.io/revision": "408"
+              },
+              "labels": {
+                "app": "checkout"
+              }
+            },
+            "spec": {
+              "replicas": 3
+            }
+          }
+        ],
+        "metadata": {
+          "continue": ""
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "payload": {
+    "receiver": "payments-oncall",
+    "status": "firing",
+    "alerts": [
+      {
+        "status": "firing",
+        "labels": {
+          "alertname": "CapacityDegraded",
+          "severity": "critical",
+          "service": "checkout"
+        },
+        "annotations": {
+          "summary": "half the checkout fleet is unreachable"
+        },
+        "startsAt": "2026-08-07T12:18:00+00:00",
+        "endsAt": "0001-01-01T00:00:00Z"
+      }
+    ]
+  },
+  "received_at": "2026-08-07T12:30:00+00:00"
+}

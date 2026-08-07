@@ -1,0 +1,74 @@
+{
+  "provider_id": "recorded",
+  "model_id": "recorded-transcript",
+  "scenario": "kubernetes/003-rollout-regression",
+  "entries": [
+    {
+      "kind": "structured",
+      "structured": {
+        "is_incident": true,
+        "confidence": 0.95,
+        "reason": "an alert is firing on a production service",
+        "alert_name": "LatencyP99",
+        "severity": "critical",
+        "summary": "p99 latency above 2s",
+        "components": [
+          "search"
+        ],
+        "error_text": ""
+      }
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "kubernetes_workload_events",
+          "arguments": {
+            "namespace": "search",
+            "object_name": "search",
+            "limit": 20
+          }
+        },
+        {
+          "id": "c2",
+          "name": "kubernetes_rollout_history",
+          "arguments": {
+            "deployment": "search",
+            "namespace": "search"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "stop",
+      "text": "Revision 412 rolled out at 12:19, four minutes before the alert [e2]. Request rate rose 18% in the same window, but traffic is within what revision 411 served last week, so this is not a capacity problem. The image-pull warning on search-canary has been firing for three weeks and is unrelated to this rollout."
+    },
+    {
+      "kind": "structured",
+      "structured": {
+        "root_cause": "revision 412 of the search deployment regressed p99 latency",
+        "root_cause_category": "deployment_regression",
+        "summary": "The rollout of revision 412 at 12:19 is the only change in the window [e2]. Traffic is within the range revision 411 served, so this is not a capacity limit, and the long-standing image-pull warning is on a different workload.",
+        "causal_chain": [
+          "revision 412 rolled out at 12:19",
+          "p99 latency doubled four minutes later",
+          "revision 411 served more traffic without the same latency"
+        ],
+        "claims": [],
+        "remediation_steps": [
+          "roll back the search deployment to revision 411",
+          "bisect the change set between 411 and 412 for the added work per request"
+        ],
+        "recommended_actions": [
+          "roll back the search deployment to revision 411",
+          "bisect the change set between 411 and 412 for the added work per request"
+        ],
+        "contributing_factors": [],
+        "confidence": 0.78
+      }
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "integration": "prometheus",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/api/v1/query_range"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "status": "success",
+        "data": {
+          "resultType": "matrix",
+          "result": [
+            {
+              "metric": {
+                "job": "checkout",
+                "upstream": "payments-provider"
+              },
+              "values": [
+                [
+                  1754570000,
+                  "12.4"
+                ],
+                [
+                  1754570300,
+                  "29.8"
+                ]
+              ]
+            },
+            {
+              "metric": {
+                "job": "checkout",
+                "upstream": "catalogue"
+              },
+              "values": [
+                [
+                  1754570000,
+                  "0.02"
+                ],
+                [
+                  1754570300,
+                  "0.02"
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

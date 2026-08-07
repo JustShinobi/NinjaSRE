@@ -1,0 +1,12 @@
+schema_version: '1'
+scenario_id: 001-oom-kill
+title: checkout is OOM-killed under load
+failure_mode: memory_exhaustion
+severity: critical
+scenario_difficulty: 1
+adversarial_signals: []
+available_evidence:
+- kubernetes
+integrations:
+- kubernetes
+team_id: payments

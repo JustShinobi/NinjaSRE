@@ -17,7 +17,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 .PHONY: install lint format format-check typecheck test \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
-	check-integration-docs preflight verify test-postgres \
+	check-integration-docs preflight verify test-postgres test-synthetic \
 	close-task clean help
 
 install: ## Provision the development environment from uv.lock
@@ -43,6 +43,22 @@ test: ## Run the test suite
 # so it runs as its own CI job — and SC-005 is only satisfied when it has.
 test-postgres: ## Run the persistence contract suite against a real PostgreSQL (needs Docker)
 	$(RUN) pytest tests/contract/persistence --postgres
+
+# The scenario corpus, offline. Part of `verify` through the test suite, and
+# also here as its own target because a contributor changing capability
+# selection wants the corpus alone with a filter on it, not the whole gate.
+#
+# Variables, all optional: FILTER (scenario id substring), SUITE, DIFFICULTY,
+# INTEGRATION, ATTEMPTS, ARTIFACTS (a path for JSONL verdict records).
+SYNTHETIC_ARGS := $(if $(FILTER),--scenario $(FILTER),) \
+	$(if $(SUITE),--suite $(SUITE),) \
+	$(if $(DIFFICULTY),--difficulty $(DIFFICULTY),) \
+	$(if $(INTEGRATION),--integration $(INTEGRATION),) \
+	$(if $(ATTEMPTS),--attempts $(ATTEMPTS),) \
+	$(if $(ARTIFACTS),--artifacts $(ARTIFACTS),)
+
+test-synthetic: ## Run the synthetic scenario corpus offline (no credentials, no tokens)
+	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.harness $(SYNTHETIC_ARGS)
 
 check-imports: ## Enforce the tier boundaries declared in .importlinter
 	# On Linux, stdlib uuid.py unconditionally does `import platform` to tell

@@ -1,0 +1,31 @@
+root_cause_category: dependency_failure
+required_keywords:
+- timeout
+- upstream
+- payment
+forbidden_categories:
+- healthy
+- unknown
+- code_defect
+ruling_out_keywords:
+- not a serialisation
+- checkout itself
+required_evidence_sources:
+- prometheus
+- loki
+optimal_trajectory:
+- prometheus_metric_statistics
+- loki_sample_logs
+golden_trajectory:
+  ordered_actions:
+  - prometheus_metric_statistics
+  - loki_sample_logs
+  matching: lcs
+  max_edit_distance: 1
+  max_extra_actions: 2
+  max_redundancy: 0
+max_investigation_loops: 4
+model_response: 'ROOT_CAUSE: the payment provider is timing out and checkout returns
+  5xx while it waits; the serialisation warning in the logs is unrelated.
+
+  '

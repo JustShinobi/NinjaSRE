@@ -1,0 +1,33 @@
+root_cause_category: configuration_error
+required_keywords:
+- cache
+- disabled
+- configuration
+forbidden_categories:
+- capacity_limit
+- resource_exhaustion
+- healthy
+- unknown
+ruling_out_keywords:
+- CPU is the symptom
+- not the cause
+required_evidence_sources:
+- prometheus
+- github
+optimal_trajectory:
+- prometheus_metric_statistics
+- github_recent_changes
+golden_trajectory:
+  ordered_actions:
+  - prometheus_metric_statistics
+  - github_recent_changes
+  matching: lcs
+  max_edit_distance: 1
+  max_extra_actions: 2
+  max_redundancy: 0
+max_investigation_loops: 5
+model_response: 'ROOT_CAUSE: a configuration change disabled the pricing cache, so
+  every request recomputes prices; CPU saturation is the symptom of that, not the
+  cause.
+
+  '

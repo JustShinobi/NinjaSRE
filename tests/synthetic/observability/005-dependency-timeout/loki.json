@@ -1,0 +1,48 @@
+{
+  "integration": "loki",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/loki/api/v1/query_range"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "status": "success",
+        "data": {
+          "resultType": "streams",
+          "result": [
+            {
+              "stream": {
+                "level": "error",
+                "app": "checkout"
+              },
+              "values": [
+                [
+                  "1754570300000000000",
+                  "upstream payments-provider timeout after 30s"
+                ]
+              ]
+            },
+            {
+              "stream": {
+                "level": "warn",
+                "app": "checkout"
+              },
+              "values": [
+                [
+                  "1754570100000000000",
+                  "cart serialiser fell back to the slow path"
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "adversarial_signals": [
+        "misleading_error_log"
+      ]
+    }
+  ]
+}

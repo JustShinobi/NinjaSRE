@@ -1,0 +1,115 @@
+{
+  "integration": "kubernetes",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/events"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "items": [
+          {
+            "reason": "ScalingReplicaSet",
+            "type": "Normal",
+            "message": "Scaled up replica set search-412 to 6",
+            "count": 1,
+            "involvedObject": {
+              "name": "search",
+              "kind": "Deployment"
+            },
+            "lastTimestamp": "2026-08-07T12:19:00Z"
+          },
+          {
+            "reason": "FailedToRetrieveImagePullSecret",
+            "type": "Warning",
+            "message": "Unable to retrieve pull secret regcred for search-canary; this warning has been firing for three weeks",
+            "count": 812,
+            "involvedObject": {
+              "name": "search-canary",
+              "kind": "Pod"
+            },
+            "lastTimestamp": "2026-08-07T12:27:00Z"
+          }
+        ],
+        "metadata": {
+          "continue": ""
+        }
+      },
+      "adversarial_signals": [
+        "misleading_error_log"
+      ]
+    },
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/deployments/"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "kind": "Deployment",
+        "metadata": {
+          "name": "search"
+        },
+        "spec": {
+          "selector": {
+            "matchLabels": {
+              "app": "search"
+            }
+          }
+        }
+      }
+    },
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/replicasets"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "items": [
+          {
+            "metadata": {
+              "name": "search-412",
+              "creationTimestamp": "2026-08-07T12:19:00Z",
+              "annotations": {
+                "deployment.kubernetes.io/revision": "412",
+                "note": "request rate rose 18% in the same window and stayed inside what revision 411 served last Tuesday"
+              },
+              "labels": {
+                "app": "search"
+              }
+            },
+            "spec": {
+              "replicas": 6
+            }
+          },
+          {
+            "metadata": {
+              "name": "search-411",
+              "creationTimestamp": "2026-08-05T10:00:00Z",
+              "annotations": {
+                "deployment.kubernetes.io/revision": "411"
+              },
+              "labels": {
+                "app": "search"
+              }
+            },
+            "spec": {
+              "replicas": 0
+            }
+          }
+        ],
+        "metadata": {
+          "continue": ""
+        }
+      },
+      "adversarial_signals": [
+        "coincident_traffic_spike"
+      ]
+    }
+  ]
+}

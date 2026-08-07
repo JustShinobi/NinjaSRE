@@ -1,0 +1,24 @@
+root_cause_category: resource_exhaustion
+required_keywords:
+- memory
+- limit
+- OOMKilled
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- kubernetes
+optimal_trajectory:
+- kubernetes_workload_events
+golden_trajectory:
+  ordered_actions:
+  - kubernetes_workload_events
+  matching: lcs
+  max_edit_distance: 0
+  max_extra_actions: 1
+  max_redundancy: 0
+max_investigation_loops: 4
+model_response: 'ROOT_CAUSE: the checkout container exceeded its 512Mi memory limit
+  and was OOMKilled repeatedly inside the incident window.
+
+  '

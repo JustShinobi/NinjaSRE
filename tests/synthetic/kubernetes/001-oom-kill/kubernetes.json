@@ -1,0 +1,42 @@
+{
+  "integration": "kubernetes",
+  "responses": [
+    {
+      "match": {
+        "method": "GET",
+        "path_contains": "/events"
+      },
+      "status": 200,
+      "content_type": "application/json",
+      "body": {
+        "items": [
+          {
+            "reason": "OOMKilled",
+            "type": "Warning",
+            "message": "Container checkout exceeded its memory limit of 512Mi",
+            "count": 3,
+            "involvedObject": {
+              "name": "checkout-7f4c",
+              "kind": "Pod"
+            },
+            "lastTimestamp": "2026-08-07T12:22:02Z"
+          },
+          {
+            "reason": "BackOff",
+            "type": "Warning",
+            "message": "Back-off restarting failed container checkout",
+            "count": 5,
+            "involvedObject": {
+              "name": "checkout-7f4c",
+              "kind": "Pod"
+            },
+            "lastTimestamp": "2026-08-07T12:24:44Z"
+          }
+        ],
+        "metadata": {
+          "continue": ""
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+schema_version: '1'
+scenario_id: 005-dependency-timeout
+title: checkout fails because its payment provider is timing out
+failure_mode: dependency_timeout
+severity: critical
+scenario_difficulty: 2
+adversarial_signals:
+- misleading_error_log
+available_evidence:
+- prometheus
+- loki
+integrations:
+- prometheus
+- loki
+team_id: payments

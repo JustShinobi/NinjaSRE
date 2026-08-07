@@ -1,0 +1,77 @@
+{
+  "provider_id": "recorded",
+  "model_id": "recorded-transcript",
+  "scenario": "observability/005-dependency-timeout",
+  "entries": [
+    {
+      "kind": "structured",
+      "structured": {
+        "is_incident": true,
+        "confidence": 0.95,
+        "reason": "an alert is firing on a production service",
+        "alert_name": "HighErrorRate",
+        "severity": "critical",
+        "summary": "checkout 5xx rate above 8%",
+        "components": [
+          "checkout"
+        ],
+        "error_text": ""
+      }
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "prometheus_metric_statistics",
+          "arguments": {
+            "query": "histogram_quantile(0.99, upstream_request_duration_seconds)",
+            "start": "2026-08-07T11:30:00Z",
+            "end": "2026-08-07T12:30:00Z",
+            "group_by": "metric.upstream"
+          }
+        },
+        {
+          "id": "c2",
+          "name": "loki_sample_logs",
+          "arguments": {
+            "query": "{app=\"checkout\"} |= \"timeout\"",
+            "start": "2026-08-07T11:30:00Z",
+            "end": "2026-08-07T12:30:00Z",
+            "limit": 5
+          }
+        }
+      ]
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "stop",
+      "text": "Upstream latency to payments-provider went from 12s to 30s inside the window [e1] while the catalogue upstream stayed flat, and the error log records an upstream payment timeout after 30s [e2]. The serialiser warning is a fallback notice, not an error: this is not a serialisation problem in checkout itself."
+    },
+    {
+      "kind": "structured",
+      "structured": {
+        "root_cause": "the payment provider is timing out and checkout returns 5xx while waiting",
+        "root_cause_category": "dependency_failure",
+        "summary": "Latency to the payments-provider upstream tripled inside the window [e1] and checkout logs an upstream timeout after 30s [e2]. The catalogue upstream is unaffected, and the cart serialiser warning is a fallback notice rather than the cause.",
+        "causal_chain": [
+          "the payment provider started responding in 30s instead of 12s",
+          "checkout's upstream call hit its timeout",
+          "checkout returned 5xx to its own callers"
+        ],
+        "claims": [],
+        "remediation_steps": [
+          "shorten the upstream timeout and fail fast with a queued retry",
+          "raise the outage with the payment provider"
+        ],
+        "recommended_actions": [
+          "shorten the upstream timeout and fail fast with a queued retry",
+          "raise the outage with the payment provider"
+        ],
+        "contributing_factors": [],
+        "confidence": 0.8
+      }
+    }
+  ]
+}

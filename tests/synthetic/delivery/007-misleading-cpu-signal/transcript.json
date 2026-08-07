@@ -1,0 +1,77 @@
+{
+  "provider_id": "recorded",
+  "model_id": "recorded-transcript",
+  "scenario": "delivery/007-misleading-cpu-signal",
+  "entries": [
+    {
+      "kind": "structured",
+      "structured": {
+        "is_incident": true,
+        "confidence": 0.95,
+        "reason": "an alert is firing on a production service",
+        "alert_name": "CpuSaturation",
+        "severity": "critical",
+        "summary": "checkout CPU above 95% for ten minutes",
+        "components": [
+          "checkout"
+        ],
+        "error_text": ""
+      }
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "prometheus_metric_statistics",
+          "arguments": {
+            "query": "checkout:cpu_usage_ratio",
+            "start": "2026-08-07T11:30:00Z",
+            "end": "2026-08-07T12:30:00Z",
+            "group_by": "metric.series"
+          }
+        },
+        {
+          "id": "c2",
+          "name": "github_recent_changes",
+          "arguments": {
+            "repository": "repo:acme/checkout",
+            "start": "",
+            "end": "",
+            "limit": 10
+          }
+        }
+      ]
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "stop",
+      "text": "CPU went from 41% to 97% while the request rate barely moved, and the cache hit ratio fell from 94% to zero in the same window [e1]. Pull request 903 set PRICING_CACHE_ENABLED=false at 12:15 [e2]. CPU is the symptom here and not the cause: with the cache disabled every request recomputes prices."
+    },
+    {
+      "kind": "structured",
+      "structured": {
+        "root_cause": "a configuration change disabled the pricing cache, so every request recomputes prices",
+        "root_cause_category": "configuration_error",
+        "summary": "The cache hit ratio fell to zero at the moment CPU rose, with the request rate flat [e1], and pull request 903 disabled the pricing cache by configuration at 12:15 [e2]. CPU is the symptom and not the cause; the docs change in the same window is unrelated.",
+        "causal_chain": [
+          "PRICING_CACHE_ENABLED was set to false",
+          "every request recomputed prices instead of reading the cache",
+          "CPU saturated at an unchanged request rate"
+        ],
+        "claims": [],
+        "remediation_steps": [
+          "re-enable PRICING_CACHE_ENABLED and point it at the migrated cluster",
+          "alert on the cache hit ratio so this is visible before CPU is"
+        ],
+        "recommended_actions": [
+          "re-enable PRICING_CACHE_ENABLED and point it at the migrated cluster",
+          "alert on the cache hit ratio so this is visible before CPU is"
+        ],
+        "contributing_factors": [],
+        "confidence": 0.83
+      }
+    }
+  ]
+}

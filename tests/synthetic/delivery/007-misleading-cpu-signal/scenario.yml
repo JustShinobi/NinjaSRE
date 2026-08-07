@@ -1,0 +1,16 @@
+schema_version: '1'
+scenario_id: 007-misleading-cpu-signal
+title: CPU saturation is the loudest signal and the wrong one
+failure_mode: missing_configuration
+severity: critical
+scenario_difficulty: 4
+adversarial_signals:
+- louder_secondary_symptom
+- unrelated_recent_change
+available_evidence:
+- prometheus
+- github
+integrations:
+- prometheus
+- github
+team_id: payments

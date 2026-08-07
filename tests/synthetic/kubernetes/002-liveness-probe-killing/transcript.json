@@ -1,0 +1,80 @@
+{
+  "provider_id": "recorded",
+  "model_id": "recorded-transcript",
+  "scenario": "kubernetes/002-liveness-probe-killing",
+  "entries": [
+    {
+      "kind": "structured",
+      "structured": {
+        "is_incident": true,
+        "confidence": 0.95,
+        "reason": "an alert is firing on a production service",
+        "alert_name": "PodRestartLoop",
+        "severity": "critical",
+        "summary": "checkout restarting every two minutes",
+        "components": [
+          "checkout"
+        ],
+        "error_text": ""
+      }
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "kubernetes_workload_events",
+          "arguments": {
+            "namespace": "payments",
+            "object_name": "checkout-9b21",
+            "limit": 20
+          }
+        }
+      ]
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "kubernetes_rollout_history",
+          "arguments": {
+            "deployment": "checkout",
+            "namespace": "payments"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "stop",
+      "text": "The liveness probe on /healthz timed out nine times and the kubelet restarted the container each time [e1]. There is no OOMKilled event and memory is within the limit, so this is not resource exhaustion. The last rollout was six days ago, so the deployment did not change."
+    },
+    {
+      "kind": "structured",
+      "structured": {
+        "root_cause": "the liveness probe timeout is shorter than the /healthz cold-start latency, so a working container is restarted",
+        "root_cause_category": "configuration_error",
+        "summary": "The liveness probe times out and the kubelet restarts checkout [e1]. There is no OOMKilled event and memory is within the limit, so the restarts are the probe's doing rather than a resource problem. All three replicas report Ready between restarts, which is why the service looks healthy at a glance.",
+        "causal_chain": [
+          "the liveness probe timeout is one second",
+          "/healthz takes longer than that under load",
+          "the kubelet restarts a container that is working"
+        ],
+        "claims": [],
+        "remediation_steps": [
+          "raise the liveness probe timeoutSeconds and add an initialDelaySeconds",
+          "split readiness from liveness so a slow start does not restart the container"
+        ],
+        "recommended_actions": [
+          "raise the liveness probe timeoutSeconds and add an initialDelaySeconds",
+          "split readiness from liveness so a slow start does not restart the container"
+        ],
+        "contributing_factors": [],
+        "confidence": 0.82
+      }
+    }
+  ]
+}

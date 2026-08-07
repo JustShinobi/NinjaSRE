@@ -1,0 +1,31 @@
+root_cause_category: resource_exhaustion
+required_keywords:
+- connection
+- pool
+- reporting
+equivalent_root_cause_categories:
+- capacity_limit
+forbidden_categories:
+- healthy
+- unknown
+- infrastructure_failure
+ruling_out_keywords:
+- failover completed
+- CPU is not
+required_evidence_sources:
+- aws_rds
+optimal_trajectory:
+- aws_rds_resource_inventory
+- aws_rds_recent_changes
+golden_trajectory:
+  ordered_actions:
+  - aws_rds_resource_inventory
+  - aws_rds_recent_changes
+  matching: set
+  max_extra_actions: 2
+  max_redundancy: 0
+max_investigation_loops: 5
+model_response: 'ROOT_CAUSE: the reporting instance holds every connection in the
+  checkout database''s pool, so checkout cannot acquire one.
+
+  '

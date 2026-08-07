@@ -1,0 +1,14 @@
+schema_version: '1'
+scenario_id: 006-connection-pool-exhaustion
+title: the reporting job takes every connection the checkout database has
+failure_mode: connection_pool_exhaustion
+severity: critical
+scenario_difficulty: 3
+adversarial_signals:
+- recovered_dependency
+- misattributed_saturation
+available_evidence:
+- aws_rds
+integrations:
+- aws_rds
+team_id: payments

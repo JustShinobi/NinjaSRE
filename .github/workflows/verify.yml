@@ -116,3 +116,40 @@ jobs:
       # which is the closest a hosted runner gets to a clean machine.
       - name: Measure the path from nothing to a usable command
         run: python tools/measure_first_investigation.py --json
+
+  scenarios:
+    name: synthetic scenario corpus (offline)
+    # Every pull request, and it costs nothing. The corpus runs against
+    # recorded vendor responses and recorded model transcripts, so there is no
+    # credential to hold and no token to spend — which is the property that
+    # makes running a regression gate on every push affordable at all.
+    #
+    # `make verify` already runs the corpus as part of the suite. This job
+    # exists for the artefact: it writes a verdict record per attempt and
+    # publishes the report, so a failure can be diagnosed from the run page
+    # rather than by re-running the suite locally.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Provision the environment
+        run: make install
+
+      - name: Run the corpus offline
+        run: make test-synthetic ARTIFACTS=scenario-verdicts.jsonl
+
+      - name: Publish the verdict records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-verdicts
+          path: scenario-verdicts.jsonl
+          if-no-files-found: warn
