@@ -1,8 +1,8 @@
 ---
-name: cloud-control-plane-VENDOR
+name: cloud_control_plane-VENDOR
 display_name: VENDOR cloud investigation
 description: Cloud resource state and recent changes, read from the control plane.
-domain: cloud-control-plane
+domain: cloud_control_plane
 applies_when:
   alert_sources: [VENDOR]
   tags: [cloud, infrastructure, capacity, configuration]

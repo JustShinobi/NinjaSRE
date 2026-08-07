@@ -7,7 +7,7 @@ would make Article IV meaningless, because AWS is where most of the calls go.
 
 ``DESCRIPTOR`` carries a rule for CloudWatch Logs in one region, which is what a
 default deployment gets. A deployment reaching more services or regions builds
-its rule with ``config.rule_for(...)`` at composition; SigV4's service name is
+its rule with ``schema.rule_for(...)`` at composition; SigV4's service name is
 part of the signing scope, so one rule signs for one service.
 """
 
@@ -15,17 +15,20 @@ from __future__ import annotations
 
 from typing import Final
 
-from integrations.aws.client import CloudWatchLogsClient
-from integrations.aws.config import (
+from integrations._catalogue.entry import IntegrationCategory, IntegrationProfile
+from integrations.aws.client import PAGINATION, CloudWatchLogsClient
+from integrations.aws.schema import (
     DEFAULT_REGION,
     DEFAULT_RULE,
     DEFAULT_SERVICES,
     INTEGRATION,
+    REGIONS,
     SCHEMA,
     host_for,
+    regions_for,
     rule_for,
 )
-from integrations.aws.verifier import AwsVerifier
+from integrations.aws.verifier import PERMISSIONS, AwsVerifier
 from platform.credentials.descriptor import IntegrationDescriptor, SdkStrategy
 
 AWS: Final = IntegrationDescriptor(
@@ -46,6 +49,18 @@ AWS: Final = IntegrationDescriptor(
 
 DESCRIPTOR: Final = AWS
 
+PROFILE: Final = IntegrationProfile(
+    integration=INTEGRATION,
+    category=IntegrationCategory.LOG_STORE,
+    summary=(
+        "CloudWatch Logs: log group inventory and event reads, with every request signed "
+        "by the credential proxy rather than by this process."
+    ),
+    regions=REGIONS,
+    permissions=PERMISSIONS,
+    pagination=PAGINATION,
+)
+
 __all__ = [
     "AWS",
     "DEFAULT_REGION",
@@ -53,9 +68,14 @@ __all__ = [
     "DEFAULT_SERVICES",
     "DESCRIPTOR",
     "INTEGRATION",
+    "PAGINATION",
+    "PERMISSIONS",
+    "PROFILE",
+    "REGIONS",
     "SCHEMA",
     "AwsVerifier",
     "CloudWatchLogsClient",
     "host_for",
+    "regions_for",
     "rule_for",
 ]

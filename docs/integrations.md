@@ -55,7 +55,7 @@ deployment an organisation is on, and a capability may legitimately see it.
 ### Kubernetes — `direct_client`
 
 A bearer token, and the case where NinjaSRE cannot know the allow-list. Every
-deployment's API server is somewhere else, so `config.rule_for(...)` builds the
+deployment's API server is somewhere else, so `schema.rule_for(...)` builds the
 rule from the endpoints an operator actually configured. The in-cluster address
 is always included, because a deployment with an external endpoint may still run
 workers inside the cluster and discovering that during an incident is not the
@@ -80,7 +80,7 @@ the signing. `tests/contract/integrations/test_reference_integrations.py`
 asserts both halves: what leaves the client carries no signature, and what
 reaches the vendor does.
 
-Hosts are per service and per region, so `config.rule_for(...)` builds the
+Hosts are per service and per region, so `schema.rule_for(...)` builds the
 allow-list from what a deployment uses. "AWS" is not a trust boundary; a named
 service in a named region is.
 

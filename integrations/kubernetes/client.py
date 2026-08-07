@@ -19,12 +19,21 @@ one typo away from being called by something that thought it was reading.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Final
 
 from integrations._base.client import ClientResponse, IntegrationClient
+from integrations._base.pagination import (
+    MAX_PAGES_PER_CALL,
+    EndpointPagination,
+    Page,
+    Pages,
+    PaginationStyle,
+    walk,
+)
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations.kubernetes.config import IN_CLUSTER_HOST, INTEGRATION, base_url
+from integrations.kubernetes.schema import IN_CLUSTER_HOST, INTEGRATION, base_url
 
 CORE_API: Final = "/api/v1"
 APPS_API: Final = "/apis/apps/v1"
@@ -34,6 +43,20 @@ VERSION_PATH: Final = "/version"
 #: events faster than anything can read them, and the recent ones are the ones
 #: that explain the incident.
 MAX_EVENTS: Final = 100
+
+#: Kubernetes pages every list endpoint the same way: ``limit`` on the request
+#: and ``continue`` in the response's metadata, absent on the last page. One
+#: declaration therefore covers the API, which is the opposite of the usual case
+#: and worth saying rather than leaving a reader to infer (FR-005).
+PAGINATION: Final[tuple[EndpointPagination, ...]] = (
+    EndpointPagination(
+        endpoint="list_events",
+        style=PaginationStyle.CURSOR,
+        parameter="continue",
+        page_size_parameter="limit",
+        page_size=MAX_EVENTS,
+    ),
+)
 
 
 class KubernetesClient(IntegrationClient):
@@ -103,6 +126,38 @@ class KubernetesClient(IntegrationClient):
         response = await self.get(f"{CORE_API}/namespaces/{space}/events", params=params)
         return tuple(response.json().get("items", ()))
 
+    async def list_events(
+        self,
+        *,
+        namespace: str | None = None,
+        object_name: str = "",
+        max_pages: int = MAX_PAGES_PER_CALL,
+        max_items: int = MAX_EVENTS,
+    ) -> Pages[dict[str, Any]]:
+        """Return recent events across as many pages as the bounds allow.
+
+        The paginated form of ``events``. A namespace where several workloads
+        are restarting produces more events than one page holds, and the ones
+        that explain the incident are not reliably in the first — so this
+        follows the continue token and reports when it stopped, which
+        ``events`` cannot.
+        """
+        space = namespace or self._namespace
+        path = f"{CORE_API}/namespaces/{space}/events"
+        selector = f"involvedObject.name={object_name}" if object_name else ""
+
+        async def fetch(parameters: Mapping[str, str]) -> Page[dict[str, Any]]:
+            asked = dict(parameters)
+            if selector:
+                asked["fieldSelector"] = selector
+            answer = (await self.get(path, params=asked)).json()
+            return Page(
+                items=tuple(answer.get("items", ())),
+                cursor=_continue_token(answer),
+            )
+
+        return await walk(PAGINATION[0], fetch, max_pages=max_pages, max_items=max_items)
+
     async def deployment(self, name: str, *, namespace: str | None = None) -> dict[str, Any]:
         """Return one deployment, including the revision annotations."""
         space = namespace or self._namespace
@@ -126,10 +181,25 @@ class KubernetesClient(IntegrationClient):
         return await self.get(VERSION_PATH)
 
 
+def _continue_token(answer: dict[str, Any]) -> str | None:
+    """Return the continue token a list response carries, if there is another page.
+
+    Kubernetes puts it in ``metadata.continue`` and leaves it as an empty string
+    on the last page rather than omitting it, so an emptiness check is what
+    terminates the walk — a presence check would follow the same page forever.
+    """
+    metadata = answer.get("metadata")
+    if not isinstance(metadata, dict):
+        return None
+    token = metadata.get("continue")
+    return str(token) if token else None
+
+
 __all__ = [
     "APPS_API",
     "CORE_API",
     "MAX_EVENTS",
+    "PAGINATION",
     "VERSION_PATH",
     "KubernetesClient",
 ]

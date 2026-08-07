@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from integrations._base.regions import RegionMap
 from platform.credentials.proxy.injection import InjectionRule, SignatureInjection
 from platform.credentials.proxy.signing.sigv4 import SigV4Signer
 from platform.credentials.schemas import CredentialField, CredentialSchema, FieldKind
@@ -67,9 +68,32 @@ SCHEMA: Final = CredentialSchema(
 )
 
 
+#: The regions this deployment's CloudWatch Logs client may address. AWS host
+#: names are mechanical, so this is a template rather than a list (FR-007) —
+#: adding a region is a name in a tuple, and there is no per-region code to
+#: write. The injection rule's allow-list is wider because it covers every
+#: service in ``DEFAULT_SERVICES``, and this map covers the one the client reads.
+REGIONS: Final = RegionMap.from_template(
+    INTEGRATION,
+    template="logs.{region}.amazonaws.com",
+    names=(DEFAULT_REGION,),
+    default=DEFAULT_REGION,
+)
+
+
 def host_for(service: str, region: str) -> str:
     """Return the regional endpoint host for one AWS service."""
     return f"{service}.{region}.amazonaws.com"
+
+
+def regions_for(names: tuple[str, ...] = (DEFAULT_REGION,)) -> RegionMap:
+    """Return the CloudWatch Logs region map for the regions a deployment uses."""
+    return RegionMap.from_template(
+        INTEGRATION,
+        template=f"{CLOUDWATCH_LOGS}.{{region}}.amazonaws.com",
+        names=names,
+        default=names[0],
+    )
 
 
 def rule_for(
@@ -112,7 +136,9 @@ __all__ = [
     "DEFAULT_SERVICES",
     "EC2",
     "INTEGRATION",
+    "REGIONS",
     "SCHEMA",
     "host_for",
+    "regions_for",
     "rule_for",
 ]

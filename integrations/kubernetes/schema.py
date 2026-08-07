@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from integrations._base.regions import Region, RegionMap
 from platform.credentials.proxy.injection import BearerTokenInjection, InjectionRule
 from platform.credentials.schemas import CredentialField, CredentialSchema, FieldKind
 
@@ -33,6 +34,13 @@ INTEGRATION: Final = "kubernetes"
 #: same in every deployment, and the reason an in-cluster install needs no host
 #: configuration.
 IN_CLUSTER_HOST: Final = "kubernetes.default.svc"
+
+#: Kubernetes has no vendor regions, and the "region" an operator selects is
+#: which cluster they mean. The default map holds the one address that is always
+#: right; ``regions_for`` builds the rest from the endpoints a deployment
+#: actually configured — the same declaration ``rule_for`` reads, so the
+#: catalogue and the egress allow-list cannot disagree.
+REGIONS: Final = RegionMap.single(INTEGRATION, host=IN_CLUSTER_HOST, name="in-cluster")
 
 SCHEMA: Final = CredentialSchema(
     integration=INTEGRATION,
@@ -80,6 +88,22 @@ def rule_for(*api_server_hosts: str) -> InjectionRule:
     )
 
 
+def regions_for(**clusters: str) -> RegionMap:
+    """Return the cluster map for the API servers a deployment configured.
+
+    Keyword arguments are cluster name to API server host, because that is how
+    an operator thinks about it: ``regions_for(prod="k8s.acme.example")``. The
+    in-cluster address is always present, for the same reason ``rule_for``
+    always permits it.
+    """
+    named = {"in-cluster": IN_CLUSTER_HOST, **clusters}
+    return RegionMap(
+        integration=INTEGRATION,
+        regions=tuple(Region(name=name, host=host) for name, host in named.items()),
+        default="in-cluster",
+    )
+
+
 def base_url(host: str = IN_CLUSTER_HOST) -> str:
     """Return the API base URL for a Kubernetes API server host."""
     return f"https://{host}"
@@ -89,7 +113,9 @@ __all__ = [
     "DEFAULT_RULE",
     "INTEGRATION",
     "IN_CLUSTER_HOST",
+    "REGIONS",
     "SCHEMA",
     "base_url",
+    "regions_for",
     "rule_for",
 ]

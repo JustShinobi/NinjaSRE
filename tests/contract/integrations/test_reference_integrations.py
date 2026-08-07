@@ -26,7 +26,7 @@ from integrations.aws import AWS, CloudWatchLogsClient, rule_for
 from integrations.aws.client import LOGS_TARGET_HEADER
 from integrations.datadog import DATADOG, DatadogClient
 from integrations.kubernetes import IN_CLUSTER_HOST, KUBERNETES, KubernetesClient
-from integrations.kubernetes.config import rule_for as kubernetes_rule_for
+from integrations.kubernetes.schema import rule_for as kubernetes_rule_for
 from platform.credentials.descriptor import IntegrationDescriptor, SdkStrategy
 from platform.credentials.handles import CredentialHandle
 from platform.credentials.proxy.app import create_proxy_app

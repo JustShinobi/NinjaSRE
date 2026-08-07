@@ -16,12 +16,34 @@ being handed a quietly shortened answer that looks complete.
 So ``Pages.truncated`` exists and callers are expected to surface it. An
 investigation that says "the first 500 matches, and there were more" is doing
 its job; one that says "500 matches" is wrong.
+
+## Three styles, and why the third one is a real difference
+
+FR-005 names cursor, offset, and page-token. Two of those are the same
+mechanism: the vendor hands back an opaque string, and the walk ends when it
+stops handing one back. They are kept as separate members because an integration
+author reads their vendor's documentation and writes down the word they find
+there, and a taxonomy that forces them to translate is a taxonomy they get wrong.
+
+Offset is genuinely different, and the difference is where the walk *ends*. A
+cursor API says so; an offset API does not, and the only signal that the results
+have run out is a page shorter than the one that was asked for. A client that
+assumed the cursor rule against an offset endpoint reads page one forever, and a
+client that assumed the offset rule against a cursor endpoint stops at the first
+page a vendor happens to return short. Both failures look like "the vendor has
+less data than it does", which is the worst way for an investigation to be
+wrong.
+
+The style is declared **per endpoint**, not per vendor. A single vendor commonly
+cursors its log search and offsets its user list, and there is no version of
+"the vendor's pagination style" that is true of both.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 
 #: The default ceiling on pages followed in one call. Ten pages of a hundred is
 #: a thousand records, which is more than any single piece of evidence in an
@@ -120,11 +142,140 @@ def page_of[Item](items: Sequence[Item], cursor: str | None = None) -> Page[Item
     return Page(items=tuple(items), cursor=cursor)
 
 
+# --- Declared styles (FR-005) ------------------------------------------------
+
+
+class PaginationStyle(StrEnum):
+    """How one endpoint says where the next page starts."""
+
+    #: The vendor returns an opaque cursor and stops returning one at the end.
+    CURSOR = "cursor"
+    #: The caller counts records read so far and asks for the ones after them.
+    #: The walk ends on a short page, because nothing else says it has.
+    OFFSET = "offset"
+    #: An opaque token, under the name most vendors that call it that use. Walks
+    #: exactly as ``CURSOR`` does; see the module docstring.
+    PAGE_TOKEN = "page_token"
+
+
+@dataclass(frozen=True, slots=True)
+class Position:
+    """Where in a vendor's result set the next request starts."""
+
+    token: str | None = None
+    offset: int = 0
+    index: int = 0
+
+    @property
+    def is_first(self) -> bool:
+        """Return whether nothing has been read yet."""
+        return self.index == 0
+
+
+@dataclass(frozen=True, slots=True)
+class EndpointPagination:
+    """How one endpoint of one vendor is paged, declared beside the client.
+
+    ``endpoint`` is the client method's own name, so the catalogue's declaration
+    and the code it describes cannot drift without a contract failure naming
+    both.
+    """
+
+    endpoint: str
+    style: PaginationStyle
+    parameter: str
+    page_size_parameter: str = ""
+    page_size: int = 0
+
+    def __post_init__(self) -> None:
+        if not self.endpoint.strip():
+            raise ValueError("a pagination declaration must name the endpoint it describes")
+        if not self.parameter.strip():
+            raise ValueError(
+                f"{self.endpoint}: a pagination style with no parameter cannot ask for page two"
+            )
+        if self.style is PaginationStyle.OFFSET and self.page_size < 1:
+            raise ValueError(
+                f"{self.endpoint}: an offset endpoint must declare its page size, because a "
+                f"short page is the only signal that the results have run out"
+            )
+
+    def parameters(self, position: Position) -> dict[str, str]:
+        """Return the request parameters that ask for the page at ``position``."""
+        asked: dict[str, str] = {}
+        if self.style is PaginationStyle.OFFSET:
+            asked[self.parameter] = str(position.offset)
+        elif position.token:
+            asked[self.parameter] = position.token
+        if self.page_size_parameter and self.page_size:
+            asked[self.page_size_parameter] = str(self.page_size)
+        return asked
+
+    def has_more[Item](self, page: Page[Item]) -> bool:
+        """Return whether ``page`` says there is another one after it."""
+        if self.style is PaginationStyle.OFFSET:
+            return len(page.items) >= self.page_size > 0
+        return bool(page.cursor)
+
+    def advance[Item](self, position: Position, page: Page[Item]) -> Position:
+        """Return where the request after ``page`` starts."""
+        if self.style is PaginationStyle.OFFSET:
+            return Position(offset=position.offset + len(page.items), index=position.index + 1)
+        return Position(token=page.cursor, index=position.index + 1)
+
+
+def supported_styles() -> tuple[PaginationStyle, ...]:
+    """Return every style the walk below implements."""
+    return tuple(PaginationStyle)
+
+
+async def walk[Item](
+    pagination: EndpointPagination,
+    fetch: Callable[[Mapping[str, str]], Awaitable[Page[Item]]],
+    *,
+    max_pages: int = MAX_PAGES_PER_CALL,
+    max_items: int | None = None,
+) -> Pages[Item]:
+    """Follow ``pagination``'s declared style and return what fits inside the bounds.
+
+    The same bounds as ``collect``, and the same reason for them. What this adds
+    is that the caller hands over a declaration rather than a cursor: the walk
+    decides what to send and when to stop, so an endpoint's style is stated once,
+    in the catalogue, instead of being implied by the shape of a closure.
+    """
+    collected: list[Item] = []
+    position = Position()
+    followed = 0
+    truncated = False
+
+    while followed < max_pages:
+        page = await fetch(pagination.parameters(position))
+        followed += 1
+        collected.extend(page.items)
+
+        if max_items is not None and len(collected) >= max_items:
+            truncated = len(collected) > max_items or pagination.has_more(page)
+            collected = collected[:max_items]
+            break
+        if not pagination.has_more(page):
+            break
+        position = pagination.advance(position, page)
+    else:
+        truncated = True
+
+    return Pages(items=tuple(collected), pages_followed=followed, truncated=truncated)
+
+
 __all__ = [
     "MAX_PAGES_PER_CALL",
+    "EndpointPagination",
     "Page",
+    "PaginationStyle",
     "Pages",
+    "Position",
     "collect",
     "iterate",
     "page_of",
+    "supported_styles",
+    "walk",
 ]

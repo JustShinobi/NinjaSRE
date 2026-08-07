@@ -4,18 +4,25 @@ The reference integration for the ordinary case. Two header injections, six
 regional hosts, no vendor SDK, and a client that knows the API and nothing about
 authentication.
 
-``DESCRIPTOR`` is what the catalogue-wide test walks. Every integration exposes
-one, and exposing it is what makes "every integration routes through the proxy"
-an assertion rather than an audit.
+Two declarations are what discovery walks for, and they answer different
+questions. ``DESCRIPTOR`` is the credential half — what a credential is made of,
+which hosts it may reach, how the secret enters a request, and how to check that
+it works. ``PROFILE`` is the operational half — what class of system this is,
+where it can be reached, what permissions its capabilities need, and how its
+endpoints page.
+
+Exposing both is what makes "every integration routes through the proxy" and
+"every integration is at full parity" assertions rather than audits.
 """
 
 from __future__ import annotations
 
 from typing import Final
 
-from integrations.datadog.client import DatadogClient
-from integrations.datadog.config import HOSTS, INTEGRATION, RULE, SCHEMA, base_url
-from integrations.datadog.verifier import DatadogVerifier
+from integrations._catalogue.entry import IntegrationCategory, IntegrationProfile
+from integrations.datadog.client import PAGINATION, DatadogClient
+from integrations.datadog.schema import HOSTS, INTEGRATION, REGIONS, RULE, SCHEMA, base_url
+from integrations.datadog.verifier import PERMISSIONS, DatadogVerifier
 from platform.credentials.descriptor import IntegrationDescriptor, SdkStrategy
 
 DATADOG: Final = IntegrationDescriptor(
@@ -35,11 +42,27 @@ DATADOG: Final = IntegrationDescriptor(
 
 DESCRIPTOR: Final = DATADOG
 
+PROFILE: Final = IntegrationProfile(
+    integration=INTEGRATION,
+    category=IntegrationCategory.LOG_STORE,
+    summary=(
+        "Log search and aggregation, metric series, and monitor state, across Datadog's "
+        "six regional deployments."
+    ),
+    regions=REGIONS,
+    permissions=PERMISSIONS,
+    pagination=PAGINATION,
+)
+
 __all__ = [
     "DATADOG",
     "DESCRIPTOR",
     "HOSTS",
     "INTEGRATION",
+    "PAGINATION",
+    "PERMISSIONS",
+    "PROFILE",
+    "REGIONS",
     "RULE",
     "SCHEMA",
     "DatadogClient",

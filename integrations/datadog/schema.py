@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from typing import Final
 
+from integrations._base.regions import Region, RegionMap
 from platform.credentials.proxy.injection import HeaderInjection, InjectionRule
 from platform.credentials.schemas import CredentialField, CredentialSchema, FieldKind
 
@@ -31,15 +32,27 @@ APPLICATION_KEY_HEADER: Final = "DD-APPLICATION-KEY"
 
 #: The regional deployments Datadog serves the API from. Listed rather than
 #: pattern-matched: ``*.datadoghq.com`` would permit any subdomain, including
-#: one an attacker controls the day Datadog delegates a zone.
-HOSTS: Final[tuple[str, ...]] = (
-    "api.datadoghq.com",
-    "api.datadoghq.eu",
-    "api.us3.datadoghq.com",
-    "api.us5.datadoghq.com",
-    "api.ap1.datadoghq.com",
-    "api.ddog-gov.com",
+#: one an attacker controls the day Datadog delegates a zone. Datadog's site
+#: names and its host names do not follow one pattern — ``datadoghq.eu`` has no
+#: region segment and the government site has a different domain entirely — so
+#: this is a declared map rather than a template (FR-007).
+REGIONS: Final = RegionMap(
+    integration=INTEGRATION,
+    regions=(
+        Region(name="datadoghq.com", host="api.datadoghq.com", display_name="US1"),
+        Region(name="datadoghq.eu", host="api.datadoghq.eu", display_name="EU1"),
+        Region(name="us3.datadoghq.com", host="api.us3.datadoghq.com", display_name="US3"),
+        Region(name="us5.datadoghq.com", host="api.us5.datadoghq.com", display_name="US5"),
+        Region(name="ap1.datadoghq.com", host="api.ap1.datadoghq.com", display_name="AP1"),
+        Region(name="ddog-gov.com", host="api.ddog-gov.com", display_name="US1-FED"),
+    ),
+    default="datadoghq.com",
 )
+
+#: The egress allow-list, which is the region map and not a second tuple. Two
+#: lists is how an integration ends up permitted to reach a region it can no
+#: longer name.
+HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 #: Datadog keys are 32 hex characters and application keys are 40. The patterns
 #: are worth declaring because both are pasted by hand, and the common failure —
@@ -76,9 +89,14 @@ RULE: Final = InjectionRule(
 )
 
 
-def base_url(site: str = "datadoghq.com") -> str:
-    """Return the API base URL for a Datadog regional site."""
-    return f"https://api.{site}"
+def base_url(site: str = "") -> str:
+    """Return the API base URL for a Datadog regional site.
+
+    Resolved through the region map rather than by string interpolation, so a
+    site nobody declared is refused here — with the list of the ones that
+    exist — instead of producing a host the proxy silently declines.
+    """
+    return REGIONS.base_url(site)
 
 
 __all__ = [
@@ -86,6 +104,7 @@ __all__ = [
     "APPLICATION_KEY_HEADER",
     "HOSTS",
     "INTEGRATION",
+    "REGIONS",
     "RULE",
     "SCHEMA",
     "base_url",

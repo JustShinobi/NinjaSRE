@@ -1,9 +1,21 @@
-"""Integrations: list what is installed, verify one team's credential for it.
+"""Integrations: the catalogue, and one team's credential state for an integration.
 
-"Verify" checks the credential this team has configured is present, current,
-and decryptable — the same three facts ``platform/credentials/health.py``
-reports to an operator's diagnostics. A live call to the vendor is each
-integration client's own concern and is not repeated here.
+The listing is the catalogue (FR-022): category, capabilities, required
+credentials, required permissions, regions, health, and parity status, per
+vendor. It is deliberately more than a name and a host list, because the two
+questions a console actually gets asked are "what can this deployment look at"
+and "which of it is currently working", and neither is answerable from a name.
+
+Health is what the scheduled live runs recorded. An integration nothing has run
+against reports ``unknown`` rather than ``healthy`` — a vendor whose API broke
+and a vendor nobody has checked are different facts, and collapsing them is the
+same failure as reporting a truncated answer as a complete one.
+
+"Verify" checks the credential this team has configured is present, current, and
+decryptable — the same three facts ``platform/credentials/health.py`` reports to
+an operator's diagnostics. The end-to-end vendor call, with its permission
+probes, is the verification runner's job and runs from the CLI and from CI,
+where a live call is expected rather than surprising.
 """
 
 from __future__ import annotations
@@ -14,6 +26,7 @@ from pydantic import BaseModel
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
 from gateway.http.state import GatewayState
+from integrations._catalogue.discovery import catalogue
 from integrations.registry import discover
 from platform.credentials.health import CredentialHealth
 from platform.credentials.schemas import CredentialSchemaRegistry
@@ -24,7 +37,17 @@ router = APIRouter(prefix="/v1/integrations", tags=["integrations"])
 
 class IntegrationView(BaseModel):
     name: str
+    category: str
+    summary: str
     hosts: list[str]
+    regions: list[str]
+    capabilities: list[str]
+    required_credentials: list[str]
+    required_permissions: list[str]
+    health: str
+    health_detail: str
+    parity: str
+    missing_artefacts: list[str]
 
 
 class IntegrationList(BaseModel):
@@ -38,13 +61,28 @@ class IntegrationVerification(BaseModel):
 
 
 @router.get("", response_model=IntegrationList)
-async def list_integrations() -> IntegrationList:
-    """Return every installed integration."""
-    descriptors = discover()
+async def list_integrations(
+    state: GatewayState = Depends(get_state),
+) -> IntegrationList:
+    """Return the catalogue: every installed integration and what is known about it."""
+    ledger = getattr(state, "integration_health", None)
     return IntegrationList(
         integrations=[
-            IntegrationView(name=name, hosts=list(descriptor.rule.hosts))
-            for name, descriptor in sorted(descriptors.items())
+            IntegrationView(
+                name=entry.name,
+                category=entry.category.value,
+                summary=entry.summary,
+                hosts=list(entry.descriptor.rule.hosts),
+                regions=list(entry.regions),
+                capabilities=list(entry.capabilities),
+                required_credentials=list(entry.required_credentials),
+                required_permissions=list(entry.required_permissions),
+                health=entry.health.value,
+                health_detail=entry.health_detail,
+                parity=entry.parity.status.value,
+                missing_artefacts=[artefact.value for artefact in entry.parity.missing],
+            )
+            for entry in catalogue(health=ledger)
         ]
     )
 

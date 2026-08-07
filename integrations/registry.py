@@ -31,10 +31,22 @@ from platform.credentials.schemas import CredentialSchemaRegistry
 #: What a vendor package exposes to be discovered.
 DESCRIPTOR_ATTRIBUTE: Final = "DESCRIPTOR"
 
-#: Packages under ``integrations/`` that are not vendors. ``_base`` is the
-#: shared client every vendor sits on; the leading underscore says so, and this
-#: is where the convention becomes enforcement.
-NON_VENDOR_PACKAGES: Final[frozenset[str]] = frozenset({"_base"})
+#: The framework packages under ``integrations/``: the shared client base, the
+#: verification framework, and the catalogue. Named here so a reader sees what
+#: they are, but the rule below is the underscore rather than the list — a
+#: framework package added later must not become the eighty-sixth integration on
+#: the day somebody forgets to add a line here.
+NON_VENDOR_PACKAGES: Final[frozenset[str]] = frozenset({"_base", "_catalogue", "_verification"})
+
+
+def is_vendor_package(name: str) -> bool:
+    """Return whether a package under ``integrations/`` is a vendor rather than framework.
+
+    The leading underscore is the convention, and this is where it becomes
+    enforcement: a vendor is named for its vendor, so nothing that is one starts
+    with an underscore.
+    """
+    return not name.startswith("_")
 
 
 def discover() -> dict[str, IntegrationDescriptor]:
@@ -47,7 +59,7 @@ def discover() -> dict[str, IntegrationDescriptor]:
     """
     found: dict[str, IntegrationDescriptor] = {}
     for module in pkgutil.iter_modules(integrations.__path__):
-        if not module.ispkg or module.name in NON_VENDOR_PACKAGES:
+        if not module.ispkg or not is_vendor_package(module.name):
             continue
         package = importlib.import_module(f"{integrations.__name__}.{module.name}")
         descriptor = getattr(package, DESCRIPTOR_ATTRIBUTE, None)
@@ -103,4 +115,5 @@ __all__ = [
     "discover",
     "injection_rules",
     "integration_names",
+    "is_vendor_package",
 ]

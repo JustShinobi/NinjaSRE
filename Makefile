@@ -16,7 +16,8 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 
 .PHONY: install lint format format-check typecheck test \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
-	check-literals check-raw-sql check-credentials preflight verify test-postgres \
+	check-literals check-raw-sql check-credentials check-integrations \
+	check-integration-docs preflight verify test-postgres \
 	close-task clean help
 
 install: ## Provision the development environment from uv.lock
@@ -72,6 +73,15 @@ check-raw-sql: ## Reject SQL, Cypher, or a database driver outside platform/pers
 check-credentials: ## Reject a credential read outside the vault and the proxy (FR-017)
 	$(RUN) python tools/check_direct_credentials.py
 
+# Run as a module rather than a script: this check imports the first-party
+# packages instead of parsing them, and `platform/` only wins its name over the
+# stdlib module when the repository root leads sys.path.
+check-integrations: ## Reject an integration missing an artefact or an unprobed permission
+	$(RUN) python -m tools.verify_integrations
+
+check-integration-docs: ## Reject a stale generated integration catalogue
+	$(RUN) python -m tools.generate_integration_docs --check
+
 # Not part of `verify`: it spends real tokens against a configured provider.
 # Run it once per deployment, before anyone depends on that provider.
 preflight: ## Verify the configured LLM provider end to end (makes live calls)
@@ -81,7 +91,8 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 # in seconds rather than after the suite.
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
-	check-credentials test ## The single quality gate CI runs
+	check-credentials check-integrations check-integration-docs \
+	test ## The single quality gate CI runs
 
 close-task: verify ## Fast-forward master to the current task branch and open the next one
 	$(RUN) python tools/close_task_branch.py

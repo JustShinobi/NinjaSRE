@@ -18,19 +18,40 @@ from __future__ import annotations
 from typing import Any, Final
 
 from integrations._base.client import ClientResponse, IntegrationClient
-from integrations._base.pagination import MAX_PAGES_PER_CALL, Page, Pages, collect
+from integrations._base.pagination import (
+    MAX_PAGES_PER_CALL,
+    EndpointPagination,
+    Page,
+    Pages,
+    PaginationStyle,
+    collect,
+)
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations.datadog.config import INTEGRATION, base_url
+from integrations.datadog.schema import INTEGRATION, base_url
 
 LOGS_SEARCH_PATH: Final = "/api/v2/logs/events/search"
 LOGS_EVENTS_PATH: Final = "/api/v2/logs/events"
+LOGS_AGGREGATE_PATH: Final = "/api/v2/logs/analytics/aggregate"
 METRICS_QUERY_PATH: Final = "/api/v1/query"
 MONITORS_PATH: Final = "/api/v1/monitor"
 
 #: Datadog's own per-page ceiling for the logs API. Asking for more is answered
 #: with this anyway, so requesting it makes the page count predictable.
 MAX_LOGS_PAGE_SIZE: Final = 1000
+
+#: How each paginated endpoint asks for the page after the one it read (FR-005).
+#: Declared beside the methods rather than centrally, so the declaration and the
+#: code it describes cannot drift without the contract suite naming both.
+PAGINATION: Final[tuple[EndpointPagination, ...]] = (
+    EndpointPagination(
+        endpoint="search_logs",
+        style=PaginationStyle.CURSOR,
+        parameter="cursor",
+        page_size_parameter="limit",
+        page_size=MAX_LOGS_PAGE_SIZE,
+    ),
+)
 
 
 class DatadogClient(IntegrationClient):
@@ -91,6 +112,30 @@ class DatadogClient(IntegrationClient):
 
         return await collect(fetch, max_pages=max_pages, max_items=limit)
 
+    async def aggregate_logs(
+        self,
+        query: str,
+        *,
+        start: str,
+        end: str,
+        group_by: str = "status",
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """Return counts for ``query`` grouped by one facet, as Datadog computes them.
+
+        The call that makes "statistics before samples" affordable. Four hundred
+        thousand matching lines have a shape, and this is the one request that
+        returns the shape rather than the lines — server-side, so the volume
+        never crosses the wire and never enters a context budget.
+        """
+        body: dict[str, Any] = {
+            "compute": [{"aggregation": "count", "type": "total"}],
+            "filter": {"query": query, "from": start, "to": end},
+            "group_by": [{"facet": group_by, "limit": limit, "sort": {"aggregation": "count"}}],
+        }
+        response = await self.post(LOGS_AGGREGATE_PATH, json_body=body)
+        return dict(response.json())
+
     async def query_metric(self, query: str, *, start: int, end: int) -> dict[str, Any]:
         """Return one metric series for the window, as Datadog returns it."""
         response = await self.get(
@@ -129,10 +174,12 @@ def _logs_cursor(answer: dict[str, Any]) -> str | None:
 
 
 __all__ = [
+    "LOGS_AGGREGATE_PATH",
     "LOGS_EVENTS_PATH",
     "LOGS_SEARCH_PATH",
     "MAX_LOGS_PAGE_SIZE",
     "METRICS_QUERY_PATH",
     "MONITORS_PATH",
+    "PAGINATION",
     "DatadogClient",
 ]

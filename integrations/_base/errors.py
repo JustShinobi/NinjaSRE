@@ -16,6 +16,16 @@ integration it happened to call.
 not configured for this team" and "Datadog returned a 401" both stop the call,
 but the first is an operator action and the second is a key problem, and
 ``proxy_reason`` is what preserves the difference all the way up to the trace.
+
+**There are two vocabularies here, and both earn their place.**
+``IntegrationErrorReason`` is the fine-grained one: ten members, because an
+operator debugging a failing integration needs "the proxy has no credential for
+this team" separated from "the vendor rejected the key". ``ErrorCategory`` is
+the coarse one the framework contracts on — the seven names every integration
+maps onto, so a suite parameterised over eighty-five vendors can assert that a
+403 means the same thing everywhere. Collapsing the two into one enum would
+force a choice between an operator-useful message and a catalogue-wide
+assertion, and the whole point of having both is that neither has to lose.
 """
 
 from __future__ import annotations
@@ -24,6 +34,46 @@ from enum import StrEnum
 
 from core.capability.result import CapabilityError, CapabilityErrorClass
 from platform.credentials.proxy.errors import ProxyError, ProxyErrorReason
+
+
+class ErrorCategory(StrEnum):
+    """The shared taxonomy every integration's failures map onto (FR-006).
+
+    Seven names, fixed. They are what the contract suite asserts across the
+    whole catalogue and what an investigation's next move is chosen from:
+    ``permission`` sends an operator to their vendor's console, ``transient``
+    says try again, ``invalid_request`` says the call was wrong and repeating it
+    will be wrong again.
+    """
+
+    #: The credential is missing, unreadable, or the vendor rejected it.
+    AUTH = "auth"
+    #: The credential is valid and does not permit this call.
+    PERMISSION = "permission"
+    #: The vendor says the resource does not exist.
+    NOT_FOUND = "not_found"
+    #: A rate limit, the vendor's own or the proxy's.
+    RATE_LIMITED = "rate_limited"
+    #: Something that could plausibly work on the next attempt.
+    TRANSIENT = "transient"
+    #: The request was malformed, by this client or by its caller.
+    INVALID_REQUEST = "invalid_request"
+    #: The vendor, or the path to it, is not answering at all.
+    UNAVAILABLE = "unavailable"
+
+    @property
+    def retryable(self) -> bool:
+        """Return whether repeating the same call could plausibly succeed."""
+        return self in _RETRYABLE_CATEGORIES
+
+
+#: The two categories worth repeating. ``unavailable`` is deliberately not one:
+#: a proxy or vendor that is down stays down for longer than a retry schedule,
+#: and the retry loop above reads the finer-grained reason for the cases —
+#: a reachable proxy in front of an unreachable vendor — where it is worth it.
+_RETRYABLE_CATEGORIES: frozenset[ErrorCategory] = frozenset(
+    {ErrorCategory.TRANSIENT, ErrorCategory.RATE_LIMITED}
+)
 
 
 class IntegrationErrorReason(StrEnum):
@@ -66,6 +116,25 @@ _CAPABILITY_CLASSES: dict[IntegrationErrorReason, CapabilityErrorClass] = {
     IntegrationErrorReason.INVALID_REQUEST: CapabilityErrorClass.INVALID_ARGUMENTS,
     IntegrationErrorReason.UPSTREAM_ERROR: CapabilityErrorClass.UPSTREAM_ERROR,
     IntegrationErrorReason.TIMEOUT: CapabilityErrorClass.TIMEOUT,
+}
+
+#: Each reason's place in the shared taxonomy. Written out rather than derived
+#: from the capability class above, because the two answer different questions:
+#: the capability class decides how the *loop* reports a failure, and this
+#: decides how an *operator* is told to fix it. A credential the proxy cannot
+#: resolve reaches the model as "permission denied" and reaches the operator as
+#: "auth", and both are right.
+_CATEGORIES: dict[IntegrationErrorReason, ErrorCategory] = {
+    IntegrationErrorReason.CREDENTIAL_UNAVAILABLE: ErrorCategory.AUTH,
+    IntegrationErrorReason.PROXY_UNAVAILABLE: ErrorCategory.UNAVAILABLE,
+    IntegrationErrorReason.REFUSED: ErrorCategory.PERMISSION,
+    IntegrationErrorReason.UNAUTHENTICATED: ErrorCategory.AUTH,
+    IntegrationErrorReason.FORBIDDEN: ErrorCategory.PERMISSION,
+    IntegrationErrorReason.NOT_FOUND: ErrorCategory.NOT_FOUND,
+    IntegrationErrorReason.RATE_LIMITED: ErrorCategory.RATE_LIMITED,
+    IntegrationErrorReason.INVALID_REQUEST: ErrorCategory.INVALID_REQUEST,
+    IntegrationErrorReason.UPSTREAM_ERROR: ErrorCategory.TRANSIENT,
+    IntegrationErrorReason.TIMEOUT: ErrorCategory.TRANSIENT,
 }
 
 #: A proxy refusal, translated. Rate limiting and unreachability keep their
@@ -129,6 +198,11 @@ class IntegrationError(Exception):
         """Return whether repeating the same call could plausibly succeed."""
         return _CAPABILITY_CLASSES[self.reason].retryable
 
+    @property
+    def category(self) -> ErrorCategory:
+        """Return this failure's place in the shared taxonomy (FR-006)."""
+        return _CATEGORIES[self.reason]
+
     def to_capability_error(self) -> CapabilityError:
         """Return this failure as the value the model reads back (FR-012)."""
         return CapabilityError(
@@ -184,8 +258,27 @@ def reason_for_status(status_code: int) -> IntegrationErrorReason:
     return IntegrationErrorReason.INVALID_REQUEST
 
 
+def category_for(status_code: int) -> ErrorCategory:
+    """Return the shared-taxonomy category for a vendor status code.
+
+    The one table. An integration that classified its own statuses would be an
+    integration that disagrees with the other eighty-four about what a 403
+    means, and the loop's behaviour would then depend on which vendor it
+    happened to call.
+    """
+    return _CATEGORIES[reason_for_status(status_code)]
+
+
+def categories() -> tuple[ErrorCategory, ...]:
+    """Return every category in the shared taxonomy, in declaration order."""
+    return tuple(ErrorCategory)
+
+
 __all__ = [
+    "ErrorCategory",
     "IntegrationError",
     "IntegrationErrorReason",
+    "categories",
+    "category_for",
     "reason_for_status",
 ]

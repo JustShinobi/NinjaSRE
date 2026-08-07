@@ -157,6 +157,27 @@ is the property that keeps a catalogue of eighty-five integrations addable one
 package at a time. The scaffold prints what it deliberately cannot decide for
 you, starting with the side-effect level, which has no default.
 
+## Adding an integration
+
+```bash
+uv run python tools/scaffold_integration.py <vendor> --domain <domain>
+```
+
+Every integration ships the same seven artefacts — credential and connection
+schema, verifier, client, typed tools, methodology skill, setup documentation,
+and a synthetic scenario — and `make verify` fails naming both the integration
+and the artefact when one is missing. One contract suite is parameterised over
+the discovered catalogue, so adding a vendor adds rows and never a file.
+
+The scaffold writes all seven and edits nothing, then prints the two things it
+refuses to decide: the side-effect level, and the permission list. A guessed
+permission is worse than a missing one, because verification then reports
+success for a credential that cannot do the job.
+
+[`docs/integration-framework.md`](docs/integration-framework.md) is the long
+form. [`docs/integrations-catalogue.md`](docs/integrations-catalogue.md) is
+generated from the declarations and is what the console reads.
+
 ## Before you push
 
 ```bash
@@ -165,8 +186,9 @@ make verify
 
 One gate: lint, format check, strict types, import contracts, constants,
 protocol bodies, the telemetry deny-list, the vendor-SDK boundary, capability
-metadata literals, the storage boundary, the credential boundary, and the test
-suite. It is what CI runs on Linux, macOS, and Windows, and it takes seconds.
+metadata literals, the storage boundary, the credential boundary, integration
+parity, the generated integration catalogue, and the test suite. It is what CI
+runs on Linux, macOS, and Windows, and it takes seconds.
 
 The storage layer has a second gate, because it needs a database:
 

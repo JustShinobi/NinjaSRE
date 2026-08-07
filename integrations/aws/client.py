@@ -22,10 +22,17 @@ import json
 from typing import Any, Final
 
 from integrations._base.client import ClientResponse, IntegrationClient
-from integrations._base.pagination import MAX_PAGES_PER_CALL, Page, Pages, collect
+from integrations._base.pagination import (
+    MAX_PAGES_PER_CALL,
+    EndpointPagination,
+    Page,
+    Pages,
+    PaginationStyle,
+    collect,
+)
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations.aws.config import (
+from integrations.aws.schema import (
     CLOUDWATCH_LOGS,
     DEFAULT_REGION,
     INTEGRATION,
@@ -42,6 +49,21 @@ DESCRIBE_LOG_GROUPS: Final = "Logs_20140328.DescribeLogGroups"
 
 #: CloudWatch's own ceiling for one FilterLogEvents page.
 MAX_LOG_EVENTS_PER_PAGE: Final = 10_000
+
+#: How each paginated endpoint asks for the page after the one it read (FR-005).
+#: CloudWatch calls its cursor a next token and puts it in the request body
+#: rather than a query string, which is the case the ``PAGE_TOKEN`` name exists
+#: for: an integration author reads "nextToken" in AWS's documentation and finds
+#: the style spelled the way they read it.
+PAGINATION: Final[tuple[EndpointPagination, ...]] = (
+    EndpointPagination(
+        endpoint="filter_log_events",
+        style=PaginationStyle.PAGE_TOKEN,
+        parameter="nextToken",
+        page_size_parameter="limit",
+        page_size=MAX_LOG_EVENTS_PER_PAGE,
+    ),
+)
 
 
 class CloudWatchLogsClient(IntegrationClient):
@@ -158,6 +180,7 @@ __all__ = [
     "LOGS_CONTENT_TYPE",
     "LOGS_TARGET_HEADER",
     "MAX_LOG_EVENTS_PER_PAGE",
+    "PAGINATION",
     "CloudWatchLogsClient",
     "log_event_message",
 ]
