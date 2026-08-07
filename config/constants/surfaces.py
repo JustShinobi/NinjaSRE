@@ -68,6 +68,31 @@ SSE_KEEPALIVE_INTERVAL_SECONDS: Final[float] = 15.0
 #: from where it left off (feature 016).
 SSE_REPLAY_WINDOW_SECONDS: Final[float] = 300.0
 
+# --- Web console rendering budgets --------------------------------------------
+
+#: The transcript length the console is required to stay responsive at. A real
+#: investigation produces thousands of events; this is the number the benchmark
+#: proves rather than the number anybody expects.
+CONSOLE_TRANSCRIPT_BENCHMARK_EVENTS: Final[int] = 10_000
+
+#: How long rendering one transcript screen may take, whatever the transcript's
+#: length. Windowed rendering makes this independent of the total, so a failure
+#: here means the renderer started touching every event again.
+CONSOLE_TRANSCRIPT_RENDER_BUDGET_MS: Final[float] = 60.0
+
+#: How much longer a ten-thousand-event transcript may take to render than a
+#: hundred-event one. Windowing makes the honest answer "no longer at all"; the
+#: allowance is for measurement noise, not for growth.
+CONSOLE_TRANSCRIPT_SCALING_TOLERANCE: Final[float] = 3.0
+
+#: The organisation size the tree has to stay navigable at (SC-008).
+CONSOLE_ORG_TREE_BENCHMARK_NODES: Final[int] = 500
+
+#: How long building a five-hundred-node organisation tree may take. Well inside
+#: an interaction budget, and low enough that a quadratic tree builder fails
+#: rather than merely being slow.
+CONSOLE_ORG_TREE_BUDGET_MS: Final[float] = 50.0
+
 # --- REST API rate limiting ---------------------------------------------------
 
 #: Requests one principal may make per window. Separate from the team limit
@@ -217,6 +242,11 @@ __all__ = [
     "CHAT_PLATFORM_TELEGRAM",
     "CLI_COMMAND_NAME",
     "COLUMNS_ENV",
+    "CONSOLE_ORG_TREE_BENCHMARK_NODES",
+    "CONSOLE_ORG_TREE_BUDGET_MS",
+    "CONSOLE_TRANSCRIPT_BENCHMARK_EVENTS",
+    "CONSOLE_TRANSCRIPT_RENDER_BUDGET_MS",
+    "CONSOLE_TRANSCRIPT_SCALING_TOLERANCE",
     "DEFAULT_API_HOST",
     "DEFAULT_API_PORT",
     "DEFAULT_CONSOLE_PORT",
