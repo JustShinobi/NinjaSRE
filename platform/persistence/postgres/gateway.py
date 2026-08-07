@@ -205,6 +205,16 @@ class PostgresPersistence:
         """Return the underlying engine, for migrations and operational tooling."""
         return self._engine
 
+    def migrator(self) -> migrations.AlembicSchemaMigrator:
+        """Return this gateway's schema migrator, as the startup sequence's port.
+
+        Offered here so a composition root that already names this backend does
+        not also have to name the migrations module. The startup sequence holds
+        the *policy* — order, skip handling, compatibility — and takes this as
+        the thing that knows how to apply a revision.
+        """
+        return migrations.AlembicSchemaMigrator(self._engine)
+
     async def start(self) -> StoreHealth:
         """Bring the schema to head, load the encryption key, and report health.
 

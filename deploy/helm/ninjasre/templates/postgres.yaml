@@ -1,0 +1,94 @@
+# PostgreSQL, in-cluster, for an evaluation.
+#
+# Off by default, and that default is the recommendation. In a regulated
+# environment somebody else's team already runs PostgreSQL with the backup
+# schedule, the retention policy, and the failover story that estate requires,
+# and a StatefulSet in this release is a second database with none of them.
+#
+# When it is on it is a single replica with a PersistentVolumeClaim, because
+# ADR 0004's one datastore has no read-replica story in this chart and pretending
+# otherwise with a replica count would be worse than not offering one.
+{{- if and (not .Values.postgres.external) .Values.postgres.inCluster.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-postgres
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  serviceName: {{ include "ninjasre.fullname" . }}-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "ninjasre.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        {{- include "ninjasre.labels" . | nindent 8 }}
+        app.kubernetes.io/component: postgres
+    spec:
+      containers:
+        - name: postgres
+          # Must carry pgvector and Apache AGE. Nothing published carries both,
+          # so this is the image `deploy/images/postgres.Dockerfile` builds —
+          # naming a stock postgres image here would produce a deployment that
+          # starts and fails on the first vector write.
+          image: {{ required "postgres.inCluster.image must name an image carrying pgvector and Apache AGE" .Values.postgres.inCluster.image | quote }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: ninjasre
+            - name: POSTGRES_USER
+              value: ninjasre
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.urlSecret.name }}
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "ninjasre", "-d", "ninjasre"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.postgres.inCluster.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.postgres.inCluster.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.inCluster.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-postgres
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    app.kubernetes.io/name: {{ include "ninjasre.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgres
+{{- end }}

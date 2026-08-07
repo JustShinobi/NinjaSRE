@@ -1,0 +1,110 @@
+# What a sandbox pod is allowed to do, and what stops it doing anything else.
+#
+# The platform creates sandbox pods itself, one per investigation — that is the
+# `kubernetes` isolation profile. What this chart contributes is the two things
+# a pod cannot give itself:
+#
+#   - the Envoy configuration its egress sidecar runs, which is the allow-list;
+#   - a NetworkPolicy denying every egress except through that sidecar.
+#
+# Neither is sufficient alone, and that is the whole design. A sidecar without
+# the policy is advice: the sandbox container can simply open its own socket. A
+# policy without the sidecar can express "this CIDR" and cannot express "this
+# vendor's hostname and nothing else", which is the granularity an allow-list
+# needs to be worth having.
+#
+# The admin interface is bound to loopback deliberately. An Envoy whose admin
+# port were reachable from the sandbox container would be an allow-list the
+# sandboxed process could rewrite.
+{{- if .Values.sandbox.egress.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-sandbox-egress
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sandbox
+data:
+  envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: {{ .Values.sandbox.egress.adminPort }}
+    static_resources:
+      listeners:
+        - name: egress
+          address:
+            socket_address:
+              address: 0.0.0.0
+              port_value: {{ .Values.sandbox.egress.listenerPort }}
+          filter_chains:
+            - filters:
+                - name: envoy.filters.network.http_connection_manager
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                    stat_prefix: egress
+                    route_config:
+                      name: allow_list
+                      virtual_hosts:
+                        - name: permitted
+                          # Filled by the platform per investigation from the
+                          # integrations that investigation may use. Empty here
+                          # on purpose: a chart-level default allow-list would
+                          # be a host every sandbox could reach whether or not
+                          # its investigation needed it.
+                          domains: []
+                          routes: []
+                    http_filters:
+                      - name: envoy.filters.http.router
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+      clusters: []
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-sandbox-settings
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sandbox
+data:
+  # Read by the platform when it builds a sandbox pod, so the sidecar's image
+  # and ports are an operator's decision rather than a constant in the code.
+  egressImage: {{ .Values.sandbox.egress.image | quote }}
+  egressListenerPort: {{ .Values.sandbox.egress.listenerPort | quote }}
+  egressAdminPort: {{ .Values.sandbox.egress.adminPort | quote }}
+  configMapName: {{ include "ninjasre.fullname" . }}-sandbox-egress
+{{- end }}
+{{- if and .Values.sandbox.egress.enabled .Values.sandbox.egress.networkPolicy }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-sandbox-egress
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sandbox
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "ninjasre.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: sandbox
+  policyTypes:
+    - Egress
+  egress:
+    # DNS, and nothing else that leaves the pod. Everything a capability does
+    # goes through the sidecar on loopback, which is inside the pod and needs
+    # no rule here.
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

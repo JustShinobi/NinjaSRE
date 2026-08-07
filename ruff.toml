@@ -68,6 +68,11 @@ ignore = [
 # nobody attached to this run" means — and it keeps the port's full signature so
 # a surface can be substituted for it without the loop noticing.
 "core/agent/handoff.py" = ["ARG002"]
+# The stand-in for an investigation runtime nobody configured refuses every call
+# without reading its arguments — that is what "no runtime is wired" means — and
+# it keeps the port's full signature so the real runner is a drop-in for it and
+# the routes keep one collaborator rather than a branch.
+"gateway/http/asgi.py" = ["ARG002"]
 # Alembic dictates ``include_object``'s signature and calls it with all five
 # arguments; this one decides from the first four. Narrowing it would stop
 # Alembic being able to call it.

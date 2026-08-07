@@ -1,0 +1,38 @@
+NinjaSRE {{ .Chart.AppVersion }} — {{ .Release.Name }} in {{ .Release.Namespace }}
+
+  profile      enterprise ({{ .Values.app.replicas }} app replica(s), {{ .Values.proxy.replicas }} proxy replica(s))
+  sandbox      {{ .Values.sandbox.profile }}{{ if .Values.sandbox.egress.enabled }}, Envoy egress allow-list enforced{{ else }}, EGRESS CONTROL DISABLED{{ end }}
+  database     {{ if .Values.postgres.external }}external, from the secret {{ .Values.postgres.urlSecret.name }}{{ else }}in-cluster{{ end }}
+  identity     {{ if .Values.sso.enabled }}SSO via {{ .Values.sso.issuer }}{{ else }}local admin token only{{ end }}
+  telemetry    {{ if .Values.otel.enabled }}exported to {{ .Values.otel.endpoint }}{{ else }}nothing leaves the cluster{{ end }}
+  egress       {{ if .Values.egress.airGapped }}air-gapped: startup refuses if any setting implies an outbound connection{{ else }}as configured{{ end }}
+
+Check what came up, and what did not:
+
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ninjasre.fullname" . }}-app {{ .Values.app.port }}
+  curl localhost:{{ .Values.app.port }}/health/ready
+
+Readiness names the dependency that is not ready rather than answering yes or
+no, so a pod that will not become ready has already told you why.
+
+{{- if not .Values.sso.enabled }}
+
+The first administrator's token was printed once, at first start:
+
+  kubectl -n {{ .Release.Namespace }} logs -l app.kubernetes.io/component=app --tail=50 | grep -A3 "admin token"
+{{- end }}
+
+{{- if not .Values.encryptionKey.secret.name }}
+
+WARNING: no encryption-key secret is configured. NinjaSRE will not generate one
+— a key it generated would live in this release's stored values and be
+discovered missing during a restore, on somebody else's watch. Create it before
+configuring an integration:
+
+  openssl rand -base64 32 | kubectl -n {{ .Release.Namespace }} create secret generic ninjasre-encryption-key --from-file=key=/dev/stdin
+{{- end }}
+
+Back up before every upgrade. The whole deployment is one PostgreSQL instance,
+so `sh deploy/ops/backup.sh` is the whole procedure and its manifest is what
+makes restoring into a different release a decision rather than a gamble.

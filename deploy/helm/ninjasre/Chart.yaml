@@ -1,0 +1,22 @@
+# The enterprise profile: agent replicas, sandbox pods with Envoy egress
+# control, an external or in-cluster PostgreSQL, OTel export, and SSO.
+#
+# `appVersion` tracks the application; `version` tracks the chart. They move
+# independently on purpose — a values-schema change is a chart release and not
+# an application one, and an operator upgrading needs to know which happened.
+apiVersion: v2
+name: ninjasre
+description: Self-hosted AI SRE platform that investigates incidents and proves it improves
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+keywords:
+  - sre
+  - incident-response
+  - agent
+  - self-hosted
+sources:
+  - https://github.com/ninjasre/ninjasre
+maintainers:
+  - name: NinjaSRE contributors

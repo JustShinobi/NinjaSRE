@@ -43,11 +43,15 @@ from sqlalchemy import LargeBinary
 from sqlalchemy.engine import Dialect
 from sqlalchemy.types import TypeDecorator
 
-from config.constants.persistence import NINJASRE_DATABASE_ENCRYPTION_KEY_ENV
+from config.constants.persistence import (
+    DATABASE_ENCRYPTION_KEY_BYTES,
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
+)
 
-#: AES-256. Shorter keys are refused rather than stretched: a deployment that
-#: configured 16 bytes should be told, not quietly given less than it asked for.
-KEY_LENGTH_BYTES: Final = 32
+#: AES-256, under the name this module's callers already use. Shorter keys are
+#: refused rather than stretched: a deployment that configured 16 bytes should
+#: be told, not quietly given less than it asked for.
+KEY_LENGTH_BYTES: Final = DATABASE_ENCRYPTION_KEY_BYTES
 
 #: GCM's standard nonce width. Twelve bytes is what the mode is specified for;
 #: other lengths are legal, slower, and buy nothing here.
@@ -143,16 +147,41 @@ class KeyRing:
     follow to its source.
     """
 
-    __slots__ = ("_key",)
+    __slots__ = ("_key", "_previous")
 
     def __init__(self) -> None:
         self._key: bytes | None = None
+        self._previous: bytes | None = None
 
     def configure(self, key: bytes) -> None:
         """Install ``key`` as the encryption key."""
         if len(key) != KEY_LENGTH_BYTES:
             raise ValueError(f"an encryption key must be {KEY_LENGTH_BYTES} bytes, got {len(key)}")
         self._key = key
+
+    def configure_previous(self, key: bytes) -> None:
+        """Install ``key`` as a read-only fallback, for the duration of a rotation.
+
+        This is what makes key rotation an online operation (FR-021). Writes
+        always use the current key; reads try it first and fall back to this
+        one, so a row that has not been re-encrypted yet is still readable and
+        no request fails while the rotation walks the table.
+
+        It is never used for writing. A fallback that could write would let a
+        half-finished rotation go backwards.
+        """
+        if len(key) != KEY_LENGTH_BYTES:
+            raise ValueError(f"an encryption key must be {KEY_LENGTH_BYTES} bytes, got {len(key)}")
+        self._previous = key
+
+    def clear_previous(self) -> None:
+        """Forget the fallback key, which a rotation does once it has rewritten everything."""
+        self._previous = None
+
+    @property
+    def has_previous(self) -> bool:
+        """Return whether a fallback key is installed."""
+        return self._previous is not None
 
     def configure_from_environment(self) -> bool:
         """Install the key the operator's environment names, and say whether one was there.
@@ -169,8 +198,9 @@ class KeyRing:
         return True
 
     def clear(self) -> None:
-        """Forget the configured key."""
+        """Forget the configured key, and any fallback."""
         self._key = None
+        self._previous = None
 
     @property
     def is_configured(self) -> bool:
@@ -178,10 +208,23 @@ class KeyRing:
         return self._key is not None
 
     def cipher(self) -> AESGCM:
-        """Return the cipher, or raise ``EncryptionNotConfigured``."""
+        """Return the cipher used for writing, or raise ``EncryptionNotConfigured``."""
         if self._key is None:
             raise EncryptionNotConfigured
         return AESGCM(self._key)
+
+    def read_ciphers(self) -> tuple[AESGCM, ...]:
+        """Return the ciphers a read may try, current key first.
+
+        Ordered rather than a set: during a rotation most rows are under one of
+        the two keys and trying the current one first is what keeps the common
+        read at one decryption attempt.
+        """
+        if self._key is None:
+            raise EncryptionNotConfigured
+        if self._previous is None:
+            return (AESGCM(self._key),)
+        return (AESGCM(self._key), AESGCM(self._previous))
 
 
 #: The process's key. One per process, because one database's rows are
@@ -204,13 +247,17 @@ def unseal(raw: bytes) -> str:
     everything else.
     """
     envelope = Envelope.from_bytes(raw)
-    try:
-        plaintext = KEY_RING.cipher().decrypt(envelope.nonce, envelope.ciphertext, None)
-    except InvalidTag as error:
-        raise UndecryptableValue(
-            "the configured encryption key is not the one that wrote this value"
-        ) from error
-    return plaintext.decode("utf-8")
+    failure: InvalidTag | None = None
+    for cipher in KEY_RING.read_ciphers():
+        try:
+            plaintext = cipher.decrypt(envelope.nonce, envelope.ciphertext, None)
+        except InvalidTag as error:
+            failure = error
+            continue
+        return plaintext.decode("utf-8")
+    raise UndecryptableValue(
+        "the configured encryption key is not the one that wrote this value"
+    ) from failure
 
 
 class EncryptedSecret(TypeDecorator[str]):

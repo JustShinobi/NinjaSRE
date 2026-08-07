@@ -17,7 +17,9 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 .PHONY: install lint format format-check typecheck test \
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
-	check-integration-docs preflight verify test-postgres test-synthetic \
+	check-integration-docs check-env-example env-example \
+	backup restore rotate-key deploy-preflight bundle-images \
+	preflight verify test-postgres test-synthetic \
 	evaluate record-baseline benchmark benchmark-export \
 	chaos-setup chaos-teardown chaos-setup-eks chaos-teardown-eks \
 	chaos-list chaos-run chaos-sweep \
@@ -196,6 +198,42 @@ check-integrations: ## Reject an integration missing an artefact or an unprobed 
 check-integration-docs: ## Reject a stale generated integration catalogue
 	$(RUN) python -m tools.generate_integration_docs --check
 
+# Run as a module for the same reason: it imports the settings catalogue, and
+# `platform/` only wins its name over the stdlib module when the repository root
+# leads sys.path.
+check-env-example: ## Reject a .env.example that has drifted from the settings catalogue
+	PYTHONPATH="$(CURDIR)" $(RUN) python tools/generate_env_example.py --check
+
+env-example: ## Regenerate deploy/compose/.env.example from the settings catalogue
+	PYTHONPATH="$(CURDIR)" $(RUN) python tools/generate_env_example.py
+
+# --- Operating a deployment --------------------------------------------------
+#
+# Thin wrappers over the scripts in `deploy/ops/`. They are here because the
+# Makefile is where an operator already looks, and the scripts are there because
+# a deployment that has not cloned the repository still has to be able to run
+# them.
+
+# Variables: INTO (a directory for the artefact, default ./backups).
+backup: ## Take one backup artefact covering relational, vector, and graph data
+	sh deploy/ops/backup.sh $(if $(INTO),$(INTO),./backups)
+
+# Variables: ARCHIVE (required).
+restore: ## Version-check and restore ARCHIVE into NINJASRE_DATABASE_URL
+	sh deploy/ops/restore.sh $(ARCHIVE)
+
+# Variables: ORG (required), PREVIOUS_KEY (required), BATCH.
+rotate-key: ## Re-encrypt every stored credential under the new key, online
+	PYTHONPATH="$(CURDIR)" $(RUN) python deploy/ops/rotate_key.py \
+		--org $(ORG) --previous-key $(PREVIOUS_KEY) $(if $(BATCH),--batch-size $(BATCH),)
+
+deploy-preflight: ## Check a deployment's configuration and report what it may reach
+	PYTHONPATH="$(CURDIR)" $(RUN) python deploy/ops/preflight.py
+
+# Variables: OUTPUT (the archive path).
+bundle-images: ## Export every image as one archive, for an air-gapped install
+	sh deploy/images/bundle.sh $(if $(OUTPUT),$(OUTPUT),ninjasre-images.tar.gz)
+
 # Not part of `verify`: it spends real tokens against a configured provider.
 # Run it once per deployment, before anyone depends on that provider.
 preflight: ## Verify the configured LLM provider end to end (makes live calls)
@@ -206,6 +244,7 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
 	check-credentials check-integrations check-integration-docs \
+	check-env-example \
 	test ## The single quality gate CI runs
 
 close-task: verify ## Fast-forward master to the current task branch and open the next one

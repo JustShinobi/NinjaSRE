@@ -1,0 +1,186 @@
+"""The process a container runs: boot sequence first, then the ASGI server.
+
+``python -m gateway.http.serve`` rather than pointing an ASGI server at a
+factory, for one reason that is easy to get wrong. Migrations, the extension
+probe, and the credential check all open database connections, and asyncpg
+binds a pooled connection to the event loop that created it. Running the boot
+sequence with ``asyncio.run`` and then handing the same engine to a server that
+starts a *second* loop produces a deployment that starts perfectly and fails on
+its first query. So there is one loop, created here, and everything happens
+inside it.
+
+The order is ``platform.startup.sequence``'s, and the reasons are documented
+there. What this module adds is the two things that sequence deliberately does
+not know about: which backend is behind the ports, and how to serve HTTP.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import sys
+from collections.abc import Sequence
+
+import uvicorn
+
+from config.constants.deployment import NINJASRE_ADMIN_TOKEN_ENV
+from config.constants.surfaces import DEFAULT_API_HOST, DEFAULT_API_PORT
+from gateway.http.app import create_app
+from gateway.http.asgi import Deployment, build_deployment
+from platform.credentials.errors import VaultKeyMismatch
+from platform.observability.logging import get_logger
+from platform.persistence.ports.health import StoreHealth
+from platform.startup.errors import StartupError
+from platform.startup.readiness import DependencyReadiness, DependencyState, report
+from platform.startup.sequence import StartupResult, run_startup
+
+_LOGGER = get_logger(__name__)
+
+#: What the process exits with when configuration is wrong. Distinct from a
+#: crash, because a supervisor that restarts on any non-zero exit will restart a
+#: misconfigured deployment forever, and the log line saying why scrolls away.
+CONFIGURATION_EXIT = 3
+
+
+def readiness_of(health: StoreHealth) -> tuple[DependencyReadiness, ...]:
+    """Return one readiness entry per dependency the store probe covered.
+
+    The store's own health is one value; readiness wants it broken out, because
+    "the database is up and the graph extension is not" and "the database is
+    down" lead to different actions and only one of them takes the deployment
+    out of rotation.
+    """
+    entries = [
+        DependencyReadiness(
+            name="database",
+            state=DependencyState.READY if health.connected else DependencyState.UNAVAILABLE,
+            detail="" if health.connected else "; ".join(health.reasons),
+        ),
+        DependencyReadiness(
+            name="schema",
+            state=(
+                DependencyState.READY
+                if health.migrations is not None and health.migrations.is_current
+                else DependencyState.UNAVAILABLE
+            ),
+            detail=(
+                ""
+                if health.migrations is not None and health.migrations.is_current
+                else "migrations have not finished"
+            ),
+        ),
+    ]
+    for extension in health.extensions:
+        entries.append(
+            DependencyReadiness(
+                name=f"extension {extension.name}",
+                state=(
+                    DependencyState.READY if extension.available else DependencyState.UNAVAILABLE
+                ),
+                # The graph is the one this deployment degrades without: an
+                # investigation with no blast radius is worse, not impossible.
+                required=extension.name != "age",
+                detail="" if extension.available else "not installed",
+            )
+        )
+    if health.undecryptable_credentials:
+        entries.append(
+            DependencyReadiness(
+                name="stored credentials",
+                state=DependencyState.DEGRADED,
+                detail=(
+                    f"{len(health.undecryptable_credentials)} cannot be decrypted with "
+                    f"the configured key"
+                ),
+            )
+        )
+    return tuple(entries)
+
+
+async def boot(deployment: Deployment) -> StartupResult:
+    """Run the startup sequence against ``deployment``'s store, and return what it found.
+
+    Raises ``VaultKeyMismatch`` before any migration when the configured key
+    does not open what is stored (FR-020), which is the whole reason the check
+    is here rather than at the first credential read.
+    """
+
+    async def verify_credentials() -> None:
+        health = await deployment.store.health()
+        if health.undecryptable_credentials:
+            raise VaultKeyMismatch(health.undecryptable_credentials)
+
+    result = await run_startup(
+        migrator=deployment.store.migrator(),
+        verify_credentials=verify_credentials,
+    )
+    health = await deployment.store.health()
+    return StartupResult(
+        topology=result.topology,
+        validation=result.validation,
+        migration=result.migration,
+        readiness=report(readiness_of(health)),
+        credentials_verified=result.credentials_verified,
+    )
+
+
+async def _serve(host: str, port: int, *, migrate_only: bool) -> None:
+    """Compose, boot, and serve, all on one event loop.
+
+    ``migrate_only`` is the Helm migration job: it runs the boot sequence,
+    prints what it did, and exits without opening a listener. Still one loop and
+    still under the same advisory lock, so it is safe alongside a replica of the
+    previous release that restarts while it runs.
+    """
+    deployment = build_deployment()
+    try:
+        result = await boot(deployment)
+        print(result.summary(), file=sys.stderr)  # noqa: T201 — a boot report is for a terminal
+        if migrate_only:
+            return
+        server = uvicorn.Server(
+            uvicorn.Config(create_app(deployment.state), host=host, port=port, log_config=None)
+        )
+        await server.serve()
+    finally:
+        if migrate_only:
+            # The serving path hands the pool to the app's own lifespan, which
+            # closes it at shutdown. A job that exits owns it itself.
+            await deployment.store.close()
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the deployment. Returns the process exit code."""
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="ninjasre-serve", description=__doc__)
+    parser.add_argument("--host", default=DEFAULT_API_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_API_PORT)
+    parser.add_argument(
+        "--migrate-only",
+        action="store_true",
+        help="run the boot sequence and exit, without serving (the Helm migration job)",
+    )
+    arguments = parser.parse_args(argv)
+
+    try:
+        asyncio.run(_serve(arguments.host, arguments.port, migrate_only=arguments.migrate_only))
+    except (StartupError, VaultKeyMismatch) as error:
+        # Named, actionable, and a distinct exit code — a supervisor that
+        # restarts on any failure would otherwise loop on a typo forever.
+        _LOGGER.error("deployment.refused_to_start", reason=str(error))
+        print(str(error), file=sys.stderr)  # noqa: T201 — the operator is reading a terminal
+        print(  # noqa: T201
+            f"Nothing has been changed. Fix the setting and start again; set "
+            f"{NINJASRE_ADMIN_TOKEN_ENV} if you would rather choose the first "
+            f"administrator's token yourself.",
+            file=sys.stderr,
+        )
+        return CONFIGURATION_EXIT
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover — the container's entrypoint
+    raise SystemExit(main())
+
+
+__all__ = ["CONFIGURATION_EXIT", "boot", "main", "readiness_of"]

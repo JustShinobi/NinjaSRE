@@ -1,0 +1,143 @@
+# The `standard` profile: a team self-hosting NinjaSRE on one machine.
+#
+# Four containers, and the number is asserted by
+# `tests/contract/deployment/test_compose_profiles.py` rather than left to
+# review. Every additional stateful service is a backup strategy, an upgrade
+# path, and a failure mode the operator inherits without having asked for one —
+# so growing this file is a decision somebody makes on purpose.
+#
+# What the four are, and why each earns its container:
+#
+#   postgres  One datastore holds relational rows, pgvector embeddings, and the
+#             Apache AGE graph (ADR 0004). This is what makes one `pg_dump` a
+#             complete backup.
+#   proxy     The only process that holds a credential. Its own container so it
+#             has its own network position and its own resource budget, and so
+#             a security review has one thing to look at.
+#   app       The REST and SSE surface, webhook ingestion, and the runtime.
+#   console   The web console, separated so it can be scaled and exposed
+#             differently from the process that talks to the vault.
+#
+# Start with:
+#     cp .env.example .env      # set one provider key and an encryption key
+#     docker compose up -d
+
+name: ninjasre
+
+x-image-build: &image-build
+  context: ../..
+  args:
+    BASE_PYTHON: ${BASE_PYTHON:-python:3.12.11-slim-bookworm}
+
+services:
+  postgres:
+    build:
+      context: ../..
+      dockerfile: deploy/images/postgres.Dockerfile
+      args:
+        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
+      POSTGRES_DB: ${POSTGRES_DB:-ninjasre}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` against the database by name, not just the port. A server
+      # accepting connections before its initdb scripts have created the
+      # extensions is a server the application would migrate against and fail.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ninjasre} -d ${POSTGRES_DB:-ninjasre}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+    networks: [internal]
+
+  proxy:
+    build:
+      <<: *image-build
+      dockerfile: deploy/images/proxy.Dockerfile
+    environment:
+      NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-standard}
+      NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
+      NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
+      NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
+      NINJASRE_CA_BUNDLE: ${NINJASRE_CA_BUNDLE:-}
+      NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
+      NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [internal, egress]
+
+  app:
+    build:
+      <<: *image-build
+      dockerfile: deploy/images/app.Dockerfile
+    environment:
+      NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-standard}
+      NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
+      NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
+      NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
+      NINJASRE_CREDENTIAL_PROXY_TOKEN: ${NINJASRE_CREDENTIAL_PROXY_TOKEN:-}
+      NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
+      NINJASRE_SETUP_TEMPLATE: ${NINJASRE_SETUP_TEMPLATE:-}
+      NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
+      NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-anthropic}
+      NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      NINJASRE_AIR_GAPPED: ${NINJASRE_AIR_GAPPED:-false}
+      NINJASRE_EGRESS_ALLOWLIST: ${NINJASRE_EGRESS_ALLOWLIST:-}
+      NINJASRE_CA_BUNDLE: ${NINJASRE_CA_BUNDLE:-}
+      NINJASRE_OTEL_ENDPOINT: ${NINJASRE_OTEL_ENDPOINT:-}
+      NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
+      NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+    ports:
+      # Loopback by default. Binding to every interface is an operator's
+      # decision, made once, not a default that ships open.
+      - "127.0.0.1:${NINJASRE_API_PORT:-8420}:8420"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      proxy:
+        condition: service_started
+    restart: unless-stopped
+    networks: [internal, egress]
+
+  console:
+    build:
+      <<: *image-build
+      dockerfile: deploy/images/console.Dockerfile
+    environment:
+      NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-standard}
+      NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
+      NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
+      NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
+      NINJASRE_ENDPOINT: ${NINJASRE_ENDPOINT:-http://app:8420}
+      NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
+      NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+    ports:
+      - "127.0.0.1:${NINJASRE_CONSOLE_PORT:-8421}:8421"
+    depends_on:
+      app:
+        condition: service_started
+    restart: unless-stopped
+    networks: [internal]
+
+volumes:
+  postgres-data:
+
+networks:
+  # Two networks rather than one, and the split is the point. Only the two
+  # services that legitimately reach outside are on `egress`: the proxy, which
+  # is the only process holding a credential, and the application, which calls
+  # the model provider. The database and the console have no route off the
+  # host at all, which is a property an operator can verify with `docker
+  # network inspect` rather than one they have to take on trust.
+  internal:
+    internal: true
+  egress:

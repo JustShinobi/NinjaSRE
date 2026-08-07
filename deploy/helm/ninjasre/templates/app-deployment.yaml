@@ -1,0 +1,120 @@
+# The application: REST and SSE, webhook ingestion, and the investigation
+# runtime. Replica count is the one scaling dial this chart offers, because it
+# is the one that means something — the scheduler is leader-claimed, so adding
+# replicas adds capacity without adding a second thing running the schedule.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-app
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  replicas: {{ .Values.app.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "ninjasre.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: app
+  template:
+    metadata:
+      labels:
+        {{- include "ninjasre.labels" . | nindent 8 }}
+        app.kubernetes.io/component: app
+      {{- with .Values.app.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "ninjasre.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: app
+          image: {{ include "ninjasre.image" (list . "app") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.port }}
+          env:
+            {{- include "ninjasre.env" . | nindent 12 }}
+            {{- include "ninjasre.providerEnv" . | nindent 12 }}
+            - name: NINJASRE_SCHEDULER_ENABLED
+              value: {{ .Values.app.scheduler.enabled | quote }}
+          # Readiness gates traffic and names the dependency that is not ready;
+          # liveness only asks whether the process should keep running. A
+          # deployment that used one endpoint for both would restart a pod
+          # whose only problem was a database still coming up.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          # Gives the endpoints controller time to stop sending new requests
+          # before the process begins draining. Without it, the last few
+          # requests arrive at a replica that has already decided to stop.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+            {{- include "ninjasre.caVolumeMounts" . | nindent 12 }}
+      # Long enough for a drain to finish an in-flight investigation at a safe
+      # point. An investigation killed mid-run leaves a trace nobody can
+      # replay, which is worse than a slow rollout.
+      terminationGracePeriodSeconds: 120
+      volumes:
+        # The root filesystem is read-only, so the one writable path is an
+        # explicit emptyDir rather than a permission somebody granted broadly.
+        - name: scratch
+          emptyDir: {}
+        {{- include "ninjasre.caVolumes" . | nindent 8 }}
+      {{- with .Values.app.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.app.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.app.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-app
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.app.port }}
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: {{ include "ninjasre.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: app

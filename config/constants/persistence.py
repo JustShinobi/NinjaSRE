@@ -22,6 +22,10 @@ NINJASRE_DATABASE_SCHEMA_ENV: Final = "NINJASRE_DATABASE_SCHEMA"
 #: the key itself is resolved like any other secret and never written down.
 NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: Final = "NINJASRE_DATABASE_ENCRYPTION_KEY"
 
+#: AES-256. Shorter keys are refused rather than stretched: a deployment that
+#: configured 16 bytes should be told, not quietly given less than it asked for.
+DATABASE_ENCRYPTION_KEY_BYTES: Final[int] = 32
+
 #: Points the persistence contract suite at a live PostgreSQL. Unset means the
 #: suite runs against the in-memory fakes alone and says so, rather than
 #: reporting a pass it did not earn.
@@ -169,6 +173,7 @@ RETENTION_EXEMPT_DATA_CLASSES: Final[frozenset[str]] = frozenset({"audit"})
 
 
 __all__ = [
+    "DATABASE_ENCRYPTION_KEY_BYTES",
     "DATABASE_POOL_MAX_IDLE_SECONDS",
     "DATABASE_POOL_MAX_SIZE",
     "DATABASE_POOL_MIN_SIZE",

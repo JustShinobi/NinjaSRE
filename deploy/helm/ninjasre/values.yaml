@@ -1,0 +1,218 @@
+# Defaults for the enterprise profile.
+#
+# Two principles run through this file and both are worth stating, because a
+# values file is where a well-designed system usually loses its properties.
+#
+# **Nothing here is a secret.** Every credential is a reference to a Secret the
+# operator created — a name and a key, never a value. A chart that accepted an
+# API key as a value would be a chart whose values file ends up in a Git
+# repository with the key in it.
+#
+# **Every bound is a bound.** Replica counts, concurrency, and resource limits
+# all have numbers here rather than being unset. An unset limit is not
+# "unlimited by choice", it is a pod that gets evicted at the worst moment.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  registry: ghcr.io
+  repository: ninjasre
+  # Pinned by digest in a release. A tag is a pointer somebody else can move,
+  # and a rollout that pulled a different image than the one that was tested is
+  # a rollout nobody can reason about.
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# --- The application -----------------------------------------------------------
+
+app:
+  replicas: 2
+  port: 8420
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 4Gi
+  # The scheduler is leader-claimed across replicas, so every replica runs one
+  # and exactly one of them holds a job's lease at a time. There is no "run the
+  # scheduler on replica zero" setting, because that is a single point of
+  # failure wearing a configuration option's clothes.
+  scheduler:
+    enabled: true
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+console:
+  enabled: true
+  replicas: 2
+  port: 8421
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+proxy:
+  # Never disabled. The credential proxy is the trust boundary — an option to
+  # turn it off would be an option to put credentials in the agent's process.
+  replicas: 2
+  port: 8422
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# --- Migrations ----------------------------------------------------------------
+
+migrations:
+  # Runs as a pre-upgrade hook, to completion, before any replica of the new
+  # release starts. The application would also migrate at startup under its
+  # advisory lock; doing it in a job means a rollout that cannot migrate fails
+  # as a failed job rather than as a crash-looping deployment.
+  enabled: true
+  backoffLimit: 2
+  activeDeadlineSeconds: 1800
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+# --- Sandbox -------------------------------------------------------------------
+
+sandbox:
+  profile: kubernetes
+  namespace: ""
+  image: ""
+  warmPoolSize: 2
+  # The Envoy sidecar is the egress allow-list, and the NetworkPolicy is what
+  # stops the sandbox container going round it. Neither is sufficient alone:
+  # a sidecar without the policy is advice, and a policy without the sidecar
+  # cannot express "this vendor's host and nothing else".
+  egress:
+    enabled: true
+    image: envoyproxy/envoy:v1.32.3
+    listenerPort: 15001
+    adminPort: 15000
+    networkPolicy: true
+
+# --- Database ------------------------------------------------------------------
+
+postgres:
+  # `external` is the expectation in a regulated environment: somebody else's
+  # team already runs PostgreSQL with the backup schedule and the retention
+  # policy that estate requires. In-cluster exists for an evaluation.
+  external: true
+  urlSecret:
+    name: ninjasre-database
+    key: url
+  inCluster:
+    enabled: false
+    image: ""
+    storage: 50Gi
+    storageClass: ""
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+
+# --- Secrets -------------------------------------------------------------------
+
+encryptionKey:
+  # Operator-supplied, always. The chart will not generate one: a generated key
+  # lives in a release's stored values and is discovered missing during a
+  # restore, on somebody else's watch.
+  secret:
+    name: ninjasre-encryption-key
+    key: key
+
+provider:
+  id: anthropic
+  model: ""
+  credentialSecret:
+    name: ninjasre-provider
+    key: api-key
+  # Point this at a model running in the cluster to make the deployment
+  # air-gapped. With a local model and no other endpoint configured, nothing
+  # this chart deploys has a reason to leave the cluster.
+  baseUrl: ""
+
+# --- Identity ------------------------------------------------------------------
+
+sso:
+  enabled: false
+  issuer: ""
+  clientId: ""
+  clientSecretRef:
+    name: ninjasre-sso
+    key: client-secret
+  # Which claim carries group membership, and how groups map to NinjaSRE roles.
+  # Mapped explicitly rather than by name equality: an identity provider's
+  # groups are named for that organisation, not for this system's roles.
+  groupsClaim: groups
+  roleMappings: {}
+
+# --- Observability -------------------------------------------------------------
+
+otel:
+  enabled: false
+  endpoint: ""
+  protocol: grpc
+
+logging:
+  level: INFO
+  format: json
+
+# --- Egress --------------------------------------------------------------------
+
+egress:
+  # Turn this on for an air-gapped install. Startup refuses if any setting
+  # implies an outbound connection, which is what makes "no egress" a property
+  # the deployment checks rather than one the operator hopes for.
+  airGapped: false
+  allowlist: []
+  caBundle:
+    # A ConfigMap holding a PEM bundle, for a corporate proxy that terminates
+    # TLS. Mounted read-only; there is deliberately no setting that turns
+    # certificate verification off.
+    configMap: ""
+    key: ca-bundle.pem
+
+# --- Pod security --------------------------------------------------------------
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}

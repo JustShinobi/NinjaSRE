@@ -1,0 +1,88 @@
+# The web console, as its own Deployment.
+#
+# Separate from the application so it can be exposed differently — an Ingress in
+# front of this and none in front of the API is a common and reasonable shape —
+# and so the process people point a browser at is not the process holding the
+# database connection pool the investigations use.
+{{- if .Values.console.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-console
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+spec:
+  replicas: {{ .Values.console.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "ninjasre.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: console
+  template:
+    metadata:
+      labels:
+        {{- include "ninjasre.labels" . | nindent 8 }}
+        app.kubernetes.io/component: console
+    spec:
+      serviceAccountName: {{ include "ninjasre.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: console
+          image: {{ include "ninjasre.image" (list . "console") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.console.port }}
+          env:
+            {{- include "ninjasre.env" . | nindent 12 }}
+            - name: NINJASRE_ENDPOINT
+              value: http://{{ include "ninjasre.fullname" . }}-app:{{ .Values.app.port }}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.console.resources | nindent 12 }}
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+            {{- include "ninjasre.caVolumeMounts" . | nindent 12 }}
+      volumes:
+        - name: scratch
+          emptyDir: {}
+        {{- include "ninjasre.caVolumes" . | nindent 8 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ninjasre.fullname" . }}-console
+  labels:
+    {{- include "ninjasre.labels" . | nindent 4 }}
+    app.kubernetes.io/component: console
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.console.port }}
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: {{ include "ninjasre.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: console
+{{- end }}

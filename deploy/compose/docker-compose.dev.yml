@@ -1,0 +1,75 @@
+# The `dev` profile: what a contributor needs and nothing else.
+#
+# Two containers. The credential proxy runs in the application's own process
+# and the console is served by the same process, so neither is a container here
+# — same objects, same injection rules, same audit trail, reached over
+# loopback instead of over a network (FR-002).
+#
+# The sandbox is `process`, which the deployment profile decides rather than
+# this file: a contributor has no container runtime to spare for capability
+# isolation and the startup report says out loud which guarantees that costs.
+#
+# Start with:
+#     cp .env.example .env      # one provider key is enough here
+#     docker compose -f docker-compose.dev.yml up -d
+
+name: ninjasre-dev
+
+services:
+  postgres:
+    build:
+      context: ../..
+      dockerfile: deploy/images/postgres.Dockerfile
+      args:
+        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
+      POSTGRES_DB: ${POSTGRES_DB:-ninjasre}
+    ports:
+      # Exposed here and not in the standard profile, because a contributor
+      # runs psql and the suite against it and a team self-hosting does not.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ninjasre} -d ${POSTGRES_DB:-ninjasre}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks: [internal]
+
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/images/app.Dockerfile
+      args:
+        BASE_PYTHON: ${BASE_PYTHON:-python:3.12.11-slim-bookworm}
+    environment:
+      NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-dev}
+      NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
+      NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
+      NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
+      NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
+      NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-anthropic}
+      NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-DEBUG}
+      NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-console}
+    ports:
+      - "127.0.0.1:${NINJASRE_API_PORT:-8420}:8420"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal, egress]
+
+volumes:
+  postgres-dev-data:
+
+networks:
+  internal:
+    internal: true
+  egress:
