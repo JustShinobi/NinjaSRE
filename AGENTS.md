@@ -188,8 +188,9 @@ make verify
 One gate: lint, format check, strict types, import contracts, constants,
 protocol bodies, the telemetry deny-list, the vendor-SDK boundary, capability
 metadata literals, the storage boundary, the credential boundary, integration
-parity, the generated integration catalogue, and the test suite. It is what CI
-runs on Linux, macOS, and Windows, and it takes seconds.
+parity, the generated catalogues, the documentation drift check, the documented
+examples, and the test suite. It is what CI runs on Linux, macOS, and Windows,
+and it takes seconds.
 
 The storage layer has a second gate, because it needs a database:
 
@@ -227,6 +228,29 @@ make preflight PROVIDER=anthropic
 Run it once per deployment, before anyone depends on that provider. It checks
 authentication, a tool call, a structured output, and a stream against the
 operator's own endpoint — the things a recorded fixture cannot.
+
+## Documentation
+
+The operator-facing site lives under [`docs/site/`](docs/site/index.md) and
+builds offline:
+
+```bash
+make docs          # regenerate the capability, integration, and configuration references
+make check-docs    # fail on drift — part of `make verify`
+make docs-build    # render the whole site into docs/site/build
+make docs-serve    # build it and serve it on localhost, fetching nothing
+```
+
+Three sections are **generated** from the declarations the runtime reads —
+capabilities, integrations, configuration — and are not edited by hand. Edit the
+declaration and regenerate, or the two disagree and the page is the one that is
+wrong. `make check-docs` fails on drift, including on a page left behind by
+something that was deleted.
+
+Everything else is authored, and every code example in an authored page is
+extracted and checked by `make check-doc-examples`: a documented command,
+`make` target, or repository path that no longer exists fails the build rather
+than an operator.
 
 ## Per-package conventions
 

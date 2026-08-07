@@ -46,8 +46,26 @@ Ratified in [`.specify/memory/constitution.md`](.specify/memory/constitution.md)
 
 ## Documentation
 
+The operator-facing documentation is a site under [`docs/site/`](docs/site/index.md),
+buildable and servable with no network at all:
+
+```bash
+make docs-build   # renders it into docs/site/build
+make docs-serve   # builds it and serves it on localhost
+```
+
+Start at the [quickstart](docs/site/quickstart/index.md) — it takes a new
+operator from nothing to a finished investigation without needing any other
+page. The capability, integration, and configuration references are **generated**
+from the same declarations the runtime reads, and `make verify` fails if they
+were not regenerated after a change.
+
 | Document | What it covers |
 |---|---|
+| [Quickstart](docs/site/quickstart/index.md) | Nothing to a finished investigation, self-contained |
+| [Deployment](docs/site/deployment/index.md) | The three profiles, upgrading, backups, keys, air-gapped operation |
+| [Security model](docs/site/security/index.md) | The five controls, each with the threat it addresses |
+| [Evaluation](docs/site/evaluation/index.md) | The exact commands to reproduce every published number |
 | [Constitution](.specify/memory/constitution.md) | The thirteen non-negotiable articles every spec must satisfy |
 | [Vision](docs/vision.md) | The problem, the thesis, who it is for, what it is not |
 | [Architecture](docs/architecture.md) | Package tiers, runtime, capability model, data, trust boundary, evaluation |

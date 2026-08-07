@@ -1,0 +1,58 @@
+# NinjaSRE
+
+> A self-hosted AI SRE platform that investigates production incidents, produces
+> evidence-backed root causes, learns from every run, and measures continuously
+> whether that learning helps. Nothing leaves the operator's infrastructure:
+> no telemetry, no analytics, no crash reporting, and no hosted control plane.
+
+Apache-2.0. Python 3.12+. One PostgreSQL instance carrying `pgvector` and Apache
+AGE is the only required datastore; every LLM provider is an optional extra, so a
+deployment running a local model installs none of them and is fully functional.
+
+The system's non-negotiables, each enforced by something in `make verify` rather
+than asserted: evidence over assertion; bounded autonomy with every ceiling a
+named constant; read-only by default with per-action approval and a stored
+rollback plan above that; secrets never reaching the agent, because authenticated
+calls go through a credential proxy that injects at the network edge; one
+canonical runtime that produces the evaluation number; provider neutrality across
+nine providers; learning that is measured by ablation or not claimed; a layered
+architecture CI proves; a single datastore behind twelve repository ports; and
+English throughout.
+
+## Documentation
+
+- [Quickstart](docs/site/quickstart/index.md): from nothing to a finished investigation, self-contained
+- [Deployment](docs/site/deployment/index.md): the three profiles, upgrading, backup and restore, key rotation, air-gapped operation
+- [Configuration reference](docs/site/configuration/index.md): every setting, generated from the settings catalogue
+- [Capability reference](docs/site/capabilities/index.md): every tool and skill the agent may call, with the side-effect level each is gated at — generated from the declarations
+- [Integration catalogue](docs/site/integrations/index.md): every vendor, its credential schema, and the permissions verification probes — generated from the catalogue
+- [Security model](docs/site/security/index.md): the credential proxy, masking, guardrails, sandbox profiles, and the approval model, each with the threat it addresses
+- [Evaluation methodology](docs/site/evaluation/index.md): the exact commands to reproduce every published number
+- [Contributing](docs/site/contributing/index.md): tier table, file placement, conventions, and the seven artefacts every integration ships
+
+## Architecture
+
+- [Architecture](docs/architecture.md): package tiers, runtime, capability model, data, trust boundary, evaluation
+- [Vision](docs/vision.md): the problem, the thesis, who it is for, what it is not
+- [Roadmap](docs/roadmap.md): the features and waves, with dependencies and exit criteria
+- [Decision records](docs/adr/README.md): the decisions that shape everything else
+- [Working in this repository](AGENTS.md): the tier table, file placement, code style, and footguns
+
+## Reference notes
+
+- [Evaluation and ablation](docs/evaluation-methodology.md): the five scoring axes, trajectory matching, and the eight ablation switches
+- [Integration framework](docs/integration-framework.md): the long form of the seven artefacts
+- [Guardrails and masking](docs/guardrails-and-masking.md): rules, sinks, and identifier tokenisation
+- [Human in the loop](docs/human-in-the-loop.md): approvals, interactions, and the gating model
+- [Episodic memory](docs/episodic-memory.md) and [strategy synthesis](docs/strategy-synthesis.md): what is remembered and how it becomes a playbook
+- [Runs and scheduling](docs/runs-and-scheduling.md): traces, replay, and recurring investigations
+- [Chaos and end-to-end suites](docs/chaos-and-e2e-suites.md): what runs against a real cluster, and why it is not a pull-request gate
+
+## Optional
+
+- [Backup and restore](docs/backup-and-restore.md): the schema details discovered during a restore rather than before one
+- [Change approval](docs/change-approval.md) and [remediation and rollback](docs/remediation-and-rollback.md)
+- [Topology and knowledge](docs/topology-and-knowledge.md): the dependency graph and the runbook corpus
+- [Identity and audit](docs/identity-and-audit.md): roles, tokens, and the append-only trail
+- [Protocol bridges](docs/protocol-bridges.md) and [experimental runtimes](docs/experimental-runtimes.md): what is not the canonical path, and why
+- [Reference dashboards](deploy/dashboards/README.md): Grafana and Prometheus definitions covering every metric family

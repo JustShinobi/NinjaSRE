@@ -18,6 +18,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
 	check-integration-docs check-env-example env-example \
+	check-docs check-doc-examples docs docs-build docs-serve \
 	backup restore rotate-key deploy-preflight bundle-images \
 	preflight verify test-postgres test-synthetic \
 	evaluate record-baseline benchmark benchmark-export \
@@ -204,6 +205,23 @@ check-integration-docs: ## Reject a stale generated integration catalogue
 check-env-example: ## Reject a .env.example that has drifted from the settings catalogue
 	PYTHONPATH="$(CURDIR)" $(RUN) python tools/generate_env_example.py --check
 
+# Run as a module for the same reason again: the generator imports the
+# capability registry, the integration catalogue, and the settings catalogue.
+check-docs: ## Reject generated documentation that has drifted from the declarations
+	$(RUN) python -m tools.check_docs_drift
+
+docs: ## Regenerate the capability, integration, and configuration references
+	$(RUN) python -m tools.generate_docs
+
+check-doc-examples: ## Reject a documented command, target, or path that no longer works
+	$(RUN) python -m tools.test_doc_examples
+
+docs-build: ## Build the offline documentation site into docs/site/build
+	$(RUN) python -m tools.build_docs $(if $(INTO),--into $(INTO),)
+
+docs-serve: ## Build the site and serve it locally, with no network access at all
+	$(RUN) python -m tools.build_docs --serve $(if $(PORT),--port $(PORT),)
+
 env-example: ## Regenerate deploy/compose/.env.example from the settings catalogue
 	PYTHONPATH="$(CURDIR)" $(RUN) python tools/generate_env_example.py
 
@@ -244,7 +262,7 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
 	check-credentials check-integrations check-integration-docs \
-	check-env-example \
+	check-env-example check-docs check-doc-examples \
 	test ## The single quality gate CI runs
 
 close-task: verify ## Fast-forward master to the current task branch and open the next one
