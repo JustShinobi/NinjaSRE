@@ -11,18 +11,26 @@ moved or the branch was never rebased onto it, and this refuses to guess), then
 branch the next spec directly off the now-current `master`.
 
 It refuses to touch a dirty working tree and refuses to run from anything that
-is not a `feat/NNN-slug` branch backed by a matching `specs/NNN-slug` directory.
-It does not run `make verify` itself — the Makefile target it is wired to
-(`make close-task`) depends on `verify`, so a red gate never reaches this script.
+is not a `feat/NNN-slug` branch backed by a matching spec directory. It does not
+run `make verify` itself — the Makefile target it is wired to (`make close-task`)
+depends on `verify`, so a red gate never reaches this script.
+
+The directory holding the specs is resolvable rather than fixed. Work proceeds in
+waves, and a later wave lives in its own directory beside the first; hard-coding
+one of them would mean either editing this file per wave or maintaining a second
+copy of the branch/slug contract, and the second copy is the one that drifts.
+Set ``NINJASRE_SPECS_DIR`` (a name, or a path relative to the repository root) or
+pass ``--specs-dir``; it defaults to ``specs``.
 
 Usage::
 
-    python tools/close_task_branch.py [--dry-run]
+    python tools/close_task_branch.py [--dry-run] [--specs-dir specs_v2]
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -30,7 +38,36 @@ from collections.abc import Sequence
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SPECS_DIR = REPO_ROOT / "specs"
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+# The default spec directory and the environment variable that overrides it —
+# declared in the constants tier like every other environment-variable name, so
+# this script, ``make close-task`` and the unattended runner all agree without
+# any of them passing the value to the others.
+from config.constants.workflow import (  # noqa: E402
+    DEFAULT_SPECS_DIRNAME,
+    SPECS_DIR_ENV,
+)
+
+
+def resolve_specs_dir(name: str | None = None) -> Path:
+    """Return the spec directory to work against.
+
+    Precedence: the explicit argument, then ``NINJASRE_SPECS_DIR``, then
+    ``specs``. An absolute path is honoured as given; anything else is taken
+    relative to the repository root, so ``specs_v2`` and ``./specs_v2`` mean the
+    same thing whatever the caller's working directory is.
+    """
+    raw = name or os.environ.get(SPECS_DIR_ENV) or DEFAULT_SPECS_DIRNAME
+    candidate = Path(raw)
+    return candidate if candidate.is_absolute() else REPO_ROOT / candidate
+
+
+#: The default, kept as a module constant because importers rely on it. Callers
+#: that need a different wave call ``resolve_specs_dir`` instead.
+SPECS_DIR = resolve_specs_dir()
 
 BRANCH_PATTERN = re.compile(r"^feat/(\d{3}-[a-z0-9-]+)$")
 SPEC_SLUG_PATTERN = re.compile(r"^\d{3}-")
@@ -63,11 +100,10 @@ def working_tree_is_clean() -> bool:
     return _git("status", "--porcelain") == ""
 
 
-def spec_slugs() -> list[str]:
-    """Return the `specs/` directory names in task order, oldest first."""
-    return sorted(
-        p.name for p in SPECS_DIR.iterdir() if p.is_dir() and SPEC_SLUG_PATTERN.match(p.name)
-    )
+def spec_slugs(specs_dir: Path | None = None) -> list[str]:
+    """Return the spec directory names in task order, oldest first."""
+    root = specs_dir or SPECS_DIR
+    return sorted(p.name for p in root.iterdir() if p.is_dir() and SPEC_SLUG_PATTERN.match(p.name))
 
 
 def next_slug(slug: str, slugs: list[str]) -> str | None:
@@ -78,21 +114,23 @@ def next_slug(slug: str, slugs: list[str]) -> str | None:
     return None
 
 
-def close_task_branch(*, dry_run: bool = False) -> str:
+def close_task_branch(*, dry_run: bool = False, specs_dir: Path | None = None) -> str:
     """Fast-forward master to the current task branch and branch the next task off it."""
+    root = specs_dir or SPECS_DIR
     branch = current_branch()
     match = BRANCH_PATTERN.match(branch)
     if not match:
         raise CloseTaskError(f"{branch!r} is not a task branch (expected feat/NNN-slug)")
     slug = match.group(1)
 
-    if not (SPECS_DIR / slug).is_dir():
-        raise CloseTaskError(f"specs/{slug} does not exist — is this really the task branch?")
+    if not (root / slug).is_dir():
+        rel = root.relative_to(REPO_ROOT) if root.is_relative_to(REPO_ROOT) else root
+        raise CloseTaskError(f"{rel}/{slug} does not exist — is this really the task branch?")
 
     if not working_tree_is_clean():
         raise CloseTaskError("working tree is dirty; commit or stash before closing the branch")
 
-    upcoming = next_slug(slug, spec_slugs())
+    upcoming = next_slug(slug, spec_slugs(root))
     next_branch = f"feat/{upcoming}" if upcoming else None
 
     if dry_run:
@@ -122,10 +160,24 @@ def close_task_branch(*, dry_run: bool = False) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("--dry-run", action="store_true", help="print the plan without acting")
+    parser.add_argument(
+        "--specs-dir",
+        default=None,
+        metavar="DIR",
+        help=(
+            f"spec directory to read, relative to the repository root "
+            f"(default: ${SPECS_DIR_ENV} or {DEFAULT_SPECS_DIRNAME})"
+        ),
+    )
     args = parser.parse_args(argv)
 
+    specs_dir = resolve_specs_dir(args.specs_dir)
+    if not specs_dir.is_dir():
+        print(f"error: {specs_dir} is not a directory", file=sys.stderr)
+        return 1
+
     try:
-        print(close_task_branch(dry_run=args.dry_run))
+        print(close_task_branch(dry_run=args.dry_run, specs_dir=specs_dir))
     except CloseTaskError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

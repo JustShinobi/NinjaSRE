@@ -24,8 +24,10 @@ htmlcov/
 # Local reference material. Never edited, never imported, never distributed.
 /_research/
 
-# Local code-intelligence index
+# Local code-intelligence index, and the config that points it at the
+# uncommitted directories below — both are this checkout's business only.
 /.codegraph/
+/codegraph.json
 
 # Personal agent guidance. The shared, general-audience document is AGENTS.md.
 /CLAUDE.md
@@ -34,4 +36,5 @@ htmlcov/
 # on. The repository ships the system and the decisions behind it, not the
 # sequencing of the work nor a running commentary on where code came from.
 /specs/
+/specs_v2/
 /docs/provenance-map.md

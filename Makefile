@@ -265,8 +265,13 @@ verify: lint format-check typecheck check-imports check-constants \
 	check-env-example check-docs check-doc-examples \
 	test ## The single quality gate CI runs
 
+# Which wave of specs the branch/slug contract reads. Override per invocation
+# (`make close-task SPECS_DIR=specs_v2`) or export NINJASRE_SPECS_DIR once for a
+# whole session; the script honours both, preferring the flag.
+SPECS_DIR ?= $(or $(NINJASRE_SPECS_DIR),specs)
+
 close-task: verify ## Fast-forward master to the current task branch and open the next one
-	$(RUN) python tools/close_task_branch.py
+	$(RUN) python tools/close_task_branch.py --specs-dir $(SPECS_DIR)
 
 clean: ## Remove caches and build artefacts
 	rm -rf build dist .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov
