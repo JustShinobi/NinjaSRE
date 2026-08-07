@@ -99,6 +99,59 @@ Tuning: `config/constants/surfaces.py` — `ALERT_DEDUP_WINDOW_SECONDS`
 shed decision is recorded (`webhooks/shedding.py`) and readable from
 `GET /health/ready`.
 
+## The chat surface (`chat/`, `slack/`, `teams/`, `telegram/`, `discord/`)
+
+One abstraction, four thin adapters. **A behaviour is implemented in `chat/` and
+rendered per platform.** An adapter translates — Block Kit, an Adaptive Card, an
+inline keyboard, a message component — and decides nothing. Writing "stream
+progress" four times is how the four quietly stop agreeing.
+
+`chat/contract.py` states the ten shared behaviours as data, and
+`tests/contract/chat/` runs every row against every adapter. That is what makes
+SC-001 enforceable rather than aspirational: a platform added to `CHAT_PLATFORMS`
+without an adapter fails the suite, and a behaviour added to the contract fails
+four tests until all four adapters satisfy it.
+
+| Module | Owns |
+|---|---|
+| `chat/port.py` | the `ChatPlatform` protocol and the vocabulary the four speak |
+| `chat/contract.py` | the ten behaviours, enumerable at runtime |
+| `chat/streaming.py` | one progress message, rewritten; coalescing; rate-limit backoff |
+| `chat/chunking.py` | splitting or attaching a report, losing nothing |
+| `chat/identity.py` | platform user → `ChatIdentity` → principal, and the refusal |
+| `chat/routing.py` | channel → team, and which alerts may auto-post there |
+| `chat/history.py` | thread history through the guardrail engine, as data |
+| `chat/commands.py` | the one command catalogue, rendered four ways |
+| `chat/sink.py` | the run's output, and feature 018's `InteractionSurface` |
+| `chat/session.py` | what an inbound message means, and thread → run bindings |
+| `chat/transport.py` | one platform call, carried through the credential proxy |
+
+Three things worth knowing before changing anything here.
+
+**A chat sink is called `chat`, all of them.** An interaction addressed to the
+chat surface reaches every configured channel, which is what makes an approval
+decided in one channel close in the other (SC-008) and one decided in the console
+close in a thread (SC-002).
+
+**Nothing raises into a run.** A platform that has gone away is recorded, handed
+to the fallback sink, and left behind. A chat surface that could fail an
+investigation would make the investigation less reliable than not having one.
+
+**There is no token anywhere in these packages.** A bot token is a credential and
+goes through `platform/credentials/proxy/` like every other one;
+`chat/transport.py` is the only path out, and it has no parameter that could
+accept a secret. A test asserts that structurally.
+
+The edit interval is *computed* from each platform's own budget rather than
+shared — three seconds is twenty edits a minute, which Discord accepts and Slack
+does not, and a two-hundred-event run is exactly where that difference bites.
+
+Tuning: `config/constants/surfaces.py` — `CHAT_STREAM_EDIT_INTERVAL_SECONDS`,
+`CHAT_MAX_EDITS_PER_MINUTE`, `CHAT_MESSAGE_LIMITS`, `CHAT_MAX_REPORT_CHUNKS`,
+`CHAT_RATE_LIMIT_BACKOFF_SECONDS`, `CHAT_MAX_DELIVERY_ATTEMPTS`,
+`CHAT_THREAD_HISTORY_LIMIT`. Per-platform setup and the minimum permission
+scopes are in [`docs/chat-surfaces.md`](../docs/chat-surfaces.md).
+
 ---
 
 Repository-wide rules — the constitution, the tier table, code style, and the

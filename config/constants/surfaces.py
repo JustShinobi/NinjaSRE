@@ -11,6 +11,7 @@ port without reading the effective configuration first.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Final
 
 # --- Surface identifiers -----------------------------------------------------
@@ -42,6 +43,69 @@ CHAT_PLATFORMS: Final[tuple[str, ...]] = (
     CHAT_PLATFORM_TELEGRAM,
     CHAT_PLATFORM_DISCORD,
 )
+
+# --- Chat streaming ------------------------------------------------------------
+
+#: How often the one progress message a run posts is edited. A chat platform
+#: punishes a message per event with rate limits and an unreadable thread, so a
+#: run's progress is *one* message rewritten on this interval however many
+#: events arrive in between.
+CHAT_STREAM_EDIT_INTERVAL_SECONDS: Final[float] = 3.0
+
+#: Edits one message may receive per minute, per platform. Below each vendor's
+#: published ceiling on purpose: a bot sharing a workspace with an alerting
+#: integration does not get the whole budget to itself.
+CHAT_MAX_EDITS_PER_MINUTE: Final[Mapping[str, int]] = {
+    CHAT_PLATFORM_SLACK: 18,
+    CHAT_PLATFORM_MICROSOFT_TEAMS: 30,
+    CHAT_PLATFORM_TELEGRAM: 18,
+    CHAT_PLATFORM_DISCORD: 24,
+}
+
+#: The first wait after a platform reports a rate limit, and the ceiling the
+#: doubling stops at. A platform that sends ``Retry-After`` overrides both — its
+#: own number is the only one that is actually right.
+CHAT_RATE_LIMIT_BACKOFF_SECONDS: Final[float] = 1.0
+CHAT_RATE_LIMIT_MAX_BACKOFF_SECONDS: Final[float] = 30.0
+CHAT_RATE_LIMIT_BACKOFF_FACTOR: Final[float] = 2.0
+
+#: How many consecutive rate limits or transport failures a progress stream
+#: absorbs before it stops editing and lets the run finish unwatched. The run
+#: itself never fails on this — chat is a surface, not the runtime.
+CHAT_MAX_DELIVERY_ATTEMPTS: Final[int] = 5
+
+#: The event count a long investigation is validated against: streamed inside
+#: every platform's edit ceiling, however many events it produced.
+CHAT_STREAM_BENCHMARK_EVENTS: Final[int] = 200
+
+# --- Chat message limits -------------------------------------------------------
+
+#: The largest single message each platform accepts, in characters. A report
+#: above this is split or attached, and never silently cut.
+CHAT_MESSAGE_LIMITS: Final[Mapping[str, int]] = {
+    CHAT_PLATFORM_SLACK: 3_000,
+    CHAT_PLATFORM_MICROSOFT_TEAMS: 28_000,
+    CHAT_PLATFORM_TELEGRAM: 4_096,
+    CHAT_PLATFORM_DISCORD: 2_000,
+}
+
+#: Above this many chunks a report is attached as a file instead of split.
+#: Fifteen messages is where a thread stops being readable, and an attachment
+#: keeps the whole report in one addressable place.
+CHAT_MAX_REPORT_CHUNKS: Final[int] = 15
+
+#: The marker a split report carries so a reader can tell a part from the whole,
+#: and can see that nothing is missing.
+CHAT_CHUNK_CONTINUATION_MARKER: Final = "…"
+
+# --- Chat thread history -------------------------------------------------------
+
+#: How many earlier messages of a thread may inform an investigation, and the
+#: total characters they may contribute. Thread history is data, never
+#: instructions, and a bound is what stops a channel from becoming an unbounded
+#: prompt.
+CHAT_THREAD_HISTORY_LIMIT: Final[int] = 50
+CHAT_THREAD_HISTORY_MAX_CHARS: Final[int] = 12_000
 
 # --- Ports -------------------------------------------------------------------
 
@@ -235,11 +299,23 @@ __all__ = [
     "API_MAX_REQUESTS_PER_PRINCIPAL",
     "API_MAX_REQUESTS_PER_TEAM",
     "API_RATE_LIMIT_WINDOW_SECONDS",
+    "CHAT_CHUNK_CONTINUATION_MARKER",
+    "CHAT_MAX_DELIVERY_ATTEMPTS",
+    "CHAT_MAX_EDITS_PER_MINUTE",
+    "CHAT_MAX_REPORT_CHUNKS",
+    "CHAT_MESSAGE_LIMITS",
     "CHAT_PLATFORMS",
     "CHAT_PLATFORM_DISCORD",
     "CHAT_PLATFORM_MICROSOFT_TEAMS",
     "CHAT_PLATFORM_SLACK",
     "CHAT_PLATFORM_TELEGRAM",
+    "CHAT_RATE_LIMIT_BACKOFF_FACTOR",
+    "CHAT_RATE_LIMIT_BACKOFF_SECONDS",
+    "CHAT_RATE_LIMIT_MAX_BACKOFF_SECONDS",
+    "CHAT_STREAM_BENCHMARK_EVENTS",
+    "CHAT_STREAM_EDIT_INTERVAL_SECONDS",
+    "CHAT_THREAD_HISTORY_LIMIT",
+    "CHAT_THREAD_HISTORY_MAX_CHARS",
     "CLI_COMMAND_NAME",
     "COLUMNS_ENV",
     "CONSOLE_ORG_TREE_BENCHMARK_NODES",
