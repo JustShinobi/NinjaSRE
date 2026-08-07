@@ -74,6 +74,134 @@ class CostReport:
 
 
 @dataclass(frozen=True, slots=True)
+class SpendLine:
+    """One row of a spend report: a team, a run, or the total across both."""
+
+    label: str = ""
+    runs: int = 0
+    turns: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cost: float = 0.0
+    unpriced_runs: int = 0
+
+    @property
+    def total_tokens(self) -> int:
+        """Return prompt and completion tokens together."""
+        return self.prompt_tokens + self.completion_tokens
+
+    @property
+    def is_complete(self) -> bool:
+        """Return whether every run in this row could be priced.
+
+        Read the money with this. A row containing an unpriced run reports a
+        floor, and presenting a floor as a total is how a locally hosted model
+        comes to look free.
+        """
+        return self.unpriced_runs == 0
+
+    def plus(self, other: CostReport) -> SpendLine:
+        """Return this row with ``other`` added to it."""
+        return SpendLine(
+            label=self.label,
+            runs=self.runs + max(other.runs, 1),
+            turns=self.turns + other.turns,
+            prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+            completion_tokens=self.completion_tokens + other.completion_tokens,
+            cost=self.cost + other.cost,
+            unpriced_runs=self.unpriced_runs + other.unpriced_runs,
+        )
+
+    def to_record(self) -> dict[str, Any]:
+        """Return this row as a JSON-serialisable document."""
+        return {
+            "label": self.label,
+            "runs": self.runs,
+            "turns": self.turns,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+            "cost": round(self.cost, 6),
+            "unpriced_runs": self.unpriced_runs,
+            "complete": self.is_complete,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SpendReport:
+    """What a period cost, per team and per run.
+
+    The window is carried in the report rather than left to whoever asked for
+    it. A spend figure whose period is somewhere else is a number two people
+    will read as covering two different things.
+    """
+
+    since: datetime | None = None
+    until: datetime | None = None
+    total: SpendLine = field(default_factory=SpendLine)
+    by_team: tuple[SpendLine, ...] = ()
+    by_run: tuple[SpendLine, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        """Return this report as a JSON-serialisable document."""
+        return {
+            "since": _moment(self.since),
+            "until": _moment(self.until),
+            "total": self.total.to_record(),
+            "by_team": [line.to_record() for line in self.by_team],
+            "by_run": [line.to_record() for line in self.by_run],
+        }
+
+
+def aggregate_spend(
+    entries: Sequence[tuple[RunSummary, CostReport]],
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> SpendReport:
+    """Return what ``entries`` cost, filtered to a window and grouped two ways.
+
+    A run with no start time is included rather than dropped. It is a run that
+    happened; excluding it because its trace is incomplete would understate a
+    bill for the reason least visible to whoever reads it.
+    """
+    selected = [
+        (run, cost) for run, cost in entries if _within(run.started_at, since=since, until=until)
+    ]
+
+    total = SpendLine(label="total")
+    teams: dict[str, SpendLine] = {}
+    runs: list[SpendLine] = []
+    for run, cost in selected:
+        total = total.plus(cost)
+        team = run.team_node_id or "unattributed"
+        teams[team] = teams.get(team, SpendLine(label=team)).plus(cost)
+        runs.append(SpendLine(label=run.run_id).plus(cost))
+
+    return SpendReport(
+        since=since,
+        until=until,
+        total=total,
+        by_team=tuple(teams[name] for name in sorted(teams)),
+        by_run=tuple(runs),
+    )
+
+
+def _within(
+    moment: datetime | None,
+    *,
+    since: datetime | None,
+    until: datetime | None,
+) -> bool:
+    """Return whether ``moment`` falls inside the window, an unknown one counting."""
+    if moment is None:
+        return True
+    if since is not None and moment < since:
+        return False
+    return not (until is not None and moment > until)
+
+
+@dataclass(frozen=True, slots=True)
 class RunSummary:
     """One run, as a listing shows it."""
 
@@ -635,6 +763,9 @@ __all__ = [
     "RunSummary",
     "ScheduleSummary",
     "SessionSummary",
+    "SpendLine",
+    "SpendReport",
     "StageReport",
+    "aggregate_spend",
     "records_of",
 ]

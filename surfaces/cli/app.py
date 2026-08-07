@@ -33,6 +33,7 @@ from surfaces.cli.commands import memory as memory_commands
 from surfaces.cli.commands import providers as provider_commands
 from surfaces.cli.commands import runs as run_commands
 from surfaces.cli.commands import schedule as schedule_commands
+from surfaces.cli.commands.cost import cost
 from surfaces.cli.commands.doctor import doctor
 from surfaces.cli.commands.investigate import investigate
 from surfaces.cli.commands.onboard import onboard
@@ -61,6 +62,7 @@ app.add_typer(provider_commands.app, name="providers")
 app.add_typer(integration_commands.app, name="integrations")
 
 app.command("investigate")(investigate)
+app.command("cost")(cost)
 app.command("onboard")(onboard)
 app.command("doctor")(doctor)
 app.command("update")(update)

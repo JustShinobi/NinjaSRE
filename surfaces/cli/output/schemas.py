@@ -78,6 +78,40 @@ COST: Final[dict[str, Any]] = _object(
     }
 )
 
+SPEND_LINE: Final[dict[str, Any]] = _object(
+    {
+        "label": _STRING,
+        "runs": _INTEGER,
+        "turns": _INTEGER,
+        "prompt_tokens": _INTEGER,
+        "completion_tokens": _INTEGER,
+        "total_tokens": _INTEGER,
+        "cost": _NUMBER,
+        "unpriced_runs": _INTEGER,
+        "complete": _BOOLEAN,
+    }
+)
+
+SPEND_REPORT: Final[dict[str, Any]] = _object(
+    {
+        "since": _STRING,
+        "until": _STRING,
+        "total": SPEND_LINE,
+        "by_team": _array(SPEND_LINE),
+        "by_run": _array(SPEND_LINE),
+    }
+)
+
+INTEGRATION_HEALTH: Final[dict[str, Any]] = _object(
+    {
+        "headline": _STRING,
+        "all_healthy": _BOOLEAN,
+        "healthy": _STRINGS,
+        "unhealthy": _STRINGS,
+        "unconfigured": _STRINGS,
+    }
+)
+
 RUN_SUMMARY: Final[dict[str, Any]] = _object(
     {
         "run_id": _STRING,
@@ -245,7 +279,9 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     ),
     "providers.list": _object({"providers": _array(PROVIDER_STATUS)}),
     "providers.verify": PROVIDER_STATUS,
+    "cost": SPEND_REPORT,
     "integrations.list": _object({"integrations": _array(INTEGRATION_STATUS)}),
+    "integrations.health": INTEGRATION_HEALTH,
     "integrations.setup": INTEGRATION_STATUS,
     "integrations.verify": INTEGRATION_STATUS,
     "onboard": _object(

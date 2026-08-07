@@ -42,6 +42,7 @@ class Area:
 #: configuration is not offered a configuration tab that would 403.
 AREAS: Final[tuple[Area, ...]] = (
     Area("/runs", "nav.runs", Permission.INVESTIGATION_READ),
+    Area("/cost", "nav.cost", Permission.INVESTIGATION_READ),
     Area("/interactions", "nav.interactions", Permission.APPROVAL_READ),
     Area("/memory", "nav.memory", Permission.MEMORY_READ),
     Area("/knowledge", "nav.knowledge", Permission.KNOWLEDGE_READ),

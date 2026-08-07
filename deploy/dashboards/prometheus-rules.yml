@@ -1,0 +1,110 @@
+# Recording and alerting rules for a NinjaSRE deployment.
+#
+# Load these into the Prometheus that scrapes your OpenTelemetry collector.
+# Nothing here reaches outside your infrastructure: these are rules about data
+# you already hold.
+#
+# Metric names below are the Prometheus form of the OTLP instruments — dots
+# become underscores and a counter gains a `_total` suffix, which is what the
+# collector's Prometheus exporter does. The OTLP name is named in each comment
+# so the two can be matched by eye.
+#
+# Thresholds are starting points, not recommendations. Every one of them depends
+# on how much you investigate and what you investigate with, and a threshold
+# copied from somebody else's deployment is an alert nobody trusts by week two.
+
+groups:
+  - name: ninjasre.recording
+    interval: 1m
+    rules:
+      # From investigation.count — the volume every other rate is read against.
+      - record: ninjasre:investigation_rate5m
+        expr: sum by (team) (rate(investigation_count_total[5m]))
+
+      # From capability.failures and capability.invocations. Recorded as one
+      # ratio rather than two series because the number anybody acts on is the
+      # ratio, and computing it in the alert makes every alert re-derive it.
+      - record: ninjasre:capability_failure_ratio5m
+        expr: |
+          sum by (capability) (rate(capability_failures_total[5m]))
+            /
+          clamp_min(sum by (capability) (rate(capability_invocations_total[5m])), 1)
+
+      # From memory.recall_hits and memory.recalls. This is the number the
+      # learning claim rests on, so it is recorded rather than eyeballed.
+      - record: ninjasre:memory_recall_hit_ratio1h
+        expr: |
+          sum by (team) (rate(memory_recall_hits_total[1h]))
+            /
+          clamp_min(sum by (team) (rate(memory_recalls_total[1h])), 1)
+
+      # From llm.cost_usd — hourly spend, which is what a budget is written in.
+      - record: ninjasre:llm_cost_usd_rate1h
+        expr: sum by (team, model, provider) (rate(llm_cost_usd_total[1h]))
+
+  - name: ninjasre.alerts
+    rules:
+      # From integration.health. A vendor that stopped answering is the most
+      # common cause of an investigation that suddenly reaches no conclusion.
+      - alert: NinjaSREIntegrationUnhealthy
+        expr: max by (integration) (integration_health{status="unhealthy"}) == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.integration }} is configured and not answering"
+          description: >-
+            Its credential verified at some point and does not now. Run
+            `ninjasre integrations health` for the vendor's own message.
+
+      # From capability.failures / capability.invocations.
+      - alert: NinjaSRECapabilityFailing
+        expr: ninjasre:capability_failure_ratio5m > 0.25
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.capability }} is failing more than one call in four"
+          description: >-
+            Evidence the agent expected is not arriving, so conclusions drawn in
+            this window are drawn from less than usual.
+
+      # From scheduler.queue_depth. A queue that is deep and staying deep means
+      # scheduled investigations are not running, which is silent by nature.
+      - alert: NinjaSRESchedulerBacklog
+        expr: scheduler_queue_depth > 50
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The scheduler queue has been over 50 for half an hour"
+
+      # From approval.decision_latency. Article III: gating friction is
+      # measurable, which means it is also alertable.
+      - alert: NinjaSREApprovalsWaiting
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le, team) (rate(approval_decision_latency_bucket[1h]))
+          ) > 3600
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "{{ $labels.team }} is taking over an hour to decide on approvals"
+          description: >-
+            Remediation is waiting on people rather than on the platform. That
+            may be correct; it should be a decision rather than a surprise.
+
+      # From llm.unpriced_calls. A spend total that quietly omits an unpriced
+      # model understates the bill in the direction nobody checks.
+      - alert: NinjaSRESpendPartiallyUnpriced
+        expr: sum by (model) (rate(llm_unpriced_calls_total[1h])) > 0
+        for: 6h
+        labels:
+          severity: info
+        annotations:
+          summary: "{{ $labels.model }} has no published price in this deployment"
+          description: >-
+            Its tokens are counted and its cost is not. Any spend figure that
+            includes this model is a floor rather than a total.

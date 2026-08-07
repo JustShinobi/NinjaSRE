@@ -103,8 +103,13 @@ from config.constants.memory import (
 from config.constants.observability import (
     DEFAULT_LOG_FORMAT,
     DEFAULT_LOG_LEVEL,
+    DEFAULT_TELEMETRY_SAMPLE_RATIO,
+    DEFAULT_TELEMETRY_SERVICE_NAME,
     NINJASRE_LOG_FORMAT_ENV,
     NINJASRE_LOG_LEVEL_ENV,
+    NINJASRE_LOG_MODULE_LEVELS_ENV,
+    NINJASRE_TELEMETRY_SAMPLE_RATIO_ENV,
+    NINJASRE_TELEMETRY_SERVICE_NAME_ENV,
 )
 from config.constants.paths import NINJASRE_HOME_DIR_ENV
 from config.constants.persistence import (
@@ -615,11 +620,35 @@ SETTINGS: Final[tuple[Setting, ...]] = (
         section=SECTION_OPERATIONS,
     ),
     Setting(
+        name=NINJASRE_LOG_MODULE_LEVELS_ENV,
+        effect=(
+            "Per-module log levels as module=LEVEL pairs, comma-separated, for "
+            "turning one subsystem up without raising the whole deployment's "
+            "volume. Re-read on demand rather than only at start."
+        ),
+        section=SECTION_OPERATIONS,
+    ),
+    Setting(
         name=NINJASRE_OTEL_ENDPOINT_ENV,
         effect=(
-            "Where traces and metrics are exported. Unset means nothing leaves the "
-            "host, which is the default."
+            "Where traces, metrics, and logs are exported, as an OTLP/HTTP base "
+            "URL. Unset means nothing leaves the host, which is the default."
         ),
+        section=SECTION_OPERATIONS,
+    ),
+    Setting(
+        name=NINJASRE_TELEMETRY_SERVICE_NAME_ENV,
+        effect="What this deployment calls itself to the collector.",
+        default=DEFAULT_TELEMETRY_SERVICE_NAME,
+        section=SECTION_OPERATIONS,
+    ),
+    Setting(
+        name=NINJASRE_TELEMETRY_SAMPLE_RATIO_ENV,
+        effect=(
+            "The share of traces exported, between 0 and 1. Lower it when "
+            "instrumentation shows up in investigation latency."
+        ),
+        default=str(DEFAULT_TELEMETRY_SAMPLE_RATIO),
         section=SECTION_OPERATIONS,
     ),
     Setting(

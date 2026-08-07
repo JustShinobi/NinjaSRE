@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import typer
 
+from platform.observability.diagnostics import health_summary
 from surfaces.cli.invocation import Invocation, Output, run_command
 from surfaces.cli.models import records_of
 from surfaces.cli.output.tables import Column, Detail, bullet_list, table_of
@@ -47,6 +48,49 @@ def list_integrations(ctx: typer.Context) -> None:
         )
 
     raise typer.Exit(run_command(invocation, "integrations.list", body))
+
+
+@app.command("health")
+def health(ctx: typer.Context) -> None:
+    """Say in one line whether every configured integration is answering.
+
+    The command an operator runs from a shell prompt or a cron entry rather
+    than opening a dashboard for. "Not configured" is reported separately from
+    "not working": one is a task and the other is an outage, and a deployment
+    that reported sixty problems on its first day is one whose health output
+    nobody reads by the second.
+    """
+    invocation: Invocation = ctx.obj
+
+    async def body() -> Output:
+        integrations = await invocation.client().list_integrations()
+        summary = health_summary(records_of(integrations))
+        broken = [status for status in integrations if status.configured and not status.healthy]
+        blocks = [
+            f"{invocation.terminal.glyph('ok' if summary.all_healthy else 'failed')} "
+            f"{summary.headline()}"
+        ]
+        if broken:
+            blocks.extend(
+                (
+                    "",
+                    bullet_list(
+                        [
+                            f"{status.integration}: {status.detail or status.credential_state}"
+                            for status in broken
+                        ],
+                        terminal=invocation.terminal,
+                    ),
+                )
+            )
+        return Output(
+            command="integrations.health",
+            data=summary.to_record(),
+            text="\n".join(blocks),
+            warnings=tuple(f"{status.integration} is not answering" for status in broken),
+        )
+
+    raise typer.Exit(run_command(invocation, "integrations.health", body))
 
 
 @app.command("setup")

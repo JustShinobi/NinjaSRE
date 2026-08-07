@@ -21,6 +21,7 @@ from surfaces.console.pages import admin as admin_page
 from surfaces.console.pages import auth as auth_page
 from surfaces.console.pages import catalogue as catalogue_page
 from surfaces.console.pages import config as config_page
+from surfaces.console.pages import cost as cost_page
 from surfaces.console.pages import interactions as interactions_page
 from surfaces.console.pages import memory as memory_page
 from surfaces.console.pages import runs as runs_page
@@ -138,6 +139,61 @@ INTERACTIONS: tuple[Mapping[str, Any], ...] = (
         "is_open": True,
     },
 )
+
+#: One spend report, with an unpriced run in it — the case the page has to
+#: announce rather than absorb.
+SPEND: Mapping[str, Any] = {
+    "since": "2026-08-01T00:00:00+00:00",
+    "until": "2026-08-31T00:00:00+00:00",
+    "total": {
+        "label": "total",
+        "runs": 3,
+        "turns": 9,
+        "prompt_tokens": 4000,
+        "completion_tokens": 1200,
+        "total_tokens": 5200,
+        "cost": 0.4213,
+        "unpriced_runs": 1,
+        "complete": False,
+    },
+    "by_team": [
+        {
+            "label": TEAM,
+            "runs": 2,
+            "turns": 6,
+            "prompt_tokens": 3000,
+            "completion_tokens": 900,
+            "total_tokens": 3900,
+            "cost": 0.4213,
+            "unpriced_runs": 0,
+            "complete": True,
+        },
+        {
+            "label": "platform",
+            "runs": 1,
+            "turns": 3,
+            "prompt_tokens": 1000,
+            "completion_tokens": 300,
+            "total_tokens": 1300,
+            "cost": 0.0,
+            "unpriced_runs": 1,
+            "complete": False,
+        },
+    ],
+    "by_run": [
+        {
+            "label": "run-1",
+            "runs": 1,
+            "turns": 4,
+            "prompt_tokens": 2000,
+            "completion_tokens": 600,
+            "total_tokens": 2600,
+            "cost": 0.3,
+            "unpriced_runs": 0,
+            "complete": True,
+        },
+    ],
+}
 
 EPISODES: tuple[Mapping[str, Any], ...] = (
     {
@@ -335,6 +391,9 @@ PAGES: Mapping[str, Callable[[PageContext], Document]] = {
             is_live=False,
         ),
     ),
+    "cost": lambda context: page(
+        context, title_key="cost.heading", body=cost_page.cost_body(context, SPEND)
+    ),
     "interactions": lambda context: page(
         context,
         title_key="interactions.title",
@@ -442,6 +501,7 @@ __all__ = [
     "RUN",
     "RUNS",
     "SCHEMAS",
+    "SPEND",
     "SSO",
     "STRATEGIES",
     "TEAM",

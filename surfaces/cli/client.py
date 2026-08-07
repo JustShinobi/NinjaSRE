@@ -67,7 +67,9 @@ from surfaces.cli.models import (
     RunReplay,
     RunSummary,
     ScheduleSummary,
+    SpendReport,
     StageReport,
+    aggregate_spend,
 )
 
 logger = get_logger(__name__)
@@ -139,6 +141,16 @@ class PlatformClient(Protocol):
     async def cost_of_runs(self, *, team_node_id: str = "", limit: int = 20) -> CostReport:
         """Return what the runs a listing would show consumed."""
 
+    async def spend(
+        self,
+        *,
+        team_node_id: str = "",
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 200,
+    ) -> SpendReport:
+        """Return what a period cost, per team and per run."""
+
     async def show_config(self, node_id: str) -> ConfigView:
         """Return ``node_id``'s effective configuration, every value attributed."""
 
@@ -195,6 +207,36 @@ class PlatformClient(Protocol):
 
     async def diagnose(self) -> DiagnosticReport:
         """Return what is configured, reachable, and healthy."""
+
+
+async def _spend_of(
+    client: PlatformClient,
+    *,
+    team_node_id: str,
+    since: datetime | None,
+    until: datetime | None,
+    limit: int,
+) -> SpendReport:
+    """Return the spend report for ``client``, built from the runs it can see.
+
+    Written once and used by both implementations, over the two calls each
+    already answers. A remote deployment therefore pays one request per run,
+    which is the honest cost of a report the API does not aggregate — and it is
+    a report an operator asks for occasionally, not a page they refresh.
+
+    A run whose detail has gone is skipped rather than fatal. A trace that was
+    purged is a run whose cost is no longer knowable, and refusing to report the
+    period because of it would make retention deletions look like outages.
+    """
+    summaries = await client.list_runs(team_node_id=team_node_id, limit=limit)
+    entries: list[tuple[RunSummary, CostReport]] = []
+    for summary in summaries:
+        try:
+            detail = await client.show_run(summary.run_id)
+        except NotFoundError:
+            continue
+        entries.append((summary, detail.cost))
+    return aggregate_spend(entries, since=since, until=until)
 
 
 # --- The local client --------------------------------------------------------
@@ -316,6 +358,19 @@ class LocalClient:
     async def cost_of_runs(self, *, team_node_id: str = "", limit: int = 20) -> CostReport:
         """Return what the runs a listing would show consumed."""
         return await self.services.run_cost(team_node_id=team_node_id, limit=limit)
+
+    async def spend(
+        self,
+        *,
+        team_node_id: str = "",
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 200,
+    ) -> SpendReport:
+        """Return what a period cost, per team and per run."""
+        return await _spend_of(
+            self, team_node_id=team_node_id, since=since, until=until, limit=limit
+        )
 
     async def show_config(self, node_id: str) -> ConfigView:
         """Return ``node_id``'s effective configuration, every value attributed."""
@@ -510,6 +565,19 @@ class RemoteClient:
         """Return what the runs a listing would show consumed."""
         payload = self._request("GET", f"/v1/runs?team={team_node_id}&limit={limit}")
         return _cost(payload.get("cost"))
+
+    async def spend(
+        self,
+        *,
+        team_node_id: str = "",
+        since: datetime | None = None,
+        until: datetime | None = None,
+        limit: int = 200,
+    ) -> SpendReport:
+        """Return what a period cost, per team and per run."""
+        return await _spend_of(
+            self, team_node_id=team_node_id, since=since, until=until, limit=limit
+        )
 
     async def show_config(self, node_id: str) -> ConfigView:
         """Return ``node_id``'s effective configuration, every value attributed."""
