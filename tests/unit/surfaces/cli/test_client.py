@@ -50,18 +50,16 @@ class _Response(io.BytesIO):
         self.close()
 
 
-def _opener(payload: Mapping[str, Any], *, ok: bool = True) -> Any:
-    """Return an opener that answers every request with ``payload``."""
+def _opener(payload: Mapping[str, Any]) -> Any:
+    """Return an opener that answers every request with ``payload``.
+
+    The document is the route's own, with nothing wrapped around it, because
+    that is what the API writes. ``tests/contract/cli/`` is what proves the
+    shape here is the shape a deployment answers with.
+    """
 
     def opener(request: Any, timeout: float = 0) -> _Response:
-        document = {
-            "schema": "ninjasre.cli.test.v1",
-            "command": "test",
-            "ok": ok,
-            "data": dict(payload),
-            "errors": [] if ok else ["the deployment reported a failure"],
-        }
-        return _Response(json.dumps(document).encode())
+        return _Response(json.dumps(dict(payload)).encode())
 
     return opener
 
@@ -126,22 +124,33 @@ def test_an_endpoint_resolves_paths_without_doubling_slashes() -> None:
     assert endpoint.resolve("/v1/runs") == "https://ninjasre.internal/v1/runs"
 
 
-def test_the_remote_client_reads_the_envelopes_payload() -> None:
-    client = RemoteClient(
-        endpoint=Endpoint(url="https://x"),
-        opener=_opener({"episodes": 4, "components": 2, "mean_effectiveness": 0.5}),
-    )
+def test_the_remote_client_reads_the_routes_own_document() -> None:
+    client = RemoteClient(endpoint=Endpoint(url="https://x"), opener=_opener({"episode_count": 4}))
 
     stats = asyncio.run(client.memory_stats())
 
     assert stats.episodes == 4
-    assert stats.components == 2
 
 
-def test_a_deployment_that_reports_a_failure_raises() -> None:
-    client = RemoteClient(endpoint=Endpoint(url="https://x"), opener=_opener({}, ok=False))
+def test_a_gated_write_is_not_read_as_a_successful_one() -> None:
+    # The one success status that carries a failure document: a change the
+    # organisation gates is accepted for review rather than applied, and a
+    # client that read the 2xx and stopped there would tell somebody their
+    # configuration had changed when it had not.
+    gated = {"error": {"type": "ChangeRequiresApproval", "message": "queued for review"}}
+    client = RemoteClient(endpoint=Endpoint(url="https://x"), opener=_opener(gated))
 
-    with pytest.raises(CliError, match="reported a failure"):
+    with pytest.raises(ApprovalRequiredError, match="queued for review"):
+        asyncio.run(client.memory_stats())
+
+
+def test_a_deployment_that_answers_with_a_list_where_an_object_belongs_says_so() -> None:
+    def opener(request: Any, timeout: float = 0) -> _Response:
+        return _Response(b"[]")
+
+    client = RemoteClient(endpoint=Endpoint(url="https://x"), opener=opener)
+
+    with pytest.raises(UnavailableError, match="not an object"):
         asyncio.run(client.memory_stats())
 
 
@@ -201,19 +210,24 @@ def test_a_bearer_token_is_presented_when_one_was_given() -> None:
     assert seen[0].get_header("Authorization") == "Bearer tok-123"
 
 
-def test_a_credential_goes_in_the_body_and_never_the_query_string() -> None:
-    # A query parameter would put the secret in the deployment's access log.
+def test_a_credential_write_is_refused_before_a_request_carries_it() -> None:
+    # This surface has no credential-write route. What matters is that the
+    # refusal happens before anything is built: a secret must not reach the
+    # wire, and it must not reach the failure either, which is somewhere people
+    # paste.
     seen: list[Any] = []
 
     def opener(request: Any, timeout: float = 0) -> _Response:
         seen.append(request)
-        return _opener({"integration": "datadog", "configured": True})(request, timeout)
+        return _opener({})(request, timeout)
 
     client = RemoteClient(endpoint=Endpoint(url="https://x"), opener=opener)
-    asyncio.run(client.store_integration_credential("datadog", {"api_key": "SECRET"}))
 
-    assert "SECRET" not in seen[0].full_url
-    assert b"SECRET" in seen[0].data
+    with pytest.raises(UnavailableError, match="does not expose") as refusal:
+        asyncio.run(client.store_integration_credential("datadog", {"api_key": "SECRET"}))
+
+    assert seen == []
+    assert "SECRET" not in str(refusal.value)
 
 
 def test_the_local_client_names_a_run_that_does_not_exist() -> None:
