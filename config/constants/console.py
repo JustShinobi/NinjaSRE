@@ -148,6 +148,23 @@ CONSOLE_ROUTE_TRANSITION_BUDGET_MS: Final = 1200.0
 #: the thing keeping the page usable.
 CONSOLE_TRANSCRIPT_RENDER_BUDGET_MS: Final = 1500.0
 
+#: How many events a reconnection after a long disconnection has to absorb.
+#:
+#: Ten thousand is what a busy investigation produces while a laptop is shut,
+#: and the number the burst budget below is measured against. It is declared
+#: rather than written into the test so that "the burst we claim to survive" is
+#: one number a reader can find.
+CONSOLE_LIVE_BURST_EVENTS: Final = 10000
+
+#: Applying that burst to the live state, in milliseconds.
+#:
+#: A budget on the *reducer* rather than on the render, and that is the point:
+#: the reducer is pure, so this measures the thing that would make a tab
+#: unresponsive if it were quadratic. The events are applied in one batch
+#: because the transport buffers them into one, which is the property the number
+#: is really guarding.
+CONSOLE_LIVE_BURST_BUDGET_MS: Final = 750.0
+
 #: Drawing a five-hundred-node configuration tree, in milliseconds.
 #:
 #: Every node present, because a tree that hid the deep ones would be a tree an
@@ -240,6 +257,8 @@ __all__ = [
     "CONSOLE_E2E_MOCK_PORT",
     "CONSOLE_FIRST_PAINT_BUDGET_MS",
     "CONSOLE_ICON_BUDGET_BYTES",
+    "CONSOLE_LIVE_BURST_BUDGET_MS",
+    "CONSOLE_LIVE_BURST_EVENTS",
     "CONSOLE_LOCALE_COOKIE",
     "CONSOLE_LOCALES",
     "CONSOLE_ROUTE_TRANSITION_BUDGET_MS",

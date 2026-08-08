@@ -44,7 +44,12 @@ import {
 } from '@/components';
 import { BUTTON_VARIANTS, CONTROL_STATES } from '@/components/action';
 import { SURFACE_STATES } from '@/components/surface';
-import { ATTENTION_STATUSES, RESOURCE_STATUSES, RUN_STATUSES } from '@/design/status';
+import {
+  ATTENTION_STATUSES,
+  CONNECTION_STATUSES,
+  RESOURCE_STATUSES,
+  RUN_STATUSES,
+} from '@/design/status';
 import { DatabaseIcon, ServerIcon, TrashIcon } from '@/design/icons';
 
 /**
@@ -160,6 +165,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
       ...RUN_STATUSES,
       ...RESOURCE_STATUSES,
       ...ATTENTION_STATUSES,
+      ...CONNECTION_STATUSES,
       'quiesced',
     ].map((status) => ({
       id: `badge-${status}`,
@@ -464,6 +470,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
             role="success"
             message="Reclaimed 41 GiB on local-lvm."
             recordedAt={{ href: '/audit', label: 'the audit trail' }}
+            dismissLabel="Dismiss this message"
             onDismiss={nothing}
           />
         ),
@@ -471,7 +478,15 @@ export const GALLERY: readonly GalleryPrimitive[] = [
       {
         id: 'toast-danger',
         label: 'danger',
-        node: <Toast role="danger" message="The reclaim failed." onDismiss={nothing} />,
+        node: (
+          <Toast
+            role="danger"
+            message="The reclaim failed."
+            recordedAt={{ href: '/audit', label: 'the audit trail' }}
+            dismissLabel="Dismiss this message"
+            onDismiss={nothing}
+          />
+        ),
       },
     ],
   },

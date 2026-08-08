@@ -5,6 +5,7 @@ import {
   isRunStatus,
   isSettled,
   ATTENTION_STATUSES,
+  CONNECTION_STATUSES,
   RESOURCE_STATUSES,
   roleFor,
   RUN_STATUSES,
@@ -26,6 +27,7 @@ describe('the status mapping', () => {
       ...RUN_STATUSES,
       ...RESOURCE_STATUSES,
       ...ATTENTION_STATUSES,
+      ...CONNECTION_STATUSES,
     ]) {
       expect(SEMANTIC_ROLES).toContain(roleFor(status));
     }
@@ -34,7 +36,7 @@ describe('the status mapping', () => {
   it('recognises every status a surface puts in a chip', () => {
     // The point of declaring them: a severity drawn as an unknown word is a
     // severity drawn in grey, which is the one colour it must not be.
-    for (const status of ATTENTION_STATUSES) {
+    for (const status of [...ATTENTION_STATUSES, ...CONNECTION_STATUSES]) {
       expect(statusPresentation(status).known, status).toBe(true);
     }
   });

@@ -11,6 +11,7 @@ import { signInHref } from '@/session/cookies';
 import { endSession } from '@/session/end';
 import { sessionLife } from '@/session/expiry';
 import type { Viewer } from '@/session/viewer';
+import { InvestigateDrawer } from '@/live/investigate';
 import { onResolved, withoutItem, type AttentionItem } from './attention';
 import { useNow } from './browser';
 import { commandsFor, type Command, type RecentRun } from './commands';
@@ -72,6 +73,7 @@ export function Shell({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [investigateOpen, setInvestigateOpen] = useState(false);
   const [waiting, setWaiting] = useState<readonly AttentionItem[]>(attention);
   const [ending, setEnding] = useState<SessionEnding | null>(null);
   const now = useNow();
@@ -151,6 +153,9 @@ export function Shell({
             onOpenDrawer={() => {
               setDrawerOpen(true);
             }}
+            onInvestigate={() => {
+              setInvestigateOpen(true);
+            }}
             onSignOut={() => {
               // The server's session ends first. Navigating away with the
               // cookie still set is not signing out, it is closing a tab —
@@ -194,6 +199,18 @@ export function Shell({
           </main>
         </div>
       </div>
+
+      {/* Reachable from every screen, because the thing somebody is looking at
+          when they decide to investigate is the reason they are investigating,
+          and a navigation to a form loses it. */}
+      <InvestigateDrawer
+        open={investigateOpen}
+        locale={locale}
+        onClose={() => {
+          setInvestigateOpen(false);
+        }}
+        navigate={navigate}
+      />
 
       <Palette
         open={paletteOpen}

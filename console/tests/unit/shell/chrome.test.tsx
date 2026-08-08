@@ -175,6 +175,7 @@ describe('the utility bar', () => {
         onOpenPalette={palette}
         onOpenNotifications={notifications}
         onOpenDrawer={drawer}
+        onInvestigate={nothing}
         onSignOut={nothing}
       />,
     );

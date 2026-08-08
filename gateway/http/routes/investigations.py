@@ -124,6 +124,42 @@ async def cancel_investigation(
     return summary_of(run)
 
 
+@router.post("/{run_id}/take-over", response_model=InvestigationSummary)
+async def take_over_investigation(
+    run_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> InvestigationSummary:
+    """Suspend a run at its next safe point so a person can drive it.
+
+    Not a cancellation. A taken-over run keeps its evidence and can be handed
+    back; the difference is the whole reason an operator reaches for one rather
+    than the other, and a surface that offered only ``cancel`` would make
+    "let me look at this myself" cost the investigation.
+    """
+    async with state.gateway.begin(auth.scope) as uow:
+        run = await uow.run_traces.get_run(run_id)
+    if run is None or not visible(run, auth):
+        raise not_found(f"no investigation {run_id!r}")
+    await state.investigator.take_over(run_id, principal=auth.principal_id)
+    return summary_of(run)
+
+
+@router.post("/{run_id}/resume", response_model=InvestigationSummary)
+async def resume_investigation(
+    run_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> InvestigationSummary:
+    """Hand a taken-over run back to the agent, with what the person did in context."""
+    async with state.gateway.begin(auth.scope) as uow:
+        run = await uow.run_traces.get_run(run_id)
+    if run is None or not visible(run, auth):
+        raise not_found(f"no investigation {run_id!r}")
+    await state.investigator.resume(run_id)
+    return summary_of(run)
+
+
 @router.get("/{run_id}/stream")
 async def stream_investigation(
     run_id: str,

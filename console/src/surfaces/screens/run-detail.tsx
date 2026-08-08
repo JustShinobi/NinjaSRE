@@ -13,6 +13,7 @@ import {
   authorised,
   dataOf,
   dependencyOf,
+  field,
   list,
   panelRead,
   read,
@@ -20,6 +21,10 @@ import {
   stateOf,
   text,
 } from '../read';
+import { isSettled } from '@/design/status';
+import { AddContext, AnswerControls, TakeoverControls } from '@/live/controls';
+import { LiveRun } from '@/live/live-run';
+import { may } from '@/session/viewer';
 import { eventsFromReplay, usageFrom } from '../transcript';
 import { Transcript } from '../transcript-view';
 
@@ -41,20 +46,31 @@ export async function RunDetailScreen(
   context: SurfaceContext,
   runId: string,
 ): Promise<ReactNode> {
-  const { credential, locale, now, zone } = context;
+  const { credential, locale, now, viewer, zone } = context;
   const init = authorised(credential);
 
   const bound = { ...init, params: { run_id: runId } };
-  const [detail, replay, incidents] = await Promise.all([
+  const [detail, replay, incidents, interactions] = await Promise.all([
     panelRead('/v1/runs/{run_id}', () => read('/v1/runs/{run_id}', bound)),
     panelRead('/v1/runs/{run_id}/replay', () =>
       read('/v1/runs/{run_id}/replay', bound),
     ),
     readProjectedPanel('/v1/incidents', credential),
+    panelRead('/v1/investigations/{run_id}/interactions', () =>
+      read('/v1/investigations/{run_id}/interactions', bound),
+    ),
   ]);
 
   const run = dataOf(detail);
   const replayed = dataOf(replay);
+  // A run that has settled is read back; one that has not is watched. Which of
+  // the two it is decides which reader fills the transcript, and nothing below
+  // that line can tell the difference.
+  const running = !isSettled(text(run, 'status'));
+  const steerable = may(viewer, 'investigation.run');
+  const open = list(dataOf(interactions), 'interactions').filter(
+    (record) => field(record, 'is_open') !== false,
+  );
   const events = eventsFromReplay({
     ...Object(replayed),
     summary: text(run, 'summary'),
@@ -118,15 +134,81 @@ export async function RunDetailScreen(
               </span>
             }
           >
-            <Transcript
-              events={events}
-              labels={transcriptLabels(locale, events)}
-              times={eventTimes(locale, events, now, zone)}
-            />
+            {running ? (
+              // Seeded with nothing on purpose. The deployment's catch-up read
+              // is inclusive of the whole log, so the stream *is* the transcript
+              // — and seeding it with the replay as well would put every event
+              // on the screen twice under two different identities.
+              <LiveRun
+                runId={runId}
+                locale={locale}
+                seed={{}}
+                now={now.toISOString()}
+                zone={zone}
+              />
+            ) : (
+              <Transcript
+                events={events}
+                labels={transcriptLabels(locale, events)}
+                times={eventTimes(locale, events, now, zone)}
+              />
+            )}
           </Panel>
         </div>
 
         <div className="flex flex-col gap-5 min-w-0">
+          {/* Only while there is something to steer. A run that has finished is
+              steered by nobody, and a panel of disabled controls on every
+              completed run would change the resting shape of a screen that was
+              already right. */}
+          {steerable && running ? (
+            <Panel
+              title={message(locale, 'live.takeover.title')}
+              state={stateOf(detail, false)}
+              dependency={dependencyOf(detail)}
+              labels={panelLabels(locale, message(locale, 'live.takeover.title'))}
+              empty={{
+                heading: message(locale, 'live.ended.completed'),
+                body: message(locale, 'run.links.empty.body'),
+                actionLabel: message(locale, 'transcript.empty.action'),
+                href: '/runs',
+              }}
+            >
+              <div className="flex flex-col gap-4">
+                <TakeoverControls runId={runId} locale={locale} running={running} />
+                <AddContext runId={runId} locale={locale} />
+              </div>
+            </Panel>
+          ) : null}
+
+          {open.map((interaction) => (
+            <Panel
+              key={text(interaction, 'interaction_id')}
+              title={message(locale, 'live.question.title')}
+              state={stateOf(interactions, false)}
+              dependency={dependencyOf(interactions)}
+              labels={panelLabels(locale, message(locale, 'live.question.title'))}
+              empty={{
+                heading: message(locale, 'live.question.title'),
+                body: message(locale, 'live.question.required'),
+                actionLabel: message(locale, 'transcript.empty.action'),
+                href: '/runs',
+              }}
+            >
+              {steerable ? (
+                <AnswerControls
+                  runId={runId}
+                  locale={locale}
+                  interactionId={text(interaction, 'interaction_id')}
+                  question={text(interaction, 'text')}
+                  options={list(interaction, 'options').map(String)}
+                />
+              ) : (
+                <p className="text-small">{text(interaction, 'text')}</p>
+              )}
+            </Panel>
+          ))}
+
           <Panel
             title={message(locale, 'run.usage.title')}
             state={stateOf(replay, usage.byTurn.length === 0)}

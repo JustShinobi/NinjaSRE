@@ -87,7 +87,14 @@ describe('ProgressBar', () => {
 
 describe('Toast', () => {
   it('is announced without stealing focus', () => {
-    render(<Toast role="success" message="Reclaimed 41 GiB." onDismiss={vi.fn()} />);
+    render(
+      <Toast
+        role="success"
+        message="Reclaimed 41 GiB."
+        dismissLabel="Dismiss this message"
+        onDismiss={vi.fn()}
+      />,
+    );
     const toast = screen.getByRole('status');
 
     expect(toast).toHaveTextContent('Reclaimed 41 GiB.');
@@ -95,7 +102,14 @@ describe('Toast', () => {
   });
 
   it('announces a failure assertively, because a failure that waits is missed', () => {
-    render(<Toast role="danger" message="The reclaim failed." onDismiss={vi.fn()} />);
+    render(
+      <Toast
+        role="danger"
+        message="The reclaim failed."
+        dismissLabel="Dismiss this message"
+        onDismiss={vi.fn()}
+      />,
+    );
     expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'assertive');
   });
 
@@ -105,6 +119,7 @@ describe('Toast', () => {
         role="success"
         message="Reclaimed 41 GiB."
         recordedAt={{ href: '/audit', label: 'the audit trail' }}
+        dismissLabel="Dismiss this message"
         onDismiss={vi.fn()}
       />,
     );

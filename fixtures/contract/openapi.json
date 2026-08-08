@@ -2861,7 +2861,7 @@
     },
     "/v1/approvals": {
       "get": {
-        "description": "Return undecided approvals, longest-waiting first (FR-008).\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open \u2014 and \"this one has no undo\" is exactly the fact\nthat decides it.",
+        "description": "Return undecided approvals, longest-waiting first (FR-008).\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
         "operationId": "list_approvals_v1_approvals_get",
         "parameters": [
           {
@@ -3071,7 +3071,7 @@
     },
     "/v1/config": {
       "get": {
-        "description": "Return the nodes this caller may navigate, as one document (FR-016).\n\nOne response rather than a walk. A client rendering an organisation tree\nneeds the shape before it can render anything at all, and a node-by-node\nexpansion would make a tree of several hundred nodes a request storm during\nthe one hour anybody is looking at it.\n\nA team-scoped caller gets its own subtree and nothing else \u2014 the same\nasymmetry ``platform/identity/authorisation.py`` applies to grants, so a\ntoken narrower than the organisation cannot map the rest of it.",
+        "description": "Return the nodes this caller may navigate, as one document (FR-016).\n\nOne response rather than a walk. A client rendering an organisation tree\nneeds the shape before it can render anything at all, and a node-by-node\nexpansion would make a tree of several hundred nodes a request storm during\nthe one hour anybody is looking at it.\n\nA team-scoped caller gets its own subtree and nothing else — the same\nasymmetry ``platform/identity/authorisation.py`` applies to grants, so a\ntoken narrower than the organisation cannot map the rest of it.",
         "operationId": "config_tree_v1_config_get",
         "parameters": [
           {
@@ -3247,7 +3247,7 @@
     },
     "/v1/config/{node_id}/catalogue": {
       "get": {
-        "description": "Return what ``node_id`` can run, and why anything else it cannot (FR-021).\n\nEvery installed capability appears, available or not. A capability missing\nfrom a list looks identical whether it was never written, is switched off\nfor this team, or needs an integration nobody has connected \u2014 and only two\nof those are something an operator can fix in a minute.",
+        "description": "Return what ``node_id`` can run, and why anything else it cannot (FR-021).\n\nEvery installed capability appears, available or not. A capability missing\nfrom a list looks identical whether it was never written, is switched off\nfor this team, or needs an integration nobody has connected — and only two\nof those are something an operator can fix in a minute.",
         "operationId": "node_catalogue_v1_config__node_id__catalogue_get",
         "parameters": [
           {
@@ -3365,7 +3365,7 @@
     },
     "/v1/config/{node_id}/preview": {
       "post": {
-        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating \u2014 and the day it drifted, somebody would\nsave a change that did something other than what they were shown.",
+        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating — and the day it drifted, somebody would\nsave a change that did something other than what they were shown.",
         "operationId": "preview_config_v1_config__node_id__preview_post",
         "parameters": [
           {
@@ -4076,6 +4076,65 @@
         ]
       }
     },
+    "/v1/investigations/{run_id}/resume": {
+      "post": {
+        "description": "Hand a taken-over run back to the agent, with what the person did in context.",
+        "operationId": "resume_investigation_v1_investigations__run_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume Investigation",
+        "tags": [
+          "investigations"
+        ]
+      }
+    },
     "/v1/investigations/{run_id}/stream": {
       "get": {
         "description": "Stream a run's events live; reconnect with ``Last-Event-ID`` to catch up (FR-009, FR-010).",
@@ -4144,6 +4203,65 @@
           }
         },
         "summary": "Stream Investigation",
+        "tags": [
+          "investigations"
+        ]
+      }
+    },
+    "/v1/investigations/{run_id}/take-over": {
+      "post": {
+        "description": "Suspend a run at its next safe point so a person can drive it.\n\nNot a cancellation. A taken-over run keeps its evidence and can be handed\nback; the difference is the whole reason an operator reaches for one rather\nthan the other, and a surface that offered only ``cancel`` would make\n\"let me look at this myself\" cost the investigation.",
+        "operationId": "take_over_investigation_v1_investigations__run_id__take_over_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Take Over Investigation",
         "tags": [
           "investigations"
         ]

@@ -43,6 +43,10 @@ class _BlockingRunner:
         self.cancel_requested = True
         self.released.set()
 
+    async def take_over(self, run_id: str, *, principal: str) -> None: ...
+
+    async def resume(self, run_id: str) -> None: ...
+
     async def queue_message(self, run_id: str, text: str) -> None: ...
 
     async def pending_interactions(self, run_id: str) -> tuple[object, ...]:

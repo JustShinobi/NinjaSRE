@@ -226,6 +226,46 @@ export function eventsFromReplay(body: unknown): readonly TranscriptEvent[] {
 }
 
 /**
+ * One event of a live run, in the fields the stream carries it in.
+ *
+ * Named rather than taken as `unknown` because the live layer has already
+ * parsed a frame by the time it gets here, and re-deriving the same five fields
+ * from a raw document a second time is how two spellings of one event start.
+ */
+export interface StreamedEvent {
+  readonly runId: string;
+  readonly kind: string;
+  readonly sequence: number;
+  readonly occurredAt: string;
+  readonly payload: unknown;
+}
+
+/**
+ * One streamed event, in the form the transcript renders.
+ *
+ * The single point at which a live event becomes a transcript entry. Both
+ * readers below it — the batch one and the live layer's reducer — go through
+ * here, which is what makes "two readers, one vocabulary" a fact about the code
+ * rather than a claim about the intention.
+ */
+export function eventFromStream(streamed: StreamedEvent): TranscriptEvent {
+  const { kind: name, payload } = streamed;
+  return event(`${streamed.runId}-${String(streamed.sequence)}`, {
+    kind: kindOf(name),
+    rawKind: name,
+    at: streamed.occurredAt,
+    title: text(payload, 'name') === '' ? name : text(payload, 'name'),
+    detail:
+      text(payload, 'detail') === ''
+        ? text(payload, 'objective')
+        : text(payload, 'detail'),
+    payload: payloadOf(payload),
+    status: text(payload, 'status'),
+    durationMs: count(payload, 'duration_ms'),
+  });
+}
+
+/**
  * The events a *live* run carries, from the stream body.
  *
  * The same shape out. This is the whole claim the single-component rule rests
@@ -233,28 +273,15 @@ export function eventsFromReplay(body: unknown): readonly TranscriptEvent[] {
  * reader it was handed.
  */
 export function eventsFromStream(body: unknown): readonly TranscriptEvent[] {
-  const events: TranscriptEvent[] = [];
-  for (const raw of list(body, 'events')) {
-    const name = text(raw, 'kind');
-    const sequence = count(raw, 'sequence');
-    const payload = field(raw, 'payload');
-    events.push(
-      event(`${text(raw, 'run_id')}-${String(sequence)}`, {
-        kind: kindOf(name),
-        rawKind: name,
-        at: text(raw, 'occurred_at'),
-        title: text(payload, 'name') === '' ? name : text(payload, 'name'),
-        detail:
-          text(payload, 'detail') === ''
-            ? text(payload, 'objective')
-            : text(payload, 'detail'),
-        payload: payloadOf(payload),
-        status: text(payload, 'status'),
-        durationMs: count(payload, 'duration_ms'),
-      }),
-    );
-  }
-  return events;
+  return list(body, 'events').map((raw) =>
+    eventFromStream({
+      runId: text(raw, 'run_id'),
+      kind: text(raw, 'kind'),
+      sequence: count(raw, 'sequence'),
+      occurredAt: text(raw, 'occurred_at'),
+      payload: field(raw, 'payload'),
+    }),
+  );
 }
 
 /** One model's share of a run, for the cost breakdown. */

@@ -40,6 +40,8 @@ class FakeInvestigationRunner:
 
     started: list[InvestigationStart] = field(default_factory=list)
     cancelled: list[str] = field(default_factory=list)
+    taken_over: list[str] = field(default_factory=list)
+    resumed: list[str] = field(default_factory=list)
     queued: list[tuple[str, str]] = field(default_factory=list)
     interactions: dict[str, Interaction] = field(default_factory=dict)
 
@@ -49,6 +51,12 @@ class FakeInvestigationRunner:
 
     async def cancel(self, run_id: str) -> None:
         self.cancelled.append(run_id)
+
+    async def take_over(self, run_id: str, *, principal: str) -> None:
+        self.taken_over.append(run_id)
+
+    async def resume(self, run_id: str) -> None:
+        self.resumed.append(run_id)
 
     async def queue_message(self, run_id: str, text: str) -> None:
         self.queued.append((run_id, text))

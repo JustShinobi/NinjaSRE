@@ -636,6 +636,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/investigations/{run_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Investigation
+         * @description Hand a taken-over run back to the agent, with what the person did in context.
+         */
+        post: operations["resume_investigation_v1_investigations__run_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/investigations/{run_id}/stream": {
         parameters: {
             query?: never;
@@ -650,6 +670,31 @@ export interface paths {
         get: operations["stream_investigation_v1_investigations__run_id__stream_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/investigations/{run_id}/take-over": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take Over Investigation
+         * @description Suspend a run at its next safe point so a person can drive it.
+         *
+         *     Not a cancellation. A taken-over run keeps its evidence and can be handed
+         *     back; the difference is the whole reason an operator reaches for one rather
+         *     than the other, and a surface that offered only ``cancel`` would make
+         *     "let me look at this myself" cost the investigation.
+         */
+        post: operations["take_over_investigation_v1_investigations__run_id__take_over_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2917,6 +2962,39 @@ export interface operations {
             };
         };
     };
+    resume_investigation_v1_investigations__run_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     stream_investigation_v1_investigations__run_id__stream_get: {
         parameters: {
             query?: never;
@@ -2938,6 +3016,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    take_over_investigation_v1_investigations__run_id__take_over_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestigationSummary"];
                 };
             };
             /** @description Validation Error */

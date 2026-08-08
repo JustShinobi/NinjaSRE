@@ -110,3 +110,48 @@ async def test_queueing_a_message_asks_the_runner(
     )
     assert response.status_code == 202
     assert (run_id, "check the other pod too") in deployment.runner.queued
+
+
+async def test_taking_over_a_run_asks_the_runner_to_pause_at_its_next_safe_point(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """An operator takes control; the run suspends rather than ending.
+
+    Distinct from cancelling in the state it leaves behind and in nothing else
+    about how it stops: a taken-over run is resumable with its evidence intact,
+    and a cancelled one is over.
+    """
+    headers = await _auth_header(deployment)
+    created = await client.post("/v1/investigations", json={"objective": "x"}, headers=headers)
+    run_id = created.json()["run_id"]
+
+    response = await client.post(f"/v1/investigations/{run_id}/take-over", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["run_id"] == run_id
+    assert run_id in deployment.runner.taken_over
+    assert run_id not in deployment.runner.cancelled
+
+
+async def test_resuming_a_taken_over_run_hands_it_back(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    headers = await _auth_header(deployment)
+    created = await client.post("/v1/investigations", json={"objective": "x"}, headers=headers)
+    run_id = created.json()["run_id"]
+    await client.post(f"/v1/investigations/{run_id}/take-over", headers=headers)
+
+    response = await client.post(f"/v1/investigations/{run_id}/resume", headers=headers)
+
+    assert response.status_code == 200
+    assert run_id in deployment.runner.resumed
+
+
+async def test_taking_over_a_run_of_another_team_is_not_found(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """The same chain every other route on a run walks: run, team, caller."""
+    headers = await _auth_header(deployment)
+    response = await client.post("/v1/investigations/no-such-run/take-over", headers=headers)
+
+    assert response.status_code == 404

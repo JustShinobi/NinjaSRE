@@ -112,6 +112,14 @@ class UnconfiguredInvestigator:
         """Refuse, naming what is missing. Nothing is running to be cancelled."""
         raise InvestigatorNotConfigured
 
+    async def take_over(self, run_id: str, *, principal: str) -> None:
+        """Refuse, naming what is missing. Nothing is running to be taken over."""
+        raise InvestigatorNotConfigured
+
+    async def resume(self, run_id: str) -> None:
+        """Refuse, naming what is missing. Nothing was taken over to hand back."""
+        raise InvestigatorNotConfigured
+
     async def queue_message(self, run_id: str, text: str) -> None:
         """Refuse, naming what is missing. There is no run to deliver a message on."""
         raise InvestigatorNotConfigured

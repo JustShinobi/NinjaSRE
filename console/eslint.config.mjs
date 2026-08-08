@@ -93,9 +93,14 @@ export default tseslint.config(
       'src/shell/**/*.tsx',
       'src/session/**/*.ts',
       'src/i18n/**/*.ts',
+      'src/live/**/*.ts',
+      'src/live/**/*.tsx',
       'src/components/navigation.tsx',
       'src/components/overlay.tsx',
       'src/components/state.tsx',
+      // The live layer is the first thing to render a toast, so the toast's own
+      // sentence comes from the catalogue from here on.
+      'src/components/feedback.tsx',
     ],
     plugins: { i18n },
     rules: {

@@ -87,6 +87,7 @@ describe('the shell controls, per role', () => {
             onOpenPalette={nothing}
             onOpenNotifications={nothing}
             onOpenDrawer={nothing}
+            onInvestigate={nothing}
             onSignOut={nothing}
           />,
         );

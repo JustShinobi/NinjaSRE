@@ -53,6 +53,20 @@ class InvestigationRunner(Protocol):
     async def cancel(self, run_id: str) -> None:
         """Ask ``run_id`` to stop at its next safe point."""
 
+    async def take_over(self, run_id: str, *, principal: str) -> None:
+        """Suspend ``run_id`` at its next safe point so a person can drive it.
+
+        Distinct from ``cancel`` in the state it leaves behind and in nothing
+        else about how it stops: a taken-over run is suspended and resumable
+        with its evidence intact, and a cancelled one is over. Both stop between
+        iterations rather than mid-call, because a capability result that
+        happened and was never written down is the one thing a resumable run
+        cannot survive.
+        """
+
+    async def resume(self, run_id: str) -> None:
+        """Hand ``run_id`` back to the agent, with what the person did in context."""
+
     async def queue_message(self, run_id: str, text: str) -> None:
         """Queue ``text`` for delivery on the run's next turn."""
 

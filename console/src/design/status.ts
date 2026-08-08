@@ -82,6 +82,27 @@ export const ATTENTION_STATUSES = [
 
 export type AttentionStatus = (typeof ATTENTION_STATUSES)[number];
 
+/**
+ * Whether what is on a screen is arriving.
+ *
+ * Declared here rather than styled where it is shown, for the reason every
+ * other status is: a live indicator each screen coloured for itself is a live
+ * indicator that means something slightly different on each of them. And this
+ * one carries more weight than most — a transcript that stopped updating and a
+ * run that stopped producing events look identical, so the shape has to be
+ * readable by somebody who cannot separate this palette's success from its
+ * danger.
+ */
+export const CONNECTION_STATUSES = [
+  'connecting',
+  'connected',
+  'reconnecting',
+  'idle',
+  'disconnected',
+] as const;
+
+export type ConnectionStatus = (typeof CONNECTION_STATUSES)[number];
+
 /** The shapes a status can be drawn as, so colour is never on its own. */
 export const SHAPES = [
   'filled-circle',
@@ -150,6 +171,14 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   locked: { role: 'warning', shape: 'triangle' },
   disabled: { role: 'neutral', shape: 'dash' },
   revoked: { role: 'neutral', shape: 'dash' },
+  // Whether what is on the screen is arriving. `disconnected` is danger rather
+  // than neutral on purpose: a transcript that has stopped updating is a
+  // transcript somebody is about to draw a conclusion from.
+  connecting: { role: 'info', shape: 'hollow-circle' },
+  connected: { role: 'success', shape: 'filled-circle' },
+  reconnecting: { role: 'warning', shape: 'rotated-square' },
+  idle: { role: 'neutral', shape: 'dimmed-circle' },
+  disconnected: { role: 'danger', shape: 'square' },
 };
 
 /** Whether `value` is a run status the gateway is known to report. */

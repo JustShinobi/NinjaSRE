@@ -153,6 +153,52 @@ declare yet. It returns `unknown`, a 404 from one of them is *empty* rather than
 *error*, and the contract test requires the list to **shrink** — an endpoint that
 lands in the document has to move to the generated client.
 
+## The live layer
+
+`src/live/` is what makes a screen feel connected: a transcript that grows, a
+card that closes when a colleague decides it somewhere else, a run an operator
+can take control of. Five things about it are load-bearing.
+
+**The reducer is pure and lives outside React.** `src/live/reducer.ts` is a
+`(state, event) => state` with no DOM, no timer and no network in it, because
+the property this whole layer exists for — every event exactly once, in order,
+across a reconnection — is the one most likely to regress and has to be provable
+in a unit test against a source that raises, replays and reorders. Three rules
+do the work: a sequence at or below the cursor is discarded, a sequence beyond
+the next one is *held* rather than rendered, and the cursor is the last event
+actually applied rather than the last one received.
+
+**One subscription per run, shared.** `src/live/store.ts` holds the connection,
+reference-counted; the last screen watching a run closes it. A page whose
+transcript, cost panel and approval card each opened their own stream would
+triple the deployment's fan-out and let the three disagree about what has
+arrived — the count saying two above a card that has already closed.
+
+**A disconnected stream never presents itself as live.** The connection state is
+always on the transcript's header, including when it is fine, and the
+reconnection is bounded: after the same number of attempts the deployment's own
+reader allows, the console says it has stopped and offers a manual reconnection.
+A stale transcript and a stalled investigation look identical, and an operator
+who cannot tell them apart goes and does the run's work by hand.
+
+**The stream is read with `fetch`, not `EventSource`.** An `EventSource` cannot
+present a cursor on the *first* connection — only on its own reconnections — and
+reports every failure as one opaque error, so a session that expired mid-stream
+would be retried as if it were a dropped packet. `src/live/sse.ts` parses the
+framing as a pure function and `src/app/api/stream/[runId]/` is the courier that
+adds the credential: it turns the `cursor` query into `Last-Event-ID` and pipes
+the body through byte for byte.
+
+**Every optimistic write keeps a snapshot, and a toast is never the only
+record.** `src/live/optimism.ts` records what a write replaced so a refusal can
+put it back *with the deployment's reason*; `src/live/outcomes.ts` will not let
+an outcome exist without naming somewhere durable it is also written down, and
+the type is what enforces that rather than a reviewer.
+
+`tests/contract/console/test_console_live.py` holds the vocabulary against the
+Python that defines it: the cursor separator, the reconnection bound, which
+event kind closes a card, and which kinds end a run.
+
 ## Every user-visible string comes from the catalogue
 
 `src/i18n/en.ts` is the source; `MessageKey` is derived from it, so a component

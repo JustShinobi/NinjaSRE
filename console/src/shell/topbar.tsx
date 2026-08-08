@@ -32,6 +32,8 @@ export interface TopbarProps {
   readonly onOpenPalette: () => void;
   readonly onOpenNotifications: () => void;
   readonly onOpenDrawer: () => void;
+  /** Open the drawer that starts an investigation, from wherever this is. */
+  readonly onInvestigate: () => void;
   readonly onSignOut: () => void;
 }
 
@@ -46,6 +48,7 @@ export function Topbar({
   onOpenPalette,
   onOpenNotifications,
   onOpenDrawer,
+  onInvestigate,
   onSignOut,
 }: TopbarProps): ReactNode {
   // The stored choice lives in the browser, and the server has no answer for
@@ -125,7 +128,7 @@ export function Topbar({
       </span>
 
       {may(viewer, 'investigation.run') ? (
-        <Button variant="primary" data-testid="investigate">
+        <Button variant="primary" data-testid="investigate" onClick={onInvestigate}>
           <PlusIcon />
           {/* The label goes below the breakpoint and the shape stays. The
               control keeps its accessible name either way, so nothing is lost

@@ -88,6 +88,14 @@ export const DETAIL_SCREENS: readonly Screen[] = [
       RunDetail({ params: Promise.resolve({ runId: 'run-0001' }), searchParams }),
   },
   {
+    // A run that has not finished, so every cross-cutting proof — the role
+    // matrix, the empty states, the accessibility audit — also walks the live
+    // half of the screen rather than only the replayed one.
+    id: 'runs-live',
+    render: ({ searchParams }) =>
+      RunDetail({ params: Promise.resolve({ runId: 'run-0003' }), searchParams }),
+  },
+  {
     id: 'incidents',
     render: ({ searchParams }) =>
       IncidentDetail({

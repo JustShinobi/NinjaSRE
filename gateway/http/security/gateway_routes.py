@@ -35,6 +35,18 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/investigations/{run_id}/cancel",
         permission=Permission.INVESTIGATION_RUN,
     ),
+    # Taking over is steering the run, which is the same authority as starting
+    # one — and strictly more than reading it.
+    Route(
+        method="POST",
+        path="/v1/investigations/{run_id}/take-over",
+        permission=Permission.INVESTIGATION_RUN,
+    ),
+    Route(
+        method="POST",
+        path="/v1/investigations/{run_id}/resume",
+        permission=Permission.INVESTIGATION_RUN,
+    ),
     Route(
         method="GET",
         path="/v1/investigations/{run_id}/stream",

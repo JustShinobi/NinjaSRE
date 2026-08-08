@@ -126,6 +126,8 @@ export interface ToastProps {
   readonly message: string;
   /** Where the outcome is also recorded. A toast is never the only record. */
   readonly recordedAt?: { readonly href: string; readonly label: string };
+  /** What the dismiss control is called, in the viewer's language. */
+  readonly dismissLabel: string;
   readonly onDismiss: () => void;
 }
 
@@ -145,7 +147,13 @@ const TOAST_SKIN: Readonly<Record<SemanticRole, string>> = {
  * too late. And never as the only record: every toast that reports something
  * consequential names where the same thing is written down.
  */
-export function Toast({ role, message, recordedAt, onDismiss }: ToastProps): ReactNode {
+export function Toast({
+  role,
+  message,
+  recordedAt,
+  dismissLabel,
+  onDismiss,
+}: ToastProps): ReactNode {
   const assertive = role === 'danger';
   return (
     <div
@@ -162,11 +170,7 @@ export function Toast({ role, message, recordedAt, onDismiss }: ToastProps): Rea
           {recordedAt.label}
         </a>
       )}
-      <IconButton
-        label="Dismiss this message"
-        icon={<CloseIcon />}
-        onClick={onDismiss}
-      />
+      <IconButton label={dismissLabel} icon={<CloseIcon />} onClick={onDismiss} />
     </div>
   );
 }

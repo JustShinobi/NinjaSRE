@@ -42,6 +42,9 @@ const WRITE_CONTROLS = [
   { testId: 'verify', permission: 'integration.manage' },
   { testId: 'token', permission: 'token.manage' },
   { testId: 'audit-export', permission: 'audit.export' },
+  { testId: 'takeover', permission: 'investigation.run' },
+  { testId: 'add-context', permission: 'investigation.run' },
+  { testId: 'answer', permission: 'investigation.run' },
 ] as const;
 
 const SCREENS = [...AREA_SCREENS, ...DETAIL_SCREENS];
