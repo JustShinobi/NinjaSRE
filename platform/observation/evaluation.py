@@ -37,6 +37,7 @@ from platform.observability.logging import get_logger
 from platform.observation.detectors.conditions import Observation, Verdict, evaluate
 from platform.observation.detectors.model import DetectorDeclaration
 from platform.observation.signals import SeriesKey, SignalWindow, windows
+from platform.observation.suppression import Suppression, Suppressor
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.signal_store import Signal, SignalQuery, SignalStore
 
@@ -82,11 +83,29 @@ class TickOutcome:
     subjects: int = 0
     evaluated: tuple[Observation, ...] = ()
     failures: tuple[DetectorFailure, ...] = ()
+    #: Findings that were not raised, each naming the rule that covered it.
+    #: Recorded rather than dropped: an operator asking "why did nothing happen"
+    #: has to get an answer, and a rule that is too broad has to be countable.
+    suppressed: tuple[Suppression, ...] = ()
+    #: Whether the whole deployment was paused for this tick, and why. On the
+    #: outcome so a tick that found nothing can say which kind of nothing.
+    paused: bool = False
+    pause_reason: str = ""
 
     @property
     def findings(self) -> tuple[Observation, ...]:
-        """Return the observations that open or sustain an incident."""
-        return tuple(entry for entry in self.evaluated if entry.is_finding)
+        """Return the observations that open or sustain an incident.
+
+        Suppressed ones are excluded here and present in ``suppressed``. They
+        are not lost: the intake raises them as suppressed incidents, which is
+        what makes "nothing happened because of this rule" a countable fact.
+        """
+        covered = {(entry.detector_id, entry.resource_id) for entry in self.suppressed}
+        return tuple(
+            entry
+            for entry in self.evaluated
+            if entry.is_finding and (entry.detector_id, entry.resource_id) not in covered
+        )
 
     @property
     def cleared(self) -> tuple[Observation, ...]:
@@ -157,6 +176,11 @@ class EvaluationTick:
     """One pass over the estate with one set of detectors."""
 
     detectors: tuple[DetectorDeclaration, ...] = ()
+    #: What stops a finding being raised. Applied after evaluation rather than
+    #: before it, so a suppressed detector is still *evaluated* — which is what
+    #: keeps "we looked and it was covered" distinguishable from "we did not
+    #: look", and what makes the suppression itself recordable.
+    suppressor: Suppressor | None = None
     #: Series to read in one page. Bounded by the store's own limit, which is
     #: what stops a tick asking for more history than a window can hold.
     page_size: int = MAX_SIGNAL_PAGE_SIZE
@@ -183,15 +207,40 @@ class EvaluationTick:
             subjects=len(subjects),
             evaluated=observations,
             failures=failures,
+            suppressed=self._suppressions(observations, now=now),
+            paused=bool(self.suppressor and self.suppressor.paused),
+            pause_reason=self.suppressor.pause_reason if self.suppressor else "",
         )
         logger.info(
             "observation.tick",
             detectors=outcome.detectors,
             subjects=outcome.subjects,
             findings=len(outcome.findings),
+            suppressed=len(outcome.suppressed),
             failures=len(outcome.failures),
         )
         return outcome
+
+    def _suppressions(
+        self, observations: Sequence[Observation], *, now: datetime
+    ) -> tuple[Suppression, ...]:
+        """Return one suppression per finding something covered."""
+        if self.suppressor is None:
+            return ()
+        by_id = {detector.detector_id: detector for detector in self.detectors}
+        covered: list[Suppression] = []
+        for observation in observations:
+            if not observation.is_finding:
+                continue
+            detector = by_id.get(observation.detector_id)
+            if detector is None:  # pragma: no cover — the tick owns both lists
+                continue
+            verdict = self.suppressor.verdict(
+                detector=detector, resource_id=observation.resource_id, at=now
+            )
+            if verdict is not None:
+                covered.append(verdict)
+        return tuple(covered)
 
     async def _windows(
         self,

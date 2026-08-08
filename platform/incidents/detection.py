@@ -35,6 +35,7 @@ from platform.observability.logging import get_logger
 from platform.observation.detectors.conditions import Observation, Verdict
 from platform.observation.detectors.model import DetectorDeclaration
 from platform.observation.evaluation import DetectorFailure, TickOutcome
+from platform.observation.suppression import Suppression
 from platform.persistence.ports.estate_repository import Resource
 from platform.persistence.ports.incident_store import (
     Incident,
@@ -58,6 +59,9 @@ class IntakeReport:
     correlated: tuple[Incident, ...] = ()
     closed: tuple[Incident, ...] = ()
     failures: tuple[Incident, ...] = ()
+    #: Findings something covered, recorded as suppressed incidents rather than
+    #: dropped — so "nothing happened because of this rule" is countable.
+    suppressed: tuple[Incident, ...] = ()
 
     @property
     def live(self) -> tuple[Incident, ...]:
@@ -96,13 +100,77 @@ class DetectionIntake:
 
         closed = await self._close_recovered(outcome, estate, now=now)
         failures = await self._raise_failures(outcome.failures, now=now)
+        suppressed = await self._record_suppressions(outcome.suppressed, estate, now=now)
 
         return IntakeReport(
             opened=tuple(opened),
             correlated=tuple(correlated),
             closed=tuple(closed),
             failures=tuple(failures),
+            suppressed=tuple(suppressed),
         )
+
+    async def _record_suppressions(
+        self,
+        suppressions: Sequence[Suppression],
+        estate: Mapping[str, Resource],
+        *,
+        now: datetime,
+    ) -> list[Incident]:
+        """Raise each suppressed finding as an incident, and close it as suppressed.
+
+        Raised *and then* closed rather than dropped. FR-020 asks that
+        suppression be recorded and never silent, and the honest way to record
+        it is in the incident list, where an operator asking "why did nothing
+        happen" already looks and where a rule that is too broad becomes a
+        number rather than an absence.
+        """
+        grouped: dict[str, list[Suppression]] = {}
+        for suppression in suppressions:
+            detector = self.detectors.get(suppression.detector_id)
+            if detector is None:  # pragma: no cover — the tick owns both lists
+                continue
+            key = correlation.for_detector(
+                detector,
+                estate.get(suppression.resource_id),
+                resource_id=suppression.resource_id,
+            )
+            grouped.setdefault(key, []).append(suppression)
+
+        recorded: list[Incident] = []
+        for key, group in grouped.items():
+            detector = self.detectors[group[0].detector_id]
+            incident = await self.lifecycle.raise_incident(
+                IncidentRaise(
+                    correlation_key=f"{key}:suppressed",
+                    title=f"{detector.name} (suppressed)",
+                    summary=group[0].summary,
+                    origin=IncidentOrigin.DETECTOR,
+                    origin_id=detector.detector_id,
+                    severity=detector.severity.value,
+                    subjects=tuple(
+                        IncidentSubject(
+                            resource_id=suppression.resource_id,
+                            detail=suppression.reason,
+                            evidence={"suppressed_by": suppression.rule_id},
+                            observed_at=suppression.at,
+                        )
+                        for suppression in group
+                    ),
+                    team_node_id=detector.team_node_id,
+                    cause=group[0].reason,
+                ),
+                now=now,
+            )
+            recorded.append(
+                await self.lifecycle.suppress(
+                    incident.incident_id,
+                    by=group[0].rule_id,
+                    reason=group[0].reason,
+                    now=now,
+                )
+            )
+        return recorded
 
     def _grouped(
         self,
