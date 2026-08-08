@@ -14,10 +14,10 @@ tier 3 imports from ``platform.persistence.ports`` and holds a
 What is where:
 
 ``ports/``
-    The fourteen repository protocols, the unit of work, and the records they
+    The fifteen repository protocols, the unit of work, and the records they
     exchange. This is the public surface; read ``ports/transaction.py`` first.
 ``fakes/``
-    In-memory implementations of all fourteen, passing the same contract suite as
+    In-memory implementations of all fifteen, passing the same contract suite as
     any real backend. Not a test double: they are what lets features 007–017 be
     built and unit-tested without a database, and a fake that diverged from the
     real store would be a fiction those features were written against.

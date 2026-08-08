@@ -41,6 +41,7 @@ from platform.persistence.ports.estate_repository import (
     SweepRecord,
 )
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
+from platform.persistence.ports.incident_store import Incident, TimelineEntry
 from platform.persistence.ports.knowledge_store import KnowledgeChunk, KnowledgeDocument
 from platform.persistence.ports.run_trace_store import (
     AgentRun,
@@ -198,6 +199,8 @@ class TenantState:
     #: Keyed by the derived signal id rather than appended to, which is what
     #: makes a retried poll one sample instead of two.
     signals: dict[str, Signal] = field(default_factory=dict)
+    incidents: dict[str, Incident] = field(default_factory=dict)
+    incident_timeline: dict[str, TimelineEntry] = field(default_factory=dict)
 
 
 @dataclass

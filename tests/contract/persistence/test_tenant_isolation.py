@@ -32,6 +32,11 @@ from platform.persistence.ports import (
     Episode,
     EstateQuery,
     HealthDerivation,
+    Incident,
+    IncidentOrigin,
+    IncidentQuery,
+    IncidentState,
+    IncidentSubject,
     KnowledgeDocument,
     PersistenceGateway,
     ReferenceKind,
@@ -48,6 +53,8 @@ from platform.persistence.ports import (
     SweepOutcome,
     SweepRecord,
     TenantScope,
+    TimelineEntry,
+    TimelineKind,
     TopologyEdge,
     TraceEventRecord,
     UnitOfWork,
@@ -75,12 +82,13 @@ TENANT_SCOPED_PORTS = frozenset(
         "credentials",
         "estate",
         "signals",
+        "incidents",
     }
 )
 
 
 async def write_one_of_everything(uow: UnitOfWork) -> None:
-    """Write a record through all fourteen tenant-scoped ports."""
+    """Write a record through all fifteen tenant-scoped ports."""
     await uow.config.upsert(
         ConfigNode(
             node_id="payments",
@@ -185,6 +193,30 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
             seen_count=1,
         )
     )
+    incident = Incident(
+        incident_id="inc-1",
+        correlation_key="detector:datastore-near-full",
+        title="Datastore near full",
+        summary="res-1 is 95.65% full",
+        origin=IncidentOrigin.DETECTOR,
+        origin_id="datastore-near-full",
+        severity="critical",
+        state=IncidentState.OPEN,
+        opened_at=at(),
+        subjects=(IncidentSubject(resource_id="res-1", detail="95.65% full"),),
+    )
+    await uow.incidents.upsert(incident)
+    await uow.incidents.append(
+        (
+            TimelineEntry(
+                entry_id="inc-1@opened",
+                incident_id="inc-1",
+                kind=TimelineKind.OPENED,
+                at=at(),
+                cause="the condition held for its declared duration",
+            ),
+        )
+    )
     await uow.signals.append(
         [
             Signal(
@@ -221,6 +253,11 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.signals.window(SignalQuery()) == ()
         assert await uow.signals.latest() == ()
         assert await uow.signals.prune(before=at(10)) == 0
+        assert await uow.incidents.get("inc-1") is None
+        assert await uow.incidents.query(IncidentQuery()) == ()
+        assert await uow.incidents.open_for("detector:datastore-near-full") is None
+        assert await uow.incidents.timeline("inc-1") == ()
+        assert await uow.incidents.purge(before=at(10)) == 0
         assert (
             await uow.estate.mark_absent(source="proxmox", seen_ids=frozenset(), at=at(10))
         ) == ()
@@ -316,6 +353,7 @@ async def test_the_first_tenant_still_has_everything(
         assert await uow.credentials.get_metadata("slack-bot-token") is not None
         assert await uow.estate.get("res-1") is not None
         assert len(await uow.signals.latest()) == 1
+        assert await uow.incidents.get("inc-1") is not None
 
 
 def test_every_tenant_scoped_port_is_covered() -> None:

@@ -1,4 +1,4 @@
-"""The fourteen repository ports, and the unit of work that composes them.
+"""The fifteen repository ports, and the unit of work that composes them.
 
 This package is the whole export surface of NinjaSRE's storage layer. Everything
 above tier 3 imports from here and from nowhere else in ``persistence/``: the
@@ -6,7 +6,7 @@ Postgres implementation, the in-memory fakes, and any future backend are
 details, and a caller that named one would be the reason the second could not be
 written.
 
-The fourteen, and what each owns:
+The fifteen, and what each owns:
 
 ===========================  ==================================================
 ``ConfigRepository``         the org/team/service hierarchy and its config
@@ -23,9 +23,10 @@ The fourteen, and what each owns:
 ``CredentialStore``          encrypted credentials
 ``EstateRepository``         discovered resources, their health, their history
 ``SignalStore``              the observation history the detectors read
+``IncidentStore``            incidents, their subjects, and their timelines
 ===========================  ==================================================
 
-They are reached through ``UnitOfWork``, which binds all fourteen to one
+They are reached through ``UnitOfWork``, which binds all fifteen to one
 transaction and one tenant. Read ``transaction`` first: it explains why the
 ports take no organisation argument, and that fact is the one most likely to
 surprise somebody adding a method here.
@@ -95,6 +96,16 @@ from platform.persistence.ports.identity_repository import (
     TokenLocation,
     TokenResolution,
     User,
+)
+from platform.persistence.ports.incident_store import (
+    Incident,
+    IncidentOrigin,
+    IncidentQuery,
+    IncidentState,
+    IncidentStore,
+    IncidentSubject,
+    TimelineEntry,
+    TimelineKind,
 )
 from platform.persistence.ports.knowledge_store import (
     KnowledgeChunk,
@@ -190,6 +201,12 @@ __all__ = [
     "HealthState",
     "HealthTransition",
     "IdentityRepository",
+    "Incident",
+    "IncidentOrigin",
+    "IncidentQuery",
+    "IncidentState",
+    "IncidentStore",
+    "IncidentSubject",
     "IndexDescriptor",
     "JobClaim",
     "JobDispatcher",
@@ -234,6 +251,8 @@ __all__ = [
     "SweepRecord",
     "SystemUnitOfWork",
     "TenantScope",
+    "TimelineEntry",
+    "TimelineKind",
     "TokenDirectory",
     "TokenLocation",
     "TokenResolution",

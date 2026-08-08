@@ -800,6 +800,71 @@ class SignalRow(Base):
     labels: Mapped[dict[str, Any]] = _json()
 
 
+class IncidentRow(Base):
+    """One thing that is wrong, whatever noticed it.
+
+    Subjects, runs, and actions are JSONB and an array rather than child tables.
+    They are read only with their incident, never queried across incidents, and
+    three joins to render one screen is the cost of a normalisation nothing
+    would use. The one thing that *is* queried across incidents —
+    ``correlation_key`` for the live incident of a cause — has its own partial
+    index, which is what makes correlation a lookup rather than a scan.
+    """
+
+    __tablename__ = "incidents"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index(
+            "ix_incidents_live_correlation",
+            "org_id",
+            "correlation_key",
+            postgresql_where=text("closed_at IS NULL"),
+        ),
+        Index("ix_incidents_opened", "org_id", "opened_at"),
+        Index("ix_incidents_state", "org_id", "state"),
+        Index("ix_incidents_team", "org_id", "team_node_id"),
+        Index("ix_incidents_age", "closed_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    incident_id: Mapped[str] = _id()
+    correlation_key: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    title: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    origin: Mapped[str] = mapped_column(String(32), nullable=False)
+    origin_id: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    severity: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    closed_at: Mapped[datetime | None] = _timestamp()
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    subjects: Mapped[dict[str, Any]] = _json()
+    run_ids: Mapped[list[str]] = mapped_column(ARRAY(Text()), nullable=False, default=list)
+    actions: Mapped[list[str]] = mapped_column(ARRAY(Text()), nullable=False, default=list)
+    close_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    self_resolved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    suppressed_by: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+
+
+class IncidentTimelineRow(Base):
+    """One thing that happened to an incident, with its cause and its actor."""
+
+    __tablename__ = "incident_timeline"
+    __table_args__ = (
+        _tenant_fk("incidents", "incident_id"),
+        Index("ix_incident_timeline_incident", "org_id", "incident_id", "at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    entry_id: Mapped[str] = _id()
+    incident_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    actor: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    cause: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
 #: Read-only view of the ciphertext, for the decryptability probe. Declared
 #: separately rather than as a second mapped attribute because SQLAlchemy would
 #: apply the column type to both.
@@ -821,6 +886,8 @@ __all__ = [
     "EstateResource",
     "Evidence",
     "HealthTransitionRow",
+    "IncidentRow",
+    "IncidentTimelineRow",
     "JobClaim",
     "KnowledgeChunk",
     "KnowledgeDocument",
