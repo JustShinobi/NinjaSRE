@@ -66,6 +66,102 @@ _NUMBER: Final[dict[str, Any]] = {"type": "number"}
 _BOOLEAN: Final[dict[str, Any]] = {"type": "boolean"}
 _STRINGS: Final[dict[str, Any]] = _array(_STRING)
 
+AUTONOMY_RULE: Final[dict[str, Any]] = _object(
+    {
+        "rule_id": _STRING,
+        "scope": _STRING,
+        "level": _STRING,
+        "risk_bound": _STRING,
+        "dry_run": _BOOLEAN,
+    }
+)
+
+#: The posture as a document, kept whole beside the rendering so an export can
+#: be edited and applied back without a translation step in between.
+AUTONOMY_POLICY: Final[dict[str, Any]] = _object(
+    {
+        "node_id": _STRING,
+        "dry_run": _BOOLEAN,
+        "rules": _array(AUTONOMY_RULE),
+        "document": {"type": "object"},
+    }
+)
+
+CONSIDERED_RULE: Final[dict[str, Any]] = _object(
+    {
+        "rule_id": _STRING,
+        "scope": _STRING,
+        "level": _STRING,
+        "applied": _BOOLEAN,
+        "won": _BOOLEAN,
+        "subject": _STRING,
+        "reason": _STRING,
+    }
+)
+
+AUTONOMY_EXPLANATION: Final[dict[str, Any]] = _object(
+    {
+        "decision": _STRING,
+        "level": _STRING,
+        "risk_bound": _STRING,
+        "risk_class": _STRING,
+        "dry_run": _BOOLEAN,
+        "refused_by": _STRING,
+        "reason": _STRING,
+        "winning_rule": _STRING,
+        "operation": _STRING,
+        "considered": _array(CONSIDERED_RULE),
+    }
+)
+
+AUTONOMY_BOUNDS: Final[dict[str, Any]] = _object(
+    {
+        "node_id": _STRING,
+        "stopped": _BOOLEAN,
+        "stop_reason": _STRING,
+        "freezes": _array({"type": "object"}),
+        "budgets": _array({"type": "object"}),
+        "overrides": _array({"type": "object"}),
+        "expired_overrides": _STRINGS,
+    }
+)
+
+PREVIEWED_ACTION: Final[dict[str, Any]] = _object(
+    {
+        "action_id": _STRING,
+        "capability": _STRING,
+        "subjects": _STRINGS,
+        "before": _STRING,
+        "after": _STRING,
+        "changed": _BOOLEAN,
+        "more_autonomous": _BOOLEAN,
+    }
+)
+
+POLICY_PREVIEW: Final[dict[str, Any]] = _object(
+    {
+        "summary": _STRING,
+        "considered": _INTEGER,
+        "changed": _INTEGER,
+        "newly_autonomous": _INTEGER,
+        "actions": _array(PREVIEWED_ACTION),
+    }
+)
+
+KILL_SWITCH: Final[dict[str, Any]] = _object({"engaged": _BOOLEAN, "scopes": {"type": "object"}})
+
+AUTONOMY_OVERRIDE: Final[dict[str, Any]] = _object(
+    {
+        "name": _STRING,
+        "level": _STRING,
+        "expires_at": _STRING,
+        "granted_by": _STRING,
+        "reason": _STRING,
+        "scope": {"type": "object"},
+    }
+)
+
+
 COST: Final[dict[str, Any]] = _object(
     {
         "runs": _INTEGER,
@@ -437,6 +533,15 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "detectors.enable": DETECTOR,
     "detectors.disable": DETECTOR,
     "detectors.dry-run": DRY_RUN,
+    "autonomy.show": AUTONOMY_POLICY,
+    "autonomy.apply": AUTONOMY_POLICY,
+    "autonomy.dry-run": AUTONOMY_POLICY,
+    "autonomy.why": AUTONOMY_EXPLANATION,
+    "autonomy.bounds": AUTONOMY_BOUNDS,
+    "autonomy.preview": POLICY_PREVIEW,
+    "autonomy.override": AUTONOMY_OVERRIDE,
+    "autonomy.stop": KILL_SWITCH,
+    "autonomy.resume": KILL_SWITCH,
     "memory.search": _object({"query": _STRING, "hits": _array(MEMORY_HIT)}),
     "memory.stats": _object(
         {

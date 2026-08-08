@@ -27,6 +27,7 @@ from config.constants.surfaces import (
     OUTPUT_FORMAT_JSON,
 )
 from surfaces.cli.client import endpoint_from
+from surfaces.cli.commands import autonomy as autonomy_commands
 from surfaces.cli.commands import config as config_commands
 from surfaces.cli.commands import estate as estate_commands
 from surfaces.cli.commands import incidents as incident_commands
@@ -63,6 +64,7 @@ app.add_typer(memory_commands.app, name="memory")
 app.add_typer(estate_commands.app, name="estate")
 app.add_typer(incident_commands.app, name="incidents")
 app.add_typer(incident_commands.detectors_app, name="detectors")
+app.add_typer(autonomy_commands.app, name="autonomy")
 app.add_typer(provider_commands.app, name="providers")
 app.add_typer(integration_commands.app, name="integrations")
 

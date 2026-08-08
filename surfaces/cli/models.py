@@ -1104,13 +1104,226 @@ def records_of(values: Sequence[Any]) -> list[dict[str, Any]]:
     return [value.to_record() for value in values]
 
 
+@dataclass(frozen=True, slots=True)
+class AutonomyRuleRecord:
+    """One rule as a table row shows it."""
+
+    rule_id: str = ""
+    scope: str = ""
+    level: str = ""
+    risk_bound: str = ""
+    dry_run: bool = False
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "rule_id": self.rule_id,
+            "scope": self.scope,
+            "level": self.level,
+            "risk_bound": self.risk_bound,
+            "dry_run": self.dry_run,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class AutonomyPolicyRecord:
+    """One node's posture, whole, as the CLI reads and writes it.
+
+    ``document`` is carried as well as the rendered rows, because ``--json``
+    has to round-trip: what an operator exports is what they can review, edit
+    and apply back, and a rendering with the scopes flattened to prose could
+    not be applied.
+    """
+
+    node_id: str = ""
+    dry_run: bool = False
+    document: Mapping[str, Any] = field(default_factory=dict)
+    rules: tuple[AutonomyRuleRecord, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "node_id": self.node_id,
+            "dry_run": self.dry_run,
+            "rules": [rule.to_record() for rule in self.rules],
+            "document": dict(self.document),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ConsideredRuleRecord:
+    """One rule a resolution looked at, and what became of it."""
+
+    rule_id: str = ""
+    scope: str = ""
+    level: str = ""
+    applied: bool = False
+    won: bool = False
+    subject: str = ""
+    reason: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "rule_id": self.rule_id,
+            "scope": self.scope,
+            "level": self.level,
+            "applied": self.applied,
+            "won": self.won,
+            "subject": self.subject,
+            "reason": self.reason,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class AutonomyExplanation:
+    """Why one action would be decided the way it would."""
+
+    decision: str = ""
+    level: str = ""
+    risk_bound: str = ""
+    risk_class: str = ""
+    dry_run: bool = False
+    refused_by: str = ""
+    reason: str = ""
+    winning_rule: str = ""
+    operation: str = ""
+    considered: tuple[ConsideredRuleRecord, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "decision": self.decision,
+            "level": self.level,
+            "risk_bound": self.risk_bound,
+            "risk_class": self.risk_class,
+            "dry_run": self.dry_run,
+            "refused_by": self.refused_by,
+            "reason": self.reason,
+            "winning_rule": self.winning_rule,
+            "operation": self.operation,
+            "considered": [entry.to_record() for entry in self.considered],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class AutonomyBoundsRecord:
+    """What is bounding a node right now, whatever its levels say."""
+
+    node_id: str = ""
+    stopped: bool = False
+    stop_reason: str = ""
+    freezes: tuple[Mapping[str, Any], ...] = ()
+    budgets: tuple[Mapping[str, Any], ...] = ()
+    overrides: tuple[Mapping[str, Any], ...] = ()
+    expired_overrides: tuple[str, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "node_id": self.node_id,
+            "stopped": self.stopped,
+            "stop_reason": self.stop_reason,
+            "freezes": [dict(entry) for entry in self.freezes],
+            "budgets": [dict(entry) for entry in self.budgets],
+            "overrides": [dict(entry) for entry in self.overrides],
+            "expired_overrides": list(self.expired_overrides),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PreviewedActionRecord:
+    """One recorded action, decided twice."""
+
+    action_id: str = ""
+    capability: str = ""
+    subjects: tuple[str, ...] = ()
+    before: str = ""
+    after: str = ""
+    changed: bool = False
+    more_autonomous: bool = False
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "action_id": self.action_id,
+            "capability": self.capability,
+            "subjects": list(self.subjects),
+            "before": self.before,
+            "after": self.after,
+            "changed": self.changed,
+            "more_autonomous": self.more_autonomous,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyPreviewRecord:
+    """What a policy change would have decided differently."""
+
+    summary: str = ""
+    considered: int = 0
+    changed: int = 0
+    newly_autonomous: int = 0
+    actions: tuple[PreviewedActionRecord, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "summary": self.summary,
+            "considered": self.considered,
+            "changed": self.changed,
+            "newly_autonomous": self.newly_autonomous,
+            "actions": [entry.to_record() for entry in self.actions],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KillSwitchRecord:
+    """Whether automated writes are stopped, and for which scopes."""
+
+    engaged: bool = False
+    scopes: Mapping[str, Any] = field(default_factory=dict)
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {"engaged": self.engaged, "scopes": dict(self.scopes)}
+
+
+@dataclass(frozen=True, slots=True)
+class OverrideRecord:
+    """One time-bounded raise in autonomy, as it was granted."""
+
+    name: str = ""
+    level: str = ""
+    expires_at: datetime | None = None
+    granted_by: str = ""
+    reason: str = ""
+    scope: Mapping[str, Any] = field(default_factory=dict)
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "name": self.name,
+            "level": self.level,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else "",
+            "granted_by": self.granted_by,
+            "reason": self.reason,
+            "scope": dict(self.scope),
+        }
+
+
 __all__ = [
+    "AutonomyBoundsRecord",
+    "AutonomyExplanation",
+    "AutonomyPolicyRecord",
+    "AutonomyRuleRecord",
     "CheckState",
     "ConfigChange",
     "ConfigDelta",
     "ConfigDiff",
     "ConfigEntry",
     "ConfigView",
+    "ConsideredRuleRecord",
     "CostReport",
     "CredentialFieldSpec",
     "DetectionState",
@@ -1130,12 +1343,16 @@ __all__ = [
     "IncidentTimelineRecord",
     "IntegrationStatus",
     "InvestigationOutcome",
+    "KillSwitchRecord",
     "LifecycleOutcome",
     "MemoryHit",
     "MemoryStats",
     "ObservationRecord",
     "OnboardingOutcome",
+    "OverrideRecord",
     "PendingInteraction",
+    "PolicyPreviewRecord",
+    "PreviewedActionRecord",
     "ProviderStatus",
     "RunDetail",
     "RunReplay",

@@ -30,6 +30,35 @@ from tests.support.deployment import FakeServices, ScheduleSummary
 
 pytestmark = pytest.mark.contract
 
+
+def _policy_document() -> str:
+    """Return a path holding one valid policy document, written once.
+
+    Written to a temporary file rather than kept in the repository because the
+    runner works in an isolated directory — and passed as an absolute path so
+    the command finds it wherever that directory turns out to be. ``apply`` and
+    ``preview`` take a document rather than flags on purpose; a posture is
+    something somebody reviews, so the invocation has to supply one.
+    """
+    path = Path(tempfile.mkdtemp(prefix="ninjasre-policy-")) / "policy.json"
+    path.write_text(
+        json.dumps(
+            {
+                "dry_run": False,
+                "rules": [{"scope": {"kind": "deployment"}, "level": "act_on_low_risk"}],
+                "freezes": [],
+                "budgets": [],
+                "overrides": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+POLICY_DOCUMENT = _policy_document()
+
+
 #: One invocation of every command that produces a payload, with the arguments
 #: it needs. Kept beside the schemas rather than generated, because "what does a
 #: valid call to this command look like" is a fact about the command that no
@@ -46,6 +75,35 @@ INVOCATIONS: dict[str, list[str]] = {
     "schedule.add": ["schedule", "add", "nightly sweep", "--cron", "0 2 * * *"],
     "schedule.remove": ["schedule", "remove", "job-001"],
     "estate.list": ["estate", "list"],
+    "autonomy.show": ["autonomy", "show", "payments"],
+    "autonomy.why": [
+        "autonomy",
+        "why",
+        "payments",
+        "--capability",
+        "restart_workload",
+        "--resource",
+        "ct-101",
+        "--risk",
+        "low",
+    ],
+    "autonomy.bounds": ["autonomy", "bounds", "payments"],
+    "autonomy.apply": ["autonomy", "apply", "payments", "--file", POLICY_DOCUMENT],
+    "autonomy.preview": ["autonomy", "preview", "payments", "--file", POLICY_DOCUMENT],
+    "autonomy.dry-run": ["autonomy", "dry-run", "payments"],
+    "autonomy.override": [
+        "autonomy",
+        "override",
+        "payments",
+        "--name",
+        "rack-move",
+        "--level",
+        "act_and_report",
+        "--reason",
+        "moving the rack",
+    ],
+    "autonomy.stop": ["autonomy", "stop", "--reason", "the estate is on fire"],
+    "autonomy.resume": ["autonomy", "resume"],
     "estate.summary": ["estate", "summary"],
     "estate.show": ["estate", "show", "res-guest"],
     "estate.maintain": ["estate", "maintain", "res-guest", "--reason", "replacing a disk"],

@@ -25,10 +25,15 @@ from surfaces.cli.client import (
     ScheduleRequest,
 )
 from surfaces.cli.models import (
+    AutonomyBoundsRecord,
+    AutonomyExplanation,
+    AutonomyPolicyRecord,
+    AutonomyRuleRecord,
     CheckState,
     ConfigChange,
     ConfigEntry,
     ConfigView,
+    ConsideredRuleRecord,
     CostReport,
     CredentialFieldSpec,
     DetectionState,
@@ -46,9 +51,12 @@ from surfaces.cli.models import (
     IncidentTimelineRecord,
     IntegrationStatus,
     InvestigationOutcome,
+    KillSwitchRecord,
     MemoryHit,
     MemoryStats,
     ObservationRecord,
+    OverrideRecord,
+    PolicyPreviewRecord,
     ProviderStatus,
     RunDetail,
     RunSummary,
@@ -89,6 +97,11 @@ class FakeServices:
     detector_records: dict[str, DetectorRecord] = field(default_factory=dict)
     observation_records: tuple[ObservationRecord, ...] = ()
     detection: DetectionState = field(default_factory=DetectionState)
+    #: One node's posture, as the document the API sends. Held as the document
+    #: rather than as a policy set, because that is what the CLI round-trips
+    #: and what a test asserting the round trip has to be able to compare.
+    autonomy_documents: dict[str, dict[str, Any]] = field(default_factory=dict)
+    autonomy_stopped: dict[str, str] = field(default_factory=dict)
     episodes: tuple[MemoryHit, ...] = ()
     provider_states: dict[str, ProviderStatus] = field(default_factory=dict)
     integration_states: dict[str, IntegrationStatus] = field(default_factory=dict)
@@ -356,6 +369,113 @@ class FakeServices:
         )
         self.incident_records[incident_id] = suppressed
         return suppressed
+
+    # --- autonomy -----------------------------------------------------------
+
+    def _autonomy_document(self, node_id: str) -> dict[str, Any]:
+        """Return ``node_id``'s posture, empty when it has none."""
+        return self.autonomy_documents.setdefault(
+            node_id,
+            {"dry_run": False, "rules": [], "freezes": [], "budgets": [], "overrides": []},
+        )
+
+    def _autonomy_policy(self, node_id: str) -> AutonomyPolicyRecord:
+        document = self._autonomy_document(node_id)
+        rules = document.get("rules", [])
+        return AutonomyPolicyRecord(
+            node_id=node_id,
+            dry_run=bool(document.get("dry_run")),
+            document=dict(document),
+            rules=tuple(
+                AutonomyRuleRecord(
+                    rule_id=str(entry.get("scope", {}).get("kind", "")),
+                    scope=str(entry.get("scope", {}).get("kind", "")),
+                    level=str(entry.get("level", "")),
+                    risk_bound=str(entry.get("risk_bound", "")),
+                    dry_run=bool(entry.get("dry_run")),
+                )
+                for entry in rules
+            ),
+        )
+
+    async def autonomy_policy(self, node_id: str) -> AutonomyPolicyRecord:
+        return self._autonomy_policy(node_id)
+
+    async def apply_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any]
+    ) -> AutonomyPolicyRecord:
+        self.autonomy_documents[node_id] = dict(document)
+        return self._autonomy_policy(node_id)
+
+    async def preview_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any], *, days: float
+    ) -> PolicyPreviewRecord:
+        del document, days
+        return PolicyPreviewRecord(
+            summary=f"nothing recorded for {node_id} would have been decided differently",
+        )
+
+    async def explain_autonomy(
+        self, node_id: str, action: Mapping[str, Any]
+    ) -> AutonomyExplanation:
+        document = self._autonomy_document(node_id)
+        rules = document.get("rules", [])
+        level = str(rules[0].get("level", "propose_only")) if rules else "propose_only"
+        return AutonomyExplanation(
+            decision="execute" if level == "act_and_report" else "propose",
+            level=level,
+            risk_bound="low",
+            risk_class=str(action.get("risk_class") or "critical"),
+            reason=f"{action.get('capability', '')} resolves to {level}",
+            considered=(
+                ConsideredRuleRecord(
+                    rule_id="deployment:::::", level=level, applied=True, won=True
+                ),
+            )
+            if rules
+            else (),
+        )
+
+    async def autonomy_bounds(self, node_id: str) -> AutonomyBoundsRecord:
+        document = self._autonomy_document(node_id)
+        return AutonomyBoundsRecord(
+            node_id=node_id,
+            stopped=bool(self.autonomy_stopped),
+            stop_reason=next(iter(self.autonomy_stopped.values()), ""),
+            freezes=tuple(document.get("freezes", ())),
+            budgets=tuple(document.get("budgets", ())),
+            overrides=tuple(document.get("overrides", ())),
+        )
+
+    async def set_autonomy_dry_run(self, node_id: str, *, enabled: bool) -> AutonomyPolicyRecord:
+        self._autonomy_document(node_id)["dry_run"] = enabled
+        return self._autonomy_policy(node_id)
+
+    async def grant_autonomy_override(
+        self, node_id: str, request: Mapping[str, Any]
+    ) -> OverrideRecord:
+        granted = OverrideRecord(
+            name=str(request.get("name", "")),
+            level=str(request.get("level", "")),
+            expires_at=datetime.now(UTC) + timedelta(seconds=float(request.get("seconds", 3600))),
+            granted_by="operator",
+            reason=str(request.get("reason", "")),
+            scope={"kind": "deployment"},
+        )
+        self._autonomy_document(node_id).setdefault("overrides", []).append(
+            {"name": granted.name, "level": granted.level}
+        )
+        return granted
+
+    async def engage_kill_switch(self, *, reason: str, scope: str = "") -> KillSwitchRecord:
+        self.autonomy_stopped[scope or "*"] = reason
+        return KillSwitchRecord(engaged=True, scopes=dict(self.autonomy_stopped))
+
+    async def release_kill_switch(self, *, scope: str = "") -> KillSwitchRecord:
+        self.autonomy_stopped.pop(scope or "*", None)
+        return KillSwitchRecord(
+            engaged=bool(self.autonomy_stopped), scopes=dict(self.autonomy_stopped)
+        )
 
     async def detection_state(self) -> DetectionState:
         return self.detection

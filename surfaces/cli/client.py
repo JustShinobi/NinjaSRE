@@ -49,11 +49,16 @@ from surfaces.cli.errors import (
     UnavailableError,
 )
 from surfaces.cli.models import (
+    AutonomyBoundsRecord,
+    AutonomyExplanation,
+    AutonomyPolicyRecord,
+    AutonomyRuleRecord,
     ConfigChange,
     ConfigDelta,
     ConfigDiff,
     ConfigEntry,
     ConfigView,
+    ConsideredRuleRecord,
     CostReport,
     CredentialFieldSpec,
     DetectionState,
@@ -72,9 +77,13 @@ from surfaces.cli.models import (
     IncidentTimelineRecord,
     IntegrationStatus,
     InvestigationOutcome,
+    KillSwitchRecord,
     MemoryHit,
     MemoryStats,
     ObservationRecord,
+    OverrideRecord,
+    PolicyPreviewRecord,
+    PreviewedActionRecord,
     ProviderStatus,
     RunDetail,
     RunReplay,
@@ -239,6 +248,41 @@ class PlatformClient(Protocol):
 
     async def detection_state(self) -> DetectionState:
         """Return whether detection is paused for this team, and why."""
+
+    async def autonomy_policy(self, node_id: str) -> AutonomyPolicyRecord:
+        """Return what ``node_id`` may do without asking, inheritance applied."""
+
+    async def apply_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any]
+    ) -> AutonomyPolicyRecord:
+        """Replace ``node_id``'s posture and return what it now resolves to."""
+
+    async def preview_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any], *, days: float
+    ) -> PolicyPreviewRecord:
+        """Return what a change would have decided differently, storing nothing."""
+
+    async def explain_autonomy(
+        self, node_id: str, action: Mapping[str, Any]
+    ) -> AutonomyExplanation:
+        """Return what would happen to one action, and every reason it would."""
+
+    async def autonomy_bounds(self, node_id: str) -> AutonomyBoundsRecord:
+        """Return the freezes, budgets, overrides and stop bounding ``node_id``."""
+
+    async def set_autonomy_dry_run(self, node_id: str, *, enabled: bool) -> AutonomyPolicyRecord:
+        """Turn simulation on or off for everything ``node_id`` resolves."""
+
+    async def grant_autonomy_override(
+        self, node_id: str, request: Mapping[str, Any]
+    ) -> OverrideRecord:
+        """Raise autonomy in a scope until it expires, and record who asked."""
+
+    async def engage_kill_switch(self, *, reason: str, scope: str = "") -> KillSwitchRecord:
+        """Stop every automated write, immediately."""
+
+    async def release_kill_switch(self, *, scope: str = "") -> KillSwitchRecord:
+        """Let automated writes happen again, for one scope."""
 
     async def list_detectors(self) -> tuple[DetectorRecord, ...]:
         """Return every declared detector and what it concludes now."""
@@ -415,6 +459,41 @@ class LocalServices(Protocol):
     async def detection_state(self) -> DetectionState:
         """Return whether detection is paused for this team, and why."""
 
+    async def autonomy_policy(self, node_id: str) -> AutonomyPolicyRecord:
+        """Return what ``node_id`` may do without asking, inheritance applied."""
+
+    async def apply_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any]
+    ) -> AutonomyPolicyRecord:
+        """Replace ``node_id``'s posture and return what it now resolves to."""
+
+    async def preview_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any], *, days: float
+    ) -> PolicyPreviewRecord:
+        """Return what a change would have decided differently."""
+
+    async def explain_autonomy(
+        self, node_id: str, action: Mapping[str, Any]
+    ) -> AutonomyExplanation:
+        """Return what would happen to one action, and every reason it would."""
+
+    async def autonomy_bounds(self, node_id: str) -> AutonomyBoundsRecord:
+        """Return what is bounding ``node_id`` right now."""
+
+    async def set_autonomy_dry_run(self, node_id: str, *, enabled: bool) -> AutonomyPolicyRecord:
+        """Turn simulation on or off for everything ``node_id`` resolves."""
+
+    async def grant_autonomy_override(
+        self, node_id: str, request: Mapping[str, Any]
+    ) -> OverrideRecord:
+        """Raise autonomy in a scope until it expires."""
+
+    async def engage_kill_switch(self, *, reason: str, scope: str = "") -> KillSwitchRecord:
+        """Stop every automated write, immediately."""
+
+    async def release_kill_switch(self, *, scope: str = "") -> KillSwitchRecord:
+        """Let automated writes happen again, for one scope."""
+
     async def detectors(self) -> tuple[DetectorRecord, ...]:
         """Return every declared detector, its coverage, and what it concludes now."""
 
@@ -576,6 +655,50 @@ class LocalClient:
     async def detection_state(self) -> DetectionState:
         """Return whether detection is paused for this team, and why."""
         return await self.services.detection_state()
+
+    async def autonomy_policy(self, node_id: str) -> AutonomyPolicyRecord:
+        """Return what ``node_id`` may do without asking, inheritance applied."""
+        return await self.services.autonomy_policy(node_id)
+
+    async def apply_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any]
+    ) -> AutonomyPolicyRecord:
+        """Replace ``node_id``'s posture and return what it now resolves to."""
+        return await self.services.apply_autonomy_policy(node_id, document)
+
+    async def preview_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any], *, days: float
+    ) -> PolicyPreviewRecord:
+        """Return what a change would have decided differently, storing nothing."""
+        return await self.services.preview_autonomy_policy(node_id, document, days=days)
+
+    async def explain_autonomy(
+        self, node_id: str, action: Mapping[str, Any]
+    ) -> AutonomyExplanation:
+        """Return what would happen to one action, and every reason it would."""
+        return await self.services.explain_autonomy(node_id, action)
+
+    async def autonomy_bounds(self, node_id: str) -> AutonomyBoundsRecord:
+        """Return the freezes, budgets, overrides and stop bounding ``node_id``."""
+        return await self.services.autonomy_bounds(node_id)
+
+    async def set_autonomy_dry_run(self, node_id: str, *, enabled: bool) -> AutonomyPolicyRecord:
+        """Turn simulation on or off for everything ``node_id`` resolves."""
+        return await self.services.set_autonomy_dry_run(node_id, enabled=enabled)
+
+    async def grant_autonomy_override(
+        self, node_id: str, request: Mapping[str, Any]
+    ) -> OverrideRecord:
+        """Raise autonomy in a scope until it expires, and record who asked."""
+        return await self.services.grant_autonomy_override(node_id, request)
+
+    async def engage_kill_switch(self, *, reason: str, scope: str = "") -> KillSwitchRecord:
+        """Stop every automated write, immediately."""
+        return await self.services.engage_kill_switch(reason=reason, scope=scope)
+
+    async def release_kill_switch(self, *, scope: str = "") -> KillSwitchRecord:
+        """Let automated writes happen again, for one scope."""
+        return await self.services.release_kill_switch(scope=scope)
 
     async def list_detectors(self) -> tuple[DetectorRecord, ...]:
         """Return every declared detector and what it concludes now."""
@@ -994,6 +1117,94 @@ class RemoteClient:
             paused=bool(payload.get("paused")), reason=_text(payload, "pause_reason")
         )
 
+    async def autonomy_policy(self, node_id: str) -> AutonomyPolicyRecord:
+        """Return what ``node_id`` may do without asking, inheritance applied."""
+        return _policy(self._document("GET", f"/v1/autonomy/policy/{node_id}"))
+
+    async def apply_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any]
+    ) -> AutonomyPolicyRecord:
+        """Replace ``node_id``'s posture and return what it now resolves to."""
+        return _policy(self._document("PUT", f"/v1/autonomy/policy/{node_id}", dict(document)))
+
+    async def preview_autonomy_policy(
+        self, node_id: str, document: Mapping[str, Any], *, days: float
+    ) -> PolicyPreviewRecord:
+        """Return what a change would have decided differently, storing nothing."""
+        payload = self._document(
+            "POST", f"/v1/autonomy/policy/{node_id}/preview?days={days}", dict(document)
+        )
+        return PolicyPreviewRecord(
+            summary=_text(payload, "summary"),
+            considered=_number(payload, "considered"),
+            changed=_number(payload, "changed"),
+            newly_autonomous=_number(payload, "newly_autonomous"),
+            actions=tuple(_previewed(record) for record in _records(payload, "actions")),
+        )
+
+    async def explain_autonomy(
+        self, node_id: str, action: Mapping[str, Any]
+    ) -> AutonomyExplanation:
+        """Return what would happen to one action, and every reason it would."""
+        payload = self._document("POST", f"/v1/autonomy/policy/{node_id}/explain", dict(action))
+        return AutonomyExplanation(
+            decision=_text(payload, "decision"),
+            level=_text(payload, "level"),
+            risk_bound=_text(payload, "risk_bound"),
+            risk_class=_text(payload, "risk_class"),
+            dry_run=bool(payload.get("dry_run")),
+            refused_by=_text(payload, "refused_by"),
+            reason=_text(payload, "reason"),
+            winning_rule=_text(payload, "winning_rule"),
+            operation=_text(payload, "operation"),
+            considered=tuple(_considered(record) for record in _records(payload, "considered")),
+        )
+
+    async def autonomy_bounds(self, node_id: str) -> AutonomyBoundsRecord:
+        """Return the freezes, budgets, overrides and stop bounding ``node_id``."""
+        payload = self._document("GET", f"/v1/autonomy/policy/{node_id}/bounds")
+        return AutonomyBoundsRecord(
+            node_id=_text(payload, "node_id") or node_id,
+            stopped=bool(payload.get("stopped")),
+            stop_reason=_text(payload, "stop_reason"),
+            freezes=tuple(_records(payload, "freezes")),
+            budgets=tuple(_records(payload, "budgets")),
+            overrides=tuple(_records(payload, "overrides")),
+            expired_overrides=_strings(payload, "expired_overrides"),
+        )
+
+    async def set_autonomy_dry_run(self, node_id: str, *, enabled: bool) -> AutonomyPolicyRecord:
+        """Turn simulation on or off for everything ``node_id`` resolves."""
+        return _policy(
+            self._document("POST", f"/v1/autonomy/policy/{node_id}/dry-run", {"enabled": enabled})
+        )
+
+    async def grant_autonomy_override(
+        self, node_id: str, request: Mapping[str, Any]
+    ) -> OverrideRecord:
+        """Raise autonomy in a scope until it expires, and record who asked."""
+        payload = self._document("POST", f"/v1/autonomy/policy/{node_id}/overrides", dict(request))
+        return OverrideRecord(
+            name=_text(payload, "name"),
+            level=_text(payload, "level"),
+            expires_at=_instant(payload, "expires_at"),
+            granted_by=_text(payload, "granted_by"),
+            reason=_text(payload, "reason"),
+            scope=dict(payload.get("scope") or {}),
+        )
+
+    async def engage_kill_switch(self, *, reason: str, scope: str = "") -> KillSwitchRecord:
+        """Stop every automated write, immediately."""
+        body: dict[str, Any] = {"reason": reason}
+        if scope:
+            body["scope"] = scope
+        return _switch(self._document("POST", "/v1/autonomy/kill-switch", body))
+
+    async def release_kill_switch(self, *, scope: str = "") -> KillSwitchRecord:
+        """Let automated writes happen again, for one scope."""
+        query = f"?scope={scope}" if scope else ""
+        return _switch(self._document("DELETE", f"/v1/autonomy/kill-switch{query}"))
+
     async def list_detectors(self) -> tuple[DetectorRecord, ...]:
         """Return every declared detector and what it concludes now."""
         payload = self._document("GET", "/v1/detectors")
@@ -1146,6 +1357,119 @@ def select_client(
 
 
 # --- Reading documents -------------------------------------------------------
+
+
+def _policy(payload: Mapping[str, Any]) -> AutonomyPolicyRecord:
+    """Return the posture ``payload`` describes, document and rendering both.
+
+    The document is kept whole beside the rendered rows. ``--json`` has to
+    round-trip: what an operator exports is what they edit and apply back, and
+    a rendering with the scopes flattened to prose could not be applied.
+    """
+    rules = _records(payload, "rules")
+    return AutonomyPolicyRecord(
+        node_id=_text(payload, "node_id"),
+        dry_run=bool(payload.get("dry_run")),
+        document={
+            "dry_run": bool(payload.get("dry_run")),
+            "rules": rules,
+            "freezes": _records(payload, "freezes"),
+            "budgets": _records(payload, "budgets"),
+            "overrides": _records(payload, "overrides"),
+        },
+        rules=tuple(_rule_row(record) for record in rules),
+    )
+
+
+def _rule_row(record: Mapping[str, Any]) -> AutonomyRuleRecord:
+    """Return one rule as a table row shows it."""
+    scope = record.get("scope") or {}
+    return AutonomyRuleRecord(
+        rule_id=_scope_identity(scope if isinstance(scope, Mapping) else {}),
+        scope=_scope_phrase(scope if isinstance(scope, Mapping) else {}),
+        level=_text(record, "level"),
+        risk_bound=_text(record, "risk_bound"),
+        dry_run=bool(record.get("dry_run")),
+    )
+
+
+def _scope_identity(scope: Mapping[str, Any]) -> str:
+    """Return the identifier the deployment names this scope by."""
+    labels = scope.get("labels") or {}
+    written = (
+        ",".join(f"{name}={value}" for name, value in sorted(labels.items()))
+        if isinstance(labels, Mapping)
+        else ""
+    )
+    return ":".join(
+        (
+            _text(scope, "kind"),
+            _text(scope, "team_node_id"),
+            _text(scope, "resource_kind"),
+            _text(scope, "resource_id"),
+            _text(scope, "capability"),
+            written,
+        )
+    )
+
+
+def _scope_phrase(scope: Mapping[str, Any]) -> str:
+    """Return the scope in the words a table shows.
+
+    Assembled here rather than sent by the API, because it is a rendering
+    decision and the API sends the fields it is made of. A client that could
+    only show what the server phrased could not show it in another language.
+    """
+    kind = _text(scope, "kind")
+    labels = scope.get("labels") or {}
+    if kind == "deployment":
+        return "everywhere"
+    if kind == "team":
+        return f"team {_text(scope, 'team_node_id')}"
+    if kind == "resource_kind":
+        return f"every {_text(scope, 'resource_kind')}"
+    if kind == "labels" and isinstance(labels, Mapping):
+        return ", ".join(f"{name}={value}" for name, value in sorted(labels.items()))
+    if kind == "capability":
+        return f"{_text(scope, 'capability')} anywhere"
+    if kind == "resource":
+        return _text(scope, "resource_id")
+    return f"{_text(scope, 'capability')} on {_text(scope, 'resource_id')}"
+
+
+def _considered(record: Mapping[str, Any]) -> ConsideredRuleRecord:
+    """Return one rule a resolution looked at."""
+    return ConsideredRuleRecord(
+        rule_id=_text(record, "rule_id"),
+        scope=_text(record, "scope"),
+        level=_text(record, "level"),
+        applied=bool(record.get("applied")),
+        won=bool(record.get("won")),
+        subject=_text(record, "subject"),
+        reason=_text(record, "reason"),
+    )
+
+
+def _previewed(record: Mapping[str, Any]) -> PreviewedActionRecord:
+    """Return one recorded action as the preview lists it."""
+    return PreviewedActionRecord(
+        action_id=_text(record, "action_id"),
+        capability=_text(record, "capability"),
+        subjects=_strings(record, "subjects"),
+        before=_text(record, "before"),
+        after=_text(record, "after"),
+        changed=bool(record.get("changed")),
+        more_autonomous=bool(record.get("more_autonomous")),
+    )
+
+
+def _switch(payload: Mapping[str, Any]) -> KillSwitchRecord:
+    """Return the switch's state as the API reports it."""
+    scopes = payload.get("scopes") or {}
+    return KillSwitchRecord(
+        engaged=bool(payload.get("engaged")),
+        scopes=dict(scopes) if isinstance(scopes, Mapping) else {},
+    )
 
 
 def _text(payload: Mapping[str, Any], key: str) -> str:
