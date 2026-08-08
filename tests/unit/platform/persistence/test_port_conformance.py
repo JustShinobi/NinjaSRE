@@ -21,6 +21,7 @@ from platform.persistence.ports import (
     ConfigRepository,
     CredentialStore,
     EpisodeStore,
+    EstateRepository,
     IdentityRepository,
     KnowledgeStore,
     OrgDirectory,
@@ -40,7 +41,7 @@ from platform.persistence.ports.transaction import SystemUnitOfWork
 
 pytestmark = pytest.mark.unit
 
-#: The twelve, as ``(attribute on the unit of work, the protocol it must satisfy)``.
+#: The thirteen, as ``(attribute on the unit of work, the protocol it must satisfy)``.
 TENANT_PORTS = (
     ("config", ConfigRepository),
     ("identity", IdentityRepository),
@@ -54,6 +55,7 @@ TENANT_PORTS = (
     ("approvals", ApprovalStore),
     ("schedules", ScheduleStore),
     ("credentials", CredentialStore),
+    ("estate", EstateRepository),
 )
 
 SYSTEM_PORTS = (
@@ -64,9 +66,14 @@ SYSTEM_PORTS = (
 )
 
 
-def test_the_specification_names_exactly_twelve_ports() -> None:
-    """FR-004 lists twelve. A thirteenth is a spec change, not a refactor."""
-    assert len(TENANT_PORTS) == 12
+def test_the_specification_names_exactly_thirteen_ports() -> None:
+    """A fourteenth is a specification change, not a refactor.
+
+    The count was twelve until the estate arrived, which is exactly what this
+    test is for: adding a port is a deliberate act with a plan behind it, and
+    the number moving without one is the thing worth catching.
+    """
+    assert len(TENANT_PORTS) == 13
 
 
 def test_the_in_memory_gateway_is_a_persistence_gateway() -> None:

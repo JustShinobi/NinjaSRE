@@ -63,9 +63,8 @@ class ConsoleEndpoint:
 _GATEWAY: Final = EndpointSource.GATEWAY
 _PROJECTED: Final = EndpointSource.PROJECTED
 
-#: The estate inventory. Names the work rather than a feature number, because a
-#: contributor cloning this repository has the code and not the plan.
-_ESTATE: Final = "the estate inventory"
+#: Names the work rather than a feature number, because a contributor cloning
+#: this repository has the code and not the plan.
 _OBSERVATION: Final = "continuous observation"
 _PROXMOX: Final = "the Proxmox integration"
 
@@ -348,33 +347,35 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="what the deployment reports about itself",
     ),
-    # --- Projected: the estate --------------------------------------------------
+    # --- The estate ---------------------------------------------------------------
+    # Served by the gateway. The projection these three used to carry is gone
+    # rather than kept as a fallback, which is what the split at the top of this
+    # module says happens when the work lands: a fallback is how two sources of
+    # truth start.
     ConsoleEndpoint(
         method="GET",
         path="/v1/estate/summary",
         slug="estate-summary",
-        source=_PROJECTED,
+        source=_GATEWAY,
         summary="the estate in one line per kind, with the counts a tile shows",
-        arrives_with=_ESTATE,
     ),
     ConsoleEndpoint(
         method="GET",
         path="/v1/estate/resources",
         slug="estate-resources",
-        source=_PROJECTED,
+        source=_GATEWAY,
         summary="every discovered resource",
         records_key="resources",
-        arrives_with=_ESTATE,
-        query=("kind", "node", "limit"),
+        query=("kind", "health", "source", "label", "parent", "limit"),
     ),
     ConsoleEndpoint(
         method="GET",
         path="/v1/estate/resources/{resource_id}",
         slug="estate-resource-detail",
-        source=_PROJECTED,
-        summary="one resource, its health and its storage",
-        arrives_with=_ESTATE,
+        source=_GATEWAY,
+        summary="one resource, its health, its history and what touched it",
     ),
+    # --- Projected: what the Proxmox integration will serve ------------------------
     ConsoleEndpoint(
         method="GET",
         path="/v1/estate/nodes",

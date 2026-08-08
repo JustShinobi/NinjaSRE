@@ -1,4 +1,4 @@
-"""The twelve repository ports, and the unit of work that composes them.
+"""The thirteen repository ports, and the unit of work that composes them.
 
 This package is the whole export surface of NinjaSRE's storage layer. Everything
 above tier 3 imports from here and from nowhere else in ``persistence/``: the
@@ -6,7 +6,7 @@ Postgres implementation, the in-memory fakes, and any future backend are
 details, and a caller that named one would be the reason the second could not be
 written.
 
-The twelve, and what each owns:
+The thirteen, and what each owns:
 
 ===========================  ==================================================
 ``ConfigRepository``         the org/team/service hierarchy and its config
@@ -21,9 +21,10 @@ The twelve, and what each owns:
 ``ApprovalStore``            approvals and rollback plans
 ``ScheduleStore``            scheduled job definitions
 ``CredentialStore``          encrypted credentials
+``EstateRepository``         discovered resources, their health, their history
 ===========================  ==================================================
 
-They are reached through ``UnitOfWork``, which binds all twelve to one
+They are reached through ``UnitOfWork``, which binds all thirteen to one
 transaction and one tenant. Read ``transaction`` first: it explains why the
 ports take no organisation argument, and that fact is the one most likely to
 surprise somebody adding a method here.
@@ -62,6 +63,21 @@ from platform.persistence.ports.episode_store import (
     EpisodeOutcome,
     EpisodeStore,
     StoredStrategy,
+)
+from platform.persistence.ports.estate_repository import (
+    EstateQuery,
+    EstateRepository,
+    EstateSummary,
+    HealthDerivation,
+    HealthSignal,
+    HealthTransition,
+    ReferenceKind,
+    Resource,
+    ResourceHealth,
+    ResourceReference,
+    ResourceSource,
+    SweepOutcome,
+    SweepRecord,
 )
 from platform.persistence.ports.health import (
     ExtensionStatus,
@@ -135,8 +151,6 @@ from platform.persistence.ports.vector_index import (
 )
 
 __all__ = [
-    "DEFAULT_RETENTION_DAYS",
-    "REDACTED",
     "ActorKind",
     "AgentRun",
     "ApiToken",
@@ -153,14 +167,21 @@ __all__ = [
     "ConfigRepository",
     "CredentialMetadata",
     "CredentialStore",
+    "DEFAULT_RETENTION_DAYS",
     "DataClass",
     "EdgeKind",
     "Episode",
     "EpisodeOutcome",
     "EpisodeStore",
+    "EstateQuery",
+    "EstateRepository",
+    "EstateSummary",
     "EvidenceRecord",
     "ExtensionStatus",
+    "HealthDerivation",
+    "HealthSignal",
     "HealthState",
+    "HealthTransition",
     "IdentityRepository",
     "IndexDescriptor",
     "JobClaim",
@@ -176,6 +197,12 @@ __all__ = [
     "PersistenceGateway",
     "PrincipalKind",
     "PurgeReport",
+    "REDACTED",
+    "ReferenceKind",
+    "Resource",
+    "ResourceHealth",
+    "ResourceReference",
+    "ResourceSource",
     "RetentionPolicy",
     "RetentionSweeper",
     "RoleBinding",
@@ -192,6 +219,8 @@ __all__ = [
     "SimilarityMatch",
     "StoreHealth",
     "StoredStrategy",
+    "SweepOutcome",
+    "SweepRecord",
     "SystemUnitOfWork",
     "TenantScope",
     "TokenDirectory",

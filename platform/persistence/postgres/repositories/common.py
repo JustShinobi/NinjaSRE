@@ -1,4 +1,4 @@
-"""What every Postgres repository needs, in one place rather than twelve.
+"""What every Postgres repository needs, in one place rather than thirteen.
 
 Two things live here, and both are here because a copy of them in each
 repository is a copy that can drift.

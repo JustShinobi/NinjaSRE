@@ -67,6 +67,12 @@ class NodeKind(StrEnum):
     CLUSTER = "cluster"
     EXTERNAL = "external"
     EPISODE = "episode"
+    #: A discovered thing the estate is responsible for — a node, a guest, a
+    #: datastore, a backup job. One kind rather than one per resource kind,
+    #: because resource kinds are extensible by an integration and this
+    #: enumeration is not: a traversal must keep working when a deployment
+    #: connects a hypervisor nobody here has heard of.
+    RESOURCE = "resource"
 
 
 class EdgeKind(StrEnum):
@@ -84,6 +90,17 @@ class EdgeKind(StrEnum):
     WRITES_TO = "writes_to"
     DEPLOYED_ON = "deployed_on"
     INVOLVED = "involved"
+    #: A discovered resource runs on another — a guest on a node, a node in a
+    #: cluster. Distinct from ``DEPLOYED_ON``, which is a service on
+    #: infrastructure a human declared; this one is what a sweep observed.
+    HOSTED_ON = "hosted_on"
+    #: A backup job protects a resource. The direction is the same as every
+    #: other edge here: from the thing that would break to the thing whose
+    #: failure would break it, so a datastore's blast radius reaches the job.
+    BACKS_UP = "backs_up"
+    #: A resource's state is copied to another. Traversed for the same reason
+    #: ``BACKS_UP`` is: a replica's failure is a fact about its primary.
+    REPLICATES_TO = "replicates_to"
 
 
 @dataclass(frozen=True, slots=True)

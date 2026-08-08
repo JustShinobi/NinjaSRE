@@ -37,6 +37,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 
 # The dialect's ARRAY, not the generic one: ``@>`` containment — which is
@@ -637,6 +638,137 @@ class Credential(Base):
     expires_at: Mapped[datetime | None] = _timestamp()
 
 
+# --- The estate ----------------------------------------------------------------
+
+
+class EstateResource(Base):
+    """One discovered thing the deployment is responsible for.
+
+    ``parent_id`` is an indexed column rather than a self-referencing foreign
+    key, and the reason is discovery's ordering: a sweep that enumerates guests
+    before nodes would otherwise have to be sorted topologically before a single
+    row could be written, and a source that reports a parent it does not itself
+    enumerate could never be ingested at all.
+
+    ``(org_id, source, native_id)`` is unique because it is the thing
+    ``resource_id`` is derived from. The derivation lives above this layer, so
+    the constraint is what makes the property true of the database rather than
+    of the code that usually writes to it.
+    """
+
+    __tablename__ = "estate_resources"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        # Partial: only one *present* resource per source and native identifier.
+        # A provider that reuses an identifier after a deletion gets a new row
+        # beside the absent one, which is what keeps the old resource's history
+        # from being inherited by whatever took its name.
+        Index(
+            "uq_estate_resources_native",
+            "org_id",
+            "source",
+            "native_id",
+            unique=True,
+            postgresql_where=text("absent_since IS NULL"),
+        ),
+        Index("ix_estate_resources_correlation", "org_id", "kind", "correlation_key"),
+        Index("ix_estate_resources_kind", "org_id", "kind"),
+        Index("ix_estate_resources_health", "org_id", "health"),
+        Index("ix_estate_resources_parent", "org_id", "parent_id"),
+        Index("ix_estate_resources_team", "org_id", "team_node_id"),
+        Index("ix_estate_resources_source", "org_id", "source"),
+    )
+
+    org_id: Mapped[str] = _org()
+    resource_id: Mapped[str] = _id()
+    kind: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    native_id: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    correlation_key: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    parent_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    team_node_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
+    attributes: Mapped[dict[str, Any]] = _json()
+    labels: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    #: Each contributing integration's own view, as a list of objects. A table
+    #: would normalise it and buy nothing: nothing joins on a contribution, and
+    #: every read of a resource wants all of them.
+    sources: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False, default=list)
+    health: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: The whole derivation — rule, signals, raw provider status, explanation —
+    #: so that "why is this degraded" is answered by reading the row.
+    derivation: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    first_seen_at: Mapped[datetime | None] = _timestamp()
+    last_seen_at: Mapped[datetime | None] = _timestamp()
+    absent_since: Mapped[datetime | None] = _timestamp()
+    maintenance_until: Mapped[datetime | None] = _timestamp()
+    maintenance_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class HealthTransitionRow(Base):
+    """One recorded change of a resource's state."""
+
+    __tablename__ = "estate_health_transitions"
+    __table_args__ = (
+        _tenant_fk("estate_resources", "resource_id"),
+        Index("ix_estate_transitions_resource", "org_id", "resource_id", "occurred_at"),
+        Index("ix_estate_transitions_age", "occurred_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    transition_id: Mapped[str] = _id()
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    previous_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    rule: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    signal: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+
+
+class ResourceReferenceRow(Base):
+    """A run or an incident that touched a resource.
+
+    The reference kind and identifier are in the primary key, which is what
+    makes linking idempotent without a read first: the same run twice is the
+    same row.
+    """
+
+    __tablename__ = "estate_resource_references"
+    __table_args__ = (
+        _tenant_fk("estate_resources", "resource_id"),
+        Index("ix_estate_references_resource", "org_id", "resource_id", "recorded_at"),
+        Index("ix_estate_references_age", "recorded_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), primary_key=True)
+    reference_kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    reference_id: Mapped[str] = mapped_column(String(ID_LENGTH), primary_key=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
+class DiscoverySweep(Base):
+    """One discovery sweep, and the cursor the next one resumes from."""
+
+    __tablename__ = "estate_discovery_sweeps"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_estate_sweeps_source", "org_id", "source", "started_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    sweep_id: Mapped[str] = _id()
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = _timestamp()
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    seen_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    provider_calls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cursor: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+
 #: Read-only view of the ciphertext, for the decryptability probe. Declared
 #: separately rather than as a second mapped attribute because SQLAlchemy would
 #: apply the column type to both.
@@ -653,12 +785,16 @@ __all__ = [
     "Base",
     "ConfigNode",
     "Credential",
+    "DiscoverySweep",
     "Episode",
+    "EstateResource",
     "Evidence",
+    "HealthTransitionRow",
     "JobClaim",
     "KnowledgeChunk",
     "KnowledgeDocument",
     "Organisation",
+    "ResourceReferenceRow",
     "RoleBinding",
     "RollbackPlan",
     "RunTurn",

@@ -7,7 +7,7 @@ proving anything, because there would be nothing to roll back.
 
 So ``begin`` deep-copies the store, hands the copy to a unit of work, and swaps
 it in only if the block exits cleanly. A unit that raises, or that marked itself
-rollback-only, leaves the committed state exactly as it was — across all twelve
+rollback-only, leaves the committed state exactly as it was — across all thirteen
 repositories, because they were all writing into the same copy.
 
 Two consequences worth knowing before you use this:
@@ -38,6 +38,7 @@ from platform.persistence.fakes.audit_repository import FakeAuditRepository
 from platform.persistence.fakes.config_repository import FakeConfigRepository, FakeOrgDirectory
 from platform.persistence.fakes.credential_store import FakeCredentialStore
 from platform.persistence.fakes.episode_store import FakeEpisodeStore
+from platform.persistence.fakes.estate_repository import FakeEstateRepository
 from platform.persistence.fakes.identity_repository import (
     FakeIdentityRepository,
     FakeTokenDirectory,
@@ -71,7 +72,7 @@ FAKE_HEAD_REVISION = "in-memory"
 
 @dataclass(slots=True)
 class FakeUnitOfWork:
-    """Twelve repositories over one tenant's slice of one snapshot."""
+    """Thirteen repositories over one tenant's slice of one snapshot."""
 
     scope: TenantScope
     state: State
@@ -137,6 +138,11 @@ class FakeUnitOfWork:
         """Return the encrypted credential store."""
         return FakeCredentialStore(self.scope.org_id, self._tenant)
 
+    @property
+    def estate(self) -> FakeEstateRepository:
+        """Return the discovered-resource inventory and its health history."""
+        return FakeEstateRepository(self.scope.org_id, self._tenant)
+
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""
         self._rollback_only = True
@@ -153,7 +159,7 @@ class FakeUnitOfWork:
         Every repository above reads it through here, so there is exactly one
         expression in this package that turns a scope into storage — which is
         what makes "a repository cannot reach another tenant" checkable by
-        reading one line rather than twelve.
+        reading one line rather than thirteen.
         """
         return self.state.tenant(self.scope.org_id)
 

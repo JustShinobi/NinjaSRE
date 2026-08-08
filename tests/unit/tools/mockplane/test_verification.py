@@ -321,16 +321,16 @@ def estate() -> tuple[CapturedRecord, ...]:
                     {
                         "resource_id": "ct-100",
                         "kind": "container",
-                        "node": "node01",
-                        "state": "running",
-                        "backed_up": False,
+                        "parent_name": "node01",
+                        "health": "running",
+                        "attributes": {"backed_up": False},
                     },
                     {
                         "resource_id": "vm-101",
                         "kind": "virtual-machine",
-                        "node": "node02",
-                        "state": "stopped",
-                        "backed_up": True,
+                        "parent_name": "node02",
+                        "health": "stopped",
+                        "attributes": {"backed_up": True},
                     },
                 ]
             },

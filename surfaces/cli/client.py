@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -56,6 +57,12 @@ from surfaces.cli.models import (
     CostReport,
     CredentialFieldSpec,
     DiagnosticReport,
+    EstateHealthSignal,
+    EstateReference,
+    EstateResource,
+    EstateResourceDetail,
+    EstateSummaryReport,
+    EstateTransition,
     IntegrationStatus,
     InvestigationOutcome,
     MemoryHit,
@@ -98,6 +105,26 @@ class InvestigationRequest:
                 "an investigation needs an alert or a description. Starting one with "
                 "neither would produce a run with nothing to investigate."
             )
+
+
+@dataclass(frozen=True, slots=True)
+class EstateFilter:
+    """What an estate listing is narrowed by.
+
+    One record rather than eight keyword arguments, for the reason
+    ``EstateQuery`` is one in the storage layer: the CLI, the console and the
+    gateway all build the same filter, and three signatures spelling it out is
+    three signatures that drift.
+    """
+
+    kinds: tuple[str, ...] = ()
+    health: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()
+    labels: tuple[str, ...] = ()
+    team_node_id: str = ""
+    parent_id: str = ""
+    include_absent: bool = False
+    limit: int = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -165,6 +192,23 @@ class PlatformClient(Protocol):
 
     async def remove_schedule(self, job_id: str) -> bool:
         """Remove a scheduled investigation, reporting whether one went."""
+
+    async def list_estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
+        """Return the resources matching ``query``, by identifier."""
+
+    async def estate_summary(self) -> EstateSummaryReport:
+        """Return the estate in the numbers a first screen shows."""
+
+    async def show_resource(self, resource_id: str) -> EstateResourceDetail:
+        """Return one resource's state, why it is in it, and its history."""
+
+    async def set_maintenance(
+        self, resource_id: str, *, until: datetime, reason: str
+    ) -> EstateResource:
+        """Suppress a resource from the problem count until ``until``."""
+
+    async def clear_maintenance(self, resource_id: str) -> EstateResource:
+        """End a resource's maintenance window now."""
 
     async def search_memory(self, query: str, *, limit: int = 10) -> tuple[MemoryHit, ...]:
         """Return the episodes matching ``query``, best first."""
@@ -278,6 +322,23 @@ class LocalServices(Protocol):
 
     async def delete_schedule(self, job_id: str) -> bool:
         """Remove one scheduled investigation."""
+
+    async def estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
+        """Return the resources matching ``query``."""
+
+    async def estate_totals(self) -> EstateSummaryReport:
+        """Return the estate's counts."""
+
+    async def resource(self, resource_id: str) -> EstateResourceDetail | None:
+        """Return one resource's detail, or ``None``."""
+
+    async def open_maintenance(
+        self, resource_id: str, *, until: datetime, reason: str
+    ) -> EstateResource:
+        """Open a maintenance window and return the resource as it now reads."""
+
+    async def close_maintenance(self, resource_id: str) -> EstateResource:
+        """Close a maintenance window and return the resource as it now reads."""
 
     async def recall(self, query: str, *, limit: int) -> tuple[MemoryHit, ...]:
         """Return the episodes matching ``query``."""
@@ -394,6 +455,34 @@ class LocalClient:
     async def remove_schedule(self, job_id: str) -> bool:
         """Remove a scheduled investigation, reporting whether one went."""
         return await self.services.delete_schedule(job_id)
+
+    async def list_estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
+        """Return the resources matching ``query``, by identifier."""
+        return await self.services.estate(query)
+
+    async def estate_summary(self) -> EstateSummaryReport:
+        """Return the estate in the numbers a first screen shows."""
+        return await self.services.estate_totals()
+
+    async def show_resource(self, resource_id: str) -> EstateResourceDetail:
+        """Return one resource's state, why it is in it, and its history."""
+        detail = await self.services.resource(resource_id)
+        if detail is None:
+            raise NotFoundError(
+                f"no resource {resource_id!r} in this estate",
+                remedy="list what there is with 'ninjasre estate list'",
+            )
+        return detail
+
+    async def set_maintenance(
+        self, resource_id: str, *, until: datetime, reason: str
+    ) -> EstateResource:
+        """Suppress a resource from the problem count until ``until``."""
+        return await self.services.open_maintenance(resource_id, until=until, reason=reason)
+
+    async def clear_maintenance(self, resource_id: str) -> EstateResource:
+        """End a resource's maintenance window now."""
+        return await self.services.close_maintenance(resource_id)
 
     async def search_memory(self, query: str, *, limit: int = 10) -> tuple[MemoryHit, ...]:
         """Return the episodes matching ``query``, best first."""
@@ -722,6 +811,37 @@ class RemoteClient:
             return False
         return True
 
+    async def list_estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
+        """Return the resources matching ``query``, by identifier."""
+        payload = self._document("GET", f"/v1/estate/resources?{_estate_params(query)}")
+        return tuple(_estate_resource(record) for record in _records(payload, "resources"))
+
+    async def estate_summary(self) -> EstateSummaryReport:
+        """Return the estate in the numbers a first screen shows."""
+        return _estate_summary(self._document("GET", "/v1/estate/summary"))
+
+    async def show_resource(self, resource_id: str) -> EstateResourceDetail:
+        """Return one resource's state, why it is in it, and its history."""
+        return _estate_detail(self._document("GET", f"/v1/estate/resources/{resource_id}"))
+
+    async def set_maintenance(
+        self, resource_id: str, *, until: datetime, reason: str
+    ) -> EstateResource:
+        """Suppress a resource from the problem count until ``until``."""
+        return _estate_resource(
+            self._document(
+                "POST",
+                f"/v1/estate/resources/{resource_id}/maintenance",
+                {"until": until.isoformat(), "reason": reason},
+            )
+        )
+
+    async def clear_maintenance(self, resource_id: str) -> EstateResource:
+        """End a resource's maintenance window now."""
+        return _estate_resource(
+            self._document("DELETE", f"/v1/estate/resources/{resource_id}/maintenance")
+        )
+
     async def search_memory(self, query: str, *, limit: int = 10) -> tuple[MemoryHit, ...]:
         """Return the episodes involving ``query``, most recent first.
 
@@ -869,6 +989,117 @@ def _strings(payload: Mapping[str, Any], key: str) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(element) for element in value)
+
+
+def _estate_params(query: EstateFilter) -> str:
+    """Return ``query`` as the API's query string.
+
+    Repeated keys for the multi-valued dimensions, which is what the route
+    reads. Comma-joining would mean a label containing a comma silently became
+    two labels, and an operator's label is theirs to choose.
+    """
+    pairs: list[tuple[str, str]] = []
+    for name, values in (
+        ("kind", query.kinds),
+        ("health", query.health),
+        ("source", query.sources),
+        ("label", query.labels),
+    ):
+        pairs.extend((name, value) for value in values)
+    if query.team_node_id:
+        pairs.append(("team", query.team_node_id))
+    if query.parent_id:
+        pairs.append(("parent", query.parent_id))
+    if query.include_absent:
+        pairs.append(("include_absent", "true"))
+    pairs.append(("limit", str(query.limit)))
+    return urllib.parse.urlencode(pairs)
+
+
+def _estate_resource(record: Mapping[str, Any]) -> EstateResource:
+    """Return the resource one API row describes."""
+    return EstateResource(
+        resource_id=_text(record, "resource_id"),
+        kind=_text(record, "kind"),
+        display_name=_text(record, "display_name"),
+        health=_text(record, "health"),
+        stored_health=_text(record, "stored_health"),
+        source=_text(record, "source"),
+        sources=_strings(record, "sources"),
+        native_id=_text(record, "native_id"),
+        parent_id=_text(record, "parent_id"),
+        is_stale=bool(record.get("is_stale")),
+        labels=_strings(record, "labels"),
+        last_seen_at=_instant(record, "last_seen_at"),
+        absent_since=_instant(record, "absent_since"),
+        maintenance_until=_instant(record, "maintenance_until"),
+        maintenance_reason=_text(record, "maintenance_reason"),
+        explanation=_text(record, "explanation"),
+    )
+
+
+def _estate_summary(payload: Mapping[str, Any]) -> EstateSummaryReport:
+    """Return the summary one API document describes."""
+
+    def counts(key: str) -> dict[str, int]:
+        value = payload.get(key)
+        if not isinstance(value, dict):
+            return {}
+        return {str(name): int(count) for name, count in value.items()}
+
+    return EstateSummaryReport(
+        total=_number(payload, "total"),
+        problems=_number(payload, "problems"),
+        maintenance=_number(payload, "maintenance"),
+        absent=_number(payload, "absent"),
+        captured_at=_instant(payload, "captured_at"),
+        by_kind=counts("by_kind"),
+        by_health=counts("by_health"),
+        by_source=counts("by_source"),
+    )
+
+
+def _estate_detail(payload: Mapping[str, Any]) -> EstateResourceDetail:
+    """Return the resource detail one API document describes."""
+    resource = payload.get("resource")
+    derivation = payload.get("derivation")
+    derived = derivation if isinstance(derivation, dict) else {}
+    return EstateResourceDetail(
+        resource=_estate_resource(resource if isinstance(resource, dict) else {}),
+        rule=_text(derived, "rule"),
+        raw_status=_text(derived, "raw_status"),
+        explanation=_text(derived, "explanation"),
+        freshness_seconds=_number(payload, "freshness_seconds"),
+        rollup_rule=_text(payload, "rollup_rule"),
+        signals=tuple(
+            EstateHealthSignal(
+                name=_text(signal, "name"),
+                value=_text(signal, "value"),
+                observed_at=_instant(signal, "observed_at"),
+                source=_text(signal, "source"),
+            )
+            for signal in _records(derived, "signals")
+        ),
+        transitions=tuple(
+            EstateTransition(
+                occurred_at=_instant(entry, "occurred_at"),
+                state=_text(entry, "state"),
+                previous_state=_text(entry, "previous_state"),
+                rule=_text(entry, "rule"),
+            )
+            for entry in _records(payload, "transitions")
+        ),
+        references=tuple(
+            EstateReference(
+                reference_kind=_text(entry, "reference_kind"),
+                reference_id=_text(entry, "reference_id"),
+                recorded_at=_instant(entry, "recorded_at"),
+                summary=_text(entry, "summary"),
+            )
+            for entry in _records(payload, "references")
+        ),
+        children=tuple(_estate_resource(child) for child in _records(payload, "children")),
+    )
 
 
 def _run_summary(record: Mapping[str, Any]) -> RunSummary:
@@ -1097,6 +1328,7 @@ __all__ = [
     "REMOTE_TIMEOUT_SECONDS",
     "ClientSelection",
     "Endpoint",
+    "EstateFilter",
     "InvestigationRequest",
     "LocalClient",
     "LocalServices",

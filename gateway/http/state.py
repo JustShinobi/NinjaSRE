@@ -12,12 +12,14 @@ from dataclasses import dataclass, field
 
 from gateway.http.rate_limit import ApiRateLimiter
 from gateway.http.security.console_routes import CONSOLE_ROUTES
+from gateway.http.security.estate_routes import ESTATE_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES, WEBHOOK_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE, RouteTable
 from gateway.http.services import InvestigationRunner
 from gateway.webhooks.dedup import DeduplicationIndex
 from gateway.webhooks.idempotency import IdempotencyIndex
 from gateway.webhooks.shedding import LoadShedder, LoadShedRecord
+from platform.estate.kinds import KindRegistry, core_registry
 from platform.guardrails.engine import GuardrailEngine
 from platform.identity.tokens import TokenService
 from platform.persistence.ports.transaction import PersistenceGateway
@@ -31,6 +33,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     ROUTE_TABLE.extended_with(GATEWAY_ROUTES)
     .extended_with(WEBHOOK_ROUTES)
     .extended_with(CONSOLE_ROUTES)
+    .extended_with(ESTATE_ROUTES)
 )
 
 
@@ -44,6 +47,11 @@ class GatewayState:
     route_table: RouteTable = APPLICATION_ROUTE_TABLE
     broker: RunEventBroker = field(default_factory=RunEventBroker)
     guardrails: GuardrailEngine = field(default_factory=GuardrailEngine)
+    #: The resource kinds this deployment models. Held on the state rather than
+    #: built per request because an integration registers its own kinds at
+    #: composition and the registry is sealed afterwards — a fresh one per
+    #: request would know only the core kinds.
+    estate_kinds: KindRegistry = field(default_factory=core_registry)
     rate_limiter: ApiRateLimiter = field(default_factory=ApiRateLimiter)
     webhook_dedup: DeduplicationIndex = field(default_factory=DeduplicationIndex)
     webhook_idempotency: IdempotencyIndex = field(default_factory=IdempotencyIndex)

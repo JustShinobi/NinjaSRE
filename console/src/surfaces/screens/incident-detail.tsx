@@ -60,15 +60,24 @@ export async function IncidentDetailScreen(
         ? Promise.resolve({})
         : read('/v1/runs/{run_id}/replay', { ...init, params: { run_id: runId } }),
     ),
-    subject === ''
-      ? Promise.resolve({ status: 'ready' as const, data: {} })
-      : readProjectedPanel('/v1/estate/resources/{resource_id}', credential, {
-          params: { resource_id: subject },
-        }),
+    // An incident with no subject has no resource, and the same reasoning as
+    // the replay above applies: an empty address answers 404, which would read
+    // on the screen as a resource that has gone.
+    panelRead<unknown>('/v1/estate/resources/{resource_id}', () =>
+      subject === ''
+        ? Promise.resolve({})
+        : read('/v1/estate/resources/{resource_id}', {
+            ...init,
+            params: { resource_id: subject },
+          }),
+    ),
   ]);
 
   const events = eventsFromReplay(dataOf(replay));
-  const health = list(dataOf(resource), 'health');
+  // The named signals the state was derived from. This is the visible form of
+  // "health is derived, not declared": the endpoint says what it concluded and
+  // what it concluded it from, and this panel shows both.
+  const health = list(field(dataOf(resource), 'derivation'), 'signals');
   const record = field(dataOf(resource), 'resource');
   const timeline = list(body, 'timeline');
   const opened = timestamp(locale, text(incident, 'opened_at'), now, zone);
@@ -194,7 +203,7 @@ export async function IncidentDetailScreen(
                 <dd className="ml-auto">
                   <Badge
                     status={
-                      text(record, 'state') === '' ? 'unknown' : text(record, 'state')
+                      text(record, 'health') === '' ? 'unknown' : text(record, 'health')
                     }
                   />
                 </dd>
@@ -232,12 +241,12 @@ export async function IncidentDetailScreen(
             </p>
             <ul data-testid="derivation" className="flex flex-col gap-2 text-small">
               {health.map((check) => (
-                <li key={text(check, 'check')} className="flex items-center gap-2">
+                <li key={text(check, 'name')} className="flex items-center gap-2">
                   <span className="font-mono min-w-0 truncate">
-                    {text(check, 'check')}
+                    {text(check, 'name')}
                   </span>
-                  <Badge status={text(check, 'verdict')} className="ml-auto" />
-                  <span className="text-meta text-muted">{text(check, 'detail')}</span>
+                  <Badge status={text(check, 'value')} className="ml-auto" />
+                  <span className="text-meta text-muted">{text(check, 'source')}</span>
                 </li>
               ))}
               {observations.map((observation) =>

@@ -44,6 +44,9 @@ from platform.persistence.postgres.repositories.config_repository import (
 )
 from platform.persistence.postgres.repositories.credential_store import PostgresCredentialStore
 from platform.persistence.postgres.repositories.episode_store import PostgresEpisodeStore
+from platform.persistence.postgres.repositories.estate_repository import (
+    PostgresEstateRepository,
+)
 from platform.persistence.postgres.repositories.identity_repository import (
     PostgresIdentityRepository,
     PostgresTokenDirectory,
@@ -138,6 +141,11 @@ class PostgresUnitOfWork:
     def credentials(self) -> PostgresCredentialStore:
         """Return the encrypted credential store."""
         return PostgresCredentialStore(self.scope.org_id, self.session)
+
+    @property
+    def estate(self) -> PostgresEstateRepository:
+        """Return the discovered-resource inventory and its health history."""
+        return PostgresEstateRepository(self.scope.org_id, self.session)
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""

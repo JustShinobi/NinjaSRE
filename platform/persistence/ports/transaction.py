@@ -5,8 +5,8 @@ topology edges commit together or not at all. That requirement decides the shape
 of this module, because there are only two ways to give a caller composable
 atomicity and one of them is bad.
 
-The bad one is a transaction handle threaded through every write — twelve ports,
-sixty methods, an extra parameter on each, and a caller who forgets it on one
+The bad one is a transaction handle threaded through every write — thirteen
+ports, eighty methods, an extra parameter on each, and a caller who forgets it on one
 call gets an autocommit that silently escapes the transaction. The failure is
 invisible until a rollback does not roll something back.
 
@@ -25,7 +25,7 @@ to forget and no way to commit a unit that has already failed.
 
 **Tenancy comes from the scope, not from arguments.** The unit of work is opened
 for one organisation and every repository it hands out is bound to that
-organisation. Look through the twelve ports and no method takes an ``org_id`` —
+organisation. Look through the thirteen ports and no method takes an ``org_id`` —
 so FR-010 is satisfied not by a check that rejects cross-tenant reads but by
 there being no way to phrase one. A test can still prove it, and does, by
 opening two scopes and looking for the other's records.
@@ -47,6 +47,7 @@ from platform.persistence.ports.audit_repository import AuditRepository
 from platform.persistence.ports.config_repository import ConfigRepository, OrgDirectory
 from platform.persistence.ports.credential_store import CredentialStore
 from platform.persistence.ports.episode_store import EpisodeStore
+from platform.persistence.ports.estate_repository import EstateRepository
 from platform.persistence.ports.health import StoreHealth
 from platform.persistence.ports.identity_repository import IdentityRepository, TokenDirectory
 from platform.persistence.ports.knowledge_store import KnowledgeStore
@@ -85,7 +86,7 @@ class TenantScope:
 class UnitOfWork(Protocol):
     """Every tenant-scoped repository, inside one transaction.
 
-    Twelve properties and one method. The properties are the ports; the method
+    Thirteen properties and one method. The properties are the ports; the method
     is the escape hatch for a caller that decides mid-unit to abandon its work
     without raising, which happens when "nothing to do after all" is a normal
     outcome rather than an error.
@@ -142,6 +143,10 @@ class UnitOfWork(Protocol):
     @property
     def credentials(self) -> CredentialStore:
         """Return the encrypted credential store."""
+
+    @property
+    def estate(self) -> EstateRepository:
+        """Return the discovered-resource inventory and its health history."""
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising.

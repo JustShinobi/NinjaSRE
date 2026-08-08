@@ -134,9 +134,6 @@ export async function read<P extends ReadablePath>(
  * here, and the contract test fails until it does.
  */
 export const PROJECTED_PATHS = [
-  '/v1/estate/summary',
-  '/v1/estate/resources',
-  '/v1/estate/resources/{resource_id}',
   '/v1/estate/nodes',
   '/v1/estate/storage',
   '/v1/estate/backups',

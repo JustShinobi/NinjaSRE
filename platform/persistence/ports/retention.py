@@ -23,6 +23,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
+from config.constants.estate import RETENTION_DAYS_ESTATE_HISTORY
 from config.constants.persistence import (
     RETENTION_DAYS_EPISODES,
     RETENTION_DAYS_KNOWLEDGE,
@@ -41,6 +42,11 @@ class DataClass(StrEnum):
     EPISODES = "episodes"
     KNOWLEDGE = "knowledge"
     AUDIT = "audit"
+    #: Health transitions and the links from a resource to what touched it. The
+    #: resources themselves are not swept: an absent resource *is* the record
+    #: that something was removed, and deleting it would make the estate forget
+    #: what it was asked to remember.
+    ESTATE_HISTORY = "estate_history"
 
     @property
     def is_exempt(self) -> bool:
@@ -56,6 +62,7 @@ DEFAULT_RETENTION_DAYS: dict[DataClass, int | None] = {
     DataClass.EPISODES: RETENTION_DAYS_EPISODES,
     DataClass.KNOWLEDGE: RETENTION_DAYS_KNOWLEDGE,
     DataClass.AUDIT: None,
+    DataClass.ESTATE_HISTORY: RETENTION_DAYS_ESTATE_HISTORY,
 }
 
 

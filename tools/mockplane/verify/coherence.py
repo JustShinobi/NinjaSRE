@@ -45,6 +45,12 @@ class Implausibility:
         return f"{self.slug}{self.pointer}: {self.message}"
 
 
+def _attributes(entry: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Return one resource's attributes, or an empty mapping."""
+    found = entry.get("attributes")
+    return found if isinstance(found, dict) else {}
+
+
 @dataclass(frozen=True, slots=True)
 class Distribution:
     """The shape of a dataset, in the properties anonymisation must not touch."""
@@ -158,8 +164,12 @@ def distribution_of(records: Sequence[CapturedRecord]) -> Distribution:
             continue
         for resource in _rows(record.body, "resources"):
             kind = str(resource.get("kind", ""))
-            node = str(resource.get("node", ""))
-            state = str(resource.get("state", ""))
+            # The estate endpoint's own names. ``parent_name`` is the node a
+            # guest runs on and ``health`` is the derived verdict; the shape
+            # this used to read was the projection's, and the projection is
+            # gone now that the endpoint is served.
+            node = str(resource.get("parent_name", ""))
+            state = str(resource.get("health", ""))
             by_kind[kind] = by_kind.get(kind, 0) + 1
             by_node[node] = by_node.get(node, 0) + 1
             states[state] = states.get(state, 0) + 1
@@ -199,8 +209,12 @@ def awkwardness_of(records: Sequence[CapturedRecord]) -> Awkwardness:
                 bool(node.get("failed_units")) for node in _rows(record.body, "nodes")
             )
         elif record.slug == "estate-resources":
+            # ``backed_up`` is an attribute rather than a column: the core
+            # resource kinds declare no such field, and the integration that
+            # knows what a backup covers is the one that declares a kind with
+            # it. A node is never "uncovered" — nothing backs up a node.
             uncovered = uncovered or any(
-                entry.get("backed_up") is False and entry.get("kind") != "node"
+                _attributes(entry).get("backed_up") is False and entry.get("kind") != "node"
                 for entry in _rows(record.body, "resources")
             )
 

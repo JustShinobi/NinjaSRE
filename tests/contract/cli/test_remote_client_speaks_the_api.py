@@ -28,7 +28,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -42,10 +42,16 @@ from platform.identity.permissions import Role
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.config_repository import ConfigNode, ConfigNodeKind
+from platform.persistence.ports.estate_repository import (
+    HealthDerivation,
+    Resource,
+    ResourceHealth,
+)
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus
 from platform.persistence.ports.transaction import TenantScope
 from surfaces.cli.client import (
     Endpoint,
+    EstateFilter,
     InvestigationRequest,
     RemoteClient,
     ScheduleRequest,
@@ -151,6 +157,53 @@ async def _seed(gateway: FakePersistence) -> None:
                 summary="the checkout pool was exhausted",
                 metadata={RUN_METADATA_TEAM: TEAM_PAYMENTS},
             )
+        )
+
+
+async def _seed_estate(gateway: FakePersistence, now: datetime) -> None:
+    """Write a node and one stopped guest hanging off it."""
+    async with gateway.begin(TenantScope(org_id=ORG)) as uow:
+        await uow.estate.upsert(
+            Resource(
+                resource_id="res-node",
+                kind="node",
+                source="proxmox",
+                native_id="node/pve1",
+                display_name="pve1",
+                first_seen_at=now,
+                last_seen_at=now,
+            )
+        )
+        await uow.estate.upsert(
+            Resource(
+                resource_id="res-guest",
+                kind="virtual_machine",
+                source="proxmox",
+                native_id="qemu/101",
+                display_name="checkout",
+                parent_id="res-node",
+                labels=("env:prod",),
+                first_seen_at=now,
+                last_seen_at=now,
+            )
+        )
+        await uow.estate.record_health(
+            "res-node",
+            HealthDerivation(
+                state=ResourceHealth.HEALTHY,
+                rule="provider_status",
+                derived_at=now,
+                raw_status="online",
+            ),
+        )
+        await uow.estate.record_health(
+            "res-guest",
+            HealthDerivation(
+                state=ResourceHealth.UNHEALTHY,
+                rule="provider_status",
+                derived_at=now,
+                raw_status="stopped",
+            ),
         )
 
 
@@ -272,6 +325,53 @@ def test_a_schedule_is_created_listed_and_removed(remote: RemoteClient) -> None:
 def test_memory_is_searched_and_counted(remote: RemoteClient) -> None:
     assert asyncio.run(remote.search_memory("checkout")) == ()
     assert asyncio.run(remote.memory_stats()).episodes == 0
+
+
+def test_the_estate_is_listed_summarised_opened_and_suppressed(
+    remote: RemoteClient, deployment: _Deployment
+) -> None:
+    """The CLI's estate commands, against the routes the deployment really serves."""
+    now = datetime.now(UTC)
+    deployment.run(_seed_estate(deployment.gateway, now))
+
+    listed = asyncio.run(remote.list_estate(EstateFilter()))
+    summary = asyncio.run(remote.estate_summary())
+    detail = asyncio.run(remote.show_resource("res-guest"))
+    suppressed = asyncio.run(
+        remote.set_maintenance(
+            "res-guest", until=now + timedelta(hours=1), reason="replacing a disk"
+        )
+    )
+    released = asyncio.run(remote.clear_maintenance("res-guest"))
+
+    assert {resource.resource_id for resource in listed} == {"res-node", "res-guest"}
+    assert summary.total == 2
+    assert summary.problems == 1
+    assert detail.resource.health == "unhealthy"
+    assert detail.rule == "provider_status"
+    assert detail.raw_status == "stopped"
+    assert [entry.state for entry in detail.transitions] == ["unhealthy"]
+    assert suppressed.health == "maintenance"
+    assert suppressed.maintenance_reason == "replacing a disk"
+    assert released.health == "unhealthy"
+
+
+def test_an_estate_filter_reaches_the_routes_own_parameters(
+    remote: RemoteClient, deployment: _Deployment
+) -> None:
+    """Every dimension the filter carries is one the deployment actually reads."""
+    now = datetime.now(UTC)
+    deployment.run(_seed_estate(deployment.gateway, now))
+
+    by_kind = asyncio.run(remote.list_estate(EstateFilter(kinds=("node",))))
+    by_health = asyncio.run(remote.list_estate(EstateFilter(health=("unhealthy",))))
+    by_label = asyncio.run(remote.list_estate(EstateFilter(labels=("env:prod",))))
+    by_parent = asyncio.run(remote.list_estate(EstateFilter(parent_id="res-node")))
+
+    assert [found.resource_id for found in by_kind] == ["res-node"]
+    assert [found.resource_id for found in by_health] == ["res-guest"]
+    assert [found.resource_id for found in by_label] == ["res-guest"]
+    assert [found.resource_id for found in by_parent] == ["res-guest"]
 
 
 def test_the_integration_catalogue_comes_back(remote: RemoteClient) -> None:

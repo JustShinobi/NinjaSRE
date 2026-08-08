@@ -70,12 +70,33 @@ class PostgresRetentionSweeper:
                 statement = delete(models.KnowledgeDocument).where(
                     models.KnowledgeDocument.updated_at < cutoff
                 )
+            case DataClass.ESTATE_HISTORY:
+                # Two tables, so this class returns early rather than falling
+                # through to the single-statement path below. The resources
+                # themselves are deliberately not swept: an absent resource *is*
+                # the record that something was removed.
+                return await self._purge_estate_history(cutoff)
             case DataClass.AUDIT:  # pragma: no cover — refused before reaching here
                 raise RetentionExempt(data_class.value)
 
         result = await self.session.execute(statement)
         await self.session.flush()
         return rows_affected(result)
+
+    async def _purge_estate_history(self, cutoff: datetime) -> int:
+        """Delete expired health transitions and resource references."""
+        transitions = await self.session.execute(
+            delete(models.HealthTransitionRow).where(
+                models.HealthTransitionRow.occurred_at < cutoff
+            )
+        )
+        references = await self.session.execute(
+            delete(models.ResourceReferenceRow).where(
+                models.ResourceReferenceRow.recorded_at < cutoff
+            )
+        )
+        await self.session.flush()
+        return rows_affected(transitions) + rows_affected(references)
 
     async def audit_event_count(self) -> int:
         """Return how many audit events the whole deployment holds.

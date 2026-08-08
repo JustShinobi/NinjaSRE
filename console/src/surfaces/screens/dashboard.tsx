@@ -11,6 +11,8 @@ import { Panel } from '../panel';
 import { panelLabels } from '../labels';
 import {
   authorised,
+  countOf,
+  counts,
   dataOf,
   dependencyOf,
   flag,
@@ -33,10 +35,11 @@ import type { SurfaceContext } from '../context';
  * a console teaches people that the top of the page is where the decoration
  * lives.
  *
- * Six panels, six reads, six boundaries. The estate and the detector counts come
+ * Six panels, six reads, six boundaries. The detector and incident counts come
  * from endpoints the deployment does not serve yet; each of those panels says so
  * as an empty state naming the next action rather than as an error, because a
- * deployment nobody has connected anything to is new rather than broken.
+ * deployment nobody has connected anything to is new rather than broken. The
+ * estate is served, so an empty one there means an estate with nothing in it.
  */
 
 /** The statuses that mean a run needs somebody rather than that it is working. */
@@ -52,7 +55,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   const [approvals, runs, estate, health, detectors, incidents] = await Promise.all([
     panelRead('/v1/approvals', () => read('/v1/approvals', init)),
     panelRead('/v1/runs', () => read('/v1/runs', init)),
-    readProjectedPanel('/v1/estate/summary', credential),
+    panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
     panelRead('/health/ready', () => read('/health/ready', init)),
     readProjectedPanel('/v1/detectors', credential),
     readProjectedPanel('/v1/incidents', credential),
@@ -142,13 +145,17 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   const recent = feed.slice(0, FEED_LENGTH);
 
   // --- The estate ------------------------------------------------------------
-  const watched = number(summary, 'resources');
-  const healthy = number(summary, 'healthy');
-  const degraded = number(summary, 'degraded') + number(summary, 'unknown');
-  const kinds = list(summary, 'by_kind')
-    .map(
-      (kind) => `${formatNumber(locale, number(kind, 'count'))} ${text(kind, 'kind')}`,
-    )
+  const watched = number(summary, 'total');
+  const healthy = countOf(summary, 'by_health', 'healthy');
+  // Not knowing and being broken are different facts, and the tile is the one
+  // place they are added together — because the question it answers is "how
+  // much of the estate am I not confident about".
+  const degraded =
+    number(summary, 'problems') +
+    countOf(summary, 'by_health', 'unknown') +
+    countOf(summary, 'by_health', 'stale');
+  const kinds = counts(summary, 'by_kind')
+    .map(([kind, count]) => `${formatNumber(locale, count)} ${kind}`)
     .join(' · ');
 
   const liveDetectors = detectorRecords.filter((record) =>
@@ -217,7 +224,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           label={message(locale, 'dashboard.stat.degraded')}
           value={formatNumber(locale, degraded)}
           context={message(locale, 'dashboard.stat.degraded.context', {
-            count: formatNumber(locale, number(summary, 'open_findings')),
+            count: formatNumber(locale, number(summary, 'problems')),
           })}
           href="/resources?health=degraded"
           drillLabel={message(locale, 'dashboard.stat.drill')}
@@ -266,11 +273,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
             }}
           >
             <dl className="flex flex-col gap-2 text-small">
-              {list(summary, 'by_kind').map((kind) => (
-                <div key={text(kind, 'kind')} className="flex items-center gap-3">
-                  <dt className="min-w-0 truncate">{text(kind, 'kind')}</dt>
+              {counts(summary, 'by_kind').map(([kind, count]) => (
+                <div key={kind} className="flex items-center gap-3">
+                  <dt className="min-w-0 truncate">{kind}</dt>
                   <dd className="ml-auto tabular-nums">
-                    {formatNumber(locale, number(kind, 'count'))}
+                    {formatNumber(locale, count)}
                   </dd>
                 </div>
               ))}

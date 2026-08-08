@@ -15,8 +15,14 @@ from platform.persistence.ports import (
     DataClass,
     Episode,
     EvidenceRecord,
+    HealthDerivation,
     PersistenceGateway,
+    ReferenceKind,
+    Resource,
+    ResourceHealth,
+    ResourceReference,
     RetentionPolicy,
+    RetentionSweeper,
     RunStatus,
     SessionRecord,
     TenantScope,
@@ -176,3 +182,106 @@ async def test_records_inside_the_window_are_left_alone(
     async with gateway.begin(scope) as uow:
         assert await uow.sessions.load("s-old") is None
         assert await uow.sessions.load("s-recent") is not None
+
+
+async def test_estate_history_is_swept_by_the_one_retention_path(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The transitions and links go; the resource itself deliberately stays.
+
+    An absent resource *is* the record that something was removed, and deleting
+    it would make the estate forget the thing it was asked to remember. What
+    ages out is the history hanging off it.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.estate.upsert(
+            Resource(
+                resource_id="res-1",
+                kind="virtual_machine",
+                source="proxmox",
+                native_id="qemu/101",
+                display_name="checkout",
+                first_seen_at=EPOCH,
+                last_seen_at=EPOCH,
+            )
+        )
+        await uow.estate.record_health(
+            "res-1",
+            HealthDerivation(
+                state=ResourceHealth.HEALTHY, rule="provider_status", derived_at=EPOCH
+            ),
+        )
+        await uow.estate.link(
+            ResourceReference(
+                resource_id="res-1",
+                reference_kind=ReferenceKind.RUN,
+                reference_id="run-1",
+                recorded_at=EPOCH,
+            )
+        )
+
+    async with gateway.begin_system() as system:
+        report = await system.retention.purge(
+            RetentionPolicy(data_class=DataClass.ESTATE_HISTORY, retention_days=1), now=LATER
+        )
+
+    assert report.deleted == 2
+    async with gateway.begin(scope) as uow:
+        assert await uow.estate.transitions("res-1") == ()
+        assert await uow.estate.references("res-1") == ()
+        assert await uow.estate.get("res-1") is not None
+
+
+async def test_estate_history_inside_its_window_is_left_alone(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    async with gateway.begin(scope) as uow:
+        await uow.estate.upsert(
+            Resource(
+                resource_id="res-1",
+                kind="node",
+                source="proxmox",
+                native_id="node/pve1",
+                first_seen_at=EPOCH,
+                last_seen_at=EPOCH,
+            )
+        )
+        await uow.estate.record_health(
+            "res-1",
+            HealthDerivation(
+                state=ResourceHealth.HEALTHY, rule="provider_status", derived_at=EPOCH
+            ),
+        )
+
+    async with gateway.begin_system() as system:
+        report = await system.retention.purge(
+            RetentionPolicy(data_class=DataClass.ESTATE_HISTORY, retention_days=365),
+            now=EPOCH + timedelta(days=30),
+        )
+
+    assert report.deleted == 0
+    async with gateway.begin(scope) as uow:
+        assert len(await uow.estate.transitions("res-1")) == 1
+
+
+def test_every_data_class_is_swept_by_the_same_sweeper() -> None:
+    """T-031: nothing introduces a second retention path.
+
+    The estate does not get a purge of its own. Every class the deployment
+    knows about is a member of one enumeration, applied by one sweeper reached
+    through the system unit of work — so "how long is anything kept" has one
+    answer and one place to change it.
+    """
+    exempt = {data_class for data_class in DataClass if data_class.is_exempt}
+    sweepable = set(DataClass) - exempt
+
+    assert DataClass.ESTATE_HISTORY in sweepable
+    for data_class in sweepable:
+        assert RetentionPolicy.default_for(data_class).retention_days is not None
+
+    # ``RetentionSweeper`` is the whole retention surface: two methods, both of
+    # which take policies. A class-specific delete would show up here.
+    assert {name for name in dir(RetentionSweeper) if not name.startswith("_")} == {
+        "purge",
+        "purge_all",
+    }

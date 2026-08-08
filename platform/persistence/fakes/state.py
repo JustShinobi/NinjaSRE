@@ -8,8 +8,8 @@ different repositories, which is what SC-001 asks for.
 
 The guards are here rather than repeated in each fake for the reason they exist
 at all. ``MAX_QUERY_PAGE_SIZE`` and ``MAX_JSONB_PAYLOAD_BYTES`` are contract, so
-a caller that exceeds one gets the same error from every backend; twelve
-independent copies of that check is twelve chances for one of them to clamp
+a caller that exceeds one gets the same error from every backend; thirteen
+independent copies of that check is thirteen chances for one of them to clamp
 instead of raise.
 """
 
@@ -34,6 +34,12 @@ from platform.persistence.ports.audit_repository import AuditEvent
 from platform.persistence.ports.config_repository import ConfigNode, Organisation
 from platform.persistence.ports.credential_store import CredentialMetadata, SecretValue
 from platform.persistence.ports.episode_store import Episode, StoredStrategy
+from platform.persistence.ports.estate_repository import (
+    HealthTransition,
+    Resource,
+    ResourceReference,
+    SweepRecord,
+)
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
 from platform.persistence.ports.knowledge_store import KnowledgeChunk, KnowledgeDocument
 from platform.persistence.ports.run_trace_store import (
@@ -59,6 +65,12 @@ EdgeKey = tuple[str, str, str]
 #: than beside it because a playbook is a team's accumulated experience, and one
 #: team reading another's would be the cross-team leak FR-018 exists to prevent.
 StrategyKey = tuple[str, str, str]
+
+#: Identifies one reference from a resource to a run or an incident: the
+#: resource, what kind of thing referenced it, and which one. Keyed rather than
+#: appended so that linking the same run twice is one row — a run that touched a
+#: resource in nine turns touched it once.
+ReferenceKey = tuple[str, str, str]
 
 
 def check_limit(limit: int, *, parameter: str = "limit") -> int:
@@ -178,6 +190,10 @@ class TenantState:
     credentials: dict[str, StoredCredential] = field(default_factory=dict)
     topology_nodes: dict[str, TopologyNode] = field(default_factory=dict)
     topology_edges: dict[EdgeKey, TopologyEdge] = field(default_factory=dict)
+    resources: dict[str, Resource] = field(default_factory=dict)
+    health_transitions: dict[str, HealthTransition] = field(default_factory=dict)
+    resource_references: dict[ReferenceKey, ResourceReference] = field(default_factory=dict)
+    sweeps: dict[str, SweepRecord] = field(default_factory=dict)
 
 
 @dataclass
@@ -204,6 +220,7 @@ class State:
 
 __all__ = [
     "EdgeKey",
+    "ReferenceKey",
     "State",
     "StoredCredential",
     "StrategyKey",

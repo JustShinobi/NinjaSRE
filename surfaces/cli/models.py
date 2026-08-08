@@ -517,6 +517,175 @@ class ScheduleSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class EstateResource:
+    """One thing the deployment is responsible for, as a table row shows it.
+
+    ``health`` is the reported state — absence, maintenance and freshness
+    already applied by the deployment — and ``stored_health`` is what was last
+    derived. Both travel, because an operator seeing ``stale`` immediately asks
+    what it was stale *at* and a second command to find out is a second command.
+    """
+
+    resource_id: str
+    kind: str = ""
+    display_name: str = ""
+    health: str = ""
+    stored_health: str = ""
+    source: str = ""
+    sources: tuple[str, ...] = ()
+    native_id: str = ""
+    parent_id: str = ""
+    is_stale: bool = False
+    labels: tuple[str, ...] = ()
+    last_seen_at: datetime | None = None
+    absent_since: datetime | None = None
+    maintenance_until: datetime | None = None
+    maintenance_reason: str = ""
+    explanation: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "resource_id": self.resource_id,
+            "kind": self.kind,
+            "display_name": self.display_name,
+            "health": self.health,
+            "stored_health": self.stored_health,
+            "source": self.source,
+            "sources": list(self.sources),
+            "native_id": self.native_id,
+            "parent_id": self.parent_id,
+            "is_stale": self.is_stale,
+            "labels": list(self.labels),
+            "last_seen_at": _moment(self.last_seen_at),
+            "absent_since": _moment(self.absent_since),
+            "maintenance_until": _moment(self.maintenance_until),
+            "maintenance_reason": self.maintenance_reason,
+            "explanation": self.explanation,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EstateHealthSignal:
+    """One named observation behind a resource's state."""
+
+    name: str
+    value: str
+    observed_at: datetime | None = None
+    source: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "name": self.name,
+            "value": self.value,
+            "observed_at": _moment(self.observed_at),
+            "source": self.source,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EstateTransition:
+    """One recorded change of a resource's state."""
+
+    occurred_at: datetime | None
+    state: str
+    previous_state: str = ""
+    rule: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "occurred_at": _moment(self.occurred_at),
+            "state": self.state,
+            "previous_state": self.previous_state,
+            "rule": self.rule,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EstateReference:
+    """A run or an incident that touched a resource."""
+
+    reference_kind: str
+    reference_id: str
+    recorded_at: datetime | None = None
+    summary: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "reference_kind": self.reference_kind,
+            "reference_id": self.reference_id,
+            "recorded_at": _moment(self.recorded_at),
+            "summary": self.summary,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EstateResourceDetail:
+    """One resource's page: its state, why, its history, and what touched it."""
+
+    resource: EstateResource
+    rule: str = ""
+    raw_status: str = ""
+    explanation: str = ""
+    freshness_seconds: int = 0
+    rollup_rule: str = ""
+    signals: tuple[EstateHealthSignal, ...] = ()
+    transitions: tuple[EstateTransition, ...] = ()
+    references: tuple[EstateReference, ...] = ()
+    children: tuple[EstateResource, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "resource": self.resource.to_record(),
+            "rule": self.rule,
+            "raw_status": self.raw_status,
+            "explanation": self.explanation,
+            "freshness_seconds": self.freshness_seconds,
+            "rollup_rule": self.rollup_rule,
+            "signals": [signal.to_record() for signal in self.signals],
+            "transitions": [entry.to_record() for entry in self.transitions],
+            "references": [entry.to_record() for entry in self.references],
+            "children": [child.to_record() for child in self.children],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EstateSummaryReport:
+    """The estate in the numbers a first screen shows.
+
+    ``problems`` is carried rather than derived from ``by_health``, because
+    resources in maintenance are in the estate and out of the problem count and
+    a reader recomputing it would have to know that rule too.
+    """
+
+    total: int = 0
+    problems: int = 0
+    maintenance: int = 0
+    absent: int = 0
+    captured_at: datetime | None = None
+    by_kind: Mapping[str, int] = field(default_factory=dict)
+    by_health: Mapping[str, int] = field(default_factory=dict)
+    by_source: Mapping[str, int] = field(default_factory=dict)
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "total": self.total,
+            "problems": self.problems,
+            "maintenance": self.maintenance,
+            "absent": self.absent,
+            "captured_at": _moment(self.captured_at),
+            "by_kind": dict(self.by_kind),
+            "by_health": dict(self.by_health),
+            "by_source": dict(self.by_source),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class MemoryHit:
     """One episode a memory search matched."""
 
@@ -750,6 +919,12 @@ __all__ = [
     "CredentialFieldSpec",
     "DiagnosticCheck",
     "DiagnosticReport",
+    "EstateHealthSignal",
+    "EstateReference",
+    "EstateResource",
+    "EstateResourceDetail",
+    "EstateSummaryReport",
+    "EstateTransition",
     "IntegrationStatus",
     "InvestigationOutcome",
     "LifecycleOutcome",

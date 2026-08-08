@@ -481,6 +481,41 @@
         "title": "ConfigTreeView",
         "type": "object"
       },
+      "ContributionView": {
+        "properties": {
+          "display_name": {
+            "default": "",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "native_id": {
+            "title": "Native Id",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          }
+        },
+        "required": [
+          "integration",
+          "native_id"
+        ],
+        "title": "ContributionView",
+        "type": "object"
+      },
       "CreateInvestigationRequest": {
         "properties": {
           "alert_source": {
@@ -582,6 +617,47 @@
         "title": "CredentialFieldView",
         "type": "object"
       },
+      "DerivationView": {
+        "properties": {
+          "derived_at": {
+            "format": "date-time",
+            "title": "Derived At",
+            "type": "string"
+          },
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
+          "raw_status": {
+            "default": "",
+            "title": "Raw Status",
+            "type": "string"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          },
+          "signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalView"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "rule",
+          "derived_at"
+        ],
+        "title": "DerivationView",
+        "type": "object"
+      },
       "EffectiveConfigView": {
         "properties": {
           "node_id": {
@@ -654,6 +730,61 @@
           "components"
         ],
         "title": "EpisodeView",
+        "type": "object"
+      },
+      "EstateSummaryView": {
+        "properties": {
+          "absent": {
+            "default": 0,
+            "title": "Absent",
+            "type": "integer"
+          },
+          "by_health": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Health",
+            "type": "object"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Kind",
+            "type": "object"
+          },
+          "by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Source",
+            "type": "object"
+          },
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "maintenance": {
+            "default": 0,
+            "title": "Maintenance",
+            "type": "integer"
+          },
+          "problems": {
+            "default": 0,
+            "title": "Problems",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "captured_at"
+        ],
+        "title": "EstateSummaryView",
         "type": "object"
       },
       "GrantList": {
@@ -1232,6 +1363,27 @@
         "title": "LivenessView",
         "type": "object"
       },
+      "MaintenanceRequest": {
+        "description": "How long a resource is suppressed from the problem count, and why.\n\n``reason`` is required and not defaulted. A maintenance window with no\nreason is one nobody can decide whether to extend, and the person who opened\nit will not be the person who finds it.",
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "until": {
+            "format": "date-time",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "until",
+          "reason"
+        ],
+        "title": "MaintenanceRequest",
+        "type": "object"
+      },
       "MemoryStats": {
         "properties": {
           "episode_count": {
@@ -1407,6 +1559,35 @@
         "title": "ReadinessView",
         "type": "object"
       },
+      "ReferenceView": {
+        "properties": {
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "reference_id": {
+            "title": "Reference Id",
+            "type": "string"
+          },
+          "reference_kind": {
+            "title": "Reference Kind",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_kind",
+          "reference_id",
+          "recorded_at"
+        ],
+        "title": "ReferenceView",
+        "type": "object"
+      },
       "RejectRequest": {
         "properties": {
           "reason": {
@@ -1419,6 +1600,246 @@
           "reason"
         ],
         "title": "RejectRequest",
+        "type": "object"
+      },
+      "ResourceDetailView": {
+        "description": "One resource's page: its state, why, its history, and what touched it.",
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceSummaryView"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "contributions": {
+            "items": {
+              "$ref": "#/components/schemas/ContributionView"
+            },
+            "title": "Contributions",
+            "type": "array"
+          },
+          "derivation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DerivationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freshness_seconds": {
+            "title": "Freshness Seconds",
+            "type": "integer"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceSummaryView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/ReferenceView"
+            },
+            "title": "References",
+            "type": "array"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ResourceSummaryView"
+          },
+          "rollup_rule": {
+            "title": "Rollup Rule",
+            "type": "string"
+          },
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/TransitionView"
+            },
+            "title": "Transitions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resource",
+          "rollup_rule",
+          "freshness_seconds"
+        ],
+        "title": "ResourceDetailView",
+        "type": "object"
+      },
+      "ResourceListView": {
+        "properties": {
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceSummaryView"
+            },
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resources"
+        ],
+        "title": "ResourceListView",
+        "type": "object"
+      },
+      "ResourceSummaryView": {
+        "description": "One resource as a table row shows it.",
+        "properties": {
+          "absent_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Absent Since"
+          },
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
+          "first_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen At"
+          },
+          "health": {
+            "title": "Health",
+            "type": "string"
+          },
+          "is_stale": {
+            "title": "Is Stale",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "array"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "maintenance_reason": {
+            "default": "",
+            "title": "Maintenance Reason",
+            "type": "string"
+          },
+          "maintenance_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maintenance Until"
+          },
+          "native_id": {
+            "default": "",
+            "title": "Native Id",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "parent_name": {
+            "default": "",
+            "title": "Parent Name",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "stored_health": {
+            "title": "Stored Health",
+            "type": "string"
+          },
+          "team_node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Node Id"
+          }
+        },
+        "required": [
+          "resource_id",
+          "kind",
+          "display_name",
+          "health",
+          "stored_health",
+          "is_stale",
+          "source"
+        ],
+        "title": "ResourceSummaryView",
         "type": "object"
       },
       "RevocationResult": {
@@ -1659,6 +2080,35 @@
           "episodes"
         ],
         "title": "SearchResult",
+        "type": "object"
+      },
+      "SignalView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "value",
+          "observed_at"
+        ],
+        "title": "SignalView",
         "type": "object"
       },
       "SkillView": {
@@ -2011,6 +2461,51 @@
           "blast_radius"
         ],
         "title": "TopologyView",
+        "type": "object"
+      },
+      "TransitionView": {
+        "properties": {
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "previous_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous State"
+          },
+          "rule": {
+            "default": "",
+            "title": "Rule",
+            "type": "string"
+          },
+          "signal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignalView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurred_at",
+          "state"
+        ],
+        "title": "TransitionView",
         "type": "object"
       },
       "TurnList": {
@@ -3429,6 +3924,393 @@
         "summary": "Preview Config",
         "tags": [
           "config"
+        ]
+      }
+    },
+    "/v1/estate/resources": {
+      "get": {
+        "description": "Return the resources matching every filter given, by identifier.",
+        "operationId": "list_resources_v1_estate_resources_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Kind",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "health",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Health",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Source",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Label",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Team",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Parent",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_absent",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Absent",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Resources",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/resources/{resource_id}": {
+      "get": {
+        "description": "Return one resource's state, why, its history, and what touched it.",
+        "operationId": "resource_detail_v1_estate_resources__resource_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "history",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "History",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resource Detail",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/resources/{resource_id}/maintenance": {
+      "delete": {
+        "description": "End a maintenance window now and return the resource as it reads.",
+        "operationId": "leave_maintenance_v1_estate_resources__resource_id__maintenance_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceSummaryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave Maintenance",
+        "tags": [
+          "estate"
+        ]
+      },
+      "post": {
+        "description": "Suppress a resource from the problem count until ``until``.",
+        "operationId": "enter_maintenance_v1_estate_resources__resource_id__maintenance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceSummaryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enter Maintenance",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/summary": {
+      "get": {
+        "description": "Return the estate in the numbers a dashboard tile shows.",
+        "operationId": "estate_summary_v1_estate_summary_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstateSummaryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Estate Summary",
+        "tags": [
+          "estate"
         ]
       }
     },

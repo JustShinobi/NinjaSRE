@@ -184,6 +184,78 @@ SCHEDULE_SUMMARY: Final[dict[str, Any]] = _object(
     }
 )
 
+#: A counted breakdown — kind to how many, health to how many. Open on purpose,
+#: which is the one exception in this file: an integration registers its own
+#: resource kinds, so the *keys* are extensible by design and a closed object
+#: would fail the first time somebody connected a hypervisor.
+_COUNTS: Final[dict[str, Any]] = {"type": "object", "additionalProperties": _INTEGER}
+
+ESTATE_RESOURCE: Final[dict[str, Any]] = _object(
+    {
+        "resource_id": _STRING,
+        "kind": _STRING,
+        "display_name": _STRING,
+        "health": _STRING,
+        "stored_health": _STRING,
+        "source": _STRING,
+        "sources": _STRINGS,
+        "native_id": _STRING,
+        "parent_id": _STRING,
+        "is_stale": _BOOLEAN,
+        "labels": _STRINGS,
+        "last_seen_at": _STRING,
+        "absent_since": _STRING,
+        "maintenance_until": _STRING,
+        "maintenance_reason": _STRING,
+        "explanation": _STRING,
+    }
+)
+
+ESTATE_SIGNAL: Final[dict[str, Any]] = _object(
+    {"name": _STRING, "value": _STRING, "observed_at": _STRING, "source": _STRING}
+)
+
+ESTATE_TRANSITION: Final[dict[str, Any]] = _object(
+    {"occurred_at": _STRING, "state": _STRING, "previous_state": _STRING, "rule": _STRING}
+)
+
+ESTATE_REFERENCE: Final[dict[str, Any]] = _object(
+    {
+        "reference_kind": _STRING,
+        "reference_id": _STRING,
+        "recorded_at": _STRING,
+        "summary": _STRING,
+    }
+)
+
+ESTATE_DETAIL: Final[dict[str, Any]] = _object(
+    {
+        "resource": ESTATE_RESOURCE,
+        "rule": _STRING,
+        "raw_status": _STRING,
+        "explanation": _STRING,
+        "freshness_seconds": _INTEGER,
+        "rollup_rule": _STRING,
+        "signals": _array(ESTATE_SIGNAL),
+        "transitions": _array(ESTATE_TRANSITION),
+        "references": _array(ESTATE_REFERENCE),
+        "children": _array(ESTATE_RESOURCE),
+    }
+)
+
+ESTATE_SUMMARY: Final[dict[str, Any]] = _object(
+    {
+        "total": _INTEGER,
+        "problems": _INTEGER,
+        "maintenance": _INTEGER,
+        "absent": _INTEGER,
+        "captured_at": _STRING,
+        "by_kind": _COUNTS,
+        "by_health": _COUNTS,
+        "by_source": _COUNTS,
+    }
+)
+
 MEMORY_HIT: Final[dict[str, Any]] = _object(
     {
         "episode_id": _STRING,
@@ -265,6 +337,11 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "schedule.list": _object({"schedules": _array(SCHEDULE_SUMMARY)}),
     "schedule.add": SCHEDULE_SUMMARY,
     "schedule.remove": _object({"job_id": _STRING, "removed": _BOOLEAN}),
+    "estate.list": _object({"resources": _array(ESTATE_RESOURCE)}),
+    "estate.summary": ESTATE_SUMMARY,
+    "estate.show": ESTATE_DETAIL,
+    "estate.maintain": ESTATE_RESOURCE,
+    "estate.release": ESTATE_RESOURCE,
     "memory.search": _object({"query": _STRING, "hits": _array(MEMORY_HIT)}),
     "memory.stats": _object(
         {

@@ -13,12 +13,12 @@ about a number nothing counts is not an assertion.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from config.constants.llm import DEFAULT_MODEL_ID, LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
-from surfaces.cli.client import InvestigationRequest, ScheduleRequest
+from surfaces.cli.client import EstateFilter, InvestigationRequest, ScheduleRequest
 from surfaces.cli.models import (
     CheckState,
     ConfigChange,
@@ -28,6 +28,10 @@ from surfaces.cli.models import (
     CredentialFieldSpec,
     DiagnosticCheck,
     DiagnosticReport,
+    EstateResource,
+    EstateResourceDetail,
+    EstateSummaryReport,
+    EstateTransition,
     IntegrationStatus,
     InvestigationOutcome,
     MemoryHit,
@@ -67,6 +71,7 @@ class FakeServices:
     events: dict[str, tuple[Mapping[str, Any], ...]] = field(default_factory=dict)
     scheduled: dict[str, ScheduleSummary] = field(default_factory=dict)
     config: dict[str, ConfigView] = field(default_factory=dict)
+    resources: dict[str, EstateResource] = field(default_factory=dict)
     episodes: tuple[MemoryHit, ...] = ()
     provider_states: dict[str, ProviderStatus] = field(default_factory=dict)
     integration_states: dict[str, IntegrationStatus] = field(default_factory=dict)
@@ -269,6 +274,80 @@ class FakeServices:
         self.integration_states[integration] = verified
         return verified
 
+    async def estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
+        matched = [
+            resource
+            for resource in self.resources.values()
+            if (query.include_absent or not resource.absent_since)
+            and (not query.kinds or resource.kind in query.kinds)
+            and (not query.health or resource.health in query.health)
+            and (not query.sources or resource.source in query.sources)
+            and (not query.labels or set(query.labels) <= set(resource.labels))
+            and (not query.parent_id or resource.parent_id == query.parent_id)
+        ]
+        matched.sort(key=lambda resource: resource.resource_id)
+        return tuple(matched[: query.limit])
+
+    async def estate_totals(self) -> EstateSummaryReport:
+        present = [
+            resource for resource in self.resources.values() if resource.absent_since is None
+        ]
+        by_kind: dict[str, int] = {}
+        by_health: dict[str, int] = {}
+        for resource in present:
+            by_kind[resource.kind] = by_kind.get(resource.kind, 0) + 1
+            by_health[resource.health] = by_health.get(resource.health, 0) + 1
+        return EstateSummaryReport(
+            total=len(present),
+            problems=sum(1 for resource in present if resource.health in {"degraded", "unhealthy"}),
+            maintenance=sum(1 for resource in present if resource.health == "maintenance"),
+            absent=len(self.resources) - len(present),
+            captured_at=EPOCH,
+            by_kind=by_kind,
+            by_health=by_health,
+            by_source={},
+        )
+
+    async def resource(self, resource_id: str) -> EstateResourceDetail | None:
+        found = self.resources.get(resource_id)
+        if found is None:
+            return None
+        return EstateResourceDetail(
+            resource=found,
+            rule="provider_status",
+            raw_status=found.stored_health,
+            explanation=found.explanation,
+            freshness_seconds=3600,
+            rollup_rule="own_only",
+            transitions=(
+                EstateTransition(occurred_at=EPOCH, state=found.health, rule="provider_status"),
+            ),
+            children=tuple(
+                child for child in self.resources.values() if child.parent_id == resource_id
+            ),
+        )
+
+    async def open_maintenance(
+        self, resource_id: str, *, until: datetime, reason: str
+    ) -> EstateResource:
+        found = self.resources[resource_id]
+        updated = replace(
+            found, health="maintenance", maintenance_until=until, maintenance_reason=reason
+        )
+        self.resources[resource_id] = updated
+        return updated
+
+    async def close_maintenance(self, resource_id: str) -> EstateResource:
+        found = self.resources[resource_id]
+        updated = replace(
+            found,
+            health=found.stored_health or "unknown",
+            maintenance_until=None,
+            maintenance_reason="",
+        )
+        self.resources[resource_id] = updated
+        return updated
+
     async def diagnostics(self) -> DiagnosticReport:
         if self.checks:
             return DiagnosticReport(checks=self.checks, version="0.1.0")
@@ -332,6 +411,35 @@ def seeded() -> FakeServices:
                 ConfigEntry(path="settings.model", value="claude-sonnet-5", source_node_id="root"),
                 ConfigEntry(path="settings.masking", value="strict", source_node_id="root"),
             ),
+        ),
+    }
+    services.resources = {
+        "res-node": EstateResource(
+            resource_id="res-node",
+            kind="node",
+            display_name="pve1",
+            health="healthy",
+            stored_health="healthy",
+            source="proxmox",
+            sources=("proxmox",),
+            native_id="node/pve1",
+            labels=("site:home",),
+            last_seen_at=EPOCH,
+            explanation="the provider reported 'online', which maps to healthy.",
+        ),
+        "res-guest": EstateResource(
+            resource_id="res-guest",
+            kind="virtual_machine",
+            display_name="checkout",
+            health="unhealthy",
+            stored_health="unhealthy",
+            source="proxmox",
+            sources=("proxmox",),
+            native_id="qemu/101",
+            parent_id="res-node",
+            labels=("env:prod",),
+            last_seen_at=EPOCH,
+            explanation="the provider reported 'stopped', which maps to unhealthy.",
         ),
     }
     services.episodes = (

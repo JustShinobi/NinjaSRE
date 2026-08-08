@@ -254,6 +254,98 @@ def node_resource_id(name: str) -> str:
     return f"node-{name}"
 
 
+def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
+    """Return the estate endpoints the *gateway* serves, from one cluster reading.
+
+    Not a projection. These three endpoints exist, so their records are marked
+    ``gateway`` and are built in the shape the route returns — field for field.
+    What used to be a projection of a cluster read into a shape nothing answered
+    is now a *rendering* of the same read into the shape the API sends, so a
+    console reading a fixture and a console reading a deployment are reading one
+    thing.
+
+    Kept in this module rather than beside the recorded gateway payloads because
+    the cluster reading is what it is built from, and everything that knows how
+    to turn a reading into a resource is here.
+    """
+    observations = tuple(_observations(reading))
+    incidents = tuple(_incidents(reading, observations))
+    records: list[CapturedRecord] = [
+        _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
+        _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
+    ]
+    resources = _resources(reading)
+    volumes = _volumes(reading)
+    for resource in resources:
+        records.append(
+            _record(
+                "estate-resource-detail",
+                {"resource_id": resource["resource_id"]},
+                {
+                    "resource": resource,
+                    "derivation": {
+                        "state": resource["health"],
+                        "rule": "provider_status",
+                        "derived_at": reading.captured_at,
+                        "signals": [
+                            {
+                                "name": check["check"],
+                                "value": check["verdict"],
+                                "observed_at": reading.captured_at,
+                                "source": _SOURCE,
+                            }
+                            for check in _health(resource, observations)
+                        ],
+                        "raw_status": resource["health"],
+                        "explanation": resource["explanation"],
+                    },
+                    "rollup_rule": "majority_healthy" if resource["kind"] == "node" else "own_only",
+                    "freshness_seconds": 3600,
+                    "contributions": [
+                        {
+                            "integration": _SOURCE,
+                            "native_id": resource["native_id"],
+                            "display_name": resource["display_name"],
+                            "observed_at": reading.captured_at,
+                        }
+                    ],
+                    "transitions": [],
+                    "references": [
+                        {
+                            "reference_kind": "incident",
+                            "reference_id": incident["incident_id"],
+                            "recorded_at": reading.captured_at,
+                            "summary": "",
+                        }
+                        for incident in incidents
+                        if resource["resource_id"] in incident["subjects"]
+                    ],
+                    "children": [
+                        child
+                        for child in resources
+                        if child["parent_id"] == resource["resource_id"]
+                    ],
+                    "parent": next(
+                        (
+                            other
+                            for other in resources
+                            if other["resource_id"] == resource["parent_id"]
+                        ),
+                        None,
+                    ),
+                    "volumes": [
+                        volume
+                        for volume in volumes
+                        if volume["resource_id"] == resource["resource_id"]
+                    ],
+                },
+                Provenance.GATEWAY,
+            )
+        )
+
+    return tuple(records)
+
+
 def project(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     """Return one record per projected endpoint, from one cluster reading.
 
@@ -261,13 +353,15 @@ def project(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     carried the fact it rests on. A projection built from both is attributed to
     the shell, because the shell half is the part that has no gateway
     equivalent and therefore the part that survives the handover.
+
+    The estate's own three endpoints are *not* here: the gateway serves them, so
+    they are ``estate`` above. A projection for an endpoint that already exists
+    would be the fallback this module's split exists to prevent.
     """
     observations = tuple(_observations(reading))
     incidents = tuple(_incidents(reading, observations))
 
     records: list[CapturedRecord] = [
-        _record("estate-summary", {}, _summary(reading, observations), Provenance.PVESH),
-        _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.PVESH),
         _record("estate-nodes", {}, {"nodes": _nodes(reading)}, Provenance.SHELL),
         _record("estate-storage", {}, _storage(reading), Provenance.SHELL),
         _record("estate-backups", {}, {"jobs": _backups(reading)}, Provenance.PVESH),
@@ -282,31 +376,6 @@ def project(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
             Provenance.SHELL,
         ),
     ]
-
-    resources = _resources(reading)
-    volumes = _volumes(reading)
-    for resource in resources:
-        records.append(
-            _record(
-                "estate-resource-detail",
-                {"resource_id": resource["resource_id"]},
-                {
-                    "resource": resource,
-                    "health": _health(resource, observations),
-                    "volumes": [
-                        volume
-                        for volume in volumes
-                        if volume["resource_id"] == resource["resource_id"]
-                    ],
-                    "incidents": [
-                        incident["incident_id"]
-                        for incident in incidents
-                        if resource["resource_id"] in incident["subjects"]
-                    ],
-                },
-                Provenance.PVESH,
-            )
-        )
 
     for incident in incidents:
         records.append(
@@ -347,48 +416,116 @@ def _record(
 
 
 def _resources(reading: ClusterReading) -> list[dict[str, Any]]:
+    """Return the cluster's guests and nodes in the estate endpoint's own shape.
+
+    The shape is the gateway's, field for field, because the gateway serves this
+    endpoint now. What used to be a *projection* of a cluster read into a shape
+    nothing answered is now a *rendering* of the same read into the shape the API
+    returns — so a console reading a fixture and a console reading a deployment
+    are reading one thing.
+
+    The per-guest readings live under ``attributes``, which is where a Proxmox
+    discovery puts them: the core kinds do not declare a fill percentage, and the
+    integration that knows what one means declares a kind that does.
+    """
     covered = _covered_resource_ids(reading)
     volumes_by_resource = {volume["resource_id"]: volume for volume in _volumes(reading)}
+    node_names = {node_resource_id(node.name): node.name for node in reading.nodes}
     resources: list[dict[str, Any]] = []
+
     for guest in reading.guests:
         identifier = resource_id_of(guest)
         volume = volumes_by_resource.get(identifier)
+        parent = node_resource_id(guest.node)
+        state = _reported_health(guest.state)
+        attributes: dict[str, Any] = {"backed_up": covered and identifier in covered}
+        if guest.state == "running":
+            attributes["cpu_percent"] = guest.cpu_percent
+            attributes["memory_percent"] = guest.memory_percent
+        if volume:
+            attributes["volume_percent"] = volume["used_percent"]
+            attributes["volume_id"] = volume["volume_id"]
         resources.append(
             {
                 "resource_id": identifier,
-                "name": guest.name,
                 "kind": guest.kind,
-                "node": guest.node,
-                "state": guest.state,
-                "owner": None,
-                "tags": list(guest.tags),
-                "cpu_percent": guest.cpu_percent if guest.state == "running" else None,
-                "memory_percent": guest.memory_percent if guest.state == "running" else None,
-                "volume_percent": volume["used_percent"] if volume else None,
-                "volume_id": volume["volume_id"] if volume else None,
-                "backed_up": identifier in covered,
+                "display_name": guest.name,
+                "health": state,
+                "stored_health": state,
+                "is_stale": False,
+                "source": _SOURCE,
+                "sources": [_SOURCE],
+                "native_id": identifier,
+                "parent_id": parent,
+                "parent_name": node_names.get(parent, guest.node),
+                "team_node_id": None,
+                "labels": list(guest.tags),
+                "attributes": attributes,
+                "first_seen_at": reading.captured_at,
                 "last_seen_at": reading.captured_at,
+                "absent_since": None,
+                "maintenance_until": None,
+                "maintenance_reason": "",
+                "explanation": _explanation(guest.state, state),
             }
         )
+
     for node in reading.nodes:
+        state = _reported_health("online")
         resources.append(
             {
                 "resource_id": node_resource_id(node.name),
-                "name": node.name,
                 "kind": "node",
-                "node": node.name,
-                "state": "running",
-                "owner": None,
-                "tags": [node.role],
-                "cpu_percent": node.cpu_percent,
-                "memory_percent": node.memory_percent,
-                "volume_percent": node.root_filesystem_percent,
-                "volume_id": None,
-                "backed_up": False,
+                "display_name": node.name,
+                "health": state,
+                "stored_health": state,
+                "is_stale": False,
+                "source": _SOURCE,
+                "sources": [_SOURCE],
+                "native_id": node_resource_id(node.name),
+                "parent_id": None,
+                "parent_name": "",
+                "team_node_id": None,
+                "labels": [node.role],
+                "attributes": {
+                    "cpu_percent": node.cpu_percent,
+                    "memory_percent": node.memory_percent,
+                    "volume_percent": node.root_filesystem_percent,
+                },
+                "first_seen_at": reading.captured_at,
                 "last_seen_at": reading.captured_at,
+                "absent_since": None,
+                "maintenance_until": None,
+                "maintenance_reason": "",
+                "explanation": _explanation("online", state),
             }
         )
     return sorted(resources, key=lambda resource: str(resource["resource_id"]))
+
+
+#: The integration this reading came from, as the estate names a source.
+_SOURCE: Final = "proxmox"
+
+#: How a hypervisor's lifecycle words land in the estate's closed set. The same
+#: mapping the platform ships; repeated here rather than imported because
+#: ``tools/`` is not packaged and a fixture generator that imported the platform
+#: would make the fixture depend on the thing it is meant to stand in for.
+_HEALTH_OF: Final[Mapping[str, str]] = {
+    "running": "healthy",
+    "online": "healthy",
+    "stopped": "unhealthy",
+    "paused": "maintenance",
+}
+
+
+def _reported_health(state: str) -> str:
+    """Return the closed-set state ``state`` maps to, or ``unknown``."""
+    return _HEALTH_OF.get(state, "unknown")
+
+
+def _explanation(raw: str, state: str) -> str:
+    """Return the sentence the endpoint puts on a resource in ``state``."""
+    return f"the provider reported {raw!r}, which maps to {state}."
 
 
 def _nodes(reading: ClusterReading) -> list[dict[str, Any]]:
@@ -494,24 +631,37 @@ def _backups(reading: ClusterReading) -> list[dict[str, Any]]:
     return jobs
 
 
-def _summary(reading: ClusterReading, observations: Sequence[Observation]) -> dict[str, Any]:
+def _summary(reading: ClusterReading) -> dict[str, Any]:
+    """Return the estate summary in the endpoint's own shape.
+
+    Read off the resources rather than off the observations. The endpoint
+    summarises the estate's own health, and an observation is a detector's
+    verdict — a different thing, arriving with a different feature.
+    """
     resources = _resources(reading)
     by_kind: dict[str, int] = {}
+    by_health: dict[str, int] = {}
     for resource in resources:
-        by_kind[str(resource["kind"])] = by_kind.get(str(resource["kind"])) or 0
-        by_kind[str(resource["kind"])] += 1
-    findings = {item.subject for item in observations if item.verdict == "finding"}
-    unknown = {item.subject for item in observations if item.verdict == "unknown"}
+        kind = str(resource["kind"])
+        health = str(resource["health"])
+        by_kind[kind] = by_kind.get(kind, 0) + 1
+        by_health[health] = by_health.get(health, 0) + 1
+    problems = sum(count for state, count in by_health.items() if state in _PROBLEM_STATES)
     return {
+        "total": len(resources),
         "captured_at": reading.captured_at,
-        "resources": len(resources),
-        "by_kind": [{"kind": kind, "count": count} for kind, count in sorted(by_kind.items())],
-        "nodes": len(reading.nodes),
-        "healthy": len(resources) - len(findings | unknown),
-        "degraded": len(findings),
-        "unknown": len(unknown),
-        "open_findings": sum(1 for item in observations if item.verdict == "finding"),
+        "by_kind": dict(sorted(by_kind.items())),
+        "by_health": dict(sorted(by_health.items())),
+        "by_source": {_SOURCE: len(resources)},
+        "problems": problems,
+        "maintenance": by_health.get("maintenance", 0),
+        "absent": 0,
     }
+
+
+#: What counts against an operator, as the platform counts it. Maintenance and
+#: staleness are deliberately not here.
+_PROBLEM_STATES: Final[frozenset[str]] = frozenset({"degraded", "unhealthy"})
 
 
 def _health(

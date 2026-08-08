@@ -134,6 +134,30 @@ export function list(record: unknown, name: string): readonly unknown[] {
   return Array.isArray(found) ? found : [];
 }
 
+/**
+ * `record.name` read as a counted breakdown: name to how many, sorted by name.
+ *
+ * The estate's `by_kind` and `by_health` are objects rather than lists, because
+ * an integration registers its own resource kinds and the keys are therefore
+ * open. Sorting here rather than at each call site keeps two panels showing the
+ * same breakdown in the same order.
+ */
+export function counts(
+  record: unknown,
+  name: string,
+): readonly (readonly [string, number])[] {
+  const found: unknown = field(record, name);
+  if (typeof found !== 'object' || found === null || Array.isArray(found)) return [];
+  return Object.entries(found)
+    .filter((entry): entry is [string, number] => typeof entry[1] === 'number')
+    .sort((left, right) => left[0].localeCompare(right[0]));
+}
+
+/** One count out of a breakdown, and nought when it holds none. */
+export function countOf(record: unknown, name: string, key: string): number {
+  return counts(record, name).find((entry) => entry[0] === key)?.[1] ?? 0;
+}
+
 /** Every name and value of `record.name`, as strings, in the order it carries them. */
 export function pairs(
   record: unknown,

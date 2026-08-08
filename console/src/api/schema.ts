@@ -432,6 +432,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/estate/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Resources
+         * @description Return the resources matching every filter given, by identifier.
+         */
+        get: operations["list_resources_v1_estate_resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/resources/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Resource Detail
+         * @description Return one resource's state, why, its history, and what touched it.
+         */
+        get: operations["resource_detail_v1_estate_resources__resource_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/resources/{resource_id}/maintenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enter Maintenance
+         * @description Suppress a resource from the problem count until ``until``.
+         */
+        post: operations["enter_maintenance_v1_estate_resources__resource_id__maintenance_post"];
+        /**
+         * Leave Maintenance
+         * @description End a maintenance window now and return the resource as it reads.
+         */
+        delete: operations["leave_maintenance_v1_estate_resources__resource_id__maintenance_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estate Summary
+         * @description Return the estate in the numbers a dashboard tile shows.
+         */
+        get: operations["estate_summary_v1_estate_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/integrations": {
         parameters: {
             query?: never;
@@ -1301,6 +1385,20 @@ export interface components {
             /** Nodes */
             nodes: components["schemas"]["ConfigNodeView"][];
         };
+        /** ContributionView */
+        ContributionView: {
+            /**
+             * Display Name
+             * @default
+             */
+            display_name: string;
+            /** Integration */
+            integration: string;
+            /** Native Id */
+            native_id: string;
+            /** Observed At */
+            observed_at?: string | null;
+        };
         /** CreateInvestigationRequest */
         CreateInvestigationRequest: {
             /**
@@ -1349,6 +1447,30 @@ export interface components {
             /** Secret */
             secret: boolean;
         };
+        /** DerivationView */
+        DerivationView: {
+            /**
+             * Derived At
+             * Format: date-time
+             */
+            derived_at: string;
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+            /**
+             * Raw Status
+             * @default
+             */
+            raw_status: string;
+            /** Rule */
+            rule: string;
+            /** Signals */
+            signals?: components["schemas"]["SignalView"][];
+            /** State */
+            state: string;
+        };
         /** EffectiveConfigView */
         EffectiveConfigView: {
             /** Node Id */
@@ -1376,6 +1498,43 @@ export interface components {
             summary: string;
             /** Title */
             title: string;
+        };
+        /** EstateSummaryView */
+        EstateSummaryView: {
+            /**
+             * Absent
+             * @default 0
+             */
+            absent: number;
+            /** By Health */
+            by_health?: {
+                [key: string]: number;
+            };
+            /** By Kind */
+            by_kind?: {
+                [key: string]: number;
+            };
+            /** By Source */
+            by_source?: {
+                [key: string]: number;
+            };
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /**
+             * Maintenance
+             * @default 0
+             */
+            maintenance: number;
+            /**
+             * Problems
+             * @default 0
+             */
+            problems: number;
+            /** Total */
+            total: number;
         };
         /** GrantList */
         GrantList: {
@@ -1568,6 +1727,23 @@ export interface components {
             /** Live */
             live: boolean;
         };
+        /**
+         * MaintenanceRequest
+         * @description How long a resource is suppressed from the problem count, and why.
+         *
+         *     ``reason`` is required and not defaulted. A maintenance window with no
+         *     reason is one nobody can decide whether to extend, and the person who opened
+         *     it will not be the person who finds it.
+         */
+        MaintenanceRequest: {
+            /** Reason */
+            reason: string;
+            /**
+             * Until
+             * Format: date-time
+             */
+            until: string;
+        };
         /** MemoryStats */
         MemoryStats: {
             /** Episode Count */
@@ -1631,10 +1807,113 @@ export interface components {
             /** Store State */
             store_state: string;
         };
+        /** ReferenceView */
+        ReferenceView: {
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            /** Reference Id */
+            reference_id: string;
+            /** Reference Kind */
+            reference_kind: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+        };
         /** RejectRequest */
         RejectRequest: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * ResourceDetailView
+         * @description One resource's page: its state, why, its history, and what touched it.
+         */
+        ResourceDetailView: {
+            /** Children */
+            children?: components["schemas"]["ResourceSummaryView"][];
+            /** Contributions */
+            contributions?: components["schemas"]["ContributionView"][];
+            derivation?: components["schemas"]["DerivationView"] | null;
+            /** Freshness Seconds */
+            freshness_seconds: number;
+            parent?: components["schemas"]["ResourceSummaryView"] | null;
+            /** References */
+            references?: components["schemas"]["ReferenceView"][];
+            resource: components["schemas"]["ResourceSummaryView"];
+            /** Rollup Rule */
+            rollup_rule: string;
+            /** Transitions */
+            transitions?: components["schemas"]["TransitionView"][];
+        };
+        /** ResourceListView */
+        ResourceListView: {
+            /** Resources */
+            resources: components["schemas"]["ResourceSummaryView"][];
+        };
+        /**
+         * ResourceSummaryView
+         * @description One resource as a table row shows it.
+         */
+        ResourceSummaryView: {
+            /** Absent Since */
+            absent_since?: string | null;
+            /** Attributes */
+            attributes?: {
+                [key: string]: unknown;
+            };
+            /** Display Name */
+            display_name: string;
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+            /** First Seen At */
+            first_seen_at?: string | null;
+            /** Health */
+            health: string;
+            /** Is Stale */
+            is_stale: boolean;
+            /** Kind */
+            kind: string;
+            /** Labels */
+            labels?: string[];
+            /** Last Seen At */
+            last_seen_at?: string | null;
+            /**
+             * Maintenance Reason
+             * @default
+             */
+            maintenance_reason: string;
+            /** Maintenance Until */
+            maintenance_until?: string | null;
+            /**
+             * Native Id
+             * @default
+             */
+            native_id: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /**
+             * Parent Name
+             * @default
+             */
+            parent_name: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Source */
+            source: string;
+            /** Sources */
+            sources?: string[];
+            /** Stored Health */
+            stored_health: string;
+            /** Team Node Id */
+            team_node_id?: string | null;
         };
         /** RevocationResult */
         RevocationResult: {
@@ -1719,6 +1998,23 @@ export interface components {
         SearchResult: {
             /** Episodes */
             episodes: components["schemas"]["EpisodeView"][];
+        };
+        /** SignalView */
+        SignalView: {
+            /** Name */
+            name: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /**
+             * Source
+             * @default
+             */
+            source: string;
+            /** Value */
+            value: string;
         };
         /** SkillView */
         SkillView: {
@@ -1844,6 +2140,24 @@ export interface components {
              * @default false
              */
             truncated: boolean;
+        };
+        /** TransitionView */
+        TransitionView: {
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Previous State */
+            previous_state?: string | null;
+            /**
+             * Rule
+             * @default
+             */
+            rule: string;
+            signal?: components["schemas"]["SignalView"] | null;
+            /** State */
+            state: string;
         };
         /** TurnList */
         TurnList: {
@@ -2583,6 +2897,182 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConfigPreviewView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_resources_v1_estate_resources_get: {
+        parameters: {
+            query?: {
+                kind?: string[];
+                health?: string[];
+                source?: string[];
+                label?: string[];
+                team?: string;
+                parent?: string;
+                include_absent?: boolean;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resource_detail_v1_estate_resources__resource_id__get: {
+        parameters: {
+            query?: {
+                history?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceDetailView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enter_maintenance_v1_estate_resources__resource_id__maintenance_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_maintenance_v1_estate_resources__resource_id__maintenance_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    estate_summary_v1_estate_summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstateSummaryView"];
                 };
             };
             /** @description Validation Error */

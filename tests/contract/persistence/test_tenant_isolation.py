@@ -30,12 +30,20 @@ from platform.persistence.ports import (
     ConfigNodeKind,
     CredentialMetadata,
     Episode,
+    EstateQuery,
+    HealthDerivation,
     KnowledgeDocument,
     PersistenceGateway,
+    ReferenceKind,
+    Resource,
+    ResourceHealth,
+    ResourceReference,
     ScheduledJob,
     SecretValue,
     SessionRecord,
     StoredStrategy,
+    SweepOutcome,
+    SweepRecord,
     TenantScope,
     TopologyEdge,
     TraceEventRecord,
@@ -61,12 +69,13 @@ TENANT_SCOPED_PORTS = frozenset(
         "approvals",
         "schedules",
         "credentials",
+        "estate",
     }
 )
 
 
 async def write_one_of_everything(uow: UnitOfWork) -> None:
-    """Write a record through all twelve tenant-scoped ports."""
+    """Write a record through all thirteen tenant-scoped ports."""
     await uow.config.upsert(
         ConfigNode(
             node_id="payments",
@@ -138,6 +147,39 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
         CredentialMetadata(handle="slack-bot-token", integration="slack"),
         SecretValue("xoxb-not-a-real-token"),
     )
+    await uow.estate.upsert(
+        Resource(
+            resource_id="res-1",
+            kind="virtual_machine",
+            source="proxmox",
+            native_id="qemu/101",
+            display_name="checkout-api",
+            first_seen_at=at(),
+            last_seen_at=at(),
+        )
+    )
+    await uow.estate.record_health(
+        "res-1",
+        HealthDerivation(state=ResourceHealth.HEALTHY, rule="provider_status", derived_at=at()),
+    )
+    await uow.estate.link(
+        ResourceReference(
+            resource_id="res-1",
+            reference_kind=ReferenceKind.RUN,
+            reference_id="run-1",
+            recorded_at=at(),
+        )
+    )
+    await uow.estate.record_sweep(
+        SweepRecord(
+            sweep_id="sw-1",
+            source="proxmox",
+            started_at=at(),
+            outcome=SweepOutcome.SUCCEEDED,
+            completed_at=at(1),
+            seen_count=1,
+        )
+    )
 
 
 @pytest.fixture
@@ -150,6 +192,17 @@ async def populated(gateway: PersistenceGateway) -> PersistenceGateway:
 
 async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -> None:
     async with populated.begin(TenantScope(org_id=SECOND_ORG)) as uow:
+        assert await uow.estate.get("res-1") is None
+        assert await uow.estate.query(EstateQuery()) == ()
+        assert await uow.estate.by_native_id(source="proxmox", native_id="qemu/101") is None
+        assert (await uow.estate.summarise(now=at())).total == 0
+        assert await uow.estate.transitions("res-1") == ()
+        assert await uow.estate.references("res-1") == ()
+        assert await uow.estate.last_sweep("proxmox") is None
+        assert (
+            await uow.estate.mark_absent(source="proxmox", seen_ids=frozenset(), at=at(10))
+        ) == ()
+        assert await uow.estate.mark_stale(source="proxmox", at=at(10), reason="down") == ()
         assert await uow.config.get("payments") is None
         assert await uow.config.children(SECOND_ORG) == ()
         assert await uow.identity.tokens_for_user("u-ada") == ()
@@ -239,6 +292,7 @@ async def test_the_first_tenant_still_has_everything(
         assert await uow.episodes.count() == 1
         assert await uow.episodes.list_strategies(team_node_id="payments") != ()
         assert await uow.credentials.get_metadata("slack-bot-token") is not None
+        assert await uow.estate.get("res-1") is not None
 
 
 def test_every_tenant_scoped_port_is_covered() -> None:

@@ -23,7 +23,7 @@ from typing import Any, Final
 
 from tools.mockplane.anonymise.pipeline import ProcessedCapture, process
 from tools.mockplane.anonymise.pseudonyms import PseudonymBook
-from tools.mockplane.capture.projection import project
+from tools.mockplane.capture.projection import estate, project
 from tools.mockplane.dataset import profile, served
 from tools.mockplane.dataset.stream import stream_records
 from tools.mockplane.endpoints import CONSOLE_ENDPOINTS, endpoint_by_slug
@@ -54,6 +54,7 @@ def populated_records() -> tuple[CapturedRecord, ...]:
     reading = profile.cluster_reading()
     return (
         *served.served_records(role="owner"),
+        *estate(reading),
         *project(reading),
         *stream_records(),
         *_write_responses(),
@@ -104,14 +105,14 @@ def empty_records() -> tuple[CapturedRecord, ...]:
             "recent_shedding": [],
         },
         "estate-summary": {
+            "total": 0,
             "captured_at": now,
-            "resources": 0,
-            "by_kind": [],
-            "nodes": 0,
-            "healthy": 0,
-            "degraded": 0,
-            "unknown": 0,
-            "open_findings": 0,
+            "by_kind": {},
+            "by_health": {},
+            "by_source": {},
+            "problems": 0,
+            "maintenance": 0,
+            "absent": 0,
         },
         "estate-resources": {"resources": []},
         "estate-nodes": {"nodes": []},

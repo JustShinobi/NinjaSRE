@@ -86,11 +86,16 @@ def resources() -> list[dict[str, Any]]:
     about the surveyed guests, and dropping them would leave every subject
     dangling.
     """
-    from tools.mockplane.capture.projection import project
+    from tools.mockplane.capture.projection import (
+        _explanation,
+        _reported_health,
+        estate,
+        node_resource_id,
+    )
     from tools.mockplane.dataset import profile
 
     surveyed: list[dict[str, Any]] = []
-    for record in project(profile.cluster_reading()):
+    for record in estate(profile.cluster_reading()):
         if record.slug == "estate-resources" and isinstance(record.body, dict):
             surveyed = [dict(item) for item in record.body["resources"]]
             break
@@ -99,21 +104,36 @@ def resources() -> list[dict[str, Any]]:
     for ordinal in range(SCALE_RESOURCE_COUNT - len(surveyed)):
         number = _pseudorandom(ordinal)
         node = "node01" if number % 3 else "node02"
+        raw = _STATES[number % len(_STATES)]
+        state = _reported_health(raw)
         found.append(
             {
                 "resource_id": f"ct-1{ordinal:05d}",
-                "name": f"guest-{ordinal:05d}",
                 "kind": _KINDS[0] if number % 41 else _KINDS[1],
-                "node": node,
-                "state": _STATES[number % len(_STATES)],
-                "owner": None,
-                "tags": [],
-                "cpu_percent": round((number % 1000) / 10.0, 2),
-                "memory_percent": round((number % 900) / 10.0, 2),
-                "volume_percent": round((number % 990) / 10.0, 2),
-                "volume_id": f"vm-1{ordinal:05d}-disk-0",
-                "backed_up": number % 5 != 0,
+                "display_name": f"guest-{ordinal:05d}",
+                "health": state,
+                "stored_health": state,
+                "is_stale": False,
+                "source": "proxmox",
+                "sources": ["proxmox"],
+                "native_id": f"ct-1{ordinal:05d}",
+                "parent_id": node_resource_id(node),
+                "parent_name": node,
+                "team_node_id": None,
+                "labels": [],
+                "attributes": {
+                    "cpu_percent": round((number % 1000) / 10.0, 2),
+                    "memory_percent": round((number % 900) / 10.0, 2),
+                    "volume_percent": round((number % 990) / 10.0, 2),
+                    "volume_id": f"vm-1{ordinal:05d}-disk-0",
+                    "backed_up": number % 5 != 0,
+                },
+                "first_seen_at": served.at(minutes=1),
                 "last_seen_at": served.at(minutes=1),
+                "absent_since": None,
+                "maintenance_until": None,
+                "maintenance_reason": "",
+                "explanation": _explanation(raw, state),
             }
         )
     return found

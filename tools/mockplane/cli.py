@@ -46,7 +46,7 @@ from tools.mockplane.capture.gateway import (
     UrllibFetcher,
     capture_gateway,
 )
-from tools.mockplane.capture.projection import project
+from tools.mockplane.capture.projection import estate, project
 from tools.mockplane.identifiers import IdentifierFileError, IdentifierList
 
 PROGRAM: Final = "mockplane"
@@ -273,7 +273,9 @@ def _capture(into: str) -> int:  # pragma: no cover — needs a deployment and a
         tuple(configuration.hosts),
         captured_at=datetime.now(UTC).isoformat(),
     )
-    projected = project(reading)
+    # The estate's own three endpoints come back with the rest of the gateway's
+    # recording; the remaining projections are for endpoints nothing serves yet.
+    projected = (*estate(reading), *project(reading))
 
     destination.mkdir(parents=True, exist_ok=True)
     raw = destination / "capture.json"

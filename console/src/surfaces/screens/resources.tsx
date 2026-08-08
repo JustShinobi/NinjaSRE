@@ -9,11 +9,15 @@ import { FilterBar } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
 import {
+  authorised,
+  countOf,
   dataOf,
   dependencyOf,
+  field,
   list,
   number,
-  readProjectedPanel,
+  panelRead,
+  read,
   stateOf,
   text,
 } from '../read';
@@ -29,13 +33,12 @@ import { readViewState, type FilterName } from '../url-state';
  * demand different responses — and a failed sweep must never make the estate look
  * like a disaster.
  *
- * **The state column is the state the deployment reports**, and the projected
- * inventory reports a lifecycle state today — `running`, `stopped` — rather than
- * a derived health verdict. The verdict is on the resource *detail*, as the
- * named checks it was derived from, which is the same panel the incident detail
- * shows. Deriving one here from those checks would be the console holding an
- * opinion about health, and the whole point of "health is derived, not declared"
- * is that exactly one thing derives it.
+ * **The state column is the state the deployment reports** — absence,
+ * maintenance and freshness already applied by the endpoint. The console does
+ * not derive it, does not age it, and does not translate it: the whole point of
+ * "health is derived, not declared" is that exactly one thing derives it, and a
+ * second copy of the freshness rule here would disagree with the first the day
+ * somebody changed an interval.
  *
  * Utilisation is a meter *and* a number where there is a capacity, and free text
  * where there is not. A bar alone is a shape somebody has to estimate, and "about
@@ -47,32 +50,38 @@ export const RESOURCE_FILTERS: readonly FilterName[] = ['kind', 'state'];
 /**
  * Worst first. The order is the triage order, not the alphabet.
  *
- * It names both vocabularies, because the field carries a lifecycle state today
- * and the derived verdict when the endpoint that computes one lands. A state
- * this console has not met sorts last and keeps its own word.
+ * The endpoint's closed set, in the order somebody triages it. A state this
+ * console has not met sorts last and keeps its own word rather than being
+ * folded into one it resembles.
  */
 const STATE_ORDER = [
   'unhealthy',
   'degraded',
-  'stopped',
   'unknown',
   'stale',
+  'maintenance',
   'absent',
   'healthy',
-  'running',
 ];
 
 function stateRank(record: unknown): number {
-  const found = STATE_ORDER.indexOf(text(record, 'state'));
+  const found = STATE_ORDER.indexOf(text(record, 'health'));
   return found === -1 ? STATE_ORDER.length : found;
 }
 
-/** The largest of the three readings a resource carries, as a percentage. */
+/**
+ * The largest utilisation reading a resource carries, as a percentage.
+ *
+ * Read out of `attributes`, which is where an integration that knows what a
+ * fill percentage means puts one. The core kinds declare none, so a deployment
+ * with nothing connected shows no meter rather than a meter reading nought.
+ */
 function utilisation(record: unknown): number {
+  const attributes: unknown = field(record, 'attributes');
   return Math.max(
-    number(record, 'volume_percent'),
-    number(record, 'memory_percent'),
-    number(record, 'cpu_percent'),
+    number(attributes, 'volume_percent'),
+    number(attributes, 'memory_percent'),
+    number(attributes, 'cpu_percent'),
   );
 }
 
@@ -80,20 +89,21 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, RESOURCE_FILTERS);
 
+  const init = authorised(credential);
   const [resources, summary] = await Promise.all([
-    readProjectedPanel('/v1/estate/resources', credential),
-    readProjectedPanel('/v1/estate/summary', credential),
+    panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
+    panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
   ]);
   const records = list(dataOf(resources), 'resources');
 
   const kinds = [...new Set(records.map((record) => text(record, 'kind')))].sort();
-  const states = [...new Set(records.map((record) => text(record, 'state')))].sort();
+  const states = [...new Set(records.map((record) => text(record, 'health')))].sort();
 
   const filtered = records.filter((record) => {
     const kind = state.filters.kind;
     const reported = state.filters.state;
     if (kind !== undefined && text(record, 'kind') !== kind) return false;
-    if (reported !== undefined && text(record, 'state') !== reported) return false;
+    if (reported !== undefined && text(record, 'health') !== reported) return false;
     return true;
   });
 
@@ -113,15 +123,19 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
       id,
       href: `/resources?selected=${id}`,
       cells: [
-        { kind: 'text', text: text(record, 'name') },
+        { kind: 'text', text: text(record, 'display_name') },
         { kind: 'muted', text: text(record, 'kind') },
         {
           kind: 'muted',
-          text: text(record, 'node') === '' ? none : text(record, 'node'),
+          text: text(record, 'parent_name') === '' ? none : text(record, 'parent_name'),
         },
-        { kind: 'status', text: text(record, 'state') },
+        { kind: 'status', text: text(record, 'health') },
         used > 0
-          ? { kind: 'meter', text: text(record, 'name'), value: Math.round(used) }
+          ? {
+              kind: 'meter',
+              text: text(record, 'display_name'),
+              value: Math.round(used),
+            }
           : { kind: 'muted', text: none },
         {
           kind: 'muted',
@@ -139,9 +153,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         actions={
           <span className="text-meta text-muted">
             {message(locale, 'resources.summary', {
-              watched: String(number(dataOf(summary), 'resources')),
-              healthy: String(number(dataOf(summary), 'healthy')),
-              degraded: String(number(dataOf(summary), 'degraded')),
+              watched: String(number(dataOf(summary), 'total')),
+              healthy: String(countOf(dataOf(summary), 'by_health', 'healthy')),
+              degraded: String(number(dataOf(summary), 'problems')),
             })}
           </span>
         }
@@ -190,7 +204,7 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           labels={rowLabels(locale, message(locale, 'resources.list.caption'))}
           columns={[
             {
-              key: 'name',
+              key: 'display_name',
               header: message(locale, 'resources.column.name'),
               sortable: true,
             },
@@ -199,9 +213,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               header: message(locale, 'resources.column.kind'),
               sortable: true,
             },
-            { key: 'node', header: message(locale, 'resources.column.parent') },
+            { key: 'parent_name', header: message(locale, 'resources.column.parent') },
             {
-              key: 'state',
+              key: 'health',
               header: message(locale, 'resources.column.state'),
               sortable: true,
             },

@@ -3,32 +3,28 @@
     {
       "arguments": {},
       "body": {
-        "by_kind": [
-          {
-            "count": 82,
-            "kind": "container"
-          },
-          {
-            "count": 2,
-            "kind": "node"
-          },
-          {
-            "count": 2,
-            "kind": "virtual-machine"
-          }
-        ],
+        "absent": 0,
+        "by_health": {
+          "healthy": 72,
+          "unhealthy": 14
+        },
+        "by_kind": {
+          "container": 82,
+          "node": 2,
+          "virtual-machine": 2
+        },
+        "by_source": {
+          "proxmox": 86
+        },
         "captured_at": "2026-08-07T12:00:00+00:00",
-        "degraded": 84,
-        "healthy": 0,
-        "nodes": 2,
-        "open_findings": 94,
-        "resources": 86,
-        "unknown": 2
+        "maintenance": 0,
+        "problems": 14,
+        "total": 86
       },
       "contract_version": "1.0.0",
-      "provenance": "pvesh",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (pvesh)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",

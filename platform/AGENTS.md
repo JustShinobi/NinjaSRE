@@ -39,7 +39,7 @@ Three things about that snippet are load-bearing.
 
 - **Repositories come from the unit of work.** There is nowhere else to get one,
   so there is no repository outside a transaction. Leaving the block commits;
-  raising inside it rolls back, across all twelve.
+  raising inside it rolls back, across all thirteen.
 - **Tenancy comes from the scope, not from arguments.** No port method takes an
   `org_id`, so a cross-tenant read cannot be phrased. The handful of operations
   that genuinely precede tenancy — creating an organisation, resolving a token,
@@ -616,6 +616,51 @@ somebody at minute ten.
 Operator-facing documentation is
 [`docs/notifications-and-reporting.md`](../docs/notifications-and-reporting.md).
 
+## The estate, in one page
+
+`estate/` is what the deployment is responsible for and how each of it is doing.
+A node, a guest, a datastore, a backup job — discovered from the integrations
+that exist, kept current, and carrying a state derived from evidence rather than
+declared.
+
+Four rules, and each one is a decision that could have gone the other way.
+
+**Identity comes from the source, not the name.** `identity.derive_resource_id`
+hashes the source integration plus that source's own identifier. A rename is an
+update; a restart finds the same row; two replicas deriving the key at the same
+instant derive the same one. A source that cannot name what it is reporting
+raises `NoStableIdentifier` and the resource is skipped — never stored under an
+identifier we generated, because a generated one differs every sweep and every
+sweep would then create the resource again and decommission the last.
+
+**Absent is not unhealthy, and only a complete full sweep may assign it.** A
+container somebody deleted has not failed. `SweepReport.concluded_absence` is the
+one expression that grants the entitlement; a failed sweep marks its resources
+*stale* with the reason, a suspended one concludes nothing about the pages it did
+not read, and an incremental one concludes nothing at all. This is the single
+most damaging thing the component could get wrong — an integration outage
+reported as the whole estate being gone cascades into every detector and every
+autonomy decision downstream — so it is written into the port's signatures rather
+than into the callers.
+
+**Health is derived and shows its work.** A provider status is mapped into
+`ResourceHealth` — seven members, no `other` — through a declared mapping, and
+both the verdict and the raw string are stored. An unmapped status is `unknown`,
+never `healthy`: a provider that adds a lifecycle state nobody has mapped must
+not be reported as fine because of it. Every state carries the rule that decided,
+the signals it read, and a sentence an operator can act on.
+
+**Freshness and rollup are applied on read.** `EstateService` is the only place
+that does it, because a console that applied freshness and a CLI that did not
+would show an operator two estates and both would be defensible. Past its kind's
+interval a resource reports `stale` rather than its last known state; a parent's
+state accounts for its children through a rule named on the parent.
+
+Discovery is a protocol integrations implement, holding no credential — it calls
+providers through the proxy like every other integration call — and swept under
+the scheduler's own lease-based claiming, so concurrency is solved once rather
+than twice.
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -655,6 +700,21 @@ Operator-facing documentation is
 - Anything that compiles a regular expression written outside this repository →
   through `patterns.compile_untrusted`. A second copy of that validation is a
   second copy that can be relaxed independently.
+- A new resource kind → a `ResourceKind` registered on the deployment's
+  `KindRegistry` while it is being composed, by the integration that knows what
+  the kind is. Never a member of an enumeration in `estate/kinds.py`: the core
+  kinds are what the platform models whatever is connected, and a provider shape
+  belongs to its provider. A kind naming a parent nobody declared is refused at
+  registration rather than at the first sweep.
+- A new provider status word → the integration's own `StatusMapping`, not
+  `estate/health/mapping.py`'s shared table. The shared one holds the words
+  every provider uses; a vendor for which `active` means "provisioning, not yet
+  serving" says so in its own mapping rather than making the shared table grow a
+  special case per vendor.
+- A new way for a resource to relate to another → an `EdgeKind` in
+  `persistence/ports/topology_graph.py`, and the sweep writes it. Never a second
+  graph: blast radius already traverses this one, and two graphs would mean two
+  answers to "what does this affect".
 - A new topology discovery source → an adapter under
   `knowledge/topology/discovery/`, taking a *reader* protocol rather than a
   vendor client — tier 3 cannot import `integrations/` — and reporting

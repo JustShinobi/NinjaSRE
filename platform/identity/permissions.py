@@ -38,6 +38,14 @@ class Permission(StrEnum):
     INVESTIGATION_RUN = "investigation.run"
     REPORT_READ = "report.read"
 
+    # The estate: what the deployment is responsible for, and its health.
+    ESTATE_READ = "estate.read"
+    #: Opening and closing a maintenance window. A write, and deliberately not
+    #: bundled with ``config.write``: suppressing a resource from the problem
+    #: count is an operational decision a responder makes during an incident,
+    #: not a configuration change.
+    ESTATE_MANAGE = "estate.manage"
+
     # Learned material.
     MEMORY_READ = "memory.read"
     KNOWLEDGE_READ = "knowledge.read"
@@ -128,6 +136,7 @@ _ROLE_INCREMENTS: Final[Mapping[Role, frozenset[Permission]]] = {
             Permission.KNOWLEDGE_READ,
             Permission.CONFIG_READ,
             Permission.APPROVAL_READ,
+            Permission.ESTATE_READ,
         }
     ),
     Role.RESPONDER: frozenset(
@@ -137,6 +146,10 @@ _ROLE_INCREMENTS: Final[Mapping[Role, frozenset[Permission]]] = {
             Permission.REMEDIATION_EXECUTE,
             Permission.APPROVAL_REVIEW,
             Permission.KNOWLEDGE_WRITE,
+            # A responder puts a machine into maintenance while they work on
+            # it. Waiting for an operator to do it is how the estate stays
+            # noisy through every planned change.
+            Permission.ESTATE_MANAGE,
         }
     ),
     Role.OPERATOR: frozenset(

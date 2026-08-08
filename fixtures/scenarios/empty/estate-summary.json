@@ -3,14 +3,14 @@
     {
       "arguments": {},
       "body": {
-        "by_kind": [],
+        "absent": 0,
+        "by_health": {},
+        "by_kind": {},
+        "by_source": {},
         "captured_at": "2026-08-07T12:00:00+00:00",
-        "degraded": 0,
-        "healthy": 0,
-        "nodes": 0,
-        "open_findings": 0,
-        "resources": 0,
-        "unknown": 0
+        "maintenance": 0,
+        "problems": 0,
+        "total": 0
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",

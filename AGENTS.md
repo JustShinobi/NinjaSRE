@@ -22,7 +22,7 @@ something in `make verify`, or it is not a rule.
 | **Provider neutrality** | `make check-vendor-sdks` fails on a vendor LLM SDK imported outside `core/llm/`, including the `importlib` way round it. Every SDK is an optional extra, so a deployment where nothing leaves the operator's infrastructure installs none of them and is still fully functional. |
 | **Learning is measured or not claimed** | Every learning mechanism ships with an ablation that isolates its contribution. A scenario-score regression fails CI. |
 | **Layered architecture** | `make check-imports` fails, naming the boundary. It is not advisory. |
-| **Single datastore** | One Postgres, reached through the twelve repository ports. `make check-raw-sql` fails on SQL, Cypher, or a database driver imported outside `platform/persistence/`. |
+| **Single datastore** | One Postgres, reached through the thirteen repository ports. `make check-raw-sql` fails on SQL, Cypher, or a database driver imported outside `platform/persistence/`. |
 | **The operator owns their data** | No telemetry, analytics, crash reporting, or version check that transmits off-host. `make check-deps` enforces the dependency half. |
 | **Test-first** | The test lands before the implementation. A behaviour-preserving refactor gets a characterisation test first. |
 | **English** | All source, comments, identifiers, commit messages, documentation, prompts, and user-facing text — whatever language the conversation is happening in. |

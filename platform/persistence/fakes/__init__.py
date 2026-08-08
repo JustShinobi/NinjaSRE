@@ -1,4 +1,4 @@
-"""In-memory implementations of all twelve ports, and the gateway over them.
+"""In-memory implementations of all thirteen ports, and the gateway over them.
 
 Not a test double. These are what let features 007–017 be built and unit-tested
 before a database exists, which means they are load-bearing: a fake that
@@ -12,7 +12,7 @@ against one backend, and the suite exists to check two.
 
 They also have real transactions. ``FakePersistence.begin`` snapshots, hands the
 copy to a unit of work, and commits by swapping it in, so a block that raises
-rolls back across all twelve repositories. Without that, SC-001 would pass here
+rolls back across all thirteen repositories. Without that, SC-001 would pass here
 for the wrong reason.
 """
 
