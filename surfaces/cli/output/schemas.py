@@ -424,11 +424,15 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "estate.show": ESTATE_DETAIL,
     "estate.maintain": ESTATE_RESOURCE,
     "estate.release": ESTATE_RESOURCE,
-    "incidents.list": _object({"incidents": _array(INCIDENT)}),
+    "incidents.list": _object(
+        {"incidents": _array(INCIDENT), "paused": _BOOLEAN, "pause_reason": _STRING}
+    ),
     "incidents.show": INCIDENT_DETAIL,
     "incidents.close": INCIDENT,
     "incidents.suppress": INCIDENT,
-    "detectors.list": _object({"detectors": _array(DETECTOR)}),
+    "detectors.list": _object(
+        {"detectors": _array(DETECTOR), "paused": _BOOLEAN, "pause_reason": _STRING}
+    ),
     "detectors.observations": _object({"observations": _array(OBSERVATION)}),
     "detectors.enable": DETECTOR,
     "detectors.disable": DETECTOR,

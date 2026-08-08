@@ -23,7 +23,7 @@ import typer
 
 from surfaces.cli.client import IncidentFilter
 from surfaces.cli.invocation import Invocation, Output, run_command
-from surfaces.cli.models import IncidentRecord, records_of
+from surfaces.cli.models import DetectionState, IncidentRecord, records_of
 from surfaces.cli.output.tables import Column, Detail, table_of
 
 app = typer.Typer(
@@ -74,6 +74,19 @@ _TIMELINE_COLUMNS = (
 )
 
 
+def _with_pause(table: str, detection: DetectionState) -> str:
+    """Return ``table`` with the pause said first, when there is one.
+
+    First rather than last. An operator reading an empty incident list has
+    already drawn a conclusion by the time they reach a footnote, and the
+    conclusion they draw from an empty list is that nothing is wrong.
+    """
+    if not detection.paused:
+        return table
+    reason = detection.reason or "no reason was given"
+    return f"Detection is paused: {reason}.\n\n{table}"
+
+
 def _subjects(record: IncidentRecord) -> str:
     """Return the subjects a table row shows, with the rest counted."""
     named = ", ".join(record.subjects[:NAMED_SUBJECTS])
@@ -112,7 +125,9 @@ def list_incidents(
     invocation: Invocation = ctx.obj
 
     async def body() -> Output:
-        found = await invocation.client().list_incidents(
+        client = invocation.client()
+        detection = await client.detection_state()
+        found = await client.list_incidents(
             IncidentFilter(
                 states=tuple(state),
                 severities=tuple(severity),
@@ -124,13 +139,16 @@ def list_incidents(
         )
         return Output(
             command="incidents.list",
-            data={"incidents": records_of(found)},
-            text=table_of(
-                _incident_rows(found),
-                _INCIDENT_COLUMNS,
-                terminal=invocation.terminal,
-                empty="nothing is wrong, as far as anything has noticed",
-            ).render(invocation.terminal),
+            data={"incidents": records_of(found), **detection.to_record()},
+            text=_with_pause(
+                table_of(
+                    _incident_rows(found),
+                    _INCIDENT_COLUMNS,
+                    terminal=invocation.terminal,
+                    empty="nothing is wrong, as far as anything has noticed",
+                ).render(invocation.terminal),
+                detection,
+            ),
         )
 
     raise typer.Exit(run_command(invocation, "incidents.list", body))
@@ -237,26 +255,31 @@ def list_detectors(ctx: typer.Context) -> None:
     invocation: Invocation = ctx.obj
 
     async def body() -> Output:
-        found = await invocation.client().list_detectors()
+        client = invocation.client()
+        detection = await client.detection_state()
+        found = await client.list_detectors()
         return Output(
             command="detectors.list",
-            data={"detectors": records_of(found)},
-            text=table_of(
-                [
-                    {
-                        "detector_id": record.detector_id,
-                        "severity": record.severity,
-                        "signal": record.signal,
-                        "coverage": f"{record.subjects_covered}/{record.subjects_total}",
-                        "verdict": record.last_verdict,
-                        "enabled": "yes" if record.enabled else "no",
-                    }
-                    for record in found
-                ],
-                _DETECTOR_COLUMNS,
-                terminal=invocation.terminal,
-                empty="nothing is being watched for; declare a detector in configuration",
-            ).render(invocation.terminal),
+            data={"detectors": records_of(found), **detection.to_record()},
+            text=_with_pause(
+                table_of(
+                    [
+                        {
+                            "detector_id": record.detector_id,
+                            "severity": record.severity,
+                            "signal": record.signal,
+                            "coverage": f"{record.subjects_covered}/{record.subjects_total}",
+                            "verdict": record.last_verdict,
+                            "enabled": "yes" if record.enabled else "no",
+                        }
+                        for record in found
+                    ],
+                    _DETECTOR_COLUMNS,
+                    terminal=invocation.terminal,
+                    empty="nothing is being watched for; declare a detector in configuration",
+                ).render(invocation.terminal),
+                detection,
+            ),
         )
 
     raise typer.Exit(run_command(invocation, "detectors.list", body))

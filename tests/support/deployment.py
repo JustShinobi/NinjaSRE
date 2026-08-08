@@ -31,6 +31,7 @@ from surfaces.cli.models import (
     ConfigView,
     CostReport,
     CredentialFieldSpec,
+    DetectionState,
     DetectorRecord,
     DiagnosticCheck,
     DiagnosticReport,
@@ -87,6 +88,7 @@ class FakeServices:
     incident_records: dict[str, IncidentRecord] = field(default_factory=dict)
     detector_records: dict[str, DetectorRecord] = field(default_factory=dict)
     observation_records: tuple[ObservationRecord, ...] = ()
+    detection: DetectionState = field(default_factory=DetectionState)
     episodes: tuple[MemoryHit, ...] = ()
     provider_states: dict[str, ProviderStatus] = field(default_factory=dict)
     integration_states: dict[str, IntegrationStatus] = field(default_factory=dict)
@@ -354,6 +356,9 @@ class FakeServices:
         )
         self.incident_records[incident_id] = suppressed
         return suppressed
+
+    async def detection_state(self) -> DetectionState:
+        return self.detection
 
     async def detectors(self) -> tuple[DetectorRecord, ...]:
         return tuple(self.detector_records[key] for key in sorted(self.detector_records))

@@ -623,6 +623,23 @@ class IncidentDetailRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class DetectionState:
+    """Whether the deployment is watching at all, and why not if it is not.
+
+    Carried beside every listing rather than behind a command of its own,
+    because "why is this empty" is asked at the listing and an operator who has
+    to know to run a second command is an operator who does not.
+    """
+
+    paused: bool = False
+    reason: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {"paused": self.paused, "pause_reason": self.reason}
+
+
+@dataclass(frozen=True, slots=True)
 class DetectorRecord:
     """One detector as a table row shows it."""
 
@@ -1096,6 +1113,7 @@ __all__ = [
     "ConfigView",
     "CostReport",
     "CredentialFieldSpec",
+    "DetectionState",
     "DetectorRecord",
     "DiagnosticCheck",
     "DiagnosticReport",

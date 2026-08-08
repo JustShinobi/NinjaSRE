@@ -56,6 +56,7 @@ from surfaces.cli.models import (
     ConfigView,
     CostReport,
     CredentialFieldSpec,
+    DetectionState,
     DetectorRecord,
     DiagnosticReport,
     DryRunRecord,
@@ -236,6 +237,9 @@ class PlatformClient(Protocol):
     ) -> IncidentRecord:
         """Close an incident as suppressed, naming what covered it."""
 
+    async def detection_state(self) -> DetectionState:
+        """Return whether detection is paused for this team, and why."""
+
     async def list_detectors(self) -> tuple[DetectorRecord, ...]:
         """Return every declared detector and what it concludes now."""
 
@@ -408,6 +412,9 @@ class LocalServices(Protocol):
     ) -> IncidentRecord:
         """Close an incident as suppressed, naming what covered it."""
 
+    async def detection_state(self) -> DetectionState:
+        """Return whether detection is paused for this team, and why."""
+
     async def detectors(self) -> tuple[DetectorRecord, ...]:
         """Return every declared detector, its coverage, and what it concludes now."""
 
@@ -565,6 +572,10 @@ class LocalClient:
     ) -> IncidentRecord:
         """Close an incident as suppressed, naming what covered it."""
         return await self.services.suppress_incident(incident_id, rule=rule, reason=reason)
+
+    async def detection_state(self) -> DetectionState:
+        """Return whether detection is paused for this team, and why."""
+        return await self.services.detection_state()
 
     async def list_detectors(self) -> tuple[DetectorRecord, ...]:
         """Return every declared detector and what it concludes now."""
@@ -969,6 +980,18 @@ class RemoteClient:
                 f"/v1/incidents/{incident_id}/suppress",
                 {"rule": rule, "reason": reason},
             )
+        )
+
+    async def detection_state(self) -> DetectionState:
+        """Return whether detection is paused for this team, and why.
+
+        Read off the detector listing rather than from a route of its own: the
+        deployment already says it there, and a second endpoint would be a
+        second thing to keep in step.
+        """
+        payload = self._document("GET", "/v1/detectors")
+        return DetectionState(
+            paused=bool(payload.get("paused")), reason=_text(payload, "pause_reason")
         )
 
     async def list_detectors(self) -> tuple[DetectorRecord, ...]:

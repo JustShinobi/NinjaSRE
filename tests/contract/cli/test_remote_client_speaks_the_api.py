@@ -519,6 +519,7 @@ def test_detectors_are_listed_toggled_and_dry_run(
 
     assert [entry.detector_id for entry in listed] == ["datastore-near-full"]
     assert listed[0].signal == "storage.used_percent"
+    assert not asyncio.run(remote.detection_state()).paused
     assert [entry.subject for entry in seen] == ["store-cove"]
     assert run.would_fire
     assert not run.fired
