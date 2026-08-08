@@ -72,6 +72,9 @@ class OpsgenieAcknowledgeIncidentRollback:
     # Above read_sensitive, so approval and a rollback plan are not optional —
     # the metadata refuses to be constructed without both.
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # It changes one incident record in somebody else's tool, is undone by
+    # un-acknowledging it, and nothing in the estate is touched.
+    risk_class="low",
     parallel_safe=False,
     requires=Requirements(integrations=(INTEGRATION,)),
     requires_approval=True,

@@ -15,12 +15,20 @@ The order is the specification, not an implementation detail:
 2. **The classification**, from the capability's declared side-effect level
    against the organisation's policy. A capability with no declaration is a
    write, always; absence is never permission.
-3. **The allow-list**, evaluated against *now*.
+3. **The autonomy decision**, from the policy engine: the resolved level, its
+   explanation, and the bounds no level overrides.
 4. **The approval**, raised through feature 015's machinery, with the loop
    suspended while a human decides.
 5. **The plan**, persisted before anything executes.
 6. **The conditions again**, at execution time, because an approval can sit
    pending while the blast radius changes underneath it.
+
+**When a policy engine is wired, it is the decision.** The autonomous allow-list
+stays as the mechanism for a deployment that has not configured one, and the two
+are never consulted together: two mechanisms that can each grant autonomy is a
+posture nobody chose, arrived at by union. The engine decides between running,
+asking and refusing; asking is implemented here, with the machinery that already
+exists for it.
 
 **A refusal is a value, not an exception.** ``Deny`` goes back to the model
 classified ``APPROVAL_REQUIRED`` or ``PERMISSION_DENIED``, and the difference
@@ -45,6 +53,9 @@ from core.capability.result import CapabilityErrorClass
 from core.llm.types import ToolCall
 from platform.approvals.models import ChangeState, PendingChange
 from platform.approvals.policy import SecurityPolicy
+from platform.autonomy.decision import AutonomyGate, Outcome
+from platform.autonomy.risk import risk_class_of
+from platform.autonomy.subjects import ProposedAction, Subject
 from platform.observability.logging import get_logger
 from platform.remediation.autonomy.evaluation import ConditionEvaluator
 from platform.remediation.autonomy.kill_switch import KillSwitch
@@ -184,6 +195,9 @@ class RemediationGate:
     requests: RequestBuilder
     executor: RemediationExecutor
     kill_switch: KillSwitch = field(default_factory=KillSwitch)
+    #: The policy engine. When it is here it is the decision; the allow-list
+    #: below is what a deployment that has not configured one still has.
+    autonomy: AutonomyGate | None = None
     evaluator: ConditionEvaluator | None = None
     waiter: DecisionWaiter | None = None
     policy: GatingPolicy = field(default_factory=GatingPolicy)
@@ -240,6 +254,8 @@ class RemediationGate:
             )
 
         try:
+            if self.autonomy is not None:
+                return await self._by_policy(action, self.autonomy)
             autonomous = await self._autonomous(action)
             if autonomous:
                 return await self._execute(action, approval_id="", autonomous=True)
@@ -251,6 +267,42 @@ class RemediationGate:
                 reason=str(refused),
                 classification=_classification_of(refused),
             )
+
+    async def _by_policy(self, action: RemediationAction, autonomy: AutonomyGate) -> GateOutcome:
+        """Return what the policy engine decided, having done what it decided.
+
+        The engine answers one of five things and this maps each to what this
+        package can do about it. A refusal and a simulation both come back as
+        denials carrying the explanation; asking and proposing both go through
+        the approval machinery, because in this deployment "propose it to a
+        human" *is* an approval request with the operation on it.
+        """
+        proposed = _proposed(action)
+        decision = await autonomy.decide(proposed)
+        await autonomy.record(decision)
+
+        if decision.outcome is Outcome.EXECUTE:
+            outcome = await self._execute(action, approval_id="", autonomous=True)
+            await autonomy.spend(proposed)
+            return outcome
+
+        if decision.outcome is Outcome.SIMULATE:
+            return GateOutcome(
+                capability=action.capability,
+                permitted=False,
+                reason=decision.reason,
+                classification=CapabilityErrorClass.PERMISSION_DENIED,
+            )
+
+        if decision.outcome is Outcome.REFUSE:
+            return GateOutcome(
+                capability=action.capability,
+                permitted=False,
+                reason=decision.reason,
+                classification=CapabilityErrorClass.PERMISSION_DENIED,
+            )
+
+        return await self._through_approval(action, because=decision.reason)
 
     async def _autonomous(self, action: RemediationAction) -> bool:
         """Return whether an allow-list entry permits this action right now."""
@@ -265,17 +317,26 @@ class RemediationGate:
         evaluation.raise_if_refused()
         return False
 
-    async def _through_approval(self, action: RemediationAction) -> GateOutcome:
-        """Queue the approval, suspend until it is decided, and execute if it was."""
+    async def _through_approval(
+        self, action: RemediationAction, *, because: str = ""
+    ) -> GateOutcome:
+        """Queue the approval, suspend until it is decided, and execute if it was.
+
+        ``because`` carries the policy engine's explanation through to the model
+        and the trace. "It is waiting on a human" is true and unhelpful; "it is
+        waiting because this resource's rule is propose-only" is what somebody
+        acts on.
+        """
         request = await self.requests.queue(action, waiver=self.waiver)
         if self.waiter is None or not request.change_id:
+            explanation = f" {because}" if because else ""
             return GateOutcome(
                 capability=action.capability,
                 permitted=False,
                 approval_id=request.change_id,
                 reason=(
                     f"{action.capability} on {action.target} is waiting on a human "
-                    f"approval. The investigation continues without it."
+                    f"approval.{explanation} The investigation continues without it."
                 ),
             )
 
@@ -353,6 +414,9 @@ class RemediationGate:
             evidence=_evidence_of(context),
             run_id=self.run.run_id or context.session.id,
             team_node_id=self.run.team_node_id,
+            risk_class=context.registered.metadata.risk_class,
+            rollback_planned=_has_rollback(context),
+            operation=_operation_of(context.capability, arguments),
         )
 
 
@@ -361,6 +425,55 @@ class RemediationGate:
 #: condition rather than pass it, because the alternative is autonomy granted on
 #: the strength of an extension nobody installed.
 _UNKNOWN_RADIUS = 1_000_000
+
+
+def _proposed(action: RemediationAction) -> ProposedAction:
+    """Return ``action`` as the policy engine's own value.
+
+    One subject, from the target. A remediation action names one thing today;
+    the engine takes a set because draining a node is an action over every guest
+    on it, and a translation that could only ever produce one would be the place
+    that had to change when the first multi-subject capability lands.
+    """
+    return ProposedAction(
+        action_id=action.action_id,
+        capability=action.capability,
+        subjects=(
+            Subject(
+                resource_id=action.target.identifier,
+                kind=action.target.kind,
+                labels={ENVIRONMENT_ARGUMENT: action.target.environment}
+                if action.target.environment
+                else {},
+                team_node_id=action.team_node_id or "",
+            ),
+        ),
+        risk_class=risk_class_of(action.risk_class),
+        has_rollback_plan=action.rollback_planned,
+        requester=action.requester,
+        intent=action.intent,
+        run_id=action.run_id,
+        team_node_id=action.team_node_id or "",
+        operation=action.operation,
+    )
+
+
+def _has_rollback(context: ToolContext) -> bool:
+    """Return whether this capability can produce a plan for undoing itself."""
+    metadata = context.registered.metadata
+    return bool(metadata.rollback_planner is not None or metadata.rollback_plan.strip())
+
+
+def _operation_of(capability: str, arguments: Mapping[str, Any]) -> str:
+    """Return the operation a person could run instead, as one readable line.
+
+    Rendered from the call rather than declared per capability. A table of
+    per-capability command templates would drift from the capabilities, and the
+    argument list *is* what a person needs — the proposal is a handover, not a
+    press release.
+    """
+    listed = ", ".join(f"{name}={value!r}" for name, value in sorted(arguments.items()))
+    return f"{capability}({listed})"
 
 
 def _target_of(arguments: Mapping[str, Any], *, fallback: str) -> str:

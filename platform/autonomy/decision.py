@@ -198,10 +198,7 @@ class AutonomyGate:
 
         if decision.outcome is Outcome.EXECUTE:
             result = await actuator.perform(action)
-            spent = await spend_budgets(
-                action, self.policies.budgets, at=self.clock(), ledger=self.ledger
-            )
-            decision = _with_execution(decision, result=result, spent=spent)
+            decision = _with_execution(decision, result=result, spent=await self.spend(action))
         elif decision.outcome is Outcome.SIMULATE:
             _LOG.info(
                 "autonomy.simulated",
@@ -212,6 +209,20 @@ class AutonomyGate:
 
         await self.record(decision)
         return decision
+
+    async def spend(self, action: ProposedAction) -> tuple[str, ...]:
+        """Record one spend against every budget covering ``action``, and name them.
+
+        Public because ``run`` is not the only caller: a deployment whose
+        actuator lives behind its own machinery decides here and performs there,
+        and the budget has to be spent by whoever actually made the change.
+        Spending happens *after* the change, never at the point of permission —
+        a permitted action that something further down refused would otherwise
+        make the limit bound attempts rather than changes.
+        """
+        return await spend_budgets(
+            action, self.policies.budgets, at=self.clock(), ledger=self.ledger
+        )
 
     async def record(self, decision: Decision) -> None:
         """Write ``decision`` to the audit trail, whichever way it went."""

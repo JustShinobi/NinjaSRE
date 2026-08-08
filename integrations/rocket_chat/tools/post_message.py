@@ -72,6 +72,10 @@ class RocketChatPostMessageRollback:
     # Above read_sensitive, so approval and a rollback plan are not optional —
     # the metadata refuses to be constructed without both.
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # A message is read the moment it is sent, so deleting it is a further action
+    # that does not unsend it — and a channel is a room full of people rather
+    # than one resource.
+    risk_class="moderate",
     parallel_safe=False,
     requires=Requirements(integrations=(INTEGRATION,)),
     requires_approval=True,

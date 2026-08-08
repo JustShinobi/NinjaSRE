@@ -234,6 +234,18 @@ class RemediationAction:
     evidence: tuple[RemediationEvidence, ...] = ()
     run_id: str = ""
     team_node_id: str | None = None
+    #: The capability's declared risk class, carried rather than looked up. The
+    #: policy engine resolves against it, and an approval that was queued and
+    #: comes back an hour later must be decided against the class the capability
+    #: declared when it was proposed rather than whatever it says now.
+    risk_class: str = ""
+    #: Whether a rollback plan exists for this capability at all. An action with
+    #: none requires approval at every autonomy level, so a decision that could
+    #: not answer it is one that cannot be made.
+    rollback_planned: bool = False
+    #: The exact operation a person could run instead, when the capability can
+    #: render one. What a proposal is for.
+    operation: str = ""
 
     def __post_init__(self) -> None:
         if not self.action_id:
@@ -272,6 +284,9 @@ class RemediationAction:
             "intent": self.intent,
             "run_id": self.run_id,
             "team_node_id": self.team_node_id,
+            "risk_class": self.risk_class,
+            "rollback_planned": self.rollback_planned,
+            "operation": self.operation,
         }
 
     @classmethod
@@ -292,6 +307,9 @@ class RemediationAction:
             ),
             run_id=str(payload.get("run_id", "")),
             team_node_id=str(team) if team else None,
+            risk_class=str(payload.get("risk_class", "")),
+            rollback_planned=bool(payload.get("rollback_planned", False)),
+            operation=str(payload.get("operation", "")),
         )
 
 
