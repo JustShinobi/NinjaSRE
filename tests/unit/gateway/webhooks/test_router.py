@@ -300,7 +300,10 @@ async def test_a_resolution_is_linked_to_its_investigation(
     )
 
     assert response.status_code == 202
-    assert response.json() == {"resolution": "linked", "run_id": run_id}
+    assert response.json()["resolution"] == "linked"
+    assert response.json()["run_id"] == run_id
+    # And the incident the firing alert opened is the one the resolution closed.
+    assert response.json()["incident_id"] == started.json()["incident_id"]
 
 
 async def test_a_resolution_with_no_matching_investigation_is_recorded_standalone(
@@ -318,7 +321,10 @@ async def test_a_resolution_with_no_matching_investigation_is_recorded_standalon
     )
 
     assert response.status_code == 202
-    assert response.json() == {"resolution": "standalone", "linked": False}
+    assert response.json()["resolution"] == "standalone"
+    assert response.json()["linked"] is False
+    # Nothing to close, because nothing was ever opened for this cause.
+    assert response.json()["incident_id"] is None
 
 
 async def test_a_1000_event_storm_is_bounded_with_a_complete_shed_record(

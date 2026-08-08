@@ -1,11 +1,21 @@
-"""The webhook endpoint: verify, dedupe, shed, normalise, and start or link an investigation.
+"""The webhook endpoint: verify, dedupe, shed, normalise, and raise an incident.
 
-Follows the plan's flow exactly: payload cap, then verification, then
-idempotency, then team routing (verification and routing are the same step
-here — see ``WebhookSourceConfig``), then the rate limiter, then
-normalisation, then deduplication, and only then a run. Every rejection along
-the way is a 4xx with a named reason; nothing is dropped without a trace of
-why (FR-020).
+The flow is a payload cap, then verification, then idempotency, then team
+routing (verification and routing are the same step here — see
+``WebhookSourceConfig``), then the rate limiter, then normalisation, then
+deduplication, and only then an incident. Every rejection along the way is a
+4xx with a named reason; nothing is dropped without a trace of why.
+
+**An ingested alert becomes an incident, not an ``Alert``.** This route used to
+start a run directly, and the investigation was the only record that anything
+had arrived. It now goes through the same lifecycle a detected condition does,
+so a webhook alert and a detector firing produce structurally identical
+incidents and nothing downstream has two cases to handle. The run is attached to
+the incident rather than standing in for it.
+
+**A resolution closes the incident the firing alert opened.** The upstream's own
+fingerprint is the correlation key, so the two find each other without this
+deployment holding a second opinion about which alerts are the same alert.
 """
 
 from __future__ import annotations
@@ -20,7 +30,7 @@ from fastapi import APIRouter, Request, Response
 
 from config.constants.runs import TRIGGER_ALERT
 from config.constants.surfaces import WEBHOOK_MAX_PAYLOAD_BYTES
-from core.domain.alerts.normalisation import RawAlert, adapter_for
+from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, adapter_for
 from gateway.http.errors import ApiProblem
 from gateway.http.orchestration import start_investigation
 from gateway.http.state import GatewayState
@@ -35,7 +45,11 @@ from gateway.webhooks.sources import (
     sentry,
 )
 from gateway.webhooks.sources.profile import WebhookSourceProfile
+from platform.incidents.dispatch import objective_for
+from platform.incidents.ingestion import raise_for_alert, resolution_key
+from platform.incidents.lifecycle import IncidentLifecycle
 from platform.observability.logging import get_logger
+from platform.persistence.ports.incident_store import Incident
 from platform.persistence.ports.transaction import TenantScope
 from platform.runs.events import TraceEventKind
 from platform.runs.recorder import RunRecorder
@@ -175,46 +189,117 @@ def _handler(
         if alert.resolved:
             state.webhook_idempotency.record(path_name, event_id)
             return await _handle_resolution(
-                state, scope=scope, linked_run=linked_run, alert_name=alert.alert_name
+                state,
+                scope=scope,
+                linked_run=linked_run,
+                alert_name=alert.alert_name,
+                correlation_key=resolution_key(source=profile.source.value, fingerprint=key),
             )
 
         state.webhook_idempotency.record(path_name, event_id)
+        incident = await _raise_incident(
+            state, scope=scope, alert=alert, source=profile.source.value, key=key, matched=matched
+        )
+
         if linked_run is not None:
-            return _ack({"run_id": linked_run, "linked": True})
+            return _ack({"run_id": linked_run, "incident_id": incident.incident_id, "linked": True})
 
         run_id = await start_investigation(
             state,
             scope=scope,
             trigger=TRIGGER_ALERT,
-            objective=f"{alert.alert_name}: {alert.summary}".strip(": "),
+            objective=objective_for(incident),
             principal_id=matched.principal_id,
             alert_source=profile.source.value,
             alert_id=key,
         )
         state.webhook_dedup.link(key, run_id)
-        return _ack({"run_id": run_id, "linked": False})
+        async with state.gateway.begin(scope) as uow:
+            await IncidentLifecycle(store=uow.incidents).attach_run(
+                incident.incident_id,
+                run_id,
+                objective=objective_for(incident),
+                now=_utc_now(),
+            )
+        return _ack({"run_id": run_id, "incident_id": incident.incident_id, "linked": False})
 
     return handle
 
 
+async def _raise_incident(
+    state: GatewayState,
+    *,
+    scope: TenantScope,
+    alert: NormalisedAlert,
+    source: str,
+    key: str,
+    matched: WebhookSourceConfig,
+) -> Incident:
+    """Raise — or correlate onto — the incident this alert belongs to.
+
+    Through the same lifecycle a detected condition uses. There is no second
+    constructor here and no ``Alert`` record: the whole point of the
+    unification is that everything downstream sees one kind of thing.
+    """
+    async with state.gateway.begin(scope) as uow:
+        return await IncidentLifecycle(store=uow.incidents).raise_incident(
+            raise_for_alert(
+                source=source,
+                fingerprint=key,
+                alert_name=alert.alert_name,
+                summary=alert.summary,
+                description=alert.description,
+                severity=alert.severity.value,
+                components=alert.components,
+                team_node_id=matched.team_node_id,
+                reference=alert.reference,
+                actor=matched.principal_id,
+            ),
+            now=_utc_now(),
+        )
+
+
 async def _handle_resolution(
-    state: GatewayState, *, scope: TenantScope, linked_run: str | None, alert_name: str
+    state: GatewayState,
+    *,
+    scope: TenantScope,
+    linked_run: str | None,
+    alert_name: str,
+    correlation_key: str,
 ) -> Response:
-    """Link a resolution to its investigation where one exists (FR-019)."""
+    """Close the incident the firing alert opened, and tell its run about it.
+
+    The incident closes whether or not a run was linked. An upstream that has
+    gone green and a deployment still showing the incident open is the
+    disagreement this closes; recording it only on the run would leave the
+    incident list wrong.
+    """
+    closed: str | None = None
+    async with state.gateway.begin(scope) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await uow.incidents.open_for(correlation_key)
+        if incident is not None:
+            await lifecycle.self_close(
+                incident.incident_id,
+                cause=f"{alert_name or 'the alert'} was resolved upstream",
+                now=_utc_now(),
+            )
+            closed = incident.incident_id
+
+        if linked_run is not None:
+            recorder = RunRecorder(
+                store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
+            )
+            await recorder.record_event(
+                linked_run,
+                TraceEventKind.EVIDENCE_OBSERVED,
+                payload={"resolution": True, "alert_name": alert_name},
+            )
+
     if linked_run is None:
         logger.info("webhooks.resolution_without_investigation", alert_name=alert_name)
-        return _ack({"resolution": "standalone", "linked": False})
-
-    async with state.gateway.begin(scope) as uow:
-        recorder = RunRecorder(
-            store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
-        )
-        await recorder.record_event(
-            linked_run,
-            TraceEventKind.EVIDENCE_OBSERVED,
-            payload={"resolution": True, "alert_name": alert_name},
-        )
-    return _ack({"resolution": "linked", "run_id": linked_run})
+        return _ack({"resolution": "standalone", "linked": False, "incident_id": closed})
+    return _ack({"resolution": "linked", "run_id": linked_run, "incident_id": closed})
 
 
 def _ack(body: Mapping[str, object]) -> Response:
