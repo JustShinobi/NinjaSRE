@@ -31,6 +31,7 @@ from typing import Any
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -769,6 +770,36 @@ class DiscoverySweep(Base):
     reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
+class SignalRow(Base):
+    """One observation about one resource, at one instant, from one source.
+
+    The primary key is the derived signal id rather than a surrogate, which is
+    what makes an append idempotent without a read first: a poller that retried
+    upserts its own row. The age index is what the retention sweep walks, and
+    it is deliberately not tenant-scoped — the sweep runs across the deployment
+    and a per-tenant index would be scanned once per organisation.
+    """
+
+    __tablename__ = "observation_signals"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_signals_window", "org_id", "name", "resource_id", "observed_at"),
+        Index("ix_signals_age", "observed_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    signal_id: Mapped[str] = _id()
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    state: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    labels: Mapped[dict[str, Any]] = _json()
+
+
 #: Read-only view of the ciphertext, for the decryptability probe. Declared
 #: separately rather than as a second mapped attribute because SQLAlchemy would
 #: apply the column type to both.
@@ -800,6 +831,7 @@ __all__ = [
     "RunTurn",
     "ScheduledJob",
     "Session",
+    "SignalRow",
     "ToolCall",
     "User",
     "VectorGenerationRow",

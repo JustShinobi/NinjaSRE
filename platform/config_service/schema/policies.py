@@ -27,6 +27,16 @@ from typing import Annotated, Final, Literal
 
 from pydantic import Field, field_validator
 
+from config.constants.notifications import SEVERITY_HIGH
+from config.constants.observation import (
+    DEFAULT_DETECTOR_DURATION_SECONDS,
+    DETECTOR_COMPARISON_ABOVE,
+    DETECTOR_COMPARISONS,
+    DETECTOR_CONDITION_KINDS,
+    DETECTOR_GROUPING_DETECTOR,
+    DETECTOR_GROUPINGS,
+    DETECTOR_KIND_THRESHOLD,
+)
 from config.constants.security import (
     DEFAULT_MASKING_POLICY,
     MASKING_POLICY_LEVELS,
@@ -36,6 +46,7 @@ from config.constants.security import (
 from platform.config_service.schema.types import (
     ConfigSection,
     ConfiguredFloat,
+    ConfiguredInt,
     ConfiguredStr,
     ConfiguredStrList,
 )
@@ -158,6 +169,82 @@ class ApprovalPolicySettings(ConfigSection):
         )
 
 
+class DetectorSettings(ConfigSection):
+    """One detector, as a team declares it.
+
+    Deliberately flat and deliberately small. A detector is configuration so
+    that a team can add one without new code; making it *expressive* would make
+    it a second programming language, which is the risk the observation plan
+    names and this shape is the mitigation. Four condition kinds, two numbers,
+    two durations, and no expression field.
+
+    Validated twice: here for shape, and again when it is turned into a
+    declaration, which is where the cross-field rules live — a clear value on
+    the wrong side of the firing value cannot be caught one field at a time.
+    """
+
+    #: Both required. A detector with no identifier cannot be enabled, disabled
+    #: or referred to in an incident, and one with no signal reads nothing.
+    detector_id: ConfiguredStr
+    signal: ConfiguredStr
+    name: ConfiguredStr = ""
+    description: ConfiguredStr = ""
+    kind: ConfiguredStr = DETECTOR_KIND_THRESHOLD
+    comparison: ConfiguredStr = DETECTOR_COMPARISON_ABOVE
+    resource_kinds: ConfiguredStrList = ()
+    fire_value: ConfiguredFloat = 0.0
+    clear_value: ConfiguredFloat = 0.0
+    silent_after_seconds: Annotated[ConfiguredInt, Field(ge=0)] = 0
+    to_state: ConfiguredStr = ""
+    from_state: ConfiguredStr = ""
+    for_seconds: Annotated[ConfiguredInt, Field(ge=1)] = DEFAULT_DETECTOR_DURATION_SECONDS
+    recovery_seconds: Annotated[ConfiguredInt, Field(ge=1)] = DEFAULT_DETECTOR_DURATION_SECONDS
+    severity: ConfiguredStr = SEVERITY_HIGH
+    grouping_key: ConfiguredStr = DETECTOR_GROUPING_DETECTOR
+    enabled: bool = True
+    capabilities: ConfiguredStrList = ()
+
+    @field_validator("kind")
+    @classmethod
+    def _known_kind(cls, value: str) -> str:
+        """Refuse a condition kind the evaluator does not implement."""
+        if value not in DETECTOR_CONDITION_KINDS:
+            raise ValueError(
+                f"must be one of {', '.join(DETECTOR_CONDITION_KINDS)}; found {value!r}"
+            )
+        return value
+
+    @field_validator("comparison")
+    @classmethod
+    def _known_comparison(cls, value: str) -> str:
+        """Refuse a comparison that is neither side of the threshold."""
+        if value not in DETECTOR_COMPARISONS:
+            raise ValueError(f"must be one of {', '.join(DETECTOR_COMPARISONS)}; found {value!r}")
+        return value
+
+    @field_validator("grouping_key")
+    @classmethod
+    def _known_grouping(cls, value: str) -> str:
+        """Refuse a grouping the correlation engine cannot apply."""
+        if value not in DETECTOR_GROUPINGS:
+            raise ValueError(f"must be one of {', '.join(DETECTOR_GROUPINGS)}; found {value!r}")
+        return value
+
+
+class ObservationPolicySettings(ConfigSection):
+    """What this team watches for, and whether it is watching at all.
+
+    ``paused`` is the global stop. It suppresses every detector this node
+    resolves without unconfiguring any of them, so an operator who needs the
+    deployment to stop opening incidents during a migration does not have to
+    delete the detectors and remember to put them back.
+    """
+
+    detectors: tuple[DetectorSettings, ...] = ()
+    paused: bool = False
+    pause_reason: ConfiguredStr = ""
+
+
 class PoliciesConfig(ConfigSection):
     """Every policy switch, in one section."""
 
@@ -167,6 +254,7 @@ class PoliciesConfig(ConfigSection):
     masking: MaskingPolicySettings = MaskingPolicySettings()
     guardrails: GuardrailPolicySettings = GuardrailPolicySettings()
     approvals: ApprovalPolicySettings = ApprovalPolicySettings()
+    observation: ObservationPolicySettings = ObservationPolicySettings()
 
     def ablation_summary(self) -> Mapping[str, object]:
         """Return what a run trace records about how learning was configured.
@@ -193,12 +281,15 @@ KNOWLEDGE_FIELDS: tuple[str, ...] = tuple(KnowledgePolicySettings.model_fields)
 MASKING_FIELDS: tuple[str, ...] = tuple(MaskingPolicySettings.model_fields)
 GUARDRAILS_FIELDS: tuple[str, ...] = tuple(GuardrailPolicySettings.model_fields)
 APPROVALS_FIELDS: tuple[str, ...] = tuple(ApprovalPolicySettings.model_fields)
+OBSERVATION_FIELDS: tuple[str, ...] = tuple(ObservationPolicySettings.model_fields)
+DETECTOR_FIELDS: tuple[str, ...] = tuple(DetectorSettings.model_fields)
 CUSTOM_PATTERN_FIELDS: tuple[str, ...] = tuple(CustomMaskingPattern.model_fields)
 
 
 __all__ = [
     "APPROVALS_FIELDS",
     "CUSTOM_PATTERN_FIELDS",
+    "DETECTOR_FIELDS",
     "GUARDRAILS_FIELDS",
     "GUARDRAIL_MODES",
     "GUARDRAIL_MODE_ENFORCING",
@@ -207,14 +298,17 @@ __all__ = [
     "KNOWLEDGE_FIELDS",
     "MASKING_FIELDS",
     "MEMORY_FIELDS",
+    "OBSERVATION_FIELDS",
     "POLICIES_FIELDS",
     "STRATEGY_FIELDS",
     "ApprovalPolicySettings",
     "CustomMaskingPattern",
+    "DetectorSettings",
     "GuardrailPolicySettings",
     "KnowledgePolicySettings",
     "MaskingPolicySettings",
     "MemoryPolicySettings",
+    "ObservationPolicySettings",
     "PoliciesConfig",
     "StrategyPolicySettings",
 ]

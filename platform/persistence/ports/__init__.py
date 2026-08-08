@@ -1,4 +1,4 @@
-"""The thirteen repository ports, and the unit of work that composes them.
+"""The fourteen repository ports, and the unit of work that composes them.
 
 This package is the whole export surface of NinjaSRE's storage layer. Everything
 above tier 3 imports from here and from nowhere else in ``persistence/``: the
@@ -6,7 +6,7 @@ Postgres implementation, the in-memory fakes, and any future backend are
 details, and a caller that named one would be the reason the second could not be
 written.
 
-The thirteen, and what each owns:
+The fourteen, and what each owns:
 
 ===========================  ==================================================
 ``ConfigRepository``         the org/team/service hierarchy and its config
@@ -22,9 +22,10 @@ The thirteen, and what each owns:
 ``ScheduleStore``            scheduled job definitions
 ``CredentialStore``          encrypted credentials
 ``EstateRepository``         discovered resources, their health, their history
+``SignalStore``              the observation history the detectors read
 ===========================  ==================================================
 
-They are reached through ``UnitOfWork``, which binds all thirteen to one
+They are reached through ``UnitOfWork``, which binds all fourteen to one
 transaction and one tenant. Read ``transaction`` first: it explains why the
 ports take no organisation argument, and that fact is the one most likely to
 surprise somebody adding a method here.
@@ -126,6 +127,12 @@ from platform.persistence.ports.schedule_store import (
     ScheduleStore,
 )
 from platform.persistence.ports.session_store import SessionRecord, SessionStore
+from platform.persistence.ports.signal_store import (
+    Signal,
+    SignalKind,
+    SignalQuery,
+    SignalStore,
+)
 from platform.persistence.ports.topology_graph import (
     BlastRadius,
     BlastRadiusEntry,
@@ -216,6 +223,10 @@ __all__ = [
     "SecretValue",
     "SessionRecord",
     "SessionStore",
+    "Signal",
+    "SignalKind",
+    "SignalQuery",
+    "SignalStore",
     "SimilarityMatch",
     "StoreHealth",
     "StoredStrategy",

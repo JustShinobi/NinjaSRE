@@ -48,6 +48,7 @@ from platform.persistence.fakes.retention import FakeRetentionSweeper
 from platform.persistence.fakes.run_trace_store import FakeRunTraceStore
 from platform.persistence.fakes.schedule_store import FakeJobDispatcher, FakeScheduleStore
 from platform.persistence.fakes.session_store import FakeSessionStore
+from platform.persistence.fakes.signal_store import FakeSignalStore
 from platform.persistence.fakes.state import State, TenantState
 from platform.persistence.fakes.topology_graph import FakeTopologyGraph
 from platform.persistence.fakes.vector_index import FakeVectorIndex
@@ -72,7 +73,7 @@ FAKE_HEAD_REVISION = "in-memory"
 
 @dataclass(slots=True)
 class FakeUnitOfWork:
-    """Thirteen repositories over one tenant's slice of one snapshot."""
+    """Fourteen repositories over one tenant's slice of one snapshot."""
 
     scope: TenantScope
     state: State
@@ -142,6 +143,11 @@ class FakeUnitOfWork:
     def estate(self) -> FakeEstateRepository:
         """Return the discovered-resource inventory and its health history."""
         return FakeEstateRepository(self.scope.org_id, self._tenant)
+
+    @property
+    def signals(self) -> FakeSignalStore:
+        """Return the observation history the detectors read."""
+        return FakeSignalStore(self.scope.org_id, self._tenant)
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""

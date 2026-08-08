@@ -51,6 +51,7 @@ from platform.persistence.ports.run_trace_store import (
 )
 from platform.persistence.ports.schedule_store import JobClaim, ScheduledJob
 from platform.persistence.ports.session_store import SessionRecord
+from platform.persistence.ports.signal_store import Signal
 from platform.persistence.ports.topology_graph import TopologyEdge, TopologyNode
 from platform.persistence.ports.vector_index import IndexDescriptor, VectorRecord
 
@@ -194,6 +195,9 @@ class TenantState:
     health_transitions: dict[str, HealthTransition] = field(default_factory=dict)
     resource_references: dict[ReferenceKey, ResourceReference] = field(default_factory=dict)
     sweeps: dict[str, SweepRecord] = field(default_factory=dict)
+    #: Keyed by the derived signal id rather than appended to, which is what
+    #: makes a retried poll one sample instead of two.
+    signals: dict[str, Signal] = field(default_factory=dict)
 
 
 @dataclass

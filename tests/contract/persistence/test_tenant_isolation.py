@@ -41,6 +41,9 @@ from platform.persistence.ports import (
     ScheduledJob,
     SecretValue,
     SessionRecord,
+    Signal,
+    SignalKind,
+    SignalQuery,
     StoredStrategy,
     SweepOutcome,
     SweepRecord,
@@ -50,6 +53,7 @@ from platform.persistence.ports import (
     UnitOfWork,
     User,
 )
+from platform.persistence.ports.signal_store import signal_key
 
 pytestmark = pytest.mark.contract
 
@@ -70,12 +74,13 @@ TENANT_SCOPED_PORTS = frozenset(
         "schedules",
         "credentials",
         "estate",
+        "signals",
     }
 )
 
 
 async def write_one_of_everything(uow: UnitOfWork) -> None:
-    """Write a record through all thirteen tenant-scoped ports."""
+    """Write a record through all fourteen tenant-scoped ports."""
     await uow.config.upsert(
         ConfigNode(
             node_id="payments",
@@ -180,6 +185,20 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
             seen_count=1,
         )
     )
+    await uow.signals.append(
+        [
+            Signal(
+                signal_id=signal_key("storage.used_percent", "res-1", at()),
+                name="storage.used_percent",
+                resource_id="res-1",
+                source="poller:proxmox",
+                kind=SignalKind.NUMBER,
+                observed_at=at(),
+                value=91.0,
+                interval_seconds=60,
+            )
+        ]
+    )
 
 
 @pytest.fixture
@@ -199,6 +218,9 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.estate.transitions("res-1") == ()
         assert await uow.estate.references("res-1") == ()
         assert await uow.estate.last_sweep("proxmox") is None
+        assert await uow.signals.window(SignalQuery()) == ()
+        assert await uow.signals.latest() == ()
+        assert await uow.signals.prune(before=at(10)) == 0
         assert (
             await uow.estate.mark_absent(source="proxmox", seen_ids=frozenset(), at=at(10))
         ) == ()
@@ -293,6 +315,7 @@ async def test_the_first_tenant_still_has_everything(
         assert await uow.episodes.list_strategies(team_node_id="payments") != ()
         assert await uow.credentials.get_metadata("slack-bot-token") is not None
         assert await uow.estate.get("res-1") is not None
+        assert len(await uow.signals.latest()) == 1
 
 
 def test_every_tenant_scoped_port_is_covered() -> None:

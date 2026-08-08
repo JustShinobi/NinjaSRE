@@ -59,6 +59,7 @@ from platform.persistence.postgres.repositories.schedule_store import (
     PostgresScheduleStore,
 )
 from platform.persistence.postgres.repositories.session_store import PostgresSessionStore
+from platform.persistence.postgres.repositories.signal_store import PostgresSignalStore
 from platform.persistence.postgres.repositories.topology_graph import PostgresTopologyGraph
 from platform.persistence.postgres.repositories.vector_index import PostgresVectorIndex
 
@@ -75,7 +76,7 @@ class _RollbackOnly(Exception):
 
 @dataclass(slots=True)
 class PostgresUnitOfWork:
-    """Twelve repositories over one session and one tenant."""
+    """Fourteen repositories over one session and one tenant."""
 
     scope: TenantScope
     session: AsyncSession
@@ -146,6 +147,11 @@ class PostgresUnitOfWork:
     def estate(self) -> PostgresEstateRepository:
         """Return the discovered-resource inventory and its health history."""
         return PostgresEstateRepository(self.scope.org_id, self.session)
+
+    @property
+    def signals(self) -> PostgresSignalStore:
+        """Return the observation history the detectors read."""
+        return PostgresSignalStore(self.scope.org_id, self.session)
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""
