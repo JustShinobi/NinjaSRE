@@ -66,6 +66,7 @@ from platform.remediation.errors import (
     RemediationError,
 )
 from platform.remediation.execution import Execution, RemediationExecutor
+from platform.remediation.guards import PERMITTED, AutonomyGuards, Guard
 from platform.remediation.models import (
     RemediationAction,
     RemediationEvidence,
@@ -198,6 +199,12 @@ class RemediationGate:
     #: The policy engine. When it is here it is the decision; the allow-list
     #: below is what a deployment that has not configured one still has.
     autonomy: AutonomyGate | None = None
+    #: What the closed loop knows that stops the next unattended action: a
+    #: resource whose rollback failed, a repetition that has become a pattern,
+    #: and a capability whose effect nobody can measure. All three downgrade to
+    #: an approval rather than refusing, because every one of them is a reason
+    #: the deployment should stop deciding and none is a reason a person may not.
+    guards: AutonomyGuards | None = None
     evaluator: ConditionEvaluator | None = None
     waiter: DecisionWaiter | None = None
     policy: GatingPolicy = field(default_factory=GatingPolicy)
@@ -254,6 +261,14 @@ class RemediationGate:
             )
 
         try:
+            guard = await self._guarded(action)
+            if not guard.permitted:
+                # Downgraded rather than refused: the deployment stops deciding
+                # on its own, and a person can still act — which matters most
+                # for a suspended resource, because that is precisely the one
+                # somebody has to be able to fix.
+                return await self._through_approval(action, because=guard.reason)
+
             if self.autonomy is not None:
                 return await self._by_policy(action, self.autonomy)
             autonomous = await self._autonomous(action)
@@ -267,6 +282,12 @@ class RemediationGate:
                 reason=str(refused),
                 classification=_classification_of(refused),
             )
+
+    async def _guarded(self, action: RemediationAction) -> Guard:
+        """Return what the closed loop knows about acting on this unattended."""
+        if self.guards is None:
+            return PERMITTED
+        return await self.guards.check(action)
 
     async def _by_policy(self, action: RemediationAction, autonomy: AutonomyGate) -> GateOutcome:
         """Return what the policy engine decided, having done what it decided.

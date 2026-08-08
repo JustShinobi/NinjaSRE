@@ -49,6 +49,7 @@ from config.constants.autonomy import (
     MAX_AUTONOMY_RULES,
     RISK_CLASSES,
 )
+from config.constants.closed_loop import MAX_RECURRENCE_WINDOW_SECONDS
 from config.constants.notifications import SEVERITY_HIGH
 from config.constants.observation import (
     DEFAULT_DETECTOR_DURATION_SECONDS,
@@ -486,6 +487,40 @@ class AutonomyPolicySettings(ConfigSection):
     #: Simulate everything this node resolves, whatever any rule says. The
     #: deployment-wide half of dry-run mode; the per-scope half is on the rule.
     dry_run: bool = False
+    #: Whether an action whose effect no signal reports may run unattended.
+    #: Defaults to ``False``, and the default is the decision: a capability
+    #: nobody can verify is one the deployment would act on and never find out
+    #: about, so it takes a human approval until an operator says otherwise.
+    allow_unverifiable_actions: bool = False
+    #: How many times one capability may be applied to one resource inside the
+    #: window before it stops being an incident and becomes a recurring problem.
+    #: Zero means the deployment default.
+    recurrence_threshold: int = 0
+    #: How long that window is, in seconds. Zero means the deployment default.
+    recurrence_window_seconds: int = 0
+
+    @field_validator("recurrence_window_seconds")
+    @classmethod
+    def _inside_the_recurrence_ceiling(cls, value: int) -> int:
+        """Refuse a window beyond the point where the count stops describing now."""
+        if value and not 0 < value <= MAX_RECURRENCE_WINDOW_SECONDS:
+            raise ValueError(
+                f"a recurrence window of {value}s is outside "
+                f"(0, {MAX_RECURRENCE_WINDOW_SECONDS}]. Beyond a year the count stops "
+                f"describing the system that exists now."
+            )
+        return value
+
+    @field_validator("recurrence_threshold")
+    @classmethod
+    def _a_threshold_that_can_be_a_pattern(cls, value: int) -> int:
+        """Refuse a threshold below two, which is not a recurrence."""
+        if value and value < 2:
+            raise ValueError(
+                f"a recurrence threshold of {value} is not a recurrence; two is the "
+                f"smallest number of occurrences that can be a pattern"
+            )
+        return value
 
     @field_validator("rules")
     @classmethod

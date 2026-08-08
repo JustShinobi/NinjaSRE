@@ -35,7 +35,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from config.constants.closed_loop import (
     MAX_VERIFICATION_ATTEMPTS,
@@ -50,6 +50,7 @@ from platform.persistence.ports.remediation_ledger import (
     VerificationVerdict,
 )
 from platform.persistence.ports.signal_store import Signal, SignalKind
+from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 from platform.remediation.components import ComponentRegistry
 from platform.remediation.declaration import VerificationDeclaration
 from platform.remediation.models import RemediationAction, utc_now
@@ -213,6 +214,7 @@ class VerificationObligations:
         plan_id: str = "",
         incident_id: str = "",
         condition_key: str = "",
+        undo: Mapping[str, Any] | None = None,
     ) -> RemediationOutcome:
         """Record what is owed about ``action``, and return the row.
 
@@ -247,6 +249,7 @@ class VerificationObligations:
             verified_at=executed_at if unverifiable else None,
             detail=declaration.reason if unverifiable else "",
             autonomous=autonomous,
+            undo=dict(undo) if undo else {},
         )
         stored = await self.ledger.record(outcome)
         _LOG.info(
@@ -380,10 +383,100 @@ class VerificationObligations:
         )
 
 
+@runtime_checkable
+class VerificationRecorder(Protocol):
+    """What the executor needs from the closed loop, and nothing more.
+
+    Two operations either side of the change: read the declared signals as they
+    stand, and write down what is owed. Narrower than
+    ``VerificationObligations`` on purpose — the executor must not be able to
+    reach a verdict, because a verdict reached inside the run is a verdict
+    reached before the settle period.
+    """
+
+    async def capture(self, action: RemediationAction) -> Mapping[str, float]:
+        """Return the declared signals' values as they stand right now."""
+
+    async def owe(
+        self,
+        action: RemediationAction,
+        *,
+        before: Mapping[str, float],
+        executed_at: datetime,
+        autonomous: bool = False,
+        plan_id: str = "",
+        incident_id: str = "",
+        condition_key: str = "",
+        undo: Mapping[str, Any] | None = None,
+    ) -> RemediationOutcome:
+        """Record what is owed about ``action``, and return the row."""
+
+
+@dataclass(slots=True)
+class LedgerVerification:
+    """A recorder that opens its own unit of work per call.
+
+    What a long-lived executor holds. ``VerificationObligations`` takes a ledger
+    bound to one transaction, which suits a worker settling a claimed obligation
+    and does not suit an executor that lives for the life of the process — so
+    this is the adapter between the two, and it is the same shape
+    ``AuditSpendLedger`` uses for the same reason.
+    """
+
+    gateway: PersistenceGateway
+    scope: TenantScope
+    signals: SignalReadback
+    registry: ComponentRegistry
+    clock: Callable[[], datetime] = field(default=utc_now)
+    resource_for: Callable[[RemediationAction], str] = field(default=resource_of)
+
+    async def capture(self, action: RemediationAction) -> Mapping[str, float]:
+        """Return the declared signals' values as they stand right now."""
+        async with self.gateway.begin(self.scope) as uow:
+            return await self._over(uow.remediation).capture(action)
+
+    async def owe(
+        self,
+        action: RemediationAction,
+        *,
+        before: Mapping[str, float],
+        executed_at: datetime,
+        autonomous: bool = False,
+        plan_id: str = "",
+        incident_id: str = "",
+        condition_key: str = "",
+        undo: Mapping[str, Any] | None = None,
+    ) -> RemediationOutcome:
+        """Record what is owed about ``action``, and return the row."""
+        async with self.gateway.begin(self.scope) as uow:
+            return await self._over(uow.remediation).owe(
+                action,
+                before=before,
+                executed_at=executed_at,
+                autonomous=autonomous,
+                plan_id=plan_id,
+                incident_id=incident_id,
+                condition_key=condition_key,
+                undo=undo,
+            )
+
+    def _over(self, ledger: RemediationLedger) -> VerificationObligations:
+        """Return the obligations service bound to one transaction's ledger."""
+        return VerificationObligations(
+            ledger=ledger,
+            signals=self.signals,
+            registry=self.registry,
+            clock=self.clock,
+            resource_for=self.resource_for,
+        )
+
+
 __all__ = [
+    "LedgerVerification",
     "SignalReadback",
     "Verification",
     "VerificationObligations",
+    "VerificationRecorder",
     "read_values",
     "resource_of",
 ]
