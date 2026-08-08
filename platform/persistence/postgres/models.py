@@ -925,6 +925,7 @@ class RemediationOutcomeRow(Base):
     rollback: Mapped[str] = mapped_column(String(32), nullable=False)
     rollback_detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
     autonomous: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    undo: Mapped[dict[str, Any]] = _json()
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     lease_holder: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
     lease_expires_at: Mapped[datetime | None] = _timestamp()

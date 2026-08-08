@@ -39,7 +39,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from config.constants.closed_loop import (
     MAX_EFFECTIVENESS_PAGE_SIZE,
@@ -171,6 +171,14 @@ class RemediationOutcome:
     rollback: RollbackDisposition = RollbackDisposition.NOT_REQUIRED
     rollback_detail: str = ""
     autonomous: bool = False
+    #: The plan that reverses this action and the action itself, in their stored
+    #: forms. Carried on the row rather than looked up, because an automatic
+    #: rollback happens after a settle period that may span a restart — and a
+    #: rollback that could not be found would leave a change that made things
+    #: worse in place, which is the one outcome this feature exists to undo.
+    #: An autonomous action has no approval to read the plan back from, so there
+    #: is no other durable place it could come from.
+    undo: Mapping[str, Any] = field(default_factory=dict)
     #: How many times a worker has claimed this obligation. Counts claims, not
     #: verdicts, so a worker crashing repeatedly is visible as that.
     attempts: int = 0

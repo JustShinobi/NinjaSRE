@@ -72,6 +72,7 @@ def upgrade() -> None:
         sa.Column("rollback", sa.String(length=_STATE_LENGTH), nullable=False),
         sa.Column("rollback_detail", sa.Text(), nullable=False),
         sa.Column("autonomous", sa.Boolean(), nullable=False),
+        sa.Column("undo", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("attempts", sa.Integer(), nullable=False),
         sa.Column("lease_holder", sa.String(length=_ID_LENGTH), nullable=False),
         sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True),

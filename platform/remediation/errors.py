@@ -267,6 +267,23 @@ class VerificationNotOwed(RemediationError):
         self.action_id = action_id
 
 
+class UnknownRecurringProblem(RemediationError):
+    """Something asked to close a pattern this deployment has never raised.
+
+    Its own type rather than the unknown-capability one, because the next step
+    differs: an unknown capability is a wiring mistake, and an unknown problem
+    identifier is somebody working from a stale listing.
+    """
+
+    def __init__(self, problem_id: str) -> None:
+        super().__init__(
+            f"No recurring problem called {problem_id!r} has been raised in this "
+            f"deployment. Recurring problems are listed alongside the incidents, and "
+            f"one that has already been closed keeps its identifier."
+        )
+        self.problem_id = problem_id
+
+
 class AutonomySuspended(RemediationError):
     """A rollback failed here, and nothing autonomous runs until a human says so.
 
@@ -326,6 +343,7 @@ __all__ = [
     "RollbackWindowClosed",
     "TargetLocked",
     "UndeclaredVerification",
+    "UnknownRecurringProblem",
     "UnknownRemediationCapability",
     "UnknownVerificationSignal",
     "VerificationNotOwed",
