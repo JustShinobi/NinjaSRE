@@ -225,6 +225,61 @@
         "title": "BlastRadiusEntryView",
         "type": "object"
       },
+      "BoundsResponse": {
+        "description": "What is bounding this node right now, whatever its levels say.",
+        "properties": {
+          "budgets": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Budgets",
+            "type": "array"
+          },
+          "expired_overrides": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Expired Overrides",
+            "type": "array"
+          },
+          "freezes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Freezes",
+            "type": "array"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "overrides": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Overrides",
+            "type": "array"
+          },
+          "stop_reason": {
+            "default": "",
+            "title": "Stop Reason",
+            "type": "string"
+          },
+          "stopped": {
+            "default": false,
+            "title": "Stopped",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "BoundsResponse",
+        "type": "object"
+      },
       "BulkRevokeRequest": {
         "properties": {
           "node_id": {
@@ -501,6 +556,54 @@
         "title": "ConfigTreeView",
         "type": "object"
       },
+      "ConsideredRuleView": {
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "specificity": {
+            "title": "Specificity",
+            "type": "integer"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          },
+          "won": {
+            "default": false,
+            "title": "Won",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rule_id",
+          "scope",
+          "level",
+          "specificity",
+          "applied"
+        ],
+        "title": "ConsideredRuleView",
+        "type": "object"
+      },
       "ContributionView": {
         "properties": {
           "display_name": {
@@ -770,6 +873,19 @@
         "title": "DetectorSummaryView",
         "type": "object"
       },
+      "DryRunRequest": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "DryRunRequest",
+        "type": "object"
+      },
       "DryRunView": {
         "description": "What a detector would have concluded, and the fact that it did nothing.",
         "properties": {
@@ -928,6 +1044,116 @@
           "captured_at"
         ],
         "title": "EstateSummaryView",
+        "type": "object"
+      },
+      "ExplainRequest": {
+        "description": "A hypothetical action, asked about before anybody proposes it.",
+        "properties": {
+          "capability": {
+            "minLength": 1,
+            "title": "Capability",
+            "type": "string"
+          },
+          "has_rollback_plan": {
+            "default": true,
+            "title": "Has Rollback Plan",
+            "type": "boolean"
+          },
+          "operation": {
+            "default": "",
+            "title": "Operation",
+            "type": "string"
+          },
+          "risk_class": {
+            "default": "",
+            "title": "Risk Class",
+            "type": "string"
+          },
+          "subjects": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectRequest"
+            },
+            "minItems": 1,
+            "title": "Subjects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "capability",
+          "subjects"
+        ],
+        "title": "ExplainRequest",
+        "type": "object"
+      },
+      "ExplanationView": {
+        "description": "The resolved level and every reason it is that level.",
+        "properties": {
+          "considered": {
+            "items": {
+              "$ref": "#/components/schemas/ConsideredRuleView"
+            },
+            "title": "Considered",
+            "type": "array"
+          },
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "operation": {
+            "default": "",
+            "title": "Operation",
+            "type": "string"
+          },
+          "per_subject": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Per Subject",
+            "type": "array"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "refused_by": {
+            "default": "",
+            "title": "Refused By",
+            "type": "string"
+          },
+          "risk_bound": {
+            "title": "Risk Bound",
+            "type": "string"
+          },
+          "risk_class": {
+            "title": "Risk Class",
+            "type": "string"
+          },
+          "winning_rule": {
+            "default": "",
+            "title": "Winning Rule",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "level",
+          "risk_bound",
+          "risk_class",
+          "reason"
+        ],
+        "title": "ExplanationView",
         "type": "object"
       },
       "GrantList": {
@@ -1545,6 +1771,44 @@
         "title": "IssuedTokenView",
         "type": "object"
       },
+      "KillSwitchRequest": {
+        "description": "Why writes are being stopped, and how widely.\n\n``reason`` is required for the same reason a maintenance window's is: the\nperson who releases it is usually not the person who engaged it.",
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "default": "",
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "KillSwitchRequest",
+        "type": "object"
+      },
+      "KillSwitchView": {
+        "properties": {
+          "engaged": {
+            "title": "Engaged",
+            "type": "boolean"
+          },
+          "scopes": {
+            "additionalProperties": true,
+            "title": "Scopes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "engaged"
+        ],
+        "title": "KillSwitchView",
+        "type": "object"
+      },
       "KnowledgeChunkView": {
         "properties": {
           "chunk_id": {
@@ -1765,6 +2029,240 @@
         "title": "ObservationView",
         "type": "object"
       },
+      "OverrideRequest": {
+        "description": "A raise in autonomy that ends by itself.\n\n``reason`` is required. An override nobody explained is one the next person\ncannot decide whether to renew, and the person who granted it will not be\nthe person who finds it.",
+        "properties": {
+          "capability": {
+            "default": "",
+            "title": "Capability",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "resource_id": {
+            "default": "",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "resource_kind": {
+            "default": "",
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "scope_kind": {
+            "default": "deployment",
+            "title": "Scope Kind",
+            "type": "string"
+          },
+          "seconds": {
+            "default": 7200.0,
+            "title": "Seconds",
+            "type": "number"
+          },
+          "team_node_id": {
+            "default": "",
+            "title": "Team Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "level",
+          "reason"
+        ],
+        "title": "OverrideRequest",
+        "type": "object"
+      },
+      "OverrideView": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "granted_by": {
+            "default": "",
+            "title": "Granted By",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "scope": {
+            "additionalProperties": true,
+            "title": "Scope",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "level",
+          "scope",
+          "expires_at"
+        ],
+        "title": "OverrideView",
+        "type": "object"
+      },
+      "PolicyDocumentView": {
+        "description": "One node's posture, whole, in the shape it is exported and imported as.",
+        "properties": {
+          "budgets": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Budgets",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "freezes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Freezes",
+            "type": "array"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "overrides": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Overrides",
+            "type": "array"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "PolicyDocumentView",
+        "type": "object"
+      },
+      "PolicyPreviewView": {
+        "description": "What a change would have decided differently over recorded history.",
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewedActionView"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "changed": {
+            "default": 0,
+            "title": "Changed",
+            "type": "integer"
+          },
+          "considered": {
+            "default": 0,
+            "title": "Considered",
+            "type": "integer"
+          },
+          "newly_autonomous": {
+            "default": 0,
+            "title": "Newly Autonomous",
+            "type": "integer"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary"
+        ],
+        "title": "PolicyPreviewView",
+        "type": "object"
+      },
+      "PolicyWriteRequest": {
+        "description": "The whole document, because that is what a review reads.",
+        "properties": {
+          "budgets": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Budgets",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "freezes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Freezes",
+            "type": "array"
+          },
+          "overrides": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Overrides",
+            "type": "array"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "title": "PolicyWriteRequest",
+        "type": "object"
+      },
       "PreviewChangeView": {
         "properties": {
           "after": {
@@ -1782,6 +2280,68 @@
           "path"
         ],
         "title": "PreviewChangeView",
+        "type": "object"
+      },
+      "PreviewedActionView": {
+        "description": "One recorded action, decided twice.",
+        "properties": {
+          "action_id": {
+            "title": "Action Id",
+            "type": "string"
+          },
+          "after": {
+            "title": "After",
+            "type": "string"
+          },
+          "after_reason": {
+            "default": "",
+            "title": "After Reason",
+            "type": "string"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "before": {
+            "title": "Before",
+            "type": "string"
+          },
+          "before_reason": {
+            "default": "",
+            "title": "Before Reason",
+            "type": "string"
+          },
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "changed": {
+            "default": false,
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "more_autonomous": {
+            "default": false,
+            "title": "More Autonomous",
+            "type": "boolean"
+          },
+          "subjects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Subjects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "action_id",
+          "capability",
+          "at",
+          "before",
+          "after"
+        ],
+        "title": "PreviewedActionView",
         "type": "object"
       },
       "PrincipalView": {
@@ -2495,6 +3055,38 @@
           "description"
         ],
         "title": "SkillView",
+        "type": "object"
+      },
+      "SubjectRequest": {
+        "description": "One resource an explained action would touch.",
+        "properties": {
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "resource_id": {
+            "minLength": 1,
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "team_node_id": {
+            "default": "",
+            "title": "Team Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id"
+        ],
+        "title": "SubjectRequest",
         "type": "object"
       },
       "SubjectView": {
@@ -4012,6 +4604,608 @@
         "summary": "Record Rollback",
         "tags": [
           "approvals"
+        ]
+      }
+    },
+    "/v1/autonomy/kill-switch": {
+      "delete": {
+        "description": "Let automated writes happen again, for one scope, attributed to whoever asked.",
+        "operationId": "release_kill_switch_v1_autonomy_kill_switch_delete",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Scope",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KillSwitchView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Kill Switch",
+        "tags": [
+          "autonomy"
+        ]
+      },
+      "post": {
+        "description": "Stop every automated write, immediately, with no configuration in the way.",
+        "operationId": "engage_kill_switch_v1_autonomy_kill_switch_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KillSwitchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KillSwitchView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Engage Kill Switch",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}": {
+      "get": {
+        "description": "Return ``node_id``'s posture, inheritance applied, as one document.",
+        "operationId": "read_policy_v1_autonomy_policy__node_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDocumentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Policy",
+        "tags": [
+          "autonomy"
+        ]
+      },
+      "put": {
+        "description": "Replace ``node_id``'s own posture and return what it now resolves to.\n\nValidated before anything is stored, and stored through the configuration\nservice, so a malformed policy fails here with the field named rather than\nduring an incident.",
+        "operationId": "write_policy_v1_autonomy_policy__node_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDocumentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Policy",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}/bounds": {
+      "get": {
+        "description": "Return the freeze windows, budgets, overrides and stop bounding this node.",
+        "operationId": "read_bounds_v1_autonomy_policy__node_id__bounds_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoundsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Bounds",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}/dry-run": {
+      "post": {
+        "description": "Turn simulation on or off for everything ``node_id`` resolves.",
+        "operationId": "set_dry_run_v1_autonomy_policy__node_id__dry_run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DryRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyDocumentView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Dry Run",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}/explain": {
+      "post": {
+        "description": "Return what would happen to this action, and every reason it would.",
+        "operationId": "explain_v1_autonomy_policy__node_id__explain_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplanationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Explain",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}/overrides": {
+      "post": {
+        "description": "Raise autonomy in a scope until it expires, and record who did it.",
+        "operationId": "grant_override_v1_autonomy_policy__node_id__overrides_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverrideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverrideView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grant Override",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}/preview": {
+      "post": {
+        "description": "Return what this change would have decided differently, storing nothing.",
+        "operationId": "preview_policy_v1_autonomy_policy__node_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7.0,
+              "exclusiveMinimum": 0,
+              "title": "Days",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "exclusiveMinimum": 0,
+              "maximum": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Policy",
+        "tags": [
+          "autonomy"
         ]
       }
     },

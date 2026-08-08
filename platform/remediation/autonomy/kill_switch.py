@@ -145,6 +145,18 @@ class KillSwitch:
         """Return whether any switch currently stops this team's writes."""
         return self.state_for(team_node_id=team_node_id) is not None
 
+    def describe_for(self, *, team_node_id: str | None = None) -> str:
+        """Return why this team's writes are stopped, empty when they are not.
+
+        The non-raising companion to ``check``. The policy engine evaluates this
+        alongside three other bounds and reports which one refused, so it needs
+        the sentence rather than an exception — and it depends on this switch by
+        shape rather than by import, which is what keeps that dependency
+        pointing the way the tier table says it must.
+        """
+        state = self.state_for(team_node_id=team_node_id)
+        return state.describe() if state is not None else ""
+
     def check(self, *, team_node_id: str | None = None) -> None:
         """Raise ``KillSwitchEngaged`` if any switch stops this team's writes.
 

@@ -168,9 +168,13 @@ DEFAULT_FREEZE_TIMEZONE: Final = "UTC"
 DEFAULT_AUTONOMY_OVERRIDE_SECONDS: Final[float] = 2 * 60 * 60.0
 MAX_AUTONOMY_OVERRIDE_SECONDS: Final[float] = 24 * 60 * 60.0
 
-#: How many past decisions a policy-change preview replays. A week of a busy
-#: deployment, bounded because a preview nobody can read is one nobody reads.
-MAX_AUTONOMY_PREVIEW_ACTIONS: Final[int] = 500
+#: How many past decisions a policy-change preview replays. Bounded because a
+#: preview nobody can read is one nobody reads — and bounded *at the storage
+#: layer's own page size*, because the history is a query against the audit
+#: trail and asking for more than a page raises rather than quietly returning
+#: less. A preview that silently replayed half a week would be the worst
+#: possible failure of this feature: reassuring, and wrong.
+MAX_AUTONOMY_PREVIEW_ACTIONS: Final[int] = 200
 
 # --- The record --------------------------------------------------------------
 
@@ -195,6 +199,7 @@ AUTONOMY_DETAIL_WINNER: Final = "winning_rule"
 AUTONOMY_DETAIL_CONSIDERED: Final = "considered_rules"
 AUTONOMY_DETAIL_BOUND: Final = "refused_by"
 AUTONOMY_DETAIL_OUTCOME: Final = "decision"
+AUTONOMY_DETAIL_ACTION: Final = "action"
 AUTONOMY_DETAIL_DRY_RUN: Final = "dry_run"
 
 #: The five things a decision can be. ``simulate`` is separate from ``execute``
@@ -238,6 +243,7 @@ __all__ = [
     "AUTONOMY_DECISION_PROPOSE",
     "AUTONOMY_DECISION_REFUSE",
     "AUTONOMY_DECISION_SIMULATE",
+    "AUTONOMY_DETAIL_ACTION",
     "AUTONOMY_DETAIL_BOUND",
     "AUTONOMY_DETAIL_CONSIDERED",
     "AUTONOMY_DETAIL_DRY_RUN",

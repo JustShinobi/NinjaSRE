@@ -12,6 +12,7 @@ from gateway.http.lifespan import lifespan
 from gateway.http.routes import (
     approvals,
     audit,
+    autonomy,
     capabilities,
     config,
     estate,
@@ -68,6 +69,7 @@ def create_app(
     install_error_handlers(app)
 
     for router in (
+        autonomy.router,
         incidents.router,
         investigations.router,
         threads.router,

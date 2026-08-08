@@ -29,6 +29,7 @@ from config.constants.autonomy import (
     AUTONOMY_AUDIT_ACTION_OVERRIDE_EXPIRED,
     AUTONOMY_AUDIT_RESOURCE_KIND,
     AUTONOMY_AUDIT_RESOURCE_KIND_OVERRIDE,
+    AUTONOMY_DETAIL_ACTION,
     AUTONOMY_DETAIL_BOUND,
     AUTONOMY_DETAIL_CONSIDERED,
     AUTONOMY_DETAIL_DRY_RUN,
@@ -142,6 +143,12 @@ class DecisionAuditor:
             "executed": decision.executed,
             "requester": decision.action.requester,
             "run_id": decision.action.run_id,
+            # The whole action, not only what a listing renders. A policy change
+            # is previewed by *re-deciding* the recorded actions, and a record
+            # that kept only the resource identifiers could not answer a rule
+            # that selects on a label or a kind — the preview would quietly
+            # report no difference where there is one.
+            AUTONOMY_DETAIL_ACTION: decision.action.to_record(),
         }
 
     def _context(self) -> AuditContext:

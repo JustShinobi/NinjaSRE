@@ -11,6 +11,7 @@ import asyncio
 from dataclasses import dataclass, field
 
 from gateway.http.rate_limit import ApiRateLimiter
+from gateway.http.security.autonomy_routes import AUTONOMY_ROUTES
 from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.estate_routes import ESTATE_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES, WEBHOOK_ROUTES
@@ -24,6 +25,7 @@ from platform.estate.kinds import KindRegistry, core_registry
 from platform.guardrails.engine import GuardrailEngine
 from platform.identity.tokens import TokenService
 from platform.persistence.ports.transaction import PersistenceGateway
+from platform.remediation.autonomy.kill_switch import KillSwitch
 from platform.runs.stream import RunEventBroker
 
 #: The table this deployment actually serves: feature 014's identity routes,
@@ -36,6 +38,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     .extended_with(CONSOLE_ROUTES)
     .extended_with(ESTATE_ROUTES)
     .extended_with(INCIDENT_ROUTES)
+    .extended_with(AUTONOMY_ROUTES)
 )
 
 
@@ -55,6 +58,11 @@ class GatewayState:
     #: request would know only the core kinds.
     estate_kinds: KindRegistry = field(default_factory=core_registry)
     rate_limiter: ApiRateLimiter = field(default_factory=ApiRateLimiter)
+    #: The emergency stop, one per process. Held here rather than built per
+    #: request because a switch constructed per request is a switch that is
+    #: never engaged by the time anything reads it, and the window this control
+    #: exists to close is measured in the seconds that matter.
+    kill_switch: KillSwitch = field(default_factory=KillSwitch)
     webhook_dedup: DeduplicationIndex = field(default_factory=DeduplicationIndex)
     webhook_idempotency: IdempotencyIndex = field(default_factory=IdempotencyIndex)
     webhook_shedder: LoadShedder = field(default_factory=LoadShedder)

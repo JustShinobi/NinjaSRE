@@ -284,6 +284,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/autonomy/kill-switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Engage Kill Switch
+         * @description Stop every automated write, immediately, with no configuration in the way.
+         */
+        post: operations["engage_kill_switch_v1_autonomy_kill_switch_post"];
+        /**
+         * Release Kill Switch
+         * @description Let automated writes happen again, for one scope, attributed to whoever asked.
+         */
+        delete: operations["release_kill_switch_v1_autonomy_kill_switch_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Policy
+         * @description Return ``node_id``'s posture, inheritance applied, as one document.
+         */
+        get: operations["read_policy_v1_autonomy_policy__node_id__get"];
+        /**
+         * Write Policy
+         * @description Replace ``node_id``'s own posture and return what it now resolves to.
+         *
+         *     Validated before anything is stored, and stored through the configuration
+         *     service, so a malformed policy fails here with the field named rather than
+         *     during an incident.
+         */
+        put: operations["write_policy_v1_autonomy_policy__node_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}/bounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Bounds
+         * @description Return the freeze windows, budgets, overrides and stop bounding this node.
+         */
+        get: operations["read_bounds_v1_autonomy_policy__node_id__bounds_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Dry Run
+         * @description Turn simulation on or off for everything ``node_id`` resolves.
+         */
+        post: operations["set_dry_run_v1_autonomy_policy__node_id__dry_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explain
+         * @description Return what would happen to this action, and every reason it would.
+         */
+        post: operations["explain_v1_autonomy_policy__node_id__explain_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant Override
+         * @description Raise autonomy in a scope until it expires, and record who did it.
+         */
+        post: operations["grant_override_v1_autonomy_policy__node_id__overrides_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Policy
+         * @description Return what this change would have decided differently, storing nothing.
+         */
+        post: operations["preview_policy_v1_autonomy_policy__node_id__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/capabilities": {
         parameters: {
             query?: never;
@@ -1464,6 +1616,38 @@ export interface components {
             depth: number;
             node: components["schemas"]["TopologyNodeView"];
         };
+        /**
+         * BoundsResponse
+         * @description What is bounding this node right now, whatever its levels say.
+         */
+        BoundsResponse: {
+            /** Budgets */
+            budgets?: {
+                [key: string]: unknown;
+            }[];
+            /** Expired Overrides */
+            expired_overrides?: string[];
+            /** Freezes */
+            freezes?: {
+                [key: string]: unknown;
+            }[];
+            /** Node Id */
+            node_id: string;
+            /** Overrides */
+            overrides?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Stop Reason
+             * @default
+             */
+            stop_reason: string;
+            /**
+             * Stopped
+             * @default false
+             */
+            stopped: boolean;
+        };
         /** BulkRevokeRequest */
         BulkRevokeRequest: {
             /**
@@ -1582,6 +1766,34 @@ export interface components {
         ConfigTreeView: {
             /** Nodes */
             nodes: components["schemas"]["ConfigNodeView"][];
+        };
+        /** ConsideredRuleView */
+        ConsideredRuleView: {
+            /** Applied */
+            applied: boolean;
+            /** Level */
+            level: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Rule Id */
+            rule_id: string;
+            /** Scope */
+            scope: string;
+            /** Specificity */
+            specificity: number;
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /**
+             * Won
+             * @default false
+             */
+            won: boolean;
         };
         /** ContributionView */
         ContributionView: {
@@ -1710,6 +1922,11 @@ export interface components {
             /** Subjects Total */
             subjects_total: number;
         };
+        /** DryRunRequest */
+        DryRunRequest: {
+            /** Enabled */
+            enabled: boolean;
+        };
         /**
          * DryRunView
          * @description What a detector would have concluded, and the fact that it did nothing.
@@ -1791,6 +2008,73 @@ export interface components {
             problems: number;
             /** Total */
             total: number;
+        };
+        /**
+         * ExplainRequest
+         * @description A hypothetical action, asked about before anybody proposes it.
+         */
+        ExplainRequest: {
+            /** Capability */
+            capability: string;
+            /**
+             * Has Rollback Plan
+             * @default true
+             */
+            has_rollback_plan: boolean;
+            /**
+             * Operation
+             * @default
+             */
+            operation: string;
+            /**
+             * Risk Class
+             * @default
+             */
+            risk_class: string;
+            /** Subjects */
+            subjects: components["schemas"]["SubjectRequest"][];
+        };
+        /**
+         * ExplanationView
+         * @description The resolved level and every reason it is that level.
+         */
+        ExplanationView: {
+            /** Considered */
+            considered?: components["schemas"]["ConsideredRuleView"][];
+            /** Decision */
+            decision: string;
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Level */
+            level: string;
+            /**
+             * Operation
+             * @default
+             */
+            operation: string;
+            /** Per Subject */
+            per_subject?: {
+                [key: string]: string;
+            }[];
+            /** Reason */
+            reason: string;
+            /**
+             * Refused By
+             * @default
+             */
+            refused_by: string;
+            /** Risk Bound */
+            risk_bound: string;
+            /** Risk Class */
+            risk_class: string;
+            /**
+             * Winning Rule
+             * @default
+             */
+            winning_rule: string;
         };
         /** GrantList */
         GrantList: {
@@ -2020,6 +2304,31 @@ export interface components {
             secret: string;
             token: components["schemas"]["TokenView"];
         };
+        /**
+         * KillSwitchRequest
+         * @description Why writes are being stopped, and how widely.
+         *
+         *     ``reason`` is required for the same reason a maintenance window's is: the
+         *     person who releases it is usually not the person who engaged it.
+         */
+        KillSwitchRequest: {
+            /** Reason */
+            reason: string;
+            /**
+             * Scope
+             * @default
+             */
+            scope: string;
+        };
+        /** KillSwitchView */
+        KillSwitchView: {
+            /** Engaged */
+            engaged: boolean;
+            /** Scopes */
+            scopes?: {
+                [key: string]: unknown;
+            };
+        };
         /** KnowledgeChunkView */
         KnowledgeChunkView: {
             /** Chunk Id */
@@ -2117,6 +2426,163 @@ export interface components {
             /** Verdict */
             verdict: string;
         };
+        /**
+         * OverrideRequest
+         * @description A raise in autonomy that ends by itself.
+         *
+         *     ``reason`` is required. An override nobody explained is one the next person
+         *     cannot decide whether to renew, and the person who granted it will not be
+         *     the person who finds it.
+         */
+        OverrideRequest: {
+            /**
+             * Capability
+             * @default
+             */
+            capability: string;
+            /** Labels */
+            labels?: {
+                [key: string]: string;
+            };
+            /** Level */
+            level: string;
+            /** Name */
+            name: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Resource Id
+             * @default
+             */
+            resource_id: string;
+            /**
+             * Resource Kind
+             * @default
+             */
+            resource_kind: string;
+            /**
+             * Scope Kind
+             * @default deployment
+             */
+            scope_kind: string;
+            /**
+             * Seconds
+             * @default 7200
+             */
+            seconds: number;
+            /**
+             * Team Node Id
+             * @default
+             */
+            team_node_id: string;
+        };
+        /** OverrideView */
+        OverrideView: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Granted By
+             * @default
+             */
+            granted_by: string;
+            /** Level */
+            level: string;
+            /** Name */
+            name: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Scope */
+            scope: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * PolicyDocumentView
+         * @description One node's posture, whole, in the shape it is exported and imported as.
+         */
+        PolicyDocumentView: {
+            /** Budgets */
+            budgets?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Freezes */
+            freezes?: {
+                [key: string]: unknown;
+            }[];
+            /** Node Id */
+            node_id: string;
+            /** Overrides */
+            overrides?: {
+                [key: string]: unknown;
+            }[];
+            /** Rules */
+            rules?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * PolicyPreviewView
+         * @description What a change would have decided differently over recorded history.
+         */
+        PolicyPreviewView: {
+            /** Actions */
+            actions?: components["schemas"]["PreviewedActionView"][];
+            /**
+             * Changed
+             * @default 0
+             */
+            changed: number;
+            /**
+             * Considered
+             * @default 0
+             */
+            considered: number;
+            /**
+             * Newly Autonomous
+             * @default 0
+             */
+            newly_autonomous: number;
+            /** Summary */
+            summary: string;
+        };
+        /**
+         * PolicyWriteRequest
+         * @description The whole document, because that is what a review reads.
+         */
+        PolicyWriteRequest: {
+            /** Budgets */
+            budgets?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Freezes */
+            freezes?: {
+                [key: string]: unknown;
+            }[];
+            /** Overrides */
+            overrides?: {
+                [key: string]: unknown;
+            }[];
+            /** Rules */
+            rules?: {
+                [key: string]: unknown;
+            }[];
+        };
         /** PreviewChangeView */
         PreviewChangeView: {
             /** After */
@@ -2125,6 +2591,47 @@ export interface components {
             before?: unknown;
             /** Path */
             path: string;
+        };
+        /**
+         * PreviewedActionView
+         * @description One recorded action, decided twice.
+         */
+        PreviewedActionView: {
+            /** Action Id */
+            action_id: string;
+            /** After */
+            after: string;
+            /**
+             * After Reason
+             * @default
+             */
+            after_reason: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Before */
+            before: string;
+            /**
+             * Before Reason
+             * @default
+             */
+            before_reason: string;
+            /** Capability */
+            capability: string;
+            /**
+             * Changed
+             * @default false
+             */
+            changed: boolean;
+            /**
+             * More Autonomous
+             * @default false
+             */
+            more_autonomous: boolean;
+            /** Subjects */
+            subjects?: string[];
         };
         /** PrincipalView */
         PrincipalView: {
@@ -2390,6 +2897,28 @@ export interface components {
             description: string;
             /** Name */
             name: string;
+        };
+        /**
+         * SubjectRequest
+         * @description One resource an explained action would touch.
+         */
+        SubjectRequest: {
+            /**
+             * Kind
+             * @default
+             */
+            kind: string;
+            /** Labels */
+            labels?: {
+                [key: string]: string;
+            };
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Team Node Id
+             * @default
+             */
+            team_node_id: string;
         };
         /**
          * SubjectView
@@ -3094,6 +3623,328 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RollbackResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    engage_kill_switch_v1_autonomy_kill_switch_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KillSwitchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KillSwitchView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_kill_switch_v1_autonomy_kill_switch_delete: {
+        parameters: {
+            query?: {
+                scope?: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KillSwitchView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_policy_v1_autonomy_policy__node_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyDocumentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    write_policy_v1_autonomy_policy__node_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyDocumentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_bounds_v1_autonomy_policy__node_id__bounds_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoundsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_dry_run_v1_autonomy_policy__node_id__dry_run_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DryRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyDocumentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    explain_v1_autonomy_policy__node_id__explain_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExplainRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplanationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_override_v1_autonomy_policy__node_id__overrides_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverrideRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_policy_v1_autonomy_policy__node_id__preview_post: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PolicyWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PolicyPreviewView"];
                 };
             };
             /** @description Validation Error */
