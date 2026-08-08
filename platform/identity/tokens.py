@@ -196,18 +196,32 @@ class TokenService:
         permissions: Sequence[Permission] = (),
         description: str | None = None,
         lifetime_days: int | None = None,
+        lifetime: timedelta | None = None,
     ) -> IssuedToken:
         """Return a new token, its plaintext included exactly once.
 
         ``permissions`` is a ceiling, not a grant. It narrows what the owning
         user already holds; a token can never do something its owner cannot,
         which is why there is no path here that consults the role catalogue.
+
+        ``lifetime`` overrides ``lifetime_days`` and is how a credential shorter
+        than a day is issued. It exists for the bootstrap credential, which lives
+        for an hour: expressing that as a fraction of a day would have meant
+        either rounding it up to a day or teaching every caller that
+        ``lifetime_days`` is sometimes not days. The ceiling applies to both.
         """
-        days = lifetime_days if lifetime_days is not None else API_TOKEN_DEFAULT_LIFETIME_DAYS
-        if days > API_TOKEN_MAX_LIFETIME_DAYS:
-            raise TokenLifetimeTooLong(days, API_TOKEN_MAX_LIFETIME_DAYS)
-        if days < 1:
-            raise TokenLifetimeTooLong(days, API_TOKEN_MAX_LIFETIME_DAYS)
+        if lifetime is not None:
+            span = lifetime
+        else:
+            days = lifetime_days if lifetime_days is not None else API_TOKEN_DEFAULT_LIFETIME_DAYS
+            if days < 1:
+                raise TokenLifetimeTooLong(days, API_TOKEN_MAX_LIFETIME_DAYS)
+            span = timedelta(days=days)
+
+        if span > timedelta(days=API_TOKEN_MAX_LIFETIME_DAYS):
+            raise TokenLifetimeTooLong(span.days, API_TOKEN_MAX_LIFETIME_DAYS)
+        if span <= timedelta(0):
+            raise TokenLifetimeTooLong(span.days, API_TOKEN_MAX_LIFETIME_DAYS)
 
         now = self.clock()
         secret = self.hasher.generate()
@@ -220,7 +234,7 @@ class TokenService:
             team_node_id=node_id,
             description=description,
             created_at=now,
-            expires_at=now + timedelta(days=days),
+            expires_at=now + span,
         )
 
         async with self.gateway.begin(scope) as uow:
