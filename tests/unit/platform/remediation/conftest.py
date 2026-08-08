@@ -29,8 +29,14 @@ from typing import Any
 
 import pytest
 
+from config.constants.closed_loop import DEFAULT_SETTLE_SECONDS
 from core.capability.metadata import SideEffectLevel
 from platform.remediation.components import ComponentRegistry, RemediationComponents
+from platform.remediation.declaration import (
+    SignalDirection,
+    VerificationDeclaration,
+    VerificationSignal,
+)
 from platform.remediation.execution import (
     ExecutionEnvironment,
     RemediationExecutor,
@@ -282,6 +288,27 @@ def isolation() -> RecordingIsolation:
     return RecordingIsolation()
 
 
+#: What the reversible capability under test says its effect looks like. A
+#: clearing value, so the suite can reach ``ineffective`` as well as the two
+#: verdicts a bare direction can produce.
+SCALE_VERIFICATION = VerificationDeclaration(
+    signals=(
+        VerificationSignal(
+            name="workload.ready_replicas",
+            direction=SignalDirection.UP,
+            clears_at=8.0,
+        ),
+    ),
+    settle_seconds=DEFAULT_SETTLE_SECONDS,
+)
+
+#: The capability with no derivable plan is also the one with no signal, so the
+#: unverifiable path has a double in this suite as well as in the catalogue.
+CLEAR_VERIFICATION = VerificationDeclaration.unverifiable(
+    "a cache clear's effect appears in whatever was reading the cache"
+)
+
+
 @pytest.fixture
 def registry(plane: RecordingControlPlane) -> ComponentRegistry:
     """Return a registry holding one reversible capability and one that is not."""
@@ -293,6 +320,7 @@ def registry(plane: RecordingControlPlane) -> ComponentRegistry:
                 applier=plane,
                 generator=ScaleGenerator(),
                 verifier=ScaleVerifier(),
+                verification=SCALE_VERIFICATION,
             ),
             RemediationComponents(
                 capability=CLEAR,
@@ -300,6 +328,7 @@ def registry(plane: RecordingControlPlane) -> ComponentRegistry:
                 applier=plane,
                 generator=NoPlanGenerator(),
                 verifier=ScaleVerifier(),
+                verification=CLEAR_VERIFICATION,
             ),
         )
     )

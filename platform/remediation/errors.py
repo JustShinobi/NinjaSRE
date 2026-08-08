@@ -208,15 +208,125 @@ class UnknownRemediationCapability(RemediationError):
         self.known = tuple(known)
 
 
+# --- Refusals after the change ------------------------------------------------
+
+
+class UndeclaredVerification(RemediationError):
+    """A capability said nothing about how anybody would know it worked.
+
+    Not the same as declaring itself unverifiable, which is a legitimate answer
+    with a reason attached. This is the absence of any answer, and it is refused
+    at construction because the alternative is a capability that reports
+    ``inconclusive`` forever and reads exactly like one whose effect is
+    genuinely hard to measure.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "A verification declaration needs either the signals the effect appears in "
+            "or a reason there are none. Use VerificationDeclaration.unverifiable(reason) "
+            "to say the effect has no signal — the reason is what makes that a decision "
+            "somebody made rather than a field nobody filled in."
+        )
+
+
+class UnknownVerificationSignal(RemediationError):
+    """A capability declared a signal no source in this deployment produces.
+
+    Refused at registration. A capability verifying against a signal nothing
+    emits reads ``inconclusive`` every time, forever, and the failure is
+    invisible: it looks like a system whose effects are hard to measure rather
+    than like a wiring mistake.
+    """
+
+    def __init__(self, signal: str, *, known: Sequence[str] = ()) -> None:
+        listed = ", ".join(known) or "none"
+        super().__init__(
+            f"No source in this deployment produces {signal!r}, so a verification "
+            f"against it could never conclude anything. This deployment emits: {listed}."
+        )
+        self.signal = signal
+        self.known = tuple(known)
+
+
+class VerificationNotOwed(RemediationError):
+    """Something tried to verify an action that has no obligation recorded.
+
+    Raised rather than treated as "nothing to do". An obligation that vanished
+    between the execution and the sweep is a lost verification, and a system
+    that shrugged at one would report the action as awaiting verification until
+    somebody noticed by hand.
+    """
+
+    def __init__(self, action_id: str) -> None:
+        super().__init__(
+            f"No verification obligation is recorded for {action_id!r}. Every execution "
+            f"writes one before its run ends, so its absence means either the write "
+            f"failed or something is verifying an action this deployment did not take."
+        )
+        self.action_id = action_id
+
+
+class AutonomySuspended(RemediationError):
+    """A rollback failed here, and nothing autonomous runs until a human says so.
+
+    The strongest refusal this package has, and deliberately narrow: it is per
+    resource, it names the action that caused it, and it is cleared by a person
+    rather than by a timeout. At the point it is raised the deployment has
+    changed something, failed to undo it, and does not know what state the
+    resource is in — continuing to act on it unattended is the worst available
+    option.
+    """
+
+    def __init__(self, resource_id: str, *, since: str = "", reason: str = "") -> None:
+        when = f" since {since}" if since else ""
+        why = f": {reason}" if reason else "."
+        super().__init__(
+            f"Autonomous action on {resource_id!r} is suspended{when}{why} A person has "
+            f"to clear the suspension before this deployment acts on it unattended "
+            f"again. An approved action from a human is still permitted."
+        )
+        self.resource_id = resource_id
+        self.since = since
+        self.reason = reason
+
+
+class RecurrenceSuppressed(RemediationError):
+    """This has been done here enough times that repeating it is not the answer.
+
+    Raised where an autonomous repetition would have happened, and not where a
+    human's approval would. The recurring problem it names is closed by a change
+    — more disk, a rotation, a fixed leak — and suppressing the repetition is
+    what stops the deployment from being an efficient way to avoid making one.
+    """
+
+    def __init__(self, capability: str, resource_id: str, *, problem_id: str = "") -> None:
+        named = f" ({problem_id})" if problem_id else ""
+        super().__init__(
+            f"{capability!r} has already been applied to {resource_id!r} enough times "
+            f"inside the declared window to have raised a recurring problem{named}. "
+            f"Autonomous repetition is suppressed until that problem is closed by a "
+            f"change; a human may still approve one."
+        )
+        self.capability = capability
+        self.resource_id = resource_id
+        self.problem_id = problem_id
+
+
 __all__ = [
     "ApprovalRefused",
+    "AutonomySuspended",
     "ConditionsNotMet",
     "KillSwitchEngaged",
     "NoRollbackPlan",
+    "RecurrenceSuppressed",
     "RemediationError",
     "RollbackFailed",
     "RollbackTargetMismatch",
     "RollbackWindowClosed",
     "TargetLocked",
+    "UndeclaredVerification",
     "UnknownRemediationCapability",
+    "UnknownVerificationSignal",
+    "VerificationNotOwed",
 ]

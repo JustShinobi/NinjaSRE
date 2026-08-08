@@ -69,6 +69,7 @@ async def test_a_sandbox_is_released_even_when_the_action_raises(
             applier=RaisingApplier(),
             generator=components.generator,
             verifier=components.verifier,
+            verification=components.verification,
         )
     )
     executor = RemediationExecutor(
@@ -219,6 +220,7 @@ async def test_verification_detects_an_induced_divergence(
             applier=DriftingApplier(),
             generator=components.generator,
             verifier=components.verifier,
+            verification=components.verification,
         )
     )
     executor = RemediationExecutor(

@@ -16,6 +16,7 @@ Programmatically, for a test:
 
 ```python
 from tools.mockplane.server import build_mock
+
 mock = build_mock("populated")
 mock.answer("GET", "/v1/runs")
 ```

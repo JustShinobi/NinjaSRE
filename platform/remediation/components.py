@@ -33,11 +33,12 @@ them and registers a bundle; nothing in this package imports a capability.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
+from platform.remediation.declaration import NOTHING_DECLARED, VerificationDeclaration
 from platform.remediation.errors import UnknownRemediationCapability
 from platform.remediation.models import (
     Divergence,
@@ -115,11 +116,20 @@ class OutcomeVerifier(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class RemediationComponents:
-    """One capability's four components, held together so none can be forgotten.
+    """One capability's four components and its verification declaration.
 
-    All four are required. An optional verifier would be omitted first and by
+    All five are required. An optional verifier would be omitted first and by
     exactly the capabilities whose results are hardest to check, which is the
-    opposite of where the effort belongs.
+    opposite of where the effort belongs — and the same is true of the
+    declaration, which is why it has no default either.
+
+    ``verifier`` and ``verification`` answer different questions and both are
+    needed. The verifier compares the target's state against what the action
+    *intended*, immediately, and catches "the API returned 200 and nothing
+    changed". The declaration names the signals the *effect* appears in and how
+    long to wait for them, and catches "the change took effect and the problem
+    is still there". A system with only the first reports success for every
+    remediation that did exactly what it was asked and did not help.
     """
 
     capability: str
@@ -127,6 +137,7 @@ class RemediationComponents:
     applier: ChangeApplier
     generator: PlanGenerator
     verifier: OutcomeVerifier
+    verification: VerificationDeclaration
 
     def __post_init__(self) -> None:
         if not self.capability:
@@ -145,16 +156,48 @@ class ComponentRegistry:
 
     components: dict[str, RemediationComponents] = field(default_factory=dict)
 
-    def register(self, components: RemediationComponents) -> ComponentRegistry:
-        """Register ``components``, and return this registry so calls chain."""
+    def register(
+        self,
+        components: RemediationComponents,
+        *,
+        known_signals: Sequence[str] | None = None,
+    ) -> ComponentRegistry:
+        """Register ``components``, and return this registry so calls chain.
+
+        ``known_signals`` is what this deployment's sources actually produce.
+        When it is given, a capability naming a signal that is not in it raises
+        ``UnknownVerificationSignal`` here rather than verifying against nothing
+        forever. It is optional because a composition root that has not wired
+        observation yet has no catalogue to check against, and refusing to
+        register anything would make remediation depend on observation being
+        configured first.
+        """
+        if known_signals is not None:
+            components.verification.validate_against(known_signals)
         self.components[components.capability] = components
         return self
 
-    def register_all(self, components: Iterable[RemediationComponents]) -> ComponentRegistry:
+    def register_all(
+        self,
+        components: Iterable[RemediationComponents],
+        *,
+        known_signals: Sequence[str] | None = None,
+    ) -> ComponentRegistry:
         """Register several bundles, and return this registry."""
         for bundle in components:
-            self.register(bundle)
+            self.register(bundle, known_signals=known_signals)
         return self
+
+    def verification_of(self, capability: str) -> VerificationDeclaration:
+        """Return how ``capability``'s effect is verified, or the nothing-declared one.
+
+        Never raises. This is asked on the path of a decision about an action
+        the deployment may not have components for, and an exception there would
+        turn "we cannot verify that" — which is a policy question — into a
+        failure of the decision itself.
+        """
+        found = self.components.get(capability)
+        return NOTHING_DECLARED if found is None else found.verification
 
     def get(self, capability: str) -> RemediationComponents:
         """Return the components for ``capability``, or raise naming what is known."""

@@ -20,6 +20,13 @@ would be a capability that could run without an approval and without a plan, and
 the refusal is what makes "every write went through the gate" true of every
 entry point rather than of the ones somebody remembered.
 
+**Each capability also declares how anybody would know it worked.** The four
+components say what to do and how to undo it; ``verification`` says which
+signals the *effect* appears in and how long to wait before they mean anything.
+``toggle_feature_flag`` declares itself unverifiable with its reason, which is
+the same disposition as ``clear_cache`` below and exists for the same reason:
+the branch is exercised by the shipped catalogue rather than by nothing.
+
 ``clear_cache`` is in this set on purpose. It is the one action with no
 derivable rollback, so the waiver path — refuse unless an operator explicitly
 accepts it, and audit the acceptance — is exercised by the shipped catalogue
@@ -27,6 +34,8 @@ rather than being a branch nobody has run.
 """
 
 from __future__ import annotations
+
+from collections.abc import Sequence
 
 from capabilities.tools.remediation import (
     clear_cache,
@@ -56,9 +65,15 @@ COMPONENTS: tuple[RemediationComponents, ...] = (
 )
 
 
-def registry() -> ComponentRegistry:
-    """Return a registry holding every shipped remediation capability."""
-    return ComponentRegistry().register_all(COMPONENTS)
+def registry(*, known_signals: Sequence[str] | None = None) -> ComponentRegistry:
+    """Return a registry holding every shipped remediation capability.
+
+    ``known_signals`` is what this deployment's observation sources produce.
+    Passing it makes a capability naming a signal nothing emits fail here rather
+    than verify against nothing forever — and a composition root that has wired
+    observation has the list to hand, because it built the sources.
+    """
+    return ComponentRegistry().register_all(COMPONENTS, known_signals=known_signals)
 
 
 __all__ = [
