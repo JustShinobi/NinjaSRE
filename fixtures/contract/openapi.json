@@ -419,6 +419,36 @@
         "title": "CatalogueEntryView",
         "type": "object"
       },
+      "ClearRequest": {
+        "description": "What the person who looked at the resource found.\n\nRequired, and refused at the schema. A suspension is raised because nobody\nknows what state a resource is in; a clearing with no reason records that\nnobody found out.",
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ClearRequest",
+        "type": "object"
+      },
+      "CloseProblemRequest": {
+        "description": "The change that closed this pattern.\n\nRequired for the reason ``RecurringProblem`` enforces it: a recurring\nproblem is closed by a change, and a close that does not say which is a\nrecord that the problem stopped being displayed.",
+        "properties": {
+          "change": {
+            "minLength": 1,
+            "title": "Change",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change"
+        ],
+        "title": "CloseProblemRequest",
+        "type": "object"
+      },
       "CloseRequest": {
         "description": "Why an incident is being closed. Required, and refused at the schema.\n\n\"Closed by Ada\" does not say whether it was fixed or dismissed, and a\ndeployment that recorded both the same way could not find the dismissals\nagain — which is the search somebody runs when a detector turns out to have\nbeen wrong all along.",
         "properties": {
@@ -942,6 +972,93 @@
           "provenance"
         ],
         "title": "EffectiveConfigView",
+        "type": "object"
+      },
+      "EffectivenessView": {
+        "description": "How often one thing has worked, as counts and as the sentence.",
+        "properties": {
+          "awaiting": {
+            "default": 0,
+            "title": "Awaiting",
+            "type": "integer"
+          },
+          "capability": {
+            "default": "",
+            "title": "Capability",
+            "type": "string"
+          },
+          "condition_key": {
+            "default": "",
+            "title": "Condition Key",
+            "type": "string"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "discouraged": {
+            "default": false,
+            "title": "Discouraged",
+            "type": "boolean"
+          },
+          "known": {
+            "default": false,
+            "title": "Known",
+            "type": "boolean"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "last_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Verdict"
+          },
+          "resource_id": {
+            "default": "",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "success_ratio": {
+            "default": 0.0,
+            "title": "Success Ratio",
+            "type": "number"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "verified": {
+            "default": 0,
+            "title": "Verified",
+            "type": "integer"
+          }
+        },
+        "title": "EffectivenessView",
         "type": "object"
       },
       "EpisodeView": {
@@ -2029,6 +2146,157 @@
         "title": "ObservationView",
         "type": "object"
       },
+      "OutcomeListView": {
+        "properties": {
+          "awaiting": {
+            "default": 0,
+            "title": "Awaiting",
+            "type": "integer"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/OutcomeView"
+            },
+            "title": "Outcomes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "outcomes"
+        ],
+        "title": "OutcomeListView",
+        "type": "object"
+      },
+      "OutcomeView": {
+        "description": "One remediation, and what became of it.",
+        "properties": {
+          "action_id": {
+            "title": "Action Id",
+            "type": "string"
+          },
+          "after": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "After",
+            "type": "object"
+          },
+          "attempts": {
+            "default": 0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "autonomous": {
+            "default": false,
+            "title": "Autonomous",
+            "type": "boolean"
+          },
+          "awaiting_verification": {
+            "default": true,
+            "title": "Awaiting Verification",
+            "type": "boolean"
+          },
+          "before": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Before",
+            "type": "object"
+          },
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "condition_key": {
+            "default": "",
+            "title": "Condition Key",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "executed_at": {
+            "format": "date-time",
+            "title": "Executed At",
+            "type": "string"
+          },
+          "incident_id": {
+            "default": "",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "rollback": {
+            "default": "not_required",
+            "title": "Rollback",
+            "type": "string"
+          },
+          "rollback_detail": {
+            "default": "",
+            "title": "Rollback Detail",
+            "type": "string"
+          },
+          "run_id": {
+            "default": "",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "settle_seconds": {
+            "default": 0,
+            "title": "Settle Seconds",
+            "type": "integer"
+          },
+          "signals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "required": [
+          "action_id",
+          "capability",
+          "resource_id",
+          "executed_at",
+          "due_at"
+        ],
+        "title": "OutcomeView",
+        "type": "object"
+      },
       "OverrideRequest": {
         "description": "A raise in autonomy that ends by itself.\n\n``reason`` is required. An override nobody explained is one the next person\ncannot decide whether to renew, and the person who granted it will not be\nthe person who finds it.",
         "properties": {
@@ -2413,6 +2681,123 @@
           "roles"
         ],
         "title": "PrincipalView",
+        "type": "object"
+      },
+      "ProblemListView": {
+        "properties": {
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemView"
+            },
+            "title": "Problems",
+            "type": "array"
+          }
+        },
+        "required": [
+          "problems"
+        ],
+        "title": "ProblemListView",
+        "type": "object"
+      },
+      "ProblemView": {
+        "description": "One recurring problem: a pattern, closed by a change.",
+        "properties": {
+          "action_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Action Ids",
+            "type": "array"
+          },
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "close_reason": {
+            "default": "",
+            "title": "Close Reason",
+            "type": "string"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "closed_by": {
+            "default": "",
+            "title": "Closed By",
+            "type": "string"
+          },
+          "incident_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Incident Ids",
+            "type": "array"
+          },
+          "live": {
+            "default": true,
+            "title": "Live",
+            "type": "boolean"
+          },
+          "occurrences": {
+            "title": "Occurrences",
+            "type": "integer"
+          },
+          "pattern_key": {
+            "title": "Pattern Key",
+            "type": "string"
+          },
+          "problem_id": {
+            "title": "Problem Id",
+            "type": "string"
+          },
+          "raised_at": {
+            "format": "date-time",
+            "title": "Raised At",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "suppresses_autonomy": {
+            "default": true,
+            "title": "Suppresses Autonomy",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "window_seconds": {
+            "title": "Window Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "problem_id",
+          "pattern_key",
+          "capability",
+          "resource_id",
+          "title",
+          "summary",
+          "raised_at",
+          "occurrences",
+          "window_seconds"
+        ],
+        "title": "ProblemView",
         "type": "object"
       },
       "QueueMessageRequest": {
@@ -3158,6 +3543,79 @@
           "reason"
         ],
         "title": "SuppressRequest",
+        "type": "object"
+      },
+      "SuspensionListView": {
+        "properties": {
+          "suspensions": {
+            "items": {
+              "$ref": "#/components/schemas/SuspensionView"
+            },
+            "title": "Suspensions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suspensions"
+        ],
+        "title": "SuspensionListView",
+        "type": "object"
+      },
+      "SuspensionView": {
+        "description": "One resource the deployment has stopped acting on unattended.",
+        "properties": {
+          "action_id": {
+            "default": "",
+            "title": "Action Id",
+            "type": "string"
+          },
+          "clear_reason": {
+            "default": "",
+            "title": "Clear Reason",
+            "type": "string"
+          },
+          "cleared_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cleared At"
+          },
+          "cleared_by": {
+            "default": "",
+            "title": "Cleared By",
+            "type": "string"
+          },
+          "live": {
+            "default": true,
+            "title": "Live",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "resource_id": {
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "since": {
+            "format": "date-time",
+            "title": "Since",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "since",
+          "reason"
+        ],
+        "title": "SuspensionView",
         "type": "object"
       },
       "ThreadCallView": {
@@ -7773,6 +8231,503 @@
         "summary": "List Observations",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/v1/remediations": {
+      "get": {
+        "description": "Return what the deployment has changed, most recent first.",
+        "operationId": "list_remediations_v1_remediations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "resource",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Resource",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "capability",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Capability",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "condition",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Condition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Remediations",
+        "tags": [
+          "remediation"
+        ]
+      }
+    },
+    "/v1/remediations/effectiveness/summary": {
+      "get": {
+        "description": "Return how often this has worked, sliced by whatever was named.\n\nWith a capability *and* a resource this is the question a proposal asks, and\nthe answer carries the sentence a reviewer reads. With one of them it is the\naggregate a screen renders.",
+        "operationId": "effectiveness_v1_remediations_effectiveness_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "resource",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Resource",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "capability",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Capability",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "condition",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Condition",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffectivenessView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Effectiveness",
+        "tags": [
+          "remediation"
+        ]
+      }
+    },
+    "/v1/remediations/problems/recurring": {
+      "get": {
+        "description": "Return the patterns the deployment has raised, most recent first.",
+        "operationId": "recurring_problems_v1_remediations_problems_recurring_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "live",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Live",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recurring Problems",
+        "tags": [
+          "remediation"
+        ]
+      }
+    },
+    "/v1/remediations/problems/{problem_id}/close": {
+      "post": {
+        "description": "Close a pattern, naming the change that closed it, and lift its suppression.",
+        "operationId": "close_recurring_problem_v1_remediations_problems__problem_id__close_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "problem_id",
+            "required": true,
+            "schema": {
+              "title": "Problem Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseProblemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Close Recurring Problem",
+        "tags": [
+          "remediation"
+        ]
+      }
+    },
+    "/v1/remediations/suspensions": {
+      "get": {
+        "description": "Return the resources the deployment has stopped acting on unattended.",
+        "operationId": "list_suspensions_v1_remediations_suspensions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "live",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Live",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuspensionListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Suspensions",
+        "tags": [
+          "remediation"
+        ]
+      }
+    },
+    "/v1/remediations/suspensions/{resource_id}/clear": {
+      "post": {
+        "description": "Let autonomy resume on a resource, recording who looked and what they found.",
+        "operationId": "clear_suspension_v1_remediations_suspensions__resource_id__clear_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resource_id",
+            "required": true,
+            "schema": {
+              "title": "Resource Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClearRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuspensionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clear Suspension",
+        "tags": [
+          "remediation"
+        ]
+      }
+    },
+    "/v1/remediations/{action_id}": {
+      "get": {
+        "description": "Return one remediation, and whether anybody has found out if it worked.",
+        "operationId": "remediation_detail_v1_remediations__action_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "title": "Action Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remediation Detail",
+        "tags": [
+          "remediation"
         ]
       }
     },
