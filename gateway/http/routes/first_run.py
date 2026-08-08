@@ -1,0 +1,238 @@
+"""First run over HTTP: the checklist, the self-check, the diagnosis, the demonstration.
+
+FR-010 and FR-022 both say the same thing in different words — what the terminal
+showed at bring-up has to be reachable afterwards from the console and the CLI.
+These are the routes that make that true. The logic is all in
+``platform.startup``; every handler here is a view over it, which is what keeps
+the CLI and the console reporting the same thing rather than two renderings of
+two calculations.
+
+The self-check is deliberately *not* given a live model verifier by default.
+Verifying a provider makes real calls against the operator's endpoint, and a
+console page that spent tokens every time somebody opened it would be a page
+nobody opens twice. A deployment that wants the provider verified on every
+self-check supplies the verifier at composition.
+"""
+
+from __future__ import annotations
+
+import os
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+
+from gateway.http.deps import AuthenticatedRequest, authorized, get_state
+from gateway.http.errors import bad_request, not_found
+from gateway.http.state import GatewayState
+from platform.startup.bootstrap import establish_durable_credential, read_credential
+from platform.startup.checklist import build_checklist
+from platform.startup.demo import DemoRefused, remove_demonstration, seed_demonstration
+from platform.startup.diagnostics import last_failure, support_bundle
+from platform.startup.selfcheck import self_check
+
+router = APIRouter(prefix="/v1/setup", tags=["setup"])
+
+
+class ChecklistStepView(BaseModel):
+    name: str
+    title: str
+    state: str
+    detail: str = ""
+    action: str = ""
+
+
+class ChecklistView(BaseModel):
+    complete: bool
+    steps: list[ChecklistStepView]
+    next: str | None = None
+
+
+class FindingView(BaseModel):
+    check: str
+    problem: str
+    action: str
+    blocks: str
+
+
+class SelfCheckView(BaseModel):
+    ok: bool
+    findings: list[FindingView]
+    passed: list[str]
+    duration_seconds: float
+
+
+class DiagnosisView(BaseModel):
+    stage: str
+    problem: str
+    action: str
+    settings: list[str] = Field(default_factory=list)
+    occurred_at: str = ""
+
+
+class DurableCredentialRequest(BaseModel):
+    user_id: str
+    email: str
+    display_name: str
+    name: str = "first administrator"
+
+
+class DurableCredentialView(BaseModel):
+    #: Returned exactly once, in the response to the call that created it. There
+    #: is no route that reads a token back — the store holds a hash.
+    secret: str
+    token_id: str
+    expires_at: str
+    user_id: str
+
+
+class DemoView(BaseModel):
+    organisation_id: str
+    counts: dict[str, int]
+    total: int = 0
+    forced: bool = False
+
+
+class DemoRemovalView(BaseModel):
+    organisation_id: str
+    removed: bool
+    counts: dict[str, int]
+
+
+@router.get("/checklist", response_model=ChecklistView)
+async def checklist(
+    auth: AuthenticatedRequest = Depends(authorized),
+    state: GatewayState = Depends(get_state),
+) -> ChecklistView:
+    """Return what is left to set up, each step verified against its dependency."""
+    built = await build_checklist(state.gateway, organisation_id=auth.scope.org_id)
+    record = built.to_record()
+    return ChecklistView(
+        complete=bool(record["complete"]),
+        steps=[ChecklistStepView(**step) for step in built.to_record()["steps"]],
+        next=record["next"],
+    )
+
+
+@router.get("/self-check", response_model=SelfCheckView, dependencies=[Depends(authorized)])
+async def run_self_check(state: GatewayState = Depends(get_state)) -> SelfCheckView:
+    """Run every check in one pass and return the findings, most blocking first."""
+    report = await self_check(state.gateway)
+    return SelfCheckView(
+        ok=report.ok,
+        findings=[
+            FindingView(
+                check=finding.check,
+                problem=finding.problem,
+                action=finding.action,
+                blocks=finding.blocks,
+            )
+            for finding in report.ordered()
+        ],
+        passed=[entry.check for entry in report.passed],
+        duration_seconds=round(report.duration_seconds, 3),
+    )
+
+
+@router.get("/diagnostics", response_model=DiagnosisView, dependencies=[Depends(authorized)])
+async def diagnostics() -> DiagnosisView:
+    """Return the last bring-up failure this host recorded.
+
+    404 when there was none, which is the honest answer: a deployment that
+    started has no failure to describe, and returning an empty one would put a
+    blank panel where a console should show nothing at all.
+    """
+    failure = last_failure()
+    if failure is None:
+        raise not_found("this deployment recorded no bring-up failure")
+    return DiagnosisView(
+        stage=failure.stage,
+        problem=failure.problem,
+        action=failure.action,
+        settings=list(failure.settings),
+        occurred_at=failure.occurred_at,
+    )
+
+
+@router.get("/support-bundle", dependencies=[Depends(authorized)])
+async def bundle(state: GatewayState = Depends(get_state)) -> dict[str, object]:
+    """Return the support bundle as a document, with every secret already removed.
+
+    Returned rather than written, because over HTTP the caller decides where it
+    lands. The CLI writes it to a file; the console offers it as a download. The
+    redaction is the same either way, and it happens here.
+    """
+    health = await state.gateway.health()
+    report = await self_check(state.gateway)
+    return support_bundle(
+        environ=dict(os.environ),
+        self_check=report,
+        logs=(),
+        schema_revision=(health.migrations.applied_revision or "") if health.migrations else "",
+    ).to_record()
+
+
+@router.post(
+    "/durable-credential",
+    response_model=DurableCredentialView,
+    dependencies=[Depends(authorized)],
+)
+async def durable_credential(
+    body: DurableCredentialRequest,
+    state: GatewayState = Depends(get_state),
+) -> DurableCredentialView:
+    """Exchange the bootstrap credential for one that lasts, and spend it.
+
+    Reads the bootstrap credential from the host file rather than from the
+    request: the caller has already proved they hold it by getting this far, and
+    accepting it in a body would be a second way in — one where a caller could
+    name somebody else's credential to revoke.
+    """
+    bootstrap = read_credential()
+    if bootstrap is None:
+        raise bad_request(
+            "there is no bootstrap credential on this host to exchange. It has already "
+            "been used, or this deployment was brought up before that was recorded."
+        )
+    issued = await establish_durable_credential(
+        state.gateway,
+        state.tokens,
+        bootstrap=bootstrap,
+        user_id=body.user_id,
+        email=body.email,
+        display_name=body.display_name,
+        name=body.name,
+    )
+    return DurableCredentialView(**issued.to_record())
+
+
+@router.post("/demo", response_model=DemoView, dependencies=[Depends(authorized)])
+async def enable_demo(
+    state: GatewayState = Depends(get_state),
+    force: bool = False,
+) -> DemoView:
+    """Load the demonstration deployment, refusing to seed over real data."""
+    try:
+        report = await seed_demonstration(state.gateway, force=force)
+    except DemoRefused as refusal:
+        raise bad_request(str(refusal)) from refusal
+    record = report.to_record()
+    return DemoView(
+        organisation_id=report.organisation_id,
+        counts=dict(report.counts),
+        total=int(record["total"]),
+        forced=report.forced,
+    )
+
+
+@router.delete("/demo", response_model=DemoRemovalView, dependencies=[Depends(authorized)])
+async def disable_demo(state: GatewayState = Depends(get_state)) -> DemoRemovalView:
+    """Remove the demonstration deployment in one action, leaving nothing behind."""
+    report = await remove_demonstration(state.gateway)
+    return DemoRemovalView(
+        organisation_id=report.organisation_id,
+        removed=report.removed,
+        counts=dict(report.counts),
+    )
+
+
+__all__ = ["router"]

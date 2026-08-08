@@ -55,6 +55,14 @@ from config.constants.evaluation import (
     NINJASRE_EVALUATION_BASELINES_ENV,
     NINJASRE_SCENARIO_ARTIFACTS_ENV,
 )
+from config.constants.first_run import (
+    DEFAULT_ORGANISATION_ID,
+    DEFAULT_STATE_DIR,
+    NINJASRE_BOOTSTRAP_CREDENTIAL_PATH_ENV,
+    NINJASRE_DEMO_MODE_ENV,
+    NINJASRE_ORGANISATION_ENV,
+    NINJASRE_STATE_DIR_ENV,
+)
 from config.constants.fixtures import (
     NINJASRE_CAPTURE_ENDPOINT_ENV,
     NINJASRE_CAPTURE_NODES_ENV,
@@ -243,6 +251,47 @@ SETTINGS: Final[tuple[Setting, ...]] = (
             "start when unset, which is the fastest path to a reachable console."
         ),
         secret=True,
+        section=SECTION_PROFILE,
+    ),
+    Setting(
+        name=NINJASRE_ORGANISATION_ENV,
+        effect=(
+            "The organisation bring-up creates on a store that holds none. Named "
+            "rather than derived from the hostname: an identifier that changes "
+            "when the machine is renamed breaks every token issued before it."
+        ),
+        default=DEFAULT_ORGANISATION_ID,
+        section=SECTION_PROFILE,
+    ),
+    Setting(
+        name=NINJASRE_STATE_DIR_ENV,
+        effect=(
+            "Where state that outlives one process but does not belong in the "
+            "database is kept: the bootstrap credential, the last bring-up "
+            "failure, a support bundle. Must survive a container restart, or an "
+            "operator who closed the terminal loses their way in."
+        ),
+        default=DEFAULT_STATE_DIR,
+        section=SECTION_PROFILE,
+    ),
+    Setting(
+        name=NINJASRE_BOOTSTRAP_CREDENTIAL_PATH_ENV,
+        effect=(
+            "Where the bootstrap credential is written, when it should not go "
+            "under the state directory. The file is owner-readable only and is "
+            "removed the moment the credential is exchanged for a durable one."
+        ),
+        secret=True,
+        section=SECTION_PROFILE,
+    ),
+    Setting(
+        name=NINJASRE_DEMO_MODE_ENV,
+        effect=(
+            "Serve the demonstration dataset instead of a real deployment. Every "
+            "provider response comes from a fixture and a real network call "
+            "raises, so nothing external is reached and nothing is billed."
+        ),
+        default="false",
         section=SECTION_PROFILE,
     ),
     Setting(

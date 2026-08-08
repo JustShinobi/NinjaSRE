@@ -14,6 +14,7 @@ from gateway.http.rate_limit import ApiRateLimiter
 from gateway.http.security.autonomy_routes import AUTONOMY_ROUTES
 from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.estate_routes import ESTATE_ROUTES
+from gateway.http.security.first_run_routes import FIRST_RUN_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES, WEBHOOK_ROUTES
 from gateway.http.security.incident_routes import INCIDENT_ROUTES
 from gateway.http.security.remediation_routes import REMEDIATION_ROUTES
@@ -41,6 +42,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     .extended_with(INCIDENT_ROUTES)
     .extended_with(AUTONOMY_ROUTES)
     .extended_with(REMEDIATION_ROUTES)
+    .extended_with(FIRST_RUN_ROUTES)
 )
 
 

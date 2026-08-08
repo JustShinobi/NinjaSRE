@@ -29,6 +29,8 @@ from gateway.http.asgi import Deployment, build_deployment
 from platform.credentials.errors import VaultKeyMismatch
 from platform.observability.logging import get_logger
 from platform.persistence.ports.health import StoreHealth
+from platform.startup.bootstrap import announcement, bring_up, credential_path
+from platform.startup.diagnostics import forget_failure, record_failure
 from platform.startup.errors import StartupError
 from platform.startup.readiness import DependencyReadiness, DependencyState, report
 from platform.startup.sequence import StartupResult, run_startup
@@ -137,10 +139,36 @@ async def _serve(host: str, port: int, *, migrate_only: bool) -> None:
         print(result.summary(), file=sys.stderr)  # noqa: T201 — a boot report is for a terminal
         if migrate_only:
             return
+
+        # After the schema is at head and before the listener opens. Before,
+        # because a credential issued against a schema this release refuses is a
+        # credential written for a deployment that is about to exit; after,
+        # because the operator must not meet a sign-in page there is no way past.
+        entry = await bring_up(deployment.state.gateway, deployment.state.tokens)
+        print(  # noqa: T201 — the credential is printed, never logged (FR-004)
+            announcement(entry.credential, path=credential_path())
+            if entry.issued
+            else (
+                f"Already brought up. The credential is unchanged and readable at "
+                f"{credential_path()}; it expires at {entry.credential.expires_at.isoformat()}."
+            ),
+            file=sys.stderr,
+        )
+
+        # Cleared once the deployment is genuinely up. Otherwise the console
+        # shows yesterday's failure to somebody whose deployment is working,
+        # which is worse than showing nothing at all.
+        forget_failure()
+
         server = uvicorn.Server(
             uvicorn.Config(create_app(deployment.state), host=host, port=port, log_config=None)
         )
         await server.serve()
+    except BaseException as error:
+        # Recorded before it is re-raised, so the console and the CLI can show
+        # the same message the terminal did to somebody who was not watching it.
+        record_failure(error, stage="bring-up")
+        raise
     finally:
         if migrate_only:
             # The serving path hands the pool to the app's own lifespan, which

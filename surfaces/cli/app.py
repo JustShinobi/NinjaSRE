@@ -37,6 +37,7 @@ from surfaces.cli.commands import providers as provider_commands
 from surfaces.cli.commands import remediation as remediation_commands
 from surfaces.cli.commands import runs as run_commands
 from surfaces.cli.commands import schedule as schedule_commands
+from surfaces.cli.commands import setup as setup_commands
 from surfaces.cli.commands.cost import cost
 from surfaces.cli.commands.doctor import doctor
 from surfaces.cli.commands.investigate import investigate
@@ -69,6 +70,7 @@ app.add_typer(incident_commands.detectors_app, name="detectors")
 app.add_typer(autonomy_commands.app, name="autonomy")
 app.add_typer(provider_commands.app, name="providers")
 app.add_typer(integration_commands.app, name="integrations")
+app.add_typer(setup_commands.app, name="setup")
 
 app.command("investigate")(investigate)
 app.command("cost")(cost)

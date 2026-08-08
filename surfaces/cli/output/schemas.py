@@ -543,6 +543,82 @@ LIFECYCLE_OUTCOME: Final[dict[str, Any]] = _object(
     }
 )
 
+# --- First run -----------------------------------------------------------------
+
+#: One self-check finding. ``problem`` and ``action`` are both required, which is
+#: FR-009 expressed where a client can see it: a consumer of this schema can
+#: rely on there being something to do about anything it is told.
+SELF_CHECK_FINDING: Final[dict[str, Any]] = {
+    "type": "object",
+    "properties": {
+        "check": _STRING,
+        "problem": _STRING,
+        "action": _STRING,
+        "blocks": _STRING,
+        "detail": {"type": "object"},
+    },
+    "required": ["check", "problem", "action", "blocks"],
+}
+
+SELF_CHECK_REPORT: Final[dict[str, Any]] = _object(
+    {
+        "ok": _BOOLEAN,
+        "findings": _array(SELF_CHECK_FINDING),
+        "passed": _array(_object({"check": _STRING, "detail": _STRING})),
+        "duration_seconds": _NUMBER,
+    }
+)
+
+#: The one published payload that carries a credential, and it does so because
+#: printing the credential again is the entire command. It is read from a host
+#: file the operator already has, never from the store, and it reaches no log on
+#: the way out.
+BOOTSTRAP_CREDENTIAL: Final[dict[str, Any]] = _object(
+    {
+        "secret": _STRING,
+        "token_id": _STRING,
+        "expires_at": _STRING,
+        "organisation_id": _STRING,
+    }
+)
+
+#: The last bring-up failure, or its absence. One key either way: a payload that
+#: is sometimes a record and sometimes a null is two schemas wearing one name.
+BRING_UP_FAILURE: Final[dict[str, Any]] = _object(
+    {
+        "failure": {
+            "type": ["object", "null"],
+            "properties": {
+                "stage": _STRING,
+                "problem": _STRING,
+                "action": _STRING,
+                "detail": _STRING,
+                "settings": _STRINGS,
+                "occurred_at": _STRING,
+            },
+        }
+    }
+)
+
+DEMO_SEED: Final[dict[str, Any]] = _object(
+    {
+        "organisation_id": _STRING,
+        "counts": {"type": "object", "additionalProperties": _INTEGER},
+        "total": _INTEGER,
+        "duration_seconds": _NUMBER,
+        "forced": _BOOLEAN,
+    }
+)
+
+DEMO_REMOVAL: Final[dict[str, Any]] = _object(
+    {
+        "organisation_id": _STRING,
+        "removed": _BOOLEAN,
+        "counts": {"type": "object", "additionalProperties": _INTEGER},
+    }
+)
+
+
 #: Every command's ``data`` payload, by the command's dotted name. The contract
 #: suite walks the typer application and fails on a command with no entry here,
 #: so a new command cannot ship with an undocumented ``--json``.
@@ -653,6 +729,12 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "doctor": DIAGNOSTIC_REPORT,
     "update": LIFECYCLE_OUTCOME,
     "uninstall": LIFECYCLE_OUTCOME,
+    "setup.self-check": SELF_CHECK_REPORT,
+    "setup.credential": BOOTSTRAP_CREDENTIAL,
+    "setup.diagnose": BRING_UP_FAILURE,
+    "setup.bundle": _object({"path": _STRING}),
+    "setup.load-demo": DEMO_SEED,
+    "setup.remove-demo": DEMO_REMOVAL,
 }
 
 #: The envelope every document is wrapped in, whatever the command.

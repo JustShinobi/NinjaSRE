@@ -168,6 +168,25 @@ INVOCATIONS: dict[str, list[str]] = {
 #: and still validated — see ``test_the_prompting_commands_still_conform``.
 PROMPTING = {"onboard", "integrations.setup"}
 
+#: Commands that read the *host* rather than a deployment: the bootstrap
+#: credential file, the recorded bring-up failure, and the store composed from
+#: the configured database URL. ``FakeServices`` is a façade over a deployment
+#: and has no gateway to lend them, so the runner below cannot drive them.
+#:
+#: Their schemas are still published and still validated against the real
+#: payload — ``tests/unit/surfaces/cli/commands/test_setup.py`` drives every one
+#: of them through the same typer application and asserts the emitted ``data``
+#: against ``COMMAND_SCHEMAS``. This set is where they are exercised, not an
+#: exemption from being exercised.
+HOST_SIDE = {
+    "setup.self-check",
+    "setup.credential",
+    "setup.diagnose",
+    "setup.bundle",
+    "setup.load-demo",
+    "setup.remove-demo",
+}
+
 
 def _walk(command: object, prefix: str = "") -> Iterator[str]:
     """Yield the dotted name of every leaf command in a typer application."""
@@ -284,6 +303,6 @@ def test_the_prompting_commands_still_conform(services: FakeServices) -> None:
 def test_every_published_schema_is_covered_by_an_invocation() -> None:
     # A schema nothing exercises is a schema that can drift from the payload
     # without anything noticing.
-    uncovered = set(COMMAND_SCHEMAS) - set(INVOCATIONS) - PROMPTING
+    uncovered = set(COMMAND_SCHEMAS) - set(INVOCATIONS) - PROMPTING - HOST_SIDE
 
     assert not uncovered, f"no invocation exercises: {sorted(uncovered)}"
