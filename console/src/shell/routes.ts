@@ -27,10 +27,12 @@ import {
   DatabaseIcon,
   GridIcon,
   ListIcon,
+  LayersIcon,
   ServerIcon,
   SettingsIcon,
   ShieldIcon,
   SitemapIcon,
+  UsersIcon,
 } from '@/design/icons';
 import type { MessageKey } from '@/i18n/en';
 import { may, type Viewer } from '@/session/viewer';
@@ -173,6 +175,29 @@ export const AREAS: readonly Area[] = [
     context: 'page.configuration.context',
     permission: 'config.read',
     icon: SettingsIcon,
+  },
+  {
+    id: 'catalogue',
+    path: '/catalogue',
+    // Grouped with memory and knowledge rather than with governance: what the
+    // deployment *can do* belongs beside what it knows, and a reader who holds
+    // only `investigation.read` should not be shown a "Govern" group for it.
+    group: 'learn',
+    label: 'nav.catalogue',
+    title: 'page.catalogue.title',
+    context: 'page.catalogue.context',
+    permission: 'investigation.read',
+    icon: LayersIcon,
+  },
+  {
+    id: 'administration',
+    path: '/administration',
+    group: 'govern',
+    label: 'nav.administration',
+    title: 'page.administration.title',
+    context: 'page.administration.context',
+    permission: 'identity.read',
+    icon: UsersIcon,
   },
   {
     id: 'audit',

@@ -1,0 +1,121 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { OrgTree, placeNodes, type TreeNode } from '@/surfaces/tree';
+
+/**
+ * Five hundred configuration nodes, every one of them present.
+ *
+ * "Every one" is the assertion that costs something: a tree that collapsed the
+ * deep ones would render instantly and would be a tree an operator cannot find
+ * their own team in. So the budget below is held *together with* a count, and
+ * the count is the one that would fail first if somebody made this fast by
+ * showing less.
+ */
+
+function budget(name: string): number {
+  const source = readFileSync(
+    join(process.cwd(), '..', 'config', 'constants', 'console.py'),
+    'utf8',
+  );
+  const found = new RegExp(`^${name}: Final = ([0-9.]+)`, 'm').exec(source);
+  if (found?.[1] === undefined) {
+    throw new Error(`${name} is not declared in config/constants/console.py`);
+  }
+  return Number(found[1]);
+}
+
+const TREE_BUDGET_MS = budget('CONSOLE_CONFIG_TREE_RENDER_BUDGET_MS');
+
+/** `count` nodes, ten deep, so the depth walk has something to walk. */
+function organisation(count: number): readonly TreeNode[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `node-${String(index)}`,
+    name: `team ${String(index)}`,
+    kind: index === 0 ? 'org' : 'team',
+    parentId: index === 0 ? null : `node-${String(Math.floor((index - 1) / 3))}`,
+  }));
+}
+
+describe('placing a flat list as a tree', () => {
+  it('gives each node the depth of its parent chain', () => {
+    // Depth-first, so the order is the order a reader's eye goes down the tree
+    // rather than the order the API happened to send.
+    const placed = placeNodes(organisation(5));
+
+    expect(placed.map((node) => node.depth)).toEqual([0, 1, 2, 1, 1]);
+  });
+
+  it('keeps a node whose parent is missing rather than dropping it', () => {
+    // A partial tree is a fact about the data. A node that vanished is a fact
+    // about the renderer, and only one of those is actionable.
+    const placed = placeNodes([
+      { id: 'a', name: 'a', kind: 'team', parentId: 'nowhere' },
+    ]);
+
+    expect(placed).toHaveLength(1);
+    expect(placed[0]?.depth).toBe(0);
+  });
+
+  it('terminates on a parent chain that points at itself', () => {
+    const placed = placeNodes([
+      { id: 'a', name: 'a', kind: 'team', parentId: 'b' },
+      { id: 'b', name: 'b', kind: 'team', parentId: 'a' },
+    ]);
+
+    expect(placed.map((node) => node.id).sort()).toEqual(['a', 'b']);
+  });
+
+  it('reads in tree order rather than in the order the API sent', () => {
+    const placed = placeNodes(organisation(5));
+
+    expect(placed[0]?.id).toBe('node-0');
+    expect(placed[1]?.id).toBe('node-1');
+    expect(placed[2]?.id).toBe('node-4');
+  });
+});
+
+describe('SC-008: five hundred nodes', () => {
+  it('are all present, and render inside the declared budget', () => {
+    const nodes = placeNodes(organisation(500));
+
+    const started = performance.now();
+    render(
+      <OrgTree
+        nodes={nodes}
+        selected="node-3"
+        label="Organisation"
+        hrefFor={(id) => `/configuration?node=${id}`}
+      />,
+    );
+    const spent = performance.now() - started;
+
+    // The count first: a tree made fast by drawing less would fail here rather
+    // than pass the stopwatch.
+    expect(screen.getAllByTestId('org-node')).toHaveLength(500);
+    expect(screen.getByTestId('org-tree')).toHaveAttribute('data-total', '500');
+    expect(spent, `five hundred nodes took ${spent.toFixed(0)}ms`).toBeLessThan(
+      TREE_BUDGET_MS,
+    );
+  });
+
+  it('marks the selected node, and only that one', () => {
+    render(
+      <OrgTree
+        nodes={placeNodes(organisation(9))}
+        selected="node-3"
+        label="Organisation"
+        hrefFor={(id) => `/configuration?node=${id}`}
+      />,
+    );
+
+    const current = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'true');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveAttribute('href', '/configuration?node=node-3');
+  });
+});

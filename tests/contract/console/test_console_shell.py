@@ -94,7 +94,7 @@ def _number_constant(source: str, name: str) -> float:
 
 
 def test_the_console_declares_at_least_the_areas_the_design_draws() -> None:
-    """Twelve areas in four groups, which is what the reference navigation shows."""
+    """At least the twelve the reference navigation shows, each with its own path."""
     areas = declared_areas()
     assert len(areas) >= 12, areas
     assert len({identifier for identifier, _, _ in areas}) == len(areas)
@@ -121,6 +121,8 @@ AREA_ROUTE: Final[dict[str, tuple[str, str]]] = {
     "memory": ("GET", "/v1/memory/stats"),
     "knowledge": ("GET", "/v1/knowledge/documents"),
     "configuration": ("GET", "/v1/config"),
+    "catalogue": ("GET", "/v1/capabilities"),
+    "administration": ("GET", "/identity/principals"),
     "audit": ("GET", "/audit/events"),
 }
 
@@ -250,15 +252,28 @@ def test_the_budgets_the_browser_suite_reads_are_the_ones_declared_here() -> Non
 
 
 def test_the_fixture_server_answers_endpoints_the_dataset_actually_has() -> None:
-    """Its little table is held against the mock plane's own catalogue."""
+    """Its table is held against the mock plane's own catalogue.
+
+    Against the ``GET`` half of it, because the fixture server answers reads and
+    nothing else: one path is both a read and a write — ``/v1/config/{node_id}``
+    is the effective configuration on ``GET`` and a patch on ``PUT`` — and a
+    comparison that ignored the method would hold the read table against
+    whichever of the two the catalogue happened to list second.
+    """
     source = _source(FIXTURE_SERVER)
     table = re.search(r"SHELL_ENDPOINTS = Object\.freeze\(\{(.*?)\}\)", source, re.DOTALL)
     assert table is not None, "the fixture server declares no endpoint table"
 
     declared = dict(re.findall(r"'([^']+)':\s*'([^']+)'", table.group(1)))
-    by_path = {endpoint.path: endpoint.slug for endpoint in CONSOLE_ENDPOINTS}
+    by_path = {
+        endpoint.path: endpoint.slug for endpoint in CONSOLE_ENDPOINTS if endpoint.method == "GET"
+    }
     for path, slug in declared.items():
-        assert path in by_path, f"{path} is not an endpoint the dataset covers"
+        if path == "/v1/config/{node_id}/preview":
+            # The one write the capture answers, because the configuration screen
+            # asks for a preview before it can draw one.
+            continue
+        assert path in by_path, f"{path} is not a read the dataset covers"
         assert by_path[path] == slug, f"{path} is fixture {by_path[path]}, not {slug}"
 
 

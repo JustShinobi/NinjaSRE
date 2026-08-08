@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { serveFixtures } from './fixture-server.mjs';
+import { bodyFor, serveFixtures } from './fixture-server.mjs';
 
 /**
  * Serve the built console and screenshot it. Runs inside the pinned capture
@@ -24,6 +24,21 @@ const accept = process.argv.includes('--accept');
 
 const fixturePort = 8426;
 const scenario = process.env.NINJASRE_FIXTURE_SCENARIO ?? 'populated';
+
+/**
+ * The instant the dataset was captured at, read from the dataset itself.
+ *
+ * Read rather than written down, so a recapture of the fixtures moves the
+ * console's clock with them instead of leaving a constant here that nobody
+ * remembers is connected to anything.
+ */
+const capturedAt = (() => {
+  const summary = bodyFor(scenario, '/v1/estate/summary');
+  const recorded = summary?.captured_at;
+  return typeof recorded === 'string' && recorded !== ''
+    ? recorded
+    : '2026-08-07T12:00:00+00:00';
+})();
 
 const server = join(root, '.next', 'standalone', 'server.js');
 if (!existsSync(server)) {
@@ -55,6 +70,10 @@ const console_ = spawn(process.execPath, [server], {
     PORT: String(port),
     NINJASRE_CONSOLE_API_URL: `http://127.0.0.1:${fixturePort}`,
     NINJASRE_CONSOLE_DEPLOYMENT: 'HAL9000',
+    // The dataset carries one fixed instant; without a fixed clock to read it
+    // against, "17 hours ago" becomes "18 hours ago" and every baseline holding
+    // a relative time fails on the hour.
+    NINJASRE_CONSOLE_CLOCK: capturedAt,
   },
 });
 

@@ -4,6 +4,7 @@ import { SEMANTIC_ROLES } from '@/design/tokens';
 import {
   isRunStatus,
   isSettled,
+  ATTENTION_STATUSES,
   RESOURCE_STATUSES,
   roleFor,
   RUN_STATUSES,
@@ -21,9 +22,31 @@ import {
 
 describe('the status mapping', () => {
   it('gives every declared status a declared role', () => {
-    for (const status of [...RUN_STATUSES, ...RESOURCE_STATUSES]) {
+    for (const status of [
+      ...RUN_STATUSES,
+      ...RESOURCE_STATUSES,
+      ...ATTENTION_STATUSES,
+    ]) {
       expect(SEMANTIC_ROLES).toContain(roleFor(status));
     }
+  });
+
+  it('recognises every status a surface puts in a chip', () => {
+    // The point of declaring them: a severity drawn as an unknown word is a
+    // severity drawn in grey, which is the one colour it must not be.
+    for (const status of ATTENTION_STATUSES) {
+      expect(statusPresentation(status).known, status).toBe(true);
+    }
+  });
+
+  it('tells two danger states apart by shape as well as by colour', () => {
+    // Roughly one man in twelve cannot separate this palette's danger from its
+    // warning; `critical` and `high` are both danger and must still differ.
+    expect(statusPresentation('critical').shape).not.toBe(
+      statusPresentation('high').shape,
+    );
+    expect(statusPresentation('irreversible').role).toBe('danger');
+    expect(statusPresentation('read_only').role).toBe('success');
   });
 
   it('reads a failure as danger and a success as success', () => {

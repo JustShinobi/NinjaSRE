@@ -41,6 +41,47 @@ export const RESOURCE_STATUSES = [
 
 export type ResourceStatus = (typeof RESOURCE_STATUSES)[number];
 
+/**
+ * The words the data surfaces put in a chip that are not a run's status or a
+ * resource's health.
+ *
+ * A severity, an incident's state, a decision's state, and how reversible an
+ * action is. They are declared here for the reason everything else is: a screen
+ * that needed a red chip and wrote one would be a screen that decides what red
+ * means, and by the fourth screen "critical" is three different reds.
+ *
+ * `awaiting_approval` is a run status the gateway reports that the run-status
+ * list above does not carry, because it belongs to the interaction rather than
+ * to the run. It is declared here so it is not drawn as an unknown word.
+ */
+export const ATTENTION_STATUSES = [
+  'critical',
+  'high',
+  'medium',
+  'low',
+  'info',
+  'open',
+  'investigating',
+  'closed',
+  'suppressed',
+  'awaiting_approval',
+  'approval',
+  'question',
+  'failure',
+  'pending',
+  'approved',
+  'rejected',
+  'expired',
+  'read_only',
+  'reversible',
+  'irreversible',
+  'locked',
+  'disabled',
+  'revoked',
+] as const;
+
+export type AttentionStatus = (typeof ATTENTION_STATUSES)[number];
+
 /** The shapes a status can be drawn as, so colour is never on its own. */
 export const SHAPES = [
   'filled-circle',
@@ -79,6 +120,36 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   stale: { role: 'neutral', shape: 'dimmed-circle' },
   maintenance: { role: 'info', shape: 'rotated-square' },
   absent: { role: 'neutral', shape: 'dash' },
+  // Severity. `critical` and `high` are both danger and are told apart by their
+  // shape, which is the whole reason a shape is carried at all.
+  critical: { role: 'danger', shape: 'square' },
+  high: { role: 'danger', shape: 'triangle' },
+  medium: { role: 'warning', shape: 'triangle' },
+  low: { role: 'info', shape: 'rotated-square' },
+  info: { role: 'info', shape: 'hollow-circle' },
+  // An incident's state.
+  open: { role: 'danger', shape: 'square' },
+  investigating: { role: 'info', shape: 'rotated-square' },
+  closed: { role: 'success', shape: 'filled-circle' },
+  suppressed: { role: 'neutral', shape: 'dimmed-circle' },
+  // What is waiting on a person, and what happened to it.
+  awaiting_approval: { role: 'warning', shape: 'triangle' },
+  approval: { role: 'warning', shape: 'triangle' },
+  question: { role: 'info', shape: 'hollow-circle' },
+  failure: { role: 'danger', shape: 'square' },
+  pending: { role: 'warning', shape: 'hollow-circle' },
+  approved: { role: 'success', shape: 'filled-circle' },
+  rejected: { role: 'danger', shape: 'square' },
+  expired: { role: 'neutral', shape: 'dash' },
+  // How reversible an action is. This is the one an operator reads before
+  // pressing something, so it is never carried by colour alone either.
+  read_only: { role: 'success', shape: 'filled-circle' },
+  reversible: { role: 'warning', shape: 'triangle' },
+  irreversible: { role: 'danger', shape: 'square' },
+  // States of a thing that has been turned off or fixed in place.
+  locked: { role: 'warning', shape: 'triangle' },
+  disabled: { role: 'neutral', shape: 'dash' },
+  revoked: { role: 'neutral', shape: 'dash' },
 };
 
 /** Whether `value` is a run status the gateway is known to report. */

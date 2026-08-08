@@ -47,6 +47,37 @@ export type ReadablePath = {
   [P in keyof paths]: Ok200<paths[P]> extends never ? never : P;
 }[keyof paths];
 
+/** What a read may carry beyond a plain request: the path's variables and a query. */
+export interface ReadOptions extends RequestInit {
+  /** One value per `{name}` in the path. A missing one is an error, never a literal. */
+  readonly params?: Readonly<Record<string, string>>;
+  /** Appended after the path, already encoded, including its leading `?`. */
+  readonly query?: string;
+}
+
+/**
+ * `path` with each `{name}` replaced by `params[name]`.
+ *
+ * Throws when one is missing rather than sending the brace to the gateway. A
+ * request to `/v1/runs/%7Brun_id%7D` comes back 404, which reads on a screen as
+ * "there is no such run" — the one message that would send somebody looking in
+ * exactly the wrong place.
+ */
+function bind(path: string, params: Readonly<Record<string, string>>): string {
+  return path
+    .split('/')
+    .map((segment) => {
+      if (!segment.startsWith('{') || !segment.endsWith('}')) return segment;
+      const name = segment.slice(1, -1);
+      const value = params[name];
+      if (value === undefined || value === '') {
+        throw new Error(`${path} needs a value for {${name}}`);
+      }
+      return encodeURIComponent(value);
+    })
+    .join('/');
+}
+
 /**
  * `GET` `path` and return its body, typed from the generated schema.
  *
@@ -56,7 +87,7 @@ export type ReadablePath = {
  */
 export async function read<P extends ReadablePath>(
   path: P,
-  init?: RequestInit,
+  init?: ReadOptions,
 ): Promise<Ok200<paths[P]>> {
   // Built rather than spread: `HeadersInit` is also an array of pairs and a
   // `Headers`, and spreading either of those into an object produces indices.
@@ -64,7 +95,8 @@ export async function read<P extends ReadablePath>(
   if (!headers.has('accept')) {
     headers.set('accept', 'application/json');
   }
-  const response = await fetch(`${apiOrigin()}${path}`, { ...init, headers });
+  const address = `${apiOrigin()}${bind(path, init?.params ?? {})}${init?.query ?? ''}`;
+  const response = await fetch(address, { ...init, headers });
   if (response.status === UNAUTHORIZED) {
     // Published rather than handled. Every refusal reaches one controller, so
     // three concurrent 401s end the session once — because there is one place
@@ -83,4 +115,65 @@ export async function read<P extends ReadablePath>(
   // so the type on the left is the shape the gateway declares it sends.
   const body: unknown = await response.json();
   return body as Ok200<paths[P]>;
+}
+
+/**
+ * The endpoints a deployment will serve and the API document does not declare
+ * yet.
+ *
+ * The estate inventory and continuous observation are separate pieces of work.
+ * Their shapes are already decided — the mock data plane serves them, and its
+ * own catalogue is the authority — but nothing has generated them into
+ * `schema.ts`, so `read` cannot name them and should not be made to.
+ *
+ * This is therefore a *narrow, enumerated* seam rather than an escape hatch:
+ * the list is closed, the body comes back untyped so every reader has to say
+ * what it expects, and `tests/contract/console/test_console_surfaces.py` holds
+ * this tuple against the mock plane's projected endpoints. **The list shrinks.**
+ * When an endpoint lands in the document it moves to `read` and comes out of
+ * here, and the contract test fails until it does.
+ */
+export const PROJECTED_PATHS = [
+  '/v1/estate/summary',
+  '/v1/estate/resources',
+  '/v1/estate/resources/{resource_id}',
+  '/v1/estate/nodes',
+  '/v1/estate/storage',
+  '/v1/estate/backups',
+  '/v1/incidents',
+  '/v1/incidents/{incident_id}',
+  '/v1/detectors',
+  '/v1/observations',
+] as const;
+
+export type ProjectedPath = (typeof PROJECTED_PATHS)[number];
+
+/**
+ * `GET` a projected endpoint.
+ *
+ * Untyped on purpose. A hand-written interface for a shape no document declares
+ * would be exactly the second opinion about the API that the generated client
+ * exists to prevent; a reader that has to pick fields out of `unknown` is a
+ * reader that cannot silently disagree.
+ */
+export async function readProjected(
+  path: ProjectedPath,
+  init?: ReadOptions,
+): Promise<unknown> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has('accept')) {
+    headers.set('accept', 'application/json');
+  }
+  const address = `${apiOrigin()}${bind(path, init?.params ?? {})}${init?.query ?? ''}`;
+  const response = await fetch(address, { ...init, headers });
+  if (response.status === UNAUTHORIZED) {
+    reportUnauthorized();
+  }
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      `GET ${path} returned ${String(response.status)}`,
+    );
+  }
+  return response.json();
 }

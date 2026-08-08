@@ -95,7 +95,11 @@ export interface FieldProps {
 }
 
 export interface InputProps extends FieldProps {
-  readonly type?: 'text' | 'search' | 'number' | 'date';
+  /**
+   * `password` is here for one reason: a credential typed in plain sight is a
+   * credential the person at the next desk has read.
+   */
+  readonly type?: 'text' | 'search' | 'number' | 'date' | 'password';
   readonly value?: string;
   readonly defaultValue?: string;
   readonly onValueChange?: (value: string) => void;

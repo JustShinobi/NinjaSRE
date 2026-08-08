@@ -140,6 +140,21 @@ CONSOLE_FIRST_PAINT_BUDGET_MS: Final = 2000.0
 #: browser's address bar.
 CONSOLE_ROUTE_TRANSITION_BUDGET_MS: Final = 1200.0
 
+#: Drawing a ten-thousand-event transcript, in milliseconds.
+#:
+#: A budget on the *drawing* rather than on the fetch, and it is held alongside a
+#: stronger claim: the number of entries in the document does not depend on how
+#: many events there are, so this number is a sanity check on that rather than
+#: the thing keeping the page usable.
+CONSOLE_TRANSCRIPT_RENDER_BUDGET_MS: Final = 1500.0
+
+#: Drawing a five-hundred-node configuration tree, in milliseconds.
+#:
+#: Every node present, because a tree that hid the deep ones would be a tree an
+#: operator cannot find their own team in. The tree is one pass over a flat list
+#: rather than a recursive render, which is why every node can be there.
+CONSOLE_CONFIG_TREE_RENDER_BUDGET_MS: Final = 1000.0
+
 #: How long one of the shell's own auxiliary reads gets before the frame is
 #: rendered without it.
 #:
@@ -187,6 +202,15 @@ CONSOLE_LOCALES: Final[tuple[str, ...]] = ("en", "pt-BR")
 NINJASRE_CONSOLE_DEPLOYMENT_ENV: Final = "NINJASRE_CONSOLE_DEPLOYMENT"
 NINJASRE_CONSOLE_TIMEZONE_ENV: Final = "NINJASRE_CONSOLE_TIMEZONE"
 
+#: An instant to render every relative time against, instead of the clock.
+#:
+#: The visual capture exists to produce the same image twice. Every timestamp in
+#: the committed dataset is shifted to one fixed instant for exactly that reason
+#: — and a screen that renders "17 hours ago" against the real clock says
+#: "18 hours ago" an hour later, which is a baseline that fails on the hour and
+#: on nothing else. Unset in a deployment, where the clock is the right answer.
+NINJASRE_CONSOLE_CLOCK_ENV: Final = "NINJASRE_CONSOLE_CLOCK"
+
 # --- The gate's wall clock -------------------------------------------------------
 
 #: A clean checkout, nothing cached, both halves of the gate. Generous, because
@@ -210,6 +234,7 @@ CONSOLE_E2E_MOCK_PORT: Final = 8424
 __all__ = [
     "CONSOLE_BASELINE_DIR_NAME",
     "CONSOLE_COLD_VERIFY_BUDGET_SECONDS",
+    "CONSOLE_CONFIG_TREE_RENDER_BUDGET_MS",
     "CONSOLE_COVERAGE_THRESHOLD",
     "CONSOLE_DIR_NAME",
     "CONSOLE_E2E_MOCK_PORT",
@@ -227,6 +252,8 @@ __all__ = [
     "CONSOLE_SIDEBAR_WIDTH_PX",
     "CONSOLE_SIGN_IN_PATH",
     "CONSOLE_TOPBAR_HEIGHT_PX",
+    "CONSOLE_TRANSCRIPT_RENDER_BUDGET_MS",
+    "NINJASRE_CONSOLE_CLOCK_ENV",
     "NINJASRE_CONSOLE_DEPLOYMENT_ENV",
     "NINJASRE_CONSOLE_TIMEZONE_ENV",
     "CONSOLE_E2E_PORT",

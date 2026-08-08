@@ -1,13 +1,19 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
-import { AreaPage, areaMetadata } from '@/shell/area';
+import { areaMetadata } from '@/shell/area';
+import { surfaceContext, type SearchParams } from '@/surfaces/context';
+import { ConfigurationScreen } from '@/surfaces/screens/configuration';
 
 /** One area of the product. What it is, and what it is for, come from the manifest. */
 export function generateMetadata(): Promise<Metadata> {
   return areaMetadata('configuration');
 }
 
-export default async function Page(): Promise<ReactNode> {
-  return AreaPage({ id: 'configuration' });
+export default async function Page({
+  searchParams,
+}: {
+  readonly searchParams: Promise<SearchParams>;
+}): Promise<ReactNode> {
+  return ConfigurationScreen(await surfaceContext(await searchParams));
 }

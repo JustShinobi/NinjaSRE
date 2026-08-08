@@ -107,6 +107,52 @@ offers it to the API origin, and keeps it in an HTTP-only, `SameSite=Strict`
 cookie; a second, readable cookie carries only the instant the session ends,
 because the expiry warning has to be rendered before the expiry.
 
+## The data surfaces
+
+`src/surfaces/` is what fills the frame, and `src/surfaces/screens/` is one
+module per area. Five things about it are load-bearing.
+
+**A region that fetches is a `Panel`, and a `Panel` cannot be written without an
+empty state.** `PanelProps.empty` is required and `EmptyState` throws on a blank
+body or a blank action, so "say what would be here and how to get it" is a thing
+the type system asks for rather than a thing a reviewer notices. Each panel also
+has its own error boundary and its own retry, which is what "panels fail alone"
+means in practice: a dashboard is six independent questions, and one
+unanswerable question must not blank the other five.
+
+**Whatever a screen is showing is in its address.** `src/surfaces/url-state.ts`
+is pure functions over a query string, read by the *server* component that
+renders the screen. A column header is an anchor carrying the sorted view's
+address and a filter is a navigation, so there is no code path that changes what
+a list shows without changing the address — which makes "a view can be sent to a
+colleague" true by construction, and makes sorting work with JavaScript
+disabled.
+
+**There is one transcript.** `src/surfaces/transcript.ts` turns either shape a
+run arrives in — a replay or a stream — into one sequence of events, and
+`transcript-view.tsx` is the only component that draws one. Both halves are
+asserted structurally, in the unit suite and again in
+`tests/contract/console/test_console_surfaces.py`, because a live view and a
+history view are the two files this console is most likely to grow by accident
+and the divergence is always in the direction of the recorded one showing less.
+
+**Nothing here computes what the server computes.** No configuration merge, no
+permission derivation, no masking decision, no blast radius. The configuration
+preview is a `POST` forwarded by `src/app/api/preview/` and the response is
+rendered verbatim; a contract test asserts that no merge exists anywhere in
+`src/`. The two route handlers under `src/app/api/` exist only because the
+credential is in an HTTP-only cookie and a browser cannot present it.
+
+**A long list is windowed and a transcript is paged**, and they differ because a
+row is a fixed height by contract and a transcript entry is not. Both say how
+many there are; neither truncates silently.
+
+`src/lib/api.ts` carries one more thing worth knowing: `PROJECTED_PATHS`, the
+closed list of endpoints a deployment will serve and the API document does not
+declare yet. It returns `unknown`, a 404 from one of them is *empty* rather than
+*error*, and the contract test requires the list to **shrink** — an endpoint that
+lands in the document has to move to the generated client.
+
 ## Every user-visible string comes from the catalogue
 
 `src/i18n/en.ts` is the source; `MessageKey` is derived from it, so a component
@@ -238,11 +284,14 @@ address and owns no process, because a browser test that also owns process
 lifecycle is a browser test that hangs.
 
 The visual suite has a third: `scripts/fixture-server.mjs`, a Node server that
-answers the four reads the *frame* makes from the same committed JSON. The
-capture image has a Node and no Python, and the shell resolves the viewer on the
-server — so without something answering, every capture would be of the sign-in
-page. Its little endpoint table is held against the mock plane's own catalogue by
-the Python suite.
+answers every read a surface makes from the same committed JSON. The capture
+image has a Node and no Python, and the shell resolves the viewer on the server —
+so without something answering, every capture would be of the sign-in page. The
+unit suite imports the same module, so a screen tested in `jsdom` and a screen
+photographed in a browser are looking at one dataset. Its endpoint table is held
+against the mock plane's own catalogue by the Python suite; it is not a second
+mock data plane, because it does not validate, does not write, and answers reads
+alone.
 
 Two backings for the behaviour suite. `mock` is the committed dataset served by `tools.mockplane` — every
 timestamp in it is shifted to one fixed instant, which is what makes

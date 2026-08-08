@@ -43,6 +43,7 @@ const OWNER = viewerHolding([
   'config.read',
   'config.write',
   'audit.read',
+  'identity.read',
   'impersonation.use',
 ]);
 

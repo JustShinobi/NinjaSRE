@@ -44,7 +44,7 @@ import {
 } from '@/components';
 import { BUTTON_VARIANTS, CONTROL_STATES } from '@/components/action';
 import { SURFACE_STATES } from '@/components/surface';
-import { RESOURCE_STATUSES, RUN_STATUSES } from '@/design/status';
+import { ATTENTION_STATUSES, RESOURCE_STATUSES, RUN_STATUSES } from '@/design/status';
 import { DatabaseIcon, ServerIcon, TrashIcon } from '@/design/icons';
 
 /**
@@ -156,7 +156,12 @@ export const GALLERY: readonly GalleryPrimitive[] = [
     name: 'Badge',
     summary:
       'Every status, each with its shape as well as its colour, and one nobody declared.',
-    entries: [...RUN_STATUSES, ...RESOURCE_STATUSES, 'quiesced'].map((status) => ({
+    entries: [
+      ...RUN_STATUSES,
+      ...RESOURCE_STATUSES,
+      ...ATTENTION_STATUSES,
+      'quiesced',
+    ].map((status) => ({
       id: `badge-${status}`,
       label: status,
       node: <Badge status={status} />,

@@ -1,15 +1,25 @@
 import { render, screen } from '@testing-library/react';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { message } from '@/i18n/messages';
 import { AREAS, areaFor } from '@/shell/routes';
+import { SESSION_COOKIE } from '@/session/cookies';
+import type { SearchParams } from '@/surfaces/context';
+
+import { serveScenario } from '../support/dataset';
 
 import Approvals, {
   generateMetadata as approvalsMeta,
 } from '@/app/(shell)/approvals/page';
+import Administration, {
+  generateMetadata as administrationMeta,
+} from '@/app/(shell)/administration/page';
 import Audit, { generateMetadata as auditMeta } from '@/app/(shell)/audit/page';
+import Catalogue, {
+  generateMetadata as catalogueMeta,
+} from '@/app/(shell)/catalogue/page';
 import Autonomy, {
   generateMetadata as autonomyMeta,
 } from '@/app/(shell)/autonomy/page';
@@ -46,13 +56,22 @@ import Topology, {
  */
 
 vi.mock('next/headers', () => ({
-  cookies: () => Promise.resolve({ get: () => undefined }),
+  cookies: () =>
+    Promise.resolve({
+      // The credential a signed-in request carries. The pages resolve the viewer
+      // themselves rather than trusting the layout to have done it, because a
+      // client-side transition fetches the page segment alone.
+      get: (name: string) =>
+        name === SESSION_COOKIE ? { value: 'a-token' } : undefined,
+    }),
   headers: () => Promise.resolve({ get: () => null }),
 }));
 
 interface RouteFile {
   readonly id: string;
-  readonly page: () => Promise<ReactNode>;
+  readonly page: (props: {
+    readonly searchParams: Promise<SearchParams>;
+  }) => Promise<ReactNode>;
   readonly metadata: () => Promise<Metadata>;
 }
 
@@ -68,11 +87,18 @@ const ROUTE_FILES: readonly RouteFile[] = [
   { id: 'knowledge', page: Knowledge, metadata: knowledgeMeta },
   { id: 'autonomy', page: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', page: Configuration, metadata: configurationMeta },
+  { id: 'catalogue', page: Catalogue, metadata: catalogueMeta },
+  { id: 'administration', page: Administration, metadata: administrationMeta },
   { id: 'audit', page: Audit, metadata: auditMeta },
 ];
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
+  serveScenario('populated');
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('the route files and the manifest', () => {
@@ -89,7 +115,7 @@ describe('a deep link to every route', () => {
     async (id, file) => {
       // Awaited, because a route file is an async server component: what a cold
       // request renders is what the page resolves to, not the page itself.
-      render(await file.page());
+      render(await file.page({ searchParams: Promise.resolve({}) }));
 
       expect(screen.getByTestId('page-header')).toHaveAttribute('data-area', id);
       expect(await file.metadata()).toMatchObject({

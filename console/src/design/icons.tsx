@@ -307,6 +307,16 @@ export function ListIcon(props: IconProps): ReactNode {
   );
 }
 
+/** Two people: the administration of who may do what. */
+export function UsersIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20a6 6 0 0 1 12 0M16 5.5a3 3 0 0 1 0 5M18 20a5 5 0 0 0-2-4" />
+    </Glyph>
+  );
+}
+
 /** Nodes and the edges between them. */
 export function SitemapIcon(props: IconProps): ReactNode {
   return (
@@ -407,6 +417,7 @@ export const ICON_NAMES = [
   'GridIcon',
   'ListIcon',
   'SitemapIcon',
+  'UsersIcon',
   'BrainIcon',
   'ClipboardIcon',
   'BellIcon',
