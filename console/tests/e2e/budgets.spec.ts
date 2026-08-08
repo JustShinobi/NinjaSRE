@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { signIn } from './session';
 
@@ -35,6 +35,64 @@ function budget(name: string): number {
 const FIRST_PAINT = budget('CONSOLE_FIRST_PAINT_BUDGET_MS');
 const TRANSITION = budget('CONSOLE_ROUTE_TRANSITION_BUDGET_MS');
 
+/**
+ * How long the browser may take to *report* a paint it has already made.
+ *
+ * Deliberately not a budget, and deliberately not read from the constants file
+ * beside the two that are: it bounds the reporting lag, not the console. A paint
+ * still unreported after this long is a browser that is never going to report
+ * one, which is a failure with its own message rather than a slow render.
+ */
+const PAINT_REPORTED_WITHIN = 5_000;
+
+/**
+ * The document's first-contentful-paint timing, once the browser has reported it.
+ *
+ * `page.goto` resolves on `load`, and a paint entry is queued only after the
+ * frame it describes has been presented — which can be after `load` fires.
+ * Reading the timeline once, at that moment, returns an empty list on the runs
+ * that lose that race, and an absent measurement is then indistinguishable from
+ * a slow one: the budget assertion fails reporting `NaN`, naming a performance
+ * problem that did not happen. It cost this suite a red gate at roughly one run
+ * in thirty, on whichever route happened to lose.
+ *
+ * So the entry is waited for, and the budget is asserted on a number that is
+ * always a measurement.
+ */
+async function firstContentfulPaint(page: Page): Promise<number> {
+  const reported = await page
+    .waitForFunction(
+      () =>
+        performance
+          .getEntriesByType('paint')
+          .some((each) => each.name === 'first-contentful-paint'),
+      undefined,
+      { timeout: PAINT_REPORTED_WITHIN },
+    )
+    .then(() => true)
+    .catch(() => false);
+
+  if (!reported) {
+    throw new Error(
+      `the browser reported no first contentful paint within ${String(PAINT_REPORTED_WITHIN)}ms`,
+    );
+  }
+
+  // Read second rather than returned from the wait: a paint at 0ms is a
+  // measurement, and a predicate resolving on the value itself would treat that
+  // one as not having arrived. Entries stay in the timeline, so there is nothing
+  // to lose between the two calls.
+  return page.evaluate(() => {
+    const [entry] = performance
+      .getEntriesByType('paint')
+      .filter((each) => each.name === 'first-contentful-paint');
+    if (entry === undefined) {
+      throw new Error('the paint entry left the timeline after appearing in it');
+    }
+    return entry.startTime;
+  });
+}
+
 test.beforeEach(async ({ context, baseURL }) => {
   await signIn(context, baseURL ?? 'http://127.0.0.1:8423');
 });
@@ -44,14 +102,8 @@ test('a cold route paints its frame inside the first-paint budget', async ({
 }) => {
   await page.goto('/audit');
 
-  const painted = await page.evaluate(() => {
-    const [entry] = performance
-      .getEntriesByType('paint')
-      .filter((each) => each.name === 'first-contentful-paint');
-    return entry?.startTime ?? Number.NaN;
-  });
+  const painted = await firstContentfulPaint(page);
 
-  expect(Number.isNaN(painted), 'the browser reported no first paint').toBe(false);
   expect(painted, `first paint took ${String(painted)}ms`).toBeLessThan(FIRST_PAINT);
 });
 
@@ -76,12 +128,7 @@ test('every route paints its frame inside the budget, not only the first', async
   // A budget held on one route and nowhere else is a budget held by accident.
   for (const path of ['/', '/approvals', '/audit']) {
     await page.goto(path);
-    const painted = await page.evaluate(() => {
-      const [entry] = performance
-        .getEntriesByType('paint')
-        .filter((each) => each.name === 'first-contentful-paint');
-      return entry?.startTime ?? Number.NaN;
-    });
+    const painted = await firstContentfulPaint(page);
     expect(painted, `${path} painted in ${String(painted)}ms`).toBeLessThan(
       FIRST_PAINT,
     );
