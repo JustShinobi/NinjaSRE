@@ -18,7 +18,12 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from config.constants.llm import DEFAULT_MODEL_ID, LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
-from surfaces.cli.client import EstateFilter, InvestigationRequest, ScheduleRequest
+from surfaces.cli.client import (
+    EstateFilter,
+    IncidentFilter,
+    InvestigationRequest,
+    ScheduleRequest,
+)
 from surfaces.cli.models import (
     CheckState,
     ConfigChange,
@@ -26,16 +31,23 @@ from surfaces.cli.models import (
     ConfigView,
     CostReport,
     CredentialFieldSpec,
+    DetectorRecord,
     DiagnosticCheck,
     DiagnosticReport,
+    DryRunRecord,
     EstateResource,
     EstateResourceDetail,
     EstateSummaryReport,
     EstateTransition,
+    IncidentDetailRecord,
+    IncidentRecord,
+    IncidentSubjectRecord,
+    IncidentTimelineRecord,
     IntegrationStatus,
     InvestigationOutcome,
     MemoryHit,
     MemoryStats,
+    ObservationRecord,
     ProviderStatus,
     RunDetail,
     RunSummary,
@@ -72,6 +84,9 @@ class FakeServices:
     scheduled: dict[str, ScheduleSummary] = field(default_factory=dict)
     config: dict[str, ConfigView] = field(default_factory=dict)
     resources: dict[str, EstateResource] = field(default_factory=dict)
+    incident_records: dict[str, IncidentRecord] = field(default_factory=dict)
+    detector_records: dict[str, DetectorRecord] = field(default_factory=dict)
+    observation_records: tuple[ObservationRecord, ...] = ()
     episodes: tuple[MemoryHit, ...] = ()
     provider_states: dict[str, ProviderStatus] = field(default_factory=dict)
     integration_states: dict[str, IntegrationStatus] = field(default_factory=dict)
@@ -274,6 +289,93 @@ class FakeServices:
         self.integration_states[integration] = verified
         return verified
 
+    async def incidents(self, query: IncidentFilter) -> tuple[IncidentRecord, ...]:
+        matched = [
+            incident
+            for incident in self.incident_records.values()
+            if (not query.live_only or incident.closed_at is None)
+            and (not query.states or incident.state in query.states)
+            and (not query.severities or incident.severity in query.severities)
+            and (not query.detectors or incident.detector in query.detectors)
+            and (not query.subject or query.subject in incident.subjects)
+        ]
+        matched.sort(key=lambda incident: incident.incident_id, reverse=True)
+        return tuple(matched[: query.limit])
+
+    async def incident(self, incident_id: str) -> IncidentDetailRecord | None:
+        found = self.incident_records.get(incident_id)
+        if found is None:
+            return None
+        return IncidentDetailRecord(
+            incident=found,
+            subjects=tuple(
+                IncidentSubjectRecord(
+                    resource_id=resource_id,
+                    detail=found.summary,
+                    evidence={"used_percent": "95.65"},
+                    observed_at=found.opened_at,
+                )
+                for resource_id in found.subjects
+            ),
+            timeline=(
+                IncidentTimelineRecord(
+                    at=found.opened_at,
+                    kind="opened",
+                    actor="system:observation",
+                    cause=found.summary,
+                ),
+            ),
+            actions=(),
+        )
+
+    async def close_incident(
+        self, incident_id: str, *, reason: str, resolved: bool
+    ) -> IncidentRecord:
+        found = self.incident_records[incident_id]
+        closed = replace(
+            found,
+            state="resolved" if resolved else "closed_without_action",
+            closed_at=EPOCH,
+            close_reason=reason,
+        )
+        self.incident_records[incident_id] = closed
+        return closed
+
+    async def suppress_incident(
+        self, incident_id: str, *, rule: str, reason: str
+    ) -> IncidentRecord:
+        found = self.incident_records[incident_id]
+        suppressed = replace(
+            found,
+            state="suppressed",
+            closed_at=EPOCH,
+            close_reason=reason,
+            suppressed_by=rule,
+        )
+        self.incident_records[incident_id] = suppressed
+        return suppressed
+
+    async def detectors(self) -> tuple[DetectorRecord, ...]:
+        return tuple(self.detector_records[key] for key in sorted(self.detector_records))
+
+    async def observations(self, *, limit: int) -> tuple[ObservationRecord, ...]:
+        return self.observation_records[:limit]
+
+    async def set_detector_enabled(self, detector_id: str, *, enabled: bool) -> DetectorRecord:
+        found = self.detector_records[detector_id]
+        updated = replace(found, enabled=enabled)
+        self.detector_records[detector_id] = updated
+        return updated
+
+    async def detector_dry_run(self, detector_id: str) -> DryRunRecord:
+        seen = tuple(entry for entry in self.observation_records if entry.detector == detector_id)
+        return DryRunRecord(
+            detector_id=detector_id,
+            would_fire=any(entry.verdict == "firing" for entry in seen),
+            observations=seen,
+            fired=False,
+        )
+
     async def estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
         matched = [
             resource
@@ -413,6 +515,43 @@ def seeded() -> FakeServices:
             ),
         ),
     }
+    services.incident_records = {
+        "inc-0001": IncidentRecord(
+            incident_id="inc-0001",
+            title="Datastore near full",
+            summary="store-cove is 95.65% full",
+            state="open",
+            severity="critical",
+            origin="detector",
+            detector="datastore-near-full",
+            subjects=("store-cove", "store-ridge"),
+            opened_at=EPOCH,
+        )
+    }
+    services.detector_records = {
+        "datastore-near-full": DetectorRecord(
+            detector_id="datastore-near-full",
+            name="Datastore near full",
+            description="A datastore that fills stops every guest on it at once.",
+            severity="critical",
+            signal="storage.used_percent",
+            enabled=True,
+            subjects_covered=2,
+            subjects_total=3,
+            last_verdict="firing",
+            last_evaluated_at=EPOCH,
+        )
+    }
+    services.observation_records = (
+        ObservationRecord(
+            detector="datastore-near-full",
+            subject="store-cove",
+            verdict="firing",
+            detail="store-cove is 95.65% full",
+            evidence={"storage.used_percent": "95.65"},
+            observed_at=EPOCH,
+        ),
+    )
     services.resources = {
         "res-node": EstateResource(
             resource_id="res-node",

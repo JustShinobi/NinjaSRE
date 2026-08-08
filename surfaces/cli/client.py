@@ -56,17 +56,24 @@ from surfaces.cli.models import (
     ConfigView,
     CostReport,
     CredentialFieldSpec,
+    DetectorRecord,
     DiagnosticReport,
+    DryRunRecord,
     EstateHealthSignal,
     EstateReference,
     EstateResource,
     EstateResourceDetail,
     EstateSummaryReport,
     EstateTransition,
+    IncidentDetailRecord,
+    IncidentRecord,
+    IncidentSubjectRecord,
+    IncidentTimelineRecord,
     IntegrationStatus,
     InvestigationOutcome,
     MemoryHit,
     MemoryStats,
+    ObservationRecord,
     ProviderStatus,
     RunDetail,
     RunReplay,
@@ -105,6 +112,23 @@ class InvestigationRequest:
                 "an investigation needs an alert or a description. Starting one with "
                 "neither would produce a run with nothing to investigate."
             )
+
+
+@dataclass(frozen=True, slots=True)
+class IncidentFilter:
+    """What an incident listing is narrowed by.
+
+    One record rather than six keyword arguments, for the reason
+    ``EstateFilter`` is one: the CLI, the console and the gateway all build the
+    same filter, and three signatures spelling it out is three that drift.
+    """
+
+    states: tuple[str, ...] = ()
+    severities: tuple[str, ...] = ()
+    detectors: tuple[str, ...] = ()
+    subject: str = ""
+    live_only: bool = False
+    limit: int = 50
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +219,34 @@ class PlatformClient(Protocol):
 
     async def list_estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
         """Return the resources matching ``query``, by identifier."""
+
+    async def list_incidents(self, query: IncidentFilter) -> tuple[IncidentRecord, ...]:
+        """Return the incidents matching ``query``, most recently opened first."""
+
+    async def show_incident(self, incident_id: str) -> IncidentDetailRecord:
+        """Return one incident with its timeline, or raise if there is none."""
+
+    async def close_incident(
+        self, incident_id: str, *, reason: str, resolved: bool = False
+    ) -> IncidentRecord:
+        """Close an incident with a reason and return it as it now reads."""
+
+    async def suppress_incident(
+        self, incident_id: str, *, rule: str, reason: str
+    ) -> IncidentRecord:
+        """Close an incident as suppressed, naming what covered it."""
+
+    async def list_detectors(self) -> tuple[DetectorRecord, ...]:
+        """Return every declared detector and what it concludes now."""
+
+    async def list_observations(self, *, limit: int = 50) -> tuple[ObservationRecord, ...]:
+        """Return what every enabled detector concludes right now."""
+
+    async def set_detector_enabled(self, detector_id: str, *, enabled: bool) -> DetectorRecord:
+        """Turn a detector on or off and return it as it now reads."""
+
+    async def dry_run_detector(self, detector_id: str) -> DryRunRecord:
+        """Return what a detector would conclude, firing nothing."""
 
     async def estate_summary(self) -> EstateSummaryReport:
         """Return the estate in the numbers a first screen shows."""
@@ -340,6 +392,34 @@ class LocalServices(Protocol):
     async def close_maintenance(self, resource_id: str) -> EstateResource:
         """Close a maintenance window and return the resource as it now reads."""
 
+    async def incidents(self, query: IncidentFilter) -> tuple[IncidentRecord, ...]:
+        """Return the incidents matching ``query``, most recently opened first."""
+
+    async def incident(self, incident_id: str) -> IncidentDetailRecord | None:
+        """Return one incident with its timeline, or ``None``."""
+
+    async def close_incident(
+        self, incident_id: str, *, reason: str, resolved: bool
+    ) -> IncidentRecord:
+        """Close an incident with a reason and return it as it now reads."""
+
+    async def suppress_incident(
+        self, incident_id: str, *, rule: str, reason: str
+    ) -> IncidentRecord:
+        """Close an incident as suppressed, naming what covered it."""
+
+    async def detectors(self) -> tuple[DetectorRecord, ...]:
+        """Return every declared detector, its coverage, and what it concludes now."""
+
+    async def observations(self, *, limit: int) -> tuple[ObservationRecord, ...]:
+        """Return what every enabled detector concludes right now."""
+
+    async def set_detector_enabled(self, detector_id: str, *, enabled: bool) -> DetectorRecord:
+        """Turn a detector on or off and return it as it now reads."""
+
+    async def detector_dry_run(self, detector_id: str) -> DryRunRecord:
+        """Return what a detector would conclude against stored signals."""
+
     async def recall(self, query: str, *, limit: int) -> tuple[MemoryHit, ...]:
         """Return the episodes matching ``query``."""
 
@@ -459,6 +539,48 @@ class LocalClient:
     async def list_estate(self, query: EstateFilter) -> tuple[EstateResource, ...]:
         """Return the resources matching ``query``, by identifier."""
         return await self.services.estate(query)
+
+    async def list_incidents(self, query: IncidentFilter) -> tuple[IncidentRecord, ...]:
+        """Return the incidents matching ``query``, most recently opened first."""
+        return await self.services.incidents(query)
+
+    async def show_incident(self, incident_id: str) -> IncidentDetailRecord:
+        """Return one incident with its timeline, or raise if there is none."""
+        detail = await self.services.incident(incident_id)
+        if detail is None:
+            raise NotFoundError(
+                f"no incident {incident_id!r} in this organisation",
+                remedy="list what there is with 'ninjasre incidents list'",
+            )
+        return detail
+
+    async def close_incident(
+        self, incident_id: str, *, reason: str, resolved: bool = False
+    ) -> IncidentRecord:
+        """Close an incident with a reason and return it as it now reads."""
+        return await self.services.close_incident(incident_id, reason=reason, resolved=resolved)
+
+    async def suppress_incident(
+        self, incident_id: str, *, rule: str, reason: str
+    ) -> IncidentRecord:
+        """Close an incident as suppressed, naming what covered it."""
+        return await self.services.suppress_incident(incident_id, rule=rule, reason=reason)
+
+    async def list_detectors(self) -> tuple[DetectorRecord, ...]:
+        """Return every declared detector and what it concludes now."""
+        return await self.services.detectors()
+
+    async def list_observations(self, *, limit: int = 50) -> tuple[ObservationRecord, ...]:
+        """Return what every enabled detector concludes right now."""
+        return await self.services.observations(limit=limit)
+
+    async def set_detector_enabled(self, detector_id: str, *, enabled: bool) -> DetectorRecord:
+        """Turn a detector on or off and return it as it now reads."""
+        return await self.services.set_detector_enabled(detector_id, enabled=enabled)
+
+    async def dry_run_detector(self, detector_id: str) -> DryRunRecord:
+        """Return what a detector would conclude, firing nothing."""
+        return await self.services.detector_dry_run(detector_id)
 
     async def estate_summary(self) -> EstateSummaryReport:
         """Return the estate in the numbers a first screen shows."""
@@ -816,6 +938,66 @@ class RemoteClient:
         payload = self._document("GET", f"/v1/estate/resources?{_estate_params(query)}")
         return tuple(_estate_resource(record) for record in _records(payload, "resources"))
 
+    async def list_incidents(self, query: IncidentFilter) -> tuple[IncidentRecord, ...]:
+        """Return the incidents matching ``query``, most recently opened first."""
+        payload = self._document("GET", f"/v1/incidents?{_incident_params(query)}")
+        return tuple(_incident(record) for record in _records(payload, "incidents"))
+
+    async def show_incident(self, incident_id: str) -> IncidentDetailRecord:
+        """Return one incident with its timeline, or raise if there is none."""
+        return _incident_detail(self._document("GET", f"/v1/incidents/{incident_id}"))
+
+    async def close_incident(
+        self, incident_id: str, *, reason: str, resolved: bool = False
+    ) -> IncidentRecord:
+        """Close an incident with a reason and return it as it now reads."""
+        return _incident(
+            self._document(
+                "POST",
+                f"/v1/incidents/{incident_id}/close",
+                {"reason": reason, "resolved": resolved},
+            )
+        )
+
+    async def suppress_incident(
+        self, incident_id: str, *, rule: str, reason: str
+    ) -> IncidentRecord:
+        """Close an incident as suppressed, naming what covered it."""
+        return _incident(
+            self._document(
+                "POST",
+                f"/v1/incidents/{incident_id}/suppress",
+                {"rule": rule, "reason": reason},
+            )
+        )
+
+    async def list_detectors(self) -> tuple[DetectorRecord, ...]:
+        """Return every declared detector and what it concludes now."""
+        payload = self._document("GET", "/v1/detectors")
+        return tuple(_detector(record) for record in _records(payload, "detectors"))
+
+    async def list_observations(self, *, limit: int = 50) -> tuple[ObservationRecord, ...]:
+        """Return what every enabled detector concludes right now."""
+        payload = self._document("GET", f"/v1/observations?limit={limit}")
+        return tuple(_observation(record) for record in _records(payload, "observations"))
+
+    async def set_detector_enabled(self, detector_id: str, *, enabled: bool) -> DetectorRecord:
+        """Turn a detector on or off and return it as it now reads."""
+        verb = "enable" if enabled else "disable"
+        return _detector(self._document("POST", f"/v1/detectors/{detector_id}/{verb}", {}))
+
+    async def dry_run_detector(self, detector_id: str) -> DryRunRecord:
+        """Return what a detector would conclude, firing nothing."""
+        payload = self._document("POST", f"/v1/detectors/{detector_id}/dry-run", {})
+        return DryRunRecord(
+            detector_id=_text(payload, "detector_id") or detector_id,
+            would_fire=bool(payload.get("would_fire")),
+            observations=tuple(
+                _observation(record) for record in _records(payload, "observations")
+            ),
+            fired=bool(payload.get("fired")),
+        )
+
     async def estate_summary(self) -> EstateSummaryReport:
         """Return the estate in the numbers a first screen shows."""
         return _estate_summary(self._document("GET", "/v1/estate/summary"))
@@ -989,6 +1171,112 @@ def _strings(payload: Mapping[str, Any], key: str) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(element) for element in value)
+
+
+def _incident_params(query: IncidentFilter) -> str:
+    """Return ``query`` as the API's query string.
+
+    Repeated keys for the multi-valued dimensions, matching what the route
+    reads and matching the estate's own listing.
+    """
+    pairs: list[tuple[str, str]] = []
+    for name, values in (
+        ("state", query.states),
+        ("severity", query.severities),
+        ("detector", query.detectors),
+    ):
+        pairs.extend((name, value) for value in values)
+    if query.subject:
+        pairs.append(("subject", query.subject))
+    if query.live_only:
+        pairs.append(("live", "true"))
+    pairs.append(("limit", str(query.limit)))
+    return urllib.parse.urlencode(pairs)
+
+
+def _evidence(record: Mapping[str, Any]) -> dict[str, str]:
+    """Return one payload's evidence map, as strings."""
+    found = record.get("evidence")
+    if not isinstance(found, dict):
+        return {}
+    return {str(name): str(value) for name, value in found.items()}
+
+
+def _incident(record: Mapping[str, Any]) -> IncidentRecord:
+    """Return the incident one API row describes."""
+    return IncidentRecord(
+        incident_id=_text(record, "incident_id"),
+        title=_text(record, "title"),
+        summary=_text(record, "summary"),
+        state=_text(record, "state"),
+        severity=_text(record, "severity"),
+        origin=_text(record, "origin"),
+        detector=_text(record, "detector"),
+        subjects=_strings(record, "subjects"),
+        opened_at=_instant(record, "opened_at"),
+        closed_at=_instant(record, "closed_at"),
+        run_id=_text(record, "run_id"),
+        self_resolved=bool(record.get("self_resolved")),
+        suppressed_by=_text(record, "suppressed_by"),
+        close_reason=_text(record, "close_reason"),
+    )
+
+
+def _incident_detail(payload: Mapping[str, Any]) -> IncidentDetailRecord:
+    """Return the incident detail one API document describes."""
+    incident = payload.get("incident")
+    return IncidentDetailRecord(
+        incident=_incident(incident if isinstance(incident, dict) else {}),
+        subjects=tuple(
+            IncidentSubjectRecord(
+                resource_id=_text(record, "resource_id"),
+                detail=_text(record, "detail"),
+                evidence=_evidence(record),
+                observed_at=_instant(record, "observed_at"),
+                absent_since=_instant(record, "absent_since"),
+            )
+            for record in _records(payload, "subjects")
+        ),
+        timeline=tuple(
+            IncidentTimelineRecord(
+                at=_instant(record, "at"),
+                kind=_text(record, "kind"),
+                actor=_text(record, "actor"),
+                cause=_text(record, "cause"),
+                detail=_text(record, "detail"),
+            )
+            for record in _records(payload, "timeline")
+        ),
+        actions=_strings(payload, "actions"),
+    )
+
+
+def _detector(record: Mapping[str, Any]) -> DetectorRecord:
+    """Return the detector one API row describes."""
+    return DetectorRecord(
+        detector_id=_text(record, "detector_id"),
+        name=_text(record, "name"),
+        description=_text(record, "description"),
+        severity=_text(record, "severity"),
+        signal=_text(record, "signal"),
+        enabled=bool(record.get("enabled")),
+        subjects_covered=int(record.get("subjects_covered") or 0),
+        subjects_total=int(record.get("subjects_total") or 0),
+        last_verdict=_text(record, "last_verdict"),
+        last_evaluated_at=_instant(record, "last_evaluated_at"),
+    )
+
+
+def _observation(record: Mapping[str, Any]) -> ObservationRecord:
+    """Return the observation one API row describes."""
+    return ObservationRecord(
+        detector=_text(record, "detector"),
+        subject=_text(record, "subject"),
+        verdict=_text(record, "verdict"),
+        detail=_text(record, "detail"),
+        evidence=_evidence(record),
+        observed_at=_instant(record, "observed_at"),
+    )
 
 
 def _estate_params(query: EstateFilter) -> str:

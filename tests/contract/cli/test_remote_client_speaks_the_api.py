@@ -40,6 +40,7 @@ from gateway.http.state import GatewayState
 from platform.config_service.document import NodeDocument
 from platform.identity.permissions import Role
 from platform.identity.tokens import TokenService
+from platform.incidents.lifecycle import IncidentLifecycle, IncidentRaise
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.config_repository import ConfigNode, ConfigNodeKind
 from platform.persistence.ports.estate_repository import (
@@ -47,11 +48,14 @@ from platform.persistence.ports.estate_repository import (
     Resource,
     ResourceHealth,
 )
+from platform.persistence.ports.incident_store import IncidentOrigin, IncidentSubject
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus
+from platform.persistence.ports.signal_store import Signal, SignalKind, signal_key
 from platform.persistence.ports.transaction import TenantScope
 from surfaces.cli.client import (
     Endpoint,
     EstateFilter,
+    IncidentFilter,
     InvestigationRequest,
     RemoteClient,
     ScheduleRequest,
@@ -372,6 +376,153 @@ def test_an_estate_filter_reaches_the_routes_own_parameters(
     assert [found.resource_id for found in by_health] == ["res-guest"]
     assert [found.resource_id for found in by_label] == ["res-guest"]
     assert [found.resource_id for found in by_parent] == ["res-guest"]
+
+
+async def _seed_observation(gateway: FakePersistence, now: datetime) -> None:
+    """Declare one detector, seed the signals that fire it, and raise one incident."""
+    async with gateway.begin(TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)) as uow:
+        team = await uow.config.get(TEAM_PAYMENTS)
+        assert team is not None
+        await uow.config.upsert(
+            ConfigNode(
+                node_id=TEAM_PAYMENTS,
+                kind=team.kind,
+                name=team.name,
+                parent_id=team.parent_id,
+                values=NodeDocument.of(
+                    {
+                        "policies": {
+                            "observation": {
+                                "detectors": [
+                                    {
+                                        "detector_id": "datastore-near-full",
+                                        "signal": "storage.used_percent",
+                                        "name": "Datastore near full",
+                                        "description": "A datastore that fills stops "
+                                        "every guest on it at once.",
+                                        "resource_kinds": ["datastore"],
+                                        "fire_value": 90.0,
+                                        "clear_value": 80.0,
+                                        "for_seconds": 300,
+                                        "recovery_seconds": 300,
+                                        "severity": "critical",
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ).to_values(),
+                version=team.version,
+            )
+        )
+
+    async with gateway.begin(TenantScope(org_id=ORG)) as uow:
+        await uow.estate.upsert(
+            Resource(
+                resource_id="store-cove",
+                kind="datastore",
+                source="proxmox",
+                native_id="store-cove",
+            )
+        )
+        await uow.signals.append(
+            [
+                Signal(
+                    signal_id=signal_key("storage.used_percent", "store-cove", moment),
+                    name="storage.used_percent",
+                    resource_id="store-cove",
+                    source="poller:proxmox",
+                    kind=SignalKind.NUMBER,
+                    observed_at=moment,
+                    value=95.65,
+                    interval_seconds=60,
+                )
+                for moment in (
+                    now - timedelta(minutes=4),
+                    now - timedelta(minutes=2),
+                    now,
+                )
+            ]
+        )
+        await IncidentLifecycle(store=uow.incidents).raise_incident(
+            IncidentRaise(
+                correlation_key="detector:datastore-near-full",
+                title="Datastore near full",
+                summary="store-cove is 95.65% full",
+                origin=IncidentOrigin.DETECTOR,
+                origin_id="datastore-near-full",
+                severity="critical",
+                subjects=(
+                    IncidentSubject(
+                        resource_id="store-cove",
+                        detail="store-cove is 95.65% full",
+                        evidence={"used_percent": "95.65"},
+                        observed_at=now,
+                    ),
+                ),
+                team_node_id=TEAM_PAYMENTS,
+                cause="the datastore crossed ninety per cent and stayed there",
+            ),
+            now=now,
+        )
+
+
+def test_incidents_are_listed_opened_and_closed(
+    remote: RemoteClient, deployment: _Deployment
+) -> None:
+    """The CLI's incident commands, against the routes the deployment really serves."""
+    now = datetime.now(UTC)
+    deployment.run(_seed_observation(deployment.gateway, now))
+
+    listed = asyncio.run(remote.list_incidents(IncidentFilter()))
+    detail = asyncio.run(remote.show_incident(listed[0].incident_id))
+    closed = asyncio.run(
+        remote.close_incident(listed[0].incident_id, reason="the datastore was expanded")
+    )
+
+    assert [entry.detector for entry in listed] == ["datastore-near-full"]
+    assert listed[0].subjects == ("store-cove",)
+    assert detail.subjects[0].evidence == {"used_percent": "95.65"}
+    assert [entry.kind for entry in detail.timeline] == ["opened"]
+    assert closed.state == "closed_without_action"
+    assert closed.close_reason == "the datastore was expanded"
+
+
+def test_an_incident_is_suppressed_with_the_rule_that_covered_it(
+    remote: RemoteClient, deployment: _Deployment
+) -> None:
+    now = datetime.now(UTC)
+    deployment.run(_seed_observation(deployment.gateway, now))
+    listed = asyncio.run(remote.list_incidents(IncidentFilter(live_only=True)))
+
+    suppressed = asyncio.run(
+        remote.suppress_incident(
+            listed[0].incident_id, rule="rack-4-migration", reason="the rack is being moved"
+        )
+    )
+
+    assert suppressed.state == "suppressed"
+    assert suppressed.suppressed_by == "rack-4-migration"
+
+
+def test_detectors_are_listed_toggled_and_dry_run(
+    remote: RemoteClient, deployment: _Deployment
+) -> None:
+    """Including the one property a dry run has to have: it fires nothing."""
+    now = datetime.now(UTC)
+    deployment.run(_seed_observation(deployment.gateway, now))
+
+    listed = asyncio.run(remote.list_detectors())
+    seen = asyncio.run(remote.list_observations())
+    run = asyncio.run(remote.dry_run_detector("datastore-near-full"))
+    disabled = asyncio.run(remote.set_detector_enabled("datastore-near-full", enabled=False))
+
+    assert [entry.detector_id for entry in listed] == ["datastore-near-full"]
+    assert listed[0].signal == "storage.used_percent"
+    assert [entry.subject for entry in seen] == ["store-cove"]
+    assert run.would_fire
+    assert not run.fired
+    assert not disabled.enabled
 
 
 def test_the_integration_catalogue_comes_back(remote: RemoteClient) -> None:

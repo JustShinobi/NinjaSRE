@@ -517,6 +517,185 @@ class ScheduleSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class IncidentRecord:
+    """One incident as a table row shows it.
+
+    ``subjects`` is every resource, named. A count would make correlation
+    unfalsifiable: an operator who suspected the grouping was too broad would
+    have nothing to check it against, which is the whole reason the incident
+    carries the list rather than the number.
+    """
+
+    incident_id: str
+    title: str = ""
+    summary: str = ""
+    state: str = ""
+    severity: str = ""
+    origin: str = ""
+    detector: str = ""
+    subjects: tuple[str, ...] = ()
+    opened_at: datetime | None = None
+    closed_at: datetime | None = None
+    run_id: str = ""
+    self_resolved: bool = False
+    suppressed_by: str = ""
+    close_reason: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "incident_id": self.incident_id,
+            "title": self.title,
+            "summary": self.summary,
+            "state": self.state,
+            "severity": self.severity,
+            "origin": self.origin,
+            "detector": self.detector,
+            "subjects": list(self.subjects),
+            "opened_at": _moment(self.opened_at),
+            "closed_at": _moment(self.closed_at),
+            "run_id": self.run_id,
+            "self_resolved": self.self_resolved,
+            "suppressed_by": self.suppressed_by,
+            "close_reason": self.close_reason,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class IncidentTimelineRecord:
+    """One thing that happened to an incident, with its cause and its actor."""
+
+    at: datetime | None = None
+    kind: str = ""
+    actor: str = ""
+    cause: str = ""
+    detail: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "at": _moment(self.at),
+            "kind": self.kind,
+            "actor": self.actor,
+            "cause": self.cause,
+            "detail": self.detail,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class IncidentSubjectRecord:
+    """One resource an incident is about, and what was seen on it."""
+
+    resource_id: str
+    detail: str = ""
+    evidence: Mapping[str, str] = field(default_factory=dict)
+    observed_at: datetime | None = None
+    absent_since: datetime | None = None
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "resource_id": self.resource_id,
+            "detail": self.detail,
+            "evidence": dict(self.evidence),
+            "observed_at": _moment(self.observed_at),
+            "absent_since": _moment(self.absent_since),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class IncidentDetailRecord:
+    """One incident's page: what it is, who it is about, and how it got there."""
+
+    incident: IncidentRecord
+    subjects: tuple[IncidentSubjectRecord, ...] = ()
+    timeline: tuple[IncidentTimelineRecord, ...] = ()
+    actions: tuple[str, ...] = ()
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "incident": self.incident.to_record(),
+            "subjects": [subject.to_record() for subject in self.subjects],
+            "timeline": [entry.to_record() for entry in self.timeline],
+            "actions": list(self.actions),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DetectorRecord:
+    """One detector as a table row shows it."""
+
+    detector_id: str
+    name: str = ""
+    description: str = ""
+    severity: str = ""
+    signal: str = ""
+    enabled: bool = True
+    subjects_covered: int = 0
+    subjects_total: int = 0
+    last_verdict: str = ""
+    last_evaluated_at: datetime | None = None
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "detector_id": self.detector_id,
+            "name": self.name,
+            "description": self.description,
+            "severity": self.severity,
+            "signal": self.signal,
+            "enabled": self.enabled,
+            "subjects_covered": self.subjects_covered,
+            "subjects_total": self.subjects_total,
+            "last_verdict": self.last_verdict,
+            "last_evaluated_at": _moment(self.last_evaluated_at),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ObservationRecord:
+    """One thing a detector concluded about one resource."""
+
+    detector: str
+    subject: str
+    verdict: str = ""
+    detail: str = ""
+    evidence: Mapping[str, str] = field(default_factory=dict)
+    observed_at: datetime | None = None
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "detector": self.detector,
+            "subject": self.subject,
+            "verdict": self.verdict,
+            "detail": self.detail,
+            "evidence": dict(self.evidence),
+            "observed_at": _moment(self.observed_at),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DryRunRecord:
+    """What a detector would have concluded, and the fact that it did nothing."""
+
+    detector_id: str
+    would_fire: bool = False
+    observations: tuple[ObservationRecord, ...] = ()
+    fired: bool = False
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "detector_id": self.detector_id,
+            "would_fire": self.would_fire,
+            "observations": [entry.to_record() for entry in self.observations],
+            "fired": self.fired,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class EstateResource:
     """One thing the deployment is responsible for, as a table row shows it.
 
@@ -917,19 +1096,26 @@ __all__ = [
     "ConfigView",
     "CostReport",
     "CredentialFieldSpec",
+    "DetectorRecord",
     "DiagnosticCheck",
     "DiagnosticReport",
+    "DryRunRecord",
     "EstateHealthSignal",
     "EstateReference",
     "EstateResource",
     "EstateResourceDetail",
     "EstateSummaryReport",
     "EstateTransition",
+    "IncidentDetailRecord",
+    "IncidentRecord",
+    "IncidentSubjectRecord",
+    "IncidentTimelineRecord",
     "IntegrationStatus",
     "InvestigationOutcome",
     "LifecycleOutcome",
     "MemoryHit",
     "MemoryStats",
+    "ObservationRecord",
     "OnboardingOutcome",
     "PendingInteraction",
     "ProviderStatus",

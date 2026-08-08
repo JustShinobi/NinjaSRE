@@ -211,6 +211,88 @@ ESTATE_RESOURCE: Final[dict[str, Any]] = _object(
     }
 )
 
+#: The evidence map every observation and subject carries. Open on purpose: the
+#: keys are whatever the detector measured, and a closed one would mean adding a
+#: field here every time somebody declared a detector.
+_EVIDENCE: Final[dict[str, Any]] = {"type": "object", "additionalProperties": _STRING}
+
+INCIDENT: Final[dict[str, Any]] = _object(
+    {
+        "incident_id": _STRING,
+        "title": _STRING,
+        "summary": _STRING,
+        "state": _STRING,
+        "severity": _STRING,
+        "origin": _STRING,
+        "detector": _STRING,
+        "subjects": _STRINGS,
+        "opened_at": _STRING,
+        "closed_at": _STRING,
+        "run_id": _STRING,
+        "self_resolved": _BOOLEAN,
+        "suppressed_by": _STRING,
+        "close_reason": _STRING,
+    }
+)
+
+INCIDENT_SUBJECT: Final[dict[str, Any]] = _object(
+    {
+        "resource_id": _STRING,
+        "detail": _STRING,
+        "evidence": _EVIDENCE,
+        "observed_at": _STRING,
+        "absent_since": _STRING,
+    }
+)
+
+INCIDENT_TIMELINE: Final[dict[str, Any]] = _object(
+    {"at": _STRING, "kind": _STRING, "actor": _STRING, "cause": _STRING, "detail": _STRING}
+)
+
+INCIDENT_DETAIL: Final[dict[str, Any]] = _object(
+    {
+        "incident": INCIDENT,
+        "subjects": _array(INCIDENT_SUBJECT),
+        "timeline": _array(INCIDENT_TIMELINE),
+        "actions": _STRINGS,
+    }
+)
+
+DETECTOR: Final[dict[str, Any]] = _object(
+    {
+        "detector_id": _STRING,
+        "name": _STRING,
+        "description": _STRING,
+        "severity": _STRING,
+        "signal": _STRING,
+        "enabled": _BOOLEAN,
+        "subjects_covered": _INTEGER,
+        "subjects_total": _INTEGER,
+        "last_verdict": _STRING,
+        "last_evaluated_at": _STRING,
+    }
+)
+
+OBSERVATION: Final[dict[str, Any]] = _object(
+    {
+        "detector": _STRING,
+        "subject": _STRING,
+        "verdict": _STRING,
+        "detail": _STRING,
+        "evidence": _EVIDENCE,
+        "observed_at": _STRING,
+    }
+)
+
+DRY_RUN: Final[dict[str, Any]] = _object(
+    {
+        "detector_id": _STRING,
+        "would_fire": _BOOLEAN,
+        "observations": _array(OBSERVATION),
+        "fired": _BOOLEAN,
+    }
+)
+
 ESTATE_SIGNAL: Final[dict[str, Any]] = _object(
     {"name": _STRING, "value": _STRING, "observed_at": _STRING, "source": _STRING}
 )
@@ -342,6 +424,15 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "estate.show": ESTATE_DETAIL,
     "estate.maintain": ESTATE_RESOURCE,
     "estate.release": ESTATE_RESOURCE,
+    "incidents.list": _object({"incidents": _array(INCIDENT)}),
+    "incidents.show": INCIDENT_DETAIL,
+    "incidents.close": INCIDENT,
+    "incidents.suppress": INCIDENT,
+    "detectors.list": _object({"detectors": _array(DETECTOR)}),
+    "detectors.observations": _object({"observations": _array(OBSERVATION)}),
+    "detectors.enable": DETECTOR,
+    "detectors.disable": DETECTOR,
+    "detectors.dry-run": DRY_RUN,
     "memory.search": _object({"query": _STRING, "hits": _array(MEMORY_HIT)}),
     "memory.stats": _object(
         {
