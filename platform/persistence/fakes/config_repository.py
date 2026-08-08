@@ -134,5 +134,18 @@ class FakeOrgDirectory:
         """Return every organisation, ordered by id."""
         return tuple(self.state.organisations[key] for key in sorted(self.state.organisations))
 
+    async def delete_organisation(self, org_id: str) -> bool:
+        """Remove an organisation and everything cascading from it.
+
+        Dropping the tenant's slice is the whole cascade here, which is what the
+        real schema's foreign keys do one table at a time — every row in every
+        table carries ``org_id``, so there is nothing outside the slice to miss.
+        """
+        if org_id not in self.state.organisations:
+            return False
+        del self.state.organisations[org_id]
+        self.state.tenants.pop(org_id, None)
+        return True
+
 
 __all__ = ["FakeConfigRepository", "FakeOrgDirectory"]

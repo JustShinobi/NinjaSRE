@@ -93,6 +93,23 @@ DEFAULT_FIXTURE_SCENARIO: Final = "populated"
 #: breach the size budget on its own.
 GENERATED_FIXTURE_SCENARIOS: Final = ("scale",)
 
+# --- The dataset as a demonstration deployment ---------------------------------
+
+#: The field every record loaded into a real database carries, and what it is
+#: set to. It lives here rather than beside either consumer because there are
+#: two — the seeder that writes it and the sweep that later has to find every
+#: record carrying it — and a label the two spelled differently would be a
+#: removal that silently left rows behind.
+DEMONSTRATION_LABEL_FIELD: Final = "is_demonstration"
+DEMONSTRATION_LABEL: Final = True
+
+#: The organisation the fictional deployment lives under is deliberately *not*
+#: declared here. It is a property of the dataset — the root of its own
+#: configuration tree — and naming it in the constants tier would be a second
+#: place it is written down, which is how a second fictional deployment starts.
+#: ``platform.startup.demo.dataset`` reads it; ``tests/architecture/
+#: test_one_fictional_deployment.py`` is what keeps it that way.
+
 # --- Budgets -------------------------------------------------------------------
 
 #: How long loading one scenario may take. The console's development loop must
@@ -127,6 +144,8 @@ MOCK_STREAM_EVENTS_PER_SECOND: Final = 4.0
 
 __all__ = [
     "DEFAULT_FIXTURE_SCENARIO",
+    "DEMONSTRATION_LABEL",
+    "DEMONSTRATION_LABEL_FIELD",
     "FIXTURE_COMMITTED_BYTES_BUDGET",
     "FIXTURE_CONTRACT_DIR_NAME",
     "FIXTURE_ENDPOINTS_FILENAME",

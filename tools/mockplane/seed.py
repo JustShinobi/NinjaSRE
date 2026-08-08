@@ -18,20 +18,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
-from config.constants.fixtures import DEFAULT_FIXTURE_SCENARIO
+from config.constants.fixtures import (
+    DEFAULT_FIXTURE_SCENARIO,
+    DEMONSTRATION_LABEL,
+    DEMONSTRATION_LABEL_FIELD,
+)
 from tools.mockplane import scenarios
 from tools.mockplane.endpoints import endpoint_by_slug
 from tools.mockplane.records import CapturedRecord
 
-#: The field every seeded record carries, and what it is set to. Read by whatever
-#: loads this into a database, and by whatever later has to find it all again to
-#: take it out.
-DEMONSTRATION_LABEL_FIELD: Final = "is_demonstration"
-DEMONSTRATION_LABEL: Final = True
+# The label field and its value are re-exported from the constants tier rather
+# than declared here: the seeder that loads this dataset into a real database and
+# the sweep that removes it again both need them, and neither may import
+# repository tooling.
 
-#: The organisation the fictional deployment lives under. One value, in one
-#: place, so "is there more than one fictional deployment in this repository"
-#: is a question with an answer.
+#: The organisation the fictional deployment lives under. Declared here rather
+#: than in the constants tier, because this tree and the fixture tree are the
+#: only two places the deployment may be named at all.
 DEMONSTRATION_ORGANISATION: Final = "org-northwind"
 
 

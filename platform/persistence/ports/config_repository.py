@@ -129,6 +129,21 @@ class OrgDirectory(Protocol):
     async def list_organisations(self) -> tuple[Organisation, ...]:
         """Return every organisation, ordered by id."""
 
+    async def delete_organisation(self, org_id: str) -> bool:
+        """Remove an organisation and everything cascading from it.
+
+        Returns whether it existed. On the port because offboarding a tenant is
+        an operation a deployment performs — demo mode's one-action removal is
+        exactly this, and expressing it as a sweep of thirteen repositories
+        instead would be thirteen chances to miss a table.
+
+        It does **not** remove that organisation's audit events: the audit
+        foreign key restricts rather than cascades, deliberately, so a tenant
+        with audit history cannot be deleted at all. That is the constraint that
+        keeps the audit trail append-only, and it is why nothing that has to be
+        removable may be written to it.
+        """
+
 
 __all__ = [
     "ConfigNode",

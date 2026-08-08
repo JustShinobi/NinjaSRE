@@ -31,8 +31,19 @@ LIFECYCLE: Final = REPO_ROOT / "platform" / "incidents" / "lifecycle.py"
 #: new one. Deserialisation is a different act from deciding something is wrong,
 #: and a backend that could not construct the record it just read would have to
 #: return a dictionary — which is the untyped seam the ports exist to remove.
+#:
+#: The demonstration seeder is here for exactly the same reason and no other. It
+#: restores incidents that were *recorded* — identifiers, correlation keys,
+#: subjects and all — from the committed dataset, so that a demonstration is the
+#: deployment the capture describes rather than a fresh one that happens to
+#: resemble it. Routing it through ``raise_incident`` would derive new
+#: identifiers from the clock, which would break every reference the dataset's
+#: other fixtures make to ``inc-0001`` and make two seeds of one dataset produce
+#: two different deployments. It decides nothing is wrong; it reads what already
+#: was.
 REHYDRATORS: Final = (
     REPO_ROOT / "platform" / "persistence" / "postgres" / "repositories" / "incident_store.py",
+    REPO_ROOT / "platform" / "startup" / "demo" / "seeder.py",
 )
 
 #: The packages a source scan covers: the shipped runtime. Tests construct
