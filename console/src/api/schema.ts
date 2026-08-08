@@ -1536,6 +1536,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/setup/checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Checklist
+         * @description Return what is left to set up, each step verified against its dependency.
+         */
+        get: operations["checklist_v1_setup_checklist_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable Demo
+         * @description Load the demonstration deployment, refusing to seed over real data.
+         */
+        post: operations["enable_demo_v1_setup_demo_post"];
+        /**
+         * Disable Demo
+         * @description Remove the demonstration deployment in one action, leaving nothing behind.
+         */
+        delete: operations["disable_demo_v1_setup_demo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Diagnostics
+         * @description Return the last bring-up failure this host recorded.
+         *
+         *     404 when there was none, which is the honest answer: a deployment that
+         *     started has no failure to describe, and returning an empty one would put a
+         *     blank panel where a console should show nothing at all.
+         */
+        get: operations["diagnostics_v1_setup_diagnostics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/durable-credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Durable Credential
+         * @description Exchange the bootstrap credential for one that lasts, and spend it.
+         *
+         *     Reads the bootstrap credential from the host file rather than from the
+         *     request: the caller has already proved they hold it by getting this far, and
+         *     accepting it in a body would be a second way in — one where a caller could
+         *     name somebody else's credential to revoke.
+         */
+        post: operations["durable_credential_v1_setup_durable_credential_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/self-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Self Check
+         * @description Run every check in one pass and return the findings, most blocking first.
+         */
+        get: operations["run_self_check_v1_setup_self_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/setup/support-bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bundle
+         * @description Return the support bundle as a document, with every secret already removed.
+         *
+         *     Returned rather than written, because over HTTP the caller decides where it
+         *     lands. The CLI writes it to a file; the console offers it as a download. The
+         *     redaction is the same either way, and it happens here.
+         */
+        get: operations["bundle_v1_setup_support_bundle_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/topology/{node_id}": {
         parameters: {
             query?: never;
@@ -1847,6 +1984,34 @@ export interface components {
             /** Tags */
             tags: string[];
         };
+        /** ChecklistStepView */
+        ChecklistStepView: {
+            /**
+             * Action
+             * @default
+             */
+            action: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Name */
+            name: string;
+            /** State */
+            state: string;
+            /** Title */
+            title: string;
+        };
+        /** ChecklistView */
+        ChecklistView: {
+            /** Complete */
+            complete: boolean;
+            /** Next */
+            next?: string | null;
+            /** Steps */
+            steps: components["schemas"]["ChecklistStepView"][];
+        };
         /**
          * ClearRequest
          * @description What the person who looked at the resource found.
@@ -2025,6 +2190,36 @@ export interface components {
             /** Secret */
             secret: boolean;
         };
+        /** DemoRemovalView */
+        DemoRemovalView: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Organisation Id */
+            organisation_id: string;
+            /** Removed */
+            removed: boolean;
+        };
+        /** DemoView */
+        DemoView: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Forced
+             * @default false
+             */
+            forced: boolean;
+            /** Organisation Id */
+            organisation_id: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+        };
         /** DerivationView */
         DerivationView: {
             /**
@@ -2090,6 +2285,22 @@ export interface components {
             /** Subjects Total */
             subjects_total: number;
         };
+        /** DiagnosisView */
+        DiagnosisView: {
+            /** Action */
+            action: string;
+            /**
+             * Occurred At
+             * @default
+             */
+            occurred_at: string;
+            /** Problem */
+            problem: string;
+            /** Settings */
+            settings?: string[];
+            /** Stage */
+            stage: string;
+        };
         /** DryRunRequest */
         DryRunRequest: {
             /** Enabled */
@@ -2111,6 +2322,31 @@ export interface components {
             observations?: components["schemas"]["ObservationView"][];
             /** Would Fire */
             would_fire: boolean;
+        };
+        /** DurableCredentialRequest */
+        DurableCredentialRequest: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /**
+             * Name
+             * @default first administrator
+             */
+            name: string;
+            /** User Id */
+            user_id: string;
+        };
+        /** DurableCredentialView */
+        DurableCredentialView: {
+            /** Expires At */
+            expires_at: string;
+            /** Secret */
+            secret: string;
+            /** Token Id */
+            token_id: string;
+            /** User Id */
+            user_id: string;
         };
         /** EffectiveConfigView */
         EffectiveConfigView: {
@@ -2307,6 +2543,17 @@ export interface components {
              * @default
              */
             winning_rule: string;
+        };
+        /** FindingView */
+        FindingView: {
+            /** Action */
+            action: string;
+            /** Blocks */
+            blocks: string;
+            /** Check */
+            check: string;
+            /** Problem */
+            problem: string;
         };
         /** GrantList */
         GrantList: {
@@ -3259,6 +3506,17 @@ export interface components {
         SearchResult: {
             /** Episodes */
             episodes: components["schemas"]["EpisodeView"][];
+        };
+        /** SelfCheckView */
+        SelfCheckView: {
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Findings */
+            findings: components["schemas"]["FindingView"][];
+            /** Ok */
+            ok: boolean;
+            /** Passed */
+            passed: string[];
         };
         /** SignalView */
         SignalView: {
@@ -6321,6 +6579,231 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScheduleView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    checklist_v1_setup_checklist_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChecklistView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enable_demo_v1_setup_demo_post: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_demo_v1_setup_demo_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoRemovalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    diagnostics_v1_setup_diagnostics_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiagnosisView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    durable_credential_v1_setup_durable_credential_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DurableCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DurableCredentialView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_self_check_v1_setup_self_check_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfCheckView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bundle_v1_setup_support_bundle_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

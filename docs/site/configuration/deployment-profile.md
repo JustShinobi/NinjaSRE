@@ -2,7 +2,7 @@
 
 # Deployment profile
 
-5 setting(s). Every one is read from the environment; there is no configuration file a deployment needs before it can start.
+9 setting(s). Every one is read from the environment; there is no configuration file a deployment needs before it can start.
 
 ### `NINJASRE_DEPLOYMENT_PROFILE`
 
@@ -18,6 +18,35 @@ The first administrator's token. Generated and printed once at first start when 
 - **Required:** no
 - **Default:** none
 - **Secret:** yes — never printed, never included in a diagnostic bundle, and never passed to the agent.
+
+### `NINJASRE_ORGANISATION`
+
+The organisation bring-up creates on a store that holds none. Named rather than derived from the hostname: an identifier that changes when the machine is renamed breaks every token issued before it.
+
+- **Required:** no
+- **Default:** `default`
+
+### `NINJASRE_STATE_DIR`
+
+Where state that outlives one process but does not belong in the database is kept: the bootstrap credential, the last bring-up failure, a support bundle. Must survive a container restart, or an operator who closed the terminal loses their way in.
+
+- **Required:** no
+- **Default:** `/var/lib/ninjasre`
+
+### `NINJASRE_BOOTSTRAP_CREDENTIAL_PATH`
+
+Where the bootstrap credential is written, when it should not go under the state directory. The file is owner-readable only and is removed the moment the credential is exchanged for a durable one.
+
+- **Required:** no
+- **Default:** none
+- **Secret:** yes — never printed, never included in a diagnostic bundle, and never passed to the agent.
+
+### `NINJASRE_DEMO_MODE`
+
+Serve the demonstration dataset instead of a real deployment. Every provider response comes from a fixture and a real network call raises, so nothing external is reached and nothing is billed.
+
+- **Required:** no
+- **Default:** `false`
 
 ### `NINJASRE_SETUP_TEMPLATE`
 

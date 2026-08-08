@@ -419,6 +419,71 @@
         "title": "CatalogueEntryView",
         "type": "object"
       },
+      "ChecklistStepView": {
+        "properties": {
+          "action": {
+            "default": "",
+            "title": "Action",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "state"
+        ],
+        "title": "ChecklistStepView",
+        "type": "object"
+      },
+      "ChecklistView": {
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ChecklistStepView"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "complete",
+          "steps"
+        ],
+        "title": "ChecklistView",
+        "type": "object"
+      },
       "ClearRequest": {
         "description": "What the person who looked at the resource found.\n\nRequired, and refused at the schema. A suspension is raised because nobody\nknows what state a resource is in; a clearing with no reason records that\nnobody found out.",
         "properties": {
@@ -770,6 +835,63 @@
         "title": "CredentialFieldView",
         "type": "object"
       },
+      "DemoRemovalView": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "organisation_id": {
+            "title": "Organisation Id",
+            "type": "string"
+          },
+          "removed": {
+            "title": "Removed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "organisation_id",
+          "removed",
+          "counts"
+        ],
+        "title": "DemoRemovalView",
+        "type": "object"
+      },
+      "DemoView": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "forced": {
+            "default": false,
+            "title": "Forced",
+            "type": "boolean"
+          },
+          "organisation_id": {
+            "title": "Organisation Id",
+            "type": "string"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organisation_id",
+          "counts"
+        ],
+        "title": "DemoView",
+        "type": "object"
+      },
       "DerivationView": {
         "properties": {
           "derived_at": {
@@ -903,6 +1025,41 @@
         "title": "DetectorSummaryView",
         "type": "object"
       },
+      "DiagnosisView": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "occurred_at": {
+            "default": "",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Settings",
+            "type": "array"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "problem",
+          "action"
+        ],
+        "title": "DiagnosisView",
+        "type": "object"
+      },
       "DryRunRequest": {
         "properties": {
           "enabled": {
@@ -945,6 +1102,62 @@
           "would_fire"
         ],
         "title": "DryRunView",
+        "type": "object"
+      },
+      "DurableCredentialRequest": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "default": "first administrator",
+            "title": "Name",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "display_name"
+        ],
+        "title": "DurableCredentialRequest",
+        "type": "object"
+      },
+      "DurableCredentialView": {
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "token_id",
+          "expires_at",
+          "user_id"
+        ],
+        "title": "DurableCredentialView",
         "type": "object"
       },
       "EffectiveConfigView": {
@@ -1271,6 +1484,34 @@
           "reason"
         ],
         "title": "ExplanationView",
+        "type": "object"
+      },
+      "FindingView": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "blocks": {
+            "title": "Blocks",
+            "type": "string"
+          },
+          "check": {
+            "title": "Check",
+            "type": "string"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check",
+          "problem",
+          "action",
+          "blocks"
+        ],
+        "title": "FindingView",
         "type": "object"
       },
       "GrantList": {
@@ -3393,6 +3634,40 @@
           "episodes"
         ],
         "title": "SearchResult",
+        "type": "object"
+      },
+      "SelfCheckView": {
+        "properties": {
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FindingView"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "passed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Passed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok",
+          "findings",
+          "passed",
+          "duration_seconds"
+        ],
+        "title": "SelfCheckView",
         "type": "object"
       },
       "SignalView": {
@@ -9312,6 +9587,376 @@
         "summary": "Enable Schedule",
         "tags": [
           "schedules"
+        ]
+      }
+    },
+    "/v1/setup/checklist": {
+      "get": {
+        "description": "Return what is left to set up, each step verified against its dependency.",
+        "operationId": "checklist_v1_setup_checklist_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Checklist",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/setup/demo": {
+      "delete": {
+        "description": "Remove the demonstration deployment in one action, leaving nothing behind.",
+        "operationId": "disable_demo_v1_setup_demo_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoRemovalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Disable Demo",
+        "tags": [
+          "setup"
+        ]
+      },
+      "post": {
+        "description": "Load the demonstration deployment, refusing to seed over real data.",
+        "operationId": "enable_demo_v1_setup_demo_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "force",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Force",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enable Demo",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/setup/diagnostics": {
+      "get": {
+        "description": "Return the last bring-up failure this host recorded.\n\n404 when there was none, which is the honest answer: a deployment that\nstarted has no failure to describe, and returning an empty one would put a\nblank panel where a console should show nothing at all.",
+        "operationId": "diagnostics_v1_setup_diagnostics_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosisView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Diagnostics",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/setup/durable-credential": {
+      "post": {
+        "description": "Exchange the bootstrap credential for one that lasts, and spend it.\n\nReads the bootstrap credential from the host file rather than from the\nrequest: the caller has already proved they hold it by getting this far, and\naccepting it in a body would be a second way in — one where a caller could\nname somebody else's credential to revoke.",
+        "operationId": "durable_credential_v1_setup_durable_credential_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DurableCredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DurableCredentialView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Durable Credential",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/setup/self-check": {
+      "get": {
+        "description": "Run every check in one pass and return the findings, most blocking first.",
+        "operationId": "run_self_check_v1_setup_self_check_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelfCheckView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Self Check",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/setup/support-bundle": {
+      "get": {
+        "description": "Return the support bundle as a document, with every secret already removed.\n\nReturned rather than written, because over HTTP the caller decides where it\nlands. The CLI writes it to a file; the console offers it as a download. The\nredaction is the same either way, and it happens here.",
+        "operationId": "bundle_v1_setup_support_bundle_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Bundle V1 Setup Support Bundle Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bundle",
+        "tags": [
+          "setup"
         ]
       }
     },
