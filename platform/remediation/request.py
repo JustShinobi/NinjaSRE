@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from config.constants.closed_loop import REMEDIATION_PAYLOAD_EFFECTIVENESS
 from config.constants.security import (
     MAX_REMEDIATION_BLAST_RADIUS_REPORTED,
     REMEDIATION_APPROVAL_EXPIRY_SECONDS,
@@ -46,6 +47,7 @@ from platform.observability.logging import get_logger
 from platform.persistence.errors import PersistenceError
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 from platform.remediation.components import ComponentRegistry
+from platform.remediation.history import EffectivenessLookup, PriorEffectiveness
 from platform.remediation.models import (
     RemediationAction,
     RollbackPlan,
@@ -126,14 +128,22 @@ class RemediationRequest:
     blast_radius: BlastRadius
     conflicting: tuple[str, ...] = ()
     change_id: str = ""
+    #: What happened the last times this capability was applied to this
+    #: resource. On the request rather than looked up by each surface, so the
+    #: model reading the proposal and the human reviewing it see one sentence
+    #: rather than two summaries of the same counts.
+    prior: PriorEffectiveness | None = None
 
     def payload(self) -> dict[str, Any]:
         """Return the approval payload, which is what the reviewer's diff renders."""
-        return remediation_payload(
+        payload = remediation_payload(
             self.action,
             plan=self.plan,
             blast_radius=self.blast_radius.to_record(),
         )
+        if self.prior is not None:
+            payload[REMEDIATION_PAYLOAD_EFFECTIVENESS] = self.prior.to_record()
+        return payload
 
     def rationale(self) -> str:
         """Return the sentence that goes at the top of the review.
@@ -155,6 +165,8 @@ class RemediationRequest:
                 f"{len(self.conflicting)} other change(s) are already pending on this "
                 f"target and will need re-reviewing against whatever is approved first."
             )
+        if self.prior is not None:
+            parts.append(self.prior.describe())
         if self.action.evidence:
             parts.append(
                 "Evidence: " + "; ".join(item.summary for item in self.action.evidence[:3])
@@ -176,6 +188,11 @@ class RequestBuilder:
     approvals: ApprovalService | None = None
     gateway: PersistenceGateway | None = None
     scope: TenantScope | None = None
+    #: What has worked here before. Optional because a deployment that has not
+    #: wired the ledger still proposes actions — but a proposal without it is a
+    #: proposal made in ignorance of the last three times the same thing was
+    #: tried on the same resource, which is the gap feature 041 exists to close.
+    history: EffectivenessLookup | None = None
     depth: int = REMEDIATION_BLAST_RADIUS_DEPTH
     clock: Callable[[], datetime] = field(default=utc_now)
     identifiers: Callable[[], str] = field(default=lambda: str(uuid.uuid4()))
@@ -206,6 +223,16 @@ class RequestBuilder:
             plan=plan,
             blast_radius=radius,
             conflicting=conflicting,
+            prior=await self.prior_effectiveness(action),
+        )
+
+    async def prior_effectiveness(self, action: RemediationAction) -> PriorEffectiveness | None:
+        """Return what has happened when this was tried here before, if anything knows."""
+        if self.history is None:
+            return None
+        return await self.history.prior(
+            action.capability,
+            action.target.identifier,
         )
 
     async def queue(

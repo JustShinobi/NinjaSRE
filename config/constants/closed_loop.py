@@ -149,6 +149,12 @@ CLOSED_LOOP_AUDIT_RESOURCE_KIND: Final = "remediation_resource"
 #: only ever caps what asking costs.
 MAX_SUSPENSION_ROWS: Final[int] = 50
 
+#: Where the prior effectiveness lives inside a remediation approval payload.
+#: In the constants tier with the rest of the payload keys, for the reason that
+#: module gives: a second spelling is a field that reads back missing with no
+#: error anywhere.
+REMEDIATION_PAYLOAD_EFFECTIVENESS: Final = "prior_effectiveness"
+
 #: Where the reason lives inside a suspension row's detail.
 SUSPENSION_DETAIL_REASON: Final = "reason"
 
@@ -206,6 +212,7 @@ __all__ = [
     "MAX_VERIFICATION_ATTEMPTS",
     "MAX_VERIFICATION_CLAIM_BATCH",
     "MIN_SETTLE_SECONDS",
+    "REMEDIATION_PAYLOAD_EFFECTIVENESS",
     "RESOURCE_HOLD_LEASE_SECONDS",
     "SECOND_ARRIVAL_REFUSE",
     "SECOND_ARRIVAL_WAIT",
