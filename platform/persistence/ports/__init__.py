@@ -1,4 +1,4 @@
-"""The fifteen repository ports, and the unit of work that composes them.
+"""The sixteen repository ports, and the unit of work that composes them.
 
 This package is the whole export surface of NinjaSRE's storage layer. Everything
 above tier 3 imports from here and from nowhere else in ``persistence/``: the
@@ -6,7 +6,7 @@ Postgres implementation, the in-memory fakes, and any future backend are
 details, and a caller that named one would be the reason the second could not be
 written.
 
-The fifteen, and what each owns:
+The sixteen, and what each owns:
 
 ===========================  ==================================================
 ``ConfigRepository``         the org/team/service hierarchy and its config
@@ -24,9 +24,10 @@ The fifteen, and what each owns:
 ``EstateRepository``         discovered resources, their health, their history
 ``SignalStore``              the observation history the detectors read
 ``IncidentStore``            incidents, their subjects, and their timelines
+``RemediationLedger``        what each remediation did, and whether it worked
 ===========================  ==================================================
 
-They are reached through ``UnitOfWork``, which binds all fifteen to one
+They are reached through ``UnitOfWork``, which binds all sixteen to one
 transaction and one tenant. Read ``transaction`` first: it explains why the
 ports take no organisation argument, and that fact is the one most likely to
 surprise somebody adding a method here.
@@ -112,6 +113,16 @@ from platform.persistence.ports.knowledge_store import (
     KnowledgeDocument,
     KnowledgeStore,
 )
+from platform.persistence.ports.remediation_ledger import (
+    EffectivenessQuery,
+    EffectivenessSummary,
+    RecurringProblem,
+    RemediationLedger,
+    RemediationOutcome,
+    RollbackDisposition,
+    VerificationState,
+    VerificationVerdict,
+)
 from platform.persistence.ports.retention import (
     DEFAULT_RETENTION_DAYS,
     DataClass,
@@ -188,6 +199,8 @@ __all__ = [
     "DEFAULT_RETENTION_DAYS",
     "DataClass",
     "EdgeKind",
+    "EffectivenessQuery",
+    "EffectivenessSummary",
     "Episode",
     "EpisodeOutcome",
     "EpisodeStore",
@@ -222,7 +235,10 @@ __all__ = [
     "PrincipalKind",
     "PurgeReport",
     "REDACTED",
+    "RecurringProblem",
     "ReferenceKind",
+    "RemediationLedger",
+    "RemediationOutcome",
     "Resource",
     "ResourceHealth",
     "ResourceReference",
@@ -230,6 +246,7 @@ __all__ = [
     "RetentionPolicy",
     "RetentionSweeper",
     "RoleBinding",
+    "RollbackDisposition",
     "RollbackPlan",
     "RollbackStep",
     "RunStatus",
@@ -269,4 +286,6 @@ __all__ = [
     "User",
     "VectorIndex",
     "VectorRecord",
+    "VerificationState",
+    "VerificationVerdict",
 ]

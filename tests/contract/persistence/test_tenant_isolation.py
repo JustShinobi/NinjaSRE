@@ -29,6 +29,7 @@ from platform.persistence.ports import (
     ConfigNode,
     ConfigNodeKind,
     CredentialMetadata,
+    EffectivenessQuery,
     Episode,
     EstateQuery,
     HealthDerivation,
@@ -39,7 +40,9 @@ from platform.persistence.ports import (
     IncidentSubject,
     KnowledgeDocument,
     PersistenceGateway,
+    RecurringProblem,
     ReferenceKind,
+    RemediationOutcome,
     Resource,
     ResourceHealth,
     ResourceReference,
@@ -83,6 +86,7 @@ TENANT_SCOPED_PORTS = frozenset(
         "estate",
         "signals",
         "incidents",
+        "remediation",
     }
 )
 
@@ -231,6 +235,29 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
             )
         ]
     )
+    await uow.remediation.record(
+        RemediationOutcome(
+            action_id="action-1",
+            capability="clear_cache",
+            resource_id="res-1",
+            executed_at=at(),
+            due_at=at(5),
+            condition_key="datastore-near-full",
+        )
+    )
+    await uow.remediation.upsert_problem(
+        RecurringProblem(
+            problem_id="problem-1",
+            pattern_key="clear_cache@res-1",
+            capability="clear_cache",
+            resource_id="res-1",
+            title="clear_cache keeps being applied to res-1",
+            summary="Four applications in thirty days.",
+            raised_at=at(),
+            occurrences=4,
+            window_seconds=2_592_000,
+        )
+    )
 
 
 @pytest.fixture
@@ -258,6 +285,12 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.incidents.open_for("detector:datastore-near-full") is None
         assert await uow.incidents.timeline("inc-1") == ()
         assert await uow.incidents.purge(before=at(10)) == 0
+        assert await uow.remediation.get("action-1") is None
+        assert await uow.remediation.history(EffectivenessQuery()) == ()
+        assert (await uow.remediation.effectiveness(EffectivenessQuery())).total == 0
+        assert await uow.remediation.open_problem_for("clear_cache@res-1") is None
+        assert await uow.remediation.problems() == ()
+        assert await uow.remediation.purge(before=at(10)) == 0
         assert (
             await uow.estate.mark_absent(source="proxmox", seen_ids=frozenset(), at=at(10))
         ) == ()
@@ -354,6 +387,8 @@ async def test_the_first_tenant_still_has_everything(
         assert await uow.estate.get("res-1") is not None
         assert len(await uow.signals.latest()) == 1
         assert await uow.incidents.get("inc-1") is not None
+        assert await uow.remediation.get("action-1") is not None
+        assert await uow.remediation.open_problem_for("clear_cache@res-1") is not None
 
 
 def test_every_tenant_scoped_port_is_covered() -> None:

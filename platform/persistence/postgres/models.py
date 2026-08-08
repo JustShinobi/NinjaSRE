@@ -865,20 +865,122 @@ class IncidentTimelineRow(Base):
     detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
+class RemediationOutcomeRow(Base):
+    """One remediation, the signals it was meant to move, and what they did.
+
+    The load-bearing index is ``ix_remediation_due``, and it is partial. The
+    verification sweep asks "what is owed now" every thirty seconds, and a total
+    index would make that a walk over every remediation the deployment has ever
+    performed. Restricted to the rows that are still owed it stays a handful
+    however much history accumulates — which is the difference between the sweep
+    costing nothing and the sweep being the reason the deployment gets slower
+    over a year.
+
+    ``ix_remediation_history`` carries the three dimensions effectiveness is
+    sliced by, in the order a query narrows: the resource first, because "has
+    anything worked on this" is the question a proposal asks.
+    """
+
+    __tablename__ = "remediation_outcomes"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        # Partial: the sweep only ever asks about obligations that are still
+        # owed, and there are never many of those at once.
+        Index(
+            "ix_remediation_due",
+            "org_id",
+            "due_at",
+            postgresql_where=text("state <> 'verified'"),
+        ),
+        Index(
+            "ix_remediation_history",
+            "org_id",
+            "resource_id",
+            "capability",
+            "condition_key",
+            "executed_at",
+        ),
+        Index("ix_remediation_age", "executed_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    action_id: Mapped[str] = _id()
+    capability: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    condition_key: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    incident_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    plan_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    settle_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    verdict: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    signal_names: Mapped[list[str]] = mapped_column(ARRAY(Text()), nullable=False, default=list)
+    before_values: Mapped[dict[str, Any]] = _json()
+    after_values: Mapped[dict[str, Any]] = _json()
+    verified_at: Mapped[datetime | None] = _timestamp()
+    detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    rollback: Mapped[str] = mapped_column(String(32), nullable=False)
+    rollback_detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    autonomous: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    lease_holder: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    lease_expires_at: Mapped[datetime | None] = _timestamp()
+
+
+class RemediationProblemRow(Base):
+    """A pattern the ledger's counts raised, closed by a change rather than a fix.
+
+    The partial index mirrors the incident's: a pattern is looked up while it is
+    live, once per verified remediation, and a total index would grow with every
+    pattern the deployment has ever closed.
+    """
+
+    __tablename__ = "remediation_problems"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index(
+            "ix_remediation_live_pattern",
+            "org_id",
+            "pattern_key",
+            postgresql_where=text("closed_at IS NULL"),
+        ),
+        Index("ix_remediation_problems_raised", "org_id", "raised_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    problem_id: Mapped[str] = _id()
+    pattern_key: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    capability: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False)
+    title: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    raised_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    occurrences: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    window_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    action_ids: Mapped[list[str]] = mapped_column(ARRAY(Text()), nullable=False, default=list)
+    incident_ids: Mapped[list[str]] = mapped_column(ARRAY(Text()), nullable=False, default=list)
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    suppresses_autonomy: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    closed_at: Mapped[datetime | None] = _timestamp()
+    close_reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    closed_by: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+
+
 #: Read-only view of the ciphertext, for the decryptability probe. Declared
 #: separately rather than as a second mapped attribute because SQLAlchemy would
 #: apply the column type to both.
 CREDENTIAL_SECRET_COLUMN = "secret"
 
 __all__ = [
-    "CREDENTIAL_SECRET_COLUMN",
-    "ID_LENGTH",
-    "NAME_LENGTH",
     "AgentRun",
     "ApiToken",
     "Approval",
     "AuditEvent",
     "Base",
+    "CREDENTIAL_SECRET_COLUMN",
     "ConfigNode",
     "Credential",
     "DiscoverySweep",
@@ -886,12 +988,16 @@ __all__ = [
     "EstateResource",
     "Evidence",
     "HealthTransitionRow",
+    "ID_LENGTH",
     "IncidentRow",
     "IncidentTimelineRow",
     "JobClaim",
     "KnowledgeChunk",
     "KnowledgeDocument",
+    "NAME_LENGTH",
     "Organisation",
+    "RemediationOutcomeRow",
+    "RemediationProblemRow",
     "ResourceReferenceRow",
     "RoleBinding",
     "RollbackPlan",

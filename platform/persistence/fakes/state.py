@@ -43,6 +43,7 @@ from platform.persistence.ports.estate_repository import (
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
 from platform.persistence.ports.incident_store import Incident, TimelineEntry
 from platform.persistence.ports.knowledge_store import KnowledgeChunk, KnowledgeDocument
+from platform.persistence.ports.remediation_ledger import RecurringProblem, RemediationOutcome
 from platform.persistence.ports.run_trace_store import (
     AgentRun,
     EvidenceRecord,
@@ -201,6 +202,10 @@ class TenantState:
     signals: dict[str, Signal] = field(default_factory=dict)
     incidents: dict[str, Incident] = field(default_factory=dict)
     incident_timeline: dict[str, TimelineEntry] = field(default_factory=dict)
+    #: Keyed by the action, so an executor that retried writes one obligation
+    #: rather than two verifications of one change.
+    remediation_outcomes: dict[str, RemediationOutcome] = field(default_factory=dict)
+    remediation_problems: dict[str, RecurringProblem] = field(default_factory=dict)
 
 
 @dataclass

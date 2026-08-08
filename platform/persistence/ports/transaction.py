@@ -52,6 +52,7 @@ from platform.persistence.ports.health import StoreHealth
 from platform.persistence.ports.identity_repository import IdentityRepository, TokenDirectory
 from platform.persistence.ports.incident_store import IncidentStore
 from platform.persistence.ports.knowledge_store import KnowledgeStore
+from platform.persistence.ports.remediation_ledger import RemediationLedger
 from platform.persistence.ports.retention import RetentionSweeper
 from platform.persistence.ports.run_trace_store import RunTraceStore
 from platform.persistence.ports.schedule_store import JobDispatcher, ScheduleStore
@@ -88,7 +89,7 @@ class TenantScope:
 class UnitOfWork(Protocol):
     """Every tenant-scoped repository, inside one transaction.
 
-    Fifteen properties and one method. The properties are the ports; the method
+    Sixteen properties and one method. The properties are the ports; the method
     is the escape hatch for a caller that decides mid-unit to abandon its work
     without raising, which happens when "nothing to do after all" is a normal
     outcome rather than an error.
@@ -157,6 +158,10 @@ class UnitOfWork(Protocol):
     @property
     def incidents(self) -> IncidentStore:
         """Return the incidents and their timelines."""
+
+    @property
+    def remediation(self) -> RemediationLedger:
+        """Return what each remediation did, whether it worked, and the patterns."""
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising.

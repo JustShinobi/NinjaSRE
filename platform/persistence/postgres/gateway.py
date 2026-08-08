@@ -53,6 +53,9 @@ from platform.persistence.postgres.repositories.identity_repository import (
 )
 from platform.persistence.postgres.repositories.incident_store import PostgresIncidentStore
 from platform.persistence.postgres.repositories.knowledge_store import PostgresKnowledgeStore
+from platform.persistence.postgres.repositories.remediation_ledger import (
+    PostgresRemediationLedger,
+)
 from platform.persistence.postgres.repositories.retention import PostgresRetentionSweeper
 from platform.persistence.postgres.repositories.run_trace_store import PostgresRunTraceStore
 from platform.persistence.postgres.repositories.schedule_store import (
@@ -77,7 +80,7 @@ class _RollbackOnly(Exception):
 
 @dataclass(slots=True)
 class PostgresUnitOfWork:
-    """Fifteen repositories over one session and one tenant."""
+    """Sixteen repositories over one session and one tenant."""
 
     scope: TenantScope
     session: AsyncSession
@@ -158,6 +161,11 @@ class PostgresUnitOfWork:
     def incidents(self) -> PostgresIncidentStore:
         """Return the incidents and their timelines."""
         return PostgresIncidentStore(self.scope.org_id, self.session)
+
+    @property
+    def remediation(self) -> PostgresRemediationLedger:
+        """Return what each remediation did and whether it worked."""
+        return PostgresRemediationLedger(self.scope.org_id, self.session)
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""

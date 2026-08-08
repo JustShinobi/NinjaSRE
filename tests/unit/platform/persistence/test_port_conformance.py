@@ -27,6 +27,7 @@ from platform.persistence.ports import (
     KnowledgeStore,
     OrgDirectory,
     PersistenceGateway,
+    RemediationLedger,
     RetentionSweeper,
     RunTraceStore,
     ScheduleStore,
@@ -43,7 +44,7 @@ from platform.persistence.ports.transaction import SystemUnitOfWork
 
 pytestmark = pytest.mark.unit
 
-#: The fifteen, as ``(attribute on the unit of work, the protocol it must satisfy)``.
+#: The sixteen, as ``(attribute on the unit of work, the protocol it must satisfy)``.
 TENANT_PORTS = (
     ("config", ConfigRepository),
     ("identity", IdentityRepository),
@@ -60,6 +61,7 @@ TENANT_PORTS = (
     ("estate", EstateRepository),
     ("signals", SignalStore),
     ("incidents", IncidentStore),
+    ("remediation", RemediationLedger),
 )
 
 SYSTEM_PORTS = (
@@ -70,16 +72,17 @@ SYSTEM_PORTS = (
 )
 
 
-def test_the_specification_names_exactly_fifteen_ports() -> None:
-    """A sixteenth is a specification change, not a refactor.
+def test_the_specification_names_exactly_sixteen_ports() -> None:
+    """A seventeenth is a specification change, not a refactor.
 
-    The count was twelve until the estate arrived, and thirteen and fourteen
-    until continuous observation brought the signal history and the incident,
-    which is exactly what this test is for: adding a port is a deliberate act
-    with a plan behind it, and the number moving without one is the thing worth
-    catching.
+    The count was twelve until the estate arrived, thirteen and fourteen until
+    continuous observation brought the signal history and the incident, and
+    fifteen until closed-loop remediation brought the ledger of what each
+    remediation did — which is exactly what this test is for: adding a port is a
+    deliberate act with a plan behind it, and the number moving without one is
+    the thing worth catching.
     """
-    assert len(TENANT_PORTS) == 15
+    assert len(TENANT_PORTS) == 16
 
 
 def test_the_in_memory_gateway_is_a_persistence_gateway() -> None:

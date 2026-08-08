@@ -45,6 +45,7 @@ from platform.persistence.fakes.identity_repository import (
 )
 from platform.persistence.fakes.incident_store import FakeIncidentStore
 from platform.persistence.fakes.knowledge_store import FakeKnowledgeStore
+from platform.persistence.fakes.remediation_ledger import FakeRemediationLedger
 from platform.persistence.fakes.retention import FakeRetentionSweeper
 from platform.persistence.fakes.run_trace_store import FakeRunTraceStore
 from platform.persistence.fakes.schedule_store import FakeJobDispatcher, FakeScheduleStore
@@ -74,7 +75,7 @@ FAKE_HEAD_REVISION = "in-memory"
 
 @dataclass(slots=True)
 class FakeUnitOfWork:
-    """Fifteen repositories over one tenant's slice of one snapshot."""
+    """Sixteen repositories over one tenant's slice of one snapshot."""
 
     scope: TenantScope
     state: State
@@ -154,6 +155,11 @@ class FakeUnitOfWork:
     def incidents(self) -> FakeIncidentStore:
         """Return the incidents and their timelines."""
         return FakeIncidentStore(self.scope.org_id, self._tenant)
+
+    @property
+    def remediation(self) -> FakeRemediationLedger:
+        """Return what each remediation did and whether it worked."""
+        return FakeRemediationLedger(self.scope.org_id, self._tenant)
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""
