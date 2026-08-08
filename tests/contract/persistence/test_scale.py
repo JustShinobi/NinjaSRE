@@ -1,4 +1,4 @@
-"""SC-002 and SC-003: the two claims that are only true at size.
+"""SC-002, SC-003 and SC-006: the claims that are only true at size.
 
 Every other test in this directory would pass against a store that scanned. A
 sequential scan over ten episodes is instant, and so is a breadth-first walk of
@@ -10,6 +10,17 @@ These run only against PostgreSQL, and only when the suite was asked for it. The
 fakes search exhaustively on purpose — it makes their answers a stable
 specification — so timing them would measure Python rather than the design.
 
+The estate summary is here for a different reason, and it is the one that made it
+worth adding. ``tests/benchmarks/test_estate_scale.py`` holds the same budget
+over the fakes on every commit, and calls itself a floor rather than a ceiling.
+What it cannot see is that ``PostgresEstateRepository.summarise`` selects every
+row and hydrates each one into a ``Resource`` in Python — deliberately, so the
+freshness overlay is spelled once, in ``Resource.reported_health``, rather than a
+second time in SQL. That is work which scales with the estate and does not exist
+in a dictionary walk: ten thousand ORM instances and ten thousand JSONB payloads,
+over a connection. Whether the budget survives it is a question only the database
+answers.
+
 The budgets are the constants, not numbers invented here. If
 ``VECTOR_SEARCH_LATENCY_BUDGET_MS`` moves, the promise moves with it, and this
 is what notices.
@@ -18,11 +29,17 @@ is what notices.
 from __future__ import annotations
 
 import time
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from conftest import POSTGRES, PRIMARY_ORG
-from sqlalchemy import text
+from sqlalchemy import insert, text
 
+from config.constants.estate import (
+    ESTATE_SUMMARY_BUDGET_RESOURCES,
+    ESTATE_SUMMARY_BUDGET_SECONDS,
+)
 from config.constants.persistence import (
     DEFAULT_GRAPH_DEPTH,
     EPISODE_VECTOR_NAMESPACE,
@@ -30,12 +47,21 @@ from config.constants.persistence import (
     MIGRATION_BACKFILL_BATCH_SIZE,
     VECTOR_SEARCH_LATENCY_BUDGET_MS,
 )
+from platform.estate.kinds import (
+    KIND_CONTAINER,
+    KIND_DATASTORE,
+    KIND_NODE,
+    KIND_VIRTUAL_MACHINE,
+)
 from platform.persistence.ports import (
+    EstateQuery,
     PersistenceGateway,
+    ResourceHealth,
     TenantScope,
     TopologyEdge,
     VectorRecord,
 )
+from platform.persistence.postgres import models
 from platform.persistence.postgres.gateway import PostgresUnitOfWork
 
 pytestmark = pytest.mark.contract
@@ -57,6 +83,36 @@ SEARCH_SAMPLES = 20
 #: Every seeded episode carries this, so a filtered search has something to
 #: match and the metadata path is measured rather than skipped.
 SEEDED_METADATA = '{"environment": "production"}'
+
+#: SC-006's estate.
+RESOURCE_COUNT = ESTATE_SUMMARY_BUDGET_RESOURCES
+
+#: Fixed, so a slow run is a regression rather than an unlucky corpus.
+ESTATE_EPOCH = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+
+#: Recent enough at ``ESTATE_EPOCH`` that the freshness overlay leaves the stored
+#: state alone. A corpus reporting ``stale`` throughout would count one branch.
+OBSERVED_AT = ESTATE_EPOCH - timedelta(seconds=30)
+
+#: Cycled, so the summary counts something in every bucket rather than walking
+#: ten thousand rows down one branch of the precedence rule.
+KINDS = (KIND_VIRTUAL_MACHINE, KIND_CONTAINER, KIND_DATASTORE, KIND_NODE)
+ESTATE_STATES = (
+    ResourceHealth.HEALTHY,
+    ResourceHealth.HEALTHY,
+    ResourceHealth.DEGRADED,
+    ResourceHealth.UNHEALTHY,
+    ResourceHealth.UNKNOWN,
+)
+
+#: Shaped like a provider's. An empty payload is a JSONB column the hydration
+#: never has to parse, which is the cost this test exists to measure.
+ESTATE_ATTRIBUTES = {
+    "cpu_count": 4,
+    "memory_bytes": 8_589_934_592,
+    "power_state": "running",
+    "node": "pve-01",
+}
 
 #: The episode whose vector becomes the query. Searching near a point that is
 #: actually in the corpus is what an operator's query looks like; a random point
@@ -140,6 +196,106 @@ async def _seed_episodes(gateway: PersistenceGateway, scope: TenantScope) -> tup
 
     assert isinstance(stored, str)
     return tuple(float(value) for value in stored.strip("[]").split(","))
+
+
+def _estate_row(index: int) -> dict[str, Any]:
+    """Return one seeded estate row, in the model's own column names."""
+    kind = KINDS[index % len(KINDS)]
+    state = ESTATE_STATES[index % len(ESTATE_STATES)]
+    return {
+        "org_id": PRIMARY_ORG,
+        "resource_id": f"res-{index:06d}",
+        "kind": kind,
+        "source": "proxmox" if index % 2 else "docker",
+        "native_id": f"native-{index:06d}",
+        "display_name": f"resource {index:06d}",
+        "correlation_key": f"corr-{index:06d}",
+        "parent_id": None,
+        "team_node_id": None,
+        "attributes": ESTATE_ATTRIBUTES,
+        "labels": ["environment:production", f"kind:{kind}"],
+        "sources": [],
+        "health": state.value,
+        # The shape ``_derivation_to_json`` writes. Present rather than null
+        # because a null derivation reports stale, which would measure the one
+        # branch that never reaches the stored state.
+        "derivation": {
+            "state": state.value,
+            "rule": "provider_status",
+            "derived_at": OBSERVED_AT.isoformat(),
+            "signals": [],
+            "raw_status": "running",
+            "explanation": "",
+        },
+        "first_seen_at": OBSERVED_AT,
+        "last_seen_at": OBSERVED_AT,
+        "absent_since": None,
+        "maintenance_until": None,
+        "maintenance_reason": "",
+    }
+
+
+async def _seed_estate(gateway: PersistenceGateway, scope: TenantScope) -> None:
+    """Write ``RESOURCE_COUNT`` resources, in bulk.
+
+    Not through ``upsert``: ten thousand round trips, each of them a read
+    followed by a flush, would make this a measurement of insert throughput,
+    which ``test_estate_repository.py`` is what covers.
+    """
+    for first in range(0, RESOURCE_COUNT, MIGRATION_BACKFILL_BATCH_SIZE):
+        last = min(first + MIGRATION_BACKFILL_BATCH_SIZE, RESOURCE_COUNT)
+        async with gateway.begin(scope) as uow:
+            assert isinstance(uow, PostgresUnitOfWork)
+            await uow.session.execute(
+                insert(models.EstateResource),
+                [_estate_row(index) for index in range(first, last)],
+            )
+
+
+@pytest.mark.usefixtures("postgres_only")
+async def test_a_ten_thousand_resource_summary_answers_within_budget(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """SC-006, measured where the hydration and the round trip are real."""
+    await _seed_estate(gateway, scope)
+
+    async with gateway.begin(scope) as uow:
+        started = time.perf_counter()
+        summary = await uow.estate.summarise(now=ESTATE_EPOCH)
+        spent = time.perf_counter() - started
+
+    # Fast and wrong is not a passing SC-006. An empty estate meets any budget,
+    # and so does one whose rows all fell down the absent branch.
+    assert summary.total == RESOURCE_COUNT
+    assert sum(summary.by_kind.values()) == RESOURCE_COUNT
+    assert set(summary.by_kind) == set(KINDS)
+    assert summary.absent == 0
+
+    assert spent < ESTATE_SUMMARY_BUDGET_SECONDS, (
+        f"summarising {RESOURCE_COUNT} resources took {spent:.3f}s, "
+        f"above the {ESTATE_SUMMARY_BUDGET_SECONDS}s budget"
+    )
+
+
+@pytest.mark.usefixtures("postgres_only")
+async def test_a_filtered_estate_query_does_not_pay_for_the_whole_estate(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """Asking for one kind costs what one kind costs, not what the estate costs."""
+    await _seed_estate(gateway, scope)
+
+    async with gateway.begin(scope) as uow:
+        started = time.perf_counter()
+        found = await uow.estate.query(EstateQuery(kinds=(KIND_DATASTORE,), limit=50))
+        spent = time.perf_counter() - started
+
+    assert len(found) == 50
+    assert {resource.kind for resource in found} == {KIND_DATASTORE}
+
+    assert spent < ESTATE_SUMMARY_BUDGET_SECONDS, (
+        f"a filtered query over {RESOURCE_COUNT} resources took {spent:.3f}s, "
+        f"above the {ESTATE_SUMMARY_BUDGET_SECONDS}s budget"
+    )
 
 
 @pytest.mark.usefixtures("postgres_only")

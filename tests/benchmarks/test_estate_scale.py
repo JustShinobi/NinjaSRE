@@ -20,7 +20,9 @@ budget covers the answer an operator actually reads rather than the raw one.
 
 This runs against the in-memory backend, which is what makes it cheap enough for
 every commit. It is a floor rather than a ceiling: the same shapes over
-PostgreSQL are what ``make test-postgres`` measures.
+PostgreSQL are measured by ``tests/contract/persistence/test_estate_scale.py``,
+under ``make test-postgres``, where the row hydration and the round trip are
+real and this file has neither.
 """
 
 from __future__ import annotations
