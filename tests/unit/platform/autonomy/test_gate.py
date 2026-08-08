@@ -411,3 +411,41 @@ async def test_an_action_across_resources_with_different_levels_takes_the_least_
 
     assert decision.outcome is Outcome.PROPOSE
     assert actuator.calls == []
+
+
+async def test_a_spent_budget_says_out_loud_that_it_has_stopped_the_deployment() -> None:
+    """Every individual action still gets an approval; the pattern is invisible."""
+
+    @dataclass(slots=True)
+    class Listening:
+        raised: list[tuple[str, tuple[str, ...]]] = field(default_factory=list)
+
+        async def budget_exhausted(
+            self, proposed: ProposedAction, *, budgets: Any, reason: str
+        ) -> None:
+            del reason
+            self.raised.append((proposed.action_id, tuple(budgets)))
+
+    listener = Listening()
+    policies = PolicySet(
+        rules=(rule(ScopeKind.DEPLOYMENT, AutonomyLevel.ACT_AND_REPORT),),
+        budgets=(BudgetRule(name="hourly", limit=1),),
+    )
+    gate = AutonomyGate(policies=policies, exhaustion=listener, clock=lambda: NOON)
+    actuator = RecordingActuator()
+
+    await gate.run(action(action_id="act-1"), actuator)
+    assert listener.raised == []
+
+    await gate.run(action(action_id="act-2"), actuator)
+    assert listener.raised == [("act-2", ("hourly:resource:ct-101",))]
+
+
+async def test_nothing_is_raised_while_a_budget_still_has_room() -> None:
+    policies = PolicySet(
+        rules=(rule(ScopeKind.DEPLOYMENT, AutonomyLevel.ACT_AND_REPORT),),
+        budgets=(BudgetRule(name="hourly", limit=5),),
+    )
+    gate = AutonomyGate(policies=policies, clock=lambda: NOON)
+    decision = await gate.run(action(), RecordingActuator())
+    assert decision.bound is None

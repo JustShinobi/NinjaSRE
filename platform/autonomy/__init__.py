@@ -58,6 +58,7 @@ from platform.autonomy.decision import (
     Actuator,
     AutonomyGate,
     Decision,
+    ExhaustionListener,
     Outcome,
 )
 from platform.autonomy.errors import MalformedPolicy
@@ -86,6 +87,7 @@ __all__ = [
     "ConsideredRule",
     "Decision",
     "EmergencyStop",
+    "ExhaustionListener",
     "FreezeWindow",
     "InMemorySpendLedger",
     "MalformedPolicy",

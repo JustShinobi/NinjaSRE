@@ -90,6 +90,24 @@ class Actuator(Protocol):
         """Perform ``action`` and return whatever the caller needs of the result."""
 
 
+@runtime_checkable
+class ExhaustionListener(Protocol):
+    """Whatever a deployment wants told when a budget runs out.
+
+    A protocol rather than an incident, a page or a chat message, because which
+    of those a deployment wants is its own decision — and because the obligation
+    this expresses is only that *something* is told. A budget that quietly
+    stopped the deployment doing what it was configured to do is the one
+    refusal nothing else here would say out loud: every individual action still
+    gets an approval, and the pattern is invisible until somebody adds it up.
+    """
+
+    async def budget_exhausted(
+        self, action: ProposedAction, *, budgets: Sequence[str], reason: str
+    ) -> None:
+        """Raise attention that ``budgets`` are spent and actions are now queuing."""
+
+
 @dataclass(frozen=True, slots=True)
 class Decision:
     """What happened to one action, and the whole of why.
@@ -159,6 +177,9 @@ class AutonomyGate:
     stop: EmergencyStop = field(default_factory=NoStop)
     ledger: SpendLedger = field(default_factory=InMemorySpendLedger)
     auditor: DecisionAuditor | None = None
+    #: Told when a budget runs out. Optional, and the warning log is not: a
+    #: deployment that has wired nothing still leaves the record somewhere.
+    exhaustion: ExhaustionListener | None = None
     clock: Callable[[], datetime] = field(default=_utc_now)
 
     async def decide(self, action: ProposedAction) -> Decision:
@@ -179,12 +200,35 @@ class AutonomyGate:
             budgets=budgets,
         )
         outcome, reason = _outcome_of(action, resolution, bounds)
+        if bounds.bound is Bound.BUDGET:
+            await self._exhausted(action, bounds)
         return Decision(
             action=action,
             resolution=resolution,
             outcome=outcome,
             reason=reason,
             bound=bounds.bound,
+        )
+
+    async def _exhausted(self, action: ProposedAction, bounds: BoundOutcome) -> None:
+        """Say, out loud, that a budget has stopped the deployment acting.
+
+        Raised at the decision rather than at the spend, because the moment
+        worth telling somebody about is the first action that could not run —
+        not the one that used the last of it, which looked like every other
+        successful action at the time.
+        """
+        _LOG.warning(
+            "autonomy.budget_exhausted",
+            action_id=action.action_id,
+            capability=action.capability,
+            budgets=list(bounds.exhausted),
+            reason=bounds.reason,
+        )
+        if self.exhaustion is None:
+            return
+        await self.exhaustion.budget_exhausted(
+            action, budgets=bounds.exhausted, reason=bounds.reason
         )
 
     async def run(self, action: ProposedAction, actuator: Actuator) -> Decision:
@@ -311,6 +355,7 @@ def _with_execution(decision: Decision, *, result: Any, spent: Sequence[str]) ->
 __all__ = [
     "REFUSING_BOUNDS",
     "Actuator",
+    "ExhaustionListener",
     "AutonomyGate",
     "Decision",
     "Outcome",
