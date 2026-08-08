@@ -2,14 +2,58 @@
   "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five.",
   "screens": [
     {
-      "id": "runs",
+      "id": "shell-1440-light",
       "route": "/",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
+        "against": "03-screen-dashboard.png",
+        "reason": "The application shell, reviewed side by side against the reference's chrome: the 236px sidebar, the four nav groups in the order Operate · Estate · Learn · Govern with an icon and a label each and the current one marked, the 52px topbar carrying the palette, the theme switch, the notification centre and the account menu, the page header's icon-title-context anatomy, and the sidebar footer stating guardian liveness and posture. The panels inside the frame are the data surfaces and arrive with them; what is compared here is the frame."
+      }
+    },
+    {
+      "id": "shell-1440-dark",
+      "route": "/",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
         "against": null,
-        "reason": "The first screen the toolchain had to prove itself against. It is not one of the designed screens — it renders the run list with no design system behind it — so there is no reference to review it against, and it is expected to be replaced rather than restyled."
+        "reason": "The same frame under the dark token set. The design draws one picture of the shell and one picture of the dark theme rather than a picture of both, so this baseline exists to catch a regression rather than to record a review."
+      }
+    },
+    {
+      "id": "shell-768-light",
+      "route": "/",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The frame at the declared breakpoint, which is the last width the sidebar is a rail at. There is no reference drawn at this width; the baseline is what makes the boundary between rail and drawer a thing a change has to move deliberately."
+      }
+    },
+    {
+      "id": "shell-320-light",
+      "route": "/",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "Below the breakpoint, where the sidebar is a drawer and the utility bar carries the handle that opens it. No reference is drawn at this width; the browser suite asserts the stronger claim that nothing is lost and nothing overflows, and this records what it looks like."
+      }
+    },
+    {
+      "id": "sign-in-1440-light",
+      "route": "/sign-in",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The only page an unauthenticated visitor sees. No reference is drawn for it, and the property worth a baseline is what it does *not* show: no deployment name, no counts, no navigation. A change that added any of those would show up here."
       }
     },
     {
@@ -94,9 +138,9 @@
     },
     {
       "file": "03-screen-dashboard.png",
-      "status": "pending",
-      "surface": "the console data surfaces",
-      "note": "The deployment overview."
+      "status": "baselined",
+      "surface": "the console application shell",
+      "note": "The deployment overview. Its chrome — sidebar, nav groups, topbar, page header and the guardian line in the footer — is the application shell and is baselined by the shell captures. The panels it draws inside that frame are the data surfaces, and are reviewed again when they land."
     },
     {
       "file": "04-screen-incident.png",

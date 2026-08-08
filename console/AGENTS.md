@@ -63,7 +63,7 @@ to find out whether they fixed it.
 | `make console-client-check` | the committed API client is not what the document generates |
 | `make console-build` | the production build |
 | `make console-budget` | the compiled stylesheet or the icon set is over its declared budget |
-| `make console-e2e` | a browser test against the built console |
+| `make console-e2e` | a browser test against the built console, including the route-transition and first-paint budgets |
 | `make console-visual` | a screen that differs from its committed baseline |
 
 On a machine with no toolchain and no container runtime, the checks that need
@@ -73,6 +73,53 @@ on is a gate they learn to bypass. CI sets `NINJASRE_CONSOLE_TOOLCHAIN=required`
 and then a skip is a failure. Three things are never skipped, whatever the
 machine: a drifted lockfile, a stale committed client, and a check that ran and
 failed.
+
+## The application shell
+
+`src/shell/` is the frame every screen sits in, and `src/app/` is the route tree
+inside it. Four things about it are load-bearing.
+
+**`src/shell/routes.ts` is the only list of what routes exist.** The sign-in
+guard walks it, the role matrix walks it, the deep-link test walks it, and the
+palette's navigation commands are built from it — so a route added tomorrow is
+covered by tests that already exist rather than by tests somebody remembers to
+write. Each entry carries the permission the *gateway* requires on the data that
+area reads, copied by name; `tests/contract/console/test_console_shell.py` holds
+each one against the gateway's own route table.
+
+**Authentication is checked above the router.** `middleware.ts` runs before
+routing, over every path but the build output, and there is deliberately no
+per-page check anywhere. The decision itself is `src/session/guard.ts`, a pure
+function, so the suite can enumerate the manifest against it.
+
+**A 401 is a session event.** Every refusal reaches one `SessionController`,
+which ends the session once and remembers the route to come back to. Three
+concurrent 401s produce one prompt because there is one controller, not because
+each caller checked whether another had already acted.
+
+**Permissions decide presence.** A control the viewer cannot use is not in the
+DOM. `tests/unit/shell/role-matrix.test.tsx` asserts that for every role ×
+every area, walking the role catalogue the platform generates into
+`fixtures/contract/roles.json` — the console never decides what a role holds.
+
+The credential never enters browser-readable storage. `src/app/api/session/`
+offers it to the API origin, and keeps it in an HTTP-only, `SameSite=Strict`
+cookie; a second, readable cookie carries only the instant the session ends,
+because the expiry warning has to be rendered before the expiry.
+
+## Every user-visible string comes from the catalogue
+
+`src/i18n/en.ts` is the source; `MessageKey` is derived from it, so a component
+naming a key that does not exist fails to compile. `src/i18n/pt-BR.ts` is typed
+as *partial* on purpose: a total type would make the completeness test unfailable,
+and a test that cannot fail proves nothing. The fallback is per key rather than
+per locale — a locale missing one string keeps every other string it has.
+
+`eslint-rules/no-untranslated-strings.mjs` runs over the surfaces a viewer
+reaches and rejects literal text in a component and literal sentences in the
+attributes a person hears. The completeness test can only compare the locales it
+is given; it has nothing to say about a string that never reached a catalogue,
+which is exactly the string that ships untranslated.
 
 ## The design system
 
@@ -142,7 +189,13 @@ opinion about what the API returns: a route that changed shape reaches it as a
 failing type check rather than as a client that compiles and 404s.
 
 `src/lib/api.ts` is the only module that makes a request. Everything else goes
-through it.
+through it — which is also why it is the one place a 401 is published to the
+session controller.
+
+`fixtures/contract/roles.json` is generated the same way, by
+`python -m tools.console_roles write`, and compared against a fresh generation
+by the Python suite. It exists so the role matrix can walk the roles the
+platform actually declares instead of a list written in TypeScript.
 
 ## Nothing may leave the deployment
 
@@ -184,7 +237,14 @@ checkable rather than merely intended:
 address and owns no process, because a browser test that also owns process
 lifecycle is a browser test that hangs.
 
-Two backings. `mock` is the committed dataset served by `tools.mockplane` — every
+The visual suite has a third: `scripts/fixture-server.mjs`, a Node server that
+answers the four reads the *frame* makes from the same committed JSON. The
+capture image has a Node and no Python, and the shell resolves the viewer on the
+server — so without something answering, every capture would be of the sign-in
+page. Its little endpoint table is held against the mock plane's own catalogue by
+the Python suite.
+
+Two backings for the behaviour suite. `mock` is the committed dataset served by `tools.mockplane` — every
 timestamp in it is shifted to one fixed instant, which is what makes
 `make console-e2e-sweep` (twenty consecutive runs, any flake is a defect) worth
 running. `compose` is the deployment's own compose definition: a real gateway

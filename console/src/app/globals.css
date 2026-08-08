@@ -171,6 +171,22 @@
   height: var(--density-control);
 }
 
+/*
+ * The shell's two fixed measurements.
+ *
+ * A sidebar is as wide as its longest label and a utility bar is as tall as one
+ * control with air around it; neither is a step of the spacing scale and neither
+ * pretends to be. They are utilities so that the shell names them rather than
+ * writing the numbers.
+ */
+@utility w-sidebar {
+  width: var(--shell-sidebar);
+}
+
+@utility h-topbar {
+  height: var(--shell-topbar);
+}
+
 @layer base {
   *,
   *::before,

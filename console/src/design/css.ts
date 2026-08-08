@@ -25,6 +25,7 @@ import {
   FONT_STACKS,
   RADII,
   SHADOWS,
+  SHELL,
   SPACING,
   type Theme,
   TYPE_STEPS,
@@ -72,6 +73,9 @@ function scaleDeclarations(): readonly string[] {
     lines.push(declaration(`line-${name}`, String(step.line)));
     lines.push(declaration(`weight-${name}`, String(step.weight)));
     lines.push(declaration(`track-${name}`, step.tracking));
+  }
+  for (const [name, value] of Object.entries(SHELL)) {
+    lines.push(declaration(`shell-${name}`, `${String(value)}px`));
   }
   lines.push(declaration('width-page', `${String(CONTENT_WIDTH)}px`));
   lines.push(declaration('family-sans', FONT_STACKS.sans));

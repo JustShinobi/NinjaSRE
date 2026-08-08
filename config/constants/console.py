@@ -128,6 +128,67 @@ CONSOLE_VISUAL_IMAGE: Final = (
 #: a threshold is where a visual gate goes to become advisory.
 CONSOLE_VISUAL_MAX_DIFFERING_PIXELS: Final = 0
 
+#: The console's first contentful paint, in milliseconds, measured in the
+#: browser suite against the built artefact and the committed dataset.
+#:
+#: This is the chrome, not the content: the shell has to be on screen before any
+#: page data resolves, and a number nothing checks is an intention.
+CONSOLE_FIRST_PAINT_BUDGET_MS: Final = 2000.0
+
+#: A warm route transition — the router serving a route it already has the frame
+#: for. This is the one that decides whether people use the navigation or the
+#: browser's address bar.
+CONSOLE_ROUTE_TRANSITION_BUDGET_MS: Final = 1200.0
+
+#: How long one of the shell's own auxiliary reads gets before the frame is
+#: rendered without it.
+#:
+#: The notification count, the recent runs and the guardian line are all things
+#: the frame is better with and none of them is a thing the frame waits for. The
+#: viewer has no deadline: there is no honest shell to draw without one.
+#: Mirrored in ``console/src/shell/load.ts`` and asserted equal by the suite.
+CONSOLE_SHELL_READ_TIMEOUT_MS: Final = 2000
+
+# --- The console's own session ---------------------------------------------------
+
+#: The cookie the credential lives in. HTTP-only, so nothing in a component can
+#: read it and no bug in a component can leak one.
+CONSOLE_SESSION_COOKIE: Final = "ninjasre_session"
+
+#: The cookie carrying only the instant the session ends. Readable on purpose:
+#: the warning has to be rendered before the expiry, so the browser has to know
+#: when that is, and an instant is not a secret.
+CONSOLE_SESSION_EXPIRY_COOKIE: Final = "ninjasre_session_expires"
+
+#: Where a viewer's chosen language is kept.
+CONSOLE_LOCALE_COOKIE: Final = "ninjasre_locale"
+
+#: How long a console session lasts before it has to be established again.
+CONSOLE_SESSION_LIFETIME_SECONDS: Final = 43200
+
+#: How long before the end the console says the session is ending.
+CONSOLE_SESSION_WARNING_SECONDS: Final = 300
+
+#: The one route an unauthenticated visitor may reach.
+CONSOLE_SIGN_IN_PATH: Final = "/sign-in"
+
+#: The width below which the sidebar becomes a drawer.
+CONSOLE_SIDEBAR_BREAKPOINT_PX: Final = 768
+
+#: The sidebar's width and the utility bar's height, as the design draws them.
+CONSOLE_SIDEBAR_WIDTH_PX: Final = 236
+CONSOLE_TOPBAR_HEIGHT_PX: Final = 52
+
+#: The locales the console carries, in the order the catalogue declares them.
+CONSOLE_LOCALES: Final[tuple[str, ...]] = ("en", "pt-BR")
+
+#: What the deployment calls itself in the utility bar and in every document
+#: title, and which clock its absolute timestamps are rendered in.
+NINJASRE_CONSOLE_DEPLOYMENT_ENV: Final = "NINJASRE_CONSOLE_DEPLOYMENT"
+NINJASRE_CONSOLE_TIMEZONE_ENV: Final = "NINJASRE_CONSOLE_TIMEZONE"
+
+# --- The gate's wall clock -------------------------------------------------------
+
 #: A clean checkout, nothing cached, both halves of the gate. Generous, because
 #: it includes provisioning a Node distribution and a browser.
 CONSOLE_COLD_VERIFY_BUDGET_SECONDS: Final = 1800.0
@@ -152,7 +213,22 @@ __all__ = [
     "CONSOLE_COVERAGE_THRESHOLD",
     "CONSOLE_DIR_NAME",
     "CONSOLE_E2E_MOCK_PORT",
+    "CONSOLE_FIRST_PAINT_BUDGET_MS",
     "CONSOLE_ICON_BUDGET_BYTES",
+    "CONSOLE_LOCALE_COOKIE",
+    "CONSOLE_LOCALES",
+    "CONSOLE_ROUTE_TRANSITION_BUDGET_MS",
+    "CONSOLE_SESSION_COOKIE",
+    "CONSOLE_SESSION_EXPIRY_COOKIE",
+    "CONSOLE_SESSION_LIFETIME_SECONDS",
+    "CONSOLE_SESSION_WARNING_SECONDS",
+    "CONSOLE_SHELL_READ_TIMEOUT_MS",
+    "CONSOLE_SIDEBAR_BREAKPOINT_PX",
+    "CONSOLE_SIDEBAR_WIDTH_PX",
+    "CONSOLE_SIGN_IN_PATH",
+    "CONSOLE_TOPBAR_HEIGHT_PX",
+    "NINJASRE_CONSOLE_DEPLOYMENT_ENV",
+    "NINJASRE_CONSOLE_TIMEZONE_ENV",
     "CONSOLE_E2E_PORT",
     "CONSOLE_GENERATED_CLIENT_PATH",
     "CONSOLE_LOCKFILE_FILENAME",

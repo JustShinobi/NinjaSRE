@@ -114,12 +114,20 @@ export interface Crumb {
 
 export interface BreadcrumbProps {
   readonly trail: readonly Crumb[];
+  /**
+   * The landmark's name, in the viewer's language.
+   *
+   * A required prop rather than a literal here. Everything a viewer reads comes
+   * from the message catalogue, and a component that named its own landmark
+   * would be one string in one language that no completeness test can see.
+   */
+  readonly label: string;
 }
 
 /** Where this page sits, with the current page marked and not linked to itself. */
-export function Breadcrumb({ trail }: BreadcrumbProps): ReactNode {
+export function Breadcrumb({ trail, label }: BreadcrumbProps): ReactNode {
   return (
-    <nav aria-label="Breadcrumb">
+    <nav aria-label={label}>
       <ol className="flex items-center gap-2 text-meta text-muted">
         {trail.map((crumb, index) => (
           <li key={crumb.label} className="flex items-center gap-2">
@@ -144,6 +152,13 @@ export interface PaginationProps {
   readonly page: number;
   readonly pages: number;
   readonly onPage: (page: number) => void;
+  /** The landmark's name, the two controls' names, and the position, translated. */
+  readonly labels: {
+    readonly landmark: string;
+    readonly previous: string;
+    readonly next: string;
+    readonly position: string;
+  };
 }
 
 /**
@@ -153,27 +168,30 @@ export interface PaginationProps {
  * everything beside it as the reader arrives at the first page, which is
  * movement under the pointer at the exact moment somebody is about to click.
  */
-export function Pagination({ page, pages, onPage }: PaginationProps): ReactNode {
+export function Pagination({
+  page,
+  pages,
+  onPage,
+  labels,
+}: PaginationProps): ReactNode {
   return (
-    <nav aria-label="Pagination" className="flex items-center gap-3">
+    <nav aria-label={labels.landmark} className="flex items-center gap-3">
       <Button
         state={page <= 1 ? 'disabled' : 'default'}
         onClick={() => {
           onPage(page - 1);
         }}
       >
-        Previous
+        {labels.previous}
       </Button>
-      <span className="text-meta text-muted tabular-nums">
-        Page {page} of {pages}
-      </span>
+      <span className="text-meta text-muted tabular-nums">{labels.position}</span>
       <Button
         state={page >= pages ? 'disabled' : 'default'}
         onClick={() => {
           onPage(page + 1);
         }}
       >
-        Next
+        {labels.next}
       </Button>
     </nav>
   );
@@ -181,10 +199,12 @@ export function Pagination({ page, pages, onPage }: PaginationProps): ReactNode 
 
 export interface AvatarProps {
   readonly name: string;
+  /** What to call somebody whose name is missing, in the viewer's language. */
+  readonly unknownLabel: string;
 }
 
 /** Initials, with the name they stand for available to anybody who cannot see them. */
-export function Avatar({ name }: AvatarProps): ReactNode {
+export function Avatar({ name, unknownLabel }: AvatarProps): ReactNode {
   const trimmed = name.trim();
   const initials =
     trimmed === ''
@@ -197,7 +217,7 @@ export function Avatar({ name }: AvatarProps): ReactNode {
   return (
     <span
       role="img"
-      aria-label={trimmed === '' ? 'Unknown person' : trimmed}
+      aria-label={trimmed === '' ? unknownLabel : trimmed}
       className="inline-flex items-center justify-center size-5 rounded-full bg-info-bg text-info text-meta"
     >
       {initials}

@@ -61,6 +61,14 @@ import { DatabaseIcon, ServerIcon, TrashIcon } from '@/design/icons';
  * depend on the order the entries were rendered in.
  */
 
+/** Specimen labels, which a real screen takes from the message catalogue. */
+const PAGINATION_LABELS = {
+  landmark: 'Pagination',
+  previous: 'Previous',
+  next: 'Next',
+  position: 'Page 4 of 7',
+};
+
 const nothing = (): void => {
   /* A specimen does not act. */
 };
@@ -660,6 +668,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
               { href: '/incidents', label: 'Incidents' },
               { label: 'Quorum margin is zero' },
             ]}
+            label="Breadcrumb"
           />
         ),
       },
@@ -672,17 +681,23 @@ export const GALLERY: readonly GalleryPrimitive[] = [
       {
         id: 'pagination-first',
         label: 'first page',
-        node: <Pagination page={1} pages={7} onPage={nothing} />,
+        node: (
+          <Pagination page={1} pages={7} onPage={nothing} labels={PAGINATION_LABELS} />
+        ),
       },
       {
         id: 'pagination-middle',
         label: 'middle',
-        node: <Pagination page={4} pages={7} onPage={nothing} />,
+        node: (
+          <Pagination page={4} pages={7} onPage={nothing} labels={PAGINATION_LABELS} />
+        ),
       },
       {
         id: 'pagination-last',
         label: 'last page',
-        node: <Pagination page={7} pages={7} onPage={nothing} />,
+        node: (
+          <Pagination page={7} pages={7} onPage={nothing} labels={PAGINATION_LABELS} />
+        ),
       },
     ],
   },
@@ -690,8 +705,16 @@ export const GALLERY: readonly GalleryPrimitive[] = [
     name: 'Avatar',
     summary: 'Initials, with the name available to anybody who cannot see them.',
     entries: [
-      { id: 'avatar-person', label: 'a person', node: <Avatar name="Priya Raman" /> },
-      { id: 'avatar-service', label: 'a service', node: <Avatar name="runner" /> },
+      {
+        id: 'avatar-person',
+        label: 'a person',
+        node: <Avatar name="Priya Raman" unknownLabel="Unknown person" />,
+      },
+      {
+        id: 'avatar-service',
+        label: 'a service',
+        node: <Avatar name="runner" unknownLabel="Unknown person" />,
+      },
     ],
   },
   {
@@ -703,7 +726,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
         id: 'modal-open',
         label: 'open',
         node: (
-          <Modal open title="Confirm the reclaim" onClose={nothing}>
+          <Modal open title="Confirm the reclaim" onClose={nothing} closeLabel="Close">
             <p className="text-small">41 GiB will be removed from local-lvm.</p>
           </Modal>
         ),
@@ -718,7 +741,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
         id: 'drawer-open',
         label: 'open',
         node: (
-          <Drawer open title="Evidence" onClose={nothing}>
+          <Drawer open title="Evidence" onClose={nothing} closeLabel="Close">
             <p className="text-small">The last sweep of local-lvm.</p>
           </Drawer>
         ),
@@ -738,6 +761,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
             target="local-lvm on pve02"
             action="Reclaim 41 GiB"
             consequence="One of the items is a recovery point."
+            labels={{ close: 'Close', cancel: 'Cancel' }}
             onConfirm={nothing}
             onCancel={nothing}
           />
@@ -774,8 +798,10 @@ export const GALLERY: readonly GalleryPrimitive[] = [
         label: 'default',
         node: (
           <ErrorState
+            heading="Could not reach this source"
             dependency="metrics.internal.invalid"
-            detail="refused the connection"
+            detail="refused the connection. The rest of this page is unaffected."
+            retryLabel="Retry this panel"
             onRetry={nothing}
           />
         ),

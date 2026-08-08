@@ -364,6 +364,28 @@ export const FONT_STACKS = {
  */
 export const CONTENT_WIDTH = 1360;
 
+/**
+ * The application shell's two fixed measurements.
+ *
+ * Neither is on the spacing scale and neither should be. A sidebar is as wide as
+ * its longest label plus its icon plus its gutters, and a utility bar is as tall
+ * as one control with air around it; both are measured from the design rather
+ * than derived from a step. They are tokens so that a component names them
+ * instead of writing them, which is the same rule everything else here follows.
+ */
+export const SHELL = {
+  sidebar: 236,
+  topbar: 52,
+} as const;
+
+/**
+ * The width below which the sidebar becomes a drawer.
+ *
+ * Declared here and used by the browser suite, so "the documented breakpoint" is
+ * a number two things read rather than a number in a sentence.
+ */
+export const SIDEBAR_BREAKPOINT = 768;
+
 /** The two densities, and the control height each gives a control. */
 export const DENSITIES = ['comfortable', 'compact'] as const;
 

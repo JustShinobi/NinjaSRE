@@ -9,6 +9,7 @@
  * failing in a browser.
  */
 import type { paths } from '@/api/schema';
+import { reportUnauthorized } from '@/session/controller';
 
 /**
  * Where the gateway is, as the running console sees it.
@@ -20,6 +21,9 @@ import type { paths } from '@/api/schema';
 export function apiOrigin(): string {
   return process.env.NINJASRE_CONSOLE_API_URL ?? '';
 }
+
+/** The one status that is a statement about the session rather than the request. */
+const UNAUTHORIZED = 401;
 
 /** A request the gateway refused, carrying the status so a caller can act on it. */
 export class ApiError extends Error {
@@ -61,6 +65,12 @@ export async function read<P extends ReadablePath>(
     headers.set('accept', 'application/json');
   }
   const response = await fetch(`${apiOrigin()}${path}`, { ...init, headers });
+  if (response.status === UNAUTHORIZED) {
+    // Published rather than handled. Every refusal reaches one controller, so
+    // three concurrent 401s end the session once — because there is one place
+    // that can end it, not because each of the three checked first.
+    reportUnauthorized();
+  }
   if (!response.ok) {
     throw new ApiError(
       response.status,

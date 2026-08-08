@@ -21,7 +21,7 @@ import { ConfirmDestructive, Drawer, Modal } from '@/components/overlay';
 describe('Modal', () => {
   it('is a dialog with a name, and is modal', () => {
     render(
-      <Modal open title="Confirm reclaim" onClose={vi.fn()}>
+      <Modal open title="Confirm reclaim" onClose={vi.fn()} closeLabel="Close">
         <p>41 GiB will be removed.</p>
       </Modal>,
     );
@@ -32,7 +32,7 @@ describe('Modal', () => {
 
   it('renders nothing at all when it is closed', () => {
     render(
-      <Modal open={false} title="Confirm reclaim" onClose={vi.fn()}>
+      <Modal open={false} title="Confirm reclaim" onClose={vi.fn()} closeLabel="Close">
         <p>41 GiB will be removed.</p>
       </Modal>,
     );
@@ -41,7 +41,7 @@ describe('Modal', () => {
 
   it('moves focus into itself when it opens', () => {
     render(
-      <Modal open title="Confirm reclaim" onClose={vi.fn()}>
+      <Modal open title="Confirm reclaim" onClose={vi.fn()} closeLabel="Close">
         <button type="button">Reclaim</button>
       </Modal>,
     );
@@ -52,7 +52,7 @@ describe('Modal', () => {
 
   it('keeps focus inside, in both directions', async () => {
     render(
-      <Modal open title="Confirm reclaim" onClose={vi.fn()}>
+      <Modal open title="Confirm reclaim" onClose={vi.fn()} closeLabel="Close">
         <button type="button">First</button>
         <button type="button">Last</button>
       </Modal>,
@@ -74,7 +74,13 @@ describe('Modal', () => {
     render(
       <>
         <button type="button">Open</button>
-        <Modal open title="Confirm reclaim" onClose={closed} returnFocusTo="opener">
+        <Modal
+          open
+          title="Confirm reclaim"
+          onClose={closed}
+          returnFocusTo="opener"
+          closeLabel="Close"
+        >
           <button type="button">Reclaim</button>
         </Modal>
       </>,
@@ -86,7 +92,7 @@ describe('Modal', () => {
 
   it('locks the page behind it, so the background does not scroll away', () => {
     const { unmount } = render(
-      <Modal open title="Confirm reclaim" onClose={vi.fn()}>
+      <Modal open title="Confirm reclaim" onClose={vi.fn()} closeLabel="Close">
         <p>content</p>
       </Modal>,
     );
@@ -100,7 +106,7 @@ describe('Modal', () => {
 describe('Drawer', () => {
   it('keeps the context behind it visible, which is why it is not a modal', () => {
     render(
-      <Drawer open title="Evidence" onClose={vi.fn()}>
+      <Drawer open title="Evidence" onClose={vi.fn()} closeLabel="Close">
         <p>The last sweep.</p>
       </Drawer>,
     );
@@ -112,7 +118,7 @@ describe('Drawer', () => {
   it('dismisses on escape', async () => {
     const closed = vi.fn();
     render(
-      <Drawer open title="Evidence" onClose={closed}>
+      <Drawer open title="Evidence" onClose={closed} closeLabel="Close">
         <p>The last sweep.</p>
       </Drawer>,
     );
@@ -130,6 +136,7 @@ describe('ConfirmDestructive', () => {
         target="local-lvm on pve02"
         action="Reclaim 41 GiB"
         consequence="One of the items is a recovery point."
+        labels={{ close: 'Close', cancel: 'Cancel' }}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />,
@@ -148,6 +155,7 @@ describe('ConfirmDestructive', () => {
         target="local-lvm on pve02"
         action="Reclaim 41 GiB"
         consequence="One of the items is a recovery point."
+        labels={{ close: 'Close', cancel: 'Cancel' }}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />,
@@ -169,6 +177,7 @@ describe('ConfirmDestructive', () => {
         target="local-lvm on pve02"
         action="Reclaim 41 GiB"
         consequence="One of the items is a recovery point."
+        labels={{ close: 'Close', cancel: 'Cancel' }}
         onConfirm={confirmed}
         onCancel={cancelled}
       />,

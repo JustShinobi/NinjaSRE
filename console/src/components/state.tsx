@@ -73,16 +73,22 @@ export function EmptyState({
 }
 
 export interface ErrorStateProps {
+  /** What failed, in a sentence, from the catalogue. */
+  readonly heading: string;
   /** What failed. Named, because "something went wrong" is not a fault report. */
   readonly dependency: string;
   readonly detail: string;
+  /** What the retry control is called, in the viewer's language. */
+  readonly retryLabel: string;
   readonly onRetry: () => void;
 }
 
 /** One panel failed; the page did not. */
 export function ErrorState({
+  heading,
   dependency,
   detail,
+  retryLabel,
   onRetry,
 }: ErrorStateProps): ReactNode {
   return (
@@ -93,17 +99,16 @@ export function ErrorState({
       <span className="flex items-center justify-center size-7 rounded-3 bg-danger-bg text-danger">
         <AlertCircleIcon size="empty" />
       </span>
-      <h4 className="text-strong">Could not reach this source</h4>
+      <h4 className="text-strong">{heading}</h4>
       <p className="text-muted text-small max-w-prose">
-        <span className="font-mono">{dependency}</span> {detail}. The rest of this page
-        is unaffected.
+        <span className="font-mono">{dependency}</span> {detail}
       </p>
       <Button
         onClick={() => {
           onRetry();
         }}
       >
-        Retry this panel
+        {retryLabel}
       </Button>
     </div>
   );

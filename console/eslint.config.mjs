@@ -2,6 +2,7 @@ import nextWebVitals from 'eslint-config-next/core-web-vitals';
 import tseslint from 'typescript-eslint';
 
 import design from './eslint-rules/no-design-literals.mjs';
+import i18n from './eslint-rules/no-untranslated-strings.mjs';
 
 /**
  * The console's lint rules.
@@ -74,6 +75,41 @@ export default tseslint.config(
     plugins: { design },
     rules: {
       'design/no-design-literals': 'error',
+    },
+  },
+  {
+    // The no-untranslated-strings rule, over every surface a viewer reaches.
+    //
+    // The three design-system modules listed alongside the surfaces are the ones
+    // the shell renders *through* — the drawer's dismiss control, the account
+    // menu's avatar, the route error boundary's panel. Their strings were lifted
+    // to required props so that even those sentences come from the catalogue.
+    // The primitives no surface renders yet keep theirs until the screen that
+    // shows them arrives; a sentence nobody has been shown is not a sentence
+    // anybody has read in the wrong language.
+    files: [
+      'src/app/**/*.tsx',
+      'src/shell/**/*.ts',
+      'src/shell/**/*.tsx',
+      'src/session/**/*.ts',
+      'src/i18n/**/*.ts',
+      'src/components/navigation.tsx',
+      'src/components/overlay.tsx',
+      'src/components/state.tsx',
+    ],
+    plugins: { i18n },
+    rules: {
+      'i18n/no-untranslated-strings': 'error',
+    },
+  },
+  {
+    // The gallery is not part of the console: nothing links to it, a test
+    // asserts that, and its whole job is to name and describe each primitive for
+    // whoever is building a screen. Its labels are documentation, in the one
+    // language this repository is written in.
+    files: ['src/gallery/**/*.tsx', 'src/app/gallery/**/*.tsx'],
+    rules: {
+      'i18n/no-untranslated-strings': 'off',
     },
   },
   {

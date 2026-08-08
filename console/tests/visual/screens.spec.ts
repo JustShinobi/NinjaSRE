@@ -3,14 +3,17 @@ import { fileURLToPath } from 'node:url';
 
 import { expect, test } from '@playwright/test';
 
+import { signIn } from '../e2e/session';
+
 /**
  * Every registered screen, captured and compared against its committed baseline.
  *
- * The data comes from the committed fixture set rather than from a running
- * gateway. A screenshot suite that depends on a live backend is a screenshot
- * suite that fails for reasons which have nothing to do with the pixels, and
- * the fixture set already carries a fixed reference instant so that two runs a
- * week apart produce the same image.
+ * The data comes from the committed fixture set, served to the console by the
+ * Node fixture server the capture harness starts. It has to be a real address
+ * rather than an interception in the browser: the shell resolves the viewer on
+ * the *server*, so a console with nothing to talk to captures the sign-in page
+ * and proves nothing about the console. The dataset carries one fixed instant,
+ * so two runs a week apart produce the same image.
  *
  * A screen is a route *at a width in a theme*, not a route. The design declares
  * three widths and two themes; a baseline that only ever saw one of the six
@@ -30,13 +33,9 @@ interface Registry {
   readonly screens: readonly Screen[];
 }
 
-function readJson(relative: string): unknown {
-  const path = fileURLToPath(new URL(relative, import.meta.url));
-  return JSON.parse(readFileSync(path, 'utf8'));
-}
-
 function registry(): Registry {
-  const loaded = readJson('../../visual/screens.json');
+  const path = fileURLToPath(new URL('../../visual/screens.json', import.meta.url));
+  const loaded: unknown = JSON.parse(readFileSync(path, 'utf8'));
   if (typeof loaded !== 'object' || loaded === null) {
     throw new Error('visual/screens.json does not hold an object');
   }
@@ -47,37 +46,16 @@ function registry(): Registry {
   return { screens: screens as readonly Screen[] };
 }
 
-/** The body the committed fixture set answers `endpoint` with, for `scenario`. */
-function fixtureBody(scenario: string, endpoint: string): unknown {
-  const loaded = readJson(`../../../fixtures/scenarios/${scenario}/${endpoint}.json`);
-  const responses: unknown = Reflect.get(Object(loaded), 'responses');
-  if (!Array.isArray(responses) || responses.length === 0) {
-    throw new Error(`${scenario}/${endpoint}.json holds no responses`);
-  }
-  return Reflect.get(Object(responses[0]), 'body');
-}
-
-const ENDPOINT_FOR: Readonly<Record<string, string>> = {
-  '/v1/runs': 'runs',
-};
+/** The one route an unauthenticated visitor may reach, and the only one captured cold. */
+const UNAUTHENTICATED = '/sign-in';
 
 for (const screen of registry().screens.filter((each) => each.status === 'baselined')) {
-  test(`${screen.id} matches its baseline`, async ({ page }) => {
+  test(`${screen.id} matches its baseline`, async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: screen.viewport ?? 1440, height: 900 });
 
-    await page.route('**/v1/**', async (route) => {
-      const path = new URL(route.request().url()).pathname;
-      const endpoint = ENDPOINT_FOR[path];
-      if (endpoint === undefined) {
-        await route.fulfill({ status: 404, body: '{}' });
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(fixtureBody('populated', endpoint)),
-      });
-    });
+    if (screen.route !== UNAUTHENTICATED) {
+      await signIn(context, baseURL ?? 'http://127.0.0.1:8425');
+    }
 
     // Set before navigating, so the theme is the one the first paint used and
     // the capture is not of a page that changed theme under itself.

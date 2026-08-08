@@ -72,6 +72,13 @@ SEEDED = (
     # written out. The design system is a set of closed sets, and a closed set
     # nothing enforces is a suggestion.
     SeededFailure("design-literal-violation.tsx", "src/lib/swatch.tsx", "lint", "swatch.tsx"),
+    # A sentence written into a component instead of taken from the catalogue.
+    # The completeness test compares the locales it is given and has nothing to
+    # say about a string that never reached one, so the check runs at the other
+    # end — at the point where the string is written.
+    SeededFailure(
+        "untranslated-literal.tsx", "src/shell/untranslated.tsx", "lint", "untranslated.tsx"
+    ),
     SeededFailure("failing.test.ts", "tests/unit/seeded.test.ts", "test", "seeded.test.ts"),
 )
 

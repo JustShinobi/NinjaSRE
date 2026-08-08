@@ -276,6 +276,108 @@ export function InboxIcon(props: IconProps): ReactNode {
   );
 }
 
+/*
+ * The shell's own shapes.
+ *
+ * Each of the eight below is drawn from the navigation the design reference
+ * draws, on the same 24-unit grid at the same 2-unit stroke as the rest of the
+ * set. They are here rather than in the shell because a shape used by one
+ * surface today is used by three next month, and the second copy is the one
+ * that is subtly different.
+ */
+
+/** The overview: four panels, which is what a dashboard is. */
+export function GridIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </Glyph>
+  );
+}
+
+/** A list: what a run log is before it is anything else. */
+export function ListIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <path d="M4 6h16M4 12h16M4 18h10" />
+    </Glyph>
+  );
+}
+
+/** Nodes and the edges between them. */
+export function SitemapIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <circle cx="12" cy="5" r="2.5" />
+      <circle cx="5" cy="19" r="2.5" />
+      <circle cx="19" cy="19" r="2.5" />
+      <path d="M12 7.5v4M10 13l-3.5 3.5M14 13l3.5 3.5" />
+    </Glyph>
+  );
+}
+
+/** What a past investigation left behind. */
+export function BrainIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <path d="M12 3a4 4 0 0 0-4 4c-1.7.6-3 2.2-3 4a4 4 0 0 0 2 3.5V17a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3v-2.5A4 4 0 0 0 19 11c0-1.8-1.3-3.4-3-4a4 4 0 0 0-4-4Z" />
+    </Glyph>
+  );
+}
+
+/** The record: a clipboard with rows on it. */
+export function ClipboardIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-3" />
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M8 11h8M8 15h5" />
+    </Glyph>
+  );
+}
+
+/** The notification centre, which is a bell whether or not it rings. */
+export function BellIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
+      <path d="M10 21h4" />
+    </Glyph>
+  );
+}
+
+/** The theme switch: a disc with rays, which is the same shape in both themes. */
+export function ContrastIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+    </Glyph>
+  );
+}
+
+/** Lost, and a way back: a needle in a ring. */
+export function CompassIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15 9-2 5-4 1 2-5 4-1Z" />
+    </Glyph>
+  );
+}
+
+/** The drawer handle, which only exists below the breakpoint. */
+export function MenuIcon(props: IconProps): ReactNode {
+  return (
+    <Glyph {...props}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </Glyph>
+  );
+}
+
 /** Every icon this set ships, for the gallery and for the coverage test. */
 export const ICON_NAMES = [
   'CheckIcon',
@@ -302,4 +404,13 @@ export const ICON_NAMES = [
   'CopyIcon',
   'TrashIcon',
   'InboxIcon',
+  'GridIcon',
+  'ListIcon',
+  'SitemapIcon',
+  'BrainIcon',
+  'ClipboardIcon',
+  'BellIcon',
+  'ContrastIcon',
+  'CompassIcon',
+  'MenuIcon',
 ] as const;

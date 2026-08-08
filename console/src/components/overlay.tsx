@@ -37,6 +37,8 @@ interface OverlayProps {
   readonly children: ReactNode;
   /** Whether the rest of the page is inert while this is open. */
   readonly modal: boolean;
+  /** What the dismiss control is called, in the viewer's language. */
+  readonly closeLabel: string;
   readonly className?: string;
   /** Named only so a caller can say where focus goes back to. */
   readonly returnFocusTo?: string;
@@ -48,6 +50,7 @@ function Overlay({
   onClose,
   children,
   modal,
+  closeLabel,
   className,
 }: OverlayProps): ReactNode {
   const headingId = useId();
@@ -115,7 +118,7 @@ function Overlay({
           {title}
         </h2>
         <span className="ml-auto">
-          <IconButton label="Close" icon={<CloseIcon />} onClick={dismiss} />
+          <IconButton label={closeLabel} icon={<CloseIcon />} onClick={dismiss} />
         </span>
       </header>
       {children}
@@ -128,13 +131,28 @@ export interface ModalProps {
   readonly title: string;
   readonly onClose: () => void;
   readonly children: ReactNode;
+  /** What the dismiss control is called, in the viewer's language. */
+  readonly closeLabel: string;
   readonly returnFocusTo?: string;
 }
 
 /** A confirmation, and nothing else. */
-export function Modal({ open, title, onClose, children }: ModalProps): ReactNode {
+export function Modal({
+  open,
+  title,
+  onClose,
+  closeLabel,
+  children,
+}: ModalProps): ReactNode {
   return (
-    <Overlay open={open} title={title} onClose={onClose} modal className="max-w-prose">
+    <Overlay
+      open={open}
+      title={title}
+      onClose={onClose}
+      closeLabel={closeLabel}
+      modal
+      className="max-w-prose"
+    >
       {children}
     </Overlay>
   );
@@ -145,12 +163,26 @@ export interface DrawerProps {
   readonly title: string;
   readonly onClose: () => void;
   readonly children: ReactNode;
+  /** What the dismiss control is called, in the viewer's language. */
+  readonly closeLabel: string;
 }
 
 /** Detail, beside the thing it is about rather than on top of it. */
-export function Drawer({ open, title, onClose, children }: DrawerProps): ReactNode {
+export function Drawer({
+  open,
+  title,
+  onClose,
+  closeLabel,
+  children,
+}: DrawerProps): ReactNode {
   return (
-    <Overlay open={open} title={title} onClose={onClose} modal={false}>
+    <Overlay
+      open={open}
+      title={title}
+      onClose={onClose}
+      closeLabel={closeLabel}
+      modal={false}
+    >
       {children}
     </Overlay>
   );
@@ -158,6 +190,8 @@ export function Drawer({ open, title, onClose, children }: DrawerProps): ReactNo
 
 export interface ConfirmDestructiveProps {
   readonly open: boolean;
+  /** The dismiss control's name and the cancelling option's, in the viewer's language. */
+  readonly labels: { readonly close: string; readonly cancel: string };
   /** What will be changed, named. Not "this item" — the actual thing. */
   readonly target: string;
   readonly action: string;
@@ -179,20 +213,19 @@ export function ConfirmDestructive({
   target,
   action,
   consequence,
+  labels,
   onConfirm,
   onCancel,
 }: ConfirmDestructiveProps): ReactNode {
   return (
-    <Modal open={open} title={action} onClose={onCancel}>
-      <p className="text-small">
-        This will change <span className="font-mono">{target}</span>.
-      </p>
+    <Modal open={open} title={action} onClose={onCancel} closeLabel={labels.close}>
+      <p className="text-small font-mono">{target}</p>
       <p className="text-small text-warning">{consequence}</p>
       <div className="flex gap-3">
         <Button variant="destructive" onClick={onConfirm}>
           {action}
         </Button>
-        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onCancel}>{labels.cancel}</Button>
       </div>
     </Modal>
   );

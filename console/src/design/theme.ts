@@ -21,6 +21,15 @@ export const THEME_STORAGE_KEY = 'ninjasre.theme';
 /** The attribute the token stylesheet keys its two explicit blocks off. */
 export const THEME_ATTRIBUTE = 'data-theme';
 
+/**
+ * Published when the choice changes.
+ *
+ * Storage events do not fire in the tab that wrote the value, so a control that
+ * only listened to those would show the old choice in the very window somebody
+ * just changed it in.
+ */
+export const THEME_CHANGED_EVENT = 'ninjasre:theme-changed';
+
 /** Whether `value` names a theme this console has. */
 export function isTheme(value: string | null): value is Theme {
   return value !== null && (THEMES as readonly string[]).includes(value);
@@ -69,6 +78,7 @@ export function storeTheme(theme: Theme | null): void {
     // life of the page. Failing the interaction would be worse than forgetting.
   }
   applyTheme(theme);
+  window.dispatchEvent(new Event(THEME_CHANGED_EVENT));
 }
 
 /** Put `theme` on the document, or take the override off and follow the system. */

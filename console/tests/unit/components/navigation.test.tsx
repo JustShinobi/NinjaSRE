@@ -81,6 +81,7 @@ describe('Breadcrumb', () => {
           { href: '/incidents', label: 'Incidents' },
           { label: 'Quorum margin is zero' },
         ]}
+        label="Breadcrumb"
       />,
     );
 
@@ -93,20 +94,42 @@ describe('Breadcrumb', () => {
 
   it('does not make the current page a link to itself', () => {
     render(
-      <Breadcrumb trail={[{ href: '/', label: 'Operate' }, { label: 'Incidents' }]} />,
+      <Breadcrumb
+        label="Breadcrumb"
+        trail={[{ href: '/', label: 'Operate' }, { label: 'Incidents' }]}
+      />,
     );
     expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 });
 
+/**
+ * The strings a real screen takes from the message catalogue. Written out here
+ * because a component test states the values it is asserting against — that is
+ * the opposite of hard-coding one, and it is what keeps the assertion honest.
+ */
+function labelsFor(page: number): {
+  landmark: string;
+  previous: string;
+  next: string;
+  position: string;
+} {
+  return {
+    landmark: 'Pagination',
+    previous: 'Previous',
+    next: 'Next',
+    position: `Page ${String(page)} of 7`,
+  };
+}
+
 describe('Pagination', () => {
   it('says where the reader is, in words', () => {
-    render(<Pagination page={2} pages={7} onPage={vi.fn()} />);
+    render(<Pagination page={2} pages={7} onPage={vi.fn()} labels={labelsFor(2)} />);
     expect(screen.getByText(/page 2 of 7/i)).toBeInTheDocument();
   });
 
   it('disables the edge it is already at rather than hiding it', () => {
-    render(<Pagination page={1} pages={7} onPage={vi.fn()} />);
+    render(<Pagination page={1} pages={7} onPage={vi.fn()} labels={labelsFor(1)} />);
     // Hiding it would move the next control under the pointer as the reader
     // arrives at the first page, which is the shift the design forbids.
     expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
@@ -115,7 +138,7 @@ describe('Pagination', () => {
 
   it('turns the page from the keyboard', async () => {
     const turned = vi.fn();
-    render(<Pagination page={2} pages={7} onPage={turned} />);
+    render(<Pagination page={2} pages={7} onPage={turned} labels={labelsFor(2)} />);
 
     await userEvent.tab();
     await userEvent.keyboard('{Enter}');
@@ -125,15 +148,15 @@ describe('Pagination', () => {
 
 describe('Avatar', () => {
   it('says who it is, rather than showing initials to a screen reader', () => {
-    render(<Avatar name="Priya Raman" />);
+    render(<Avatar name="Priya Raman" unknownLabel="Unknown person" />);
     expect(screen.getByRole('img', { name: 'Priya Raman' })).toHaveTextContent('PR');
   });
 
   it('survives a single-word name and an empty one', () => {
-    const { rerender } = render(<Avatar name="runner" />);
+    const { rerender } = render(<Avatar name="runner" unknownLabel="Unknown person" />);
     expect(screen.getByRole('img', { name: 'runner' })).toHaveTextContent('R');
 
-    rerender(<Avatar name="" />);
+    rerender(<Avatar name="" unknownLabel="Unknown person" />);
     expect(screen.getByRole('img', { name: /unknown/i })).toBeInTheDocument();
   });
 });

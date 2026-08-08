@@ -78,8 +78,10 @@ describe('ErrorState', () => {
   it('names the dependency that failed', () => {
     render(
       <ErrorState
+        heading="Could not reach this source"
         dependency="prometheus.example.invalid"
-        detail="refused the connection"
+        detail="refused the connection. The rest of this page is unaffected."
+        retryLabel="Retry this panel"
         onRetry={vi.fn()}
       />,
     );
@@ -89,8 +91,10 @@ describe('ErrorState', () => {
   it('says the rest of the page is unaffected, so the reader does not abandon it', () => {
     render(
       <ErrorState
+        heading="Could not reach this source"
         dependency="prometheus.example.invalid"
-        detail="refused the connection"
+        detail="refused the connection. The rest of this page is unaffected."
+        retryLabel="Retry this panel"
         onRetry={vi.fn()}
       />,
     );
@@ -101,8 +105,10 @@ describe('ErrorState', () => {
     const retried = vi.fn();
     render(
       <ErrorState
+        heading="Could not reach this source"
         dependency="prometheus.example.invalid"
-        detail="refused the connection"
+        detail="refused the connection. The rest of this page is unaffected."
+        retryLabel="Retry this panel"
         onRetry={retried}
       />,
     );
@@ -114,8 +120,10 @@ describe('ErrorState', () => {
   it('is announced, because a panel that failed silently is a panel nobody notices', () => {
     render(
       <ErrorState
+        heading="Could not reach this source"
         dependency="prometheus.example.invalid"
-        detail="refused the connection"
+        detail="refused the connection. The rest of this page is unaffected."
+        retryLabel="Retry this panel"
         onRetry={vi.fn()}
       />,
     );
@@ -125,8 +133,10 @@ describe('ErrorState', () => {
   it('sets the dependency in monospace, because it is a name to be compared', () => {
     render(
       <ErrorState
+        heading="Could not reach this source"
         dependency="prometheus.example.invalid"
-        detail="refused the connection"
+        detail="refused the connection. The rest of this page is unaffected."
+        retryLabel="Retry this panel"
         onRetry={vi.fn()}
       />,
     );

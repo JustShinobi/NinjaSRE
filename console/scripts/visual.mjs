@@ -3,20 +3,27 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { serveFixtures } from './fixture-server.mjs';
+
 /**
  * Serve the built console and screenshot it. Runs inside the pinned capture
  * image and nowhere else — `tools/console_visual.py` is what puts it there.
  *
- * The API address it hands the console is a loopback port nothing listens on.
- * That is deliberate: the visual suite intercepts every request in the browser
- * and answers from the committed dataset, so a screen that reached past the
- * interception would render its failure state and the difference would say so
- * loudly. A capture suite that quietly fell back to a live backend is one whose
- * baselines drift with the data.
+ * The API it hands the console is the committed dataset, served by Node on
+ * loopback. It has to be a real address rather than a dead port: the shell
+ * resolves the viewer on the *server*, so a console with nothing to talk to
+ * captures the sign-in page and proves nothing about the console.
+ *
+ * The dataset is fixed — every timestamp in it is shifted to one instant — so
+ * two runs a week apart produce identical images, which is the property a
+ * baseline needs and a live backend cannot give.
  */
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const port = 8425;
 const accept = process.argv.includes('--accept');
+
+const fixturePort = 8426;
+const scenario = process.env.NINJASRE_FIXTURE_SCENARIO ?? 'populated';
 
 const server = join(root, '.next', 'standalone', 'server.js');
 if (!existsSync(server)) {
@@ -37,6 +44,8 @@ async function waitFor(url, attempts = 240) {
   throw new Error(`${url} did not answer`);
 }
 
+const fixtures = await serveFixtures(scenario, fixturePort);
+
 const console_ = spawn(process.execPath, [server], {
   cwd: dirname(server),
   stdio: 'inherit',
@@ -44,7 +53,8 @@ const console_ = spawn(process.execPath, [server], {
     ...process.env,
     HOSTNAME: '127.0.0.1',
     PORT: String(port),
-    NINJASRE_CONSOLE_API_URL: 'http://127.0.0.1:9',
+    NINJASRE_CONSOLE_API_URL: `http://127.0.0.1:${fixturePort}`,
+    NINJASRE_CONSOLE_DEPLOYMENT: 'HAL9000',
   },
 });
 
@@ -78,6 +88,7 @@ try {
   status = 2;
 } finally {
   console_.kill();
+  fixtures.close();
 }
 
 process.exit(status);
