@@ -6,11 +6,14 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "backup-job-disabled",
           "incident_id": "inc-0001",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "critical",
           "state": "open",
           "subjects": [
@@ -18,6 +21,8 @@
             "backup-7d831311"
           ],
           "summary": "2 subjects: primary baseline exists on schedule 08:00 and is disabled",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "Backup job exists and is disabled"
         },
         "observations": [
@@ -25,7 +30,7 @@
             "detail": "primary baseline exists on schedule 08:00 and is disabled",
             "detector": "backup-job-disabled",
             "evidence": {
-              "covers_all": true,
+              "covers_all": "true",
               "schedule": "08:00"
             },
             "observation_id": "obs-0003",
@@ -38,7 +43,7 @@
             "detail": "relational store exists on schedule 02:30,22:30 and is disabled",
             "detector": "backup-job-disabled",
             "evidence": {
-              "covers_all": false,
+              "covers_all": "false",
               "schedule": "02:30,22:30"
             },
             "observation_id": "obs-0006",
@@ -50,16 +55,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "2 subjects: primary baseline exists on schedule 08:00 and is disabled",
             "detail": "backup-job-disabled found 2 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",
@@ -73,11 +80,14 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "datastore-near-full",
           "incident_id": "inc-0002",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "critical",
           "state": "open",
           "subjects": [
@@ -85,6 +95,8 @@
             "store-ridge"
           ],
           "summary": "2 subjects: store-cove is 95.65% full",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "Datastore near full"
         },
         "observations": [
@@ -93,7 +105,7 @@
             "detector": "datastore-near-full",
             "evidence": {
               "node": "node01",
-              "used_percent": 95.65
+              "used_percent": "95.65"
             },
             "observation_id": "obs-0082",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -106,7 +118,7 @@
             "detector": "datastore-near-full",
             "evidence": {
               "node": "node01",
-              "used_percent": 93.45
+              "used_percent": "93.45"
             },
             "observation_id": "obs-0083",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -117,16 +129,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "2 subjects: store-cove is 95.65% full",
             "detail": "datastore-near-full found 2 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",
@@ -140,11 +154,14 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "guest-uncovered-by-backup",
           "incident_id": "inc-0003",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "critical",
           "state": "open",
           "subjects": [
@@ -224,6 +241,8 @@
             "vm-183"
           ],
           "summary": "74 subjects: amber is named by no enabled backup job",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "Guest covered by no enabled backup job"
         },
         "observations": [
@@ -1118,16 +1137,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "74 subjects: amber is named by no enabled backup job",
             "detail": "guest-uncovered-by-backup found 74 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",
@@ -1141,11 +1162,14 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "guest-volume-near-full",
           "incident_id": "inc-0004",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "high",
           "state": "open",
           "subjects": [
@@ -1154,6 +1178,8 @@
             "ct-140"
           ],
           "summary": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "Guest volume near full"
         },
         "observations": [
@@ -1199,16 +1225,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
             "detail": "guest-volume-near-full found 3 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",
@@ -1222,11 +1250,14 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "kernel-never-booted",
           "incident_id": "inc-0005",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "high",
           "state": "open",
           "subjects": [
@@ -1234,6 +1265,8 @@
             "node-node02"
           ],
           "summary": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "Kernel installed and never booted"
         },
         "observations": [
@@ -1266,16 +1299,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
             "detail": "kernel-never-booted found 2 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",
@@ -1289,17 +1324,22 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "no-replication-node-local-storage",
           "incident_id": "inc-0006",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "high",
           "state": "open",
           "subjects": [
             "cluster"
           ],
           "summary": "no replication job exists while guests are on node-local storage",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "No replication with node-local guest storage"
         },
         "observations": [
@@ -1307,7 +1347,7 @@
             "detail": "no replication job exists while guests are on node-local storage",
             "detector": "no-replication-node-local-storage",
             "evidence": {
-              "guests": 84
+              "guests": "84"
             },
             "observation_id": "obs-0096",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1318,16 +1358,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "no replication job exists while guests are on node-local storage",
             "detail": "no-replication-node-local-storage found 1 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",
@@ -1341,17 +1383,22 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "quorum-device-not-contributing",
           "incident_id": "inc-0007",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "critical",
           "state": "open",
           "subjects": [
             "cluster"
           ],
           "summary": "a quorum device appears in the membership view and the configuration declares none",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "Quorum device configured but contributing nothing"
         },
         "observations": [
@@ -1359,8 +1406,8 @@
             "detail": "a quorum device appears in the membership view and the configuration declares none",
             "detector": "quorum-device-not-contributing",
             "evidence": {
-              "device_declared": false,
-              "device_in_membership": true
+              "device_declared": "false",
+              "device_in_membership": "true"
             },
             "observation_id": "obs-0002",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1371,16 +1418,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "a quorum device appears in the membership view and the configuration declares none",
             "detail": "quorum-device-not-contributing found 1 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",
@@ -1394,17 +1443,22 @@
       },
       "body": {
         "incident": {
+          "close_reason": "",
           "closed_at": null,
           "detector": "quorum-margin-zero",
           "incident_id": "inc-0008",
           "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
           "run_id": null,
+          "self_resolved": false,
           "severity": "critical",
           "state": "open",
           "subjects": [
             "cluster"
           ],
           "summary": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+          "suppressed_by": "",
+          "team_node_id": "",
           "title": "Quorum margin is zero"
         },
         "observations": [
@@ -1412,10 +1466,10 @@
             "detail": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
             "detector": "quorum-margin-zero",
             "evidence": {
-              "quorum": 2,
-              "total_votes": 2,
-              "two_node": false,
-              "wait_for_all": false
+              "quorum": "2",
+              "total_votes": "2",
+              "two_node": "false",
+              "wait_for_all": "false"
             },
             "observation_id": "obs-0001",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1426,16 +1480,18 @@
         ],
         "timeline": [
           {
+            "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
+            "cause": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
             "detail": "quorum-margin-zero found 1 subject(s)",
             "kind": "opened"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",

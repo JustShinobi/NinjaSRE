@@ -45,6 +45,14 @@ class Permission(StrEnum):
     #: count is an operational decision a responder makes during an incident,
     #: not a configuration change.
     ESTATE_MANAGE = "estate.manage"
+    #: Reading incidents, detectors, and what the detectors currently conclude.
+    INCIDENT_READ = "incident.read"
+    #: Closing an incident, suppressing one, and turning a detector on or off.
+    #: A write, and held by a responder for the reason ``estate.manage`` is:
+    #: deciding an incident is noise is an incident-time judgement, and waiting
+    #: for an operator to make it is how a list of open incidents becomes one
+    #: nobody reads.
+    INCIDENT_MANAGE = "incident.manage"
 
     # Learned material.
     MEMORY_READ = "memory.read"
@@ -137,6 +145,7 @@ _ROLE_INCREMENTS: Final[Mapping[Role, frozenset[Permission]]] = {
             Permission.CONFIG_READ,
             Permission.APPROVAL_READ,
             Permission.ESTATE_READ,
+            Permission.INCIDENT_READ,
         }
     ),
     Role.RESPONDER: frozenset(
@@ -150,6 +159,7 @@ _ROLE_INCREMENTS: Final[Mapping[Role, frozenset[Permission]]] = {
             # it. Waiting for an operator to do it is how the estate stays
             # noisy through every planned change.
             Permission.ESTATE_MANAGE,
+            Permission.INCIDENT_MANAGE,
         }
     ),
     Role.OPERATOR: frozenset(

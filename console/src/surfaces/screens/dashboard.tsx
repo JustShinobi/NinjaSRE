@@ -20,7 +20,6 @@ import {
   number,
   panelRead,
   read,
-  readProjectedPanel,
   stateOf,
   text,
 } from '../read';
@@ -57,8 +56,8 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     panelRead('/v1/runs', () => read('/v1/runs', init)),
     panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
     panelRead('/health/ready', () => read('/health/ready', init)),
-    readProjectedPanel('/v1/detectors', credential),
-    readProjectedPanel('/v1/incidents', credential),
+    panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
+    panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
   ]);
 
   const runRecords = list(dataOf(runs), 'runs');

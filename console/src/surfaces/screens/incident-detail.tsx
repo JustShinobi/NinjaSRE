@@ -17,7 +17,6 @@ import {
   pairs,
   panelRead,
   read,
-  readProjectedPanel,
   stateOf,
   text,
 } from '../read';
@@ -42,9 +41,12 @@ export async function IncidentDetailScreen(
   const { credential, locale, now, zone } = context;
   const init = authorised(credential);
 
-  const detail = await readProjectedPanel('/v1/incidents/{incident_id}', credential, {
-    params: { incident_id: incidentId },
-  });
+  const detail = await panelRead('/v1/incidents/{incident_id}', () =>
+    read('/v1/incidents/{incident_id}', {
+      ...init,
+      params: { incident_id: incidentId },
+    }),
+  );
   const body = dataOf(detail);
   const incident = field(body, 'incident');
   const observations = list(body, 'observations');

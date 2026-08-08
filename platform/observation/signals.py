@@ -88,13 +88,24 @@ class SignalWindow:
         window was asked for. This is what separates "the condition held" from
         "we have not watched long enough to know", and a detector that skipped
         it would fire on its first tick after a restart.
+
+        The second clause is not a loophole, it is arithmetic. A source
+        reporting every minute over a five-minute window contributes samples
+        spanning four minutes at best, because the fifth would have to land
+        exactly on the boundary; requiring the full span would mean a detector
+        whose duration matches its source's interval could never fire at all. So
+        a window is also covered when its oldest sample is the first one *after*
+        the window opened, within one of that source's own intervals.
         """
         if seconds <= 0:
             return not self.is_empty
         oldest, newest = self.oldest, self.newest
         if oldest is None or newest is None:
             return False
-        return newest.observed_at - oldest.observed_at >= timedelta(seconds=seconds)
+        if newest.observed_at - oldest.observed_at >= timedelta(seconds=seconds):
+            return True
+        grace = timedelta(seconds=oldest.interval_seconds)
+        return grace > timedelta(0) and oldest.observed_at - self.opened_at <= grace
 
     def silence(self, now: datetime) -> timedelta | None:
         """Return how long this series has been quiet, or ``None`` if it never spoke.

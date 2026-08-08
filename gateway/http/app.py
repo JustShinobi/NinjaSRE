@@ -17,6 +17,7 @@ from gateway.http.routes import (
     estate,
     health,
     identity,
+    incidents,
     integrations,
     interactions,
     investigations,
@@ -67,6 +68,7 @@ def create_app(
     install_error_handlers(app)
 
     for router in (
+        incidents.router,
         investigations.router,
         threads.router,
         interactions.investigations_router,

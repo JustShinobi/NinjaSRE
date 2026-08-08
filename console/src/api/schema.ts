@@ -432,6 +432,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/detectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Detectors
+         * @description Return every declared detector, its coverage, and what it concludes now.
+         */
+        get: operations["list_detectors_v1_detectors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/detectors/{detector_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable Detector
+         * @description Turn a detector off for this team, without unconfiguring it.
+         */
+        post: operations["disable_detector_v1_detectors__detector_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/detectors/{detector_id}/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dry Run Detector
+         * @description Return what a detector would conclude against stored signals, firing nothing.
+         */
+        post: operations["dry_run_detector_v1_detectors__detector_id__dry_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/detectors/{detector_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable Detector
+         * @description Turn a detector on for this team, through the configuration service.
+         */
+        post: operations["enable_detector_v1_detectors__detector_id__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/estate/resources": {
         parameters: {
             query?: never;
@@ -510,6 +590,86 @@ export interface paths {
         get: operations["estate_summary_v1_estate_summary_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Incidents
+         * @description Return the incidents matching every filter given, most recent first.
+         */
+        get: operations["list_incidents_v1_incidents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/incidents/{incident_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Incident Detail
+         * @description Return one incident, its subjects, and how it got where it is.
+         */
+        get: operations["incident_detail_v1_incidents__incident_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/incidents/{incident_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Incident
+         * @description Close an incident on a person's behalf, with their reason.
+         */
+        post: operations["close_incident_v1_incidents__incident_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/incidents/{incident_id}/suppress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suppress Incident
+         * @description Close an incident as suppressed, naming what covered it.
+         */
+        post: operations["suppress_incident_v1_incidents__incident_id__suppress_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -900,6 +1060,26 @@ export interface paths {
          * @description Return what the episodic corpus holds for this team.
          */
         get: operations["memory_stats_v1_memory_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/observations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Observations
+         * @description Return what every enabled detector concludes right now.
+         */
+        get: operations["list_observations_v1_observations_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1339,6 +1519,24 @@ export interface components {
             /** Tags */
             tags: string[];
         };
+        /**
+         * CloseRequest
+         * @description Why an incident is being closed. Required, and refused at the schema.
+         *
+         *     "Closed by Ada" does not say whether it was fixed or dismissed, and a
+         *     deployment that recorded both the same way could not find the dismissals
+         *     again — which is the search somebody runs when a detector turns out to have
+         *     been wrong all along.
+         */
+        CloseRequest: {
+            /** Reason */
+            reason: string;
+            /**
+             * Resolved
+             * @default false
+             */
+            resolved: boolean;
+        };
         /** ConfigNodeView */
         ConfigNodeView: {
             /** Kind */
@@ -1471,6 +1669,64 @@ export interface components {
             /** State */
             state: string;
         };
+        /** DetectorListView */
+        DetectorListView: {
+            /** Detectors */
+            detectors: components["schemas"]["DetectorSummaryView"][];
+            /**
+             * Pause Reason
+             * @default
+             */
+            pause_reason: string;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+        };
+        /**
+         * DetectorSummaryView
+         * @description One detector as a table row shows it.
+         */
+        DetectorSummaryView: {
+            /** Description */
+            description: string;
+            /** Detector Id */
+            detector_id: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Last Evaluated At */
+            last_evaluated_at?: string | null;
+            /** Last Verdict */
+            last_verdict: string;
+            /** Name */
+            name: string;
+            /** Severity */
+            severity: string;
+            /** Signal */
+            signal: string;
+            /** Subjects Covered */
+            subjects_covered: number;
+            /** Subjects Total */
+            subjects_total: number;
+        };
+        /**
+         * DryRunView
+         * @description What a detector would have concluded, and the fact that it did nothing.
+         */
+        DryRunView: {
+            /** Detector Id */
+            detector_id: string;
+            /**
+             * Fired
+             * @default false
+             */
+            fired: boolean;
+            /** Observations */
+            observations?: components["schemas"]["ObservationView"][];
+            /** Would Fire */
+            would_fire: boolean;
+        };
         /** EffectiveConfigView */
         EffectiveConfigView: {
             /** Node Id */
@@ -1556,6 +1812,87 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * IncidentDetailView
+         * @description One incident's page: what it is, who it is about, and how it got there.
+         */
+        IncidentDetailView: {
+            /** Actions */
+            actions?: string[];
+            incident: components["schemas"]["IncidentSummaryView"];
+            /** Observations */
+            observations?: components["schemas"]["ObservationView"][];
+            /** Subjects */
+            subjects?: components["schemas"]["SubjectView"][];
+            /** Timeline */
+            timeline?: components["schemas"]["TimelineEntryView"][];
+        };
+        /** IncidentListView */
+        IncidentListView: {
+            /** Incidents */
+            incidents: components["schemas"]["IncidentSummaryView"][];
+            /**
+             * Pause Reason
+             * @default
+             */
+            pause_reason: string;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+        };
+        /**
+         * IncidentSummaryView
+         * @description One incident as a table row shows it.
+         */
+        IncidentSummaryView: {
+            /**
+             * Close Reason
+             * @default
+             */
+            close_reason: string;
+            /** Closed At */
+            closed_at?: string | null;
+            /** Detector */
+            detector: string;
+            /** Incident Id */
+            incident_id: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Origin */
+            origin: string;
+            /** Run Id */
+            run_id?: string | null;
+            /**
+             * Self Resolved
+             * @default false
+             */
+            self_resolved: boolean;
+            /** Severity */
+            severity: string;
+            /** State */
+            state: string;
+            /** Subjects */
+            subjects?: string[];
+            /** Summary */
+            summary: string;
+            /**
+             * Suppressed By
+             * @default
+             */
+            suppressed_by: string;
+            /**
+             * Team Node Id
+             * @default
+             */
+            team_node_id: string;
+            /** Title */
+            title: string;
         };
         /** IntegrationList */
         IntegrationList: {
@@ -1748,6 +2085,37 @@ export interface components {
         MemoryStats: {
             /** Episode Count */
             episode_count: number;
+        };
+        /** ObservationListView */
+        ObservationListView: {
+            /** Observations */
+            observations: components["schemas"]["ObservationView"][];
+        };
+        /**
+         * ObservationView
+         * @description One thing a detector concluded about one resource.
+         */
+        ObservationView: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Detector */
+            detector: string;
+            /** Evidence */
+            evidence?: {
+                [key: string]: string;
+            };
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Subject */
+            subject: string;
+            /** Verdict */
+            verdict: string;
         };
         /** PreviewChangeView */
         PreviewChangeView: {
@@ -2023,6 +2391,37 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * SubjectView
+         * @description One resource an incident is about, and what was seen on it.
+         */
+        SubjectView: {
+            /** Absent Since */
+            absent_since?: string | null;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Evidence */
+            evidence?: {
+                [key: string]: string;
+            };
+            /** Observed At */
+            observed_at?: string | null;
+            /** Resource Id */
+            resource_id: string;
+        };
+        /**
+         * SuppressRequest
+         * @description What covered this incident, and why.
+         */
+        SuppressRequest: {
+            /** Reason */
+            reason: string;
+            /** Rule */
+            rule: string;
+        };
         /** ThreadCallView */
         ThreadCallView: {
             /** Call Id */
@@ -2064,6 +2463,28 @@ export interface components {
             run_id: string;
             /** Turns */
             turns: components["schemas"]["ThreadTurnView"][];
+        };
+        /** TimelineEntryView */
+        TimelineEntryView: {
+            /** Actor */
+            actor: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Cause
+             * @default
+             */
+            cause: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Kind */
+            kind: string;
         };
         /** TokenList */
         TokenList: {
@@ -2910,6 +3331,136 @@ export interface operations {
             };
         };
     };
+    list_detectors_v1_detectors_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectorListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_detector_v1_detectors__detector_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                detector_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectorSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dry_run_detector_v1_detectors__detector_id__dry_run_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                detector_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DryRunView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enable_detector_v1_detectors__detector_id__enable_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                detector_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectorSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_resources_v1_estate_resources_get: {
         parameters: {
             query?: {
@@ -3073,6 +3624,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EstateSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_incidents_v1_incidents_get: {
+        parameters: {
+            query?: {
+                state?: string[];
+                severity?: string[];
+                detector?: string[];
+                subject?: string;
+                live?: boolean;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    incident_detail_v1_incidents__incident_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                incident_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentDetailView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_incident_v1_incidents__incident_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                incident_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suppress_incident_v1_incidents__incident_id__suppress_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                incident_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuppressRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentSummaryView"];
                 };
             };
             /** @description Validation Error */
@@ -3736,6 +4432,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryStats"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_observations_v1_observations_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObservationListView"];
                 };
             };
             /** @description Validation Error */

@@ -211,12 +211,12 @@ describe('the request layer', () => {
       );
     });
 
-    await readProjected('/v1/incidents/{incident_id}', {
-      params: { incident_id: 'INC-1' },
+    await readProjected('/v1/estate/storage', {
+      params: {},
       query: '?state=open',
     });
 
-    expect(asked).toBe('/v1/incidents/INC-1?state=open');
+    expect(asked).toBe('/v1/estate/storage?state=open');
   });
 
   it('names every projected endpoint exactly once', () => {
@@ -245,7 +245,7 @@ describe('what a panel does with a refusal', () => {
   it('treats a projected endpoint nobody serves yet as empty, not as broken', async () => {
     vi.stubGlobal('fetch', () => Promise.resolve(new Response('{}', { status: 404 })));
 
-    const answered = await readProjectedPanel('/v1/detectors', 'a-token');
+    const answered = await readProjectedPanel('/v1/estate/nodes', 'a-token');
 
     expect(stateOf(answered, true)).toBe('empty');
   });
@@ -253,7 +253,7 @@ describe('what a panel does with a refusal', () => {
   it('treats every other refusal of one as an error', async () => {
     vi.stubGlobal('fetch', () => Promise.resolve(new Response('{}', { status: 500 })));
 
-    const answered = await readProjectedPanel('/v1/detectors', 'a-token');
+    const answered = await readProjectedPanel('/v1/estate/nodes', 'a-token');
 
     expect(stateOf(answered, true)).toBe('error');
   });
@@ -261,9 +261,9 @@ describe('what a panel does with a refusal', () => {
   it('lets a defect through from a projected read as well', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new RangeError('a defect')));
 
-    await expect(readProjectedPanel('/v1/detectors', 'a-token')).rejects.toBeInstanceOf(
-      RangeError,
-    );
+    await expect(
+      readProjectedPanel('/v1/estate/nodes', 'a-token'),
+    ).rejects.toBeInstanceOf(RangeError);
   });
 });
 

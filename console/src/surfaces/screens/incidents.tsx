@@ -8,7 +8,16 @@ import type { SurfaceContext } from '../context';
 import { FilterBar } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
-import { dataOf, dependencyOf, list, readProjectedPanel, stateOf, text } from '../read';
+import {
+  authorised,
+  dataOf,
+  dependencyOf,
+  list,
+  panelRead,
+  read,
+  stateOf,
+  text,
+} from '../read';
 import { RowList, type ListRow } from '../rows';
 import { readViewState, type FilterName } from '../url-state';
 
@@ -34,7 +43,9 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, INCIDENT_FILTERS);
 
-  const incidents = await readProjectedPanel('/v1/incidents', credential);
+  const incidents = await panelRead('/v1/incidents', () =>
+    read('/v1/incidents', authorised(credential)),
+  );
   const records = list(dataOf(incidents), 'incidents');
 
   const states = [...new Set(records.map((record) => text(record, 'state')))].sort();

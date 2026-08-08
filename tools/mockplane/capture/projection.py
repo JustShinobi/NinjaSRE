@@ -126,12 +126,18 @@ class ClusterReading:
 
 @dataclass(frozen=True, slots=True)
 class Detector:
-    """One shipped check, and the severity a finding from it carries."""
+    """One shipped check, the signal it reads, and the severity a finding carries.
+
+    ``signal`` is what the detector endpoint reports beside the name, because a
+    threshold an operator is deciding whether to change is only reviewable
+    against the measurement it is a threshold on.
+    """
 
     detector_id: str
     name: str
     description: str
     severity: str
+    signal: str
 
 
 #: The detectors, each corresponding to a condition observed in a real cluster
@@ -144,6 +150,7 @@ DETECTORS: Final[tuple[Detector, ...]] = (
         "Losing either node drops the cluster below its quorum, at which point the "
         "cluster filesystem goes read-only and no guest can be started, stopped or migrated.",
         "critical",
+        "cluster.quorum_margin",
     ),
     Detector(
         "quorum-device-not-contributing",
@@ -151,18 +158,21 @@ DETECTORS: Final[tuple[Detector, ...]] = (
         "A quorum device appears in the membership view and carries no votes, which reads "
         "as configured to anything that counts devices rather than votes.",
         "critical",
+        "cluster.quorum_device_votes",
     ),
     Detector(
         "backup-job-disabled",
         "Backup job exists and is disabled",
         "A disabled job is indistinguishable from a job that ran, in every view that lists jobs.",
         "critical",
+        "backup.job_enabled",
     ),
     Detector(
         "guest-uncovered-by-backup",
         "Guest covered by no enabled backup job",
         "Coverage is the question, not job count: a guest named only by a disabled job has none.",
         "critical",
+        "backup.guest_covered",
     ),
     Detector(
         "datastore-near-full",
@@ -170,6 +180,7 @@ DETECTORS: Final[tuple[Detector, ...]] = (
         "A datastore above its threshold, measured against the datastore rather than "
         "against any one guest on it.",
         "critical",
+        "storage.used_percent",
     ),
     Detector(
         "guest-volume-near-full",
@@ -177,42 +188,49 @@ DETECTORS: Final[tuple[Detector, ...]] = (
         "A guest at the ceiling of its own volume while its datastore still reads "
         "comfortable — the distinction a datastore-level threshold cannot make.",
         "high",
+        "storage.volume_used_percent",
     ),
     Detector(
         "thin-pool-metadata-pressure",
         "Thin-pool metadata under pressure",
         "Metadata exhaustion takes a pool offline while its data percentage still looks fine.",
         "medium",
+        "storage.thin_metadata_percent",
     ),
     Detector(
         "kernel-never-booted",
         "Kernel installed and never booted",
         "The first real boot of an installed-but-unbooted kernel will be an unplanned one.",
         "high",
+        "node.kernel_pending",
     ),
     Detector(
         "no-replication-node-local-storage",
         "No replication with node-local guest storage",
         "Losing a node makes its guests unavailable until they are restored from a backup.",
         "high",
+        "guest.replication_configured",
     ),
     Detector(
         "failed-systemd-units",
         "Failed units on a node",
         "Absent from every API level, and where a silent degradation becomes visible.",
         "medium",
+        "node.failed_units",
     ),
     Detector(
         "datastore-status-unknown",
         "Datastore reporting unknown",
         "A share that is down still appears in the inventory; only its status says so.",
         "medium",
+        "storage.status",
     ),
     Detector(
         "security-updates-pending",
         "Security updates pending",
         "Counted separately from the rest, because the rest can wait for a window.",
         "medium",
+        "node.security_updates",
     ),
     Detector(
         "bridge-absent",
@@ -220,12 +238,14 @@ DETECTORS: Final[tuple[Detector, ...]] = (
         "Everything depends on the bridge and nothing watches it; a rename underneath it "
         "took a whole cluster off the network.",
         "high",
+        "node.bridge_present",
     ),
     Detector(
         "shallow-backup-retention",
         "Backup retention shallow",
         "With two recovery points, the second failed backup destroys what the first left.",
         "medium",
+        "backup.retention_depth",
     ),
 )
 
@@ -255,9 +275,9 @@ def node_resource_id(name: str) -> str:
 
 
 def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
-    """Return the estate endpoints the *gateway* serves, from one cluster reading.
+    """Return the endpoints the *gateway* serves, from one cluster reading.
 
-    Not a projection. These three endpoints exist, so their records are marked
+    Not a projection. These endpoints exist, so their records are marked
     ``gateway`` and are built in the shape the route returns — field for field.
     What used to be a projection of a cluster read into a shape nothing answered
     is now a *rendering* of the same read into the shape the API sends, so a
@@ -273,7 +293,35 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     records: list[CapturedRecord] = [
         _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
         _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
+        _record("incidents", {}, {"incidents": list(incidents)}, Provenance.GATEWAY),
+        _record(
+            "detectors", {}, {"detectors": _detectors(reading, observations)}, Provenance.GATEWAY
+        ),
+        _record(
+            "observations",
+            {},
+            {"observations": [_as_json(item) for item in observations]},
+            Provenance.GATEWAY,
+        ),
     ]
+    for incident in incidents:
+        records.append(
+            _record(
+                "incident-detail",
+                {"incident_id": incident["incident_id"]},
+                {
+                    "incident": incident,
+                    "observations": [
+                        _as_json(item)
+                        for item in observations
+                        if item.detector == incident["detector"]
+                        and item.subject in incident["subjects"]
+                    ],
+                    "timeline": _timeline(incident),
+                },
+                Provenance.GATEWAY,
+            )
+        )
     resources = _resources(reading)
     volumes = _volumes(reading)
     for resource in resources:
@@ -354,49 +402,16 @@ def project(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     the shell, because the shell half is the part that has no gateway
     equivalent and therefore the part that survives the handover.
 
-    The estate's own three endpoints are *not* here: the gateway serves them, so
-    they are ``estate`` above. A projection for an endpoint that already exists
-    would be the fallback this module's split exists to prevent.
+    Only the three Proxmox-shaped endpoints are here now. The estate's own and
+    continuous observation's are ``estate`` above, because the gateway serves
+    them — and a projection for an endpoint that already exists would be the
+    fallback this module's split exists to prevent.
     """
-    observations = tuple(_observations(reading))
-    incidents = tuple(_incidents(reading, observations))
-
-    records: list[CapturedRecord] = [
+    return (
         _record("estate-nodes", {}, {"nodes": _nodes(reading)}, Provenance.SHELL),
         _record("estate-storage", {}, _storage(reading), Provenance.SHELL),
         _record("estate-backups", {}, {"jobs": _backups(reading)}, Provenance.PVESH),
-        _record("incidents", {}, {"incidents": list(incidents)}, Provenance.SHELL),
-        _record(
-            "detectors", {}, {"detectors": _detectors(reading, observations)}, Provenance.SHELL
-        ),
-        _record(
-            "observations",
-            {},
-            {"observations": [_as_json(item) for item in observations]},
-            Provenance.SHELL,
-        ),
-    ]
-
-    for incident in incidents:
-        records.append(
-            _record(
-                "incident-detail",
-                {"incident_id": incident["incident_id"]},
-                {
-                    "incident": incident,
-                    "observations": [
-                        _as_json(item)
-                        for item in observations
-                        if item.detector == incident["detector"]
-                        and item.subject in incident["subjects"]
-                    ],
-                    "timeline": _timeline(incident),
-                },
-                Provenance.SHELL,
-            )
-        )
-
-    return tuple(records)
+    )
 
 
 # --- The estate ------------------------------------------------------------------
@@ -865,12 +880,13 @@ def _detectors(
             "description": detector.description,
             "severity": detector.severity,
             "enabled": True,
+            "signal": detector.signal,
             "subjects_covered": sum(
                 1 for item in observations if item.detector == detector.detector_id
             ),
             "subjects_total": subjects,
             "last_evaluated_at": reading.captured_at,
-            "last_verdict": "finding" if detector.detector_id in seen else "ok",
+            "last_verdict": "firing" if detector.detector_id in seen else "clear",
         }
         for detector in DETECTORS
     ]
@@ -902,11 +918,16 @@ def _incidents(
                 key=lambda level: ["low", "medium", "high", "critical"].index(level),
             ),
             "state": "open",
+            "origin": "detector",
             "opened_at": reading.captured_at,
             "closed_at": None,
             "subjects": sorted({item.subject for item in found}),
             "detector": detector_id,
             "run_id": None,
+            "team_node_id": "",
+            "self_resolved": False,
+            "suppressed_by": "",
+            "close_reason": "",
             "summary": found[0].detail
             if len(found) == 1
             else f"{len(found)} subjects: {found[0].detail}",
@@ -914,10 +935,18 @@ def _incidents(
 
 
 def _timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Return the one entry an incident starts with, in the route's own shape.
+
+    The actor and the cause are not decoration: every timeline entry carries
+    both, because "it opened" is not an answer to the question a timeline is
+    read to answer.
+    """
     return [
         {
             "at": str(incident["opened_at"]),
             "kind": "opened",
+            "actor": "system:observation",
+            "cause": str(incident["summary"]),
             "detail": f"{incident['detector']} found {len(incident['subjects'])} subject(s)",
         }
     ]
@@ -932,8 +961,18 @@ def _as_json(observation: Observation) -> dict[str, Any]:
         "severity": observation.severity,
         "observed_at": observation.observed_at,
         "detail": observation.detail,
-        "evidence": dict(observation.evidence),
+        # Strings, for the reason ``HealthSignal.value`` is: half of what a
+        # provider reports is a word, and a map that held both would be one the
+        # console had to type-switch on per key.
+        "evidence": {name: _as_text(value) for name, value in observation.evidence.items()},
     }
+
+
+def _as_text(value: Any) -> str:
+    """Return one evidence value as the string the endpoint sends."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
 
 
 def _covered_resource_ids(reading: ClusterReading) -> set[str]:

@@ -121,10 +121,12 @@ export async function read<P extends ReadablePath>(
  * The endpoints a deployment will serve and the API document does not declare
  * yet.
  *
- * The estate inventory and continuous observation are separate pieces of work.
- * Their shapes are already decided — the mock data plane serves them, and its
- * own catalogue is the authority — but nothing has generated them into
- * `schema.ts`, so `read` cannot name them and should not be made to.
+ * What is left is the Proxmox-shaped views: the cluster's nodes, its storage,
+ * its backup jobs. Their shapes are already decided — the mock data plane
+ * serves them, and its own catalogue is the authority — but nothing has
+ * generated them into `schema.ts`, so `read` cannot name them and should not be
+ * made to. The estate inventory and continuous observation used to be here and
+ * have since landed, which is the list doing what it is supposed to do.
  *
  * This is therefore a *narrow, enumerated* seam rather than an escape hatch:
  * the list is closed, the body comes back untyped so every reader has to say
@@ -137,10 +139,6 @@ export const PROJECTED_PATHS = [
   '/v1/estate/nodes',
   '/v1/estate/storage',
   '/v1/estate/backups',
-  '/v1/incidents',
-  '/v1/incidents/{incident_id}',
-  '/v1/detectors',
-  '/v1/observations',
 ] as const;
 
 export type ProjectedPath = (typeof PROJECTED_PATHS)[number];

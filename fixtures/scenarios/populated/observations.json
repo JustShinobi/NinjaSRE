@@ -8,10 +8,10 @@
             "detail": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
             "detector": "quorum-margin-zero",
             "evidence": {
-              "quorum": 2,
-              "total_votes": 2,
-              "two_node": false,
-              "wait_for_all": false
+              "quorum": "2",
+              "total_votes": "2",
+              "two_node": "false",
+              "wait_for_all": "false"
             },
             "observation_id": "obs-0001",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -23,8 +23,8 @@
             "detail": "a quorum device appears in the membership view and the configuration declares none",
             "detector": "quorum-device-not-contributing",
             "evidence": {
-              "device_declared": false,
-              "device_in_membership": true
+              "device_declared": "false",
+              "device_in_membership": "true"
             },
             "observation_id": "obs-0002",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -36,7 +36,7 @@
             "detail": "primary baseline exists on schedule 08:00 and is disabled",
             "detector": "backup-job-disabled",
             "evidence": {
-              "covers_all": true,
+              "covers_all": "true",
               "schedule": "08:00"
             },
             "observation_id": "obs-0003",
@@ -49,7 +49,7 @@
             "detail": "retention is keep-last=2",
             "detector": "shallow-backup-retention",
             "evidence": {
-              "keep_last": 2
+              "keep_last": "2"
             },
             "observation_id": "obs-0004",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -61,7 +61,7 @@
             "detail": "retention is keep-last=2",
             "detector": "shallow-backup-retention",
             "evidence": {
-              "keep_last": 2
+              "keep_last": "2"
             },
             "observation_id": "obs-0005",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -73,7 +73,7 @@
             "detail": "relational store exists on schedule 02:30,22:30 and is disabled",
             "detector": "backup-job-disabled",
             "evidence": {
-              "covers_all": false,
+              "covers_all": "false",
               "schedule": "02:30,22:30"
             },
             "observation_id": "obs-0006",
@@ -86,7 +86,7 @@
             "detail": "retention is keep-last=2",
             "detector": "shallow-backup-retention",
             "evidence": {
-              "keep_last": 2
+              "keep_last": "2"
             },
             "observation_id": "obs-0007",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -987,7 +987,7 @@
             "detector": "datastore-near-full",
             "evidence": {
               "node": "node01",
-              "used_percent": 95.65
+              "used_percent": "95.65"
             },
             "observation_id": "obs-0082",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1000,7 +1000,7 @@
             "detector": "datastore-near-full",
             "evidence": {
               "node": "node01",
-              "used_percent": 93.45
+              "used_percent": "93.45"
             },
             "observation_id": "obs-0083",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1038,17 +1038,7 @@
             "detail": "9 failed units on node01",
             "detector": "failed-systemd-units",
             "evidence": {
-              "units": [
-                "corosync-qdevice.service",
-                "gateway-hardening.service",
-                "metrics-agent.service",
-                "mnt-archive.mount",
-                "mnt-media.mount",
-                "mnt-vault.mount",
-                "netbios.service",
-                "platform-management.service",
-                "vault-route.service"
-              ]
+              "units": "['corosync-qdevice.service', 'gateway-hardening.service', 'metrics-agent.service', 'mnt-archive.mount', 'mnt-media.mount', 'mnt-vault.mount', 'netbios.service', 'platform-management.service', 'vault-route.service']"
             },
             "observation_id": "obs-0086",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1073,8 +1063,8 @@
             "detail": "6 security updates pending on node01",
             "detector": "security-updates-pending",
             "evidence": {
-              "pending": 24,
-              "security": 6
+              "pending": "24",
+              "security": "6"
             },
             "observation_id": "obs-0088",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1125,7 +1115,7 @@
             "detail": "pool-bulk metadata is at 31.98% while its data reads 72.38%",
             "detector": "thin-pool-metadata-pressure",
             "evidence": {
-              "metadata_percent": 31.98,
+              "metadata_percent": "31.98",
               "node": "node02"
             },
             "observation_id": "obs-0092",
@@ -1138,9 +1128,7 @@
             "detail": "1 failed units on node02",
             "detector": "failed-systemd-units",
             "evidence": {
-              "units": [
-                "platform-management.service"
-              ]
+              "units": "['platform-management.service']"
             },
             "observation_id": "obs-0093",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1165,8 +1153,8 @@
             "detail": "6 security updates pending on node02",
             "detector": "security-updates-pending",
             "evidence": {
-              "pending": 24,
-              "security": 6
+              "pending": "24",
+              "security": "6"
             },
             "observation_id": "obs-0095",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1178,7 +1166,7 @@
             "detail": "no replication job exists while guests are on node-local storage",
             "detector": "no-replication-node-local-storage",
             "evidence": {
-              "guests": 84
+              "guests": "84"
             },
             "observation_id": "obs-0096",
             "observed_at": "2026-08-07T12:00:00+00:00",
@@ -1189,9 +1177,9 @@
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",

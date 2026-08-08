@@ -6,9 +6,9 @@ reads that module's source and fails when it names a path this catalogue does
 not.
 
 The split is the load-bearing part. The gateway serves runs, interactions,
-approvals, memory, knowledge, configuration, identity and audit today. It does
-not serve the estate inventory, continuous observation, or anything Proxmox —
-which is most of what the screens in this wave are built around. Those are
+approvals, memory, knowledge, configuration, identity, audit, the estate
+inventory and continuous observation today. It does not serve anything
+Proxmox-shaped — the node view, the storage view, the backup jobs. Those are
 captured by reading the cluster directly and *projecting* the result into the
 shape the future endpoint will return. When that work lands, the projection is
 deleted rather than kept as a fallback: a fallback is how two sources of truth
@@ -65,7 +65,6 @@ _PROJECTED: Final = EndpointSource.PROJECTED
 
 #: Names the work rather than a feature number, because a contributor cloning
 #: this repository has the code and not the plan.
-_OBSERVATION: Final = "continuous observation"
 _PROXMOX: Final = "the Proxmox integration"
 
 
@@ -403,42 +402,41 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         records_key="jobs",
         arrives_with=_PROXMOX,
     ),
-    # --- Projected: continuous observation --------------------------------------
+    # --- Continuous observation ----------------------------------------------------
+    # Served by the gateway. The projection these four used to carry is gone
+    # rather than kept as a fallback, for the reason the estate's was: a
+    # fallback is how two sources of truth start.
     ConsoleEndpoint(
         method="GET",
         path="/v1/incidents",
         slug="incidents",
-        source=_PROJECTED,
+        source=_GATEWAY,
         summary="open and recently closed incidents",
         records_key="incidents",
-        arrives_with=_OBSERVATION,
         query=("state", "limit"),
     ),
     ConsoleEndpoint(
         method="GET",
         path="/v1/incidents/{incident_id}",
         slug="incident-detail",
-        source=_PROJECTED,
+        source=_GATEWAY,
         summary="one incident, its subjects and the observations behind it",
-        arrives_with=_OBSERVATION,
     ),
     ConsoleEndpoint(
         method="GET",
         path="/v1/detectors",
         slug="detectors",
-        source=_PROJECTED,
-        summary="every shipped detector, its coverage and its last verdict",
+        source=_GATEWAY,
+        summary="every declared detector, its coverage and what it concludes now",
         records_key="detectors",
-        arrives_with=_OBSERVATION,
     ),
     ConsoleEndpoint(
         method="GET",
         path="/v1/observations",
         slug="observations",
-        source=_PROJECTED,
-        summary="what the detectors saw, most recent first",
+        source=_GATEWAY,
+        summary="what the detectors see, most recent first",
         records_key="observations",
-        arrives_with=_OBSERVATION,
         query=("subject", "limit"),
     ),
 )

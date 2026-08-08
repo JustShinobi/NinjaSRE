@@ -5,11 +5,14 @@
       "body": {
         "incidents": [
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "backup-job-disabled",
             "incident_id": "inc-0001",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "critical",
             "state": "open",
             "subjects": [
@@ -17,14 +20,19 @@
               "backup-7d831311"
             ],
             "summary": "2 subjects: primary baseline exists on schedule 08:00 and is disabled",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "Backup job exists and is disabled"
           },
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "datastore-near-full",
             "incident_id": "inc-0002",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "critical",
             "state": "open",
             "subjects": [
@@ -32,14 +40,19 @@
               "store-ridge"
             ],
             "summary": "2 subjects: store-cove is 95.65% full",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "Datastore near full"
           },
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "guest-uncovered-by-backup",
             "incident_id": "inc-0003",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "critical",
             "state": "open",
             "subjects": [
@@ -119,14 +132,19 @@
               "vm-183"
             ],
             "summary": "74 subjects: amber is named by no enabled backup job",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "Guest covered by no enabled backup job"
           },
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "guest-volume-near-full",
             "incident_id": "inc-0004",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "high",
             "state": "open",
             "subjects": [
@@ -135,14 +153,19 @@
               "ct-140"
             ],
             "summary": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "Guest volume near full"
           },
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "kernel-never-booted",
             "incident_id": "inc-0005",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "high",
             "state": "open",
             "subjects": [
@@ -150,56 +173,73 @@
               "node-node02"
             ],
             "summary": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "Kernel installed and never booted"
           },
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "no-replication-node-local-storage",
             "incident_id": "inc-0006",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "high",
             "state": "open",
             "subjects": [
               "cluster"
             ],
             "summary": "no replication job exists while guests are on node-local storage",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "No replication with node-local guest storage"
           },
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "quorum-device-not-contributing",
             "incident_id": "inc-0007",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "critical",
             "state": "open",
             "subjects": [
               "cluster"
             ],
             "summary": "a quorum device appears in the membership view and the configuration declares none",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "Quorum device configured but contributing nothing"
           },
           {
+            "close_reason": "",
             "closed_at": null,
             "detector": "quorum-margin-zero",
             "incident_id": "inc-0008",
             "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "detector",
             "run_id": null,
+            "self_resolved": false,
             "severity": "critical",
             "state": "open",
             "subjects": [
               "cluster"
             ],
             "summary": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+            "suppressed_by": "",
+            "team_node_id": "",
             "title": "Quorum margin is zero"
           }
         ]
       },
       "contract_version": "1.0.0",
-      "provenance": "shell",
+      "provenance": "gateway",
       "request": {
-        "command": "projected from a direct read (shell)",
+        "command": "projected from a direct read (gateway)",
         "method": "",
         "node": "",
         "path": "",

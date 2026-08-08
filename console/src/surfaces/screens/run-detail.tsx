@@ -17,7 +17,6 @@ import {
   list,
   panelRead,
   read,
-  readProjectedPanel,
   stateOf,
   text,
 } from '../read';
@@ -55,7 +54,7 @@ export async function RunDetailScreen(
     panelRead('/v1/runs/{run_id}/replay', () =>
       read('/v1/runs/{run_id}/replay', bound),
     ),
-    readProjectedPanel('/v1/incidents', credential),
+    panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
     panelRead('/v1/investigations/{run_id}/interactions', () =>
       read('/v1/investigations/{run_id}/interactions', bound),
     ),

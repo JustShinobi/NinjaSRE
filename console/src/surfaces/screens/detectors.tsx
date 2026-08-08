@@ -9,12 +9,14 @@ import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
+  authorised,
   dataOf,
   dependencyOf,
   flag,
   list,
   number,
-  readProjectedPanel,
+  panelRead,
+  read,
   stateOf,
   text,
 } from '../read';
@@ -34,7 +36,9 @@ import {
 export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone } = context;
 
-  const detectors = await readProjectedPanel('/v1/detectors', credential);
+  const detectors = await panelRead('/v1/detectors', () =>
+    read('/v1/detectors', authorised(credential)),
+  );
   const records = list(dataOf(detectors), 'detectors');
 
   return (
