@@ -65,6 +65,7 @@ from surfaces.cli.models import (
     DetectorRecord,
     DiagnosticReport,
     DryRunRecord,
+    EffectivenessRecord,
     EstateHealthSignal,
     EstateReference,
     EstateResource,
@@ -85,11 +86,14 @@ from surfaces.cli.models import (
     PolicyPreviewRecord,
     PreviewedActionRecord,
     ProviderStatus,
+    RecurringProblemRecord,
+    RemediationOutcomeRecord,
     RunDetail,
     RunReplay,
     RunSummary,
     ScheduleSummary,
     SpendReport,
+    SuspensionRecord,
     aggregate_spend,
 )
 
@@ -245,6 +249,37 @@ class PlatformClient(Protocol):
         self, incident_id: str, *, rule: str, reason: str
     ) -> IncidentRecord:
         """Close an incident as suppressed, naming what covered it."""
+
+    async def list_remediations(
+        self,
+        *,
+        resource: str = "",
+        capability: str = "",
+        condition: str = "",
+        limit: int = 25,
+    ) -> tuple[RemediationOutcomeRecord, ...]:
+        """Return what the deployment changed, most recent first."""
+
+    async def remediation_effectiveness(
+        self, *, capability: str = "", resource: str = "", condition: str = ""
+    ) -> EffectivenessRecord:
+        """Return how often this has worked, sliced by whatever was named."""
+
+    async def list_recurring_problems(
+        self, *, live_only: bool = True
+    ) -> tuple[RecurringProblemRecord, ...]:
+        """Return the patterns the deployment has raised, most recent first."""
+
+    async def close_recurring_problem(
+        self, problem_id: str, *, change: str
+    ) -> RecurringProblemRecord:
+        """Close a pattern, naming the change that closed it."""
+
+    async def list_suspensions(self, *, live_only: bool = True) -> tuple[SuspensionRecord, ...]:
+        """Return the resources autonomy is suspended on."""
+
+    async def clear_suspension(self, resource_id: str, *, reason: str) -> SuspensionRecord:
+        """Let autonomy resume on a resource, recording who looked and what they found."""
 
     async def detection_state(self) -> DetectionState:
         """Return whether detection is paused for this team, and why."""
@@ -456,6 +491,30 @@ class LocalServices(Protocol):
     ) -> IncidentRecord:
         """Close an incident as suppressed, naming what covered it."""
 
+    async def remediations(
+        self, *, resource: str, capability: str, condition: str, limit: int
+    ) -> tuple[RemediationOutcomeRecord, ...]:
+        """Return what the deployment changed, most recent first."""
+
+    async def effectiveness(
+        self, *, capability: str, resource: str, condition: str
+    ) -> EffectivenessRecord:
+        """Return how often this has worked."""
+
+    async def recurring_problems(self, *, live_only: bool) -> tuple[RecurringProblemRecord, ...]:
+        """Return the patterns the deployment has raised."""
+
+    async def close_recurring_problem(
+        self, problem_id: str, *, change: str
+    ) -> RecurringProblemRecord | None:
+        """Close a pattern, or return ``None`` when nobody raised it."""
+
+    async def suspensions(self, *, live_only: bool) -> tuple[SuspensionRecord, ...]:
+        """Return the resources autonomy is suspended on."""
+
+    async def clear_suspension(self, resource_id: str, *, reason: str) -> SuspensionRecord | None:
+        """Clear a suspension, or return ``None`` when there was none."""
+
     async def detection_state(self) -> DetectionState:
         """Return whether detection is paused for this team, and why."""
 
@@ -651,6 +710,67 @@ class LocalClient:
     ) -> IncidentRecord:
         """Close an incident as suppressed, naming what covered it."""
         return await self.services.suppress_incident(incident_id, rule=rule, reason=reason)
+
+    async def list_remediations(
+        self,
+        *,
+        resource: str = "",
+        capability: str = "",
+        condition: str = "",
+        limit: int = 25,
+    ) -> tuple[RemediationOutcomeRecord, ...]:
+        """Return what the deployment changed, most recent first."""
+        return await self.services.remediations(
+            resource=resource, capability=capability, condition=condition, limit=limit
+        )
+
+    async def remediation_effectiveness(
+        self, *, capability: str = "", resource: str = "", condition: str = ""
+    ) -> EffectivenessRecord:
+        """Return how often this has worked, sliced by whatever was named."""
+        return await self.services.effectiveness(
+            capability=capability, resource=resource, condition=condition
+        )
+
+    async def list_recurring_problems(
+        self, *, live_only: bool = True
+    ) -> tuple[RecurringProblemRecord, ...]:
+        """Return the patterns the deployment has raised, most recent first."""
+        return await self.services.recurring_problems(live_only=live_only)
+
+    async def close_recurring_problem(
+        self, problem_id: str, *, change: str
+    ) -> RecurringProblemRecord:
+        """Close a pattern, naming the change that closed it.
+
+        Raises:
+            NotFoundError: no pattern carries that identifier.
+        """
+        closed = await self.services.close_recurring_problem(problem_id, change=change)
+        if closed is None:
+            raise NotFoundError(
+                f"no recurring problem named {problem_id!r}",
+                remedy="list what there is with 'ninjasre remediation problems'",
+            )
+        return closed
+
+    async def list_suspensions(self, *, live_only: bool = True) -> tuple[SuspensionRecord, ...]:
+        """Return the resources autonomy is suspended on."""
+        return await self.services.suspensions(live_only=live_only)
+
+    async def clear_suspension(self, resource_id: str, *, reason: str) -> SuspensionRecord:
+        """Let autonomy resume on a resource.
+
+        Raises:
+            NotFoundError: autonomy on that resource is not suspended.
+        """
+        cleared = await self.services.clear_suspension(resource_id, reason=reason)
+        if cleared is None:
+            raise NotFoundError(
+                f"autonomous action on {resource_id!r} is not suspended",
+                remedy="list what is with 'ninjasre remediation suspensions'",
+            )
+        return cleared
 
     async def detection_state(self) -> DetectionState:
         """Return whether detection is paused for this team, and why."""
@@ -1105,6 +1225,71 @@ class RemoteClient:
             )
         )
 
+    async def list_remediations(
+        self,
+        *,
+        resource: str = "",
+        capability: str = "",
+        condition: str = "",
+        limit: int = 25,
+    ) -> tuple[RemediationOutcomeRecord, ...]:
+        """Return what the deployment changed, most recent first."""
+        query = _closed_loop_query(
+            {"resource": resource, "capability": capability, "condition": condition},
+            limit=limit,
+        )
+        payload = self._document("GET", f"/v1/remediations?{query}")
+        return tuple(_remediation(record) for record in _records(payload, "outcomes"))
+
+    async def remediation_effectiveness(
+        self, *, capability: str = "", resource: str = "", condition: str = ""
+    ) -> EffectivenessRecord:
+        """Return how often this has worked, sliced by whatever was named."""
+        query = _closed_loop_query(
+            {"capability": capability, "resource": resource, "condition": condition}
+        )
+        return _effectiveness(
+            self._document("GET", f"/v1/remediations/effectiveness/summary?{query}")
+        )
+
+    async def list_recurring_problems(
+        self, *, live_only: bool = True
+    ) -> tuple[RecurringProblemRecord, ...]:
+        """Return the patterns the deployment has raised, most recent first."""
+        payload = self._document(
+            "GET", f"/v1/remediations/problems/recurring?live={str(live_only).lower()}"
+        )
+        return tuple(_recurring_problem(record) for record in _records(payload, "problems"))
+
+    async def close_recurring_problem(
+        self, problem_id: str, *, change: str
+    ) -> RecurringProblemRecord:
+        """Close a pattern, naming the change that closed it."""
+        return _recurring_problem(
+            self._document(
+                "POST",
+                f"/v1/remediations/problems/{problem_id}/close",
+                {"change": change},
+            )
+        )
+
+    async def list_suspensions(self, *, live_only: bool = True) -> tuple[SuspensionRecord, ...]:
+        """Return the resources autonomy is suspended on."""
+        payload = self._document(
+            "GET", f"/v1/remediations/suspensions?live={str(live_only).lower()}"
+        )
+        return tuple(_suspension(record) for record in _records(payload, "suspensions"))
+
+    async def clear_suspension(self, resource_id: str, *, reason: str) -> SuspensionRecord:
+        """Let autonomy resume on a resource, recording who looked and what they found."""
+        return _suspension(
+            self._document(
+                "POST",
+                f"/v1/remediations/suspensions/{resource_id}/clear",
+                {"reason": reason},
+            )
+        )
+
     async def detection_state(self) -> DetectionState:
         """Return whether detection is paused for this team, and why.
 
@@ -1547,6 +1732,120 @@ def _evidence(record: Mapping[str, Any]) -> dict[str, str]:
     if not isinstance(found, dict):
         return {}
     return {str(name): str(value) for name, value in found.items()}
+
+
+def _closed_loop_query(fields: Mapping[str, str], *, limit: int | None = None) -> str:
+    """Return the query string the named filters describe, omitting the empty ones.
+
+    Empty means "no filter on this dimension" all the way down — the command,
+    the route and the store all read it that way — so sending the key with an
+    empty value would be a third spelling of the same idea.
+    """
+    parts = [f"{name}={value}" for name, value in fields.items() if value]
+    if limit is not None:
+        parts.append(f"limit={limit}")
+    return "&".join(parts)
+
+
+def _floats(record: Mapping[str, Any], key: str) -> dict[str, float]:
+    """Return the numeric mapping under ``key``, dropping anything unreadable."""
+    found = record.get(key)
+    if not isinstance(found, Mapping):
+        return {}
+    values: dict[str, float] = {}
+    for name, value in found.items():
+        try:
+            values[str(name)] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return values
+
+
+def _counts(record: Mapping[str, Any], key: str) -> dict[str, int]:
+    """Return the integer mapping under ``key``, dropping anything unreadable."""
+    found = record.get(key)
+    if not isinstance(found, Mapping):
+        return {}
+    counts: dict[str, int] = {}
+    for name, value in found.items():
+        try:
+            counts[str(name)] = int(value)
+        except (TypeError, ValueError):
+            continue
+    return counts
+
+
+def _remediation(record: Mapping[str, Any]) -> RemediationOutcomeRecord:
+    """Return the remediation one API row describes."""
+    return RemediationOutcomeRecord(
+        action_id=_text(record, "action_id"),
+        capability=_text(record, "capability"),
+        resource_id=_text(record, "resource_id"),
+        condition_key=_text(record, "condition_key"),
+        incident_id=_text(record, "incident_id"),
+        executed_at=_instant(record, "executed_at"),
+        due_at=_instant(record, "due_at"),
+        settle_seconds=int(record.get("settle_seconds") or 0),
+        awaiting_verification=bool(record.get("awaiting_verification", True)),
+        verdict=_text(record, "verdict"),
+        verified_at=_instant(record, "verified_at"),
+        before=_floats(record, "before"),
+        after=_floats(record, "after"),
+        rollback=_text(record, "rollback") or "not_required",
+        rollback_detail=_text(record, "rollback_detail"),
+        autonomous=bool(record.get("autonomous")),
+        detail=_text(record, "detail"),
+    )
+
+
+def _effectiveness(record: Mapping[str, Any]) -> EffectivenessRecord:
+    """Return the effectiveness one API document describes."""
+    return EffectivenessRecord(
+        capability=_text(record, "capability"),
+        resource_id=_text(record, "resource_id"),
+        condition_key=_text(record, "condition_key"),
+        total=int(record.get("total") or 0),
+        verified=int(record.get("verified") or 0),
+        awaiting=int(record.get("awaiting") or 0),
+        success_ratio=float(record.get("success_ratio") or 0.0),
+        counts=_counts(record, "counts"),
+        last_verdict=_text(record, "last_verdict"),
+        known=bool(record.get("known")),
+        discouraged=bool(record.get("discouraged")),
+        summary=_text(record, "summary"),
+    )
+
+
+def _recurring_problem(record: Mapping[str, Any]) -> RecurringProblemRecord:
+    """Return the recurring problem one API row describes."""
+    return RecurringProblemRecord(
+        problem_id=_text(record, "problem_id"),
+        pattern_key=_text(record, "pattern_key"),
+        capability=_text(record, "capability"),
+        resource_id=_text(record, "resource_id"),
+        title=_text(record, "title"),
+        summary=_text(record, "summary"),
+        raised_at=_instant(record, "raised_at"),
+        occurrences=int(record.get("occurrences") or 0),
+        window_seconds=int(record.get("window_seconds") or 0),
+        suppresses_autonomy=bool(record.get("suppresses_autonomy", True)),
+        live=bool(record.get("live", True)),
+        close_reason=_text(record, "close_reason"),
+        closed_by=_text(record, "closed_by"),
+    )
+
+
+def _suspension(record: Mapping[str, Any]) -> SuspensionRecord:
+    """Return the suspension one API row describes."""
+    return SuspensionRecord(
+        resource_id=_text(record, "resource_id"),
+        since=_instant(record, "since"),
+        reason=_text(record, "reason"),
+        action_id=_text(record, "action_id"),
+        live=bool(record.get("live", True)),
+        cleared_by=_text(record, "cleared_by"),
+        clear_reason=_text(record, "clear_reason"),
+    )
 
 
 def _incident(record: Mapping[str, Any]) -> IncidentRecord:

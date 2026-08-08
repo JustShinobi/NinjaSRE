@@ -1331,6 +1331,7 @@ __all__ = [
     "DiagnosticCheck",
     "DiagnosticReport",
     "DryRunRecord",
+    "EffectivenessRecord",
     "EstateHealthSignal",
     "EstateReference",
     "EstateResource",
@@ -1354,6 +1355,8 @@ __all__ = [
     "PolicyPreviewRecord",
     "PreviewedActionRecord",
     "ProviderStatus",
+    "RecurringProblemRecord",
+    "RemediationOutcomeRecord",
     "RunDetail",
     "RunReplay",
     "RunSummary",
@@ -1362,6 +1365,169 @@ __all__ = [
     "SpendLine",
     "SpendReport",
     "StageReport",
+    "SuspensionRecord",
     "aggregate_spend",
     "records_of",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class RemediationOutcomeRecord:
+    """One remediation, and whether anybody has found out if it worked.
+
+    ``awaiting_verification`` is a field rather than something a caller derives
+    from an absent verdict. A surface that had to derive it would render
+    "succeeded" for the settle period, which is the window in which somebody is
+    actually watching.
+    """
+
+    action_id: str
+    capability: str = ""
+    resource_id: str = ""
+    condition_key: str = ""
+    incident_id: str = ""
+    executed_at: datetime | None = None
+    due_at: datetime | None = None
+    settle_seconds: int = 0
+    awaiting_verification: bool = True
+    verdict: str = ""
+    verified_at: datetime | None = None
+    before: Mapping[str, float] = field(default_factory=dict)
+    after: Mapping[str, float] = field(default_factory=dict)
+    rollback: str = "not_required"
+    rollback_detail: str = ""
+    autonomous: bool = False
+    detail: str = ""
+
+    @property
+    def state(self) -> str:
+        """Return the word a table row shows in place of a verdict."""
+        return "awaiting verification" if self.awaiting_verification else (self.verdict or "—")
+
+    def movement(self) -> str:
+        """Return the before-and-after values as one cell."""
+        if not self.after:
+            return "—"
+        return ", ".join(
+            f"{name} {self.before.get(name, float('nan')):g} → {value:g}"
+            for name, value in sorted(self.after.items())
+        )
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "action_id": self.action_id,
+            "capability": self.capability,
+            "resource_id": self.resource_id,
+            "condition_key": self.condition_key,
+            "incident_id": self.incident_id,
+            "executed_at": _moment(self.executed_at),
+            "due_at": _moment(self.due_at),
+            "settle_seconds": self.settle_seconds,
+            "awaiting_verification": self.awaiting_verification,
+            "verdict": self.verdict,
+            "verified_at": _moment(self.verified_at),
+            "before": dict(self.before),
+            "after": dict(self.after),
+            "rollback": self.rollback,
+            "rollback_detail": self.rollback_detail,
+            "autonomous": self.autonomous,
+            "detail": self.detail,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class EffectivenessRecord:
+    """How often one thing has worked, as counts and as the sentence."""
+
+    capability: str = ""
+    resource_id: str = ""
+    condition_key: str = ""
+    total: int = 0
+    verified: int = 0
+    awaiting: int = 0
+    success_ratio: float = 0.0
+    counts: Mapping[str, int] = field(default_factory=dict)
+    last_verdict: str = ""
+    known: bool = False
+    discouraged: bool = False
+    summary: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "capability": self.capability,
+            "resource_id": self.resource_id,
+            "condition_key": self.condition_key,
+            "total": self.total,
+            "verified": self.verified,
+            "awaiting": self.awaiting,
+            "success_ratio": self.success_ratio,
+            "counts": dict(self.counts),
+            "last_verdict": self.last_verdict,
+            "known": self.known,
+            "discouraged": self.discouraged,
+            "summary": self.summary,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RecurringProblemRecord:
+    """A pattern the deployment raised, closed by a change rather than a fix."""
+
+    problem_id: str
+    pattern_key: str = ""
+    capability: str = ""
+    resource_id: str = ""
+    title: str = ""
+    summary: str = ""
+    raised_at: datetime | None = None
+    occurrences: int = 0
+    window_seconds: int = 0
+    suppresses_autonomy: bool = True
+    live: bool = True
+    close_reason: str = ""
+    closed_by: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "problem_id": self.problem_id,
+            "pattern_key": self.pattern_key,
+            "capability": self.capability,
+            "resource_id": self.resource_id,
+            "title": self.title,
+            "summary": self.summary,
+            "raised_at": _moment(self.raised_at),
+            "occurrences": self.occurrences,
+            "window_seconds": self.window_seconds,
+            "suppresses_autonomy": self.suppresses_autonomy,
+            "live": self.live,
+            "close_reason": self.close_reason,
+            "closed_by": self.closed_by,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SuspensionRecord:
+    """One resource the deployment has stopped acting on unattended."""
+
+    resource_id: str
+    since: datetime | None = None
+    reason: str = ""
+    action_id: str = ""
+    live: bool = True
+    cleared_by: str = ""
+    clear_reason: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document ``--json`` prints."""
+        return {
+            "resource_id": self.resource_id,
+            "since": _moment(self.since),
+            "reason": self.reason,
+            "action_id": self.action_id,
+            "live": self.live,
+            "cleared_by": self.cleared_by,
+            "clear_reason": self.clear_reason,
+        }

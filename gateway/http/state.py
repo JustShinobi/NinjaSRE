@@ -16,6 +16,7 @@ from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.estate_routes import ESTATE_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES, WEBHOOK_ROUTES
 from gateway.http.security.incident_routes import INCIDENT_ROUTES
+from gateway.http.security.remediation_routes import REMEDIATION_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE, RouteTable
 from gateway.http.services import InvestigationRunner
 from gateway.webhooks.dedup import DeduplicationIndex
@@ -39,6 +40,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     .extended_with(ESTATE_ROUTES)
     .extended_with(INCIDENT_ROUTES)
     .extended_with(AUTONOMY_ROUTES)
+    .extended_with(REMEDIATION_ROUTES)
 )
 
 

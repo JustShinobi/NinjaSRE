@@ -34,6 +34,7 @@ from surfaces.cli.commands import incidents as incident_commands
 from surfaces.cli.commands import integrations as integration_commands
 from surfaces.cli.commands import memory as memory_commands
 from surfaces.cli.commands import providers as provider_commands
+from surfaces.cli.commands import remediation as remediation_commands
 from surfaces.cli.commands import runs as run_commands
 from surfaces.cli.commands import schedule as schedule_commands
 from surfaces.cli.commands.cost import cost
@@ -63,6 +64,7 @@ app.add_typer(schedule_commands.app, name="schedule")
 app.add_typer(memory_commands.app, name="memory")
 app.add_typer(estate_commands.app, name="estate")
 app.add_typer(incident_commands.app, name="incidents")
+app.add_typer(remediation_commands.app, name="remediation")
 app.add_typer(incident_commands.detectors_app, name="detectors")
 app.add_typer(autonomy_commands.app, name="autonomy")
 app.add_typer(provider_commands.app, name="providers")

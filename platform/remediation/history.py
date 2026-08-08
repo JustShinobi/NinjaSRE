@@ -33,7 +33,6 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
-from config.constants.closed_loop import MAX_EFFECTIVENESS_PAGE_SIZE
 from platform.observability.logging import get_logger
 from platform.persistence.ports.episode_store import EpisodeStore
 from platform.persistence.ports.remediation_ledger import (
@@ -223,13 +222,19 @@ class EffectivenessHistory:
         condition_key: str = "",
         limit: int = 20,
     ) -> tuple[RemediationOutcome, ...]:
-        """Return the individual actions a human is reading, most recent first."""
+        """Return the individual actions a human is reading, most recent first.
+
+        Raises ``BoundExceeded`` above ``MAX_EFFECTIVENESS_PAGE_SIZE`` rather
+        than clamping, for the reason the storage layer gives: a caller that
+        asked for five hundred and received a hundred has no way to tell that
+        from there being a hundred.
+        """
         return await self.ledger.history(
             EffectivenessQuery(
                 resource_ids=(resource_id,) if resource_id else (),
                 capabilities=(capability,) if capability else (),
                 condition_keys=(condition_key,) if condition_key else (),
-                limit=min(limit, MAX_EFFECTIVENESS_PAGE_SIZE),
+                limit=limit,
             )
         )
 

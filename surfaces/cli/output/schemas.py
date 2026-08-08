@@ -312,6 +312,79 @@ ESTATE_RESOURCE: Final[dict[str, Any]] = _object(
 #: field here every time somebody declared a detector.
 _EVIDENCE: Final[dict[str, Any]] = {"type": "object", "additionalProperties": _STRING}
 
+#: The ledger of what one remediation did. ``awaiting_verification`` is a field
+#: rather than a value a consumer derives from an absent verdict, so a script
+#: that polls this cannot mistake "still settling" for "worked".
+REMEDIATION_OUTCOME: Final[dict[str, Any]] = _object(
+    {
+        "action_id": _STRING,
+        "capability": _STRING,
+        "resource_id": _STRING,
+        "condition_key": _STRING,
+        "incident_id": _STRING,
+        "executed_at": _STRING,
+        "due_at": _STRING,
+        "settle_seconds": _INTEGER,
+        "awaiting_verification": _BOOLEAN,
+        "verdict": _STRING,
+        "verified_at": _STRING,
+        "before": {"type": "object", "additionalProperties": _NUMBER},
+        "after": {"type": "object", "additionalProperties": _NUMBER},
+        "rollback": _STRING,
+        "rollback_detail": _STRING,
+        "autonomous": _BOOLEAN,
+        "detail": _STRING,
+    }
+)
+
+REMEDIATION_EFFECTIVENESS: Final[dict[str, Any]] = _object(
+    {
+        "capability": _STRING,
+        "resource_id": _STRING,
+        "condition_key": _STRING,
+        "total": _INTEGER,
+        "verified": _INTEGER,
+        "awaiting": _INTEGER,
+        "success_ratio": _NUMBER,
+        "counts": {"type": "object", "additionalProperties": _INTEGER},
+        "last_verdict": _STRING,
+        "known": _BOOLEAN,
+        "discouraged": _BOOLEAN,
+        "summary": _STRING,
+    }
+)
+
+RECURRING_PROBLEM: Final[dict[str, Any]] = _object(
+    {
+        "problem_id": _STRING,
+        "pattern_key": _STRING,
+        "capability": _STRING,
+        "resource_id": _STRING,
+        "title": _STRING,
+        "summary": _STRING,
+        "raised_at": _STRING,
+        "occurrences": _INTEGER,
+        "window_seconds": _INTEGER,
+        "suppresses_autonomy": _BOOLEAN,
+        "live": _BOOLEAN,
+        "close_reason": _STRING,
+        "closed_by": _STRING,
+    }
+)
+
+AUTONOMY_SUSPENSION: Final[dict[str, Any]] = _object(
+    {
+        "resource_id": _STRING,
+        "since": _STRING,
+        "reason": _STRING,
+        "action_id": _STRING,
+        "live": _BOOLEAN,
+        "cleared_by": _STRING,
+        "clear_reason": _STRING,
+    }
+)
+
+
 INCIDENT: Final[dict[str, Any]] = _object(
     {
         "incident_id": _STRING,
@@ -533,6 +606,12 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "detectors.enable": DETECTOR,
     "detectors.disable": DETECTOR,
     "detectors.dry-run": DRY_RUN,
+    "remediation.list": _object({"outcomes": _array(REMEDIATION_OUTCOME), "awaiting": _INTEGER}),
+    "remediation.effectiveness": REMEDIATION_EFFECTIVENESS,
+    "remediation.problems": _object({"problems": _array(RECURRING_PROBLEM)}),
+    "remediation.close-problem": RECURRING_PROBLEM,
+    "remediation.suspensions": _object({"suspensions": _array(AUTONOMY_SUSPENSION)}),
+    "remediation.clear-suspension": AUTONOMY_SUSPENSION,
     "autonomy.show": AUTONOMY_POLICY,
     "autonomy.apply": AUTONOMY_POLICY,
     "autonomy.dry-run": AUTONOMY_POLICY,

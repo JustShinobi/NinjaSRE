@@ -41,6 +41,7 @@ from surfaces.cli.models import (
     DiagnosticCheck,
     DiagnosticReport,
     DryRunRecord,
+    EffectivenessRecord,
     EstateResource,
     EstateResourceDetail,
     EstateSummaryReport,
@@ -58,10 +59,13 @@ from surfaces.cli.models import (
     OverrideRecord,
     PolicyPreviewRecord,
     ProviderStatus,
+    RecurringProblemRecord,
+    RemediationOutcomeRecord,
     RunDetail,
     RunSummary,
     ScheduleSummary,
     StageReport,
+    SuspensionRecord,
 )
 
 EPOCH = datetime(2026, 3, 14, 9, 0, tzinfo=UTC)
@@ -94,6 +98,9 @@ class FakeServices:
     config: dict[str, ConfigView] = field(default_factory=dict)
     resources: dict[str, EstateResource] = field(default_factory=dict)
     incident_records: dict[str, IncidentRecord] = field(default_factory=dict)
+    remediation_records: dict[str, RemediationOutcomeRecord] = field(default_factory=dict)
+    problem_records: dict[str, RecurringProblemRecord] = field(default_factory=dict)
+    suspension_records: dict[str, SuspensionRecord] = field(default_factory=dict)
     detector_records: dict[str, DetectorRecord] = field(default_factory=dict)
     observation_records: tuple[ObservationRecord, ...] = ()
     detection: DetectionState = field(default_factory=DetectionState)
@@ -303,6 +310,75 @@ class FakeServices:
         )
         self.integration_states[integration] = verified
         return verified
+
+    async def remediations(
+        self, *, resource: str, capability: str, condition: str, limit: int
+    ) -> tuple[RemediationOutcomeRecord, ...]:
+        matched = [
+            record
+            for record in self.remediation_records.values()
+            if (not resource or record.resource_id == resource)
+            and (not capability or record.capability == capability)
+            and (not condition or record.condition_key == condition)
+        ]
+        matched.sort(key=lambda record: record.action_id, reverse=True)
+        return tuple(matched[:limit])
+
+    async def effectiveness(
+        self, *, capability: str, resource: str, condition: str
+    ) -> EffectivenessRecord:
+        matched = await self.remediations(
+            resource=resource, capability=capability, condition=condition, limit=1000
+        )
+        counts: dict[str, int] = {}
+        for record in matched:
+            if record.verdict:
+                counts[record.verdict] = counts.get(record.verdict, 0) + 1
+        verified = sum(counts.values())
+        ratio = counts.get("effective", 0) / verified if verified else 0.0
+        return EffectivenessRecord(
+            capability=capability,
+            resource_id=resource,
+            condition_key=condition,
+            total=len(matched),
+            verified=verified,
+            awaiting=len([record for record in matched if record.awaiting_verification]),
+            success_ratio=ratio,
+            counts=counts,
+            known=verified > 0,
+            discouraged=verified >= 2 and ratio == 0.0,
+            summary=f"{capability} on {resource} worked {counts.get('effective', 0)} time(s).",
+        )
+
+    async def recurring_problems(self, *, live_only: bool) -> tuple[RecurringProblemRecord, ...]:
+        found = [record for record in self.problem_records.values() if record.live or not live_only]
+        found.sort(key=lambda record: record.problem_id, reverse=True)
+        return tuple(found)
+
+    async def close_recurring_problem(
+        self, problem_id: str, *, change: str
+    ) -> RecurringProblemRecord | None:
+        found = self.problem_records.get(problem_id)
+        if found is None:
+            return None
+        closed = replace(found, live=False, close_reason=change, closed_by="ada")
+        self.problem_records[problem_id] = closed
+        return closed
+
+    async def suspensions(self, *, live_only: bool) -> tuple[SuspensionRecord, ...]:
+        found = [
+            record for record in self.suspension_records.values() if record.live or not live_only
+        ]
+        found.sort(key=lambda record: record.resource_id)
+        return tuple(found)
+
+    async def clear_suspension(self, resource_id: str, *, reason: str) -> SuspensionRecord | None:
+        found = self.suspension_records.get(resource_id)
+        if found is None or not found.live:
+            return None
+        cleared = replace(found, live=False, clear_reason=reason, cleared_by="ada")
+        self.suspension_records[resource_id] = cleared
+        return cleared
 
     async def incidents(self, query: IncidentFilter) -> tuple[IncidentRecord, ...]:
         matched = [
@@ -651,6 +727,57 @@ def seeded() -> FakeServices:
             detector="datastore-near-full",
             subjects=("store-cove", "store-ridge"),
             opened_at=EPOCH,
+        )
+    }
+    services.remediation_records = {
+        "action-0001": RemediationOutcomeRecord(
+            action_id="action-0001",
+            capability="clear_cache",
+            resource_id="store-cove",
+            condition_key="datastore-near-full",
+            incident_id="inc-0001",
+            executed_at=EPOCH,
+            due_at=EPOCH,
+            settle_seconds=180,
+            awaiting_verification=False,
+            verdict="ineffective",
+            verified_at=EPOCH,
+            before={"filesystem.used_percent": 95.65},
+            after={"filesystem.used_percent": 94.0},
+            autonomous=True,
+        ),
+        "action-0002": RemediationOutcomeRecord(
+            action_id="action-0002",
+            capability="clear_cache",
+            resource_id="store-cove",
+            condition_key="datastore-near-full",
+            incident_id="inc-0001",
+            executed_at=EPOCH,
+            due_at=EPOCH,
+            settle_seconds=180,
+            before={"filesystem.used_percent": 95.65},
+            autonomous=True,
+        ),
+    }
+    services.problem_records = {
+        "problem-0001": RecurringProblemRecord(
+            problem_id="problem-0001",
+            pattern_key="clear_cache@store-cove",
+            capability="clear_cache",
+            resource_id="store-cove",
+            title="clear_cache keeps being applied to store-cove",
+            summary="Four applications in thirty days.",
+            raised_at=EPOCH,
+            occurrences=4,
+            window_seconds=2_592_000,
+        )
+    }
+    services.suspension_records = {
+        "store-cove": SuspensionRecord(
+            resource_id="store-cove",
+            since=EPOCH,
+            reason="clear_cache made things worse and the rollback failed",
+            action_id="action-0001",
         )
     }
     services.detector_records = {
