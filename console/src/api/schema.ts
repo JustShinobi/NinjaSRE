@@ -1240,6 +1240,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/remediations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Remediations
+         * @description Return what the deployment has changed, most recent first.
+         */
+        get: operations["list_remediations_v1_remediations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/remediations/effectiveness/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Effectiveness
+         * @description Return how often this has worked, sliced by whatever was named.
+         *
+         *     With a capability *and* a resource this is the question a proposal asks, and
+         *     the answer carries the sentence a reviewer reads. With one of them it is the
+         *     aggregate a screen renders.
+         */
+        get: operations["effectiveness_v1_remediations_effectiveness_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/remediations/problems/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recurring Problems
+         * @description Return the patterns the deployment has raised, most recent first.
+         */
+        get: operations["recurring_problems_v1_remediations_problems_recurring_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/remediations/problems/{problem_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Recurring Problem
+         * @description Close a pattern, naming the change that closed it, and lift its suppression.
+         */
+        post: operations["close_recurring_problem_v1_remediations_problems__problem_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/remediations/suspensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Suspensions
+         * @description Return the resources the deployment has stopped acting on unattended.
+         */
+        get: operations["list_suspensions_v1_remediations_suspensions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/remediations/suspensions/{resource_id}/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Suspension
+         * @description Let autonomy resume on a resource, recording who looked and what they found.
+         */
+        post: operations["clear_suspension_v1_remediations_suspensions__resource_id__clear_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/remediations/{action_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Remediation Detail
+         * @description Return one remediation, and whether anybody has found out if it worked.
+         */
+        get: operations["remediation_detail_v1_remediations__action_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs": {
         parameters: {
             query?: never;
@@ -1704,6 +1848,30 @@ export interface components {
             tags: string[];
         };
         /**
+         * ClearRequest
+         * @description What the person who looked at the resource found.
+         *
+         *     Required, and refused at the schema. A suspension is raised because nobody
+         *     knows what state a resource is in; a clearing with no reason records that
+         *     nobody found out.
+         */
+        ClearRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * CloseProblemRequest
+         * @description The change that closed this pattern.
+         *
+         *     Required for the reason ``RecurringProblem`` enforces it: a recurring
+         *     problem is closed by a change, and a close that does not say which is a
+         *     record that the problem stopped being displayed.
+         */
+        CloseProblemRequest: {
+            /** Change */
+            change: string;
+        };
+        /**
          * CloseRequest
          * @description Why an incident is being closed. Required, and refused at the schema.
          *
@@ -1956,6 +2124,70 @@ export interface components {
             values: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * EffectivenessView
+         * @description How often one thing has worked, as counts and as the sentence.
+         */
+        EffectivenessView: {
+            /**
+             * Awaiting
+             * @default 0
+             */
+            awaiting: number;
+            /**
+             * Capability
+             * @default
+             */
+            capability: string;
+            /**
+             * Condition Key
+             * @default
+             */
+            condition_key: string;
+            /** Counts */
+            counts?: {
+                [key: string]: number;
+            };
+            /**
+             * Discouraged
+             * @default false
+             */
+            discouraged: boolean;
+            /**
+             * Known
+             * @default false
+             */
+            known: boolean;
+            /** Last At */
+            last_at?: string | null;
+            /** Last Verdict */
+            last_verdict?: string | null;
+            /**
+             * Resource Id
+             * @default
+             */
+            resource_id: string;
+            /**
+             * Success Ratio
+             * @default 0
+             */
+            success_ratio: number;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Verified
+             * @default 0
+             */
+            verified: number;
         };
         /** EpisodeView */
         EpisodeView: {
@@ -2426,6 +2658,102 @@ export interface components {
             /** Verdict */
             verdict: string;
         };
+        /** OutcomeListView */
+        OutcomeListView: {
+            /**
+             * Awaiting
+             * @default 0
+             */
+            awaiting: number;
+            /** Outcomes */
+            outcomes: components["schemas"]["OutcomeView"][];
+        };
+        /**
+         * OutcomeView
+         * @description One remediation, and what became of it.
+         */
+        OutcomeView: {
+            /** Action Id */
+            action_id: string;
+            /** After */
+            after?: {
+                [key: string]: number;
+            };
+            /**
+             * Attempts
+             * @default 0
+             */
+            attempts: number;
+            /**
+             * Autonomous
+             * @default false
+             */
+            autonomous: boolean;
+            /**
+             * Awaiting Verification
+             * @default true
+             */
+            awaiting_verification: boolean;
+            /** Before */
+            before?: {
+                [key: string]: number;
+            };
+            /** Capability */
+            capability: string;
+            /**
+             * Condition Key
+             * @default
+             */
+            condition_key: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /**
+             * Executed At
+             * Format: date-time
+             */
+            executed_at: string;
+            /**
+             * Incident Id
+             * @default
+             */
+            incident_id: string;
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Rollback
+             * @default not_required
+             */
+            rollback: string;
+            /**
+             * Rollback Detail
+             * @default
+             */
+            rollback_detail: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+            /**
+             * Settle Seconds
+             * @default 0
+             */
+            settle_seconds: number;
+            /** Signals */
+            signals?: string[];
+            /** Verdict */
+            verdict?: string | null;
+            /** Verified At */
+            verified_at?: string | null;
+        };
         /**
          * OverrideRequest
          * @description A raise in autonomy that ends by itself.
@@ -2659,6 +2987,64 @@ export interface components {
              * @default
              */
             team_node_id: string;
+        };
+        /** ProblemListView */
+        ProblemListView: {
+            /** Problems */
+            problems: components["schemas"]["ProblemView"][];
+        };
+        /**
+         * ProblemView
+         * @description One recurring problem: a pattern, closed by a change.
+         */
+        ProblemView: {
+            /** Action Ids */
+            action_ids?: string[];
+            /** Capability */
+            capability: string;
+            /**
+             * Close Reason
+             * @default
+             */
+            close_reason: string;
+            /** Closed At */
+            closed_at?: string | null;
+            /**
+             * Closed By
+             * @default
+             */
+            closed_by: string;
+            /** Incident Ids */
+            incident_ids?: string[];
+            /**
+             * Live
+             * @default true
+             */
+            live: boolean;
+            /** Occurrences */
+            occurrences: number;
+            /** Pattern Key */
+            pattern_key: string;
+            /** Problem Id */
+            problem_id: string;
+            /**
+             * Raised At
+             * Format: date-time
+             */
+            raised_at: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Summary */
+            summary: string;
+            /**
+             * Suppresses Autonomy
+             * @default true
+             */
+            suppresses_autonomy: boolean;
+            /** Title */
+            title: string;
+            /** Window Seconds */
+            window_seconds: number;
         };
         /** QueueMessageRequest */
         QueueMessageRequest: {
@@ -2950,6 +3336,48 @@ export interface components {
             reason: string;
             /** Rule */
             rule: string;
+        };
+        /** SuspensionListView */
+        SuspensionListView: {
+            /** Suspensions */
+            suspensions: components["schemas"]["SuspensionView"][];
+        };
+        /**
+         * SuspensionView
+         * @description One resource the deployment has stopped acting on unattended.
+         */
+        SuspensionView: {
+            /**
+             * Action Id
+             * @default
+             */
+            action_id: string;
+            /**
+             * Clear Reason
+             * @default
+             */
+            clear_reason: string;
+            /** Cleared At */
+            cleared_at?: string | null;
+            /**
+             * Cleared By
+             * @default
+             */
+            cleared_by: string;
+            /**
+             * Live
+             * @default true
+             */
+            live: boolean;
+            /** Reason */
+            reason: string;
+            /** Resource Id */
+            resource_id: string;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
         };
         /** ThreadCallView */
         ThreadCallView: {
@@ -5316,6 +5744,251 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_remediations_v1_remediations_get: {
+        parameters: {
+            query?: {
+                resource?: string;
+                capability?: string;
+                condition?: string;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    effectiveness_v1_remediations_effectiveness_summary_get: {
+        parameters: {
+            query?: {
+                resource?: string;
+                capability?: string;
+                condition?: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffectivenessView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recurring_problems_v1_remediations_problems_recurring_get: {
+        parameters: {
+            query?: {
+                live?: boolean;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_recurring_problem_v1_remediations_problems__problem_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                problem_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseProblemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_suspensions_v1_remediations_suspensions_get: {
+        parameters: {
+            query?: {
+                live?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuspensionListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_suspension_v1_remediations_suspensions__resource_id__clear_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuspensionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remediation_detail_v1_remediations__action_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                action_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeView"];
                 };
             };
             /** @description Validation Error */
