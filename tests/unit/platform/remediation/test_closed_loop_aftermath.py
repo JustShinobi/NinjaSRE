@@ -512,3 +512,37 @@ async def test_a_recurrence_window_can_be_tuned_per_capability(
     assert watch.rule_for("restart_workload").threshold == 10
     assert problem is not None
     assert problem.window_seconds == 3600
+
+
+async def test_a_rollback_that_ran_without_converging_is_a_failed_rollback(
+    storage: FakePersistence,
+    listener: RecordingListener,
+) -> None:
+    """FR-009 and T-015: the rollback is verified, not assumed from a clean return.
+
+    An applier that returns a result saying the target did not come back is the
+    failure this feature exists to notice. Trusting the absence of an exception
+    would report the worst outcome the system can reach — changed, not undone,
+    state unknown — as a tidy automatic recovery.
+    """
+
+    @dataclass(slots=True)
+    class UnconvergedApplier:
+        """A plan applier that ran every step and did not reach the state."""
+
+        verified: bool = False
+
+        async def apply(self, plan, *, action, now=None):  # noqa: ANN001, ANN202
+            """Return a result that says so rather than raising."""
+            return self
+
+    async with storage.begin(TenantScope(org_id="acme")) as unit:
+        outcome = await unit.remediation.record(an_outcome())
+        result = await aftermath_over(unit, storage, listener, applier=UnconvergedApplier()).apply(
+            a_verification(outcome, VerificationVerdict.WORSENED)
+        )
+
+    assert result.rollback is RollbackDisposition.FAILED
+    assert result.severity == HIGHEST_SEVERITY
+    assert result.suspended
+    assert "did not come back" in result.rollback_detail

@@ -275,3 +275,115 @@ def test_the_record_a_surface_renders_carries_the_counts_and_the_sentence() -> N
     assert record["summary"] == prior.describe()
     assert record["known"] is False
     assert record["counts"] == {}
+
+
+async def test_a_proposal_carries_what_has_worked_here_before(
+    storage: FakePersistence,
+) -> None:
+    """SC-008's other half: the proposal reads it, and so does the reviewer.
+
+    Through the real request builder rather than a double, because the failure
+    this catches is the history being computed and then not reaching the
+    payload — which every unit test on either side of the seam would miss.
+    """
+    from config.constants.closed_loop import REMEDIATION_PAYLOAD_EFFECTIVENESS
+    from core.capability.metadata import SideEffectLevel
+    from platform.remediation.history import LedgerEffectiveness
+    from platform.remediation.models import RemediationAction, RemediationTarget
+    from platform.remediation.request import RequestBuilder
+    from platform.remediation.rollback.generator import PlanFactory
+
+    async with storage.begin(TenantScope(org_id="acme")) as unit:
+        await unit.remediation.record(
+            an_outcome(action_id="a", verdict=VerificationVerdict.INEFFECTIVE)
+        )
+        await unit.remediation.record(
+            an_outcome(action_id="b", verdict=VerificationVerdict.WORSENED, minutes=10)
+        )
+
+    registry = _a_registry()
+    builder = RequestBuilder(
+        registry=registry,
+        plans=PlanFactory(registry=registry, identifiers=lambda: "plan-1"),
+        history=LedgerEffectiveness(gateway=storage, scope=TenantScope(org_id="acme")),
+    )
+    action = RemediationAction(
+        action_id="action-9",
+        capability="clear_cache",
+        target=RemediationTarget(identifier="store-cove", environment="production"),
+        side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+        requester="agent",
+    )
+
+    request = await builder.build(action)
+
+    assert request.prior is not None
+    assert request.prior.discouraged
+    # The model reads the rationale; the reviewer reads the payload. Both.
+    assert "propose something else" in request.rationale()
+    assert request.payload()[REMEDIATION_PAYLOAD_EFFECTIVENESS]["discouraged"] is True
+
+
+def _a_registry():
+    """Return a registry whose one capability can read and undo a cache clear."""
+    from datetime import datetime as _datetime
+
+    from platform.remediation.components import ComponentRegistry, RemediationComponents
+    from platform.remediation.declaration import (
+        SignalDirection,
+        VerificationDeclaration,
+        VerificationSignal,
+    )
+    from platform.remediation.models import (
+        RollbackPlan,
+        RollbackStep,
+        StateSnapshot,
+    )
+
+    class Reader:
+        """Reads a target that always answers."""
+
+        async def read(self, action, *, at: _datetime) -> StateSnapshot:  # noqa: ANN001
+            """Return a readable snapshot."""
+            return StateSnapshot(target=str(action.target), observed_at=at, values={"entries": 12})
+
+    class Generator:
+        """Produces a plan that restores what was there."""
+
+        def plan(self, action, *, before) -> RollbackPlan:  # noqa: ANN001
+            """Return the plan restoring the recorded entries."""
+            return RollbackPlan(
+                plan_id="",
+                action_id=action.action_id,
+                target=str(action.target),
+                recorded_state=before,
+                summary="restore the cleared entries",
+                steps=(RollbackStep(ordinal=1, description="restore", capability="clear_cache"),),
+            )
+
+    class Verifier:
+        """Compares nothing, because this test never executes."""
+
+        def verify(self, action, *, before, after) -> tuple[()]:  # noqa: ANN001
+            """Return no divergences."""
+            return ()
+
+    return ComponentRegistry().register(
+        RemediationComponents(
+            capability="clear_cache",
+            reader=Reader(),  # type: ignore[arg-type]
+            applier=Reader(),  # type: ignore[arg-type]
+            generator=Generator(),  # type: ignore[arg-type]
+            verifier=Verifier(),  # type: ignore[arg-type]
+            verification=VerificationDeclaration(
+                signals=(
+                    VerificationSignal(
+                        name="filesystem.used_percent",
+                        direction=SignalDirection.DOWN,
+                        clears_at=80.0,
+                    ),
+                ),
+                settle_seconds=300,
+            ),
+        )
+    )

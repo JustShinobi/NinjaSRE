@@ -97,6 +97,18 @@ def undo_of(outcome: RemediationOutcome) -> tuple[RemediationAction, RollbackPla
     return RemediationAction.of_payload(action_payload), plan
 
 
+def _converged(applied: Any) -> bool:
+    """Return whether a rollback result says the target came back.
+
+    Structural, because ``PlanApplier`` is a protocol and a deployment may
+    supply something other than ``RollbackResult``. An applier that reports no
+    opinion is taken at its word — it raised nothing, which is the contract —
+    and one that reports ``verified`` is believed either way.
+    """
+    verified = getattr(applied, "verified", None)
+    return verified is not False
+
+
 @runtime_checkable
 class PlanApplier(Protocol):
     """Applies one recorded rollback plan and verifies its own result.
@@ -289,7 +301,7 @@ class VerificationAftermath:
 
         action, plan = undo
         try:
-            await self.applier.apply(plan, action=action, now=at)
+            applied = await self.applier.apply(plan, action=action, now=at)
         except (RollbackTargetMismatch, RollbackWindowClosed) as moved_on:
             # The world moved on. Said explicitly rather than skipped, per
             # FR-011: an operator seeing "no rollback" and an operator seeing
@@ -304,6 +316,22 @@ class VerificationAftermath:
             )
         except (RollbackFailed, RemediationError) as failed:
             return await self._suspend(verification, detail=str(failed), at=at)
+
+        # FR-009: the rollback is verified through the same mechanism the action
+        # was — the target read back through the capability's own reader and
+        # compared to the state the plan recorded. An applier that reported
+        # success without converging is the failure this feature exists to
+        # notice, so the result is checked rather than the absence of an
+        # exception.
+        if not _converged(applied):
+            return await self._suspend(
+                verification,
+                detail=(
+                    "the rollback ran and the target did not come back to the state the "
+                    "plan recorded"
+                ),
+                at=at,
+            )
 
         _LOG.info(
             "remediation.rolled_back_automatically",
