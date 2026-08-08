@@ -32,7 +32,7 @@ something in `make verify`, or it is not a rule.
 ```
 config/          Tier 4 — env names, constants, prompts. Imports nothing first-party.
 core/            Tier 3 — agent runtime, investigation pipeline, LLM abstraction, domain rules.
-platform/        Tier 3 — persistence, credentials, guardrails, memory, knowledge, configuration, scheduler, observability.
+platform/        Tier 3 — persistence, credentials, guardrails, memory, knowledge, configuration, scheduler, observation, incidents, observability.
 integrations/    Tier 2 — one package per vendor: config, credential schema, verifier, client.
 capabilities/    Tier 2 — the agent-callable surface: typed tools, skills, registry, selection.
 gateway/         Tier 1 — inbound transports: REST/SSE, webhooks, chat platforms.

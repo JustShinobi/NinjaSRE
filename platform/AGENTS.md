@@ -39,7 +39,7 @@ Three things about that snippet are load-bearing.
 
 - **Repositories come from the unit of work.** There is nowhere else to get one,
   so there is no repository outside a transaction. Leaving the block commits;
-  raising inside it rolls back, across all thirteen.
+  raising inside it rolls back, across all fifteen.
 - **Tenancy comes from the scope, not from arguments.** No port method takes an
   `org_id`, so a cross-tenant read cannot be phrased. The handful of operations
   that genuinely precede tenancy — creating an organisation, resolving a token,
@@ -661,6 +661,59 @@ providers through the proxy like every other integration call — and swept unde
 the scheduler's own lease-based claiming, so concurrency is solved once rather
 than twice.
 
+## Continuous observation, in one page
+
+`observation/` watches, and `incidents/` is what watching produces. Together
+they are the third way an investigation begins — the other two being an alert
+arriving and a person asking — and the only one that does not need an upstream
+that already knew something was wrong.
+
+**Nothing remembers anything between ticks.** A condition has held for ten
+minutes when every sample in the last ten minutes satisfies it and the samples
+actually span it. There is no "pending since" counter anywhere in the package,
+which is why a restart mid-tick cannot double-fire, two replicas cannot
+disagree, and a detector can be replayed against last Tuesday's signals and
+reproduce exactly what it concluded on the day. Evaluation is a pure function
+from a declaration and a window to a verdict; everything with a clock or a
+transaction in it is in `evaluation.py` and does no deciding.
+
+**A detector is a declaration, not code.** Four condition kinds — threshold,
+absence, rate of change, state transition — two thresholds so hysteresis is two
+numbers rather than a mode, two durations, and a grouping key. It comes out of
+the hierarchical config service, so a team adds one without a deployment. There
+are deliberately no expressions: anything more expressive is a capability with a
+name, a side-effect level and a test, not a string in a document. A detector may
+reference only capabilities the catalogue declares at `read`, checked at
+registration, because a detector that can act is an actuator with none of the
+autonomy controls in front of it.
+
+**Absence is a condition, not a gap.** "The signal stopped arriving" is the most
+important detector in a small estate and the one most systems cannot express,
+because they only evaluate the samples they have. `SignalStore.latest` exists
+beside `window` for exactly this, and a series nobody has ever measured is
+`insufficient` rather than firing — "it stopped" and "it never started" are
+different facts.
+
+**There is one incident lifecycle and one constructor.** A detected condition, a
+webhook alert, a failing detector and a person opening one by hand all go through
+`IncidentLifecycle.raise_incident` and differ in one field.
+`tests/architecture/test_one_incident_lifecycle.py` asserts that structurally, so
+a second path cannot be written by accident. Raising is idempotent by correlation
+key and the identifier is derived from the cause and the instant, so a second
+firing lands on the open incident and two replicas write one row.
+
+**Suppression is recorded, never silent.** A firing covered by the global pause,
+a maintenance window, or a scoped rule is *raised and then closed as suppressed*,
+so it is in the incident list, countable and searchable. An operator asking why
+nothing happened gets a rule name; a rule that is too broad becomes a number
+rather than an absence.
+
+**Dispatch has three gates.** Correlation makes twenty guests one candidate; one
+run per correlation stops a second firing investigating the same thing twice; and
+a per-team and global hourly limit handles the storm correlation cannot see. Every
+held dispatch is written onto the incident. Escalation is the notification
+registry that already exists, cancelled by every terminal state.
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -675,6 +728,14 @@ than twice.
   contextual if the value could also be an ordinary English word.
 - A new isolation profile → a subpackage under `sandbox/profiles/`, and it is not
   finished until the contract suite passes against it as a fourth row.
+- A new detector condition kind → a member of `ConditionKind`, a branch in
+  `observation/detectors/conditions.py`, a case in the config schema's allowed
+  values, and a boundary test each side of the condition. Five kinds is a
+  decision, not a default: the reason there are four is that a fifth is how a
+  declaration becomes a language.
+- A new source of signals → a module under `observation/sources/`, implementing
+  `SignalReader`. It declares its interval, its rate limit and its call budget,
+  and it cannot hold a credential — there is no parameter one fits in.
 - A new configuration field → a typed field on the owning section under
   `config_service/schema/`, with a default sourced from `config/constants/` or
   `config/prompts/`, and its name added to that section's `*_FIELDS` tuple. The
