@@ -16,7 +16,9 @@ whole of the design; everything else here is what makes the answer defensible.
     What an operator configures: rules at seven scopes, freeze windows, budgets,
     and time-bounded overrides. Expressed through the hierarchical configuration
     service, so merge, locks, required fields and approval gating are inherited
-    rather than rebuilt.
+    rather than rebuilt. ``configuration`` is the translation between the two,
+    and is imported directly rather than re-exported here — it reaches the
+    configuration service, and most callers of this package do not.
 
 ``resolution``
     A pure function from an action, a policy set and a clock to a level *and its

@@ -38,6 +38,9 @@ _ANTI_EXAMPLES = (
     evidence_source="control_plane",
     evidence_type=EvidenceType.CHANGE,
     side_effect_level=SideEffectLevel.WRITE_IRREVERSIBLE,
+    # The cache refills itself, it reaches the one service that owns it, and the
+    # cost is a period of slower responses rather than an outage.
+    risk_class="low",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

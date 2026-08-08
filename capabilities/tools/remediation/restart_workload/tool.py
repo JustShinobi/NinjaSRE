@@ -38,6 +38,9 @@ _ANTI_EXAMPLES = (
     evidence_source="control_plane",
     evidence_type=EvidenceType.CHANGE,
     side_effect_level=SideEffectLevel.WRITE_IRREVERSIBLE,
+    # Undone only by waiting, and it destroys process state and in-flight requests
+    # on the way — which is one workload's worth of damage, not an estate's.
+    risk_class="moderate",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

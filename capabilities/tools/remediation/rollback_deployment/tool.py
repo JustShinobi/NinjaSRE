@@ -27,6 +27,9 @@ _USE_CASES = (
     evidence_source="control_plane",
     evidence_type=EvidenceType.CHANGE,
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # Reversible by rolling forward again, and it changes the running code of every
+    # replica of one service while it does so.
+    risk_class="moderate",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

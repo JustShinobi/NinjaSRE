@@ -119,6 +119,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from discord
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** discord
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 
@@ -158,6 +159,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from microsoft_teams
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** microsoft_teams
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 
@@ -197,6 +199,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from pushover
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** pushover
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 
@@ -236,6 +239,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from rocket_chat
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** rocket_chat
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 
@@ -275,6 +279,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from slack
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** slack
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 
@@ -314,6 +319,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from telegram
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** telegram
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 
@@ -353,6 +359,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from twilio
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** twilio
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 
@@ -392,6 +399,7 @@ Post a message to a channel. Used to deliver a finding where the incident is alr
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from whatsapp
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Requires:** whatsapp
 - **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
 

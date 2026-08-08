@@ -49,6 +49,7 @@ def tool(
     approval_reason: str = "",
     rollback_plan: str = "",
     rollback_planner: RollbackPlanner | None = None,
+    risk_class: str = "",
     input_schema: Mapping[str, Any] | None = None,
     input_model: Any = None,
     output_schema: Mapping[str, Any] | None = None,
@@ -81,6 +82,7 @@ def tool(
             approval_reason=approval_reason,
             rollback_plan=rollback_plan,
             rollback_planner=rollback_planner,
+            risk_class=risk_class,
         )
 
         registered = build_registration(

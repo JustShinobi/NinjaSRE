@@ -23,10 +23,32 @@ it would make the claim a preference.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime, time
 from typing import Annotated, Final, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
+from config.constants.autonomy import (
+    AUTONOMY_BUDGET_SCOPE_RESOURCE,
+    AUTONOMY_BUDGET_SCOPES,
+    AUTONOMY_LEVELS,
+    AUTONOMY_SCOPE_CAPABILITY,
+    AUTONOMY_SCOPE_CAPABILITY_RESOURCE,
+    AUTONOMY_SCOPE_DEPLOYMENT,
+    AUTONOMY_SCOPE_KINDS,
+    AUTONOMY_SCOPE_LABELS,
+    AUTONOMY_SCOPE_RESOURCE,
+    AUTONOMY_SCOPE_RESOURCE_KIND,
+    AUTONOMY_SCOPE_TEAM,
+    DEFAULT_AUTONOMY_BUDGET,
+    DEFAULT_AUTONOMY_BUDGET_INTERVAL_SECONDS,
+    DEFAULT_AUTONOMY_LEVEL,
+    DEFAULT_FREEZE_TIMEZONE,
+    DEFAULT_RISK_BOUND,
+    MAX_AUTONOMY_RULES,
+    RISK_CLASSES,
+)
 from config.constants.notifications import SEVERITY_HIGH
 from config.constants.observation import (
     DEFAULT_DETECTOR_DURATION_SECONDS,
@@ -245,6 +267,241 @@ class ObservationPolicySettings(ConfigSection):
     pause_reason: ConfiguredStr = ""
 
 
+#: What each scope kind cannot be without. ``deployment`` needs nothing — it is
+#: the statement "everywhere", which is a decision rather than an omission.
+_SCOPE_REQUIREMENTS: Final[Mapping[str, tuple[str, ...]]] = {
+    AUTONOMY_SCOPE_DEPLOYMENT: (),
+    AUTONOMY_SCOPE_TEAM: ("team_node_id",),
+    AUTONOMY_SCOPE_RESOURCE_KIND: ("resource_kind",),
+    AUTONOMY_SCOPE_LABELS: ("labels",),
+    AUTONOMY_SCOPE_CAPABILITY: ("capability",),
+    AUTONOMY_SCOPE_RESOURCE: ("resource_id",),
+    AUTONOMY_SCOPE_CAPABILITY_RESOURCE: ("capability", "resource_id"),
+}
+
+
+class AutonomyLabelSettings(ConfigSection):
+    """One label a scope selects on.
+
+    A pair rather than a mapping, for the reason a custom masking pattern is
+    one: a section with operator-chosen keys is not a closed schema, and the
+    console cannot render a form for a shape nobody declared.
+    """
+
+    #: Both required. A label with no name selects nothing and one with no value
+    #: selects everything, and a default would hide either.
+    name: ConfiguredStr
+    value: ConfiguredStr
+
+
+class AutonomyScopeSettings(ConfigSection):
+    """Where a rule, a freeze, a budget or an override applies.
+
+    Validated here as well as in the engine. This is the save-time half: an
+    operator writing a scope whose kind and fields disagree finds out when they
+    write it, rather than when something declines to act because of it.
+    """
+
+    kind: ConfiguredStr = AUTONOMY_SCOPE_DEPLOYMENT
+    team_node_id: ConfiguredStr = ""
+    resource_kind: ConfiguredStr = ""
+    resource_id: ConfiguredStr = ""
+    capability: ConfiguredStr = ""
+    labels: tuple[AutonomyLabelSettings, ...] = ()
+
+    @field_validator("kind")
+    @classmethod
+    def _known_kind(cls, value: str) -> str:
+        """Refuse a scope kind the resolver has no precedence for."""
+        if value not in AUTONOMY_SCOPE_KINDS:
+            raise ValueError(f"must be one of {', '.join(AUTONOMY_SCOPE_KINDS)}; found {value!r}")
+        return value
+
+    @model_validator(mode="after")
+    def _named_something(self) -> AutonomyScopeSettings:
+        """Refuse a scope whose kind needs a field it does not have."""
+        required = _SCOPE_REQUIREMENTS[self.kind]
+        missing = [
+            name
+            for name in required
+            if not (self.labels if name == "labels" else getattr(self, name))
+        ]
+        if missing:
+            raise ValueError(
+                f"a {self.kind} scope needs {', '.join(missing)}; without it the rule "
+                f"applies to everything, which is not what naming a scope means"
+            )
+        return self
+
+
+class AutonomyRuleSettings(ConfigSection):
+    """One statement: in this scope, this much autonomy, up to this much risk."""
+
+    scope: AutonomyScopeSettings = AutonomyScopeSettings()
+    level: ConfiguredStr = DEFAULT_AUTONOMY_LEVEL
+    risk_bound: ConfiguredStr = DEFAULT_RISK_BOUND
+    dry_run: bool = False
+
+    @field_validator("level")
+    @classmethod
+    def _known_level(cls, value: str) -> str:
+        """Refuse a level outside the closed set of three."""
+        if value not in AUTONOMY_LEVELS:
+            raise ValueError(f"must be one of {', '.join(AUTONOMY_LEVELS)}; found {value!r}")
+        return value
+
+    @field_validator("risk_bound")
+    @classmethod
+    def _known_risk(cls, value: str) -> str:
+        """Refuse a risk bound outside the closed scale."""
+        if value not in RISK_CLASSES:
+            raise ValueError(f"must be one of {', '.join(RISK_CLASSES)}; found {value!r}")
+        return value
+
+
+class FreezeWindowSettings(ConfigSection):
+    """A span of the day nothing in scope may run, in a named timezone."""
+
+    #: Required. A refusal has to name what refused it, and "a freeze window"
+    #: sends an operator to read every one they have.
+    name: ConfiguredStr
+    start: ConfiguredStr
+    end: ConfiguredStr
+    scope: AutonomyScopeSettings = AutonomyScopeSettings()
+    timezone: ConfiguredStr = DEFAULT_FREEZE_TIMEZONE
+    reason: ConfiguredStr = ""
+
+    @field_validator("start", "end")
+    @classmethod
+    def _a_time_of_day(cls, value: str) -> str:
+        """Refuse anything that is not a wall-clock time."""
+        try:
+            time.fromisoformat(value)
+        except ValueError as rejected:
+            raise ValueError(f"must be a time of day like '01:00'; found {value!r}") from rejected
+        return value
+
+    @field_validator("timezone")
+    @classmethod
+    def _a_known_zone(cls, value: str) -> str:
+        """Refuse a zone this host cannot resolve, at save time rather than at 01:00."""
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as unknown:
+            raise ValueError(f"is not a timezone this host knows; found {value!r}") from unknown
+        return value
+
+    @model_validator(mode="after")
+    def _spans_something(self) -> FreezeWindowSettings:
+        """Refuse a window that freezes either nothing or everything."""
+        if self.start == self.end:
+            raise ValueError(
+                "a window starting and ending at the same time freezes either nothing or "
+                "everything depending on how it is read; say which you meant"
+            )
+        return self
+
+
+class AutonomyBudgetSettings(ConfigSection):
+    """How many actions may run in scope over an interval, and against what."""
+
+    #: Required. An exhaustion has to name which budget is spent.
+    name: ConfiguredStr
+    counted_by: ConfiguredStr = AUTONOMY_BUDGET_SCOPE_RESOURCE
+    limit: Annotated[ConfiguredInt, Field(ge=0)] = DEFAULT_AUTONOMY_BUDGET
+    interval_seconds: Annotated[ConfiguredFloat, Field(gt=0)] = (
+        DEFAULT_AUTONOMY_BUDGET_INTERVAL_SECONDS
+    )
+    scope: AutonomyScopeSettings | None = None
+
+    @field_validator("counted_by")
+    @classmethod
+    def _known_counter(cls, value: str) -> str:
+        """Refuse something a budget cannot be counted against."""
+        if value not in AUTONOMY_BUDGET_SCOPES:
+            raise ValueError(f"must be one of {', '.join(AUTONOMY_BUDGET_SCOPES)}; found {value!r}")
+        return value
+
+
+class AutonomyOverrideSettings(ConfigSection):
+    """A raise in autonomy that ends by itself, at a stated instant."""
+
+    #: Both required. An expiry has to name what expired, and an override with
+    #: no end is a policy change wearing an override's name.
+    name: ConfiguredStr
+    expires_at: ConfiguredStr
+    scope: AutonomyScopeSettings = AutonomyScopeSettings()
+    level: ConfiguredStr = DEFAULT_AUTONOMY_LEVEL
+    risk_bound: ConfiguredStr = DEFAULT_RISK_BOUND
+    granted_by: ConfiguredStr = ""
+    reason: ConfiguredStr = ""
+
+    @field_validator("level")
+    @classmethod
+    def _known_level(cls, value: str) -> str:
+        """Refuse a level outside the closed set of three."""
+        if value not in AUTONOMY_LEVELS:
+            raise ValueError(f"must be one of {', '.join(AUTONOMY_LEVELS)}; found {value!r}")
+        return value
+
+    @field_validator("risk_bound")
+    @classmethod
+    def _known_risk(cls, value: str) -> str:
+        """Refuse a risk bound outside the closed scale."""
+        if value not in RISK_CLASSES:
+            raise ValueError(f"must be one of {', '.join(RISK_CLASSES)}; found {value!r}")
+        return value
+
+    @field_validator("expires_at")
+    @classmethod
+    def _an_instant(cls, value: str) -> str:
+        """Refuse a wall-clock time where an instant belongs.
+
+        An override that expired "at 14:00" would expire at a different moment
+        on every host that read it, which is the one property an expiry cannot
+        have.
+        """
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError as rejected:
+            raise ValueError(f"must be an instant in ISO 8601; found {value!r}") from rejected
+        if parsed.tzinfo is None:
+            raise ValueError(f"names no timezone, so it names no instant; found {value!r}")
+        return value
+
+
+class AutonomyPolicySettings(ConfigSection):
+    """How much this team may do without asking, and the bounds on the answer.
+
+    Under ``policies`` rather than in a section of its own, for the reason the
+    detectors are: whether this team may act unattended is the same kind of
+    decision as whether its runs may write to memory, and the closed set of
+    top-level sections is what lets the console render a form at all.
+    """
+
+    rules: tuple[AutonomyRuleSettings, ...] = ()
+    freezes: tuple[FreezeWindowSettings, ...] = ()
+    budgets: tuple[AutonomyBudgetSettings, ...] = ()
+    overrides: tuple[AutonomyOverrideSettings, ...] = ()
+    #: Simulate everything this node resolves, whatever any rule says. The
+    #: deployment-wide half of dry-run mode; the per-scope half is on the rule.
+    dry_run: bool = False
+
+    @field_validator("rules")
+    @classmethod
+    def _within_the_ceiling(
+        cls, value: tuple[AutonomyRuleSettings, ...]
+    ) -> tuple[AutonomyRuleSettings, ...]:
+        """Refuse more rules than resolution is budgeted to walk."""
+        if len(value) > MAX_AUTONOMY_RULES:
+            raise ValueError(
+                f"a node may configure {MAX_AUTONOMY_RULES} rules; found {len(value)}. "
+                f"Resolution runs on every action, and a policy set nobody can read is "
+                f"not one anybody reviewed."
+            )
+        return value
+
+
 class PoliciesConfig(ConfigSection):
     """Every policy switch, in one section."""
 
@@ -255,6 +512,7 @@ class PoliciesConfig(ConfigSection):
     guardrails: GuardrailPolicySettings = GuardrailPolicySettings()
     approvals: ApprovalPolicySettings = ApprovalPolicySettings()
     observation: ObservationPolicySettings = ObservationPolicySettings()
+    autonomy: AutonomyPolicySettings = AutonomyPolicySettings()
 
     def ablation_summary(self) -> Mapping[str, object]:
         """Return what a run trace records about how learning was configured.
@@ -275,6 +533,12 @@ class PoliciesConfig(ConfigSection):
 
 
 POLICIES_FIELDS: tuple[str, ...] = tuple(PoliciesConfig.model_fields)
+AUTONOMY_FIELDS: tuple[str, ...] = tuple(AutonomyPolicySettings.model_fields)
+AUTONOMY_RULE_FIELDS: tuple[str, ...] = tuple(AutonomyRuleSettings.model_fields)
+AUTONOMY_SCOPE_FIELDS: tuple[str, ...] = tuple(AutonomyScopeSettings.model_fields)
+FREEZE_WINDOW_FIELDS: tuple[str, ...] = tuple(FreezeWindowSettings.model_fields)
+AUTONOMY_BUDGET_FIELDS: tuple[str, ...] = tuple(AutonomyBudgetSettings.model_fields)
+AUTONOMY_OVERRIDE_FIELDS: tuple[str, ...] = tuple(AutonomyOverrideSettings.model_fields)
 MEMORY_FIELDS: tuple[str, ...] = tuple(MemoryPolicySettings.model_fields)
 STRATEGY_FIELDS: tuple[str, ...] = tuple(StrategyPolicySettings.model_fields)
 KNOWLEDGE_FIELDS: tuple[str, ...] = tuple(KnowledgePolicySettings.model_fields)
@@ -288,6 +552,11 @@ CUSTOM_PATTERN_FIELDS: tuple[str, ...] = tuple(CustomMaskingPattern.model_fields
 
 __all__ = [
     "APPROVALS_FIELDS",
+    "AUTONOMY_BUDGET_FIELDS",
+    "AUTONOMY_FIELDS",
+    "AUTONOMY_OVERRIDE_FIELDS",
+    "AUTONOMY_RULE_FIELDS",
+    "AUTONOMY_SCOPE_FIELDS",
     "CUSTOM_PATTERN_FIELDS",
     "DETECTOR_FIELDS",
     "GUARDRAILS_FIELDS",
@@ -302,8 +571,16 @@ __all__ = [
     "POLICIES_FIELDS",
     "STRATEGY_FIELDS",
     "ApprovalPolicySettings",
+    "AutonomyBudgetSettings",
+    "AutonomyLabelSettings",
+    "AutonomyOverrideSettings",
+    "AutonomyPolicySettings",
+    "AutonomyRuleSettings",
+    "AutonomyScopeSettings",
     "CustomMaskingPattern",
     "DetectorSettings",
+    "FREEZE_WINDOW_FIELDS",
+    "FreezeWindowSettings",
     "GuardrailPolicySettings",
     "KnowledgePolicySettings",
     "MaskingPolicySettings",

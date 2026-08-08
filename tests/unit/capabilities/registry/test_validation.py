@@ -210,6 +210,7 @@ def test_a_complete_write_declaration_reaches_the_catalogue() -> None:
         requires_approval=True,
         approval_reason="Restarting drops in-flight requests.",
         rollback_plan="Scale the previous ReplicaSet back up.",
+        risk_class="moderate",
     )
     async def restarts_deployment(deployment: str) -> None:
         return None

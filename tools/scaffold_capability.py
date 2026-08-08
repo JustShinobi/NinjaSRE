@@ -94,8 +94,8 @@ _ANTI_EXAMPLES = (
     evidence_type=EvidenceType.LOG,
     # No default exists for this. Choose deliberately: read, read_sensitive,
     # write_reversible, write_irreversible, destructive. Anything above
-    # read_sensitive also needs requires_approval, approval_reason, and a
-    # rollback plan or planner — the build will say so.
+    # read_sensitive also needs requires_approval, approval_reason, a rollback
+    # plan or planner, and a risk_class — the build will say so.
     side_effect_level=SideEffectLevel.READ,
     parallel_safe=True,
     requires=Requirements(integrations=({requires!r},)),
@@ -368,6 +368,11 @@ def remaining_work() -> list[str]:
     return [
         "Choose the side-effect level deliberately. It has no default, and anything "
         "above read_sensitive needs an approval reason and a rollback plan.",
+        "Choose the risk class for anything above read_sensitive: trivial, low, "
+        "moderate, high, or critical. It answers three questions — can it be undone, "
+        "how far does it reach, can it lose data or availability — and the class is "
+        "the worst of the three answers. An undeclared one is treated as critical, so "
+        "the tool never runs unattended.",
         "Write the anti-examples. Nothing fails without them; selection just gets "
         "worse, on every incident, until somebody notices.",
         "Write the description for the model that reads it when choosing, not for a "

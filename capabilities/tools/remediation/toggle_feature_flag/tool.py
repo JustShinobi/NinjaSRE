@@ -31,6 +31,9 @@ _ANTI_EXAMPLES = (
     evidence_source="control_plane",
     evidence_type=EvidenceType.CHANGE,
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # Reversible by toggling back, and reaching every user the flag is evaluated
+    # for rather than one machine.
+    risk_class="moderate",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

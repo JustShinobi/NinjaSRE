@@ -48,6 +48,7 @@ from capabilities.protocols.port import (
     ProtocolAdapter,
     ProtocolKind,
 )
+from config.constants.autonomy import UNCLASSIFIED_RISK_CLASS
 from config.constants.protocols import (
     MAX_BRIDGED_DESCRIPTION_CHARS,
     MAX_TOOLS_PER_PROTOCOL_SERVER,
@@ -342,6 +343,11 @@ def _metadata(
             if needs_approval
             else ""
         ),
+        # The top of the scale, stated rather than left blank. A first-party
+        # author is required to declare this and the build fails when they do
+        # not; a server nobody here controls declares nothing we would act on,
+        # so the honest classification is the one that never runs unattended.
+        risk_class=UNCLASSIFIED_RISK_CLASS if needs_approval else "",
     )
 
 

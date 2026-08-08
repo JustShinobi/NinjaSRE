@@ -60,6 +60,7 @@ Propose an addition or amendment to the team's knowledge base. The proposal ente
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** document from knowledge_base
 - **Parallel safe:** no
+- **Risk class:** `trivial` — Reversible, reaches one resource, and loses neither data nor availability.
 - **Approval:** required — The agent is proposing text for the team's knowledge base. Approving means a human has read the proposed content and the investigation behind it, and accepts it as documentation a future investigation will read and cite.
 
 **Use when:**

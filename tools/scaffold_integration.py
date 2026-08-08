@@ -646,7 +646,7 @@ _ANTI_EXAMPLES = (
     # read_sensitive, write_reversible, write_irreversible, destructive.
     # read_sensitive is right whenever the result can carry what a user typed —
     # log bodies almost always can. Anything above it also needs
-    # requires_approval, approval_reason, and a rollback plan.
+    # requires_approval, approval_reason, a rollback plan, and a risk_class.
     side_effect_level=SideEffectLevel.READ,
     parallel_safe=True,
     requires=Requirements(integrations=(INTEGRATION,)),

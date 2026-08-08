@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar, Protocol
 
+from config.constants.autonomy import RISK_CLASSES
 from config.constants.security import (
     SIDE_EFFECT_DESTRUCTIVE,
     SIDE_EFFECT_LEVELS,
@@ -284,6 +285,15 @@ class ToolMetadata(CapabilityMetadata):
     approval_reason: str = ""
     rollback_plan: str = ""
     rollback_planner: RollbackPlanner | None = None
+    #: How dangerous one call is, on the closed scale the autonomy policy engine
+    #: resolves against. Required of anything above ``read_sensitive`` and
+    #: meaningless below it: nothing that cannot change anything is ever asked.
+    #:
+    #: Judged by the author, once, in code. The decision point cannot work it
+    #: out — it sees a name and some arguments — and an undeclared class resolves
+    #: as the top of the scale, so leaving it blank is a tool that never runs
+    #: unattended rather than one that runs unexamined.
+    risk_class: str = ""
 
     def __post_init__(self) -> None:
         CapabilityMetadata.__post_init__(self)
@@ -291,6 +301,16 @@ class ToolMetadata(CapabilityMetadata):
         if not str(self.evidence_source).strip():
             raise ValueError(f"{self.name}: evidence_source must name the system it reads")
         object.__setattr__(self, "evidence_source", str(self.evidence_source).strip())
+        object.__setattr__(self, "risk_class", str(self.risk_class).strip().lower())
+
+        # Checked whatever the level is. A typo on a read tool is an author's
+        # decision that never took effect, and it would be invisible until the
+        # day somebody raised that tool's level.
+        if self.risk_class and self.risk_class not in RISK_CLASSES:
+            raise ValueError(
+                f"{self.name}: {self.risk_class!r} is not a risk class; expected one of "
+                f"{', '.join(RISK_CLASSES)}"
+            )
 
         if self.side_effect_level.needs_approval:
             self._require_approval_metadata()
@@ -318,6 +338,12 @@ class ToolMetadata(CapabilityMetadata):
             raise ValueError(
                 f"{self.name}: a tool above read_sensitive must declare a rollback plan "
                 "or a rollback_planner"
+            )
+        if not self.risk_class:
+            raise ValueError(
+                f"{self.name}: a tool above read_sensitive must declare a risk_class, one of "
+                f"{', '.join(RISK_CLASSES)}. An undeclared class is treated as the most "
+                f"dangerous one, so the tool would never run unattended."
             )
 
 

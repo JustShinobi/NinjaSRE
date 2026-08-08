@@ -31,6 +31,10 @@ _ANTI_EXAMPLES = (
     evidence_source="control_plane",
     evidence_type=EvidenceType.CHANGE,
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # Draining moves every workload on the node at once, so the blast radius is
+    # whatever happened to be scheduled there, and a cluster with no room to
+    # reschedule loses their availability rather than relocating it.
+    risk_class="high",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

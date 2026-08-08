@@ -49,6 +49,9 @@ class CapabilityView:
     evidence_source: str = ""
     evidence_type: str = ""
     side_effect_level: str = ""
+    #: How dangerous one call is, as the autonomy policy engine reads it. Blank
+    #: on a read tool, which is never asked, and required on everything above.
+    risk_class: str = ""
     parallel_safe: bool = False
     requires_approval: bool = False
     approval_reason: str = ""
@@ -79,6 +82,7 @@ class CapabilityView:
                     "evidence_source": self.evidence_source,
                     "evidence_type": self.evidence_type,
                     "side_effect_level": self.side_effect_level,
+                    "risk_class": self.risk_class,
                     "parallel_safe": self.parallel_safe,
                     "requires_approval": self.requires_approval,
                     "approval_reason": self.approval_reason,
@@ -123,6 +127,7 @@ def _view(
             evidence_source=metadata.evidence_source,
             evidence_type=metadata.evidence_type.value,
             side_effect_level=metadata.side_effect_level.value,
+            risk_class=metadata.risk_class,
             parallel_safe=metadata.parallel_safe,
             requires_approval=metadata.requires_approval,
             approval_reason=metadata.approval_reason,

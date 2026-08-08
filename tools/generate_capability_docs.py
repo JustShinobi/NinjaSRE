@@ -27,6 +27,7 @@ from pathlib import Path
 from capabilities.registry.api import CapabilityView, catalogue_view, summary
 from capabilities.registry.catalogue import build_registry
 from core.capability.metadata import CapabilityKind, SideEffectLevel
+from platform.autonomy.risk import RiskClass
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "capabilities.md"
@@ -49,6 +50,18 @@ _LEVEL_NOTES: dict[str, str] = {
 }
 
 
+#: Rendered next to each risk class, for the same reason the levels carry a
+#: note: the word alone does not say what an operator is agreeing to when they
+#: set an autonomy bound at it.
+_RISK_NOTES: dict[str, str] = {
+    RiskClass.TRIVIAL.value: RiskClass.TRIVIAL.describe(),
+    RiskClass.LOW.value: RiskClass.LOW.describe(),
+    RiskClass.MODERATE.value: RiskClass.MODERATE.describe(),
+    RiskClass.HIGH.value: RiskClass.HIGH.describe(),
+    RiskClass.CRITICAL.value: RiskClass.CRITICAL.describe(),
+}
+
+
 def _render_tool(view: CapabilityView) -> list[str]:
     """Return the lines documenting one tool."""
     note = _LEVEL_NOTES.get(view.side_effect_level, "")
@@ -61,6 +74,8 @@ def _render_tool(view: CapabilityView) -> list[str]:
         f"- **Evidence:** {view.evidence_type} from {view.evidence_source}",
         f"- **Parallel safe:** {'yes' if view.parallel_safe else 'no'}",
     ]
+    if view.risk_class:
+        lines.append(f"- **Risk class:** `{view.risk_class}` — {_RISK_NOTES[view.risk_class]}")
     if view.requires:
         lines.append(f"- **Requires:** {', '.join(view.requires)}")
     if view.requires_approval:

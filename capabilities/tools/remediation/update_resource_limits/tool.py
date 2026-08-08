@@ -31,6 +31,9 @@ _ANTI_EXAMPLES = (
     evidence_source="control_plane",
     evidence_type=EvidenceType.CHANGE,
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # Reversible by setting them back, and it restarts the workload's instances to
+    # take effect, which is a further action to undo and an interruption to cause.
+    risk_class="moderate",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

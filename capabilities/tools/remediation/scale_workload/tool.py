@@ -27,6 +27,9 @@ _USE_CASES = (
     evidence_source="control_plane",
     evidence_type=EvidenceType.CHANGE,
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # Reversible by scaling back, reaches the one workload named, and the worst
+    # case is a period of too little capacity.
+    risk_class="low",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

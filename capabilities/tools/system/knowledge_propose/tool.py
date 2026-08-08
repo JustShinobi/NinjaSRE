@@ -74,6 +74,9 @@ _PROPOSE_ANTI_EXAMPLES = (
     # write is "only" to an internal queue is how the scale stops meaning what
     # it says.
     side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+    # It writes a proposal for a person to read. Nothing in production changes, and
+    # withdrawing it is a delete.
+    risk_class="trivial",
     parallel_safe=False,
     requires_approval=True,
     approval_reason=(

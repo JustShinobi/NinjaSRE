@@ -113,6 +113,7 @@ Acknowledge an incident and attach a note saying an automated investigation is u
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** incident from alertmanager
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Requires:** alertmanager
 - **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
 
@@ -171,6 +172,7 @@ Acknowledge an incident and attach a note saying an automated investigation is u
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** incident from blameless
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Requires:** blameless
 - **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
 
@@ -229,6 +231,7 @@ Acknowledge an incident and attach a note saying an automated investigation is u
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** incident from firehydrant
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Requires:** firehydrant
 - **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
 
@@ -287,6 +290,7 @@ Acknowledge an incident and attach a note saying an automated investigation is u
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** incident from incident_io
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Requires:** incident_io
 - **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
 
@@ -345,6 +349,7 @@ Acknowledge an incident and attach a note saying an automated investigation is u
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** incident from opsgenie
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Requires:** opsgenie
 - **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
 
@@ -403,6 +408,7 @@ Acknowledge an incident and attach a note saying an automated investigation is u
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** incident from pagerduty
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Requires:** pagerduty
 - **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
 
@@ -461,6 +467,7 @@ Acknowledge an incident and attach a note saying an automated investigation is u
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** incident from servicenow
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Requires:** servicenow
 - **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
 

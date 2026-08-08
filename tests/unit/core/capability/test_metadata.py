@@ -127,6 +127,17 @@ def test_a_write_tool_must_declare_a_rollback_plan_generator() -> None:
         )
 
 
+def test_a_write_tool_must_declare_how_dangerous_it_is() -> None:
+    with pytest.raises(ValueError, match="risk_class"):
+        _tool(
+            name="kubernetes_restart_deployment",
+            side_effect_level=SideEffectLevel.WRITE_REVERSIBLE,
+            requires_approval=True,
+            approval_reason="Restarting a deployment drops in-flight requests.",
+            rollback_plan="Scale the previous ReplicaSet back up and delete the new one.",
+        )
+
+
 def test_a_complete_write_declaration_is_accepted() -> None:
     metadata = _tool(
         name="kubernetes_restart_deployment",
@@ -134,10 +145,12 @@ def test_a_complete_write_declaration_is_accepted() -> None:
         requires_approval=True,
         approval_reason="Restarting a deployment drops in-flight requests.",
         rollback_plan="Scale the previous ReplicaSet back up and delete the new one.",
+        risk_class="moderate",
     )
 
     assert metadata.side_effect_level.needs_approval
     assert metadata.rollback_plan
+    assert metadata.risk_class == "moderate"
 
 
 def test_a_read_tool_may_not_claim_approval_it_does_not_need() -> None:

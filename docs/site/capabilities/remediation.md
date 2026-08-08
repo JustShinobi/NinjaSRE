@@ -31,6 +31,7 @@ Empty a cache, or one namespace within it. There is no rollback: the entries are
 - **Side effect:** `write_irreversible` — changes something that cannot be undone
 - **Evidence:** change from control_plane
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Approval:** required — A cleared cache cannot be restored, and every request that would have hit it goes to the origin until traffic refills it. On a busy service that is a second incident.
 
 **Use when:**
@@ -50,6 +51,7 @@ Stop a node accepting new work, and optionally evict what is running on it. Reve
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** change from control_plane
 - **Parallel safe:** no
+- **Risk class:** `high` — Not reversible without a restore, or reaching many resources at once.
 - **Approval:** required — Cordoning removes capacity from the pool, and draining moves running workloads. In a pool with little headroom the two together are an outage.
 
 **Use when:**
@@ -69,6 +71,7 @@ Restart a workload's instances. Drops in-flight requests and destroys the proces
 - **Side effect:** `write_irreversible` — changes something that cannot be undone
 - **Evidence:** change from control_plane
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Approval:** required — Restarting drops every in-flight request and destroys the process state that would explain the failure. Neither is recoverable.
 
 **Use when:**
@@ -88,6 +91,7 @@ Return a workload to a previous release. Reversible by re-deploying the revision
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** change from control_plane
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Approval:** required — Rolling back changes what is running in production. It is reversible, but it moves every user onto different code while it is in effect.
 
 **Use when:**
@@ -102,6 +106,7 @@ Change a workload's replica count. Reversible by restoring the count recorded in
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** change from control_plane
 - **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
 - **Approval:** required — Scaling changes capacity and cost, and scaling down can turn a degradation into an outage.
 
 **Use when:**
@@ -116,6 +121,7 @@ Change a feature flag's value or rollout percentage. Reversible by restoring bot
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** change from control_plane
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Approval:** required — A flag changes behaviour for real users immediately and without a deploy, which is what makes it the fastest mitigation and the easiest to get wrong.
 
 **Use when:**
@@ -135,6 +141,7 @@ Change a workload's CPU and memory requests and limits. Reversible by restoring 
 - **Side effect:** `write_reversible` — changes something, undoable by plan
 - **Evidence:** change from control_plane
 - **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
 - **Approval:** required — Changing limits restarts the workload on most control planes, and a limit set below current usage turns a slow degradation into an immediate kill.
 
 **Use when:**
