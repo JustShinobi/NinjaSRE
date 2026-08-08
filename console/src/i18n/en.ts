@@ -432,6 +432,8 @@ export const EN = {
   'autonomy.column.risk': 'Risk bound',
   'autonomy.column.applies': 'Applies to',
   'autonomy.footer': 'Absence of a rule resolves to propose-only.',
+  'autonomy.dry_run': 'Everything here is simulated: dry-run is on for this node.',
+  'autonomy.bound.stopped': 'Automated writes stopped',
   'autonomy.bounds.title': 'Bounds no level overrides',
   'autonomy.preview.title': 'Preview before applying',
   'autonomy.preview.lead':

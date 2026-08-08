@@ -196,7 +196,7 @@
       "theme": "light",
       "accepted": {
         "against": "06-screen-autonomy.png",
-        "reason": "The autonomy screen at the reference's two-thirds/one-third split, with the permanent footer stating that the absence of a rule resolves to propose-only and the configured bounds in the context rail. The rules table itself is the policy engine's data and is not served yet; what is captured is the frame, the bounds and the footer."
+        "reason": "The autonomy screen at the reference's two-thirds/one-third split: the rules table in resolution order, the permanent footer stating that the absence of a rule resolves to propose-only, and the bounds no level overrides in the context rail. Re-accepted when the policy engine landed and the rules table stopped being empty; the frame, the split and the footer are unchanged from the first acceptance."
       }
     },
     {
@@ -257,7 +257,7 @@
       "file": "06-screen-autonomy.png",
       "status": "baselined",
       "surface": "the console data surfaces",
-      "note": "The autonomy policy screen. The frame, the bounds card and the permanent propose-only footer are baselined here; the rules table is the policy engine's data and arrives with it."
+      "note": "The autonomy policy screen. The frame, the bounds card, the permanent propose-only footer and the rules table are all baselined here; the rules are the policy engine's, read in resolution order."
     },
     {
       "file": "07-states-empty-error.png",

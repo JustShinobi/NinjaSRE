@@ -415,6 +415,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.column.risk': 'Limite de risco',
   'autonomy.column.applies': 'Aplica-se a',
   'autonomy.footer': 'A ausência de uma regra resolve para apenas-propor.',
+  'autonomy.dry_run': 'Tudo aqui é simulado: o modo de simulação está ligado neste nó.',
+  'autonomy.bound.stopped': 'Escritas automáticas paradas',
   'autonomy.bounds.title': 'Limites que nenhum nível ultrapassa',
   'autonomy.preview.title': 'Pré-visualizar antes de aplicar',
   'autonomy.preview.lead':

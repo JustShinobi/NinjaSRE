@@ -1,0 +1,345 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "dry_run": false,
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "env-production",
+        "overrides": [],
+        "rules": [
+          {
+            "level": "propose_only",
+            "risk_bound": "low",
+            "scope": {
+              "kind": "deployment"
+            }
+          },
+          {
+            "level": "act_and_report",
+            "risk_bound": "low",
+            "scope": {
+              "capability": "unlock_guest",
+              "kind": "capability"
+            }
+          },
+          {
+            "level": "act_on_low_risk",
+            "risk_bound": "moderate",
+            "scope": {
+              "kind": "labels",
+              "labels": {
+                "env": "lab"
+              }
+            }
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-policy",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "dry_run": false,
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "env-staging",
+        "overrides": [],
+        "rules": [
+          {
+            "level": "propose_only",
+            "risk_bound": "low",
+            "scope": {
+              "kind": "deployment"
+            }
+          },
+          {
+            "level": "act_and_report",
+            "risk_bound": "low",
+            "scope": {
+              "capability": "unlock_guest",
+              "kind": "capability"
+            }
+          },
+          {
+            "level": "act_on_low_risk",
+            "risk_bound": "moderate",
+            "scope": {
+              "kind": "labels",
+              "labels": {
+                "env": "lab"
+              }
+            }
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-policy",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "dry_run": false,
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "org-northwind",
+        "overrides": [],
+        "rules": [
+          {
+            "level": "propose_only",
+            "risk_bound": "low",
+            "scope": {
+              "kind": "deployment"
+            }
+          },
+          {
+            "level": "act_and_report",
+            "risk_bound": "low",
+            "scope": {
+              "capability": "unlock_guest",
+              "kind": "capability"
+            }
+          },
+          {
+            "level": "act_on_low_risk",
+            "risk_bound": "moderate",
+            "scope": {
+              "kind": "labels",
+              "labels": {
+                "env": "lab"
+              }
+            }
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-policy",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "dry_run": false,
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "team-platform",
+        "overrides": [],
+        "rules": [
+          {
+            "level": "propose_only",
+            "risk_bound": "low",
+            "scope": {
+              "kind": "deployment"
+            }
+          },
+          {
+            "level": "act_and_report",
+            "risk_bound": "low",
+            "scope": {
+              "capability": "unlock_guest",
+              "kind": "capability"
+            }
+          },
+          {
+            "level": "act_on_low_risk",
+            "risk_bound": "moderate",
+            "scope": {
+              "kind": "labels",
+              "labels": {
+                "env": "lab"
+              }
+            }
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-policy",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "dry_run": false,
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "team-storage",
+        "overrides": [],
+        "rules": [
+          {
+            "level": "propose_only",
+            "risk_bound": "low",
+            "scope": {
+              "kind": "deployment"
+            }
+          },
+          {
+            "level": "act_and_report",
+            "risk_bound": "low",
+            "scope": {
+              "capability": "unlock_guest",
+              "kind": "capability"
+            }
+          },
+          {
+            "level": "act_on_low_risk",
+            "risk_bound": "moderate",
+            "scope": {
+              "kind": "labels",
+              "labels": {
+                "env": "lab"
+              }
+            }
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-policy",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "autonomy-policy"
+}

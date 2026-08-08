@@ -1,0 +1,220 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "expired_overrides": [],
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "env-production",
+        "overrides": [],
+        "stop_reason": "",
+        "stopped": false
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-bounds",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "expired_overrides": [],
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "env-staging",
+        "overrides": [],
+        "stop_reason": "",
+        "stopped": false
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-bounds",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "expired_overrides": [],
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "org-northwind",
+        "overrides": [],
+        "stop_reason": "",
+        "stopped": false
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-bounds",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "expired_overrides": [],
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "team-platform",
+        "overrides": [],
+        "stop_reason": "",
+        "stopped": false
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-bounds",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "budgets": [
+          {
+            "counted_by": "resource",
+            "interval_seconds": 3600.0,
+            "limit": 5,
+            "name": "hourly"
+          }
+        ],
+        "expired_overrides": [],
+        "freezes": [
+          {
+            "end": "04:00",
+            "name": "nightly-backups",
+            "reason": "backups run",
+            "scope": {
+              "kind": "resource",
+              "resource_id": "store-cove"
+            },
+            "start": "01:00",
+            "timezone": "Europe/Lisbon"
+          }
+        ],
+        "node_id": "team-storage",
+        "overrides": [],
+        "stop_reason": "",
+        "stopped": false
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-bounds",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "autonomy-bounds"
+}

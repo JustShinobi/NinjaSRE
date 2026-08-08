@@ -242,6 +242,20 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/autonomy/policy/{node_id}",
+        slug="autonomy-policy",
+        source=_GATEWAY,
+        summary="what a node may do without asking, inheritance applied",
+    ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/autonomy/policy/{node_id}/bounds",
+        slug="autonomy-bounds",
+        source=_GATEWAY,
+        summary="the freezes, budgets, overrides and stop bounding a node",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/config/{node_id}",
         slug="config-effective",
         source=_GATEWAY,

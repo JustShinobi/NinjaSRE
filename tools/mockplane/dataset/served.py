@@ -553,6 +553,87 @@ def config_records() -> tuple[CapturedRecord, ...]:
         )
         records.append(
             _record(
+                "autonomy-policy",
+                {"node_id": identifier},
+                {
+                    "node_id": identifier,
+                    "dry_run": False,
+                    # One rule per posture the primary story names, so the screen
+                    # shows the three that matter rather than one of each shape:
+                    # the safe default everywhere, one relaxation, and one
+                    # resource that is never touched unattended.
+                    "rules": [
+                        {
+                            "scope": {"kind": "deployment"},
+                            "level": "propose_only",
+                            "risk_bound": "low",
+                        },
+                        {
+                            "scope": {"kind": "capability", "capability": "unlock_guest"},
+                            "level": "act_and_report",
+                            "risk_bound": "low",
+                        },
+                        {
+                            "scope": {"kind": "labels", "labels": {"env": "lab"}},
+                            "level": "act_on_low_risk",
+                            "risk_bound": "moderate",
+                        },
+                    ],
+                    "freezes": [
+                        {
+                            "name": "nightly-backups",
+                            "scope": {"kind": "resource", "resource_id": "store-cove"},
+                            "start": "01:00",
+                            "end": "04:00",
+                            "timezone": "Europe/Lisbon",
+                            "reason": "backups run",
+                        }
+                    ],
+                    "budgets": [
+                        {
+                            "name": "hourly",
+                            "counted_by": "resource",
+                            "limit": 5,
+                            "interval_seconds": 3600.0,
+                        }
+                    ],
+                    "overrides": [],
+                },
+            )
+        )
+        records.append(
+            _record(
+                "autonomy-bounds",
+                {"node_id": identifier},
+                {
+                    "node_id": identifier,
+                    "stopped": False,
+                    "stop_reason": "",
+                    "freezes": [
+                        {
+                            "name": "nightly-backups",
+                            "scope": {"kind": "resource", "resource_id": "store-cove"},
+                            "start": "01:00",
+                            "end": "04:00",
+                            "timezone": "Europe/Lisbon",
+                            "reason": "backups run",
+                        }
+                    ],
+                    "budgets": [
+                        {
+                            "name": "hourly",
+                            "counted_by": "resource",
+                            "limit": 5,
+                            "interval_seconds": 3600.0,
+                        }
+                    ],
+                    "overrides": [],
+                    "expired_overrides": [],
+                },
+            )
+        )
+        records.append(
+            _record(
                 "config-catalogue",
                 {"node_id": identifier},
                 {

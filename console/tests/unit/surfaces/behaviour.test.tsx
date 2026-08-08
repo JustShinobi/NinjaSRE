@@ -135,6 +135,42 @@ describe('a screen reached through its address', () => {
   });
 });
 
+describe('the autonomy screen', () => {
+  beforeEach(() => {
+    serveScenario('populated', principalHolding(['config.read']));
+  });
+
+  it('reads the rules in resolution order, least specific first', async () => {
+    await renderArea('autonomy');
+
+    const levels = screen
+      .getAllByTestId('autonomy-rule')
+      .map((row) => row.getAttribute('data-level'));
+
+    expect(levels.length).toBeGreaterThan(0);
+    expect(levels[0]).toBe('propose_only');
+  });
+
+  it('says what an empty table would have meant, whatever the table holds', async () => {
+    await renderArea('autonomy');
+
+    // The footer is not an empty state. An operator reading a *full* table
+    // still needs to know that anything the rules do not cover is refused.
+    expect(screen.getByTestId('autonomy-footer').textContent).toContain('propose-only');
+  });
+
+  it('shows the bounds beside the rules, because both are true at once', async () => {
+    await renderArea('autonomy');
+
+    const kinds = screen
+      .getAllByTestId('bound')
+      .map((entry) => entry.getAttribute('data-bound'));
+
+    expect(kinds).toContain('freeze');
+    expect(kinds).toContain('budget');
+  });
+});
+
 describe('a viewer who may act', () => {
   it('is offered the decision controls on an approval', async () => {
     serveScenario(
