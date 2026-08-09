@@ -2,7 +2,7 @@
 
 # cloud_control_plane capabilities
 
-28 tools and 14 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+32 tools and 16 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
 
@@ -187,6 +187,32 @@ Events before logs, and what shipped before either. Events expire in an hour.
 
 - `kubernetes_workload_events`
 - `kubernetes_rollout_history`
+
+### `cloud_control_plane-proxmox`
+
+Quorum before nodes, nodes before guests. A cluster that cannot decide has already answered.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, alertmanager, prometheus
+- **Requires:** proxmox
+
+**Directs:**
+
+- `proxmox_cluster_health`
+- `proxmox_storage_pressure`
+- `proxmox_protection_gaps`
+
+### `cloud_control_plane-proxmox_backup_server`
+
+A snapshot nobody verified is a file. Check verification and garbage collection, not just usage.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, proxmox_backup_server, alertmanager
+- **Requires:** proxmox_backup_server
+
+**Directs:**
+
+- `proxmox_backup_server_datastore_health`
 
 ## Tools
 
@@ -725,3 +751,87 @@ Read Kubernetes events for a namespace, optionally for one object by name. Event
 - reading application output, which is a log question and not an event one
 - anything older than the cluster's event retention, typically one hour
 - cluster-wide health, where every workload's events at once is noise
+
+#### `proxmox_backup_server_datastore_health`
+
+Return whether a Proxmox Backup Server datastore holds something that would restore: its usage, its snapshots, whether those snapshots have been verified, and when garbage collection last ran. An unverified snapshot is a file rather than a restore, and a store that has never verified looks identical to one that passes.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox_backup_server
+- **Parallel safe:** yes
+- **Requires:** proxmox_backup_server
+
+**Use when:**
+
+- checking whether a guest's most recent snapshot has actually been verified
+- finding out whether a datastore's usage figure reflects a garbage collection that ran
+- establishing that a backup exists and is recent before planning a restore
+
+**Not for:**
+
+- restoring, pruning or collecting garbage — nothing here writes
+- whether the hypervisor's backup job ran, which proxmox_protection_gaps answers
+- what is inside a snapshot, which is a restore rather than a read
+
+#### `proxmox_cluster_health`
+
+Return a Proxmox cluster's quorum state, its vote arithmetic, and which nodes are answering. Reports the quorum margin — how many votes can be lost before the cluster stops being able to decide anything — which on a two-node cluster is usually zero even when everything is green.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- establishing whether the cluster can start, stop or migrate anything at all
+- finding out how many node failures the cluster survives before it stops deciding
+- checking whether a quorum device that is configured is actually contributing a vote
+
+**Not for:**
+
+- why one guest is unhealthy, which is a guest question and this does not answer
+- how full a datastore is, which proxmox_storage_pressure reads
+- changing anything about the cluster — nothing here writes
+
+#### `proxmox_protection_gaps`
+
+Return which Proxmox guests are covered by an enabled backup job, which are covered only by a disabled one, and whether any replication exists. A job that exists and is switched off satisfies every coverage count and protects nothing.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding which guests are covered by no enabled backup job
+- checking whether a node loss is recoverable inside the cluster at all
+- seeing a backup job that exists and is switched off, which every coverage count misses
+
+**Not for:**
+
+- restoring a guest, or running a backup — nothing here writes
+- whether a backup that ran succeeded, which the task history answers
+- how full the backup datastore is, which proxmox_storage_pressure reads
+
+#### `proxmox_storage_pressure`
+
+Return how full a Proxmox node's storage is at the three levels that fail independently: datastores, LVM-thin pools with data and metadata reported separately, and each guest's own thin volume. A guest at 99% of its volume while its datastore reports 84% is the case a datastore threshold cannot see.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding out whether a guest that cannot write is out of its own volume rather than out of datastore space
+- checking a thin pool's metadata, which stops writes while its data figure looks fine
+- listing the datastores a node currently cannot reach at all
+
+**Not for:**
+
+- growing a volume or a pool — nothing here writes
+- what is inside a backup, which is a datastore-contents question
+- whether a guest is healthy, which storage pressure is only one cause of

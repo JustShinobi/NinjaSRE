@@ -2,12 +2,12 @@
 
 # Integration catalogue
 
-82 integrations, grouped by what they are for. Credentials never reach the agent: an integration client carries a scoped handle and the credential proxy injects the secret at the network edge.
+84 integrations, grouped by what they are for. Credentials never reach the agent: an integration client carries a scoped handle and the credential proxy injects the secret at the network edge.
 
 | Category | Integrations |
 |---|---|
 | [cicd](cicd.md) | 4 |
-| [cloud_control_plane](cloud-control-plane.md) | 14 |
+| [cloud_control_plane](cloud-control-plane.md) | 16 |
 | [communication](communication.md) | 8 |
 | [data_platform](data-platform.md) | 8 |
 | [database](database.md) | 7 |

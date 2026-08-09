@@ -2,7 +2,7 @@
 
 # cloud_control_plane integrations
 
-14 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
+16 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
 
 ### `aws_cloudtrail`
 
@@ -394,3 +394,57 @@ Workload events and rollout history from a cluster's API server, at whichever en
 **Pagination:**
 
 - `list_events` — cursor on `continue`
+
+### `proxmox`
+
+A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, datastores, thin pools, backups and replication, at whichever addresses the operator declared.
+
+- **Category:** cloud_control_plane
+- **Regions:** self-hosted
+- **Credentials:** api_token
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `proxmox_cluster_health`
+- `proxmox_protection_gaps`
+- `proxmox_storage_pressure`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `Sys.Audit on /` | read cluster status, quorum, corosync configuration and the cluster log | `proxmox_cluster_health` |
+| `VM.Audit on /vms` | read every guest's status, configuration, snapshots and task history | `proxmox_protection_gaps` |
+| `Datastore.Audit on /storage` | read datastore status, contents and the thin pools underneath them | `proxmox_storage_pressure` |
+
+**Pagination:**
+
+- `node_tasks` — offset on `start`
+
+### `proxmox_backup_server`
+
+Datastore usage, snapshots, verification outcomes and garbage-collection state from a Proxmox Backup Server, at whichever address the operator declared.
+
+- **Category:** cloud_control_plane
+- **Regions:** self-hosted
+- **Credentials:** api_token
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `proxmox_backup_server_datastore_health`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `Datastore.Audit on /datastore` | read datastore usage, snapshots, verification outcomes and garbage-collection state | `proxmox_backup_server_datastore_health` |
+
+**Pagination:**
+
+- `snapshots` — offset on `start`
