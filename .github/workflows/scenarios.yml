@@ -82,3 +82,53 @@ jobs:
           name: scenario-verdicts
           path: scenario-verdicts.jsonl
           if-no-files-found: warn
+
+  # The hypervisor half, which is cheap and runs on every path rather than only
+  # on this one. It reads recorded API responses through the shipped
+  # investigation tools and scores recorded transcripts, so it spends no tokens
+  # and needs no cluster — `make verify` already runs it through the test suite.
+  #
+  # It is here as well for the two things a pull request does not produce: the
+  # full artefact, with every transcript and every reading behind every verdict,
+  # and the statement of which destructive scenarios were simulated. Both are
+  # what a release note cites.
+  hypervisor:
+    name: hypervisor scenarios
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Provision the environment
+        run: make install
+
+      - name: Score the scenarios and gate them against the committed baseline
+        run: make test-proxmox-scenarios
+
+      - name: Assert every hypervisor write is exercised by a scenario
+        if: always()
+        run: make proxmox-scenario-coverage
+
+      - name: State which destructive scenarios were real
+        if: always()
+        run: make e2e-proxmox-laboratory
+
+      - name: Publish the scored runs
+        if: always()
+        run: |
+          PYTHONPATH="$PWD" uv run python -m tests.harness.proxmox --json \
+            > proxmox-scenario-runs.json
+
+      - name: Upload the scored runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proxmox-scenario-runs
+          path: proxmox-scenario-runs.json
+          if-no-files-found: warn
