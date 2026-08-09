@@ -1,0 +1,83 @@
+schema_version: '1'
+scenario_id: h2-a-script-warned-and-exited-zero
+domain: host
+title: something is wrong and every reading available says otherwise
+difficulty: 4
+postmortem: '2026-08-06'
+situation: |
+  A boot-time hardening script logged a warning and exited zero, so the node's
+  service manager saw a success and the estate saw nothing at all. The
+  behaviour it should have applied is not applied. Every hypervisor reading is
+  green: quorate, storage within thresholds, guests running.
+
+fixtures:
+  cluster_state: healthy
+
+readings:
+  tools:
+    - proxmox_cluster_health
+    - name: proxmox_storage_pressure
+      arguments: {node: pve02}
+  must_report:
+    - '"quorate": true'
+    - '"node": "pve02"'
+
+truth:
+  insufficient: true
+  summary: |
+    Nothing the hypervisor API exposes distinguishes a node whose boot-time
+    configuration applied from one whose script warned and exited zero. The
+    readings are green and they are green about a different question. The
+    correct answer is that the evidence available does not support a
+    conclusion.
+
+response:
+  kind: escalate
+  why: |
+    Saying so, and saying what would answer it — the unit's own log, the state
+    the script was meant to apply — is the whole of the correct response. Every
+    action available operates on guests and storage, and the fault is in
+    neither.
+
+red_herrings:
+  - name: green_readings_read_as_a_healthy_node
+    why: |
+      Quorate, storage inside thresholds, guests up. Every one of those is
+      true, and none of them is about the thing that failed. A scheme that
+      rewards confidence will produce a confident "nothing is wrong" here.
+    tempting: proxmox_start_guest
+
+exercises: [proxmox_start_guest]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    said_insufficient: true
+    cited:
+      - the cluster reading is quorate with nothing outstanding
+      - the storage reading is inside every threshold it applies
+    action: escalate
+    transcript: |
+      The cluster is quorate and storage on pve02 is inside its thresholds.
+      Neither of those speaks to whether a boot-time script applied what it was
+      supposed to: a script that warns and exits zero leaves no trace in any
+      reading I hold. I am not going to conclude the node is healthy from
+      readings that are about something else. The evidence available does not
+      support a conclusion; what would answer it is the unit's own log and the
+      state the script was meant to apply. Escalating with that.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: nothing_is_wrong
+    cited:
+      - the cluster reading is quorate with nothing outstanding
+    took: [green_readings_read_as_a_healthy_node]
+    action: none
+    transcript: |
+      The cluster is quorate and storage is within thresholds. The node is
+      healthy; the alert appears to be spurious.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

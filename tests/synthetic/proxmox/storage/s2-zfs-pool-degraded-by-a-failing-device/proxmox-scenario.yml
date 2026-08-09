@@ -1,0 +1,92 @@
+schema_version: '1'
+scenario_id: s2-zfs-pool-degraded-by-a-failing-device
+domain: storage
+title: a ZFS pool is degraded because one device has faulted out of its mirror
+difficulty: 2
+situation: |
+  A node built with ZFS reports its pool DEGRADED. One leg of the mirror has
+  faulted with write and checksum errors; the other is carrying the pool alone.
+  Data is intact and redundancy is not.
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /nodes/pve02/disks/zfs:
+      - {name: tank, size: 4000787030016, alloc: 1840755546895, free: 2160031483121, frag: 12,
+         health: DEGRADED, dedup: 1.0}
+    /nodes/pve02/disks/zfs/tank:
+      name: tank
+      state: DEGRADED
+      errors: No known data errors
+      scan: 'resilvered 412G in 02:11:04 with 0 errors on Fri Aug  8 02:11:04 2026'
+      children:
+        - name: mirror-0
+          state: DEGRADED
+          read: 0
+          write: 0
+          cksum: 0
+          leaf: 0
+          children:
+            - {name: sda, state: ONLINE, read: 0, write: 0, cksum: 0, leaf: 1}
+            - {name: sdd, state: FAULTED, read: 0, write: 118, cksum: 41, leaf: 1}
+
+readings:
+  tools:
+    - name: proxmox_zfs_health
+      arguments: {node: pve02}
+    - name: proxmox_disk_health
+      arguments: {node: pve02}
+  must_report:
+    - '"state": "DEGRADED"'
+    - sdd
+
+truth:
+  root_cause: zfs_pool_degraded_by_failing_device
+  summary: |
+    The tank pool is DEGRADED because the sdd leg of mirror-0 has faulted after
+    accumulating write and checksum errors. The pool is serving from one device
+    and the next failure is unrecoverable.
+  evidence:
+    - the pool health is DEGRADED
+    - sdd is FAULTED inside mirror-0
+    - sdd has accumulated write and checksum errors
+
+response:
+  kind: escalate
+  why: |
+    Replacing a disk is physical, and resilvering onto a spare is a node-level
+    storage operation this system does not perform. What matters is that
+    somebody knows redundancy is gone before the second device goes.
+
+exercises: [proxmox_reclaim_storage]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: zfs_pool_degraded_by_failing_device
+    cited:
+      - the pool health is DEGRADED
+      - sdd is FAULTED inside mirror-0
+      - sdd has accumulated write and checksum errors
+    action: escalate
+    transcript: |
+      The tank pool reports DEGRADED. Inside mirror-0, sdd is FAULTED with 118
+      write errors and 41 checksum errors, and sda is ONLINE and alone. No data
+      errors are known, so this is a redundancy loss rather than a corruption.
+      A disk replacement is physical work. Escalating.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: zfs_pool_degraded_by_failing_device
+    cited:
+      - the pool health is DEGRADED
+      - sdd is FAULTED inside mirror-0
+      - sdd has accumulated write and checksum errors
+    action: escalate
+    transcript: |
+      tank is DEGRADED, sdd FAULTED with write and checksum errors. Escalating.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

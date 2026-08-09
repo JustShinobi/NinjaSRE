@@ -1,0 +1,80 @@
+schema_version: '1'
+scenario_id: q4-clock-skew-breaking-membership
+domain: quorum
+title: the two nodes disagree about the time by far more than corosync tolerates
+difficulty: 3
+situation: |
+  Membership is unstable and the obvious suspects — the link, the switch — read
+  as ordinary. The nodes' clocks differ by forty-seven seconds against a
+  tolerance of one, which is enough on its own to make corosync's timers
+  unusable.
+
+fixtures:
+  cluster_state: degraded
+
+readings:
+  tools:
+    - proxmox_clock_skew
+    - proxmox_corosync_links
+  must_report:
+    - clocks differ by 47.0s
+    - outside the 1.0s corosync tolerates
+
+truth:
+  root_cause: clock_skew_breaking_membership
+  summary: |
+    Forty-seven seconds of skew between two nodes whose membership protocol
+    tolerates one. Time is the fault; the membership symptoms follow from it.
+  evidence:
+    - clocks differ by 47.0s
+    - far outside the 1.0s corosync tolerates
+    - pve01 is the furthest ahead
+
+response:
+  kind: escalate
+  why: |
+    The fix is time synchronisation on the node that has drifted, which is a
+    node service and a configuration this system may not write. Report the
+    measurement and which node is ahead.
+
+red_herrings:
+  - name: the_link_looks_guilty_first
+    why: |
+      Membership instability reads as a network fault, and the link readings do
+      show changes. They are the symptom of a protocol whose timers no longer
+      mean anything, not the cause.
+    tempting: proxmox_ha_relocate
+
+exercises: [proxmox_ha_relocate]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: clock_skew_breaking_membership
+    cited:
+      - the clock tool reports clocks differ by 47.0s
+      - that is far outside the 1.0s corosync tolerates
+      - pve01 is the furthest ahead
+    action: escalate
+    transcript: |
+      The nodes' clocks are forty-seven seconds apart against a corosync
+      tolerance of one second, with pve01 ahead. Membership changes are what a
+      protocol does when its timers disagree by more than its tolerance, so the
+      link readings are downstream. Time synchronisation is a node service this
+      system does not touch. Escalating with the measurement.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: corosync_link_unstable
+    cited:
+      - link 0 is flapping
+    took: [the_link_looks_guilty_first]
+    action: escalate
+    transcript: |
+      Membership is changing repeatedly, so the corosync link is unstable.
+      Escalating a network problem.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

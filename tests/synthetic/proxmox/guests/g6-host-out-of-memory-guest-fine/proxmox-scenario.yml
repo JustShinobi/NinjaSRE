@@ -1,0 +1,105 @@
+schema_version: '1'
+scenario_id: g6-host-out-of-memory-guest-fine
+domain: guests
+title: the node is out of memory and the guest complaining about it is not
+difficulty: 3
+modes: [fixture, laboratory]
+situation: |
+  A container is being killed and restarted. Its own memory use is a third of
+  its allowance. The node it runs on is at ninety-seven per cent of physical
+  memory with its swap gone, and the guest's disk is on a shared datastore both
+  nodes can reach.
+
+laboratory:
+  fault: allocate memory on lab02 until the node is at 97 per cent with swap exhausted
+  restore: roll lab02 back to the scenario-baseline snapshot
+  disables: [guest_starts_on_that_node]
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /nodes/pve02/status:
+      {uptime: 813600, loadavg: ['9.42', '8.31', '7.20'], cpu: 0.91,
+       cpuinfo: {cpus: 12, model: 'AMD Ryzen 5'},
+       memory: {total: 67355000000, used: 65334350000},
+       swap: {total: 8589934592, used: 8589934592},
+       rootfs: {total: 103079215104, used: 82463000000},
+       kversion: 'Linux 7.0.14-8-pve', pveversion: 'pve-manager/9.2.6'}
+    /nodes/pve02/lxc/115/config:
+      {hostname: adguard, cores: 2, memory: 1024, ostype: debian,
+       rootfs: 'TeraChad:vm-115-disk-0,size=8G'}
+
+readings:
+  tools:
+    - name: proxmox_guest_pressure
+      arguments: {node: pve02, vmid: 115, kind: lxc}
+    - name: proxmox_migration_feasibility
+      arguments: {node: pve02, vmid: 115, kind: lxc}
+  must_report:
+    - node
+    - '"memory"'
+
+truth:
+  root_cause: node_memory_exhausted_guest_innocent
+  summary: |
+    pve02 is at ninety-seven per cent of physical memory with swap fully
+    consumed, and the guest being killed is using a third of what it was given.
+    The guest is a victim of the node, not a cause.
+  evidence:
+    - the guest is using far less than its own memory allowance
+    - the node it runs on is nearly out of physical memory
+    - the guest's disk is on a shared datastore, so it can move
+
+response:
+  kind: act
+  capability: proxmox_migrate_guest
+  why: |
+    Moving the guest to the node that has memory relieves the pressure without
+    stopping anything. Its disk is on shared storage, so an online migration
+    copies memory and leaves the disk where it is: a brief pause at the
+    switch-over and no data loss. Every alternative — shutting a guest down,
+    suspending it, hard-stopping it — costs availability or unflushed writes to
+    fix a problem the guest did not cause.
+
+red_herrings:
+  - name: the_guest_being_killed_looks_like_the_guest_at_fault
+    why: |
+      The guest is the thing generating events, and its restarts are the
+      loudest signal on the node. Its own memory reading exonerates it, and
+      that reading is quiet.
+    tempting: proxmox_shutdown_guest
+
+exercises: [proxmox_migrate_guest, proxmox_shutdown_guest, proxmox_suspend_guest]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: node_memory_exhausted_guest_innocent
+    cited:
+      - the guest is using far less than its own memory allowance
+      - the node it runs on is nearly out of physical memory, with swap exhausted
+      - the guest's disk is on a shared datastore, so it can move
+    action: {kind: act, capability: proxmox_migrate_guest}
+    transcript: |
+      adguard is being killed and is using well under its allowance; pve02 is
+      at ninety-seven per cent of physical memory with swap gone. The node is
+      the constraint. Its rootfs is on TeraChad, which both nodes can reach, so
+      an online migration moves it without touching the disk. Proposing the
+      migration rather than shutting anything down.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: node_memory_exhausted_guest_innocent
+    cited:
+      - the guest is using far less than its own memory allowance
+      - the node it runs on is nearly out of physical memory, with swap exhausted
+    took: [the_guest_being_killed_looks_like_the_guest_at_fault]
+    action: {kind: act, capability: proxmox_suspend_guest}
+    transcript: |
+      The node is out of memory. Suspending the guest that is using memory to
+      give the node room.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

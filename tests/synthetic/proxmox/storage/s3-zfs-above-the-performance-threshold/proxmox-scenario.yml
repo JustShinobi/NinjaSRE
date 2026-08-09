@@ -1,0 +1,101 @@
+schema_version: '1'
+scenario_id: s3-zfs-above-the-performance-threshold
+domain: storage
+title: a ZFS pool is healthy, nearly full, and therefore slow
+difficulty: 3
+situation: |
+  Guests on one node have become slow to write. The pool is ONLINE with no
+  errors and is above the fill level at which a copy-on-write filesystem stops
+  finding contiguous space. Nothing is broken; the thing that changed is how
+  full it is.
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /nodes/pve02/disks/zfs:
+      - {name: tank, size: 4000787030016, alloc: 3760755546895, free: 240031483121, frag: 68,
+         health: ONLINE, dedup: 1.0}
+    /nodes/pve02/disks/zfs/tank:
+      name: tank
+      state: ONLINE
+      errors: No known data errors
+      scan: 'scrub repaired 0B in 04:12:31 with 0 errors on Sun Jun  8 04:12:31 2026'
+      children:
+        - name: mirror-0
+          state: ONLINE
+          read: 0
+          write: 0
+          cksum: 0
+          leaf: 0
+          children:
+            - {name: sda, state: ONLINE, read: 0, write: 0, cksum: 0, leaf: 1}
+            - {name: sdd, state: ONLINE, read: 0, write: 0, cksum: 0, leaf: 1}
+
+readings:
+  tools:
+    - name: proxmox_zfs_health
+      arguments: {node: pve02}
+  must_report:
+    - '"state": "ONLINE"'
+    - '"capacity_degrades_performance": true'
+    - '"capacity_threshold_percent": 80.0'
+
+truth:
+  root_cause: zfs_above_performance_threshold
+  summary: |
+    The pool is healthy and past the fill level at which allocation slows.
+    Fragmentation is high and free space is short, which is a performance
+    problem with no failure attached to it.
+  evidence:
+    - the pool health is ONLINE with no known data errors
+    - the pool is above the capacity threshold of 80.0 per cent
+    - fragmentation has risen with the fill level
+
+response:
+  kind: escalate
+  why: |
+    The remedy is capacity — moving guests off, adding devices, or deleting
+    data — and every one of those is a decision about what the estate is for.
+    Report the fill level, the fragmentation and the threshold.
+
+red_herrings:
+  - name: an_online_pool_reads_as_a_pool_with_no_problem
+    why: |
+      The pool's own word is ONLINE and there are no errors of any kind, which
+      is exactly what a healthy pool looks like. The performance cliff has no
+      error counter behind it.
+    tempting: proxmox_reclaim_storage
+
+exercises: [proxmox_reclaim_storage]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: zfs_above_performance_threshold
+    cited:
+      - the pool health is ONLINE with no known data errors
+      - the pool is above the capacity threshold of 80.0 per cent
+      - fragmentation has risen with the fill level
+    action: escalate
+    transcript: |
+      tank is ONLINE with no errors, so nothing has failed. It is past the
+      eighty per cent threshold with fragmentation at sixty-eight, which is the
+      point where a copy-on-write allocator starts hunting for space and writes
+      slow down. This is capacity, not health. Escalating with the numbers.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: zfs_above_performance_threshold
+    cited:
+      - the pool health is ONLINE with no known data errors
+      - the pool is above the capacity threshold of 80.0 per cent
+      - fragmentation has risen with the fill level
+    action: escalate
+    transcript: |
+      Pool ONLINE, no errors, above the 80 per cent threshold, fragmentation
+      68. Slow writes follow from fill. Escalating.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

@@ -1,0 +1,89 @@
+schema_version: '1'
+scenario_id: b2-guest-covered-by-no-job
+domain: backups
+title: a whole-node job is disabled and still names every guest on it
+difficulty: 4
+situation: |
+  The estate's coverage looks complete: there is a job for the node, it selects
+  every guest, and its membership list is exactly what an audit would want to
+  see. It is disabled. Coverage for that node is zero, and the job's own
+  membership is what makes it look otherwise.
+
+fixtures:
+  cluster_state: degraded
+
+readings:
+  tools:
+    - proxmox_backup_coverage
+    - proxmox_protection_gaps
+  must_report:
+    - covered by no enabled job
+    - are disabled and name guests that therefore have no coverage at all
+
+truth:
+  root_cause: guests_covered_by_no_enabled_job
+  summary: |
+    A disabled job that selects every guest on a node covers none of them. The
+    guests it names have no recovery point and no schedule that will produce
+    one.
+  evidence:
+    - the coverage reading counts guests covered by no enabled job
+    - the job naming them is disabled
+    - a disabled job that names every guest still covers none of them
+
+response:
+  kind: escalate
+  why: |
+    Enabling somebody's disabled job is a decision about what the estate backs
+    up, when, and onto which datastore — and the job may be disabled for a
+    reason that is not written down. There is no capability for it, and there
+    should not be. Report which guests are uncovered and which job names them.
+
+red_herrings:
+  - name: the_jobs_own_membership_list
+    why: |
+      The job selects every guest on the node, so any check that reads
+      membership finds full coverage. Only the enabled flag makes it zero, and
+      it is one field away from the list that looks reassuring.
+    tempting: proxmox_retry_backup
+
+exercises: [proxmox_retry_backup]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: guests_covered_by_no_enabled_job
+    cited:
+      - the coverage reading counts guests covered by no enabled job
+      - the job naming them is disabled
+      - a disabled job that names every guest still covers none of them
+    action: escalate
+    transcript: |
+      The coverage reading names guests with no enabled job, and the job that
+      selects them is disabled while still listing every guest on its node.
+      Membership is not coverage. Retrying a disabled job would not run it, and
+      enabling it is a decision about what this estate protects. Escalating
+      with the uncovered guests and the job identifier.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: guests_covered_by_no_enabled_job
+    cited:
+      - the coverage reading counts guests covered by no enabled job
+      - the job naming them is disabled
+      - a disabled job that names every guest still covers none of them
+    action: escalate
+    transcript: |
+      A disabled job names those guests, so their coverage is zero. Escalating.
+  - model: self-hosted-compact
+    arm: no-memory
+    diagnosis: none
+    cited:
+      - the job names every guest on the node
+    took: [the_jobs_own_membership_list]
+    action: none
+    transcript: |
+      There is a backup job covering every guest on the node. Coverage looks
+      complete. Nothing to do.

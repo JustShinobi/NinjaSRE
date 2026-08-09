@@ -1,0 +1,84 @@
+schema_version: '1'
+scenario_id: b4-replication-reports-success-but-is-stale
+domain: backups
+title: a replication job says it succeeded and last moved data a week ago
+difficulty: 3
+situation: |
+  The replication job for a guest reports no failures. Its last synchronisation
+  was seven days ago, so the copy on the other node is a week behind whatever
+  the guest holds now. Nothing has failed; the recovery point has simply been
+  standing still.
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /nodes/pve02/replication:
+      - {id: '115-0', source: pve02, target: pve01, guest: 115, disable: 0,
+         last_sync: 1754200000, duration: 44.2, fail_count: 0}
+
+readings:
+  tools:
+    - proxmox_replication_lag
+    - proxmox_protection_gaps
+  must_report:
+    - '"last_run_succeeded": true'
+    - '"stale": true'
+
+truth:
+  root_cause: replication_stale_despite_success
+  summary: |
+    The job is enabled, reports no failures, and has not run in a week. The
+    exposure is the interval since the last synchronisation, not the failure
+    count, and the failure count is what everything reads.
+  evidence:
+    - the replication reading shows the job's last run succeeded
+    - the reading marks the job stale
+    - the job covers guest 115
+
+response:
+  kind: act
+  capability: proxmox_resync_replication
+  why: |
+    A resynchronisation closes the gap and is the middle risk class: nothing on
+    the source changes, the target is overwritten with the source's state, and
+    the cost is the link between the nodes while it runs. It is also the action
+    that tells you whether the job is broken or merely idle.
+
+red_herrings:
+  - name: a_zero_failure_count_reads_as_a_healthy_job
+    why: |
+      Every dashboard on this estate colours a replication job by its failure
+      count, and this one is zero. A job that has not run has not failed.
+    tempting: proxmox_retry_backup
+
+exercises: [proxmox_resync_replication, proxmox_retry_backup]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: replication_stale_despite_success
+    cited:
+      - the replication reading shows the job's last run succeeded
+      - the reading marks the job stale
+      - the job covers guest 115
+    action: {kind: act, capability: proxmox_resync_replication}
+    transcript: |
+      The job for guest 115 is enabled with a fail count of zero and last
+      synchronised seven days ago. Nothing failed; the recovery point is simply
+      a week old, which is the number that matters and not the one being
+      watched. A resync closes the gap, changes nothing on the source, and
+      shows whether the job is broken. Proposing the resync.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    completed: false
+    incomplete_reason: |
+      the model stopped after enumerating the replication jobs and never
+      reached a conclusion or a proposal
+    transcript: |
+      Listing replication jobs for pve02... the job for 115 is enabled...
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

@@ -1,0 +1,93 @@
+schema_version: '1'
+scenario_id: b3-backup-succeeds-verification-fails
+domain: backups
+title: the backup server holds snapshots it cannot vouch for
+difficulty: 3
+situation: |
+  Every backup task reports success and the datastore holds the snapshots it
+  should. The verification job disagrees about several of them. A snapshot that
+  exists and does not verify is not a recovery point.
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /admin/datastore/vault/status:
+      {total: 8000000000000, used: 5100000000000, avail: 2900000000000,
+       'estimated-full-date': 1772000000}
+    /admin/datastore/vault/snapshots:
+      - {'backup-type': ct, 'backup-id': '115', 'backup-time': 1754800000, size: 8100000000}
+      - {'backup-type': ct, 'backup-id': '140', 'backup-time': 1754800600, size: 4100000000}
+      - {'backup-type': ct, 'backup-id': '100', 'backup-time': 1754801200, size: 42000000000}
+    /admin/datastore/vault/gc:
+      {status: OK, upid: 'UPID:pbs:0000D001:0511F000:68943D00:garbage_collection::root@pam:'}
+    /config/prune:
+      - {id: vault-prune, store: vault, 'keep-last': 2}
+
+readings:
+  tools:
+    - name: proxmox_backup_server_datastore_health
+      arguments: {datastore: vault}
+  must_report:
+    - '"unverified_snapshots"'
+    - '"proven_snapshot_count"'
+
+truth:
+  root_cause: backups_exist_but_are_unverified
+  summary: |
+    The datastore holds the snapshots the schedule produced and cannot say they
+    are restorable. The count that matters is the proven one, and it is lower
+    than the count anybody has been reading.
+  evidence:
+    - the datastore reading lists unverified snapshots
+    - the proven snapshot count is lower than the total
+    - every backup task itself reported success
+
+response:
+  kind: escalate
+  why: |
+    Re-running a backup does not prove the ones already stored, and deleting
+    unproven snapshots removes the only copies there are. What is needed is a
+    verification run and, if it fails, a restore test — and both are decisions
+    about where to spend the datastore's I/O.
+
+red_herrings:
+  - name: every_backup_task_reported_success
+    why: |
+      The hypervisor's own task history is clean, and that is the record
+      everybody checks. Whether the bytes can be read back is a different
+      system's answer.
+    tempting: proxmox_retry_backup
+
+exercises: [proxmox_retry_backup]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: backups_exist_but_are_unverified
+    cited:
+      - the datastore reading lists unverified snapshots
+      - the proven snapshot count is lower than the total snapshot count
+      - every backup task itself reported success
+    action: escalate
+    transcript: |
+      The vzdump tasks all succeeded and the datastore holds the expected
+      snapshots, so the hypervisor's view is clean. The backup server's proven
+      snapshot count is lower than its total: some of those snapshots have not
+      verified. Another backup does not make the existing ones restorable, and
+      pruning them removes the only copies. Escalating for a verification run.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: backups_exist_but_are_unverified
+    cited:
+      - the datastore reading lists unverified snapshots
+      - the proven snapshot count is lower than the total snapshot count
+      - every backup task itself reported success
+    action: escalate
+    transcript: |
+      Unverified snapshots on vault; proven count below total. Escalating.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

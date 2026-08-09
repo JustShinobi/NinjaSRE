@@ -1,0 +1,85 @@
+schema_version: '1'
+scenario_id: g3-guest-will-not-start-storage-unavailable
+domain: guests
+title: a guest will not start because the datastore holding its disk is unreachable
+difficulty: 2
+situation: |
+  plex is stopped and refuses to start. Its root disk is on a datastore that
+  this node currently cannot reach — a failed mount rather than an empty
+  datastore — so there is no disk to start it from.
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /nodes/pve02/lxc/100/status/current:
+      {status: stopped, name: plex, vmid: 100, cpus: 4, maxmem: 4294967296, mem: 0,
+       maxdisk: 107374182400, disk: 0, uptime: 0}
+
+readings:
+  tools:
+    - name: proxmox_guest_start_diagnosis
+      arguments: {node: pve02, vmid: 100, kind: lxc}
+    - proxmox_datastore_availability
+  must_report:
+    - has a disk on data-pool
+    - which this node cannot currently reach
+    - a failed mount rather than an empty one
+
+truth:
+  root_cause: guest_cannot_start_storage_unreachable
+  summary: |
+    The guest's root disk lives on data-pool, and pve02 cannot reach data-pool.
+    The start failure is a storage failure one layer down, and nothing about
+    the guest itself is wrong.
+  evidence:
+    - the start diagnosis says this guest has a disk on data-pool
+    - data-pool is a datastore this node cannot currently reach
+    - a datastore reporting unknown is a failed mount rather than an empty one
+
+response:
+  kind: escalate
+  why: |
+    Starting the guest again cannot work while its disk is unreadable, and the
+    repair is a mount on the node, which this system does not write. Report
+    which datastore is unreachable and which guests it pins.
+
+red_herrings:
+  - name: a_stopped_guest_invites_a_start
+    why: |
+      The guest is stopped and the estate says it should be running, which is
+      an unambiguous invitation to start it. It will fail, repeatedly, and
+      every attempt will look like an intermittent fault.
+    tempting: proxmox_start_guest
+
+exercises: [proxmox_start_guest, proxmox_resume_guest]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: guest_cannot_start_storage_unreachable
+    cited:
+      - the start diagnosis says this guest has a disk on data-pool
+      - data-pool is a datastore this node cannot currently reach
+      - a datastore reporting unknown is a failed mount rather than an empty one
+    action: escalate
+    transcript: |
+      plex is stopped and its rootfs is on data-pool, which pve02 declares and
+      cannot reach. Starting it would fail for as long as that mount is down,
+      so the guest is not the problem. Escalating the failed mount with the
+      guests it pins.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: guest_cannot_start_storage_unreachable
+    cited:
+      - the start diagnosis says this guest has a disk on data-pool
+      - data-pool is a datastore this node cannot currently reach
+    took: [a_stopped_guest_invites_a_start]
+    action: {kind: act, capability: proxmox_resume_guest}
+    transcript: |
+      plex is not running and should be. Bringing it back.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

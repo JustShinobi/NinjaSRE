@@ -1,0 +1,82 @@
+schema_version: '1'
+scenario_id: s6-datastore-unavailable-from-one-node-only
+domain: storage
+title: a datastore is fine from one node and unreachable from the other
+difficulty: 3
+situation: |
+  Two datastores report unknown from pve02 and one from pve01. The datastores
+  themselves are up; the mounts on those nodes are not. Every guest whose disk
+  is on one of them is pinned where it is, and any start that needs one of them
+  will fail.
+
+fixtures:
+  cluster_state: degraded
+
+readings:
+  tools:
+    - proxmox_datastore_availability
+  must_report:
+    - cannot reach
+    - declared and unreachable
+
+truth:
+  root_cause: datastore_unreachable_from_one_node
+  summary: |
+    The datastores are declared on both nodes and reachable from only some of
+    them. This is a mount failure on the node, not a storage outage, and it
+    reads as an empty datastore to anything that does not check.
+  evidence:
+    - the availability reading says a node cannot reach a datastore it declares
+    - a datastore that is declared and unreachable pins every guest whose disk is on it
+    - the same datastore is available from the other node
+
+response:
+  kind: escalate
+  why: |
+    A failed mount is repaired on the node, by remounting or by fixing what the
+    mount depends on, and a node's own services and network are outside what
+    this system may write. Report which datastore is unreachable from which
+    node, and what that pins.
+
+red_herrings:
+  - name: an_unknown_datastore_reads_as_an_empty_one
+    why: |
+      A datastore that answers unknown looks like a datastore with nothing on
+      it, and every guest whose disk is there looks like a guest with no
+      storage problem.
+    tempting: proxmox_migrate_guest
+
+exercises: [proxmox_migrate_guest]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: datastore_unreachable_from_one_node
+    cited:
+      - the availability reading says pve02 cannot reach GigaChad and data-pool
+      - a datastore that is declared and unreachable pins every guest whose disk is on it
+      - the same datastores are declared for that node, so this is a mount rather than a removal
+    action: escalate
+    transcript: |
+      pve02 declares GigaChad and data-pool and cannot reach either; pve01
+      cannot reach externo-nfs-pve01. The datastores are declared, so nothing
+      was removed — these are failed mounts on the nodes. Guests with disks
+      there are pinned, and migrating them is not available while their storage
+      is unreadable. Escalating with the per-node list.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: datastore_unreachable_from_one_node
+    cited:
+      - the availability reading says pve02 cannot reach GigaChad and data-pool
+      - a datastore that is declared and unreachable pins every guest whose disk is on it
+      - the same datastores are declared for that node
+    action: escalate
+    transcript: |
+      pve02 cannot reach GigaChad or data-pool though both are declared for it.
+      Failed mounts. Escalating.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

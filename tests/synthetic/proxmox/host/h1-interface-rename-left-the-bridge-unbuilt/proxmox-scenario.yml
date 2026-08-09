@@ -1,0 +1,98 @@
+schema_version: '1'
+scenario_id: h1-interface-rename-left-the-bridge-unbuilt
+domain: host
+title: nothing answers, including everything that would have told you why
+difficulty: 4
+modes: [fixture, laboratory]
+postmortem: '2026-08-06'
+situation: |
+  A kernel upgrade renamed the network interfaces. The interface names in the
+  node configuration no longer exist, so the bridge every other service is
+  built on could not be created. Corosync, the cluster filesystem, the gateway
+  and the entire observability stack went down together — the monitors were
+  containers on the cluster they monitored. No alert fired, because there was
+  nothing left to fire one. Every configured endpoint refuses the connection.
+
+laboratory:
+  fault: rename lab01 and lab02's interfaces in the kernel command line and reboot both
+  restore: attach a console, restore /etc/network/interfaces from the scenario-baseline snapshot, reboot
+  disables: [everything; the recovery needs physical access to both machines]
+
+fixtures:
+  cluster_state: no_quorum
+  unreachable: true
+
+readings:
+  tools:
+    - proxmox_quorum_status
+    - proxmox_cluster_health
+  must_report:
+    - none of the
+    - endpoints answered
+    - connection refused
+
+truth:
+  root_cause: cluster_unreachable_no_signal_available
+  summary: |
+    Every configured address refuses the connection, from a system whose own
+    monitoring runs inside the cluster it is monitoring. The only fact
+    available is the absence of every other fact, and that is a real finding
+    rather than a failed investigation.
+  evidence:
+    - none of the configured endpoints answered
+    - each one refused the connection rather than timing out
+    - no reading of any kind was obtained from the cluster
+
+response:
+  kind: escalate
+  why: |
+    There is nothing safe to do from inside, because there is no inside left to
+    do it from. Every action available needs an API that is not answering, and
+    an attempt would at best fail and at worst be retried against a cluster
+    somebody is already recovering by hand. The correct response is to
+    escalate externally — which is the case the out-of-cluster heartbeat exists
+    for — and to say plainly that no signal is available.
+
+red_herrings:
+  - name: an_unreachable_cluster_reads_as_a_transport_problem
+    why: |
+      Connection refused looks like a proxy, a firewall or a credential, and
+      each of those has a cheap remedy that would be tried first. Here it is
+      every node at once, which is the shape of the cluster being down rather
+      than the path to it.
+    tempting: proxmox_start_guest
+
+exercises: [proxmox_start_guest]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: cluster_unreachable_no_signal_available
+    cited:
+      - none of the configured endpoints answered
+      - each one refused the connection rather than timing out
+      - no reading of any kind was obtained from the cluster
+    action: escalate
+    transcript: |
+      Neither configured address answered; both refused the connection. That is
+      not one node down — a cluster with a node down still answers cluster-wide
+      reads from the survivor. Every read failed, so I have no membership, no
+      storage and no guest state, and the observability stack that would
+      normally carry the signal runs on this cluster. Nothing I can do needs
+      less than an API that is not there. Escalating out of band with the fact
+      that no signal is available.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    completed: false
+    incomplete_reason: |
+      the model retried the same unreachable endpoint until it ran out of
+      iterations, and never produced a conclusion
+    transcript: |
+      Reading cluster status... connection refused. Reading cluster status...
+      connection refused. Reading cluster status...
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

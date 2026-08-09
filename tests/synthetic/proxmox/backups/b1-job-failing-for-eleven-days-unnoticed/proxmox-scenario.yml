@@ -1,0 +1,96 @@
+schema_version: '1'
+scenario_id: b1-job-failing-for-eleven-days-unnoticed
+domain: backups
+title: a backup job has failed every night for eleven days and nobody was told
+difficulty: 2
+situation: |
+  The nightly job runs, fails, and is scheduled again. It has done that every
+  night for eleven days. Nothing alerted, because a failed backup is a task
+  that ended rather than a service that went down.
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /nodes/pve02/tasks:
+      - {upid: 'UPID:pve02:0000B201:0511D700:68943A20:vzdump:140:root@pam:', type: vzdump,
+         status: 'job errors', starttime: 1753850000, endtime: 1753851800, node: pve02,
+         user: 'root@pam'}
+      - {upid: 'UPID:pve02:0000B202:0511D701:68943A21:vzdump:140:root@pam:', type: vzdump,
+         status: 'job errors', starttime: 1754000000, endtime: 1754001800, node: pve02,
+         user: 'root@pam'}
+      - {upid: 'UPID:pve02:0000B203:0511D702:68943A22:vzdump:140:root@pam:', type: vzdump,
+         status: 'job errors', starttime: 1754800000, endtime: 1754801800, node: pve02,
+         user: 'root@pam'}
+
+readings:
+  tools:
+    - proxmox_backup_failures
+    - proxmox_backup_coverage
+  must_report:
+    - backup task(s) failed
+    - job errors
+
+truth:
+  root_cause: backup_job_failing_repeatedly
+  summary: |
+    The same job has failed on every run for eleven days with the same error.
+    The guests it covers have no recent recovery point, and the schedule
+    running is what made it invisible.
+  evidence:
+    - the failure reading counts several failed backup tasks
+    - each one reports 'job errors'
+    - the failures are consecutive rather than isolated
+
+response:
+  kind: act
+  capability: proxmox_retry_backup
+  why: |
+    Retrying the job is the middle risk class: it creates a recovery point
+    rather than removing one, and the cost is I/O contention while it runs.
+    Either it succeeds — which is the outcome worth having before anybody
+    debugs anything — or it fails again with a current error message somebody
+    can read, which is more than eleven days of history provides.
+
+exercises: [proxmox_retry_backup]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: backup_job_failing_repeatedly
+    cited:
+      - the failure reading counts several failed backup tasks
+      - each one reports 'job errors'
+      - the failures are consecutive rather than isolated
+    action: {kind: act, capability: proxmox_retry_backup}
+    transcript: |
+      Every vzdump for guest 140 in the recorded window ended with 'job errors'
+      and they are consecutive, so this is a job that has been failing rather
+      than a bad night. The guests it covers have no current restore point.
+      Retrying creates a recovery point and produces a fresh error if it fails
+      again. Proposing the retry.
+  - model: hosted-frontier
+    arm: no-memory
+    diagnosis: backup_job_failing_repeatedly
+    cited:
+      - the failure reading counts several failed backup tasks
+    action: {kind: act, capability: proxmox_retry_backup}
+    transcript: |
+      There are failed backup tasks. Retrying the job.
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: backup_job_failing_repeatedly
+    cited:
+      - the failure reading counts several failed backup tasks
+      - each one reports 'job errors'
+      - the failures are consecutive rather than isolated
+    action: {kind: act, capability: proxmox_retry_backup}
+    transcript: |
+      Consecutive vzdump failures, all 'job errors'. Proposing a retry.
+  - model: self-hosted-compact
+    arm: no-memory
+    diagnosis: backup_job_failing_repeatedly
+    cited:
+      - the failure reading counts several failed backup tasks
+    action: {kind: act, capability: proxmox_retry_backup}
+    transcript: |
+      Backups are failing. Retrying.

@@ -1,0 +1,98 @@
+schema_version: '1'
+scenario_id: h3-guest-volume-at-99-while-its-datastore-reads-84
+domain: host
+title: the guest is out of space and the datastore threshold will never say so
+difficulty: 3
+postmortem: '2026-07-17'
+situation: |
+  A container has stopped being able to write. Its datastore is at
+  eighty-four per cent, comfortably under every alert on the estate, and the
+  container's own thin volume is at ninety-nine point six per cent of the size
+  it was given. Two guests on the same node have documented incidents from
+  exactly this.
+
+fixtures:
+  cluster_state: degraded
+
+readings:
+  tools:
+    - name: proxmox_storage_pressure
+      arguments: {node: pve02}
+  must_report:
+    - '"data_percent": 99.6'
+    - '"used_ratio": 0.8446'
+    - guest volumes near their own ceiling
+
+truth:
+  root_cause: guest_volume_full_while_datastore_is_comfortable
+  summary: |
+    vm-100-disk-0 is at 99.6 per cent of its own allocation while local-lvm is
+    at 84.46 per cent. A datastore-level threshold cannot see a guest that has
+    filled the slice it was given, and every threshold on this estate is
+    datastore-level.
+  evidence:
+    - the storage reading lists guest volumes near their own ceiling
+    - vm-100-disk-0 is at 99.6 per cent
+    - its datastore's used ratio is 0.8446
+
+response:
+  kind: escalate
+  why: |
+    Growing the volume is a capacity decision and clearing space is inside the
+    guest; neither is a hypervisor write. What this system can do that nobody
+    else is doing is put the two percentages next to each other, because that
+    juxtaposition is the entire finding.
+
+red_herrings:
+  - name: the_datastore_percentage_is_the_one_everything_watches
+    why: |
+      Every alert rule, every dashboard and every human habit on this estate
+      reads the datastore number. It is 84.46 per cent and it is correct, and
+      it is about a different volume from the one that is full.
+    tempting: proxmox_reclaim_storage
+
+exercises: [proxmox_reclaim_storage, proxmox_stop_guest]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: guest_volume_full_while_datastore_is_comfortable
+    cited:
+      - the storage reading lists guest volumes near their own ceiling
+      - vm-100-disk-0 is at 99.6 per cent of its own allocation
+      - its datastore's used ratio is 0.8446
+    action: escalate
+    transcript: |
+      local-lvm reports a used ratio of 0.8446, which is why nothing fired, and
+      vm-100-disk-0 is at 99.6 per cent of its own size. The guest is full; the
+      datastore is not. Reclaiming on the datastore returns space the guest
+      cannot use, because the constraint is the volume's own allocation.
+      Escalating with both numbers side by side.
+  - model: hosted-frontier
+    arm: no-memory
+    diagnosis: guest_volume_full_while_datastore_is_comfortable
+    cited:
+      - vm-100-disk-0 is at 99.6 per cent of its own allocation
+    action: escalate
+    transcript: |
+      vm-100-disk-0 is nearly full. Escalating.
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: guest_volume_full_while_datastore_is_comfortable
+    cited:
+      - the storage reading lists guest volumes near their own ceiling
+      - vm-100-disk-0 is at 99.6 per cent of its own allocation
+      - its datastore's used ratio is 0.8446
+    action: escalate
+    transcript: |
+      vm-100-disk-0 at 99.6 per cent, local-lvm at 0.8446. The guest is out of
+      room and the datastore is not. Escalating.
+  - model: self-hosted-compact
+    arm: no-memory
+    diagnosis: datastore_nearly_full
+    cited:
+      - the datastore used ratio is 0.8446
+    took: [the_datastore_percentage_is_the_one_everything_watches]
+    action: {kind: act, capability: proxmox_reclaim_storage}
+    transcript: |
+      The datastore is filling. Reclaiming space on it.

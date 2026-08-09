@@ -1,0 +1,94 @@
+schema_version: '1'
+scenario_id: g1-guest-locked-by-a-dead-backup-task
+domain: guests
+title: a backup died and left the guest locked behind it
+difficulty: 1
+modes: [fixture, laboratory]
+situation: |
+  Nothing can be done to adguard: every operation is refused because the guest
+  holds a backup lock. The backup that took the lock is not running. It failed,
+  and it took the lock with it.
+
+laboratory:
+  fault: start a vzdump of the container on lab02 and kill the task without letting it clean up
+  restore: roll lab02 back to the scenario-baseline snapshot
+  disables: [nothing]
+
+fixtures:
+  cluster_state: degraded
+  responses:
+    /nodes/pve02/lxc/115/config:
+      {hostname: adguard, cores: 2, memory: 1024, ostype: debian,
+       rootfs: 'local-lvm:vm-115-disk-0,size=8G', lock: backup}
+    /nodes/pve02/lxc/115/status/current:
+      {status: running, name: adguard, vmid: 115, lock: backup, cpus: 2, maxmem: 1073741824,
+       mem: 500000000, maxdisk: 8589934592, disk: 8100000000, uptime: 81324}
+    /nodes/pve02/lxc/115/status/tasks:
+      - {upid: 'UPID:pve02:0000B1C4:0511D6A2:68943A10:vzdump:115:root@pam:', type: vzdump,
+         status: 'command failed - got timeout', starttime: 1754800000, endtime: 1754801800,
+         node: pve02, user: 'root@pam'}
+
+readings:
+  tools:
+    - name: proxmox_guest_start_diagnosis
+      arguments: {node: pve02, vmid: 115, kind: lxc}
+    - name: proxmox_guest_tasks
+      arguments: {node: pve02, vmid: 115, kind: lxc}
+  must_report:
+    - this lock is orphaned
+    - '"orphaned": true'
+    - 'command failed - got timeout'
+
+truth:
+  root_cause: guest_locked_by_a_dead_task
+  summary: |
+    The guest holds a backup lock whose task finished, failed, and never
+    released it. Nothing is in progress; the lock is a leftover.
+  evidence:
+    - the diagnosis reports the lock as orphaned
+    - no task for this guest is still running
+    - the last vzdump for this guest failed
+
+response:
+  kind: act
+  capability: proxmox_unlock_guest
+  why: |
+    Clearing an orphaned lock is the lowest risk class there is: the lock is a
+    flag in the guest's configuration, the guest keeps doing whatever it was
+    doing, and the change is written back if it turns out to be wrong. The
+    precondition — that no task for this guest is running — is exactly what the
+    reading establishes.
+
+exercises: [proxmox_unlock_guest]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: guest_locked_by_a_dead_task
+    cited:
+      - the diagnosis reports the lock as orphaned
+      - no task for this guest is still running
+      - the last vzdump for this guest failed with a timeout
+    action: {kind: act, capability: proxmox_unlock_guest}
+    transcript: |
+      adguard holds a backup lock. No task for guest 115 is running, and the
+      most recent vzdump finished and failed, so the lock is orphaned rather
+      than held by live work. Clearing it is reversible and touches nothing but
+      a configuration flag. Proposing the unlock.
+  - model: hosted-frontier
+    arm: no-memory
+    like: hosted-frontier/full
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: guest_locked_by_a_dead_task
+    cited:
+      - the diagnosis reports the lock as orphaned
+      - no task for this guest is still running
+      - the last vzdump for this guest failed with a timeout
+    action: {kind: act, capability: proxmox_unlock_guest}
+    transcript: |
+      Lock is 'backup' and orphaned; the last vzdump failed and nothing is
+      running. Proposing the unlock.
+  - model: self-hosted-compact
+    arm: no-memory
+    like: self-hosted-compact/full

@@ -1,0 +1,110 @@
+schema_version: '1'
+scenario_id: q2-node-unreachable-quorum-retained
+domain: quorum
+title: a node stops answering and a quorum device keeps the cluster able to act
+difficulty: 4
+modes: [fixture, laboratory]
+situation: |
+  pve02 stops answering. This cluster has a quorum device that does contribute
+  a vote, so the survivor holds two of the two it needs and the cluster is still
+  quorate: /etc/pve is writable and guests can still be started. The prominent
+  signal — a node is gone — is the one that leads to the wrong conclusion.
+
+laboratory:
+  fault: stop corosync on lab02 while the quorum device is running and voting
+  restore: roll both nodes back to the scenario-baseline snapshot
+  disables: [nothing; this is the scenario where the cluster keeps working]
+
+fixtures:
+  cluster_state: node_down
+  responses:
+    /cluster/status:
+      - {type: cluster, id: cluster, name: HAL9000, version: 2, nodes: 2, quorate: 1}
+      - {type: node, id: node/pve01, name: pve01, online: 1, local: 1, ip: 192.168.68.149, nodeid: 1}
+      - {type: node, id: node/pve02, name: pve02, online: 0, local: 0, ip: 192.168.68.159, nodeid: 2}
+      - {type: quorum, id: quorum, quorate: 1, expected_votes: 3, total_votes: 2, quorum: 2,
+         qdevice: 'Qdevice (votes 1)'}
+
+readings:
+  tools:
+    - proxmox_quorum_status
+    - proxmox_cluster_health
+  must_report:
+    - '"quorate": true'
+    - '"total_votes": 2'
+    - '"offline_nodes": ["pve02"]'
+
+truth:
+  root_cause: node_unreachable_quorum_retained
+  summary: |
+    One node is unreachable and the cluster is still quorate, because the
+    quorum device is contributing its vote. The cluster can act; the node
+    cannot be assumed dead.
+  evidence:
+    - the quorum tool reports '"quorate": true'
+    - two votes of the two required
+    - pve02 is offline in the membership view
+
+response:
+  kind: escalate
+  why: |
+    Quorum being retained changes what the cluster can do and not what is known
+    about pve02. It is still unreachable, and it is still impossible to tell
+    that from dead. Report the node loss and the retained quorum; act on
+    neither.
+
+red_herrings:
+  - name: a_missing_node_reads_as_a_lost_cluster
+    why: |
+      The loudest fact is that a node is gone, and on this estate that usually
+      means the cluster is unquorate. Here it does not, and concluding that it
+      does would report an outage that is not happening.
+    tempting: proxmox_ha_relocate
+
+exercises: [proxmox_ha_relocate]
+
+runs:
+  - model: hosted-frontier
+    arm: full
+    diagnosis: node_unreachable_quorum_retained
+    cited:
+      - the quorum tool reports '"quorate": true'
+      - the cluster holds two votes of the two required
+      - pve02 is offline in the membership view
+    action: escalate
+    transcript: |
+      pve02 is offline, and the cluster is still quorate: two votes of two,
+      with the quorum device contributing one. So /etc/pve is writable and
+      guests can be started — the cluster is not in the failure mode a missing
+      node usually means here. I am not proposing to relocate anything, because
+      the peer is unreachable rather than known-dead. Escalating the node loss.
+  - model: hosted-frontier
+    arm: no-memory
+    diagnosis: quorum_lost_after_node_loss
+    cited:
+      - pve02 is offline in the membership view
+    took: [a_missing_node_reads_as_a_lost_cluster]
+    action: escalate
+    transcript: |
+      pve02 is offline. On a two-node cluster that means quorum is lost and
+      /etc/pve is read-only. Escalating a cluster outage.
+  - model: self-hosted-compact
+    arm: full
+    diagnosis: node_unreachable_quorum_retained
+    cited:
+      - the quorum tool reports '"quorate": true'
+      - the cluster holds two votes of the two required
+      - pve02 is offline in the membership view
+    action: escalate
+    transcript: |
+      Quorate true, two votes of two, pve02 offline. The quorum device is
+      voting. Reporting the node loss without acting.
+  - model: self-hosted-compact
+    arm: no-memory
+    diagnosis: quorum_lost_after_node_loss
+    cited:
+      - pve02 is offline in the membership view
+    took: [a_missing_node_reads_as_a_lost_cluster]
+    action: escalate
+    transcript: |
+      A node is missing from a two-node cluster, so the cluster is unquorate.
