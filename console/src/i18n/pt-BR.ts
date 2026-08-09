@@ -113,9 +113,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'signIn.title': 'Entrar',
   'signIn.context': 'Esta consola contacta a sua instalação e mais nada.',
-  'signIn.credential': 'Token da API',
+  'signIn.username': 'Utilizador',
+  'signIn.password': 'Palavra-passe',
   'signIn.submit': 'Entrar',
-  'signIn.rejected': 'Essa credencial não foi aceite.',
+  'signIn.rejected': 'Esse utilizador e essa palavra-passe não foram aceites.',
   'signIn.unreachable': 'Não foi possível contactar a instalação.',
   'signIn.expired':
     'A sua sessão terminou. Entre de novo para voltar ao ponto onde estava.',

@@ -83,6 +83,16 @@ def not_found(message: str) -> ApiProblem:
     return ApiProblem(status_code=404, message=message, error_type="not_found")
 
 
+def unauthorized(message: str) -> ApiProblem:
+    """Return the problem a refused credential raises.
+
+    Distinct from ``bad_request``: a client that cannot tell "your credential
+    was refused" from "your request was malformed" retries the malformed one
+    forever and never re-prompts for the credential.
+    """
+    return ApiProblem(status_code=401, message=message, error_type="unauthorized")
+
+
 def conflict(message: str) -> ApiProblem:
     """Return the problem a state conflict raises."""
     return ApiProblem(status_code=409, message=message, error_type="conflict")
@@ -253,4 +263,5 @@ __all__ = [
     "conflict",
     "install_error_handlers",
     "not_found",
+    "unauthorized",
 ]

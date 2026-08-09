@@ -11,15 +11,19 @@ import { EmptyStateLink } from '@/shell/empty-link';
 /**
  * The credential's whole journey, and the three values only a browser has.
  *
- * The credential arrives in a body, is offered to the API origin, and becomes an
- * HTTP-only cookie. Every assertion here is about a place it must *not* be: not
- * in the redirect, not in a readable cookie, not in the response body, and not
- * replayed by the redirect's method.
+ * A username and a password arrive in a body, are offered to the API origin, and
+ * what comes back — a token, never the password — becomes an HTTP-only cookie.
+ * Every assertion here is about a place a secret must *not* be: not in the
+ * redirect, not in a readable cookie, not in the response body, and not replayed
+ * by the redirect's method.
  */
 
 // jsdom normalises the loopback address in a URL, so the console's own
 // origin is written the way the request ends up carrying it.
 const CONSOLE_ORIGIN = 'http://localhost:8423';
+
+/** What the API hands back for a credential it accepted. */
+const ISSUED = 'tok_issued_by_the_api';
 
 function signInRequest(fields: Readonly<Record<string, string>>): NextRequest {
   const body = new FormData();
@@ -30,8 +34,12 @@ function signInRequest(fields: Readonly<Record<string, string>>): NextRequest {
 }
 
 function accepting(status: number): typeof fetch {
-  return vi.fn(() => Promise.resolve(new Response('{}', { status })));
+  const payload = status === 200 ? JSON.stringify({ token: ISSUED }) : '{}';
+  return vi.fn(() => Promise.resolve(new Response(payload, { status })));
 }
+
+/** The credential a person types, as the form sends it. */
+const TYPED = { username: 'admin', password: 'ninjasre' } as const;
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_API_URL', 'http://127.0.0.1:8424');
@@ -43,64 +51,87 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe('exchanging a credential for a session', () => {
-  it('offers the credential to the API origin, never to the console origin', async () => {
+describe('exchanging a username and a password for a session', () => {
+  it('offers the pair to the API origin, never to the console origin', async () => {
     const fetching = accepting(200);
     vi.stubGlobal('fetch', fetching);
     const { POST } = await import('@/app/api/session/route');
 
-    await POST(signInRequest({ credential: 'tok_live', returnTo: '/approvals' }));
+    await POST(signInRequest({ ...TYPED, returnTo: '/approvals' }));
 
     const [url, init] = (fetching as unknown as ReturnType<typeof vi.fn>).mock
-      .calls[0] as [string, RequestInit];
-    expect(url).toBe('http://127.0.0.1:8424/auth/me');
-    expect(new Headers(init.headers).get('authorization')).toBe('Bearer tok_live');
+      .calls[0] as [string, RequestInit & { readonly body: string }];
+    expect(url).toBe('http://127.0.0.1:8424/auth/sign-in');
+    expect(init.method).toBe('POST');
+    // The console does not decide whether a password is good; it asks the
+    // deployment that enforces the answer and believes it.
+    expect(JSON.parse(init.body)).toEqual(TYPED);
   });
 
-  it('keeps the credential where no component can read it', async () => {
+  it('keeps the issued token, not the typed password, where no component can read it', async () => {
     vi.stubGlobal('fetch', accepting(200));
     const { POST } = await import('@/app/api/session/route');
 
-    const answer = await POST(signInRequest({ credential: 'tok_live' }));
+    const answer = await POST(signInRequest(TYPED));
     const session = answer.cookies.get(SESSION_COOKIE);
 
-    expect(session?.value).toBe('tok_live');
+    expect(session?.value).toBe(ISSUED);
+    // The password is not the credential for anything after this request. A
+    // cookie holding it would be a password at rest in every later request.
+    expect(session?.value).not.toContain(TYPED.password);
     // HTTP-only is the structural half: `document.cookie` cannot see it however
     // hard a component tries, so no bug in a component can leak one.
     expect(session?.httpOnly).toBe(true);
     expect(session?.sameSite).toBe('strict');
   });
 
-  it('puts the credential in no address and no body', async () => {
+  it('puts no secret in any address and no body', async () => {
     vi.stubGlobal('fetch', accepting(200));
     const { POST } = await import('@/app/api/session/route');
 
-    const answer = await POST(signInRequest({ credential: 'tok_live' }));
+    const answer = await POST(signInRequest(TYPED));
 
-    expect(answer.headers.get('location')).not.toContain('tok_live');
-    expect(await answer.text()).not.toContain('tok_live');
+    expect(answer.headers.get('location')).not.toContain(TYPED.password);
+    expect(answer.headers.get('location')).not.toContain(ISSUED);
+    const body = await answer.text();
+    expect(body).not.toContain(TYPED.password);
+    expect(body).not.toContain(ISSUED);
   });
 
   it('redirects with a method that cannot replay the credential', async () => {
     vi.stubGlobal('fetch', accepting(200));
     const { POST } = await import('@/app/api/session/route');
 
-    const answer = await POST(signInRequest({ credential: 'tok_live' }));
+    const answer = await POST(signInRequest(TYPED));
 
     // 303, so the browser follows with a GET. A 307 replays the POST, and the
-    // body of that POST is the credential.
+    // body of that POST is the password.
     expect(answer.status).toBe(303);
+  });
+
+  it('redirects to a path, so the host the browser used is the host it keeps', async () => {
+    vi.stubGlobal('fetch', accepting(200));
+    const { POST } = await import('@/app/api/session/route');
+
+    const answer = await POST(signInRequest({ ...TYPED, returnTo: '/audit' }));
+
+    // Relative on purpose. An absolute `Location` would be built from the
+    // address this process was bound to rather than the one in the request, so
+    // a console reached by IP or through a proxy would be sent to `localhost`
+    // — and the `SameSite=Strict` cookie, scoped to the host it was set on,
+    // would not follow, which is a sign-in that loops for ever.
+    expect(answer.headers.get('location')).toBe('/audit');
   });
 
   it('publishes only the expiry to the browser, and only the expiry', async () => {
     vi.stubGlobal('fetch', accepting(200));
     const { POST } = await import('@/app/api/session/route');
 
-    const answer = await POST(signInRequest({ credential: 'tok_live' }));
+    const answer = await POST(signInRequest(TYPED));
     const expiry = answer.cookies.get(SESSION_EXPIRY_COOKIE);
 
     expect(expiry?.httpOnly).toBe(false);
-    expect(expiry?.value).not.toContain('tok_live');
+    expect(expiry?.value).not.toContain(ISSUED);
     expect(Number.isNaN(new Date(expiry?.value ?? '').getTime())).toBe(false);
   });
 
@@ -108,21 +139,24 @@ describe('exchanging a credential for a session', () => {
     vi.stubGlobal('fetch', accepting(200));
     const { POST } = await import('@/app/api/session/route');
 
-    const kept = await POST(signInRequest({ credential: 'x', returnTo: '/audit' }));
-    expect(kept.headers.get('location')).toBe(`${CONSOLE_ORIGIN}/audit`);
+    const kept = await POST(signInRequest({ ...TYPED, returnTo: '/audit' }));
+    expect(kept.headers.get('location')).toBe('/audit');
 
     const elsewhere = ['https:', '//elsewhere.invalid/steal'].join('');
-    const refused = await POST(signInRequest({ credential: 'x', returnTo: elsewhere }));
-    expect(refused.headers.get('location')).toBe(`${CONSOLE_ORIGIN}/`);
+    const refused = await POST(signInRequest({ ...TYPED, returnTo: elsewhere }));
+    expect(refused.headers.get('location')).toBe('/');
   });
 
-  it('sets no session at all when the API does not accept the credential', async () => {
+  it('sends a refused credential back to the form saying so, with no session', async () => {
     vi.stubGlobal('fetch', accepting(401));
     const { POST } = await import('@/app/api/session/route');
 
-    const answer = await POST(signInRequest({ credential: 'wrong' }));
+    const answer = await POST(signInRequest({ username: 'admin', password: 'wrong' }));
 
-    expect(answer.status).toBe(401);
+    // Not a JSON 401. This response is rendered by a browser that submitted a
+    // form, and a browser shown `{"accepted":false}` is a person told nothing.
+    expect(answer.status).toBe(303);
+    expect(answer.headers.get('location')).toBe('/sign-in?reason=rejected');
     expect(answer.cookies.get(SESSION_COOKIE)?.value).toBe('');
   });
 
@@ -131,9 +165,9 @@ describe('exchanging a credential for a session', () => {
     vi.stubGlobal('fetch', fetching);
     const { POST } = await import('@/app/api/session/route');
 
-    const answer = await POST(signInRequest({ credential: '   ' }));
+    const answer = await POST(signInRequest({ username: '   ', password: '' }));
 
-    expect(answer.status).toBe(400);
+    expect(answer.headers.get('location')).toBe('/sign-in?reason=rejected');
     expect(fetching).not.toHaveBeenCalled();
   });
 
@@ -144,10 +178,25 @@ describe('exchanging a credential for a session', () => {
     );
     const { POST } = await import('@/app/api/session/route');
 
-    const answer = await POST(signInRequest({ credential: 'tok_live' }));
+    const answer = await POST(signInRequest(TYPED));
 
-    // Otherwise somebody retypes a token that was right all along.
-    expect(answer.status).toBe(502);
+    // Otherwise somebody retypes a password that was right all along.
+    expect(answer.headers.get('location')).toBe('/sign-in?reason=unreachable');
+  });
+
+  it('treats an accepted answer carrying no token as a deployment it cannot use', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('{}', { status: 200 }))),
+    );
+    const { POST } = await import('@/app/api/session/route');
+
+    const answer = await POST(signInRequest(TYPED));
+
+    // A 200 with nothing in it is not a session, and storing the empty string
+    // as the credential would make every later request fail as "expired".
+    expect(answer.headers.get('location')).toBe('/sign-in?reason=unreachable');
+    expect(answer.cookies.get(SESSION_COOKIE)?.value).toBe('');
   });
 
   it('clears both cookies when the session is ended deliberately', async () => {

@@ -25,6 +25,7 @@ from gateway.webhooks.idempotency import IdempotencyIndex
 from gateway.webhooks.shedding import LoadShedder, LoadShedRecord
 from platform.estate.kinds import KindRegistry, core_registry
 from platform.guardrails.engine import GuardrailEngine
+from platform.identity.local_accounts import LocalSignIn
 from platform.identity.tokens import TokenService
 from platform.persistence.ports.transaction import PersistenceGateway
 from platform.remediation.autonomy.kill_switch import KillSwitch
@@ -62,6 +63,11 @@ class GatewayState:
     #: request would know only the core kinds.
     estate_kinds: KindRegistry = field(default_factory=core_registry)
     rate_limiter: ApiRateLimiter = field(default_factory=ApiRateLimiter)
+    #: How a person signs in when there is no identity provider. ``None`` for a
+    #: deployment that configured no local account, and then ``POST
+    #: /auth/sign-in`` refuses everything — which is the correct behaviour for a
+    #: deployment whose operators come from a directory.
+    local_sign_in: LocalSignIn | None = None
     #: The emergency stop, one per process. Held here rather than built per
     #: request because a switch constructed per request is a switch that is
     #: never engaged by the time anything reads it, and the window this control

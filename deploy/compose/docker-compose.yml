@@ -96,6 +96,13 @@ services:
       NINJASRE_OTEL_ENDPOINT: ${NINJASRE_OTEL_ENDPOINT:-}
       NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
       NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+      # How a person signs in when there is no identity provider. Empty by
+      # default: a deployment gets no local account unless it asks for one.
+      # Set the hash to the stored form of your own passphrase — the demo
+      # profile is the only thing that may run on the one this project ships.
+      NINJASRE_LOCAL_ACCOUNT_USERNAME: ${NINJASRE_LOCAL_ACCOUNT_USERNAME:-}
+      NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH: ${NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH:-}
+      NINJASRE_LOCAL_ACCOUNT_DEMO: ${NINJASRE_LOCAL_ACCOUNT_DEMO:-}
     ports:
       # Loopback by default. Binding to every interface is an operator's
       # decision, made once, not a default that ships open.

@@ -2,7 +2,29 @@
 
 # Isolation, masking, and the credential proxy
 
-13 setting(s). Every one is read from the environment; there is no configuration file a deployment needs before it can start.
+16 setting(s). Every one is read from the environment; there is no configuration file a deployment needs before it can start.
+
+### `NINJASRE_LOCAL_ACCOUNT_USERNAME`
+
+The name somebody types to sign in when this deployment has no identity provider. Only meaningful alongside the passphrase below.
+
+- **Required:** no
+- **Default:** `admin`
+
+### `NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH`
+
+The stored form of that passphrase, as 'ninjasre hash-password' prints it. Unset, there is no local account and the sign-in page refuses everything — which is correct for a deployment whose operators come from a directory.
+
+- **Required:** no
+- **Default:** none
+- **Secret:** yes — never printed, never included in a diagnostic bundle, and never passed to the agent.
+
+### `NINJASRE_LOCAL_ACCOUNT_DEMO`
+
+Declares this a demonstration deployment, which is the only thing that makes the passphrase this project ships with acceptable. Set it and a first run needs no configuration at all; leave it unset and a deployment still carrying that passphrase refuses to start.
+
+- **Required:** no
+- **Default:** none
 
 ### `NINJASRE_CREDENTIAL_PROXY_URL`
 

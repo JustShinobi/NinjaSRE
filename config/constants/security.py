@@ -455,6 +455,45 @@ BREAK_GLASS_MIN_REASON_CHARS: Final[int] = 16
 #: an operator has to look up during an outage is one they cannot use.
 BREAK_GLASS_PRINCIPAL_ID: Final = "break-glass"
 
+# --- The local account a deployment signs in with ------------------------------
+#
+# A deployment that has no identity provider still has to let somebody in, and
+# "paste an API token" is not a sign-in a person can perform on the first run —
+# there is nowhere to have got a token from yet. So a local account exists, with
+# a name and a passphrase, verified in this process against the deployment's own
+# configuration by the same memory-hard KDF break-glass uses.
+#
+# It is the same shape as break-glass and a different thing: break-glass is the
+# emergency path, short and loudly audited, and this is the ordinary one.
+
+#: The local account's login name, and what the demo profile ships with.
+LOCAL_ACCOUNT_USERNAME: Final = "admin"
+
+#: The passphrase the demo profile ships with. It exists so a first run is a
+#: sign-in rather than a scavenger hunt, and a deployment that is not the demo
+#: refuses to start while it is still in place — see
+#: ``platform/identity/local_accounts.py``, which is where that refusal lives.
+LOCAL_ACCOUNT_DEFAULT_PASSWORD: Final = "ninjasre"
+
+#: The principal a local sign-in acts as.
+LOCAL_ACCOUNT_PRINCIPAL_ID: Final = "local-admin"
+
+#: Where a deployment configures the account: the login name, and the stored
+#: form of the passphrase as ``hash_secret`` returns it.
+LOCAL_ACCOUNT_USERNAME_ENV: Final = "NINJASRE_LOCAL_ACCOUNT_USERNAME"
+LOCAL_ACCOUNT_PASSWORD_HASH_ENV: Final = "NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH"
+
+#: Set by the demo and local profiles, and by nothing else. It is what makes the
+#: shipped passphrase acceptable, so an operator cannot reach production with it
+#: by forgetting to change something — they would have had to set this as well.
+LOCAL_ACCOUNT_DEMO_ENV: Final = "NINJASRE_LOCAL_ACCOUNT_DEMO"
+
+#: How long a session opened with the local account lasts.
+LOCAL_ACCOUNT_SESSION_SECONDS: Final[int] = 12 * 60 * 60
+
+#: The audit action a local sign-in records.
+LOCAL_ACCOUNT_AUDIT_ACTION: Final = "local_account.sign_in"
+
 # --- Single sign-on ----------------------------------------------------------
 
 #: PKCE, always. ``plain`` is in the specification and is not offered here: an
@@ -833,6 +872,14 @@ __all__ = [
     "INTEGRATION_CONTEXT_HEADER",
     "KUBERNETES_SERVICE_HOST_ENV",
     "KUBERNETES_SERVICE_PORT_ENV",
+    "LOCAL_ACCOUNT_AUDIT_ACTION",
+    "LOCAL_ACCOUNT_DEFAULT_PASSWORD",
+    "LOCAL_ACCOUNT_DEMO_ENV",
+    "LOCAL_ACCOUNT_PASSWORD_HASH_ENV",
+    "LOCAL_ACCOUNT_PRINCIPAL_ID",
+    "LOCAL_ACCOUNT_SESSION_SECONDS",
+    "LOCAL_ACCOUNT_USERNAME",
+    "LOCAL_ACCOUNT_USERNAME_ENV",
     "MASKING_BUDGET_SECONDS_PER_MEGABYTE",
     "MASKING_ENABLED_BY_DEFAULT",
     "MASKING_POLICY_LEVELS",

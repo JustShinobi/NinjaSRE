@@ -53,7 +53,7 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The only page an unauthenticated visitor sees. No reference is drawn for it, and the property worth a baseline is what it does *not* show: no deployment name, no counts, no navigation. A change that added any of those would show up here."
+        "reason": "The only page an unauthenticated visitor sees. No reference is drawn for it, and the property worth a baseline is what it does *not* show: no deployment name, no counts, no navigation. A change that added any of those would show up here. Re-accepted when the sign-in became a username and a password rather than a pasted API token — a first run has nowhere to have got a token from, so the form now has two fields and the page can carry a refusal."
       }
     },
     {

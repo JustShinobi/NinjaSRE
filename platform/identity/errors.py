@@ -197,6 +197,35 @@ class BreakGlassRejected(IdentityError):
         self.reason = reason
 
 
+class LocalSignInRejected(IdentityError):
+    """A sign-in with the local account's name and passphrase was refused.
+
+    Unlike break-glass, the message carries no reason and is the same for every
+    refusal. The person reading this one is at a sign-in page rather than in an
+    outage, and the difference between "no such account" and "wrong passphrase"
+    is worth more to somebody guessing than to them.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("the credential was not accepted")
+
+
+class UnsafeDefaultPassword(IdentityError):
+    """A deployment that is not the demo still has the shipped passphrase.
+
+    Raised while the account is being resolved, so it stops the process coming
+    up rather than the first sign-in. A deployment that boots and only refuses
+    later is one somebody puts in front of users first.
+    """
+
+    def __init__(self, hash_env: str, demo_env: str) -> None:
+        super().__init__(
+            f"{hash_env} is still the passphrase this project ships with. Set it to the "
+            f"stored form of a passphrase of your own, or set {demo_env} if this really is "
+            f"a demonstration deployment."
+        )
+
+
 # --- Audit -------------------------------------------------------------------
 
 
@@ -242,6 +271,7 @@ __all__ = [
     "IdentityError",
     "ImpersonationRejected",
     "LastOwnerRemoval",
+    "LocalSignInRejected",
     "PermissionDenied",
     "SessionRejected",
     "SsoConfigInvalid",
@@ -251,4 +281,5 @@ __all__ = [
     "TokenRejected",
     "TooManyRevocations",
     "UnknownRole",
+    "UnsafeDefaultPassword",
 ]

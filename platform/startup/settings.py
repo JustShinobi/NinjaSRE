@@ -140,6 +140,10 @@ from config.constants.persistence import (
 )
 from config.constants.security import (
     DEFAULT_MASKING_POLICY,
+    LOCAL_ACCOUNT_DEMO_ENV,
+    LOCAL_ACCOUNT_PASSWORD_HASH_ENV,
+    LOCAL_ACCOUNT_USERNAME,
+    LOCAL_ACCOUNT_USERNAME_ENV,
     NINJASRE_AUDIT_FALLBACK_PATH_ENV,
     NINJASRE_CONTAINER_RUNTIME_ENV,
     NINJASRE_CREDENTIAL_PROXY_TOKEN_ENV,
@@ -537,6 +541,36 @@ SETTINGS: Final[tuple[Setting, ...]] = (
         section=SECTION_NETWORK,
     ),
     # -- security --------------------------------------------------------------
+    Setting(
+        name=LOCAL_ACCOUNT_USERNAME_ENV,
+        effect=(
+            "The name somebody types to sign in when this deployment has no "
+            "identity provider. Only meaningful alongside the passphrase below."
+        ),
+        default=LOCAL_ACCOUNT_USERNAME,
+        section=SECTION_SECURITY,
+    ),
+    Setting(
+        name=LOCAL_ACCOUNT_PASSWORD_HASH_ENV,
+        effect=(
+            "The stored form of that passphrase, as 'ninjasre hash-password' "
+            "prints it. Unset, there is no local account and the sign-in page "
+            "refuses everything — which is correct for a deployment whose "
+            "operators come from a directory."
+        ),
+        secret=True,
+        section=SECTION_SECURITY,
+    ),
+    Setting(
+        name=LOCAL_ACCOUNT_DEMO_ENV,
+        effect=(
+            "Declares this a demonstration deployment, which is the only thing "
+            "that makes the passphrase this project ships with acceptable. Set "
+            "it and a first run needs no configuration at all; leave it unset "
+            "and a deployment still carrying that passphrase refuses to start."
+        ),
+        section=SECTION_SECURITY,
+    ),
     Setting(
         name=NINJASRE_CREDENTIAL_PROXY_URL_ENV,
         effect=(

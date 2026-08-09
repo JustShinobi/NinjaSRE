@@ -18,12 +18,24 @@ import { requestLocale } from '@/shell/request';
  * a deployment here and what it is called, and that is one fact more than
  * somebody who has not signed in is owed.
  *
- * The form posts the credential in a body to a route handler, which offers it to
- * the API and keeps it in an HTTP-only cookie. It is never in the URL — a query
- * parameter is in the browser's history, in the proxy's access log, and in the
- * `Referer` of the next request.
+ * The form posts a username and a password in a body to a route handler, which
+ * offers them to the API and keeps the token it gets back in an HTTP-only
+ * cookie. Neither is ever in the URL — a query parameter is in the browser's
+ * history, in the proxy's access log, and in the `Referer` of the next request.
  */
 export const dynamic = 'force-dynamic';
+
+/**
+ * What each arrival is told, when it is worth saying anything.
+ *
+ * `signed-out` is absent on purpose: somebody who signed out knows why they are
+ * here, and a page that explains it is a page that argues with them.
+ */
+const REASON_MESSAGE = {
+  expired: 'signIn.expired',
+  rejected: 'signIn.rejected',
+  unreachable: 'signIn.unreachable',
+} as const;
 
 export function generateMetadata(): Metadata {
   // Deliberately not the deployment's name. Every other page carries it; this
@@ -47,13 +59,15 @@ export default async function SignIn({
     <main data-testid="sign-in" className="mx-auto flex max-w-prose flex-col gap-4 p-7">
       <h1 className="text-title">{message(locale, 'signIn.title')}</h1>
       <p className="text-small text-muted">{message(locale, 'signIn.context')}</p>
-      {isSessionReason(reason) && reason === 'expired' ? (
+      {isSessionReason(reason) && reason !== 'none' && reason !== 'signed-out' ? (
         <p
           data-testid="sign-in-reason"
           role="status"
-          className="text-small text-warning"
+          className={
+            reason === 'expired' ? 'text-small text-warning' : 'text-small text-danger'
+          }
         >
-          {message(locale, 'signIn.expired')}
+          {message(locale, REASON_MESSAGE[reason])}
         </p>
       ) : null}
       <form
@@ -62,17 +76,30 @@ export default async function SignIn({
         data-testid="sign-in-form"
         className="flex flex-col gap-3"
       >
-        <label htmlFor="credential" className="text-small">
-          {message(locale, 'signIn.credential')}
+        <label htmlFor="username" className="text-small">
+          {message(locale, 'signIn.username')}
         </label>
         <input
-          id="credential"
-          name="credential"
+          id="username"
+          name="username"
+          type="text"
+          required
+          autoComplete="username"
+          autoFocus
+          spellCheck={false}
+          className="rounded-2 edge border-border bg-surface px-3 py-2 text-small"
+        />
+        <label htmlFor="password" className="text-small">
+          {message(locale, 'signIn.password')}
+        </label>
+        <input
+          id="password"
+          name="password"
           type="password"
           required
-          autoComplete="off"
+          autoComplete="current-password"
           spellCheck={false}
-          className="rounded-2 edge border-border bg-surface px-3 py-2 font-mono text-small"
+          className="rounded-2 edge border-border bg-surface px-3 py-2 text-small"
         />
         <input type="hidden" name="returnTo" value={returnTo} />
         <button

@@ -68,6 +68,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign In
+         * @description Exchange the local account's name and passphrase for an API token.
+         *
+         *     Public by declaration, because it is where the credential every other route
+         *     demands comes from. A deployment with no local account configured refuses
+         *     everything here, with the same 401 a wrong passphrase gets.
+         */
+        post: operations["sign_in_auth_sign_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -3648,6 +3672,29 @@ export interface components {
             /** Watches */
             watches: string;
         };
+        /** SignInRequest */
+        SignInRequest: {
+            /** Password */
+            password: string;
+            /** Username */
+            username: string;
+        };
+        /**
+         * SignInView
+         * @description What a successful sign-in hands back: a credential, and when it dies.
+         *
+         *     The token is in the body and in nothing else — not a redirect, not a
+         *     ``Set-Cookie``. Who stores it and how is the client's decision, and the
+         *     console's answer is an HTTP-only cookie the browser cannot read.
+         */
+        SignInView: {
+            /** Expires At */
+            expires_at: string;
+            /** Principal Id */
+            principal_id: string;
+            /** Token */
+            token: string;
+        };
         /** SignalView */
         SignalView: {
             /** Name */
@@ -4099,6 +4146,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PrincipalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_in_auth_sign_in_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInView"];
                 };
             };
             /** @description Validation Error */

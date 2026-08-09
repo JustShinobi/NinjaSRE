@@ -18,12 +18,13 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
-from gateway.http.errors import bad_request, not_found
+from gateway.http.errors import bad_request, not_found, unauthorized
 from gateway.http.state import GatewayState
 from platform.identity.audit.recorder import AuditContext
-from platform.identity.errors import TooManyRevocations
+from platform.identity.errors import LocalSignInRejected, TooManyRevocations
 from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
+from platform.startup.bootstrap import organisation_id
 
 auth_router = APIRouter(prefix="/auth", tags=["identity"])
 identity_router = APIRouter(prefix="/identity", tags=["identity"])
@@ -149,6 +150,52 @@ def _grant_view(binding: RoleBinding) -> GrantView:
 def _audit_context(auth: AuthenticatedRequest) -> AuditContext:
     """Return the audit context this request acts under."""
     return AuditContext(actor_kind=ActorKind.USER, actor_id=auth.principal_id)
+
+
+class SignInRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class SignInView(BaseModel):
+    """What a successful sign-in hands back: a credential, and when it dies.
+
+    The token is in the body and in nothing else — not a redirect, not a
+    ``Set-Cookie``. Who stores it and how is the client's decision, and the
+    console's answer is an HTTP-only cookie the browser cannot read.
+    """
+
+    token: str
+    expires_at: str
+    principal_id: str
+
+
+@auth_router.post("/sign-in", response_model=SignInView)
+async def sign_in(
+    body: SignInRequest,
+    state: GatewayState = Depends(get_state),
+) -> SignInView:
+    """Exchange the local account's name and passphrase for an API token.
+
+    Public by declaration, because it is where the credential every other route
+    demands comes from. A deployment with no local account configured refuses
+    everything here, with the same 401 a wrong passphrase gets.
+    """
+    if state.local_sign_in is None:
+        raise unauthorized("the credential was not accepted")
+    try:
+        issued = await state.local_sign_in.sign_in(
+            body.username, body.password, org_id=organisation_id()
+        )
+    except LocalSignInRejected as refused:
+        raise unauthorized(str(refused)) from refused
+
+    expires_at = issued.token.expires_at or datetime.now(UTC)
+    return SignInView(
+        token=issued.secret,
+        expires_at=expires_at.isoformat(),
+        principal_id=issued.token.user_id,
+    )
 
 
 @auth_router.get("/me", response_model=PrincipalView)

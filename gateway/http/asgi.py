@@ -36,6 +36,8 @@ from core.agent.interaction.models import Interaction
 from gateway.http.app import create_app
 from gateway.http.services import InvestigationRunner, InvestigationStart
 from gateway.http.state import GatewayState
+from platform.identity.audit.recorder import AuditRecorder
+from platform.identity.local_accounts import LocalAccount, LocalSignIn
 from platform.identity.tokens import TokenService
 from platform.observability.logging import get_logger
 from platform.persistence.postgres.gateway import PostgresPersistence
@@ -187,11 +189,26 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
         load_investigator(reference) if reference else UnconfiguredInvestigator()
     )
 
+    tokens = TokenService(gateway=store)
+
+    # Resolved here rather than per request, so a deployment that still carries
+    # the shipped passphrase fails to come up instead of failing at the first
+    # sign-in — by which time it is already in front of somebody.
+    account = LocalAccount.from_environment(source)
+    if account is None:
+        _LOGGER.info("deployment.local_account_absent")
+
     return Deployment(
         state=GatewayState(
             gateway=store,
-            tokens=TokenService(gateway=store),
+            tokens=tokens,
             investigator=investigator,
+            local_sign_in=LocalSignIn(
+                gateway=store,
+                tokens=tokens,
+                account=account,
+                recorder=AuditRecorder(gateway=store),
+            ),
         ),
         store=store,
     )

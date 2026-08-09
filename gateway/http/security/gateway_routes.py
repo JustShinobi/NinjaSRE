@@ -127,6 +127,16 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
     ),
     # --- Capabilities catalogue ------------------------------------------------
     Route(method="GET", path="/v1/capabilities", permission=Permission.INVESTIGATION_READ),
+    # --- Signing in — public, because it is where a credential comes from ------
+    Route(
+        method="POST",
+        path="/auth/sign-in",
+        public_because=(
+            "this is the route that issues the credential every other route requires, so "
+            "requiring one to reach it would leave a deployment with no first way in; the "
+            "name and passphrase are checked in the handler against the local account"
+        ),
+    ),
     # --- Health and readiness — public: a probe precedes authentication ------
     Route(
         method="GET",

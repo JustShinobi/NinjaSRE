@@ -35,6 +35,11 @@ REVIEWER: Final = "user-reviewer"
 VIEWER: Final = "user-viewer"
 AUTOMATION: Final = "user-automation"
 
+#: What a sign-in against this dataset returns. Obviously not a credential: the
+#: mock resolves no token, and a fixture holding something that looked like a
+#: real one is a fixture somebody eventually tries in a deployment.
+SIGN_IN_TOKEN: Final = "fixture-session-token"
+
 #: The permissions a full operator holds here. Spelled rather than imported so
 #: the fixture states what it claims rather than tracking a runtime enum — a
 #: fixture that changed when a permission was renamed would hide the change the
@@ -951,6 +956,19 @@ def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
     principal = VIEWER if viewer else OPERATOR
     display = next(user for user in USERS if user["user_id"] == principal)
     return (
+        # What the sign-in hands back. The mock decides *whether* to answer this
+        # by checking the credential it was sent; this record is only the shape
+        # of the answer when it does, which is why one record covers both
+        # scenarios and every role.
+        _record(
+            "sign-in",
+            {},
+            {
+                "token": SIGN_IN_TOKEN,
+                "expires_at": at(hours=-12),
+                "principal_id": principal,
+            },
+        ),
         _record(
             "principal",
             {},

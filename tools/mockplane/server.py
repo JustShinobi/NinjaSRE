@@ -39,10 +39,35 @@ from config.constants.fixtures import (
     MOCK_SERVER_DEFAULT_PORT,
     MOCK_STREAM_EVENTS_PER_SECOND,
 )
+from config.constants.security import (
+    LOCAL_ACCOUNT_DEFAULT_PASSWORD,
+    LOCAL_ACCOUNT_USERNAME,
+)
 from tools.mockplane.endpoints import ConsoleEndpoint, match_request
 from tools.mockplane.records import CapturedRecord, dumps
 from tools.mockplane.scenarios import Override, Scenario, ScenarioData, arguments_key
 from tools.mockplane.scenarios import load as load_scenario
+
+#: The endpoint whose answer depends on the request body rather than on a
+#: fixture lookup. Named here so the branch in ``answer`` reads as a rule rather
+#: than as a string comparison somebody will wonder about.
+SIGN_IN_SLUG: Final = "sign-in"
+
+
+def _credential_accepted(body: Mapping[str, Any] | None) -> bool:
+    """Return whether this sign-in body carries the demo profile's credential.
+
+    The mock stands in for a deployment running the demo profile, and that
+    profile's account is the one this project ships. Anything else is refused,
+    exactly as the gateway refuses it.
+    """
+    if body is None:
+        return False
+    return (
+        body.get("username") == LOCAL_ACCOUNT_USERNAME
+        and body.get("password") == LOCAL_ACCOUNT_DEFAULT_PASSWORD
+    )
+
 
 #: The header a client presents to keep its writes separate from another's.
 SESSION_HEADER: Final = "x-mockplane-session"
@@ -202,6 +227,13 @@ class MockPlane:
                 404, self._problem(f"{method} {path} is not an endpoint this mock serves")
             )
         endpoint, arguments = resolved
+
+        # Signing in is the one endpoint whose answer depends on what was sent
+        # rather than on which record was asked for. A mock that accepted every
+        # passphrase would leave the console's refusal path — the error the form
+        # renders — with nothing that ever exercises it.
+        if endpoint.slug == SIGN_IN_SLUG and not _credential_accepted(body):
+            return Answer(401, self._problem("the credential was not accepted"))
 
         override = self._data.scenario.override_for(endpoint.slug)
         if override is not None and override.refuse:

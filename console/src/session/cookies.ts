@@ -47,7 +47,13 @@ export const RETURN_TO_PARAM = 'from';
 export const SESSION_REASON_PARAM = 'reason';
 
 /** The reasons a sign-in can be arrived at. */
-export const SESSION_REASONS = ['expired', 'signed-out', 'none'] as const;
+export const SESSION_REASONS = [
+  'expired',
+  'signed-out',
+  'rejected',
+  'unreachable',
+  'none',
+] as const;
 
 export type SessionReason = (typeof SESSION_REASONS)[number];
 

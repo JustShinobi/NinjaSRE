@@ -3822,6 +3822,50 @@
         "title": "ShippedDetectorView",
         "type": "object"
       },
+      "SignInRequest": {
+        "properties": {
+          "password": {
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "SignInRequest",
+        "type": "object"
+      },
+      "SignInView": {
+        "description": "What a successful sign-in hands back: a credential, and when it dies.\n\nThe token is in the body and in nothing else — not a redirect, not a\n``Set-Cookie``. Who stores it and how is the client's decision, and the\nconsole's answer is an HTTP-only cookie the browser cannot read.",
+        "properties": {
+          "expires_at": {
+            "title": "Expires At",
+            "type": "string"
+          },
+          "principal_id": {
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expires_at",
+          "principal_id"
+        ],
+        "title": "SignInView",
+        "type": "object"
+      },
       "SignalView": {
         "properties": {
           "name": {
@@ -4908,6 +4952,48 @@
           }
         },
         "summary": "Whoami",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/auth/sign-in": {
+      "post": {
+        "description": "Exchange the local account's name and passphrase for an API token.\n\nPublic by declaration, because it is where the credential every other route\ndemands comes from. A deployment with no local account configured refuses\neverything here, with the same 401 a wrong passphrase gets.",
+        "operationId": "sign_in_auth_sign_in_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sign In",
         "tags": [
           "identity"
         ]

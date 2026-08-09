@@ -236,14 +236,37 @@ describe('the sign-in page', () => {
     expect(form.getAttribute('action')).not.toContain('?');
   });
 
-  it('never puts the credential where another origin could read it', async () => {
+  it('never puts the password where another origin could read it', async () => {
     const SignIn = (await import('@/app/sign-in/page')).default;
     render(await SignIn({ searchParams: Promise.resolve({}) }));
 
-    const field = screen.getByLabelText(EN['signIn.credential']);
-    expect(field).toHaveAttribute('type', 'password');
-    expect(field).toHaveAttribute('autocomplete', 'off');
-    expect(field).toHaveAttribute('name', 'credential');
+    const password = screen.getByLabelText(EN['signIn.password']);
+    expect(password).toHaveAttribute('type', 'password');
+    expect(password).toHaveAttribute('name', 'password');
+
+    // The username is not a secret and a password manager needs to see both to
+    // offer either, so it is an ordinary text field with the standard token.
+    const username = screen.getByLabelText(EN['signIn.username']);
+    expect(username).toHaveAttribute('name', 'username');
+    expect(username).toHaveAttribute('autocomplete', 'username');
+  });
+
+  it('says a credential was refused rather than showing the browser some JSON', async () => {
+    const SignIn = (await import('@/app/sign-in/page')).default;
+    render(await SignIn({ searchParams: Promise.resolve({ reason: 'rejected' }) }));
+
+    expect(screen.getByTestId('sign-in-reason')).toHaveTextContent(
+      EN['signIn.rejected'],
+    );
+  });
+
+  it('distinguishes a deployment it could not reach from a credential it refused', async () => {
+    const SignIn = (await import('@/app/sign-in/page')).default;
+    render(await SignIn({ searchParams: Promise.resolve({ reason: 'unreachable' }) }));
+
+    expect(screen.getByTestId('sign-in-reason')).toHaveTextContent(
+      EN['signIn.unreachable'],
+    );
   });
 
   it('carries the route to come back to, and refuses one that leaves the console', async () => {

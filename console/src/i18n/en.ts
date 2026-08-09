@@ -122,9 +122,10 @@ export const EN = {
   // --- The session -------------------------------------------------------------
   'signIn.title': 'Sign in',
   'signIn.context': 'This console reaches your deployment and nothing else.',
-  'signIn.credential': 'API token',
+  'signIn.username': 'Username',
+  'signIn.password': 'Password',
   'signIn.submit': 'Sign in',
-  'signIn.rejected': 'That credential was not accepted.',
+  'signIn.rejected': 'That username and password were not accepted.',
   'signIn.unreachable': 'The deployment could not be reached.',
   'signIn.expired': 'Your session ended. Sign in again to return to where you were.',
   'session.expiring': 'This session ends in {duration}.',

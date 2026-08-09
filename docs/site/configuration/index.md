@@ -2,7 +2,7 @@
 
 # Configuration reference
 
-75 settings, generated from the catalogue `deploy/compose/.env.example` is rendered from — so this page and that file cannot disagree.
+78 settings, generated from the catalogue `deploy/compose/.env.example` is rendered from — so this page and that file cannot disagree.
 
 ## The minimum
 
@@ -21,7 +21,7 @@ Everything else has a working default.
 | [Database](database.md) | 3 |
 | [Model provider — set the one you use](model-provider---set-the-one-you-use.md) | 27 |
 | [Ports and addresses](ports-and-addresses.md) | 4 |
-| [Isolation, masking, and the credential proxy](isolation--masking--and-the-credential-proxy.md) | 13 |
+| [Isolation, masking, and the credential proxy](isolation--masking--and-the-credential-proxy.md) | 16 |
 | [Memory, knowledge, and the runtime](memory--knowledge--and-the-runtime.md) | 7 |
 | [Logging, telemetry, and air-gapped operation](logging--telemetry--and-air-gapped-operation.md) | 9 |
 | [The ninjasre command](the-ninjasre-command.md) | 3 |

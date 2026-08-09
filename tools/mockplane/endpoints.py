@@ -71,6 +71,13 @@ _PROXMOX: Final = "the Proxmox integration"
 CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     # --- Who is looking ---------------------------------------------------------
     ConsoleEndpoint(
+        method="POST",
+        path="/auth/sign-in",
+        slug="sign-in",
+        source=_GATEWAY,
+        summary="exchange the local account's name and passphrase for a token",
+    ),
+    ConsoleEndpoint(
         method="GET",
         path="/auth/me",
         slug="principal",
