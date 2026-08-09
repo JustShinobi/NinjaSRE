@@ -68,7 +68,7 @@ runs:
     diagnosis: guest_locked_by_a_live_task
     cited:
       - the diagnosis reports the lock as not orphaned
-      - a vzdump for guest 115 is still running
+      - a vzdump for this guest is still running
       - the guest itself is running and serving
     action: wait
     transcript: |

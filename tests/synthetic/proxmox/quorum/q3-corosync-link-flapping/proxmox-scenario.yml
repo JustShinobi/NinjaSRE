@@ -53,7 +53,7 @@ runs:
     cited:
       - link 0 is flapping across several membership changes
       - link 1 is declared by only one node and cannot form
-      - the cluster log carries knet retransmit entries
+      - knet retransmit entries in the cluster log
     action: escalate
     transcript: |
       The cluster is quorate right now, and that is the least interesting fact
@@ -70,7 +70,7 @@ runs:
     cited:
       - link 0 is flapping across several membership changes
       - link 1 is declared by only one node and cannot form
-      - the cluster log carries knet retransmit entries
+      - knet retransmit entries in the cluster log
     action: escalate
     transcript: |
       Link 0 flapping, link 1 half-declared, retransmits in the log. Escalating.

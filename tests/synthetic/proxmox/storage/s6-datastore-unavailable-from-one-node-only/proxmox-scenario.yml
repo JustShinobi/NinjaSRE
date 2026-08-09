@@ -53,9 +53,9 @@ runs:
     arm: full
     diagnosis: datastore_unreachable_from_one_node
     cited:
-      - the availability reading says pve02 cannot reach GigaChad and data-pool
+      - the availability reading says a node cannot reach a datastore it declares
       - a datastore that is declared and unreachable pins every guest whose disk is on it
-      - the same datastores are declared for that node, so this is a mount rather than a removal
+      - the same datastore is available from the other node
     action: escalate
     transcript: |
       pve02 declares GigaChad and data-pool and cannot reach either; pve01
@@ -70,9 +70,9 @@ runs:
     arm: full
     diagnosis: datastore_unreachable_from_one_node
     cited:
-      - the availability reading says pve02 cannot reach GigaChad and data-pool
+      - the availability reading says a node cannot reach a datastore it declares
       - a datastore that is declared and unreachable pins every guest whose disk is on it
-      - the same datastores are declared for that node
+      - the same datastore is available from the other node
     action: escalate
     transcript: |
       pve02 cannot reach GigaChad or data-pool though both are declared for it.

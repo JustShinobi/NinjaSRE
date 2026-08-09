@@ -41,7 +41,7 @@ truth:
     quorum device is contributing its vote. The cluster can act; the node
     cannot be assumed dead.
   evidence:
-    - the quorum tool reports '"quorate": true'
+    - 'the quorum tool reports "quorate": true'
     - two votes of the two required
     - pve02 is offline in the membership view
 
@@ -68,7 +68,7 @@ runs:
     arm: full
     diagnosis: node_unreachable_quorum_retained
     cited:
-      - the quorum tool reports '"quorate": true'
+      - 'the quorum tool reports "quorate": true'
       - the cluster holds two votes of the two required
       - pve02 is offline in the membership view
     action: escalate
@@ -92,7 +92,7 @@ runs:
     arm: full
     diagnosis: node_unreachable_quorum_retained
     cited:
-      - the quorum tool reports '"quorate": true'
+      - 'the quorum tool reports "quorate": true'
       - the cluster holds two votes of the two required
       - pve02 is offline in the membership view
     action: escalate

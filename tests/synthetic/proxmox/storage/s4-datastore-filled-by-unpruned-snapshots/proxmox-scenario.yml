@@ -59,7 +59,7 @@ runs:
     cited:
       - the reclamation reading says what could be freed
       - the newest snapshot is the only in-place recovery point that guest has
-      - the largest backup belongs to a guest no enabled backup job covers
+      - the largest backup belongs to a guest no enabled job covers
     action: escalate
     transcript: |
       TeraChad is at ninety-six per cent and everything reclaimable on it is a

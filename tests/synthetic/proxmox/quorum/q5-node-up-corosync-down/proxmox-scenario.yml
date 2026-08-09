@@ -42,7 +42,7 @@ truth:
     guests. The cluster layer has failed on that node while everything above it
     kept running, which is why nothing about the guests looks wrong.
   evidence:
-    - the quorum tool reports '"quorate": false'
+    - 'the quorum tool reports "quorate": false'
     - pve02 is absent from the membership view
     - pve02 still answers for lxc/100
 
@@ -69,7 +69,7 @@ runs:
     arm: full
     diagnosis: node_up_corosync_down
     cited:
-      - the quorum tool reports '"quorate": false'
+      - 'the quorum tool reports "quorate": false'
       - pve02 is absent from the membership view
       - pve02 still answers for lxc/100 and reports it running
     action: escalate
@@ -85,7 +85,7 @@ runs:
     arm: full
     diagnosis: node_up_corosync_down
     cited:
-      - the quorum tool reports '"quorate": false'
+      - 'the quorum tool reports "quorate": false'
       - pve02 is absent from the membership view
       - pve02 still answers for lxc/100 and reports it running
     action: escalate

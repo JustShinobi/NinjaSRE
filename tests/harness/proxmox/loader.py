@@ -99,6 +99,29 @@ def _fixtures(directory: Path, document: Mapping[str, Any]) -> Fixtures:
     )
 
 
+def _strings(directory: Path, field: str, declared: Any) -> tuple[str, ...]:
+    """Return ``declared`` as a tuple of strings, or raise naming the field.
+
+    Strict about the type rather than coercing, because of one specific and
+    invisible failure: a plain YAML scalar containing ``": "`` parses as a
+    mapping, and ``str()`` of that mapping is a string nobody wrote. It would
+    then be compared, never match, and report a scenario as unsupported for a
+    reason no reader could find. Quoting the value is the fix; discovering that
+    it needs quoting is what this is for.
+    """
+    entries = declared or ()
+    if isinstance(entries, str) or not isinstance(entries, Sequence):
+        raise ScenarioError(directory.name, f"{field!r} must be a list")
+    for entry in entries:
+        if not isinstance(entry, str):
+            raise ScenarioError(
+                directory.name,
+                f"{field!r} contains {entry!r}, which is not a string. A plain YAML scalar "
+                f"holding a colon and a space parses as a mapping — quote the whole value.",
+            )
+    return tuple(entries)
+
+
 def _plan(directory: Path, document: Mapping[str, Any]) -> ReadingsPlan:
     """Return the tools this scenario runs and what they have to report."""
     declared = document.get("readings") or {}
@@ -116,7 +139,7 @@ def _plan(directory: Path, document: Mapping[str, Any]) -> ReadingsPlan:
         )
     return ReadingsPlan(
         tools=tuple(calls),
-        must_report=tuple(str(found) for found in declared.get("must_report") or ()),
+        must_report=_strings(directory, "readings.must_report", declared.get("must_report")),
     )
 
 
@@ -149,7 +172,7 @@ def _truth(directory: Path, document: Mapping[str, Any]):  # noqa: ANN202 - retu
     try:
         return Truth(
             root_cause=str(declared.get("root_cause", "")),
-            evidence=tuple(str(found) for found in declared.get("evidence") or ()),
+            evidence=_strings(directory, "truth.evidence", declared.get("evidence")),
             insufficient=bool(declared.get("insufficient", False)),
             summary=str(declared.get("summary", "")),
         )
@@ -218,7 +241,7 @@ def _run(
     if "diagnosis" in declared:
         fields["diagnosis"] = str(declared["diagnosis"])
     if "cited" in declared:
-        fields["cited"] = tuple(str(found) for found in declared["cited"] or ())
+        fields["cited"] = _strings(directory, "runs[].cited", declared["cited"])
     if "said_insufficient" in declared:
         fields["said_insufficient"] = bool(declared["said_insufficient"])
     if "action" in declared:

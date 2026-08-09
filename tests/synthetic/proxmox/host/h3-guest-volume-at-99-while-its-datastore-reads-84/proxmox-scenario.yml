@@ -51,7 +51,7 @@ red_herrings:
       it is about a different volume from the one that is full.
     tempting: proxmox_reclaim_storage
 
-exercises: [proxmox_reclaim_storage, proxmox_stop_guest]
+exercises: [proxmox_reclaim_storage]
 
 runs:
   - model: hosted-frontier

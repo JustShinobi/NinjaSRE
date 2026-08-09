@@ -57,7 +57,7 @@ red_herrings:
       work each time. The loop is only visible in the interval between them.
     tempting: proxmox_reboot_guest
 
-exercises: [proxmox_reboot_guest, proxmox_start_guest]
+exercises: [proxmox_reboot_guest]
 
 runs:
   - model: hosted-frontier

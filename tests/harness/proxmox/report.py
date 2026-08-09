@@ -248,6 +248,13 @@ class SuiteReport:
             "scenarios": [found.to_record() for found in self.scenarios],
         }
 
+    def to_artifact(self) -> dict[str, Any]:
+        """Return the run with every transcript, reading and reason kept (FR-019)."""
+        return {
+            **self.to_record(),
+            "scenarios": [found.to_artifact() for found in self.scenarios],
+        }
+
     def compare(self, baseline: Mapping[str, Any]) -> Comparison:
         """Return what moved between ``baseline`` and this run."""
         before = {_key(entry): entry for entry in baseline.get("scenarios", ())}
@@ -274,7 +281,11 @@ class SuiteReport:
             started_passing=tuple(started),
             missing_from_run=tuple(sorted(key[0] for key in before if key not in after)),
             rate_before=float(baseline.get("pass_rate", 0.0)),
-            rate_after=self.pass_rate,
+            # Rounded to the precision the baseline is stored at. Comparing a
+            # stored 0.7143 against a live 0.714285… makes every unchanged run a
+            # regression by a hundred-thousandth, which is the kind of gate
+            # failure that gets a gate switched off in a fortnight.
+            rate_after=round(self.pass_rate, 4),
         )
 
 

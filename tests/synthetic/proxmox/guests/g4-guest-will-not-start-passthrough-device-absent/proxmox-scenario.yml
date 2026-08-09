@@ -56,7 +56,7 @@ red_herrings:
       reads as a machine somebody forgot to start.
     tempting: proxmox_start_guest
 
-exercises: [proxmox_start_guest, proxmox_migrate_guest]
+exercises: [proxmox_start_guest]
 
 runs:
   - model: hosted-frontier

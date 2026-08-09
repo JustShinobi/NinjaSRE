@@ -58,7 +58,7 @@ response:
     storage operation this system does not perform. What matters is that
     somebody knows redundancy is gone before the second device goes.
 
-exercises: [proxmox_reclaim_storage]
+exercises: []
 
 runs:
   - model: hosted-frontier

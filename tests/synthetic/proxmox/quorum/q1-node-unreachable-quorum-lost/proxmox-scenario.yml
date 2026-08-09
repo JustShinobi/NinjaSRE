@@ -71,7 +71,7 @@ runs:
     arm: full
     diagnosis: quorum_lost_after_node_loss
     cited:
-      - the quorum tool reports '"quorate": false'
+      - 'the quorum tool reports "quorate": false'
       - the cluster holds one vote of the two required
       - pve02 is not answering, and the membership view lists it offline
     action: escalate
@@ -89,7 +89,7 @@ runs:
     arm: full
     diagnosis: quorum_lost_after_node_loss
     cited:
-      - the quorum tool reports '"quorate": false'
+      - 'the quorum tool reports "quorate": false'
       - the cluster holds one vote of the two required
       - pve02 is not answering, and the membership view lists it offline
     action: escalate
@@ -100,7 +100,7 @@ runs:
     arm: no-memory
     diagnosis: quorum_lost_after_node_loss
     cited:
-      - the quorum tool reports '"quorate": false'
+      - 'the quorum tool reports "quorate": false'
       - the cluster holds one vote of the two required
     action: escalate
     transcript: |

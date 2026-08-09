@@ -115,7 +115,13 @@ class ScenarioScore:
         return f"{self.model}/{self.arm}"
 
     def to_record(self) -> dict[str, Any]:
-        """Return the JSON-serialisable score, transcript and readings included."""
+        """Return the verdict a baseline stores and a comparison reads.
+
+        Deliberately without the transcript and the readings. A baseline is a
+        committed file whose whole value is that moving a number is a diff
+        somebody reads, and a diff carrying twenty-eight transcripts is a diff
+        nobody reads. ``to_artifact`` is where the evidence goes.
+        """
         return {
             "scenario": self.scenario_id,
             "domain": self.domain,
@@ -130,6 +136,17 @@ class ScenarioScore:
             "missing_evidence": list(self.missing_evidence),
             "missing_readings": list(self.missing_readings),
             "red_herrings_followed": list(self.red_herrings_followed),
+        }
+
+    def to_artifact(self) -> dict[str, Any]:
+        """Return everything a reviewer needs to go behind this score (FR-019).
+
+        The transcript, the readings the tools produced, the proposal, and the
+        reasoning that turned them into a verdict — so a scored run can be
+        argued with without being re-run.
+        """
+        return {
+            **self.to_record(),
             "reasoning": list(self.reasoning),
             "run": self.run.to_record() if self.run is not None else {},
             "readings": self.readings.to_record() if self.readings is not None else {},
