@@ -27,10 +27,18 @@ signals the *effect* appears in and how long to wait before they mean anything.
 the same disposition as ``clear_cache`` below and exists for the same reason:
 the branch is exercised by the shipped catalogue rather than by nothing.
 
-``clear_cache`` is in this set on purpose. It is the one action with no
-derivable rollback, so the waiver path — refuse unless an operator explicitly
+``clear_cache`` is in this set on purpose. It is the one cross-vendor action with
+no derivable rollback, so the waiver path — refuse unless an operator explicitly
 accepts it, and audit the acceptance — is exercised by the shipped catalogue
 rather than being a branch nobody has run.
+
+**The hypervisor writes are here too, in ``proxmox/``.** They are not a second
+remediation mechanism: each one declares the same four components and the same
+verification declaration, resolves its autonomy through the same policy engine,
+and closes its loop through the same obligations. What they add is a risk table
+asserted against the registry, preconditions re-evaluated against a fresh reading
+immediately before the write, and a deliberate hole where fencing, quorum and a
+node's own services would be.
 """
 
 from __future__ import annotations
@@ -40,6 +48,7 @@ from collections.abc import Sequence
 from capabilities.tools.remediation import (
     clear_cache,
     cordon_drain_node,
+    proxmox,
     restart_workload,
     rollback_deployment,
     scale_workload,
@@ -62,6 +71,7 @@ COMPONENTS: tuple[RemediationComponents, ...] = (
     update_resource_limits.components,
     toggle_feature_flag.components,
     clear_cache.components,
+    *proxmox.COMPONENTS,
 )
 
 

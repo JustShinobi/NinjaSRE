@@ -13,11 +13,11 @@ sequence of probes that happened to succeed; it is the vendor's own answer, and 
 missing privilege is named with the path it was needed for.
 
 **Would it also support writing?** Reported separately and never as a failure.
-This feature reads and nothing else. A verification that went red because the
+This module reads and nothing else. A verification that went red because the
 token could not stop a guest would push every operator towards a token that can
 destroy one, in order to make a setup screen turn green — so a read-only token
 verifies as *sufficient*, clearly labelled, and the write answer is offered as
-information for whoever decides about feature 046 later.
+information for whoever decides later whether to open the remediation path.
 
 The permission probes below are the framework's contract, one call each, and they
 exist alongside the privilege report rather than instead of it: the probe proves
@@ -137,7 +137,7 @@ class ClusterReport:
         if not self.privileges.read_sufficient:
             return f"{reach} The token cannot read everything this integration needs."
         capability = (
-            "sufficient for reading and for the write operations a later feature would need"
+            "sufficient for reading and for the writes the remediation capabilities make"
             if self.privileges.write_sufficient
             else "sufficient for reading; read-only, which is a supported choice"
         )

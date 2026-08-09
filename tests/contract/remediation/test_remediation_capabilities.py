@@ -40,10 +40,22 @@ from platform.remediation.models import (
 
 EPOCH = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
 
-#: The one capability whose undo genuinely does not exist. Named rather than
+#: The capabilities whose undo genuinely does not exist. Named rather than
 #: detected, so the exception is a decision this suite records rather than
-#: something a broken generator could quietly join.
-NO_DERIVABLE_PLAN = frozenset({"clear_cache"})
+#: something a broken generator could quietly join. A cache clear has no
+#: inverse; a deleted snapshot and a deleted disk image have less than that.
+NO_DERIVABLE_PLAN = frozenset(
+    {"clear_cache", "proxmox_reclaim_storage", "proxmox_remove_orphaned_volume"}
+)
+
+#: The three facts a Proxmox guest is addressed by, written once because eight
+#: of the hypervisor scenarios name the same guest.
+_GUEST: Mapping[str, Any] = {"node": "pve02", "vmid": 100, "kind": "lxc"}
+
+#: A backup volume identifier, which is a recovery point, and an orphaned disk,
+#: which is not. Both in Proxmox's own ``store:content/name`` spelling.
+_BACKUP = "TeraChad:backup/vzdump-lxc-100-2025_08_09-07_00_02.tar.zst"
+_ORPHAN = "local-lvm:vm-129-disk-0"
 
 #: What each capability is asked to do, and what the control plane reports the
 #: target holding before it. Enough to exercise a real generator and a real
@@ -65,6 +77,69 @@ SCENARIOS: Mapping[str, tuple[dict[str, Any], dict[str, Any]]] = {
     ),
     "toggle_feature_flag": ({"enabled": False}, {"enabled": True, "rollout": "50%"}),
     "clear_cache": ({"namespace": "sessions"}, {"entries": 40_192, "hit_rate": 0.91}),
+    # The hypervisor writes. Their arguments carry the three facts a Proxmox
+    # guest is addressed by, because a hypervisor does not address one by name.
+    "proxmox_start_guest": (
+        _GUEST,
+        {
+            "node": "pve02",
+            "status": "stopped",
+            "lock": "",
+            "uptime": 0,
+            # A guest that reached ``running`` and whose own agent does not
+            # answer booted and did not come up, and only the agent tells the
+            # two apart — so the start is the one action that reads it.
+            "agent_responds": True,
+        },
+    ),
+    "proxmox_shutdown_guest": (
+        _GUEST,
+        {"node": "pve02", "status": "running", "lock": "", "uptime": 813_244},
+    ),
+    "proxmox_reboot_guest": (
+        _GUEST,
+        {"node": "pve02", "status": "running", "lock": "", "uptime": 813_244},
+    ),
+    "proxmox_stop_guest": (
+        _GUEST,
+        {"node": "pve02", "status": "running", "lock": "", "uptime": 813_244},
+    ),
+    "proxmox_suspend_guest": (
+        _GUEST,
+        {"node": "pve02", "status": "running", "lock": "", "uptime": 813_244},
+    ),
+    "proxmox_resume_guest": (
+        _GUEST,
+        {"node": "pve02", "status": "paused", "lock": "", "uptime": 0},
+    ),
+    "proxmox_unlock_guest": (
+        _GUEST,
+        {"node": "pve02", "status": "running", "lock": "backup", "uptime": 813_244},
+    ),
+    "proxmox_migrate_guest": (
+        {**_GUEST, "target": "pve01"},
+        {"node": "pve02", "status": "running", "lock": ""},
+    ),
+    "proxmox_ha_relocate": (
+        {"sid": "ct:115", "target": "pve01", "group": "dns"},
+        {"ha_node": "pve02", "ha_state": "started", "ha_group": "lab"},
+    ),
+    "proxmox_reclaim_storage": (
+        {"node": "pve02", "datastore": "TeraChad", "items": [_BACKUP]},
+        {"items": [_BACKUP], "used_bytes": 7_654_000_000_000},
+    ),
+    "proxmox_remove_orphaned_volume": (
+        {"node": "pve02", "datastore": "local-lvm", "volume": _ORPHAN},
+        {"volumes": [_ORPHAN], "owners": {}},
+    ),
+    "proxmox_retry_backup": (
+        {**_GUEST, "storage": "TeraChad"},
+        {"last_backup_succeeded": False, "last_backup_at": 1_754_800_000},
+    ),
+    "proxmox_resync_replication": (
+        {"node": "pve02", "job_id": "100-0", "rate_limit_mbps": 50},
+        {"failing": True, "last_sync": 1_754_800_000, "target": "pve01"},
+    ),
 }
 
 

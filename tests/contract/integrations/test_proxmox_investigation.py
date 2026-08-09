@@ -101,11 +101,19 @@ INVOCATIONS: tuple[tuple[str, Callable[[], Awaitable[CapabilityResult]]], ...] =
 
 IDS = tuple(name for name, _ in INVOCATIONS)
 
-#: The declared capabilities that reach Proxmox, from the real catalogue rather
-#: than from the table above — so a tool that exists and is missing from the
-#: table is caught by the coverage test rather than silently unswept.
-DECLARED = tuple(
+#: Everything in the catalogue that reaches Proxmox at all, reads and writes.
+REACHES_PROXMOX = tuple(
     found for found in discover().tools if found.metadata.evidence_source == INTEGRATION
+)
+
+#: The *investigation* capabilities, which is what this file is about. Selected
+#: by where they live rather than by name: a tool under the vendor's own package
+#: is a read by construction, and the remediation writes live in the
+#: cross-vendor tree behind the approval gate.
+DECLARED = tuple(
+    found
+    for found in REACHES_PROXMOX
+    if found.source_module.startswith("integrations.proxmox.tools")
 )
 
 
@@ -114,6 +122,27 @@ def test_the_sweep_below_covers_every_declared_proxmox_capability() -> None:
     declared = {found.name for found in DECLARED}
 
     assert declared == set(IDS), f"unswept: {sorted(declared - set(IDS))}"
+
+
+def test_anything_else_reaching_proxmox_is_a_gated_write() -> None:
+    """The other half, so "it is not an investigation tool" cannot mean "unexamined".
+
+    A capability that reaches Proxmox and is not in the vendor's own package is
+    a remediation write, and it declares four components, an approval, and a
+    rollback plan or planner. There is no third category, and a tool that landed
+    in one fails here.
+    """
+    from capabilities.tools.remediation import COMPONENTS
+
+    gated = {bundle.capability for bundle in COMPONENTS}
+    outside = [found for found in REACHES_PROXMOX if found not in DECLARED]
+
+    assert outside, "the hypervisor writes have gone missing from the catalogue"
+    for found in outside:
+        assert found.name in gated, f"{found.name}: reaches Proxmox and is not a gated write"
+        assert found.metadata.side_effect_level.needs_approval, found.name
+        assert found.metadata.requires_approval, found.name
+        assert found.metadata.rollback_plan or found.metadata.rollback_planner, found.name
 
 
 # --- SC-012: read-only, structurally -----------------------------------------

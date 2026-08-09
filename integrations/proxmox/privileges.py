@@ -9,12 +9,12 @@ symptom of that appears during an incident.
 
 **Read and write sufficiency are reported separately, and that is the whole
 point.** A read-only token is a legitimate and, for many operators, preferable
-configuration: this feature reads and nothing else, and feature 046's writes
-land behind an approval gate that the operator may never want to open.
-Verification that failed because write privileges were absent would push every
-operator towards a token that can destroy guests, in order to make a setup screen
-go green. So the report says "sufficient for reading; not sufficient for the
-write operations feature 046 would need", and both halves are true and useful.
+configuration: the investigation reads and nothing else, and the remediation
+capabilities land behind an approval gate that the operator may never want to
+open. Verification that failed because write privileges were absent would push
+every operator towards a token that can destroy guests, in order to make a setup
+screen go green. So the report says "sufficient for reading; not sufficient for
+the write operations", and both halves are true and useful.
 
 **A missing privilege is named with the path it was needed for.** ``Sys.Audit``
 granted on ``/nodes`` and not on ``/`` is a real and common configuration, and an
@@ -82,15 +82,25 @@ READ_PRIVILEGES: Final[tuple[RequiredPrivilege, ...]] = (
     ),
 )
 
-#: What feature 046 will need, declared here so verification can report on it
-#: without this feature depending on it. Nothing in this integration uses these;
-#: they exist so that an operator can be told, once, whether the token they
-#: pasted would also support remediation — and choose deliberately.
+#: What the remediation capabilities need, declared here so verification can
+#: report on it without this package depending on them. Nothing in this
+#: integration uses these; they exist so an operator can be told, once, whether
+#: the token they pasted would also support remediation — and choose
+#: deliberately, having seen what it would then be able to do.
+#:
+#: This list is asserted against the capabilities' own declarations, so a write
+#: that needs a privilege nobody would have been asked for fails the build
+#: rather than an operator's evening.
 WRITE_PRIVILEGES: Final[tuple[RequiredPrivilege, ...]] = (
     RequiredPrivilege(
         privilege="VM.PowerMgmt",
         path="/vms",
-        grants="start, stop and reboot guests",
+        grants="start, stop, shut down, reboot, suspend and resume guests",
+    ),
+    RequiredPrivilege(
+        privilege="VM.Config.Options",
+        path="/vms",
+        grants="edit a guest's configuration, which is how an orphaned lock is cleared",
     ),
     RequiredPrivilege(
         privilege="VM.Migrate",
@@ -101,6 +111,21 @@ WRITE_PRIVILEGES: Final[tuple[RequiredPrivilege, ...]] = (
         privilege="VM.Backup",
         path="/vms",
         grants="take a backup of a guest outside its schedule",
+    ),
+    RequiredPrivilege(
+        privilege="Datastore.AllocateSpace",
+        path="/storage",
+        grants="write a backup onto a datastore",
+    ),
+    RequiredPrivilege(
+        privilege="Datastore.Allocate",
+        path="/storage",
+        grants="remove a volume from a datastore",
+    ),
+    RequiredPrivilege(
+        privilege="Sys.Console",
+        path="/",
+        grants="change a high-availability resource and run a replication job now",
     ),
 )
 
@@ -133,7 +158,7 @@ class PrivilegeReport:
 
     @property
     def write_sufficient(self) -> bool:
-        """Return whether it would also support the write operations of feature 046."""
+        """Return whether it would also support the remediation capabilities' writes."""
         return not self.missing_write
 
     def explain(self) -> str:

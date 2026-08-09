@@ -167,8 +167,10 @@ the two — it is the moment automated writes become possible again.
 
 ## The standard capability set
 
-Seven, all gated, each providing four components: a state reader, an applier, a
-rollback generator, and a post-execution verifier.
+Seven cross-vendor capabilities, all gated, each providing four components: a
+state reader, an applier, a rollback generator, and a post-execution verifier.
+The hypervisor set below adds thirteen more on the same four components and the
+same gate.
 
 | Capability | Level | Rollback |
 |---|---|---|
@@ -186,6 +188,47 @@ that could run with no approval, no plan, and no sandbox.
 
 Reaching a control plane needs one bound in the deployment. With none bound,
 every remediation capability reports itself unavailable rather than pretending.
+
+## The hypervisor capability set
+
+Thirteen writes against a Proxmox cluster, on the same four components, the same
+approval gate and the same autonomy resolver — there is no hypervisor-specific
+autonomy path. Three things about them are worth knowing before they are enabled.
+
+**The risk table is one artefact and it is asserted.** Every action's class, and
+the reversibility, data-loss, availability and blast-radius reasoning behind it,
+is declared in one module and checked against the registry by a test. The
+document an operator reads is therefore the one the system obeys. Its shape:
+
+| Class | Actions |
+|---|---|
+| `trivial` | clear an orphaned guest lock |
+| `low` | start a guest; resume a suspended one |
+| `moderate` | graceful shutdown; reboot; suspend; online migration; backup retry; replication resync |
+| `high` | relocate a high-availability resource |
+| `critical` | hard-stop a guest; reclaim named datastore items; remove an orphaned volume |
+
+**Data loss fixes the class.** Anything that can destroy something with no other
+copy is `critical` regardless of how small the change is — a hundred-megabyte
+snapshot that is the only recent recovery point outranks a fifty-gigabyte
+orphaned disk. The two deletions declare *no* rollback and take the waiver path,
+which means an operator has to accept the absence explicitly and the acceptance
+is audited.
+
+**There is a deliberate hole.** No capability may fence a node, force quorum,
+alter corosync configuration, restart `pveproxy`, `pvedaemon`, `pve-cluster` or
+`corosync`, write a node's network configuration, or extend a thin or ZFS pool.
+In a two-node cluster nothing available to this system distinguishes a dead node
+from an unreachable one, and both wrong answers cost data — so the ambiguity is
+reported and escalated rather than resolved. The hole is asserted over the whole
+write surface rather than over a list of names, so a capability added in a
+prohibited category fails the build.
+
+Every one of the thirteen re-reads its target immediately before acting. A guest
+that migrated after the proposal, a lock taken by live work, a cluster that has
+lost quorum, or a two-node cluster whose peer has gone silent are each a refusal
+rather than a proceed — and the refusal names every precondition that failed, not
+the first.
 
 ## Configuring it
 

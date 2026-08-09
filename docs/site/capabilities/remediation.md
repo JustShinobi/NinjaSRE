@@ -2,7 +2,7 @@
 
 # remediation capabilities
 
-7 tools and 1 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+20 tools and 1 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
 
@@ -63,6 +63,279 @@ Stop a node accepting new work, and optionally evict what is running on it. Reve
 
 - cordoning the last healthy node in a pool, which has nowhere to reschedule to
 - draining during a capacity shortage, which moves the outage rather than fixing it
+
+#### `proxmox_ha_relocate`
+
+Change what the Proxmox high-availability manager holds about one resource, so it runs somewhere else. Distinct from a manual migration: the manager acts on its own schedule and may move other resources as a consequence.
+
+- **Side effect:** `write_irreversible` — changes something that cannot be undone
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `high` — Not reversible without a restore, or reaching many resources at once.
+- **Requires:** proxmox
+- **Approval:** required — This changes what the cluster's manager believes rather than moving one guest. It stops and starts the resource, and what else the manager then does follows from it.
+
+**Use when:**
+
+- move a managed resource off a node that is being taken out of service
+- correct a resource pinned to a group whose nodes can no longer run it
+
+**Not for:**
+
+- relocating a resource away from a node that is merely unreachable
+- using this where a manual migration would do, which is almost always
+
+#### `proxmox_migrate_guest`
+
+Move a Proxmox guest to another node online, after checking that the receiving node can see every datastore the guest has disks on. Refuses rather than falling back to an offline migration, and refuses in a two-node cluster whose other member is not answering, because nothing there distinguishes a dead node from an unreachable one.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** proxmox
+- **Approval:** required — The guest pauses at the switch-over, both nodes and the link between them carry the memory copy, and a migration that fails at the far end leaves the guest stopped.
+
+**Use when:**
+
+- move a guest off a node that is running out of memory
+- empty a node before planned work on it
+
+**Not for:**
+
+- moving a guest whose disk the receiving node cannot see
+- moving a guest off a node that is merely not answering
+
+#### `proxmox_reboot_guest`
+
+Reboot a Proxmox guest through its own operating system. A guest that has not gone after the declared timeout is not hard-stopped here: the escalation is a separate, separately classified action.
+
+- **Side effect:** `write_irreversible` — changes something that cannot be undone
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** proxmox
+- **Approval:** required — The guest's processes and their in-flight work are destroyed, along with the state that would have explained the failure. Neither is recoverable.
+
+**Use when:**
+
+- recover a guest whose services have become unusable, after the cause is known
+- apply a change inside a guest that only takes effect on restart
+
+**Not for:**
+
+- rebooting before the cause is understood, which destroys the evidence
+- rebooting a guest whose failure will recur immediately
+
+#### `proxmox_reclaim_storage`
+
+Delete an explicit list of volumes from a Proxmox datastore. Takes the identifiers themselves and never a rule such as 'oldest first', because a rule is evaluated against whatever the datastore holds at execution and nobody reviewed that. Any item that is a recovery point — a snapshot, a backup, the last replication base — is the highest risk class regardless of its size.
+
+- **Side effect:** `destructive` — destroys something
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `critical` — Can destroy data that has no other copy, or take an estate's availability down.
+- **Requires:** proxmox
+- **Approval:** required — Deletion is permanent and there is no rollback. If one of these items was the only recent recovery point for a guest, this removes the way back.
+
+**Use when:**
+
+- free space on a datastore by removing items an operator has reviewed and named
+- remove backups of a guest that no longer exists, once somebody has confirmed it
+
+**Not for:**
+
+- deleting by a rule such as 'the oldest three', which this refuses
+- deleting a backup in order to make room for a backup
+
+#### `proxmox_remove_orphaned_volume`
+
+Delete a Proxmox volume that belongs to no guest, verifying at execution rather than at proposal that nothing references it. A guest created between the two is exactly the volume nobody would think to re-check.
+
+- **Side effect:** `destructive` — destroys something
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `critical` — Can destroy data that has no other copy, or take an estate's availability down.
+- **Requires:** proxmox
+- **Approval:** required — A whole disk image goes, permanently. It belongs to nobody only as far as anybody has checked, and there is no rollback.
+
+**Use when:**
+
+- reclaim a disk left behind when a guest was removed with its disks retained
+- clear a volume that no guest configuration has referenced for a long time
+
+**Not for:**
+
+- removing a volume a guest created since the proposal was written
+- removing a volume that is a replication base, which is a recovery point
+
+#### `proxmox_resume_guest`
+
+Resume a suspended Proxmox guest from the memory image it was suspended with, and confirm it reached a running state.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** proxmox
+- **Approval:** required — The guest starts serving again and takes back the memory its suspension released.
+
+**Use when:**
+
+- bring back a guest suspended to relieve a node that has since recovered
+- resume a guest after the work its suspension made room for has finished
+
+**Not for:**
+
+- resuming a guest onto a node that still has no memory for it
+- resuming a guest whose datastore is still unreachable
+
+#### `proxmox_resync_replication`
+
+Run one Proxmox storage replication job now, under an explicit rate limit. The limit is a parameter rather than a setting because corosync shares the link a resync saturates, and a cluster that loses its membership layer to a storage sync has traded a lagging replica for an unquorate cluster.
+
+- **Side effect:** `write_irreversible` — changes something that cannot be undone
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** proxmox
+- **Approval:** required — The run overwrites the target with the source's state and holds the link between the nodes for as long as it takes, which is the link corosync also runs over.
+
+**Use when:**
+
+- catch up a replication job that has fallen behind its schedule
+- re-run a job that failed while the link was down and has since returned
+
+**Not for:**
+
+- resyncing at full rate over the link corosync uses
+- resyncing towards a node that is not answering
+
+#### `proxmox_retry_backup`
+
+Run one Proxmox guest's backup now, outside its schedule. Refuses when a scheduled run is close enough to collide with it, because two vzdump runs against one guest contend for the same lock and the same datastore.
+
+- **Side effect:** `write_irreversible` — changes something that cannot be undone
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** proxmox
+- **Approval:** required — The guest and its datastore carry the I/O for as long as it runs, and the copy it writes consumes space that a scheduled run may be counting on.
+
+**Use when:**
+
+- retake a backup that failed for a reason since fixed
+- take a copy before a change, when the last scheduled run is too old to rely on
+
+**Not for:**
+
+- retrying into the hour before a scheduled run, which this refuses
+- retrying a backup whose failure is a full datastore
+
+#### `proxmox_shutdown_guest`
+
+Ask a Proxmox guest's own operating system to shut down, waiting for it to close its files. Never escalates to a hard stop on its own — that is a separate action with a separate risk class.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** proxmox
+- **Approval:** required — The guest stops serving, entirely, until somebody starts it again. Whatever depends on it stops with it.
+
+**Use when:**
+
+- free a node's memory by stopping a guest that is not needed right now
+- stop a guest cleanly before its node is worked on
+
+**Not for:**
+
+- stopping a guest to clear a symptom whose cause is unknown
+- hard-stopping a guest that is merely slow to shut down
+
+#### `proxmox_start_guest`
+
+Start a stopped Proxmox container or virtual machine and confirm it reached a running state, including that its guest agent answers where one is present. Refused when the cluster has no quorum or the guest is locked.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** proxmox
+- **Approval:** required — Starting a guest commits the node's memory and disk to it, and a guest that was stopped deliberately is one somebody stopped for a reason.
+
+**Use when:**
+
+- bring back a guest that a failed host reboot left stopped
+- start a container whose start was blocked by a datastore that has since returned
+
+**Not for:**
+
+- starting a guest whose disk is on a datastore that is still unreachable
+- starting a guest that was stopped deliberately, before finding out why
+
+#### `proxmox_stop_guest`
+
+Stop a Proxmox guest immediately, without telling anything inside it. The hardware equivalent of pulling the power: anything the guest had not written is gone. This is the escalation a reboot proposes when a graceful shutdown does not complete.
+
+- **Side effect:** `destructive` — destroys something
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `critical` — Can destroy data that has no other copy, or take an estate's availability down.
+- **Requires:** proxmox
+- **Approval:** required — Nothing inside the guest is told. Unflushed writes are lost, and a database or a filesystem may come back needing repair.
+
+**Use when:**
+
+- stop a guest that did not respond to a graceful shutdown within its declared timeout
+- stop a guest that is taking a node down with it
+
+**Not for:**
+
+- stopping a guest that is shutting down cleanly and slowly
+- using this where a graceful shutdown has not been tried
+
+#### `proxmox_suspend_guest`
+
+Suspend a Proxmox guest, writing its memory image to disk so it can be resumed exactly where it left off. Needs room on the datastore for the image.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** proxmox
+- **Approval:** required — The guest stops serving until it is resumed, and writing its memory image needs space on a datastore that may not have it.
+
+**Use when:**
+
+- free a node's memory without losing the state inside a guest
+- pause a guest that is contending for a disk something more urgent needs
+
+**Not for:**
+
+- suspending a guest onto a datastore with no room for its memory image
+- suspending a guest that is serving traffic somebody depends on
+
+#### `proxmox_unlock_guest`
+
+Clear the lock a dead task left on a Proxmox guest, so the guest is manageable again. Refuses unless the task named in the lock is confirmed finished — a lock cleared while its holder is running lets a second operation start against a guest a live one is already changing.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** change from proxmox
+- **Parallel safe:** no
+- **Risk class:** `trivial` — Reversible, reaches one resource, and loses neither data nor availability.
+- **Requires:** proxmox
+- **Approval:** required — A lock is what stops two operations changing one guest at once. Clearing one whose holder is still alive is how a guest ends up with two writers.
+
+**Use when:**
+
+- free a guest a backup left locked when the backup process died
+- make a guest manageable again after a migration was interrupted
+
+**Not for:**
+
+- clearing a lock whose task is still running
+- clearing a lock to work around a backup that keeps failing
 
 #### `restart_workload`
 

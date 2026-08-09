@@ -50,6 +50,7 @@ from integrations._base.retry import RetryPolicy
 from integrations._base.transport import RequestContext
 from integrations.proxmox.client import ProxmoxClient
 from integrations.proxmox.schema import API_BASE, INTEGRATION
+from integrations.proxmox.writes import ProxmoxWriteClient
 from platform.credentials.proxy.model import OutboundResponse, ProxyRequest
 
 PRIMARY: Final = "pve01"
@@ -1075,6 +1076,20 @@ class RecordedProxmox:
     offline_hosts: frozenset[str] = frozenset()
     seen: list[str] = field(default_factory=list)
     hosts: list[str] = field(default_factory=list)
+    #: Every write this transport was asked to make, as ``(method, path)``. The
+    #: assertion a write test usually wants is which endpoint was reached, and a
+    #: count of requests does not answer it.
+    writes: list[tuple[str, str]] = field(default_factory=list)
+    #: What the task a write starts reports when it is polled. ``OK`` is Proxmox's
+    #: word for success and everything else is its own prose, which is exactly
+    #: the shape a caller has to survive.
+    task_exit: str = "OK"
+    #: What that task's log says. The failing case is the one worth recording:
+    #: an operator's next question is what Proxmox said, not what the HTTP
+    #: status was.
+    task_log: tuple[str, ...] = ()
+    #: Responses this transport synthesised for tasks it started.
+    started: dict[str, Any] = field(default_factory=dict)
 
     async def forward(self, request: ProxyRequest) -> OutboundResponse:
         """Answer ``request`` from the recording, or say why it cannot be answered."""
@@ -1089,6 +1104,10 @@ class RecordedProxmox:
             )
 
         path = split.path.removeprefix(API_BASE)
+        if request.method != "GET":
+            return self._accept(request.method, path, split.query)
+        if path in self.started:
+            return _json(self.started[path])
         # Unencoded, so a recording is keyed the way an operator would write it:
         # ``/disks/smart?disk=/dev/sda`` rather than ``disk=%2Fdev%2Fsda``.
         query = "&".join(f"{key}={value}" for key, value in parse_qsl(split.query))
@@ -1099,9 +1118,55 @@ class RecordedProxmox:
                 payload = self.cluster.payload(candidate)
             except KeyError:
                 continue
-            body = json.dumps({"data": payload}).encode("utf-8")
-            return OutboundResponse(200, {"content-type": "application/json"}, body)
+            return _json(payload)
         return OutboundResponse(NODE_UNREACHABLE, {}, b"595 no route to host")
+
+    def _accept(self, method: str, path: str, query: str = "") -> OutboundResponse:
+        """Accept a write the way Proxmox does: with a task identifier, not a result.
+
+        The two shapes are both real and both have to be survivable. An
+        operation Proxmox performs asynchronously answers with a UPID; a
+        configuration edit answers with ``null``, because there is no task. A
+        caller that treated the second as a task would poll one that does not
+        exist, and one that treated the first as a result would report the
+        request rather than what came of it.
+        """
+        # The query carries the parameters a write is made with — the shutdown
+        # timeout, whether a migration is online — so it is recorded with the
+        # path rather than dropped. A test asserting the endpoint alone would
+        # pass on a graceful shutdown that had quietly forced the stop.
+        self.writes.append((method, f"{path}?{query}" if query else path))
+        if method == "PUT":
+            return _json(None)
+
+        node = path.split("/")[2] if path.startswith("/nodes/") else PRIMARY
+        # The last segment names the operation for a status write and is a whole
+        # volume identifier for a deletion. Reduced to letters, because a UPID's
+        # fields are colon-separated and a volume identifier contains colons.
+        tail = path.rsplit("/", 1)[-1]
+        kind = "".join(character for character in tail if character.isalpha()) or "task"
+        upid = f"UPID:{node}:0000A001:0511D000:68943C00:{kind}:0:root@pam:"
+        self.started[f"/nodes/{node}/tasks/{upid}/status"] = {
+            "upid": upid,
+            "status": "stopped",
+            "exitstatus": self.task_exit,
+            "node": node,
+            "starttime": 1_754_803_000,
+            "endtime": 1_754_803_010,
+        }
+        self.started[f"/nodes/{node}/tasks/{upid}/log"] = [
+            {"n": position, "t": line} for position, line in enumerate(self.task_log, start=1)
+        ]
+        return _json(upid)
+
+
+def _json(payload: Any) -> OutboundResponse:
+    """Return ``payload`` wrapped and encoded the way every Proxmox endpoint answers."""
+    return OutboundResponse(
+        200,
+        {"content-type": "application/json"},
+        json.dumps({"data": payload}).encode("utf-8"),
+    )
 
 
 #: Proxmox's own status for "the node that owns this endpoint is not answering".
@@ -1151,6 +1216,32 @@ def client_for(
         transport=transport,
         context=RequestContext(org_id="acme", team_id="homelab", capability="proxmox_probe"),
         endpoints=tuple(endpoints),
+        retry=RetryPolicy(max_attempts=1),
+    )
+    return client, transport
+
+
+def write_client_for(
+    state: ClusterState = ClusterState.HEALTHY,
+    *,
+    responses: Mapping[str, Any] | None = None,
+    task_exit: str = "OK",
+    task_log: Sequence[str] = (),
+) -> tuple[ProxmoxWriteClient, RecordedProxmox]:
+    """Return a Proxmox client that can write, and the transport recording what it wrote.
+
+    ``task_exit`` is what the task each write starts reports when it is polled.
+    Anything other than ``OK`` is Proxmox's own prose for a failure, and the
+    default of ``OK`` is what makes the failing case something a test has to ask
+    for rather than something it gets by accident.
+    """
+    transport = transport_for(state, responses=responses)
+    transport.task_exit = task_exit
+    transport.task_log = tuple(task_log)
+    client = ProxmoxWriteClient(
+        transport=transport,
+        context=RequestContext(org_id="acme", team_id="homelab", capability="proxmox_remediation"),
+        endpoints=ENDPOINTS,
         retry=RetryPolicy(max_attempts=1),
     )
     return client, transport
@@ -1227,4 +1318,5 @@ __all__ = [
     "investigating",
     "recorded",
     "transport_for",
+    "write_client_for",
 ]

@@ -1,8 +1,14 @@
 # Proxmox VE
 
 Reads a Proxmox Virtual Environment cluster whole: quorum, nodes, containers,
-virtual machines, datastores, thin pools, backup jobs and replication. Nothing
-in this integration writes.
+virtual machines, datastores, thin pools, backup jobs and replication.
+
+**Reading and writing are separate clients, on purpose.** `ProxmoxClient` is
+read-only and every method on it is a `GET`; `ProxmoxWriteClient` is the subclass
+that adds the writes, and the only things that call it are remediation
+capabilities running behind an approval gate with a rollback plan. A write
+sitting among eighty reads is one typo away from being called by something that
+thought it was reading, and the split is what stops that.
 
 **Tested against Proxmox VE 8.4 and 9.2.** The paths this client uses are
 identical across the 8 and 9 major series. The single statement of that lives in
@@ -51,6 +57,24 @@ whole estate and change nothing, which is the configuration this integration is
 designed to be run with. Verification reports read and write sufficiency
 separately, so a read-only token verifies as *sufficient* rather than as a
 warning.
+
+**A token that may also remediate needs more, and needs it deliberately.** The
+write privileges are listed in `WRITE_PRIVILEGES` and reported by verification as
+a separate answer, so granting them is a decision an operator makes having seen
+what the token would then be able to do:
+
+| Path | Privilege | What it allows |
+|---|---|---|
+| `/vms` | `VM.PowerMgmt` | start, stop, shut down, reboot, suspend and resume guests |
+| `/vms` | `VM.Config.Options` | edit a guest's configuration, which is how an orphaned lock is cleared |
+| `/vms` | `VM.Migrate` | move a guest to another node |
+| `/vms` | `VM.Backup` | take a backup outside its schedule |
+| `/storage` | `Datastore.AllocateSpace` | write that backup onto a datastore |
+| `/storage` | `Datastore.Allocate` | remove a volume from a datastore |
+| `/` | `Sys.Console` | change a high-availability resource, and run a replication job now |
+
+Granting none of them leaves the deployment able to investigate and unable to
+act, which is a supported posture and the default one.
 
 ### 3. Declare the endpoints
 
@@ -140,9 +164,18 @@ publishes them they are reported as unavailable rather than as healthy**.
 **Ceph is not covered.** A two-node cluster cannot sensibly run it, and no
 capability here depends on it.
 
-**Nothing is written.** Starting, stopping, migrating, backing up and
-reconfiguring a guest are remediations with approval gates and rollback plans,
-and none of them is in this package.
+**Nothing here decides to write.** Starting, stopping, migrating, backing up and
+unlocking a guest are remediations with approval gates, declared risk classes and
+rollback plans, and the decisions all live above this package. What is here is
+the client that performs one once something else has decided — and every method
+on it returns the Proxmox task identifier rather than a result, because the API
+answering `200` means the task was accepted and not that it worked.
+
+**Four things no write may ever do**, asserted over the whole write surface
+rather than over a list of capability names: fence a node, force quorum, alter
+corosync configuration, or restart `pveproxy`, `pvedaemon`, `pve-cluster` or
+`corosync`. In a two-node cluster nothing available here distinguishes a dead
+node from an unreachable one, and both wrong answers cost data.
 
 **A declarative control plane's paths are never touched.** Where an operator runs
 a GitOps control plane over `/etc/network/interfaces`, bridges or guest

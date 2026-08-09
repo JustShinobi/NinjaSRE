@@ -64,13 +64,17 @@ SCALE = "scale_workload"
 
 
 def test_every_shipped_capability_declares_a_generator() -> None:
-    """All seven, because a capability without one can execute without a plan.
+    """Every one of them, because a capability without one can execute without a plan.
 
     The set is walked rather than spot-checked: a capability added later with
     three components instead of four fails here rather than at the moment
-    somebody tries to undo it.
+    somebody tries to undo it. The count is asserted as "more than one family"
+    rather than as a number, because a number is a line somebody updates without
+    reading the assertion under it.
     """
-    assert len(COMPONENTS) == 7
+    assert len(COMPONENTS) == len({bundle.capability for bundle in COMPONENTS}), (
+        "two bundles share a capability name, so which one runs depends on import order"
+    )
     for bundle in COMPONENTS:
         assert bundle.reader is not None, bundle.capability
         assert bundle.applier is not None, bundle.capability
