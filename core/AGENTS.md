@@ -139,10 +139,42 @@ and a partner-hosted one prices per region; a fabricated zero produces a run
 total that reads as authoritative and is wrong. The ledger reports how much of
 itself it could not price.
 
+**Parity of interface is not parity of behaviour.** A small model running on an
+operator's own hardware reaches the same place a frontier model reaches by a
+longer route: it emits a tool call as prose, invents a parameter, omits a
+required one, or asks for the same thing four turns running. Three packages
+handle that, and all three are provider-neutral by construction.
+
+- `llm/probe/` **measures** what a model can do rather than reading it off a
+  model card — tool calling, schema adherence, multi-tool turns, streaming, and
+  the *usable* context, which on a quantised build is routinely a fraction of
+  the advertised one. `require_usable` is the one gate that refuses a model for
+  an investigation, naming the behaviour it failed. Results are cached against
+  the model's identity and dropped when that identity changes.
+- `llm/resilience/` sits **between the adapter and the runtime** — one
+  implementation rather than nine, and every repair is a value the trace
+  carries. Two properties are enforced rather than intended: exactly one
+  function in the package constructs a `ToolCall` and it verifies every argument
+  against the model's own output, and no module in it may name a provider. Tests
+  read the package's syntax tree and its source to prove both.
+- `llm/routing.py` resolves a **task class** — reasoning, capability selection,
+  summarisation, extraction, embedding, classification — to a model through the
+  config service, and the session records which model produced which output.
+  This is not a second runtime: the same loop runs and only which endpoint
+  answers a call changes (Article V), and a published number records its model
+  set.
+
+**A well-behaved model pays nothing for any of it.** Every mechanism is
+triggered by a detected problem, `ModelLimits` are the shipped ceilings until
+somebody probes, and the clean path is asserted by comparing a run's request
+sequence with and without the layer.
+
 Adapters and dialects are exercised against recorded provider documents, so the
 full nine-provider contract suite runs on every pull request without a
-credential, a network, or a token. What a fixture cannot cover is the carry
-itself — that is what `make preflight` is for.
+credential, a network, or a token. The misbehaviours are recorded the same way,
+because they are intermittent by nature and a test that asked a live model to
+misbehave would pass most of the time for the wrong reason. What a fixture
+cannot cover is the carry itself — that is what `make preflight` is for.
 
 ---
 

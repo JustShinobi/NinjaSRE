@@ -1,0 +1,31 @@
+{
+  "id": "fragmented_streamed_call",
+  "description": "One tool call arriving as several stream events, each carrying a slice of the argument JSON. Reassembling the fragments is not invention: every character comes from the model.",
+  "tools": [
+    {
+      "name": "loki_query",
+      "description": "Query logs over a window.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "selector": {"type": "string", "description": "The stream selector."},
+          "limit": {"type": "integer", "description": "Maximum lines."}
+        },
+        "required": ["selector"]
+      }
+    }
+  ],
+  "stream": [
+    {"kind": "text_delta", "text": "Pulling the logs. "},
+    {"kind": "tool_call", "tool_call": {"id": "call-1", "name": "loki_query", "arguments": {}}, "fragment": "{\"selector\": \"{app="},
+    {"kind": "tool_call", "tool_call": {"id": "call-1", "name": "", "arguments": {}}, "fragment": "\\\"checkout\\\"}\", \"limit\""},
+    {"kind": "tool_call", "tool_call": {"id": "call-1", "name": "", "arguments": {}}, "fragment": ": 200}"},
+    {"kind": "finish", "finish_reason": "tool_calls"}
+  ],
+  "expected": {
+    "repairs": ["fragments_reassembled"],
+    "tool_calls": [
+      {"name": "loki_query", "arguments": {"selector": "{app=\"checkout\"}", "limit": 200}}
+    ]
+  }
+}

@@ -32,6 +32,7 @@ from core.agent.turn import Turn
 from core.capability.metadata import EvidenceType
 from core.capability.result import Evidence
 from core.capability.tokens import estimate_tokens
+from core.llm.routing import ModelAttribution, TaskClass
 from core.llm.types import Message, Role, ToolCall, ToolResult
 from core.llm.usage import UsageLedger, UsageRecord
 
@@ -217,6 +218,11 @@ class Session:
     transcript: list[Message] = field(default_factory=list)
     evidence: list[EvidenceEntry] = field(default_factory=list)
     turns: list[Turn] = field(default_factory=list)
+    # Which model produced which part of the answer. Held on the session rather
+    # than derived from the turns because not every model call is a turn — a
+    # summary, an embedding and a classification each produce an output the run
+    # is accountable for and none of them appears in the transcript.
+    attributions: list[ModelAttribution] = field(default_factory=list)
     usage: UsageLedger = field(default_factory=lambda: UsageLedger(scope="run"))
     context: dict[str, str] = field(default_factory=dict)
     started_at: datetime = field(default_factory=_now)
@@ -261,6 +267,34 @@ class Session:
         """Store usage for a call that produced no turn of its own."""
         self.usage.add(usage)
         self.touch()
+
+    def attribute(
+        self,
+        task: TaskClass | str,
+        *,
+        provider_id: str,
+        model_id: str,
+        output: str = "",
+    ) -> ModelAttribution:
+        """Note that ``model_id`` produced ``output`` for ``task``."""
+        entry = ModelAttribution(
+            task=task.value if isinstance(task, TaskClass) else str(task),
+            provider_id=provider_id,
+            model_id=model_id,
+            output=output,
+        )
+        self.attributions.append(entry)
+        self.touch()
+        return entry
+
+    @property
+    def model_set(self) -> tuple[str, ...]:
+        """Return the distinct models this run used, sorted.
+
+        What a published number records beside it: a score whose model set is
+        unknown is a score nobody can reproduce or compare.
+        """
+        return tuple(sorted({entry.label for entry in self.attributions}))
 
     def cite(self, evidence_id: str) -> None:
         """Mark one entry as reasoned from, raising if it is not held.
@@ -314,6 +348,7 @@ class Session:
             "transcript": [message_to_record(message) for message in self.transcript],
             "evidence": [entry.to_record() for entry in self.evidence],
             "turns": [turn.to_record() for turn in self.turns],
+            "attributions": [entry.to_record() for entry in self.attributions],
             "context": dict(self.context),
             "started_at": self.started_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
@@ -350,6 +385,9 @@ class Session:
             transcript=[message_from_record(item) for item in record.get("transcript") or ()],
             evidence=[EvidenceEntry.from_record(item) for item in record.get("evidence") or ()],
             turns=turns,
+            attributions=[
+                ModelAttribution.from_record(item) for item in record.get("attributions") or ()
+            ],
             usage=ledger,
             context=dict(record.get("context") or {}),
             started_at=datetime.fromisoformat(str(record["started_at"])),

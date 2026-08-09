@@ -356,6 +356,24 @@ class ProviderClient:
     ) -> InvokeResult:
         parsed = self._adapter.parse_response(document, self._descriptor)
 
+        # A local model server that cannot serve the model frequently answers
+        # 200 and puts the failure in the body, so the transport sees a success
+        # and the parse sees nothing. Reading the body as an error only when the
+        # parse produced nothing at all keeps this off the clean path entirely:
+        # a response with text, calls or structure in it is never re-examined.
+        if not parsed.text and not parsed.tool_calls and parsed.structured is None:
+            observation = self._adapter.observe_error(document, None)
+            if observation.error_code or observation.message:
+                return self._failed_result(
+                    ProviderFailure(
+                        classify(observation),
+                        provider_id=self.provider_id,
+                        message=observation.message,
+                    ),
+                    attempts=records,
+                    degradations=attempt.degradations,
+                )
+
         kept, discarded = drop_unknown_tool_calls(parsed.tool_calls, attempt.known_tools)
         degradations = list(attempt.degradations) + list(parsed.degradations)
         if discarded:

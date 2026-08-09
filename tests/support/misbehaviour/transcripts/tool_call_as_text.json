@@ -1,0 +1,30 @@
+{
+  "id": "tool_call_as_text",
+  "description": "A seven-billion-parameter model narrates the call it means to make instead of emitting a structured one. The name and the arguments are both present in the prose and both are the model's own words.",
+  "tools": [
+    {
+      "name": "kubernetes_list_pods",
+      "description": "List the pods in one namespace.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "namespace": {"type": "string", "description": "The namespace to list."}
+        },
+        "required": ["namespace"]
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "text": "I should look at the pods first.\n\n{\"name\": \"kubernetes_list_pods\", \"arguments\": {\"namespace\": \"checkout\"}}",
+      "tool_calls": [],
+      "finish_reason": "stop"
+    }
+  ],
+  "expected": {
+    "repairs": ["tool_call_extracted"],
+    "tool_calls": [
+      {"name": "kubernetes_list_pods", "arguments": {"namespace": "checkout"}}
+    ]
+  }
+}

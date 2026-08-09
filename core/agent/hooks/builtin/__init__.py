@@ -5,6 +5,10 @@ happening, accounting reports what it cost including the part nobody could
 price, and the budget report says the context is filling up on the turn before
 that starts costing evidence.
 
+``model_behaviour`` is a fourth and is deliberately not among the defaults: it
+needs a metric registry, and a registry is a deployment's to build. A deployment
+that has one registers it beside these and gets the model family populated.
+
 Nothing here changes control flow. The hooks that do — masking, approval
 gating, guardrail rules — belong to the features that own those decisions and
 register themselves; keeping the built-in set observe-only means a default
@@ -20,7 +24,7 @@ here.
 
 from __future__ import annotations
 
-from core.agent.hooks.builtin import accounting, budget, tracing
+from core.agent.hooks.builtin import accounting, budget, model_behaviour, tracing
 from core.agent.hooks.registry import HookRegistry
 
 
@@ -45,6 +49,7 @@ __all__ = [
     "accounting",
     "budget",
     "default_hooks",
+    "model_behaviour",
     "register_default_hooks",
     "tracing",
 ]

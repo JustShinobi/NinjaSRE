@@ -94,6 +94,12 @@ MODEL_ROLE_INTAKE: Final = "intake"
 MODEL_ROLE_DIAGNOSE: Final = "diagnose"
 MODEL_ROLE_EXTRACTION: Final = "extraction"
 MODEL_ROLE_EMBEDDING: Final = "embedding"
+#: Choosing which capability to run next, and writing a summary. Both are jobs a
+#: small local model does well and neither had a role of its own, so a deployment
+#: that wanted the cheap model for them and something else for the final
+#: synthesis had no way to say so.
+MODEL_ROLE_SELECTION: Final = "selection"
+MODEL_ROLE_SUMMARISATION: Final = "summarisation"
 
 MODEL_ROLES: Final[tuple[str, ...]] = (
     MODEL_ROLE_INVESTIGATOR,
@@ -102,6 +108,8 @@ MODEL_ROLES: Final[tuple[str, ...]] = (
     MODEL_ROLE_DIAGNOSE,
     MODEL_ROLE_EXTRACTION,
     MODEL_ROLE_EMBEDDING,
+    MODEL_ROLE_SELECTION,
+    MODEL_ROLE_SUMMARISATION,
 )
 
 #: The agent roles a deployment may override the system prompt for. Same

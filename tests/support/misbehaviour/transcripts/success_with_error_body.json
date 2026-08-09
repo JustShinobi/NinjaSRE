@@ -1,0 +1,19 @@
+{
+  "id": "success_with_error_body",
+  "description": "A local endpoint answers 200 and puts the failure in the body. The status line says the call worked; nothing in it did. Recorded in the OpenAI-compatible shape every local server speaks, because that is the one this arrives in.",
+  "tools": [],
+  "error_body": {
+    "status_code": 200,
+    "document": {
+      "error": {
+        "code": "model_not_loaded",
+        "type": "invalid_request_error",
+        "message": "model 'qwen2.5:7b-instruct-q4_K_M' is not loaded and could not be pulled"
+      }
+    }
+  },
+  "expected": {
+    "reachable": true,
+    "failure": "model_unavailable"
+  }
+}

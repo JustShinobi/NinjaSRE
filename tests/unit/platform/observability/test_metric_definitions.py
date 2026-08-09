@@ -31,7 +31,7 @@ def registry(config: TelemetryConfig = ENABLED) -> MetricRegistry:
     return MetricRegistry(config=config, exporter=OtlpExporter(config, RecordingTransport()))
 
 
-def test_all_eight_families_are_declared() -> None:
+def test_every_family_is_declared() -> None:
     assert {definition.family for definition in DEFINITIONS} == set(MetricFamily)
 
 
@@ -44,6 +44,7 @@ def test_the_families_are_the_ones_the_operator_was_promised() -> None:
         "integration",
         "investigation",
         "memory",
+        "model",
         "scheduler",
     ]
 
@@ -120,6 +121,10 @@ def test_no_instrument_declares_an_unbounded_dimension() -> None:
         "side_effect_level",
         "rule",
         "action",
+        # Closed by construction: every value is a member of ``RepairKind`` or
+        # one of the two named degradation causes, so this cannot grow with
+        # traffic the way a capability name or a team could.
+        "kind",
     }
     declared = {name for definition in DEFINITIONS for name in definition.labels.names}
 

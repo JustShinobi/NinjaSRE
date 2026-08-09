@@ -58,12 +58,28 @@ def markdown_table(runs: Sequence[BenchmarkRun]) -> str:
     return "\n".join([header, divider, *rows])
 
 
-def provenance_line(*, runtime: str, corpus_version: str, at: datetime | None = None) -> str:
-    """Return the one line every published table carries beneath it."""
+def provenance_line(
+    *,
+    runtime: str,
+    corpus_version: str,
+    model_set: Sequence[str] = (),
+    at: datetime | None = None,
+) -> str:
+    """Return the one line every published table carries beneath it.
+
+    ``model_set`` is every distinct model the measured runs used, and it is here
+    because a deployment may route different kinds of call to different models: a
+    run whose reasoning came from one model and whose summarisation came from
+    another produced a number that neither of them produced alone. Naming one of
+    them would be the wrong answer, and naming none of them would make the number
+    unreproducible.
+    """
     when = (at or datetime.now(UTC)).date().isoformat()
+    models = ", ".join(f"`{name}`" for name in sorted(set(model_set)))
     return (
         f"_Measured on {when} on the `{runtime}` runtime"
         + (f", corpus `{corpus_version}`" if corpus_version else "")
+        + (f", models {models}" if models else "")
         + ". Benchmark numbers are produced on the canonical runtime only._"
     )
 
@@ -86,6 +102,11 @@ def splice(document: str, table: str) -> str:
     return document[:start] + block + document[end + len(BENCHMARK_TABLE_END) :]
 
 
+def model_set(runs: Sequence[BenchmarkRun]) -> tuple[str, ...]:
+    """Return every distinct ``provider/model`` the measured runs used, sorted."""
+    return tuple(sorted({f"{run.provider_id}/{run.model_id}" for run in runs if run.model_id}))
+
+
 def write_table(
     runs: Sequence[BenchmarkRun],
     path: Path,
@@ -104,7 +125,7 @@ def write_table(
     body = (
         markdown_table(runs)
         + "\n\n"
-        + provenance_line(runtime=runtime, corpus_version=corpus_version)
+        + provenance_line(runtime=runtime, corpus_version=corpus_version, model_set=model_set(runs))
     )
     path.write_text(splice(existing, body), encoding="utf-8")
     return path
@@ -121,7 +142,9 @@ def release_note(
             "",
             markdown_table(runs),
             "",
-            provenance_line(runtime=runtime, corpus_version=corpus_version),
+            provenance_line(
+                runtime=runtime, corpus_version=corpus_version, model_set=model_set(runs)
+            ),
             "",
         ]
     )
@@ -206,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
         table = markdown_table(comparison.runs)
         runtime = comparison.runtime
         corpus = ""
+        models = model_set(comparison.runs)
     elif options.corpus is not None:
         from tests.harness.regression.ci import measure
 
@@ -213,6 +237,9 @@ def main(argv: list[str] | None = None) -> int:
         table = corpus_table(suite)
         runtime = RUNTIME_CANONICAL
         corpus = suite.corpus_version
+        # The corpus is scored offline against a scripted agent, so no model
+        # produced this number and naming one would be a claim nobody made.
+        models = ()
         if options.json is not None:
             options.json.parent.mkdir(parents=True, exist_ok=True)
             options.json.write_text(
@@ -226,7 +253,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    body = table + "\n\n" + provenance_line(runtime=runtime, corpus_version=corpus)
+    body = (
+        table + "\n\n" + provenance_line(runtime=runtime, corpus_version=corpus, model_set=models)
+    )
     print(body)
 
     if options.into is not None:
@@ -247,6 +276,7 @@ __all__ = [
     "corpus_table",
     "main",
     "markdown_table",
+    "model_set",
     "provenance_line",
     "release_note",
     "splice",

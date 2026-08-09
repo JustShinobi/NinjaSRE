@@ -31,6 +31,7 @@ from typing import Any
 from config.constants.investigation import MAX_PARALLEL_TOOL_CALLS
 from core.agent.hooks.registry import NO_HOOKS, HookRegistry
 from core.agent.hooks.types import Deny, ToolContext
+from core.agent.result_truncation import truncate_for_model
 from core.agent.session import EvidenceEntry, Session
 from core.agent.tool_cache import ToolCallCache
 from core.agent.turn import GuardrailAction, GuardrailActionKind, HookFailure, ToolExecution
@@ -204,6 +205,7 @@ async def execute_call(
     iteration: int,
     origin: str = "",
     hooks: HookRegistry = NO_HOOKS,
+    result_chars: int = 0,
 ) -> tuple[ExecutionOutcome, tuple[GuardrailAction, ...], tuple[HookFailure, ...]]:
     """Run one call, or replay it, and return its record.
 
@@ -288,10 +290,33 @@ async def execute_call(
         evidence = tuple(session.record_evidence(entry) for entry in drafted)
 
     evidence_ids = tuple(entry.id for entry in evidence)
+
+    # What the model reads is bounded; what the session holds is not. A single
+    # log query against a busy service returns more than a small model's whole
+    # context, and sending it whole costs the turn — but the evidence entry
+    # above already carries every character, so nothing is lost by shortening
+    # the copy that goes into the conversation.
+    shown = truncate_for_model(
+        content,
+        evidence_id=evidence_ids[0] if evidence_ids else "",
+        ceiling=result_chars,
+    )
+    if shown.truncated:
+        actions.append(
+            GuardrailAction(
+                kind=GuardrailActionKind.RESULT_TRUNCATED,
+                target=call.name,
+                reason=(
+                    f"{shown.dropped_characters} characters were not shown to the model; "
+                    f"the whole result is evidence {evidence_ids[0] if evidence_ids else 'none'}"
+                ),
+            )
+        )
+
     cache.put(
         call.name,
         call.arguments,
-        content=content,
+        content=shown.content,
         is_error=not result.succeeded,
         evidence_ids=evidence_ids,
     )
@@ -313,7 +338,7 @@ async def execute_call(
             tool_result=ToolResult(
                 call_id=call.id,
                 name=call.name,
-                content=content,
+                content=shown.content,
                 is_error=not result.succeeded,
             ),
             evidence=evidence,
@@ -332,6 +357,7 @@ async def execute_calls(
     iteration: int,
     origin: str = "",
     hooks: HookRegistry = NO_HOOKS,
+    result_chars: int = 0,
 ) -> ExecutionBatch:
     """Run every call in one turn and return the batch record.
 
@@ -360,6 +386,7 @@ async def execute_calls(
             iteration=iteration,
             origin=origin,
             hooks=hooks,
+            result_chars=result_chars,
         )
         outcomes.append(outcome)
         actions.extend(produced)
@@ -410,6 +437,7 @@ async def dispatch_calls(
     iteration: int,
     origin: str = "",
     hooks: HookRegistry = NO_HOOKS,
+    result_chars: int = 0,
     max_parallel: int = MAX_PARALLEL_TOOL_CALLS,
 ) -> ExecutionBatch:
     """Run one turn's calls, concurrently where their authors allowed it.
@@ -445,6 +473,7 @@ async def dispatch_calls(
                 iteration=iteration,
                 origin=origin,
                 hooks=hooks,
+                result_chars=result_chars,
             )
 
     for group in _groups(calls, tools):

@@ -1,0 +1,37 @@
+{
+  "id": "tool_call_in_fenced_json",
+  "description": "The same intent wrapped in a Markdown fence, with the `tool`/`parameters` spelling several instruction-tuned local builds prefer. Still the model's own name and arguments; still nothing invented.",
+  "tools": [
+    {
+      "name": "prometheus_query",
+      "description": "Run one instant PromQL query.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {"type": "string", "description": "The PromQL expression."},
+          "window_minutes": {"type": "integer", "description": "Lookback in minutes."}
+        },
+        "required": ["query"]
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "text": "Let me check the error rate.\n\n```json\n{\n  \"tool\": \"prometheus_query\",\n  \"parameters\": {\n    \"query\": \"rate(http_requests_total{status=\\\"503\\\"}[5m])\",\n    \"window_minutes\": 15\n  }\n}\n```\n",
+      "tool_calls": [],
+      "finish_reason": "stop"
+    }
+  ],
+  "expected": {
+    "repairs": ["tool_call_extracted"],
+    "tool_calls": [
+      {
+        "name": "prometheus_query",
+        "arguments": {
+          "query": "rate(http_requests_total{status=\"503\"}[5m])",
+          "window_minutes": 15
+        }
+      }
+    ]
+  }
+}

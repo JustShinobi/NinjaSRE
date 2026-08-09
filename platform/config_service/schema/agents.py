@@ -169,11 +169,27 @@ class ModelsConfig(ConfigSection):
     diagnose: ModelSelection = ModelSelection()
     extraction: ModelSelection = ModelSelection()
     embedding: ModelSelection = ModelSelection()
+    selection: ModelSelection = ModelSelection()
+    summarisation: ModelSelection = ModelSelection()
 
     def for_role(self, role: str) -> ModelSelection:
         """Return what ``role`` runs on, or the deployment default."""
-        selection = getattr(self, role, None) if role in MODEL_ROLES else None
-        return selection if isinstance(selection, ModelSelection) else ModelSelection()
+        found = getattr(self, role, None) if role in MODEL_ROLES else None
+        return found if isinstance(found, ModelSelection) else ModelSelection()
+
+    def selection_for(self, role: str) -> tuple[str, str] | None:
+        """Return the provider and model bound to ``role``, or ``None``.
+
+        The task router's source. ``None`` rather than the default pair is the
+        whole of what this adds over ``for_role``: the router has to be able to
+        tell a role somebody chose from one that fell through, and a default that
+        looks like a choice is how a deployment ends up believing it split its
+        models when it did not.
+        """
+        if role not in self.declared():
+            return None
+        found = self.for_role(role)
+        return (found.provider, found.model)
 
     def bound_roles(self) -> tuple[str, ...]:
         """Return the roles this configuration binds explicitly, in role order.

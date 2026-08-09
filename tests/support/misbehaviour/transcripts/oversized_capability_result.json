@@ -1,0 +1,23 @@
+{
+  "id": "oversized_capability_result",
+  "description": "A capability answers with more text than a small model's whole context would hold. What the model reads is shortened and says so; what the trace keeps is all of it.",
+  "tools": [
+    {
+      "name": "loki_query",
+      "description": "Query logs over a window.",
+      "parameters": {
+        "type": "object",
+        "properties": {"selector": {"type": "string", "description": "The stream selector."}},
+        "required": ["selector"]
+      }
+    }
+  ],
+  "capability_result": {
+    "capability": "loki_query",
+    "line": "2026-08-08T11:02:{second:02d}Z checkout-5f9c level=error upstream connect error or disconnect/reset before headers\n",
+    "repeat": 900
+  },
+  "expected": {
+    "repairs": ["result_truncated"]
+  }
+}

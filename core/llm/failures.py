@@ -29,6 +29,13 @@ class FailureClass(StrEnum):
     CONTEXT_EXCEEDED = "context_exceeded"
     CONTENT_FILTERED = "content_filtered"
     MODEL_UNAVAILABLE = "model_unavailable"
+    #: The endpoint answered and the model did not do its job: it narrated tool
+    #: calls it never made, kept inventing parameters, or asked for the same
+    #: thing until it was stopped. Separate from every class above because those
+    #: all describe the *endpoint*, and sending an operator to check their
+    #: network when the answer is "this model cannot tool call" wastes the
+    #: incident. Never retried: repeating the request repeats the behaviour.
+    MODEL_BEHAVIOUR = "model_behaviour"
     UNKNOWN = "unknown"
 
 
@@ -77,6 +84,9 @@ _ERROR_CODES: dict[str, FailureClass] = {
     "blocked_by_safety": FailureClass.CONTENT_FILTERED,
     "model_not_found": FailureClass.MODEL_UNAVAILABLE,
     "not_found_error": FailureClass.MODEL_UNAVAILABLE,
+    # A local model server that was asked for weights it does not hold. Reported
+    # with a 200 by more than one of them, which is why the body is read at all.
+    "model_not_loaded": FailureClass.MODEL_UNAVAILABLE,
     "resourcenotfoundexception": FailureClass.MODEL_UNAVAILABLE,
     "validationexception": FailureClass.SCHEMA_REJECTED,
     "invalid_function_parameters": FailureClass.SCHEMA_REJECTED,
@@ -147,6 +157,8 @@ _MODEL_MARKERS = (
     "no such model",
     "is not supported in region",
     "inference profile",
+    "is not loaded",
+    "could not be pulled",
 )
 
 #: Transport exceptions arrive with no HTTP response at all. Matching on the

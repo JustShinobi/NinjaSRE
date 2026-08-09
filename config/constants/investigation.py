@@ -278,6 +278,46 @@ TRANSCRIPT_COMPACTION_TRIGGER_MESSAGES: Final[int] = 40
 #: summarising those is how a run loses the thread it was following.
 TRANSCRIPT_COMPACTION_KEEP_MESSAGES: Final[int] = 12
 
+#: Share of a model's usable context at which compaction runs, for a deployment
+#: that measured one. Below 1.0 because compaction has to happen while there is
+#: still room for the turn it is making room for: at the window itself the
+#: request has already been refused.
+TRANSCRIPT_COMPACTION_TRIGGER_RATIO: Final[float] = 0.75
+
+#: Messages kept verbatim when it was the measured window that triggered
+#: compaction rather than the message count. Half the usual tail, because a
+#: transcript that is over a small model's window has to actually get smaller —
+#: keeping the ordinary tail on a short conversation summarises one message a
+#: turn while the conversation grows by three, and never catches up.
+TRANSCRIPT_COMPACTION_TIGHT_KEEP_MESSAGES: Final[int] = 6
+
+# --- Capability results -------------------------------------------------------
+
+#: Share of a model's *measured* usable context that one capability result may
+#: occupy. A result over it is shortened, with the shortening stated in the text
+#: the model reads and the whole of it kept on the evidence entry.
+#:
+#: Measured, and there is no flat ceiling beside it, deliberately. A fixed
+#: character bound would shorten a 200k-window model's log queries for the sake
+#: of a mechanism that exists for seven-billion-parameter local builds — which is
+#: exactly the tax on the frontier configuration this feature must not levy. A
+#: deployment that never probed truncates nothing.
+TOOL_RESULT_CONTEXT_SHARE: Final[float] = 0.25
+
+#: Floor under that share. A model whose usable context is tiny still has to be
+#: shown enough of a result to reason about, and a bound below this shows the
+#: model its own truncation notice and almost nothing else.
+MIN_TOOL_RESULT_CHARS: Final[int] = 1_000
+
+#: Appended to a truncated capability result, addressed to the model. A model
+#: that cannot tell a short answer from a shortened one will reason from the
+#: absence of what it never saw.
+TOOL_RESULT_TRUNCATION_NOTICE: Final[str] = (
+    "\n[This result was {dropped} characters longer. What you are reading is the "
+    "first {kept} characters; the whole of it is recorded as evidence {evidence}. "
+    "Narrow the arguments if you need the rest.]"
+)
+
 # --- Duplicate tool-call cache ----------------------------------------------
 
 #: Identical name-and-arguments calls are served from cache and the model is
@@ -330,6 +370,7 @@ __all__ = [
     "MAX_SECONDARY_FALLBACK_TOOLS",
     "MAX_STAGNANT_ITERATIONS",
     "MAX_SUBAGENT_DEPTH",
+    "MIN_TOOL_RESULT_CHARS",
     "MESSAGE_QUEUE_DEBOUNCE_FLOOR_SECONDS",
     "MESSAGE_QUEUE_DEBOUNCE_MS",
     "NINJASRE_RUNTIME_ENV",
@@ -348,5 +389,11 @@ __all__ = [
     "SUPPORTED_RUNTIMES",
     "TIME_WINDOW_END_ARGUMENTS",
     "TIME_WINDOW_START_ARGUMENTS",
+    "TOOL_RESULT_CONTEXT_SHARE",
+    "TOOL_RESULT_TRUNCATION_NOTICE",
+    "TRANSCRIPT_COMPACTION_KEEP_MESSAGES",
+    "TRANSCRIPT_COMPACTION_TIGHT_KEEP_MESSAGES",
+    "TRANSCRIPT_COMPACTION_TRIGGER_MESSAGES",
+    "TRANSCRIPT_COMPACTION_TRIGGER_RATIO",
     "UNRELIABLE_EVIDENCE_SOURCES",
 ]

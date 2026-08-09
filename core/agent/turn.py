@@ -55,6 +55,16 @@ class GuardrailActionKind(StrEnum):
     WALL_CLOCK_EXCEEDED = "wall_clock_exceeded"
     MESSAGE_QUEUED = "message_queued"
     HANDOFF_TIMED_OUT = "handoff_timed_out"
+    #: The transcript was summarised to stay inside the model's usable context.
+    TRANSCRIPT_COMPACTED = "transcript_compacted"
+    #: Fewer capability schemas were carried than the loop holds, because the
+    #: model demonstrated it cannot hold that many.
+    SCHEMAS_NARROWED = "schemas_narrowed"
+    #: A capability result was shortened for the model. The whole of it is on
+    #: the evidence entry the reason names.
+    RESULT_TRUNCATED = "result_truncated"
+    #: The model's own output had to be repaired before the turn could be used.
+    MODEL_OUTPUT_REPAIRED = "model_output_repaired"
 
 
 @dataclass(frozen=True, slots=True)

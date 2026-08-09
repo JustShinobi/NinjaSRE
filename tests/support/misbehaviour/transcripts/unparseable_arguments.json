@@ -1,0 +1,33 @@
+{
+  "id": "unparseable_arguments",
+  "description": "A quantised build produces valid JSON nine times in ten. This is the tenth: the argument object never closes and nothing in it is recoverable, so the call is refused and the model is told exactly what could not be read.",
+  "tools": [
+    {
+      "name": "prometheus_query",
+      "description": "Run one instant PromQL query.",
+      "parameters": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "The PromQL expression."}},
+        "required": ["query"]
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "text": "Calling prometheus_query with {\"query\": ",
+      "tool_calls": [],
+      "finish_reason": "length"
+    },
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-1", "name": "prometheus_query", "arguments": {"query": "up"}}
+      ],
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "expected": {
+    "repairs": ["no_tool_call_found"],
+    "tool_calls": [{"name": "prometheus_query", "arguments": {"query": "up"}}]
+  }
+}

@@ -151,6 +151,68 @@ CHARACTERS_PER_TOKEN_ESTIMATE: Final[int] = 4
 #: only delays the failure.
 MAX_STRUCTURED_PARSE_CHARS: Final[int] = 200_000
 
+# --- Behaviour probing -------------------------------------------------------
+#
+# A model card that says "supports tools" frequently means "was trained on
+# some", and an advertised context window is frequently not the one a quantised
+# build can actually use. The probe measures each behaviour the runtime depends
+# on instead of trusting either, and these are the bounds it measures within.
+
+#: Output tokens one probe prompt may produce. Small on purpose: a probe is
+#: asking whether the mechanism works, never whether the model is clever, and a
+#: suite an operator waits on is one they learn to skip.
+MODEL_PROBE_MAX_OUTPUT_TOKENS: Final[int] = 64
+
+#: Bisection steps allowed when measuring usable context. Each step is one call,
+#: so this is the probe's whole cost ceiling for the most expensive behaviour;
+#: eight steps resolve a 128k window to within about 500 tokens.
+MODEL_PROBE_CONTEXT_STEPS: Final[int] = 8
+
+#: Usable context is measured no finer than this. Resolving below it costs calls
+#: to refine a number the character estimate cannot carry anyway.
+MODEL_PROBE_CONTEXT_RESOLUTION_TOKENS: Final[int] = 512
+
+#: Probed models kept in the cache. One entry per model an endpoint serves;
+#: beyond this the least recently probed is dropped and re-probed on demand.
+MODEL_PROBE_CACHE_MAX_ENTRIES: Final[int] = 64
+
+# --- Tool-call resilience ----------------------------------------------------
+#
+# Every bound here exists because a small local model reaches the same place a
+# frontier model reaches, by a longer route. None of them is conditional on a
+# provider: a frontier model that starts emitting its tool calls as prose is
+# handled by exactly this code.
+
+#: Corrections sent back to the model within one turn before the turn is given
+#: up on. Two, because the first correction names the problem and the second
+#: proves the model cannot act on being told.
+MAX_TOOL_CALL_REPAIRS_PER_TURN: Final[int] = 2
+
+#: Corrections across a whole run. Well under the iteration ceiling, so a model
+#: that needs one every turn ends the run on this bound and says so, rather than
+#: spending the whole iteration budget being corrected.
+MAX_TOOL_CALL_REPAIRS_PER_RUN: Final[int] = 8
+
+#: Recent calls examined when looking for a model stuck on one. Wide enough to
+#: see through an interleaved second call, narrow enough to break out long
+#: before the iteration ceiling would.
+REPEATED_CALL_WINDOW: Final[int] = 4
+
+#: Identical name-and-argument calls inside that window before the loop is
+#: declared broken and the model is told.
+MAX_IDENTICAL_CALLS_IN_WINDOW: Final[int] = 3
+
+#: Wall-clock ceiling for one model call, enforced by the resilience layer
+#: rather than by the transport. A transport that ignores its own timeout — a
+#: machine swapping under load is the case that produced this — otherwise hangs
+#: the run with nothing in the trace to say so.
+MODEL_CALL_BUDGET_SECONDS: Final[float] = 180.0
+
+#: Ceiling for one endpoint health check. Far below the call budget: the
+#: question is whether the endpoint answers at all, and an endpoint that needs a
+#: minute to say "yes" has already answered "no".
+ENDPOINT_HEALTH_TIMEOUT_SECONDS: Final[float] = 15.0
+
 # --- Model registry ----------------------------------------------------------
 
 #: Published prices change. A descriptor older than this is reported as stale so
@@ -179,6 +241,7 @@ __all__ = [
     "DEFAULT_MODEL_ID",
     "DEFAULT_PROVIDER",
     "DEFAULT_TRANSPORT",
+    "ENDPOINT_HEALTH_TIMEOUT_SECONDS",
     "GOOGLE_API_KEY_ENV",
     "GOOGLE_APPLICATION_CREDENTIALS_ENV",
     "GOOGLE_CLOUD_LOCATION_ENV",
@@ -192,8 +255,16 @@ __all__ = [
     "LLM_RETRY_MAX_DELAY_SECONDS",
     "LLM_STREAM_TIMEOUT_SECONDS",
     "LOCAL_PROVIDERS",
+    "MAX_IDENTICAL_CALLS_IN_WINDOW",
     "MAX_STRUCTURED_PARSE_CHARS",
+    "MAX_TOOL_CALL_REPAIRS_PER_RUN",
+    "MAX_TOOL_CALL_REPAIRS_PER_TURN",
+    "MODEL_CALL_BUDGET_SECONDS",
     "MODEL_PRICING_MAX_AGE_DAYS",
+    "MODEL_PROBE_CACHE_MAX_ENTRIES",
+    "MODEL_PROBE_CONTEXT_RESOLUTION_TOKENS",
+    "MODEL_PROBE_CONTEXT_STEPS",
+    "MODEL_PROBE_MAX_OUTPUT_TOKENS",
     "NINJASRE_LLM_MODEL_ENV",
     "NINJASRE_LLM_PROVIDER_ENV",
     "NINJASRE_LLM_TRANSPORT_ENV",
@@ -213,6 +284,7 @@ __all__ = [
     "PROVIDER_OLLAMA",
     "PROVIDER_OPENAI",
     "PROVIDER_OPENROUTER",
+    "REPEATED_CALL_WINDOW",
     "RETRYABLE_HTTP_STATUS_CODES",
     "SUPPORTED_PROVIDERS",
     "SUPPORTED_TRANSPORTS",

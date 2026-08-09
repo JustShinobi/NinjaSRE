@@ -1,4 +1,4 @@
-"""The eight metric families, their instruments, and the labels each may carry.
+"""The nine metric families, their instruments, and the labels each may carry.
 
 This module is the whole answer to "what can an operator see". It is a
 declaration rather than a set of call sites because the label set is the part
@@ -61,7 +61,7 @@ DURATION_BUCKETS: Final[tuple[float, ...]] = (
 
 
 class MetricFamily(StrEnum):
-    """The eight things an operator is promised visibility into."""
+    """The nine things an operator is promised visibility into."""
 
     INVESTIGATION = "investigation"
     COST = "cost"
@@ -71,6 +71,11 @@ class MetricFamily(StrEnum):
     APPROVAL = "approval"
     GUARDRAIL = "guardrail"
     MEMORY = "memory"
+    #: What the *model* costs in attempts, as opposed to what the endpoint costs
+    #: in money. Every other family describes the platform; this one describes
+    #: the weights behind it, which is the thing an operator running their own
+    #: hardware can actually change.
+    MODEL = "model"
 
 
 class InstrumentKind(StrEnum):
@@ -100,6 +105,8 @@ _INTEGRATION = LabelSet(("integration", "status"))
 _APPROVAL = LabelSet(("team", "side_effect_level"))
 _GUARDRAIL = LabelSet(("rule", "action"))
 _TEAM = LabelSet(("team",))
+_MODEL = LabelSet(("model", "provider"))
+_MODEL_KIND = LabelSet(("model", "provider", "kind"))
 
 
 DEFINITIONS: Final[tuple[MetricDefinition, ...]] = (
@@ -292,6 +299,51 @@ DEFINITIONS: Final[tuple[MetricDefinition, ...]] = (
         unit="1",
         description="Episodes written at the end of an investigation, by team.",
         labels=_TEAM,
+    ),
+    # -- model behaviour --------------------------------------------------------
+    MetricDefinition(
+        name="model.repairs",
+        family=MetricFamily.MODEL,
+        kind=InstrumentKind.COUNTER,
+        unit="1",
+        description="Model output the system had to repair before it could be used, "
+        "by model, provider, and what was wrong with it.",
+        labels=_MODEL_KIND,
+    ),
+    MetricDefinition(
+        name="model.degradations",
+        family=MetricFamily.MODEL,
+        kind=InstrumentKind.COUNTER,
+        unit="1",
+        description="Runs that degraded because of the model rather than the endpoint, "
+        "by model, provider, and cause.",
+        labels=_MODEL_KIND,
+    ),
+    MetricDefinition(
+        name="model.loop_breaks",
+        family=MetricFamily.MODEL,
+        kind=InstrumentKind.COUNTER,
+        unit="1",
+        description="Times a model was stopped repeating one call, by model and provider.",
+        labels=_MODEL,
+    ),
+    MetricDefinition(
+        name="model.compactions",
+        family=MetricFamily.MODEL,
+        kind=InstrumentKind.COUNTER,
+        unit="1",
+        description="Transcripts summarised to stay inside the model's usable context, "
+        "by model and provider.",
+        labels=_MODEL,
+    ),
+    MetricDefinition(
+        name="model.truncations",
+        family=MetricFamily.MODEL,
+        kind=InstrumentKind.COUNTER,
+        unit="1",
+        description="Capability results shortened before the model read them, "
+        "by model and provider.",
+        labels=_MODEL,
     ),
 )
 

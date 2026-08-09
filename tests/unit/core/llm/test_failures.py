@@ -29,8 +29,20 @@ def test_taxonomy_is_closed() -> None:
         "context_exceeded",
         "content_filtered",
         "model_unavailable",
+        "model_behaviour",
         "unknown",
     }
+
+
+def test_a_misbehaving_model_is_not_confused_with_an_unreachable_one() -> None:
+    """The distinction an operator's next action depends on.
+
+    Every other member of the taxonomy describes the endpoint. This one
+    describes the model behind it, and the two send somebody to different
+    places: one to their network, the other to a different set of weights.
+    """
+    assert FailureClass.MODEL_BEHAVIOUR is not FailureClass.MODEL_UNAVAILABLE
+    assert FailureClass.MODEL_BEHAVIOUR not in RETRYABLE_CLASSES
 
 
 @pytest.mark.parametrize(

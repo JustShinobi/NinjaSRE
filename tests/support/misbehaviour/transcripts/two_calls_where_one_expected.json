@@ -1,0 +1,41 @@
+{
+  "id": "two_calls_where_one_expected",
+  "description": "The model emits the same call twice in one turn, having repeated itself mid-generation. The duplicate is dropped rather than executed; the distinct second call in the second turn is kept, because a model asking for two different things is not misbehaving.",
+  "tools": [
+    {
+      "name": "kubernetes_list_pods",
+      "description": "List the pods in one namespace.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "namespace": {"type": "string", "description": "The namespace to list."}
+        },
+        "required": ["namespace"]
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-1", "name": "kubernetes_list_pods", "arguments": {"namespace": "checkout"}},
+        {"id": "call-2", "name": "kubernetes_list_pods", "arguments": {"namespace": "checkout"}}
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-3", "name": "kubernetes_list_pods", "arguments": {"namespace": "payments"}},
+        {"id": "call-4", "name": "kubernetes_list_pods", "arguments": {"namespace": "checkout"}}
+      ],
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "expected": {
+    "repairs": ["duplicate_call_discarded"],
+    "tool_calls": [
+      {"name": "kubernetes_list_pods", "arguments": {"namespace": "checkout"}}
+    ]
+  }
+}

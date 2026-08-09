@@ -22,6 +22,7 @@ from config.constants.evaluation import (
     BENCHMARK_TABLE_END,
     CLOUD_OPS_BENCH,
 )
+from config.constants.investigation import RUNTIME_CANONICAL
 from config.constants.llm import SUPPORTED_PROVIDERS
 from core.agent.guard import NonCanonicalRuntimeError
 from tests.benchmarks.adapter import (
@@ -38,6 +39,8 @@ from tests.benchmarks.cloudopsbench.dataset import (
 )
 from tests.benchmarks.export import (
     markdown_table,
+    model_set,
+    provenance_line,
     splice,
     write_release_note,
 )
@@ -264,6 +267,46 @@ def test_the_table_is_markdown_a_readme_can_hold() -> None:
     assert table.startswith("| Provider ")
     assert "anthropic" in table
     assert table.count("\n") >= 3
+
+
+def test_a_published_table_records_the_model_set_that_produced_it() -> None:
+    """A number routed across several models was produced by none of them alone.
+
+    Article VII's "learning is measured or not claimed" turns on being able to
+    say what produced a number, and per-task routing means that is a *set*.
+    Naming one member would be the wrong answer; naming none would make the
+    number unreproducible.
+    """
+    runs = (
+        BenchmarkRun(name="cloud_opsbench", provider_id="ollama", model_id="qwen2.5:7b"),
+        BenchmarkRun(name="cloud_opsbench", provider_id="anthropic", model_id="claude-opus-5"),
+    )
+
+    line = provenance_line(runtime=RUNTIME_CANONICAL, corpus_version="", model_set=model_set(runs))
+
+    assert "`anthropic/claude-opus-5`" in line
+    assert "`ollama/qwen2.5:7b`" in line
+    assert RUNTIME_CANONICAL in line
+
+
+def test_a_table_nothing_was_routed_for_claims_no_model_set() -> None:
+    """The offline corpus is scored against a scripted agent; no model produced it."""
+    line = provenance_line(runtime=RUNTIME_CANONICAL, corpus_version="v1")
+
+    assert "models" not in line
+
+
+def test_the_model_set_is_sorted_and_deduplicated() -> None:
+    """Two runs that used the same models must produce the same string."""
+    one = model_set(
+        (
+            BenchmarkRun(name="b", provider_id="ollama", model_id="qwen"),
+            BenchmarkRun(name="b", provider_id="anthropic", model_id="opus"),
+            BenchmarkRun(name="b", provider_id="ollama", model_id="qwen"),
+        )
+    )
+
+    assert one == ("anthropic/opus", "ollama/qwen")
 
 
 def test_splicing_replaces_only_what_is_between_the_markers() -> None:

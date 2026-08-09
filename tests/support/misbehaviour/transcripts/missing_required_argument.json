@@ -1,0 +1,48 @@
+{
+  "id": "missing_required_argument",
+  "description": "A structured call with a required parameter left out. Nothing here may be filled in: the namespace the model omitted is not one anybody else gets to choose.",
+  "tools": [
+    {
+      "name": "kubernetes_list_pods",
+      "description": "List the pods in one namespace.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "namespace": {"type": "string", "description": "The namespace to list."},
+          "phase": {"type": "string", "description": "Filter by pod phase."}
+        },
+        "required": ["namespace"]
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-1", "name": "kubernetes_list_pods", "arguments": {"phase": "Running"}}
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "text": "",
+      "tool_calls": [
+        {
+          "id": "call-2",
+          "name": "kubernetes_list_pods",
+          "arguments": {"namespace": "checkout", "phase": "Running"}
+        }
+      ],
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "expected": {
+    "repairs": ["missing_argument_reported"],
+    "missing_parameters": ["namespace"],
+    "tool_calls": [
+      {
+        "name": "kubernetes_list_pods",
+        "arguments": {"namespace": "checkout", "phase": "Running"}
+      }
+    ]
+  }
+}

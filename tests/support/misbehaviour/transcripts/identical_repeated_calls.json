@@ -1,0 +1,49 @@
+{
+  "id": "identical_repeated_calls",
+  "description": "The model asks for the same thing, with the same arguments, turn after turn. Four turns of it, which is a run that would otherwise spend its whole iteration budget re-reading one query.",
+  "tools": [
+    {
+      "name": "prometheus_query",
+      "description": "Run one instant PromQL query.",
+      "parameters": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "description": "The PromQL expression."}},
+        "required": ["query"]
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-1", "name": "prometheus_query", "arguments": {"query": "up"}}
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-2", "name": "prometheus_query", "arguments": {"query": "up"}}
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-3", "name": "prometheus_query", "arguments": {"query": "up"}}
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-4", "name": "prometheus_query", "arguments": {"query": "up"}}
+      ],
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "expected": {
+    "repairs": ["repetition_broken"],
+    "broken_at_output": 3
+  }
+}

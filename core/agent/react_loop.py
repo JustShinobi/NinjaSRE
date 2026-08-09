@@ -69,6 +69,8 @@ from core.agent.turn import (
     Turn,
 )
 from core.capability.registered import RegisteredTool
+from core.llm.probe import UNMEASURED_LIMITS, ModelLimits
+from core.llm.routing import TaskClass
 from core.llm.types import (
     InvokeRequest,
     InvokeResult,
@@ -119,6 +121,7 @@ class ReActLoop:
         handoff_channel: HandoffChannel | None = None,
         messages: MessageQueue | None = None,
         store: SessionStore | None = None,
+        limits: ModelLimits = UNMEASURED_LIMITS,
         clock: Callable[[], float] = time.monotonic,
         session_ids: Callable[[], str] | None = None,
     ) -> None:
@@ -143,6 +146,10 @@ class ReActLoop:
         self._handoff_channel = handoff_channel
         self._messages = messages
         self._store = store
+        # What this model was measured to be able to hold. The shipped ceilings
+        # where nobody probed, so a deployment that never ran the probe behaves
+        # exactly as it did before any of this existed.
+        self._limits = limits
         self._seeds = seed_catalogue
         self._conclusion: ConclusionPolicy = conclusion or AcceptAnyAnswer()
         self._hooks = hooks
@@ -267,7 +274,12 @@ class ReActLoop:
         )
         session.append(Message(role=Role.ASSISTANT, tool_calls=calls))
         batch = await dispatch_calls(
-            calls, tools=self._tools, session=session, cache=cache, iteration=0
+            calls,
+            tools=self._tools,
+            session=session,
+            cache=cache,
+            iteration=0,
+            result_chars=self._limits.tool_result_chars,
         )
         session.append(Message(role=Role.TOOL, tool_results=batch.tool_results))
         return batch.executions
@@ -368,7 +380,42 @@ class ReActLoop:
 
     # -- one iteration --------------------------------------------------------
 
-    def _schemas(self, session: Session) -> tuple[ToolSchema, ...]:
+    def _offered_tools(self, guardrails: list[GuardrailAction]) -> tuple[RegisteredTool, ...]:
+        """Return the capabilities this turn may carry, narrowed to the model's limit.
+
+        The order the loop was constructed with is selection's ranking, so
+        narrowing drops from the end of it rather than by name — dropping
+        alphabetically would discard the capability selection thought was most
+        relevant about a third of the time.
+
+        This is a backstop rather than the mechanism. A composition root that
+        knows the model's limits asks selection for that many capabilities in the
+        first place, and then this never fires; when it does fire, it fires with
+        a line in the trace saying so, because a turn that silently carried fewer
+        capabilities than the run was configured with explains nothing.
+        """
+        held = tuple(self._tools.values())
+        ceiling = min(self._limits.max_tool_schemas, MAX_AGENT_TOOL_SCHEMAS)
+        if len(held) <= ceiling:
+            return held
+
+        dropped = tuple(registered.name for registered in held[ceiling:])
+        guardrails.append(
+            GuardrailAction(
+                kind=GuardrailActionKind.SCHEMAS_NARROWED,
+                target=", ".join(dropped),
+                reason=(
+                    f"the model holds at most {ceiling} tool schemas per turn; "
+                    f"{len(held)} were selected and the lowest-ranked {len(dropped)} "
+                    "were not offered"
+                ),
+            )
+        )
+        return held[:ceiling]
+
+    def _schemas(
+        self, session: Session, guardrails: list[GuardrailAction]
+    ) -> tuple[ToolSchema, ...]:
         """Return the tool schemas this turn carries.
 
         Dispatch is offered as one more schema rather than as a registered
@@ -379,24 +426,25 @@ class ReActLoop:
         if session.tools_stripped:
             return ()
 
+        offered = self._offered_tools(guardrails)
         schemas = [
             ToolSchema(
                 name=registered.name,
                 description=registered.metadata.description,
                 parameters=registered.input_schema,
             )
-            for registered in self.tools
+            for registered in sorted(offered, key=lambda registered: registered.name)
         ]
         if self._dispatcher is not None and session.depth < self._dispatcher.max_depth:
             schemas.append(dispatch_schema(self._catalogue))
         return tuple(schemas)
 
-    def _build_request(self, session: Session) -> InvokeRequest:
+    def _build_request(self, session: Session, guardrails: list[GuardrailAction]) -> InvokeRequest:
         """Return the provider-neutral request for this turn."""
         return InvokeRequest(
             messages=tuple(session.transcript),
             system=session.system_prompt or DEFAULT_RUNTIME_SYSTEM_PROMPT,
-            tools=self._schemas(session),
+            tools=self._schemas(session, guardrails),
             parallel_tool_calls=True,
             metadata={"session_id": session.id, "iteration": str(session.iteration + 1)},
         )
@@ -465,6 +513,7 @@ class ReActLoop:
                 cache=cache,
                 iteration=session.iteration,
                 hooks=self._hooks,
+                result_chars=self._limits.tool_result_chars,
             )
         ]
         if dispatches and self._dispatcher is not None:
@@ -518,6 +567,7 @@ class ReActLoop:
             subagents=self._catalogue.definitions,
             seed_catalogue=EMPTY_SEED_CATALOGUE,
             hooks=self._hooks,
+            limits=self._limits,
             clock=self._clock,
         )
         specialist.share_control_with(self)
@@ -551,10 +601,20 @@ class ReActLoop:
         # so it is in the transcript compaction will summarise around; the
         # budget runs last so it measures what is actually about to be sent.
         await self._merge_queued(session, guardrails)
-        apply_compaction(session)
+        compaction = apply_compaction(
+            session, usable_context_tokens=self._limits.usable_context_tokens
+        )
+        if compaction.compacted:
+            guardrails.append(
+                GuardrailAction(
+                    kind=GuardrailActionKind.TRANSCRIPT_COMPACTED,
+                    target=session.id,
+                    reason=compaction.reason,
+                )
+            )
         budget_actions: tuple[BudgetAction, ...] = apply_budget(session, policy)
 
-        request = self._build_request(session)
+        request = self._build_request(session, guardrails)
         offered = tuple(schema.name for schema in request.tools)
 
         def record(executions: tuple[ToolExecution, ...]) -> Turn:
@@ -572,6 +632,16 @@ class ReActLoop:
 
         result = await self._llm.invoke(request)
 
+        # Recorded whether or not the turn succeeded: a run that ended because a
+        # model became unavailable is one where knowing which model it was is the
+        # first thing anybody asks.
+        session.attribute(
+            TaskClass.REASONING,
+            provider_id=result.provider_id,
+            model_id=result.model_id,
+            output=f"turn {session.iteration}",
+        )
+
         if not result.succeeded:
             await self._record(session, record(()))
             logger.warning(
@@ -581,6 +651,18 @@ class ReActLoop:
                 failure=result.failure.value if result.failure else "unknown",
             )
             return degraded_result(session, failure=result.failure_message)
+
+        # A repaired call is not a clean call. Surfacing the repairs here is what
+        # makes "this model costs you three attempts a turn" something an
+        # operator can read off a run rather than infer from its wall clock.
+        guardrails.extend(
+            GuardrailAction(
+                kind=GuardrailActionKind.MODEL_OUTPUT_REPAIRED,
+                target=repair.capability or repair.kind.value,
+                reason=f"{repair.kind.value}: {repair.detail}",
+            )
+            for repair in result.repairs
+        )
 
         # A turn that carries no tool schemas may still come back with tool
         # calls: a provider replaying a cached response, a local model that

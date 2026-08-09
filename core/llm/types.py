@@ -84,6 +84,75 @@ class Degradation:
     detail: str = ""
 
 
+class RepairKind(StrEnum):
+    """Something the model got wrong that the system handled rather than passed on.
+
+    A repaired call is not a clean call. If repairs were invisible, a model that
+    needs three attempts a turn would look exactly like one that needs none, and
+    an operator would have no way to learn that changing model would double their
+    throughput. So every member here is counted, traced, and exposed.
+
+    Closed, and every member is either an *extraction* — reading what the model
+    plainly said out of the shape it said it in — or a *rejection*. Nothing here
+    supplies a value the model did not.
+    """
+
+    #: The model narrated its call instead of emitting one, in a recognised form.
+    TOOL_CALL_EXTRACTED = "tool_call_extracted"
+    #: A streamed call arrived in pieces and was put back together.
+    FRAGMENTS_REASSEMBLED = "fragments_reassembled"
+    #: An argument the capability's schema does not declare. The call did not run.
+    UNKNOWN_ARGUMENT_REJECTED = "unknown_argument_rejected"
+    #: A required argument the model left out. Nothing was filled in for it.
+    MISSING_ARGUMENT_REPORTED = "missing_argument_reported"
+    #: The same call twice in one turn; the second was dropped before execution.
+    DUPLICATE_CALL_DISCARDED = "duplicate_call_discarded"
+    #: Text that looked like a call and could not be read as one.
+    NO_TOOL_CALL_FOUND = "no_tool_call_found"
+    #: The model asked for the same thing too many turns running and was told.
+    REPETITION_BROKEN = "repetition_broken"
+    #: A capability result shortened for the model, whole in the trace.
+    RESULT_TRUNCATED = "result_truncated"
+    #: The transcript was summarised to stay inside the model's usable context.
+    TRANSCRIPT_COMPACTED = "transcript_compacted"
+    #: Fewer capability schemas were offered than selection had chosen.
+    SCHEMAS_NARROWED = "schemas_narrowed"
+
+
+@dataclass(frozen=True, slots=True)
+class Repair:
+    """One thing the model got wrong, and what was done about it.
+
+    ``parameter`` is populated where a single argument is at fault, because
+    "the call was rejected" and "the call was rejected because ``label_selector``
+    is not a parameter of this capability" send an operator to different places.
+    """
+
+    kind: RepairKind
+    detail: str = ""
+    capability: str = ""
+    parameter: str = ""
+
+    def to_record(self) -> dict[str, str]:
+        """Return a JSON-serialisable record of this repair."""
+        return {
+            "kind": self.kind.value,
+            "detail": self.detail,
+            "capability": self.capability,
+            "parameter": self.parameter,
+        }
+
+    @classmethod
+    def from_record(cls, record: Mapping[str, Any]) -> Repair:
+        """Return the repair a stored record describes."""
+        return cls(
+            kind=RepairKind(record["kind"]),
+            detail=str(record.get("detail", "")),
+            capability=str(record.get("capability", "")),
+            parameter=str(record.get("parameter", "")),
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class ToolCall:
     """A model's request to run one tool."""
@@ -182,6 +251,10 @@ class InvokeResult:
     structured: Mapping[str, Any] | None = None
     structured_mechanism: StructuredMechanism | None = None
     degradations: tuple[Degradation, ...] = ()
+    #: What the resilience layer had to do to the model's output to use it.
+    #: Empty for a well-behaved model, which is how a caller can assert that the
+    #: clean path stayed clean.
+    repairs: tuple[Repair, ...] = ()
     attempts: tuple[AttemptRecord, ...] = ()
     partial: bool = False
     failure: FailureClass | None = None
@@ -210,6 +283,12 @@ class StreamEvent:
     kind: StreamEventKind
     text: str = ""
     tool_call: ToolCall | None = None
+    #: A slice of the argument document, for a provider that streams a tool
+    #: call's arguments as text deltas. The pieces are meaningless apart and the
+    #: whole is a call, so the neutral shape has to be able to carry a piece —
+    #: otherwise reassembly would have to happen inside every adapter that
+    #: streams, which is the duplication this layer exists to avoid.
+    tool_call_fragment: str = ""
     usage: UsageRecord | None = None
     finish_reason: FinishReason | None = None
     failure: FailureClass | None = None
@@ -278,6 +357,8 @@ __all__ = [
     "LLMClient",
     "Message",
     "ReasoningEffort",
+    "Repair",
+    "RepairKind",
     "Role",
     "StreamEvent",
     "StreamEventKind",

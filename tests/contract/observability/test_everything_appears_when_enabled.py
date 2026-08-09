@@ -79,6 +79,16 @@ def _drive_everything() -> tuple[RecordingTransport, MetricRegistry, Tracer]:
     )
     metrics.counter("guardrail.actions").add(1, rule="aws-access-key", action="redact")
     metrics.counter("memory.episodes_written").add(1, team="platform")
+    # The local model's own numbers: what the weights cost in attempts, which is
+    # a different question from what the endpoint cost in money above.
+    metrics.counter("model.repairs").add(
+        1, model="local", provider="ollama", kind="tool_call_extracted"
+    )
+    metrics.counter("model.degradations").add(
+        1, model="local", provider="ollama", kind="repair_budget_exhausted"
+    )
+    for name in ("model.loop_breaks", "model.compactions", "model.truncations"):
+        metrics.counter(name).add(1, model="local", provider="ollama")
 
     tracer.flush()
     metrics.flush()

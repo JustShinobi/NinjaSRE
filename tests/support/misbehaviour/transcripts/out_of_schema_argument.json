@@ -1,0 +1,45 @@
+{
+  "id": "out_of_schema_argument",
+  "description": "A structured call carrying a parameter the schema does not declare. The model has read a different vendor's tool somewhere in its training data and is confident about it.",
+  "tools": [
+    {
+      "name": "kubernetes_list_pods",
+      "description": "List the pods in one namespace.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "namespace": {"type": "string", "description": "The namespace to list."}
+        },
+        "required": ["namespace"],
+        "additionalProperties": false
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "text": "",
+      "tool_calls": [
+        {
+          "id": "call-1",
+          "name": "kubernetes_list_pods",
+          "arguments": {"namespace": "checkout", "label_selector": "app=checkout"}
+        }
+      ],
+      "finish_reason": "tool_calls"
+    },
+    {
+      "text": "",
+      "tool_calls": [
+        {"id": "call-2", "name": "kubernetes_list_pods", "arguments": {"namespace": "checkout"}}
+      ],
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "expected": {
+    "repairs": ["unknown_argument_rejected"],
+    "rejected_parameters": ["label_selector"],
+    "tool_calls": [
+      {"name": "kubernetes_list_pods", "arguments": {"namespace": "checkout"}}
+    ]
+  }
+}
