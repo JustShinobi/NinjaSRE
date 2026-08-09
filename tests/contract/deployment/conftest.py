@@ -63,6 +63,12 @@ def dev_compose() -> dict[str, Any]:
 
 
 @pytest.fixture(scope="session")
+def homelab_compose() -> dict[str, Any]:
+    """Return the homelab profile's compose file."""
+    return load_compose(COMPOSE / "docker-compose.homelab.yml")
+
+
+@pytest.fixture(scope="session")
 def chart_values() -> dict[str, Any]:
     """Return the chart's default values."""
     document = yaml.safe_load((CHART / "values.yaml").read_text(encoding="utf-8"))

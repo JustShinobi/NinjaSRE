@@ -218,8 +218,59 @@ _ENTERPRISE_STEPS: tuple[SetupStep, ...] = (
     ),
 )
 
+#: The homelab path has two steps the others do not, and both are there because
+#: of what this profile assumes.
+#:
+#: **The model is probed rather than trusted.** A homelab runs the model on the
+#: operator's own hardware, and a quantised build that accepts a fraction of its
+#: advertised window — or emits prose where a tool call belongs — fails in the
+#: middle of the first incident rather than at setup. The probe costs about
+#: twenty small local calls and is cached against the model's identity, so it is
+#: paid once.
+#:
+#: **The cluster token is pasted before the first investigation.** The point of
+#: this profile is watching infrastructure the operator already has, so a first
+#: run that ended at a synthetic scenario would have demonstrated nothing they
+#: came for.
+_HOMELAB_STEPS: tuple[SetupStep, ...] = (
+    SetupStep(
+        name="configure",
+        action="copy .env.example to .env and set an encryption key and a model endpoint",
+        budget_seconds=120,
+    ),
+    SetupStep(
+        name="start",
+        action=(
+            "docker compose -f docker-compose.homelab.yml up -d: four containers inside a "
+            "declared memory and CPU footprint"
+        ),
+        budget_seconds=180,
+        automated=True,
+    ),
+    SetupStep(
+        name="probe the model",
+        action=(
+            "probe the local endpoint for tool calling, structured output, streaming and its "
+            "real usable context, and report what it cannot do before anything depends on it"
+        ),
+        budget_seconds=180,
+        automated=True,
+    ),
+    SetupStep(
+        name="connect",
+        action="paste a Proxmox API token; the estate populates and the guardian offers itself",
+        budget_seconds=120,
+    ),
+    SetupStep(
+        name="investigate",
+        action="read what the shipped detectors already conclude about the cluster",
+        budget_seconds=180,
+    ),
+)
+
 _PLANS: dict[DeploymentProfile, tuple[SetupStep, ...]] = {
     DeploymentProfile.DEV: _DEV_STEPS,
+    DeploymentProfile.HOMELAB: _HOMELAB_STEPS,
     DeploymentProfile.STANDARD: _STANDARD_STEPS,
     DeploymentProfile.ENTERPRISE: _ENTERPRISE_STEPS,
 }

@@ -38,6 +38,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from config.constants.hypervisor import (
+    KIND_PHYSICAL_DISK,
+    KIND_REPLICATION_JOB,
+    KIND_STORAGE_POOL,
+)
 from integrations._base.discovery import DiscoveredResource, DiscoveryPage, declare
 from integrations._base.errors import IntegrationError
 from integrations.proxmox.client import ProxmoxClient
@@ -66,14 +71,6 @@ from platform.estate.kinds import (
     KIND_VIRTUAL_MACHINE,
     ResourceKind,
 )
-
-#: The three kinds Proxmox adds to the core set. Registered by the integration
-#: rather than declared in ``platform``: a hypervisor's thin pool is not a
-#: universal concept, and a core model that grew a field per vendor would stop
-#: being a model.
-KIND_STORAGE_POOL: Final = "storage_pool"
-KIND_REPLICATION_JOB: Final = "replication_job"
-KIND_PHYSICAL_DISK: Final = "physical_disk"
 
 PROXMOX_KINDS: Final[tuple[ResourceKind, ...]] = (
     ResourceKind(

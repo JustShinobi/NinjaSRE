@@ -22,6 +22,7 @@ product constraint that happens to be measurable rather than an aspiration.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Final
 
 # --- Profile selection -------------------------------------------------------
@@ -35,8 +36,19 @@ DEPLOYMENT_PROFILE_DEV: Final = "dev"
 DEPLOYMENT_PROFILE_STANDARD: Final = "standard"
 DEPLOYMENT_PROFILE_ENTERPRISE: Final = "enterprise"
 
+#: One person's own infrastructure, on one small machine. Not "standard, but
+#: less": it is the only profile that declares a resource ceiling and enforces
+#: it, because it is the only one running beside the things it watches, on
+#: hardware whose spare capacity is somebody's media server.
+DEPLOYMENT_PROFILE_HOMELAB: Final = "homelab"
+
+#: Ordered by how much work the profile will take at once, smallest first. The
+#: order is not decoration: a test asserts the concurrency ceilings rise along
+#: it, which is what stops a new profile being given a ceiling nobody compared
+#: to the others.
 DEPLOYMENT_PROFILES: Final[tuple[str, ...]] = (
     DEPLOYMENT_PROFILE_DEV,
+    DEPLOYMENT_PROFILE_HOMELAB,
     DEPLOYMENT_PROFILE_STANDARD,
     DEPLOYMENT_PROFILE_ENTERPRISE,
 )
@@ -71,6 +83,56 @@ DEV_PROFILE_CONTAINER_COUNT: Final[int] = len(DEV_PROFILE_SERVICES)
 
 #: Four, and pinned. See the module docstring.
 STANDARD_PROFILE_CONTAINER_COUNT: Final[int] = len(STANDARD_PROFILE_SERVICES)
+
+#: The homelab profile is the same four components, and that is the decision
+#: rather than an accident of copying. The credential proxy keeps its own
+#: container because it is the only process holding a secret and its isolation
+#: is the whole reason it exists; folding it into the application to save a
+#: hundred megabytes would trade the deployment's one security boundary for
+#: about two per cent of the footprint.
+HOMELAB_PROFILE_SERVICES: Final[tuple[str, ...]] = STANDARD_PROFILE_SERVICES
+HOMELAB_PROFILE_CONTAINER_COUNT: Final[int] = len(HOMELAB_PROFILE_SERVICES)
+
+# --- The homelab footprint -----------------------------------------------------
+
+#: What the whole stack is allowed, in mebibytes and in CPUs. Four gibibytes and
+#: two cores is a guest an operator can spare on a machine that is already doing
+#: something else, which is the only size that matters here: a guardian that
+#: needed a node to itself would be competing with what it is guarding.
+#:
+#: Declared rather than measured-and-hoped: the numbers below are written into
+#: the compose file as per-service limits, so the container runtime enforces
+#: what the profile claims instead of the claim being a note in a document.
+HOMELAB_TOTAL_MEMORY_MIB: Final[int] = 4_096
+HOMELAB_TOTAL_CPUS: Final[float] = 2.0
+
+#: How the ceiling is divided. Postgres gets a gibibyte because it holds the
+#: signals, the incidents and the graph in one database; the application gets
+#: the largest share because it is the only one that runs an investigation; the
+#: proxy gets the smallest because it forwards bytes and holds no history.
+HOMELAB_MEMORY_LIMITS_MIB: Final[Mapping[str, int]] = {
+    SERVICE_POSTGRES: 1_024,
+    SERVICE_PROXY: 256,
+    SERVICE_APP: 2_304,
+    SERVICE_CONSOLE: 512,
+}
+
+HOMELAB_CPU_LIMITS: Final[Mapping[str, float]] = {
+    SERVICE_POSTGRES: 0.5,
+    SERVICE_PROXY: 0.25,
+    SERVICE_APP: 1.0,
+    SERVICE_CONSOLE: 0.25,
+}
+
+#: What "idle" means when a soak is judging whether the deployment stayed inside
+#: its footprint. Well under the ceiling, because a deployment sitting at its
+#: limit while nothing is happening has nothing left for the hour something is.
+HOMELAB_IDLE_MEMORY_MIB: Final[int] = 2_048
+
+#: How long a soak has to run before its verdict means anything. Memory growth
+#: that matters shows up over hours, and a point measurement taken a minute
+#: after start is a measurement of the import graph.
+HOMELAB_SOAK_HOURS: Final[float] = 24.0
 
 #: Where the credential proxy runs in each profile. ``in_process`` is the one
 #: that makes the dev profile two containers instead of three; it is still the
@@ -109,6 +171,13 @@ STANDARD_TEAM_CONCURRENCY: Final[int] = 2
 #: remove it exactly where it matters most.
 ENTERPRISE_GLOBAL_CONCURRENCY: Final[int] = 32
 ENTERPRISE_TEAM_CONCURRENCY: Final[int] = 8
+
+#: One host, one person, and a CPU budget of two cores shared with a database.
+#: Two concurrent investigations is what fits; the third would make all three
+#: slow rather than making any of them finish, and on a homelab there is nobody
+#: waiting on the second one anyway.
+HOMELAB_GLOBAL_CONCURRENCY: Final[int] = 2
+HOMELAB_TEAM_CONCURRENCY: Final[int] = 1
 
 # --- First run ---------------------------------------------------------------
 
@@ -201,6 +270,7 @@ __all__ = [
     "DEPLOYMENT_PROFILES",
     "DEPLOYMENT_PROFILE_DEV",
     "DEPLOYMENT_PROFILE_ENTERPRISE",
+    "DEPLOYMENT_PROFILE_HOMELAB",
     "DEPLOYMENT_PROFILE_STANDARD",
     "DEV_GLOBAL_CONCURRENCY",
     "DEV_PROFILE_CONTAINER_COUNT",
@@ -209,6 +279,16 @@ __all__ = [
     "ENTERPRISE_GLOBAL_CONCURRENCY",
     "ENTERPRISE_TEAM_CONCURRENCY",
     "FIRST_INVESTIGATION_BUDGET_SECONDS",
+    "HOMELAB_CPU_LIMITS",
+    "HOMELAB_GLOBAL_CONCURRENCY",
+    "HOMELAB_IDLE_MEMORY_MIB",
+    "HOMELAB_MEMORY_LIMITS_MIB",
+    "HOMELAB_PROFILE_CONTAINER_COUNT",
+    "HOMELAB_PROFILE_SERVICES",
+    "HOMELAB_SOAK_HOURS",
+    "HOMELAB_TEAM_CONCURRENCY",
+    "HOMELAB_TOTAL_CPUS",
+    "HOMELAB_TOTAL_MEMORY_MIB",
     "IDENTITY_LOCAL_ADMIN",
     "IDENTITY_SSO",
     "KEY_ROTATION_BATCH_SIZE",

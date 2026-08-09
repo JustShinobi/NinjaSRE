@@ -29,6 +29,7 @@ from config.constants.deployment import (
     DEFAULT_DEPLOYMENT_PROFILE,
     DEPLOYMENT_PROFILE_DEV,
     DEPLOYMENT_PROFILE_ENTERPRISE,
+    DEPLOYMENT_PROFILE_HOMELAB,
     DEPLOYMENT_PROFILE_STANDARD,
     DEPLOYMENT_PROFILES,
     DEV_GLOBAL_CONCURRENCY,
@@ -36,6 +37,9 @@ from config.constants.deployment import (
     DEV_TEAM_CONCURRENCY,
     ENTERPRISE_GLOBAL_CONCURRENCY,
     ENTERPRISE_TEAM_CONCURRENCY,
+    HOMELAB_GLOBAL_CONCURRENCY,
+    HOMELAB_PROFILE_SERVICES,
+    HOMELAB_TEAM_CONCURRENCY,
     IDENTITY_LOCAL_ADMIN,
     IDENTITY_SSO,
     NINJASRE_DEPLOYMENT_PROFILE_ENV,
@@ -53,14 +57,20 @@ from platform.startup.errors import UnknownDeploymentProfile
 
 
 class DeploymentProfile(StrEnum):
-    """Which of the three shapes this deployment is.
+    """Which of the four shapes this deployment is.
 
     Not a size. ``standard`` is not "medium ``dev``": it runs the credential
     proxy as its own container and the sandbox in containers, which are
     different trust boundaries rather than more of the same one.
+
+    ``homelab`` is not "small ``standard``" either. It is the same four
+    components with a declared resource ceiling the container runtime enforces,
+    and it is the only profile that assumes the deployment is running beside —
+    often *on* — the infrastructure it watches.
     """
 
     DEV = DEPLOYMENT_PROFILE_DEV
+    HOMELAB = DEPLOYMENT_PROFILE_HOMELAB
     STANDARD = DEPLOYMENT_PROFILE_STANDARD
     ENTERPRISE = DEPLOYMENT_PROFILE_ENTERPRISE
 
@@ -160,6 +170,17 @@ _TOPOLOGIES: dict[DeploymentProfile, ProfileTopology] = {
         scheduler=SCHEDULER_LEADER_CLAIMED,
         global_concurrency=ENTERPRISE_GLOBAL_CONCURRENCY,
         team_concurrency=ENTERPRISE_TEAM_CONCURRENCY,
+    ),
+    DeploymentProfile.HOMELAB: ProfileTopology(
+        profile=DeploymentProfile.HOMELAB,
+        services=HOMELAB_PROFILE_SERVICES,
+        container_count=len(HOMELAB_PROFILE_SERVICES),
+        sandbox_profile=SandboxProfile.CONTAINER,
+        proxy_deployment=PROXY_DEPLOYMENT_CONTAINER,
+        identity=IDENTITY_LOCAL_ADMIN,
+        scheduler=SCHEDULER_IN_PROCESS,
+        global_concurrency=HOMELAB_GLOBAL_CONCURRENCY,
+        team_concurrency=HOMELAB_TEAM_CONCURRENCY,
     ),
 }
 

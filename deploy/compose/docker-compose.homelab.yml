@@ -1,0 +1,166 @@
+# The `homelab` profile: one person's own infrastructure, on one small machine.
+#
+# The same four components as the `standard` profile, and that is a decision
+# rather than a copy. The credential proxy keeps its own container because it is
+# the only process that holds a secret; folding it into the application to save
+# a couple of hundred megabytes would trade this deployment's one security
+# boundary for about two per cent of its footprint.
+#
+# What makes this profile different is the ceiling. Every service carries a
+# memory and CPU limit, the four sum to 4 GiB and 2 CPUs, and both halves of
+# that claim are asserted by `tests/contract/deployment/test_homelab_profile.py`
+# against `config/constants/deployment.py`. A declared footprint that nothing
+# enforces is an aspiration, and an aspiration is what an operator discovers at
+# the moment their media server starts stuttering.
+#
+# The model endpoint is local first. `OLLAMA_BASE_URL` and `VLLM_BASE_URL` are
+# named here rather than left to the environment, because the homelab case is a
+# model on the operator's own hardware and a profile that made that the
+# afterthought would be a profile that assumed a vendor key.
+#
+# Nothing is published beyond loopback, and nothing needs an inbound connection
+# from the internet. Reaching the console from another machine on the house
+# network is a reverse proxy the operator already runs, not a default that ships
+# open.
+#
+# Start with:
+#     cp .env.example .env      # an encryption key, and a model endpoint
+#     docker compose -f docker-compose.homelab.yml up -d
+
+name: ninjasre-homelab
+
+x-image-build: &image-build
+  context: ../..
+  args:
+    BASE_PYTHON: ${BASE_PYTHON:-python:3.12.11-slim-bookworm}
+
+services:
+  postgres:
+    build:
+      context: ../..
+      dockerfile: deploy/images/postgres.Dockerfile
+      args:
+        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
+      POSTGRES_DB: ${POSTGRES_DB:-ninjasre}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ninjasre} -d ${POSTGRES_DB:-ninjasre}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+    networks: [internal]
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "0.5"
+
+  proxy:
+    build:
+      <<: *image-build
+      dockerfile: deploy/images/proxy.Dockerfile
+    environment:
+      NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-homelab}
+      NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
+      NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
+      NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
+      NINJASRE_CA_BUNDLE: ${NINJASRE_CA_BUNDLE:-}
+      NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
+      NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [internal, egress]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
+  app:
+    build:
+      <<: *image-build
+      dockerfile: deploy/images/app.Dockerfile
+    environment:
+      NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-homelab}
+      NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
+      NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
+      NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
+      NINJASRE_CREDENTIAL_PROXY_TOKEN: ${NINJASRE_CREDENTIAL_PROXY_TOKEN:-}
+      NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
+      NINJASRE_SETUP_TEMPLATE: ${NINJASRE_SETUP_TEMPLATE:-}
+      NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
+      # Local first. A homelab runs the model on its own hardware, so the
+      # endpoints come before any vendor key and one of them is usually the
+      # whole model configuration.
+      NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-ollama}
+      NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      NINJASRE_AIR_GAPPED: ${NINJASRE_AIR_GAPPED:-false}
+      NINJASRE_EGRESS_ALLOWLIST: ${NINJASRE_EGRESS_ALLOWLIST:-}
+      NINJASRE_CA_BUNDLE: ${NINJASRE_CA_BUNDLE:-}
+      NINJASRE_OTEL_ENDPOINT: ${NINJASRE_OTEL_ENDPOINT:-}
+      NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
+      NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+    ports:
+      - "127.0.0.1:${NINJASRE_API_PORT:-8420}:8420"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      proxy:
+        condition: service_started
+    restart: unless-stopped
+    networks: [internal, egress]
+    deploy:
+      resources:
+        limits:
+          memory: 2304M
+          cpus: "1.0"
+
+  console:
+    build:
+      <<: *image-build
+      dockerfile: deploy/images/console.Dockerfile
+    environment:
+      NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-homelab}
+      NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
+      NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
+      NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
+      NINJASRE_ENDPOINT: ${NINJASRE_ENDPOINT:-http://app:8420}
+      NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
+      NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+    ports:
+      - "127.0.0.1:${NINJASRE_CONSOLE_PORT:-8421}:8421"
+    depends_on:
+      app:
+        condition: service_started
+    restart: unless-stopped
+    networks: [internal]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.25"
+
+volumes:
+  postgres-data:
+
+networks:
+  # The same split the standard profile makes, and for the same reason: the
+  # database and the console have no route off the host at all. On a homelab
+  # that also means the deployment cannot become the thing that exfiltrates the
+  # household's network topology, which is a property worth being able to prove
+  # with `docker network inspect` rather than to promise.
+  internal:
+    internal: true
+  egress:

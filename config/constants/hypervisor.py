@@ -71,6 +71,22 @@ MAX_RECLAIMED_ITEMS: Final[int] = 25
 #: survivor unable to tell a dead peer from an unreachable one.
 QUORUM_AMBIGUITY_NODE_COUNT: Final[int] = 2
 
+# --- The kinds a hypervisor adds to the core estate model ------------------------
+
+#: Three kinds the core estate model does not have, because a thin pool, a
+#: replication job and a physical disk are not universal concepts and a core
+#: model that grew a field per vendor would stop being a model.
+#:
+#: The *names* live here rather than in the integration that registers them,
+#: because two packages need them and they sit in different tiers: the
+#: integration declares the kinds, and the shipped detector set in
+#: ``platform.guardian`` declares which kinds each of its detectors applies to.
+#: A tier-3 package cannot import a tier-2 one, so a constant is the only place
+#: the string can be written once.
+KIND_STORAGE_POOL: Final = "storage_pool"
+KIND_REPLICATION_JOB: Final = "replication_job"
+KIND_PHYSICAL_DISK: Final = "physical_disk"
+
 __all__ = [
     "BACKUP_COLLISION_WINDOW_SECONDS",
     "BACKUP_SETTLE_SECONDS",
@@ -78,6 +94,9 @@ __all__ = [
     "GUEST_SETTLE_SECONDS",
     "GUEST_SHUTDOWN_TIMEOUT_SECONDS",
     "HARD_STOP_ESCALATION_SECONDS",
+    "KIND_PHYSICAL_DISK",
+    "KIND_REPLICATION_JOB",
+    "KIND_STORAGE_POOL",
     "MAX_RECLAIMED_ITEMS",
     "MIGRATION_SETTLE_SECONDS",
     "QUORUM_AMBIGUITY_NODE_COUNT",
