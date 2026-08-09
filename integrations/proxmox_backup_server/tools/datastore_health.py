@@ -77,6 +77,7 @@ async def proxmox_backup_server_datastore_health(datastore: str) -> CapabilityRe
         snapshots = await client.snapshots(datastore)
         verification = await client.verification_state(datastore)
         collection = await client.garbage_collection(datastore)
+        pruning = await client.prune_state(datastore)
     except IntegrationError as error:
         return vendor_failure(TOOL_NAME, error)
 
@@ -88,8 +89,16 @@ async def proxmox_backup_server_datastore_health(datastore: str) -> CapabilityRe
         "estimated_full_date": status.get("estimated-full-date"),
         "snapshot_count": len(snapshots),
         "unverified_snapshots": unverified,
+        # What is left once the unproven are set aside. A store whose
+        # verification job has never run reports the same snapshot count as one
+        # whose verification passes, and only this number tells them apart.
+        "proven_snapshot_count": len(snapshots) - len(unverified),
         "garbage_collection_status": collection.get("status", "never run"),
         "garbage_collection_last_run": collection.get("upid", ""),
+        # The retention this store actually applies, which is separate from what
+        # the hypervisor's backup job asked for: a job keeping thirty copies on
+        # a store pruning to two keeps two.
+        "prune_rules": [dict(rule) for rule in pruning],
     }
     return CapabilityResult.ok(
         TOOL_NAME,
@@ -116,7 +125,11 @@ def _summary(
         return f"{datastore} holds no snapshots at all, so nothing on it would restore"
     parts = [f"{datastore} holds {snapshots} snapshot(s)"]
     if unverified:
-        parts.append(f"{len(unverified)} of them unverified")
+        parts.append(
+            f"{len(unverified)} of them are unverified and therefore UNPROVEN — nobody has "
+            f"checked their chunks, which is not the same as failing verification and is not "
+            f"a backup either"
+        )
     if not dict(collection).get("status"):
         parts.append("garbage collection has never run, so its usage figure is not current")
     return "; ".join(parts)

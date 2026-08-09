@@ -22,80 +22,19 @@ threshold could not see it:
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
-from urllib.parse import urlsplit
-
 import pytest
 
-from integrations._base.errors import IntegrationError, IntegrationErrorReason
-from integrations._base.retry import RetryPolicy
-from integrations._base.transport import RequestContext
 from integrations.proxmox.client import MAX_TASK_LOG_LINES, ProxmoxClient
-from integrations.proxmox.schema import API_BASE, INTEGRATION
-from platform.credentials.proxy.model import OutboundResponse, ProxyRequest
 from tests.support.proxmox import (
     PRIMARY,
     SECONDARY,
+    ZFS_POOL_DETAIL,
+    ZFS_POOLS,
     ClusterState,
-    RecordedCluster,
-    recorded,
+    client_for,
 )
 
 pytestmark = pytest.mark.unit
-
-CONTEXT = RequestContext(org_id="acme", team_id="homelab", capability="proxmox_probe")
-NO_RETRY = RetryPolicy(max_attempts=1)
-
-#: Proxmox's own status for "the node that owns this endpoint is not answering".
-#: Not invented: a cluster with a node down answers cluster-wide reads normally
-#: and answers that node's own reads with this.
-NODE_UNREACHABLE_STATUS = 595
-
-
-@dataclass(slots=True)
-class RecordedTransport:
-    """The recorded cluster, behind the proxy transport protocol."""
-
-    cluster: RecordedCluster
-    offline_hosts: frozenset[str] = frozenset()
-    seen: list[str] = field(default_factory=list)
-    hosts: list[str] = field(default_factory=list)
-
-    async def forward(self, request: ProxyRequest) -> OutboundResponse:
-        """Answer ``request`` from the recording, or say why it cannot be answered."""
-        split = urlsplit(request.url)
-        host = split.hostname or ""
-        self.hosts.append(host)
-        if host in self.offline_hosts:
-            raise IntegrationError(
-                f"connection refused by {host}",
-                integration=INTEGRATION,
-                reason=IntegrationErrorReason.PROXY_UNAVAILABLE,
-            )
-
-        path = split.path.removeprefix(API_BASE)
-        self.seen.append(path)
-        try:
-            payload = self.cluster.payload(path)
-        except KeyError:
-            return OutboundResponse(NODE_UNREACHABLE_STATUS, {}, b"595 no route to host")
-        body = json.dumps({"data": payload}).encode("utf-8")
-        return OutboundResponse(200, {"content-type": "application/json"}, body)
-
-
-def client_for(
-    state: ClusterState = ClusterState.HEALTHY,
-    *,
-    endpoints: tuple[str, ...] = ("pve01.acme.example", "pve02.acme.example"),
-    offline: frozenset[str] = frozenset(),
-) -> tuple[ProxmoxClient, RecordedTransport]:
-    """Return a client reading ``state``, and the transport behind it."""
-    transport = RecordedTransport(cluster=recorded(state), offline_hosts=offline)
-    return (
-        ProxmoxClient(transport=transport, context=CONTEXT, endpoints=endpoints, retry=NO_RETRY),
-        transport,
-    )
 
 
 # --- Phase 2: the cluster -----------------------------------------------------
@@ -571,6 +510,68 @@ async def test_each_guests_own_thin_volume_fill_is_read_separately_from_its_data
     near_full = [volume for volume in volumes if volume.near_full]
     assert [volume.vmid for volume in near_full] == [100]
     assert near_full[0].data_percent == pytest.approx(99.60)
+
+
+# --- The three reads an investigation needs and a survey did not -------------
+
+
+async def test_the_cluster_wide_datastore_definitions_say_which_nodes_may_see_each() -> None:
+    """A guest cannot move to a node its disk's datastore is not declared on."""
+    client, _ = client_for()
+
+    declared = await client.storage_configuration()
+
+    by_name = {row["storage"]: row for row in declared}
+    assert by_name["local-lvm"]["nodes"] == "", "an empty restriction means every node"
+    assert by_name["TeraChad"]["nodes"] == SECONDARY
+
+
+async def test_one_disks_smart_attributes_are_readable_per_device() -> None:
+    """The health verdict is a summary; the attributes are what predicts."""
+    client, _ = client_for()
+
+    reading = await client.disk_smart(SECONDARY, "/dev/sda")
+
+    assert reading.available
+    attributes = {row["name"]: row for row in reading.require()["attributes"]}
+    assert attributes["Current_Pending_Sector"]["raw"] == "24"
+
+
+async def test_two_disks_on_one_node_report_their_own_attributes_and_not_each_others() -> None:
+    client, _ = client_for()
+
+    solid_state = await client.disk_smart(SECONDARY, "/dev/nvme0n1")
+    spinning = await client.disk_smart(SECONDARY, "/dev/sda")
+
+    assert solid_state.require()["type"] == "text"
+    assert spinning.require()["type"] == "ata"
+
+
+async def test_one_zfs_pools_devices_scrub_and_errors_are_readable() -> None:
+    """A pool's health is a word; its device tree is where the fault is."""
+    client, _ = client_for(
+        responses={
+            f"/nodes/{SECONDARY}/disks/zfs": list(ZFS_POOLS),
+            f"/nodes/{SECONDARY}/disks/zfs/tank": ZFS_POOL_DETAIL,
+        }
+    )
+
+    reading = await client.zfs_pool_detail(SECONDARY, "tank")
+
+    assert reading.available
+    detail = reading.require()
+    assert detail["state"] == "ONLINE"
+    assert "scrub repaired" in detail["scan"]
+
+
+async def test_a_node_with_no_such_zfs_pool_reports_an_absent_reading() -> None:
+    """Absent rather than empty: nothing looked, which is not the same as nothing wrong."""
+    client, _ = client_for()
+
+    reading = await client.zfs_pool_detail(SECONDARY, "tank")
+
+    assert not reading.available
+    assert "tank" in reading.unavailable_reason
 
 
 # --- Failover, across the whole read surface ----------------------------------

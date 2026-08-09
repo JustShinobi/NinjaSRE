@@ -176,7 +176,16 @@ class ClusterConfiguration:
     nodes: tuple[Mapping[str, Any], ...] = ()
     two_node: bool = False
     wait_for_all: bool = False
+    #: Whether corosync may lower the expected vote count as members leave. It
+    #: is what lets a shrinking cluster keep deciding, and it is also what lets a
+    #: cluster that has partitioned decide twice — so its value is part of the
+    #: answer to "does this survive a node loss" rather than a detail.
+    last_man_standing: bool = False
     has_quorum_device: bool = False
+    #: Each node's declared corosync rings, keyed by node. Links are built
+    #: pairwise, so a ring one node declares and another does not is a link that
+    #: can never come up — and nothing in the configuration says so.
+    links: Mapping[int, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +194,11 @@ class HighAvailabilityState:
 
     resources: tuple[Mapping[str, Any], ...] = ()
     groups: tuple[Mapping[str, Any], ...] = ()
+    #: What the manager currently believes about each managed resource, which is
+    #: a different reading from the resource's definition. A resource declared
+    #: ``started`` whose current state is ``fence`` is a node being reset, and a
+    #: view that carried only the definition would report it as started.
+    services: tuple[Mapping[str, Any], ...] = ()
     manager_node: str = ""
     manager_status: str = ""
     fencing_mode: str = ""
@@ -290,6 +304,10 @@ class PhysicalDisk:
     disk_type: str = ""
     smart_health: str = ""
     wearout: str = ""
+    #: What Proxmox says the disk is being used for — ``LVM``, ``ZFS``,
+    #: ``partitions``. It names the technology and never the pool, which is why
+    #: a disk-to-pool map is only completable where ZFS publishes its devices.
+    used_for: str = ""
 
     @property
     def smart_passed(self) -> bool:
@@ -466,8 +484,20 @@ class TaskRecord:
 
     @property
     def finished(self) -> bool:
-        """Return whether the task has stopped running."""
-        return self.status.lower() in {"stopped", "ok"} or bool(self.exit_status)
+        """Return whether the task has stopped running.
+
+        An end time is decisive on its own. Proxmox puts its own prose in
+        ``status`` for a task that failed — ``job errors``, ``storage 'x' is not
+        online`` — and a reader that only recognised ``stopped`` and ``OK``
+        would classify every failure as still running. That is not a cosmetic
+        error: it is what decides whether a guest's lock is held by live work or
+        orphaned by dead work, and the two have opposite correct actions.
+        """
+        return (
+            bool(self.ended_at)
+            or self.status.lower() in {"stopped", "ok"}
+            or bool(self.exit_status)
+        )
 
     @property
     def succeeded(self) -> bool:

@@ -25,11 +25,12 @@ from typing import Any
 
 from core.capability.decorator import tool
 from core.capability.metadata import EvidenceType, Requirements, SideEffectLevel
-from core.capability.result import CapabilityResult, Evidence
+from core.capability.result import CapabilityResult
 from integrations._base.access import current
 from integrations._base.capability import unconfigured, vendor_failure
 from integrations._base.errors import IntegrationError
 from integrations.proxmox.client import ProxmoxClient
+from integrations.proxmox.investigation import bounded, report
 from integrations.proxmox.schema import INTEGRATION
 
 TOOL_NAME = "proxmox_protection_gaps"
@@ -93,8 +94,8 @@ async def proxmox_protection_gaps() -> CapabilityResult:
         covered |= set(guests) if job.covers_everything else set(job.vmids)
 
     uncovered = sorted(set(guests) - covered)
-    value: dict[str, Any] = {
-        "jobs": [
+    listed, jobs_bound = bounded(
+        (
             {
                 "id": job.job_id,
                 "comment": job.comment,
@@ -104,25 +105,34 @@ async def proxmox_protection_gaps() -> CapabilityResult:
                 "retention": job.retention,
             }
             for job in jobs
-        ],
+        ),
+        ranked_by="a disabled job first, because it is the shape that protects nothing",
+        key=lambda entry: (not entry["enabled"], entry["id"]),
+    )
+    exposed, guests_bound = bounded(
+        [{"vmid": vmid, "name": guests[vmid]} for vmid in uncovered],
+        ranked_by="guest id, since an uncovered guest has no size to rank by",
+        key=lambda entry: -vmid_of(entry),
+    )
+    value: dict[str, Any] = {
+        "jobs": list(listed),
         "disabled_jobs": [job.job_id for job in jobs if not job.enabled],
-        "guests_without_an_enabled_job": [
-            {"vmid": vmid, "name": guests[vmid]} for vmid in uncovered
-        ],
+        "guests_without_an_enabled_job": list(exposed),
         "replication_jobs": len(replication),
     }
-    return CapabilityResult.ok(
+    return report(
         TOOL_NAME,
         value=value,
-        evidence=(
-            Evidence(
-                source=INTEGRATION,
-                evidence_type=EvidenceType.CONFIGURATION,
-                summary=_summary(len(guests), uncovered, value),
-                reference="proxmox:protection",
-            ),
-        ),
+        summary=_summary(len(guests), uncovered, value),
+        reference="proxmox:protection",
+        evidence_type=EvidenceType.CONFIGURATION,
+        bounds=(("jobs", jobs_bound), ("guests_without_an_enabled_job", guests_bound)),
     )
+
+
+def vmid_of(entry: dict[str, Any]) -> int:
+    """Return the guest id an exposure record carries, as a number to rank by."""
+    return int(entry["vmid"])
 
 
 def _summary(total: int, uncovered: list[int], value: dict[str, Any]) -> str:

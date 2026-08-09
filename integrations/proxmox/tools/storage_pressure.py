@@ -26,11 +26,12 @@ from typing import Any
 
 from core.capability.decorator import tool
 from core.capability.metadata import EvidenceType, Requirements, SideEffectLevel
-from core.capability.result import CapabilityResult, Evidence
+from core.capability.result import CapabilityResult
 from integrations._base.access import current
 from integrations._base.capability import unconfigured, vendor_failure
 from integrations._base.errors import IntegrationError
 from integrations.proxmox.client import ProxmoxClient
+from integrations.proxmox.investigation import Undetermined, bounded, report
 from integrations.proxmox.schema import INTEGRATION
 
 TOOL_NAME = "proxmox_storage_pressure"
@@ -79,10 +80,27 @@ async def proxmox_storage_pressure(node: str) -> CapabilityResult:
         return unconfigured(TOOL_NAME, INTEGRATION)
 
     client = access.client(ProxmoxClient, capability=TOOL_NAME)
+    holes: list[Undetermined | None] = []
+    consumers: list[dict[str, Any]] = []
     try:
         datastores = await client.node_storage(node)
         pools = await client.thin_pools(node)
         volumes = await client.thin_volumes(node)
+        for store in datastores:
+            if not store.is_available:
+                holes.append(
+                    Undetermined(
+                        question=f"what is consuming the {store.name} datastore",
+                        reason=(
+                            f"{node} reports it as {store.status!r} rather than available, so "
+                            f"its contents could not be listed — this is a mount that failed "
+                            f"rather than a datastore that is empty"
+                        ),
+                        published_by=f"the {store.name} mount on {node}",
+                    )
+                )
+                continue
+            consumers.append(await _consumers(client, node, store.name))
     except IntegrationError as error:
         return vendor_failure(TOOL_NAME, error)
 
@@ -113,19 +131,45 @@ async def proxmox_storage_pressure(node: str) -> CapabilityResult:
             for volume in volumes
             if volume.near_full
         ],
+        "consumers": consumers,
     }
-    return CapabilityResult.ok(
+    return report(
         TOOL_NAME,
         value=value,
-        evidence=(
-            Evidence(
-                source=INTEGRATION,
-                evidence_type=EvidenceType.METRIC,
-                summary=_summary(node, value),
-                reference=f"proxmox:storage:{node}",
-            ),
-        ),
+        summary=_summary(node, value),
+        reference=f"proxmox:storage:{node}",
+        undetermined=holes,
     )
+
+
+async def _consumers(client: ProxmoxClient, node: str, datastore: str) -> dict[str, Any]:
+    """Return the largest things inside one datastore, ranked before they are cut.
+
+    A datastore percentage with nothing behind it is a number an operator still
+    has to go and investigate by hand. Ranked by size rather than truncated,
+    because a truncated content listing is an arbitrary sample of a datastore
+    and the whole question is which entries are the big ones.
+    """
+    contents = await client.datastore_contents(node, datastore)
+    largest, bound = bounded(
+        (
+            {
+                "volid": str(row.get("volid", "")),
+                "guest": int(row.get("vmid", 0) or 0),
+                "size_bytes": int(row.get("size", 0) or 0),
+                "content": str(row.get("content", "")),
+            }
+            for row in contents
+            if row.get("volid")
+        ),
+        ranked_by="the space each item occupies",
+        key=lambda entry: entry["size_bytes"],
+    )
+    return {
+        "datastore": datastore,
+        "largest_consumers": list(largest),
+        "bounds": bound.to_record(),
+    }
 
 
 def _summary(node: str, value: dict[str, Any]) -> str:

@@ -140,6 +140,17 @@ STORAGE_PRESSURE: Final = IntegrationScenario(
                 ]
             )
         ),
+        # What is inside the one datastore this node can reach. A fill
+        # percentage with nothing behind it is a number an operator still has to
+        # go and investigate by hand, so the largest consumers travel with it.
+        json_response(
+            _envelope(
+                [
+                    {"volid": "local-lvm:vm-100-disk-0", "size": 107_374_182_400, "vmid": 100},
+                    {"volid": "local-lvm:vm-115-disk-0", "size": 8_589_934_592, "vmid": 115},
+                ]
+            )
+        ),
     ),
     credential=CREDENTIAL,
     expected_summary="vm-100-disk-0",

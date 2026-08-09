@@ -297,9 +297,11 @@ class ProxmoxClient(IntegrationClient):
             transport=str(totem.get("transport", "")),
             secure_authentication=str(totem.get("secauth", "")).lower() == "on",
             nodes=nodes,
-            two_node=str(totem.get("two_node", "0")) in {"1", "true", "on"},
-            wait_for_all=str(totem.get("wait_for_all", "0")) in {"1", "true", "on"},
+            two_node=_switch(totem.get("two_node")),
+            wait_for_all=_switch(totem.get("wait_for_all")),
+            last_man_standing=_switch(totem.get("last_man_standing")),
             has_quorum_device=bool(totem.get("device")),
+            links=_declared_links(nodes),
         )
 
     async def cluster_log(self, *, limit: int = 100) -> tuple[Mapping[str, Any], ...]:
@@ -316,6 +318,7 @@ class ProxmoxClient(IntegrationClient):
         return HighAvailabilityState(
             resources=resources,
             groups=groups,
+            services=tuple(row for row in current if row.get("type") == "service"),
             manager_node=str(manager.get("node", "")),
             manager_status=str(manager.get("status", "")),
             fencing_mode=str(manager.get("mode", "watchdog")),
@@ -414,6 +417,17 @@ class ProxmoxClient(IntegrationClient):
             )
         )
 
+    async def storage_configuration(self) -> tuple[Mapping[str, Any], ...]:
+        """Return the cluster-wide datastore definitions, with their node restrictions.
+
+        A different question from ``node_storage``, which says what one node can
+        currently reach. This says what the cluster *declares*, including the
+        ``nodes`` field that restricts a datastore to a subset — and a guest
+        cannot move to a node its disk's datastore is not declared on, however
+        healthy both nodes are.
+        """
+        return _records(await self._read("/storage"))
+
     async def datastore_contents(
         self, node: str, datastore: str, *, content: str = ""
     ) -> tuple[Mapping[str, Any], ...]:
@@ -434,9 +448,37 @@ class ProxmoxClient(IntegrationClient):
                 disk_type=str(row.get("type", "")),
                 smart_health=str(row.get("health", "")),
                 wearout=str(row.get("wearout", "")),
+                used_for=str(row.get("used", "")),
             )
             for row in _records(reading.or_else([]))
         )
+
+    async def disk_smart(self, node: str, device: str) -> Reading[Mapping[str, Any]]:
+        """Return one disk's SMART report: the verdict and the attributes behind it.
+
+        ``node_disks`` carries the verdict, which is a summary the firmware makes
+        and keeps saying ``PASSED`` while the attributes that predict failure
+        climb. Reallocated sectors and pending sectors are the reading; the
+        verdict is the reading's opinion of itself.
+
+        Absent rather than empty when the drive has no SMART — a USB enclosure,
+        a virtual disk — because "we asked and there is nothing" and "nobody is
+        watching this disk" are the same sentence and only one of them is true.
+        """
+        reading = await self._read_node(node, "/disks/smart", params={"disk": device})
+        if not reading.available:
+            return Reading.missing(
+                f"SMART for {device} on {node} could not be read: {reading.unavailable_reason}",
+                published_by="the drive's own firmware, through smartctl",
+            )
+        found = _record(reading.require())
+        if not found:
+            return Reading.missing(
+                f"{device} on {node} reported no SMART data, so nothing about this disk is "
+                f"being watched — which is not the same as the disk being healthy",
+                published_by="the drive's own firmware, through smartctl",
+            )
+        return Reading.of(found)
 
     async def thin_pools(self, node: str) -> tuple[ThinPool, ...]:
         """Return the LVM-thin pools on a node, data and metadata separately.
@@ -488,6 +530,28 @@ class ProxmoxClient(IntegrationClient):
         if not reading.available:
             return Reading.missing(reading.unavailable_reason)
         return Reading.of(_records(reading.require()))
+
+    async def zfs_pool_detail(self, node: str, pool: str) -> Reading[Mapping[str, Any]]:
+        """Return one ZFS pool's device tree, scrub line and error summary.
+
+        The pool listing carries a health word; this carries the reason for it.
+        A pool that says ``ONLINE`` while one leaf device is accumulating
+        checksum errors is a pool one more error away from saying ``DEGRADED``,
+        and only the device tree says so.
+        """
+        reading = await self._read_node(node, f"/disks/zfs/{pool}")
+        if not reading.available:
+            return Reading.missing(
+                f"the pool {pool!r} on {node} could not be read: {reading.unavailable_reason}",
+                published_by=f"zpool on {node}",
+            )
+        found = _record(reading.require())
+        if not found:
+            return Reading.missing(
+                f"{node} has no ZFS pool called {pool!r}, so nothing was read about it",
+                published_by=f"zpool on {node}",
+            )
+        return Reading.of(found)
 
     async def node_tasks(
         self,
@@ -783,6 +847,36 @@ async def _pause(seconds: float) -> None:
     import asyncio as _asyncio
 
     await _asyncio.sleep(seconds)
+
+
+def _switch(raw: Any) -> bool:
+    """Return whether a corosync setting is on, in any of the spellings it takes.
+
+    Absence is the finding rather than a default worth hiding: a two-node cluster
+    with neither ``two_node`` nor ``wait_for_all`` has a quorum margin of zero,
+    and this is the function that decides it did not find them.
+    """
+    return str(raw if raw is not None else "0").strip().lower() in {"1", "true", "on", "yes"}
+
+
+def _declared_links(nodes: Sequence[Mapping[str, Any]]) -> dict[int, tuple[str, ...]]:
+    """Return which nodes declare each corosync ring, from ``ringN_addr`` keys.
+
+    Corosync numbers its rings and each node declares its own address on each.
+    Collecting them by ring is what makes a ring only one node has visible as
+    what it is: a link that can never come up, because links are pairwise.
+    """
+    found: dict[int, list[str]] = {}
+    for row in nodes:
+        name = str(row.get("node", ""))
+        for key in row:
+            text = str(key)
+            if not (text.startswith("ring") and text.endswith("_addr")):
+                continue
+            index = text.removeprefix("ring").removesuffix("_addr")
+            if index.isdigit():
+                found.setdefault(int(index), []).append(name)
+    return {ring: tuple(names) for ring, names in sorted(found.items())}
 
 
 def _vmids(raw: Any) -> tuple[int, ...]:

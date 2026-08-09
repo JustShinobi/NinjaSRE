@@ -408,9 +408,25 @@ A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, da
 
 **Capabilities:**
 
+- `proxmox_backup_coverage`
+- `proxmox_backup_failures`
+- `proxmox_clock_skew`
 - `proxmox_cluster_health`
+- `proxmox_corosync_links`
+- `proxmox_datastore_availability`
+- `proxmox_disk_health`
+- `proxmox_guest_pressure`
+- `proxmox_guest_start_diagnosis`
+- `proxmox_guest_tasks`
+- `proxmox_ha_state`
+- `proxmox_migration_feasibility`
+- `proxmox_orphaned_volumes`
 - `proxmox_protection_gaps`
+- `proxmox_quorum_status`
+- `proxmox_reclaimable_space`
+- `proxmox_replication_lag`
 - `proxmox_storage_pressure`
+- `proxmox_zfs_health`
 
 **Permissions:**
 

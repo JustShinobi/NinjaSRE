@@ -2,7 +2,7 @@
 
 # cloud_control_plane capabilities
 
-32 tools and 16 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+48 tools and 21 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
 
@@ -199,8 +199,81 @@ Quorum before nodes, nodes before guests. A cluster that cannot decide has alrea
 **Directs:**
 
 - `proxmox_cluster_health`
-- `proxmox_storage_pressure`
+- `proxmox_quorum_status`
+- `proxmox_corosync_links`
+- `proxmox_ha_state`
+- `proxmox_clock_skew`
+
+### `cloud_control_plane-proxmox-backup`
+
+A job that names a guest is not a backup, and a file with a size is not a restore.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, proxmox_backup_server, alertmanager
+
+**Directs:**
+
+- `proxmox_backup_coverage`
+- `proxmox_backup_failures`
 - `proxmox_protection_gaps`
+- `proxmox_replication_lag`
+
+### `cloud_control_plane-proxmox-guest`
+
+Every distinction that changes the remedy is a pair of readings that look alike.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, alertmanager
+
+**Directs:**
+
+- `proxmox_guest_start_diagnosis`
+- `proxmox_guest_pressure`
+- `proxmox_guest_tasks`
+- `proxmox_migration_feasibility`
+
+### `cloud_control_plane-proxmox-node-host`
+
+The layer beneath the API, where the outages that no cluster reading can see actually live.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, alertmanager
+
+**Directs:**
+
+- `proxmox_cluster_health`
+- `proxmox_corosync_links`
+- `proxmox_clock_skew`
+
+### `cloud_control_plane-proxmox-storage`
+
+Four levels fail independently and the datastore percentage is the least useful of them.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, alertmanager, prometheus
+
+**Directs:**
+
+- `proxmox_storage_pressure`
+- `proxmox_zfs_health`
+- `proxmox_disk_health`
+- `proxmox_reclaimable_space`
+- `proxmox_orphaned_volumes`
+- `proxmox_datastore_availability`
+
+### `cloud_control_plane-proxmox-two-node`
+
+Two nodes have an even vote count and no majority when one is gone. What survives depends on configuration nobody remembers making.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, alertmanager
+
+**Directs:**
+
+- `proxmox_quorum_status`
+- `proxmox_corosync_links`
+- `proxmox_replication_lag`
+- `proxmox_migration_feasibility`
 
 ### `cloud_control_plane-proxmox_backup_server`
 
@@ -752,6 +825,48 @@ Read Kubernetes events for a namespace, optionally for one object by name. Event
 - anything older than the cluster's event retention, typically one hour
 - cluster-wide health, where every workload's events at once is noise
 
+#### `proxmox_backup_coverage`
+
+Return which Proxmox guests an *enabled* backup job covers, each guest's last successful backup with its age and size, and the retention depth of every job. A job that exists and is switched off satisfies every coverage count and protects nothing; two retained copies and thirty read identically without the depth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding which guests no enabled backup job covers, as opposed to which are named by one
+- checking how many copies a job actually retains before trusting it as history
+- reading each guest's last successful backup with its age and size, not its job membership
+
+**Not for:**
+
+- running a backup or enabling a job — nothing here writes
+- why a backup failed, which proxmox_backup_failures reads with the vendor's error
+- whether a Backup Server snapshot was verified, which the Backup Server answers
+
+#### `proxmox_backup_failures`
+
+Return the Proxmox backup tasks that failed, each with the vendor's own error text, and — separately — the guests whose every attempt has failed. A guest that failed last night and succeeded the night before has a backup; a guest with nothing but failures has never had one, and both are one row in a list of failures.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- reading why a backup failed, in the words Proxmox used rather than a category
+- finding the guests whose every backup attempt has failed, which a failure list hides
+- checking whether a backup window failed as a whole or one guest inside it did
+
+**Not for:**
+
+- re-running a backup — nothing here writes
+- which guests no job covers, which proxmox_backup_coverage answers
+- whether a stored backup would restore, which the Backup Server's verification answers
+
 #### `proxmox_backup_server_datastore_health`
 
 Return whether a Proxmox Backup Server datastore holds something that would restore: its usage, its snapshots, whether those snapshots have been verified, and when garbage collection last ran. An unverified snapshot is a file rather than a restore, and a store that has never verified looks identical to one that passes.
@@ -772,6 +887,27 @@ Return whether a Proxmox Backup Server datastore holds something that would rest
 - restoring, pruning or collecting garbage — nothing here writes
 - whether the hypervisor's backup job ran, which proxmox_protection_gaps answers
 - what is inside a snapshot, which is a restore rather than a read
+
+#### `proxmox_clock_skew`
+
+Return each Proxmox node's clock and how far apart they are, measured against what corosync tolerates rather than against what looks close to a person. Two nodes a minute apart present as random link failures and unmigratable guests, and nothing in those symptoms mentions time.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- checking clock agreement across a cluster whose corosync membership keeps changing
+- ruling time out before investigating link failures that have no physical cause
+- finding a node whose NTP has stopped without anything reporting a failure
+
+**Not for:**
+
+- setting a clock or restarting a time daemon — nothing here writes
+- corosync link behaviour, which proxmox_corosync_links reads
+- whether the cluster is quorate, which proxmox_quorum_status answers
 
 #### `proxmox_cluster_health`
 
@@ -794,6 +930,195 @@ Return a Proxmox cluster's quorum state, its vote arithmetic, and which nodes ar
 - how full a datastore is, which proxmox_storage_pressure reads
 - changing anything about the cluster — nothing here writes
 
+#### `proxmox_corosync_links`
+
+Return each corosync link's recent behaviour: how many times it changed state, whether it is flapping or was simply lost, which nodes declare it, and how many knet retransmits the cluster logged. A link that went down and came back is healthy now and is the most urgent thing on the cluster; a link that went down once and stayed down is usually an address that no longer exists.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- telling a corosync link that is flapping from one that is simply gone
+- finding a corosync ring that only one node declares and therefore can never come up
+- counting knet retransmits on a cluster whose membership keeps changing
+
+**Not for:**
+
+- whether the cluster currently has quorum, which proxmox_quorum_status answers
+- a node's own interface configuration, which is a host-layer reading
+- restarting corosync or editing its configuration — nothing here writes
+
+#### `proxmox_datastore_availability`
+
+Return which datastores each Proxmox node is declared for and which it can currently reach, keeping the two apart. A datastore reporting unknown is a mount that failed, not an empty share and not a fill level, and a guest cannot move to a node its disk's datastore is not declared on however healthy both nodes are.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- checking whether a guest could move to a node before proposing that it does
+- finding a datastore reporting unknown, which is a failed mount rather than an empty share
+- seeing which datastores are node-local and therefore pin the guests on them in place
+
+**Not for:**
+
+- mounting a datastore or changing its node restriction — nothing here writes
+- how full each datastore is, which proxmox_storage_pressure reads
+- whether a particular guest can migrate, which proxmox_migration_feasibility answers
+
+#### `proxmox_disk_health`
+
+Return each physical disk's SMART verdict, the attributes that predict a failure before the verdict changes, and which ZFS pool it backs. A drive reporting PASSED with a climbing reallocated-sector count is the ordinary way a disk fails, and the verdict is the last field to move.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding a drive whose SMART verdict still passes while its pending sectors climb
+- checking which pool or datastore a failing disk is underneath before planning anything
+- reading the wear indicator on solid-state drives that back a hypervisor's guests
+
+**Not for:**
+
+- replacing a disk or starting a self-test — nothing here writes
+- how full a datastore is, which proxmox_storage_pressure reads
+- ZFS pool state, which proxmox_zfs_health reads
+
+#### `proxmox_guest_pressure`
+
+Return where the pressure on a Proxmox guest is: host memory against guest memory, the node's swap, ballooning, and the guest's own filesystems against the datastores its disks are on — with the attribution stated. A stalling guest looks the same whether the cause is inside it or underneath it, and the two are fixed on different machines. CPU steal is named as unreadable rather than omitted.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** analysis from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- telling host memory pressure from a guest that is at its own memory ceiling
+- telling a guest filesystem that is full from a host datastore that is full
+- checking what a guest agent reports about the guest's own disks before blaming the host
+
+**Not for:**
+
+- resizing a guest's memory or its disk — nothing here writes
+- why a stopped guest will not start, which proxmox_guest_start_diagnosis answers
+- cluster-wide storage pressure, which proxmox_storage_pressure reads per node
+
+#### `proxmox_guest_start_diagnosis`
+
+Return why a Proxmox guest will not start: its lock and whether the task holding it is alive or dead, the errors from its recent failed tasks, the datastores its disks need and whether this node reaches them, the node's free resources, and passthrough devices that exist on one node only — with the most likely cause named. A lock held by a live task and one orphaned by a dead task look identical and have opposite fixes.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** analysis from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding out why one guest will not start, with the causes ranked rather than listed
+- telling a lock held by a running backup from one left behind by a task that died
+- checking whether a guest's disk is on a datastore its node cannot currently reach
+
+**Not for:**
+
+- starting the guest, or clearing its lock — nothing here writes
+- whether the guest is under memory pressure while running, which proxmox_guest_pressure answers
+- whether the cluster is quorate at all, which proxmox_quorum_status answers directly
+
+#### `proxmox_guest_tasks`
+
+Return a Proxmox guest's recent tasks with the vendor's own error text, keeping failed tasks apart from ones that are still running. A running task is not evidence of a failure and is usually the reason a lock is held. An empty history is reported as a finding: the guest was changed on the node rather than through the API.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- reading the vendor's own error text from a guest's most recent failed operation
+- finding out whether a task against a guest is still running before touching its lock
+- establishing that a guest has no API task history, which means it was changed on the node
+
+**Not for:**
+
+- cancelling or re-running a task — nothing here writes
+- why the guest will not start, which proxmox_guest_start_diagnosis answers using this
+- cluster-wide backup failures, which proxmox_backup_failures reads
+
+#### `proxmox_ha_state`
+
+Return which Proxmox guests high availability manages, the state the manager wants each in against the state it is actually in, which node is manager, and whether fencing has occurred or is imminent. A cluster that has lost quorum with managed resources is a cluster whose watchdogs are counting down, which no field says.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding out whether high availability is about to reset a node
+- seeing what state the manager wants a guest in against what it is actually in
+- checking which guests high availability manages before proposing to stop one
+
+**Not for:**
+
+- why a guest will not start, which proxmox_guest_start_diagnosis answers
+- moving a resource or changing its group — nothing here writes
+- whether the cluster is quorate, which proxmox_quorum_status answers directly
+
+#### `proxmox_migration_feasibility`
+
+Return whether a Proxmox guest could move and, per candidate node, exactly what prevents it: no quorum, a node-local disk, a datastore the target cannot reach, a passthrough device that exists in one machine, or not enough memory on the target. Moving the guest is the first thing anybody suggests and on a small cluster it is usually impossible for a reason nobody checked.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** analysis from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- checking whether a guest could actually move before proposing that it does
+- finding out which node could receive a guest and which could not, with the reason
+- seeing that a guest is pinned by node-local storage rather than by anything about itself
+
+**Not for:**
+
+- performing a migration — nothing here writes
+- which datastores exist where, which proxmox_datastore_availability reads
+- why the guest will not start where it is, which proxmox_guest_start_diagnosis answers
+
+#### `proxmox_orphaned_volumes`
+
+Return the disk volumes on a Proxmox cluster that belong to no existing guest, each with the guest id it was named for and the space it occupies. Proxmox keeps a volume when a guest is destroyed with its disks retained, and nothing afterwards mentions it again while it still counts towards the datastore's fill.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding out why a datastore is filling when no guest on it has grown
+- listing disks left behind by guests that were destroyed with their disks retained
+- checking whether a volume is genuinely unused before anybody proposes removing it
+
+**Not for:**
+
+- deleting a volume — nothing here writes, and this is the tool whose output looks most like a delete list
+- how full a datastore is, which proxmox_storage_pressure reads
+- what a backup contains, which is a restore rather than a read
+
 #### `proxmox_protection_gaps`
 
 Return which Proxmox guests are covered by an enabled backup job, which are covered only by a disabled one, and whether any replication exists. A job that exists and is switched off satisfies every coverage count and protects nothing.
@@ -815,6 +1140,69 @@ Return which Proxmox guests are covered by an enabled backup job, which are cove
 - whether a backup that ran succeeded, which the task history answers
 - how full the backup datastore is, which proxmox_storage_pressure reads
 
+#### `proxmox_quorum_status`
+
+Return whether a Proxmox cluster is quorate, by what margin, under which corosync settings, and what follows from the answer. Reports how many node losses the cluster survives — zero on a two-node cluster with no quorum device, while everything is green — and, when quorum is lost, that /etc/pve is read-only and nothing can be started or migrated while running guests carry on.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- establishing whether a cluster can act at all before investigating why a guest will not start
+- finding out how many node losses a cluster survives, including when it is entirely green
+- checking whether a configured quorum device is actually contributing a vote
+
+**Not for:**
+
+- why one guest is unhealthy, which is a guest question this does not answer
+- corosync link quality, which proxmox_corosync_links reads
+- forcing quorum or changing expected votes — nothing here writes
+
+#### `proxmox_reclaimable_space`
+
+Return what could be freed on a Proxmox node — snapshots, backups and orphaned volumes — with, for every entry, how much it would return and what it is protecting. No entry is produced without its protection statement, because the most reclaimable item is very often the only recent recovery point. Bounded by ranking rather than truncation, and it says what it ranked by.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding what could be freed on a node that is running out of space, with what each item is protecting
+- checking whether the largest reclaimable item is the only recent recovery point
+- seeing which backups are kept by a retention rule and which are kept by nothing
+
+**Not for:**
+
+- deleting a snapshot, a backup or a volume — nothing here writes, and this is the tool whose output most resembles a delete list
+- how full a datastore is, which proxmox_storage_pressure reads
+- whether a guest is protected at all, which proxmox_backup_coverage answers
+
+#### `proxmox_replication_lag`
+
+Return each Proxmox replication job's last success and the recovery-point exposure it leaves — how much work would be lost if the source node were lost now, stated in time. Reports the absence of any replication as a finding when guests sit on node-local storage, because a node loss then makes them unrecoverable inside the cluster and nothing that iterates over existing jobs can see it.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- finding out how much work a node loss would cost right now, in time
+- seeing that a cluster has no replication at all while its guests sit on local disks
+- checking a replication job that reports success and has not actually run for days
+
+**Not for:**
+
+- creating or running a replication job — nothing here writes
+- whether a backup exists, which proxmox_backup_coverage answers
+- whether a guest could migrate, which proxmox_migration_feasibility answers
+
 #### `proxmox_storage_pressure`
 
 Return how full a Proxmox node's storage is at the three levels that fail independently: datastores, LVM-thin pools with data and metadata reported separately, and each guest's own thin volume. A guest at 99% of its volume while its datastore reports 84% is the case a datastore threshold cannot see.
@@ -835,3 +1223,24 @@ Return how full a Proxmox node's storage is at the three levels that fail indepe
 - growing a volume or a pool — nothing here writes
 - what is inside a backup, which is a datastore-contents question
 - whether a guest is healthy, which storage pressure is only one cause of
+
+#### `proxmox_zfs_health`
+
+Return each ZFS pool's state, per-device error counts, scrub age, fragmentation, and capacity against the level at which the write path degrades. A pool that reports ONLINE at 96% capacity with a device quietly accumulating checksum errors is the case a health word cannot express. A node without ZFS is answered as inapplicable rather than as empty.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- checking whether a ZFS pool that reports ONLINE is above the capacity its write path degrades at
+- finding a device accumulating checksum errors inside a pool that still says it is healthy
+- establishing when a pool last scrubbed, which is the only thing that verifies its data
+
+**Not for:**
+
+- scrubbing, replacing a device, or expanding a pool — nothing here writes
+- LVM-thin pools, which proxmox_storage_pressure reads instead
+- a physical drive's SMART attributes, which proxmox_disk_health reads

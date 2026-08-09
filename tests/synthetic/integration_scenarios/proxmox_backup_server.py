@@ -78,6 +78,12 @@ DATASTORE_HEALTH: Final = IntegrationScenario(
             )
         ),
         json_response(_envelope({})),
+        # The retention this store actually applies. A hypervisor job asking for
+        # thirty copies on a store pruning to two keeps two, and only this
+        # endpoint says which number wins.
+        json_response(
+            _envelope([{"id": "vault-prune", "store": "vault", "keep-last": 2}]),
+        ),
     ),
     credential=CREDENTIAL,
     expected_summary="unverified",

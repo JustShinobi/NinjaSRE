@@ -26,11 +26,12 @@ from typing import Any
 
 from core.capability.decorator import tool
 from core.capability.metadata import EvidenceType, Requirements, SideEffectLevel
-from core.capability.result import CapabilityResult, Evidence
+from core.capability.result import CapabilityResult
 from integrations._base.access import current
 from integrations._base.capability import unconfigured, vendor_failure
 from integrations._base.errors import IntegrationError
 from integrations.proxmox.client import ProxmoxClient
+from integrations.proxmox.investigation import report
 from integrations.proxmox.models import ClusterStatus
 from integrations.proxmox.schema import INTEGRATION
 
@@ -80,17 +81,11 @@ async def proxmox_cluster_health() -> CapabilityResult:
     except IntegrationError as error:
         return vendor_failure(TOOL_NAME, error)
 
-    return CapabilityResult.ok(
+    return report(
         TOOL_NAME,
         value=_value(status),
-        evidence=(
-            Evidence(
-                source=INTEGRATION,
-                evidence_type=EvidenceType.METRIC,
-                summary=_summary(status),
-                reference=f"proxmox:cluster:{status.name or 'standalone'}",
-            ),
-        ),
+        summary=_summary(status),
+        reference=f"proxmox:cluster:{status.name or 'standalone'}",
     )
 
 
