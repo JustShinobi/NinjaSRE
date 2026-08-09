@@ -266,6 +266,67 @@ class DetectorSettings(ConfigSection):
         return value
 
 
+class DetectorOverrideSettings(ConfigSection):
+    """One shipped detector's threshold, changed without editing the shipped set.
+
+    Two scopes and no third. An override with no ``resource_id`` applies to
+    every resource this deployment watches with that detector; one with a
+    ``resource_id`` applies to that resource alone and wins over the
+    deployment-wide one. Anything more expressive would be a rule language, and
+    the reason not to build one here is the same reason a detector has four
+    condition kinds.
+
+    Every field except the identifier is optional, because an operator changing
+    a firing value should not have to restate the duration, the severity, and
+    the clear value in order to keep them.
+    """
+
+    detector_id: ConfiguredStr
+    #: Empty means "every resource this detector applies to".
+    resource_id: ConfiguredStr = ""
+    fire_value: ConfiguredFloat | None = None
+    clear_value: ConfiguredFloat | None = None
+    for_seconds: Annotated[ConfiguredInt, Field(ge=1)] | None = None
+    recovery_seconds: Annotated[ConfiguredInt, Field(ge=1)] | None = None
+    severity: ConfiguredStr = ""
+    enabled: bool | None = None
+    #: Why the shipped number is wrong for this deployment. Not required — an
+    #: operator who has to justify themselves to their own tool will stop using
+    #: it — but recorded when given, because the next person to read the
+    #: override deserves the same courtesy the shipped rationale gave them.
+    reason: ConfiguredStr = ""
+
+
+class GuardianSettings(ConfigSection):
+    """Whether the shipped detector set is watching, and what has been changed about it.
+
+    Off by default, which is FR-008: the set ships with the integration and is
+    enabled by choice. Turning it on is a single flag because that is the whole
+    interaction the feature promises — paste a token, enable the guardian, read
+    what it would have done.
+
+    ``heartbeat_destination`` has no default and cannot be switched off while
+    the guardian is enabled. It is the only outbound thing here, and it is the
+    answer to the failure this whole package is shaped around: a guardian that
+    has stopped looks exactly like a cluster with no problems.
+    """
+
+    enabled: bool = False
+    #: Which topology the deployment detected, when it has. Stored so a listing
+    #: can say *why* a two-node detector is or is not active without re-reading
+    #: the cluster.
+    cluster_shape: ConfiguredStr = ""
+    overrides: tuple[DetectorOverrideSettings, ...] = ()
+    #: Where the outbound heartbeat is pushed. A URL the operator chooses — a
+    #: dead-man's-switch service, a webhook, their own phone. Empty is a
+    #: configuration the deployment warns about continuously rather than one it
+    #: accepts silently.
+    heartbeat_destination: ConfiguredStr = ""
+    #: Where the operator's declarative control plane declares intent. Read as a
+    #: second source of truth about what *should* be running; never written to.
+    declared_intent_source: ConfiguredStr = ""
+
+
 class MetricsSourceSettings(ConfigSection):
     """A metrics system the operator already runs, and where to reach it.
 
@@ -404,6 +465,11 @@ class ObservationPolicySettings(ConfigSection):
     #: and a deployment that leaves it absent watches entirely by its own
     #: polling — which is the arrangement most homelabs are in.
     bridge: ObservabilityBridgeSettings = ObservabilityBridgeSettings()
+    #: The shipped detector set, and what this deployment has changed about it.
+    #: Here rather than as a seventh top-level section for the reason the
+    #: detectors themselves are here: whether this team runs the shipped set is
+    #: a policy about what it watches, not a separate concern.
+    guardian: GuardianSettings = GuardianSettings()
 
 
 #: What each scope kind cannot be without. ``deployment`` needs nothing — it is
