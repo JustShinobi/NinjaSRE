@@ -109,6 +109,13 @@ ARM_NO_MEMORY: Final = "no-memory"
 #: Both arms, in report order.
 SCENARIO_ABLATION_ARMS: Final[tuple[str, ...]] = (ARM_FULL, ARM_NO_MEMORY)
 
+# --- The laboratory ----------------------------------------------------------
+
+#: Names the laboratory cluster the destructive suite may break. Unset means
+#: there is no laboratory, and the suite runs against the recorded stand-in and
+#: says so — rather than failing on every machine that is not somebody's rack.
+NINJASRE_PROXMOX_LABORATORY_ENV: Final = "NINJASRE_PROXMOX_LABORATORY"
+
 # --- Bounds ------------------------------------------------------------------
 
 #: What the fixture-backed hypervisor suite is allowed to cost on the
@@ -143,6 +150,7 @@ __all__ = [
     "HYPERVISOR_SUITE_BUDGET_SECONDS",
     "MODEL_HOSTED",
     "MODEL_SELF_HOSTED",
+    "NINJASRE_PROXMOX_LABORATORY_ENV",
     "RESPONSE_KINDS",
     "SCENARIO_ABLATION_ARMS",
     "SCENARIO_MODEL_PROFILES",

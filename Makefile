@@ -27,6 +27,8 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 	backup restore rotate-key deploy-preflight bundle-images \
 	preflight verify test-postgres test-synthetic \
 	evaluate record-baseline benchmark benchmark-export \
+	test-proxmox-scenarios record-proxmox-baseline proxmox-scenario-coverage \
+	e2e-proxmox-laboratory \
 	chaos-setup chaos-teardown chaos-setup-eks chaos-teardown-eks \
 	chaos-list chaos-run chaos-sweep \
 	e2e-demo-setup e2e-demo-teardown e2e-demo e2e-cloud e2e-reap \
@@ -88,6 +90,27 @@ evaluate: ## Score the corpus on five axes and gate it against BASELINE
 record-baseline: ## Store the current corpus run as the baseline named BASELINE
 	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.harness.regression.ci \
 		--record $(BASELINE) --note "$(NOTE)" $(EVALUATE_ARGS)
+
+# The hypervisor half. It scores the *action* as well as the diagnosis, which
+# the general corpus does not, and it runs from recorded API responses with no
+# cluster — so it is part of `verify` through the test suite and is here as its
+# own target because somebody changing a Proxmox tool wants these twenty-eight
+# scenarios alone.
+#
+# Variables, all optional: DOMAIN (quorum, storage, guests, backups, host),
+# SCENARIO (an identifier substring), NOTE (why a re-recorded baseline moved).
+PROXMOX_SCENARIOS := PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.harness.proxmox
+PROXMOX_SCENARIO_ARGS := $(if $(DOMAIN),--domain $(DOMAIN),) \
+	$(if $(SCENARIO),--scenario $(SCENARIO),)
+
+test-proxmox-scenarios: ## Score the Proxmox scenarios and gate them against the baseline
+	$(PROXMOX_SCENARIOS) $(PROXMOX_SCENARIO_ARGS)
+
+record-proxmox-baseline: ## Re-record the Proxmox scenario baseline, for review as a change
+	$(PROXMOX_SCENARIOS) --record --note "$(NOTE)"
+
+proxmox-scenario-coverage: ## Print which scenario scores each hypervisor write
+	$(PROXMOX_SCENARIOS) --coverage
 
 # Variables: INTO (a document to splice the table into), RECORD (a stored
 # cross-model benchmark record to render instead of running the corpus).
@@ -165,6 +188,14 @@ e2e-cloud: ## Provision, investigate, and destroy the cloud scenarios (this cost
 # point at an account that holds something else.
 e2e-reap: ## Find (DESTROY=1 to remove) cloud resources a killed run left behind
 	$(E2E) reap $(if $(DESTROY),--destroy,) $(if $(HOLDING),--holding $(HOLDING),)
+
+# The destructive hypervisor scenarios and the rehearsal of every hypervisor
+# write. Safe to run with no cluster: it uses the recorded stand-in and says so,
+# which is the statement a release note needs. Set
+# NINJASRE_PROXMOX_LABORATORY to the cluster this machine may break to run it
+# for real. PLAN=1 prints the rehearsals and stops.
+e2e-proxmox-laboratory: ## Run the destructive Proxmox scenarios against the laboratory
+	PYTHONPATH="$(CURDIR)" $(RUN) python -m tests.e2e.proxmox $(if $(PLAN),--plan,)
 
 # --- The console ---------------------------------------------------------------
 #
