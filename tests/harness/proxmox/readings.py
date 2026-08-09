@@ -137,12 +137,16 @@ async def _run_tool(call: ToolCall) -> ToolReading:
     """Return what one tool said, whatever it said, including a failure."""
     registered = _registered(call.name)
     result = await registered.invoke(dict(call.arguments))
+    # The one-sentence finding a tool wants an operator to read is on its
+    # evidence rather than on the result, and it is the half of a reading a
+    # scenario is most likely to assert against — a value can carry the number
+    # while the sentence stops saying what it means.
     return ToolReading(
         tool=call.name,
         succeeded=result.succeeded,
-        summary=getattr(result, "summary", "") or "",
+        summary="\n".join(found.summary for found in result.evidence),
         value=result.value,
-        detail=getattr(result, "detail", "") or "",
+        detail=str(result.error.message) if result.error is not None else "",
     )
 
 
