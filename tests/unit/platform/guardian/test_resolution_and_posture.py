@@ -11,6 +11,7 @@ import pytest
 
 from config.constants.autonomy import RISK_CLASS_MODERATE
 from platform.autonomy.configuration import policy_set_of
+from platform.autonomy.policy import PolicySet
 from platform.config_service.schema.policies import (
     AutonomyPolicySettings,
     DetectorOverrideSettings,
@@ -32,7 +33,7 @@ from platform.notifications.models import Severity
 pytestmark = pytest.mark.unit
 
 
-def _policies(document: dict[str, object]) -> object:
+def _policies(document: dict[str, object]) -> PolicySet:
     """Return the resolved policy set a preset document produces."""
     return policy_set_of(
         PoliciesConfig(autonomy=AutonomyPolicySettings.model_validate(document)),

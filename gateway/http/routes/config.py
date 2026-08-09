@@ -22,7 +22,10 @@ from gateway.http.errors import not_found
 from gateway.http.routes.tenancy import within_scope
 from gateway.http.state import GatewayState
 from platform.config_service.errors import UnknownNode
+from platform.config_service.schema.policies import GuardianSettings
 from platform.config_service.service import ConfigService
+from platform.guardian.resolution import resolve as resolve_guardian
+from platform.guardian.topology import ClusterShape
 from platform.persistence.errors import RecordNotFound
 from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.config_repository import ConfigNode
@@ -125,6 +128,50 @@ class IntegrationSchemaView(BaseModel):
 
 class IntegrationSchemasView(BaseModel):
     schemas: list[IntegrationSchemaView]
+
+
+class ShippedDetectorView(BaseModel):
+    """One shipped detector, with the reasoning a client renders beside it.
+
+    The rationale and the remedy travel with the detector rather than being
+    fetched separately, because the requirement they satisfy is about *when*
+    somebody reads them: at the moment they are deciding whether the threshold
+    is wrong for their cluster. A second round trip is a click, and a click is
+    the difference between a number understood and a number obeyed.
+    """
+
+    detector_id: str
+    name: str
+    watches: str
+    threshold: str
+    rationale: str
+    remedy: str
+    signal: str
+    origin: str
+    matcher: str = ""
+    resource_kinds: list[str] = Field(default_factory=list)
+    severity: str = ""
+    topology: str = ""
+    fire_value: float = 0.0
+    clear_value: float = 0.0
+    for_seconds: int = 0
+    acknowledged_to_clear: bool = False
+
+
+class GuardianProblemView(BaseModel):
+    detector_id: str
+    reason: str
+
+
+class GuardianView(BaseModel):
+    """The shipped detector set as one node actually runs it."""
+
+    enabled: bool = False
+    cluster_shape: str = ""
+    cluster_shape_description: str = ""
+    detectors: list[ShippedDetectorView] = Field(default_factory=list)
+    not_applicable: list[str] = Field(default_factory=list)
+    problems: list[GuardianProblemView] = Field(default_factory=list)
 
 
 def _service(state: GatewayState, auth: AuthenticatedRequest) -> ConfigService:
@@ -287,6 +334,46 @@ async def node_catalogue(
             name: list(names) for name, names in view.blocked_by_integration().items()
         },
     )
+
+
+@router.get("/{node_id}/guardian", response_model=GuardianView)
+async def node_guardian(
+    node_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> GuardianView:
+    """Return the shipped detector set as ``node_id`` runs it (FR-015).
+
+    Resolved here rather than by whatever is rendering it. The shipped
+    catalogue, the detected topology and this node's overrides all meet in one
+    function, and a client that combined them itself would be a client whose
+    idea of what a threshold resolves to could drift from the deployment's —
+    which is the failure that makes a reassuring screen wrong.
+
+    Every detector that is *not* active is named too, because a detector missing
+    from a list reads as one that does not exist, and an operator on a
+    single-node installation deserves to know the quorum detectors are waiting
+    for a second node.
+    """
+    await _check_scope(node_id, state, auth)
+    effective = await _service(state, auth).resolve(node_id)
+    settings = effective.config.policies.observation.guardian
+    return GuardianView.model_validate(
+        resolve_guardian(settings, shape=_shape_of(settings)).to_record()
+    )
+
+
+def _shape_of(settings: GuardianSettings) -> ClusterShape:
+    """Return the topology recorded for this node, or the conservative default.
+
+    Single-node for anything unrecognised, which is the answer that activates
+    the fewest detectors: an unknown value must not make a listing claim that
+    cluster detectors are running when nobody established there is a cluster.
+    """
+    try:
+        return ClusterShape(settings.cluster_shape)
+    except ValueError:
+        return ClusterShape.SINGLE_NODE
 
 
 @router.get("/{node_id}/integration-schemas", response_model=IntegrationSchemasView)

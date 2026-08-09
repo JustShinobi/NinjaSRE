@@ -19,6 +19,7 @@ from config.constants.observation import (
 )
 from platform.guardian.catalogue import (
     SHIPPED_DETECTORS,
+    Reading,
     ShippedDetector,
     SignalOrigin,
     detector_by_id,
@@ -116,6 +117,8 @@ def test_a_detector_without_a_rationale_is_refused_at_construction() -> None:
             remedy="free some space",
             signal="guardian.storage.usage",
             resource_kinds=("datastore",),
+            firing=Reading(value=96.0),
+            healthy=Reading(value=56.0),
             fire_value=80.0,
             clear_value=75.0,
         )
@@ -133,6 +136,8 @@ def test_a_detector_without_a_remedy_is_refused_at_construction() -> None:
             remedy="",
             signal="guardian.storage.usage",
             resource_kinds=("datastore",),
+            firing=Reading(value=96.0),
+            healthy=Reading(value=56.0),
             fire_value=80.0,
             clear_value=75.0,
         )

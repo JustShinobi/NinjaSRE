@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
+from typing import Any
 
 from platform.config_service.schema.policies import DetectorOverrideSettings, GuardianSettings
 from platform.guardian.catalogue import SHIPPED_DETECTORS, ShippedDetector
@@ -69,6 +70,27 @@ class ResolvedGuardian:
             if detector.detector_id == detector_id:
                 return detector
         return None
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the document the API serves and any client renders.
+
+        The whole resolution rather than a list of names, and that is what lets
+        the console render the reasoning without computing anything: the
+        rationale, the threshold and the remedy all come over the wire beside
+        the detector, so a client that decided what a threshold resolved to
+        would be a client doing the deployment's job.
+        """
+        return {
+            "enabled": self.enabled,
+            "cluster_shape": self.shape.value,
+            "cluster_shape_description": self.shape.describe(),
+            "detectors": [detector.to_record() for detector in self.detectors],
+            "not_applicable": list(self.not_applicable),
+            "problems": [
+                {"detector_id": detector_id, "reason": reason}
+                for detector_id, reason in self.problems
+            ],
+        }
 
 
 def resolve(

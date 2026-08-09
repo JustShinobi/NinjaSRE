@@ -48,6 +48,7 @@ AREAS: Final[tuple[Area, ...]] = (
     Area("/knowledge", "nav.knowledge", Permission.KNOWLEDGE_READ),
     Area("/config", "nav.config", Permission.CONFIG_READ),
     Area("/catalogue", "nav.catalogue", Permission.CONFIG_READ),
+    Area("/guardian", "nav.guardian", Permission.CONFIG_READ),
     Area("/admin", "nav.admin", Permission.IDENTITY_READ),
     Area("/onboarding", "nav.onboarding", Permission.CONFIG_WRITE),
 )

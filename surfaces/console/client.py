@@ -323,6 +323,10 @@ class ConsoleClient:
         """Return what a node can run, and why anything else it cannot (FR-021)."""
         return await self._get(f"/v1/config/{node_id}/catalogue")
 
+    async def guardian(self, node_id: str) -> Mapping[str, Any]:
+        """Return the shipped detector set as this node runs it, resolved server-side."""
+        return await self._get(f"/v1/config/{node_id}/guardian")
+
     async def integration_schemas(self, node_id: str) -> Sequence[Mapping[str, Any]]:
         """Return the schemas a credential form is generated from (FR-020)."""
         return _records(await self._get(f"/v1/config/{node_id}/integration-schemas"), "schemas")

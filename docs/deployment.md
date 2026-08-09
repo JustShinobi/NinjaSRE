@@ -12,26 +12,40 @@ containers start, migrations apply, and the admin token is printed once.
 
 ## Choosing a profile
 
-`NINJASRE_DEPLOYMENT_PROFILE` picks one of three shapes. It decides the sandbox,
+`NINJASRE_DEPLOYMENT_PROFILE` picks one of four shapes. It decides the sandbox,
 where the credential proxy runs, and how much work the deployment takes at
 once — all three together, because a deployment that ran the in-process proxy
 with cluster concurrency would be a combination nobody chose and nobody tested.
 
-| | `dev` | `standard` | `enterprise` |
-|---|---|---|---|
-| Components | app, Postgres | app, console, Postgres, proxy | app replicas, console, sandbox pods, proxy, Postgres |
-| Containers | 2 | **4** | Helm-managed |
-| Credential proxy | in-process | container | deployment |
-| Sandbox isolation | `process` | `container` | `kubernetes` + Envoy |
-| Identity | local admin token | local admin token or SSO | SSO |
-| Scheduler | in-process | in-process | leader-claimed across replicas |
-| For | contributing | a team self-hosting | regulated or multi-tenant |
+| | `dev` | `homelab` | `standard` | `enterprise` |
+|---|---|---|---|---|
+| Components | app, Postgres | app, console, Postgres, proxy | app, console, Postgres, proxy | app replicas, console, sandbox pods, proxy, Postgres |
+| Containers | 2 | **4**, capped | **4** | Helm-managed |
+| Resource ceiling | none | 4 GiB, 2 CPUs, enforced | none | Helm limits |
+| Credential proxy | in-process | container | container | deployment |
+| Sandbox isolation | `process` | `container` | `container` | `kubernetes` + Envoy |
+| Identity | local admin token | local admin token | local admin token or SSO | SSO |
+| Scheduler | in-process | in-process | in-process | leader-claimed across replicas |
+| For | contributing | one person's own infrastructure | a team self-hosting | regulated or multi-tenant |
 
 You do not configure the sandbox separately. If you set
 `NINJASRE_SANDBOX_PROFILE` to something the deployment profile does not imply,
 startup refuses and says which two settings disagree — a deployment that
 silently took one of them would be running with an isolation guarantee its
 operator does not believe it has.
+
+`homelab` is the same four components as `standard` with one difference that
+matters: every container carries a memory and CPU limit, the four sum to 4 GiB
+and 2 CPUs, and a test holds the compose file and the declared numbers to each
+other. A footprint nothing enforces is one an operator discovers when their
+media server starts stuttering. It also assumes the deployment is running beside
+— often *on* — the infrastructure it watches, which is why it is the profile
+that warns when no external heartbeat destination is configured.
+
+```sh
+cd deploy/compose
+docker compose -f docker-compose.homelab.yml up -d
+```
 
 The `standard` profile is four containers and a test asserts it still is. Every
 additional stateful service is a backup strategy, an upgrade path, and a failure

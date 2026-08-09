@@ -6,7 +6,7 @@
 
 ### `NINJASRE_DEPLOYMENT_PROFILE`
 
-Which deployment shape this is. Decides the sandbox, where the credential proxy runs, and the concurrency ceiling — all three together. One of: dev, standard, enterprise.
+Which deployment shape this is. Decides the sandbox, where the credential proxy runs, and the concurrency ceiling — all three together. One of: dev, homelab, standard, enterprise.
 
 - **Required:** no
 - **Default:** `dev`

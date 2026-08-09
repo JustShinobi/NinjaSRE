@@ -32,6 +32,7 @@ from surfaces.console.pages import admin as admin_page
 from surfaces.console.pages import auth as auth_page
 from surfaces.console.pages import catalogue as catalogue_page
 from surfaces.console.pages import config as config_page
+from surfaces.console.pages import guardian as guardian_page
 from surfaces.console.pages import interactions as interactions_page
 from surfaces.console.pages import memory as memory_page
 from surfaces.console.pages import runs as runs_page
@@ -160,6 +161,8 @@ class Console:
             return await self._interactions(client, context)
         if path.startswith("/catalogue"):
             return await self._catalogue(client, context)
+        if path.startswith("/guardian"):
+            return await self._guardian(client, context)
         if path.startswith("/admin"):
             return await self._admin(client, context, query)
         if path.startswith("/onboarding"):
@@ -286,6 +289,23 @@ class Console:
             body=catalogue_page.catalogue_body(
                 context, catalogue, schemas=schemas, api_base=self.api_base
             ),
+        )
+
+    async def _guardian(self, client: ConsoleClient, context: PageContext) -> Document:
+        """Return the shipped detector set as this deployment runs it.
+
+        Fetched already resolved. The console could combine the shipped
+        catalogue, the detected topology and the overrides itself — the
+        arithmetic is not difficult — and the day its copy drifted from the
+        server's, somebody would be shown a threshold the deployment does not
+        use. That is the whole reason this page holds no rule of its own.
+        """
+        node_id = context.viewer.team_node_id or ""
+        resolved = await client.guardian(node_id) if node_id else {}
+        return page(
+            context,
+            title_key="guardian.title",
+            body=guardian_page.guardian_body(context, resolved),
         )
 
     async def _admin(
