@@ -284,6 +284,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/config/{node_id}/guardian",
+        slug="config-guardian",
+        source=_GATEWAY,
+        summary="the shipped detector set as this node runs it, with its reasoning",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/config/{node_id}/integration-schemas",
         slug="config-integration-schemas",
         source=_GATEWAY,

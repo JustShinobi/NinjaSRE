@@ -166,11 +166,30 @@ def test_no_cluster_detector_claims_to_work_on_a_single_node() -> None:
             )
 
 
+#: The one detector outside the cluster domain that needs more than one node.
+#: Replication is a copy onto *another* node, so on a single-node installation
+#: there is nowhere for it to go and "no replication jobs" is the arrangement
+#: rather than a finding.
+NEEDS_A_SECOND_NODE = {"backup-no-replication-jobs"}
+
+
 def test_storage_and_backup_detectors_apply_at_every_size() -> None:
     """A single node's datastore fills exactly as a cluster's does."""
     for detector in SHIPPED_DETECTORS:
+        if detector.detector_id in NEEDS_A_SECOND_NODE:
+            continue
         if detector.detector_id.split("-")[0] in {"storage", "backup", "guest", "maintenance"}:
             assert detector.topology is TopologyRequirement.ANY, detector.detector_id
+
+
+def test_nothing_that_needs_a_second_node_would_fire_on_a_single_one() -> None:
+    """SC-007 beyond the cluster prefix: a single-node install must not be told
+    it has no replication onto a node it does not have."""
+    for detector_id in NEEDS_A_SECOND_NODE:
+        detector = detector_by_id(detector_id)
+        assert detector is not None
+        assert not detector.activates_on(ClusterShape.SINGLE_NODE), detector_id
+        assert detector.activates_on(ClusterShape.MULTI_NODE), detector_id
 
 
 # -- the specific detectors the field baseline demanded ------------------------------

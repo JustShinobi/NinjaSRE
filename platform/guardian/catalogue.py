@@ -1306,6 +1306,13 @@ BACKUP_DETECTORS: tuple[ShippedDetector, ...] = (
         for_seconds=3_600,
         recovery_seconds=3_600,
         severity=Severity.HIGH,
+        # The only backup detector that needs more than one node, and it needs
+        # one for a plain reason: replication is a copy onto another node, so on
+        # a single-node installation there is nowhere for it to go and "no
+        # replication jobs" is not a finding — it is the arrangement. Left at
+        # ANY this would fire on every single-node install on day one, which is
+        # exactly the spurious cluster finding SC-007 exists to prevent.
+        topology=TopologyRequirement.CLUSTERED,
     ),
 )
 

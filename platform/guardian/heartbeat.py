@@ -32,9 +32,9 @@ documentation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from config.constants.guardian import (
     HEARTBEAT_INTERVAL_SECONDS,
@@ -164,4 +164,131 @@ class HeartbeatReadiness:
         }
 
 
-__all__ = ["Heartbeat", "HeartbeatReadiness", "HeartbeatSchedule"]
+class HeartbeatUndeliverable(Exception):
+    """The heartbeat did not land.
+
+    Raised rather than swallowed. A dead-man's switch whose own failures were
+    silent would be a second copy of the problem it exists to catch, and the
+    caller — whatever drives the deployment's clock — is the thing that can
+    decide whether to retry, log, or surface it.
+    """
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
+
+
+@runtime_checkable
+class HeartbeatTransport(Protocol):
+    """Carries one heartbeat outward and reports whether it landed."""
+
+    async def push(self, destination: str, payload: dict[str, Any]) -> None:
+        """Send ``payload`` to ``destination``, raising if it did not land."""
+
+
+@dataclass(slots=True)
+class HeartbeatPusher:
+    """The thing that actually pushes, and the state that makes a gap visible.
+
+    **It owns no timer.** ``is_due`` answers "should one go now" and ``push``
+    sends one; whatever drives the deployment's clock — the scheduler, a loop, a
+    test moving time by hand — asks. That is the same shape the escalation
+    registry takes, for the same reason: a component with its own timer is a
+    component the suite has to sit through.
+
+    **An empty destination is refused at construction.** FR-028 says the
+    heartbeat has no configuration that disables it while the guardian is
+    enabled, and the only setting there is is *where* to send it. Treating an
+    empty one as "off" would be a disable switch wearing a different name.
+
+    **A failed push does not advance the sequence.** Otherwise the watcher sees
+    a gap and the deployment believes it pushed, which is the one disagreement
+    that matters here.
+    """
+
+    transport: HeartbeatTransport
+    destination: str
+    schedule: HeartbeatSchedule = field(default_factory=HeartbeatSchedule)
+    deployment_name: str = "ninjasre"
+    sequence: int = 0
+    last_pushed_at: datetime | None = None
+    consecutive_failures: int = 0
+    last_push_landed: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.destination.strip():
+            raise ValueError(
+                "a heartbeat pusher needs a destination. There is no setting that turns "
+                "the heartbeat off while the guardian is enabled — the only setting is "
+                "where it goes, and an empty one would be a disable switch under another "
+                "name. A deployment with nowhere to push should not construct one; "
+                "HeartbeatReadiness is what reports that state."
+            )
+        self.destination = self.destination.strip()
+
+    def is_due(self, at: datetime) -> bool:
+        """Return whether a heartbeat should be pushed now.
+
+        The first one is always due. A deployment that had just started and
+        waited a full interval before saying anything would be a deployment
+        indistinguishable from one that failed to start.
+        """
+        if self.last_pushed_at is None:
+            return True
+        return at >= self.schedule.next_due(self.last_pushed_at)
+
+    async def push(
+        self,
+        *,
+        at: datetime,
+        open_incidents: int = 0,
+        degraded_because: str = "",
+    ) -> Heartbeat:
+        """Push one heartbeat and return it, or raise ``HeartbeatUndeliverable``."""
+        beat = Heartbeat(
+            sequence=self.sequence + 1,
+            at=at,
+            healthy=not degraded_because,
+            open_incidents=open_incidents,
+            degraded_because=degraded_because,
+            deployment_name=self.deployment_name,
+        )
+        try:
+            await self.transport.push(self.destination, beat.to_payload())
+        except HeartbeatUndeliverable:
+            self.consecutive_failures += 1
+            self.last_push_landed = False
+            raise
+
+        self.sequence = beat.sequence
+        self.last_pushed_at = at
+        self.consecutive_failures = 0
+        self.last_push_landed = True
+        return beat
+
+    def to_record(self) -> dict[str, Any]:
+        """Return what a health endpoint says about the heartbeat.
+
+        The destination is deliberately absent. A dead-man's-switch URL is a
+        capability token in everything but name — anything holding it can
+        convince the watcher this deployment is alive — so the report says
+        whether one is configured and never what it is.
+        """
+        return {
+            "pushes": self.sequence,
+            "last_pushed_at": self.last_pushed_at.isoformat() if self.last_pushed_at else "",
+            "consecutive_failures": self.consecutive_failures,
+            "last_push_landed": self.last_push_landed,
+            "destination_configured": True,
+            "interval_seconds": self.schedule.interval_seconds,
+        }
+
+
+__all__ = [
+    "Heartbeat",
+    "HeartbeatPusher",
+    "HeartbeatReadiness",
+    "HeartbeatSchedule",
+    "HeartbeatTransport",
+    "HeartbeatUndeliverable",
+]

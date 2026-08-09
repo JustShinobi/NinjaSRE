@@ -534,6 +534,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/config/{node_id}/guardian": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Node Guardian
+         * @description Return the shipped detector set as ``node_id`` runs it (FR-015).
+         *
+         *     Resolved here rather than by whatever is rendering it. The shipped
+         *     catalogue, the detected topology and this node's overrides all meet in one
+         *     function, and a client that combined them itself would be a client whose
+         *     idea of what a threshold resolves to could drift from the deployment's —
+         *     which is the failure that makes a reassuring screen wrong.
+         *
+         *     Every detector that is *not* active is named too, because a detector missing
+         *     from a list reads as one that does not exist, and an operator on a
+         *     single-node installation deserves to know the quorum detectors are waiting
+         *     for a second node.
+         */
+        get: operations["node_guardian_v1_config__node_id__guardian_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/config/{node_id}/integration-schemas": {
         parameters: {
             query?: never;
@@ -2571,6 +2602,40 @@ export interface components {
             /** Role */
             role: string;
         };
+        /** GuardianProblemView */
+        GuardianProblemView: {
+            /** Detector Id */
+            detector_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * GuardianView
+         * @description The shipped detector set as one node actually runs it.
+         */
+        GuardianView: {
+            /**
+             * Cluster Shape
+             * @default
+             */
+            cluster_shape: string;
+            /**
+             * Cluster Shape Description
+             * @default
+             */
+            cluster_shape_description: string;
+            /** Detectors */
+            detectors?: components["schemas"]["ShippedDetectorView"][];
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /** Not Applicable */
+            not_applicable?: string[];
+            /** Problems */
+            problems?: components["schemas"]["GuardianProblemView"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -3517,6 +3582,71 @@ export interface components {
             ok: boolean;
             /** Passed */
             passed: string[];
+        };
+        /**
+         * ShippedDetectorView
+         * @description One shipped detector, with the reasoning a client renders beside it.
+         *
+         *     The rationale and the remedy travel with the detector rather than being
+         *     fetched separately, because the requirement they satisfy is about *when*
+         *     somebody reads them: at the moment they are deciding whether the threshold
+         *     is wrong for their cluster. A second round trip is a click, and a click is
+         *     the difference between a number understood and a number obeyed.
+         */
+        ShippedDetectorView: {
+            /**
+             * Acknowledged To Clear
+             * @default false
+             */
+            acknowledged_to_clear: boolean;
+            /**
+             * Clear Value
+             * @default 0
+             */
+            clear_value: number;
+            /** Detector Id */
+            detector_id: string;
+            /**
+             * Fire Value
+             * @default 0
+             */
+            fire_value: number;
+            /**
+             * For Seconds
+             * @default 0
+             */
+            for_seconds: number;
+            /**
+             * Matcher
+             * @default
+             */
+            matcher: string;
+            /** Name */
+            name: string;
+            /** Origin */
+            origin: string;
+            /** Rationale */
+            rationale: string;
+            /** Remedy */
+            remedy: string;
+            /** Resource Kinds */
+            resource_kinds?: string[];
+            /**
+             * Severity
+             * @default
+             */
+            severity: string;
+            /** Signal */
+            signal: string;
+            /** Threshold */
+            threshold: string;
+            /**
+             * Topology
+             * @default
+             */
+            topology: string;
+            /** Watches */
+            watches: string;
         };
         /** SignalView */
         SignalView: {
@@ -4785,6 +4915,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogueEntriesView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    node_guardian_v1_config__node_id__guardian_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardianView"];
                 };
             };
             /** @description Validation Error */

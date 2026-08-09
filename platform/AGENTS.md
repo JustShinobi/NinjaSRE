@@ -714,6 +714,68 @@ a per-team and global hourly limit handles the storm correlation cannot see. Eve
 held dispatch is written onto the incident. Escalation is the notification
 registry that already exists, cancelled by every terminal state.
 
+## The guardian, in one page
+
+`guardian/` is the assembly. Everything else in this package is machinery that
+decides nothing — a detector engine, an autonomy gate, an incident lifecycle, a
+notification policy — and this is where the decisions are made for the
+deployment an individual actually runs on their own hardware: which detectors
+are on, at what thresholds, how autonomous it is on the day it is installed, and
+what happens when it needs to reach somebody who is not on a rota.
+
+**The shipped set is data, and the data carries its own reasoning.** Forty-six
+`ShippedDetector` entries, each with what it watches, the threshold, *why that
+number*, and what to do about it. The prose fields are not documentation: they
+are assembled into the declaration's description and rendered beside the
+detector, because the moment somebody needs the reasoning is the moment they are
+deciding whether the number is wrong for their cluster. A detector missing any
+of the four cannot be constructed, and a test asserts that over the whole set —
+which is what keeps it true as detectors are added rather than at review time.
+
+**Each detector carries its own fixtures.** `firing` and `healthy` are required
+fields, and the contract suite drives the real evaluator over windows built from
+them. A fixture table kept beside the set is a table somebody forgets to extend;
+making them fields means the forty-seventh detector cannot exist without both.
+
+**Topology gates the set, and is detected rather than presumed.** Three shapes —
+single node, two nodes, more — and three requirements a detector declares.
+Gating happens at resolution, so a single-node installation does not merely fail
+to fire its cluster detectors, it never declares them, and an operator listing
+what watches their machine sees the truth.
+
+**An override never edits what ships.** Thresholds are overridable per
+deployment and per resource through `policies.observation.guardian`, and the
+catalogue is read-only. That is what makes an upgrade able to change a shipped
+definition and *report* it: `upgrade.py` fingerprints what each detector does —
+not how it is worded — and names what moved, flagging the ones this deployment
+had overridden.
+
+**Propose-only is the default and the recommended posture is one preset away.**
+`posture.py` builds both as ordinary autonomy policy documents resolved by the
+ordinary resolver, so there is no second autonomy system to drift. Applying one
+goes through feature 040's preview against recorded history first, because a
+configuration diff cannot answer "what would this have done" and the two
+documents look almost identical while the answer changes completely.
+
+**Notification is for a person, not a rota.** Escalation is bounded and says
+when it has stopped; a storm becomes one digest rather than being rate-limited,
+because a rate limit throws away the later items and the later items are usually
+what explain the earlier ones; and a resolution is sent even when the original
+was never acknowledged, because the operator was at work.
+
+**The heartbeat is the answer to the hardest failure.** A guardian that has
+stopped looks exactly like a cluster with no problems. `HeartbeatPusher` pushes
+outward on an interval, owns no timer — whatever drives the deployment's clock
+asks `is_due` — and refuses to be constructed with nowhere to push, because the
+only setting is *where* and treating an empty one as "off" would be a disable
+switch under another name.
+
+**It reads a declarative control plane and never writes to one.** Where the
+operator runs their own repository over the same infrastructure, `declared.py`
+uses it as the source of what *should* be running — which no hypervisor API can
+report — and redirects any remediation touching a property that repository owns
+into a proposal against it. A second writer is how drift becomes an outage.
+
 ## Where things go
 
 - A repository port and its Postgres implementation → `persistence/`.
@@ -733,6 +795,12 @@ registry that already exists, cancelled by every terminal state.
   values, and a boundary test each side of the condition. Five kinds is a
   decision, not a default: the reason there are four is that a fifth is how a
   declaration becomes a language.
+- A new shipped detector → an entry in `guardian/catalogue.py` carrying its
+  threshold, the reason for that threshold, the remedy, a topology requirement,
+  and both fixtures. The type refuses it without all of them, which is
+  deliberate: a shipped number with no stated reason is one an operator either
+  ignores or obeys without understanding, and both are worse than not shipping
+  it.
 - A new source of signals → a module under `observation/sources/`, implementing
   `SignalReader`. It declares its interval, its rate limit and its call budget,
   and it cannot hold a credential — there is no parameter one fits in.

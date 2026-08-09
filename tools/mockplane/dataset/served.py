@@ -18,6 +18,9 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any, Final
 
+from platform.config_service.schema.policies import GuardianSettings
+from platform.guardian.resolution import resolve as resolve_guardian
+from platform.guardian.topology import ClusterShape
 from tools.mockplane.dataset import profile
 from tools.mockplane.records import CapturedRecord, Provenance, Request
 
@@ -630,6 +633,21 @@ def config_records() -> tuple[CapturedRecord, ...]:
                     "overrides": [],
                     "expired_overrides": [],
                 },
+            )
+        )
+        # Resolved by the real thing rather than transcribed. The shipped
+        # detector set is in the image and its rationale is prose an operator
+        # reads, so a hand-written copy here would be the one place the console
+        # is shown reasoning the deployment does not hold — which is exactly
+        # what this dataset exists not to be.
+        records.append(
+            _record(
+                "config-guardian",
+                {"node_id": identifier},
+                resolve_guardian(
+                    GuardianSettings(enabled=True, cluster_shape=ClusterShape.TWO_NODE.value),
+                    shape=ClusterShape.TWO_NODE,
+                ).to_record(),
             )
         )
         records.append(

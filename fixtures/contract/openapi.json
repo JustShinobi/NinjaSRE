@@ -1564,6 +1564,67 @@
         "title": "GrantView",
         "type": "object"
       },
+      "GuardianProblemView": {
+        "properties": {
+          "detector_id": {
+            "title": "Detector Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detector_id",
+          "reason"
+        ],
+        "title": "GuardianProblemView",
+        "type": "object"
+      },
+      "GuardianView": {
+        "description": "The shipped detector set as one node actually runs it.",
+        "properties": {
+          "cluster_shape": {
+            "default": "",
+            "title": "Cluster Shape",
+            "type": "string"
+          },
+          "cluster_shape_description": {
+            "default": "",
+            "title": "Cluster Shape Description",
+            "type": "string"
+          },
+          "detectors": {
+            "items": {
+              "$ref": "#/components/schemas/ShippedDetectorView"
+            },
+            "title": "Detectors",
+            "type": "array"
+          },
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "not_applicable": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Not Applicable",
+            "type": "array"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/GuardianProblemView"
+            },
+            "title": "Problems",
+            "type": "array"
+          }
+        },
+        "title": "GuardianView",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3668,6 +3729,97 @@
           "duration_seconds"
         ],
         "title": "SelfCheckView",
+        "type": "object"
+      },
+      "ShippedDetectorView": {
+        "description": "One shipped detector, with the reasoning a client renders beside it.\n\nThe rationale and the remedy travel with the detector rather than being\nfetched separately, because the requirement they satisfy is about *when*\nsomebody reads them: at the moment they are deciding whether the threshold\nis wrong for their cluster. A second round trip is a click, and a click is\nthe difference between a number understood and a number obeyed.",
+        "properties": {
+          "acknowledged_to_clear": {
+            "default": false,
+            "title": "Acknowledged To Clear",
+            "type": "boolean"
+          },
+          "clear_value": {
+            "default": 0.0,
+            "title": "Clear Value",
+            "type": "number"
+          },
+          "detector_id": {
+            "title": "Detector Id",
+            "type": "string"
+          },
+          "fire_value": {
+            "default": 0.0,
+            "title": "Fire Value",
+            "type": "number"
+          },
+          "for_seconds": {
+            "default": 0,
+            "title": "For Seconds",
+            "type": "integer"
+          },
+          "matcher": {
+            "default": "",
+            "title": "Matcher",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "remedy": {
+            "title": "Remedy",
+            "type": "string"
+          },
+          "resource_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resource Kinds",
+            "type": "array"
+          },
+          "severity": {
+            "default": "",
+            "title": "Severity",
+            "type": "string"
+          },
+          "signal": {
+            "title": "Signal",
+            "type": "string"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "string"
+          },
+          "topology": {
+            "default": "",
+            "title": "Topology",
+            "type": "string"
+          },
+          "watches": {
+            "title": "Watches",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detector_id",
+          "name",
+          "watches",
+          "threshold",
+          "rationale",
+          "remedy",
+          "signal",
+          "origin"
+        ],
+        "title": "ShippedDetectorView",
         "type": "object"
       },
       "SignalView": {
@@ -6194,6 +6346,65 @@
           }
         },
         "summary": "Node Catalogue",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/{node_id}/guardian": {
+      "get": {
+        "description": "Return the shipped detector set as ``node_id`` runs it (FR-015).\n\nResolved here rather than by whatever is rendering it. The shipped\ncatalogue, the detected topology and this node's overrides all meet in one\nfunction, and a client that combined them itself would be a client whose\nidea of what a threshold resolves to could drift from the deployment's —\nwhich is the failure that makes a reassuring screen wrong.\n\nEvery detector that is *not* active is named too, because a detector missing\nfrom a list reads as one that does not exist, and an operator on a\nsingle-node installation deserves to know the quorum detectors are waiting\nfor a second node.",
+        "operationId": "node_guardian_v1_config__node_id__guardian_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Node Guardian",
         "tags": [
           "config"
         ]
