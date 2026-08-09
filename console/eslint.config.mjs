@@ -93,6 +93,8 @@ export default tseslint.config(
       'src/shell/**/*.tsx',
       'src/session/**/*.ts',
       'src/i18n/**/*.ts',
+      'src/surfaces/**/*.ts',
+      'src/surfaces/**/*.tsx',
       'src/live/**/*.ts',
       'src/live/**/*.tsx',
       'src/components/navigation.tsx',

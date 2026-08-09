@@ -154,6 +154,26 @@ def test_exactly_one_component_renders_transcript_events() -> None:
     )
 
 
+def test_every_screen_is_inside_the_untranslated_string_rule() -> None:
+    """The screens are the most-read text in the console, so the rule has to reach them.
+
+    The rule's ``files`` list is the whole of its scope: a directory absent from
+    it is a directory where a literal sentence lints clean, and lints clean
+    silently — nothing in the console fails, no catalogue key is missing, and
+    the string is simply English for everybody. That is exactly the failure the
+    rule exists to prevent, so the scope is asserted rather than remembered.
+    """
+    configuration = _source(console_root() / "eslint.config.mjs")
+    scope = configuration[configuration.index("no-untranslated-strings rule") :]
+
+    for pattern in ("'src/surfaces/**/*.tsx'", "'src/surfaces/**/*.ts'"):
+        assert pattern in scope, (
+            f"{pattern} is not in the untranslated-strings rule's file list, so every "
+            f"sentence on every screen is outside the rule that makes the catalogue the "
+            f"only source of user-visible text"
+        )
+
+
 def test_the_console_holds_no_configuration_merge() -> None:
     """The preview is the server's answer, and there is nowhere else it could come from."""
     merging = [
