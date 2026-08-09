@@ -51,6 +51,18 @@ from config.constants.autonomy import (
 )
 from config.constants.closed_loop import MAX_RECURRENCE_WINDOW_SECONDS
 from config.constants.notifications import SEVERITY_HIGH
+from config.constants.observability_bridge import (
+    BRIDGE_VIEW_HYPERVISOR,
+    BRIDGE_VIEWS,
+    DEFAULT_HISTORY_LOOKBACK_SECONDS,
+    DEFAULT_LOG_WINDOW_SECONDS,
+    DEFAULT_MAPPING_INTERVAL_SECONDS,
+    MAX_HISTORY_LOOKBACK_SECONDS,
+    MAX_LOG_LINES,
+    MAX_LOG_WINDOW_SECONDS,
+    MIN_MAPPING_INTERVAL_SECONDS,
+    PRECEDENCE_SOURCES,
+)
 from config.constants.observation import (
     DEFAULT_DETECTOR_DURATION_SECONDS,
     DETECTOR_COMPARISON_ABOVE,
@@ -254,6 +266,128 @@ class DetectorSettings(ConfigSection):
         return value
 
 
+class MetricsSourceSettings(ConfigSection):
+    """A metrics system the operator already runs, and where to reach it.
+
+    ``endpoint`` is here as well as in the integration's own connection settings
+    because the bridge needs the *host* to answer one question the connection
+    cannot: whether the metrics system is running inside the estate it observes.
+    """
+
+    enabled: bool = False
+    name: ConfiguredStr = ""
+    endpoint: ConfiguredStr = ""
+    integration: ConfiguredStr = ""
+
+
+class LogSourceSettings(ConfigSection):
+    """A log system the operator already runs, and where to reach it."""
+
+    enabled: bool = False
+    name: ConfiguredStr = ""
+    endpoint: ConfiguredStr = ""
+    integration: ConfiguredStr = ""
+
+
+class LabelRuleSettings(ConfigSection):
+    """One declared association between a family of series and a kind of resource.
+
+    ``when_labels`` is a list of ``label=prefix`` strings rather than a mapping,
+    matching the flat shape every other section uses — a nested free-form
+    mapping would be the one place in this document where the console cannot
+    render a form.
+    """
+
+    rule_id: ConfiguredStr
+    resource_kind: ConfiguredStr
+    integration: ConfiguredStr
+    native_template: ConfiguredStr
+    metric_prefixes: ConfiguredStrList = ()
+    when_labels: ConfiguredStrList = ()
+    view: ConfiguredStr = BRIDGE_VIEW_HYPERVISOR
+    description: ConfiguredStr = ""
+
+    @field_validator("view")
+    @classmethod
+    def _known_view(cls, value: str) -> str:
+        """Refuse a view the mapping does not model."""
+        if value not in BRIDGE_VIEWS:
+            raise ValueError(f"must be one of {', '.join(BRIDGE_VIEWS)}; found {value!r}")
+        return value
+
+
+class LogSelectorSettings(ConfigSection):
+    """The stream selector that applies to one kind of resource."""
+
+    rule_id: ConfiguredStr
+    resource_kind: ConfiguredStr
+    template: ConfiguredStr
+    description: ConfiguredStr = ""
+
+
+class DashboardMappingSettings(ConfigSection):
+    """One dashboard, and what it is the picture of."""
+
+    dashboard_uid: ConfiguredStr
+    base_url: ConfiguredStr
+    title: ConfiguredStr = ""
+    resource_kinds: ConfiguredStrList = ()
+    detector_ids: ConfiguredStrList = ()
+    panel_id: ConfiguredStr = ""
+    description: ConfiguredStr = ""
+
+
+class SignalPrecedenceSettings(ConfigSection):
+    """Which side produces a signal both the bridge and the deployment can gather."""
+
+    signal: ConfiguredStr
+    winner: ConfiguredStr
+    reason: ConfiguredStr
+
+    @field_validator("winner")
+    @classmethod
+    def _known_winner(cls, value: str) -> str:
+        """Refuse a winner that is neither side. There is deliberately no 'both'."""
+        if value not in PRECEDENCE_SOURCES:
+            raise ValueError(f"must be one of {', '.join(PRECEDENCE_SOURCES)}; found {value!r}")
+        return value
+
+
+class ObservabilityBridgeSettings(ConfigSection):
+    """The monitoring the operator already runs, and how it joins to the estate.
+
+    Every field defaults to off or to the shipped set. A deployment with no
+    observability stack leaves this section absent and works entirely from its
+    own polling, which is what makes the whole feature additive rather than a
+    dependency.
+    """
+
+    enabled: bool = False
+    metrics: MetricsSourceSettings = MetricsSourceSettings()
+    logs: LogSourceSettings = LogSourceSettings()
+    dashboard_base_url: ConfiguredStr = ""
+    #: Whether the shipped exporter mappings are used. On by default: the label
+    #: schemes of the Proxmox and node exporters are stable, and an operator who
+    #: had to declare them would have to learn a mapping language before the
+    #: bridge did anything at all.
+    use_shipped_rules: bool = True
+    label_rules: tuple[LabelRuleSettings, ...] = ()
+    use_shipped_log_selectors: bool = True
+    log_selectors: tuple[LogSelectorSettings, ...] = ()
+    dashboards: tuple[DashboardMappingSettings, ...] = ()
+    precedence: tuple[SignalPrecedenceSettings, ...] = ()
+    mapping_interval_seconds: Annotated[ConfiguredInt, Field(ge=MIN_MAPPING_INTERVAL_SECONDS)] = (
+        DEFAULT_MAPPING_INTERVAL_SECONDS
+    )
+    history_lookback_seconds: Annotated[
+        ConfiguredInt, Field(ge=1, le=MAX_HISTORY_LOOKBACK_SECONDS)
+    ] = DEFAULT_HISTORY_LOOKBACK_SECONDS
+    log_window_seconds: Annotated[ConfiguredInt, Field(ge=1, le=MAX_LOG_WINDOW_SECONDS)] = (
+        DEFAULT_LOG_WINDOW_SECONDS
+    )
+    log_line_limit: Annotated[ConfiguredInt, Field(ge=1, le=MAX_LOG_LINES)] = MAX_LOG_LINES
+
+
 class ObservationPolicySettings(ConfigSection):
     """What this team watches for, and whether it is watching at all.
 
@@ -266,6 +400,10 @@ class ObservationPolicySettings(ConfigSection):
     detectors: tuple[DetectorSettings, ...] = ()
     paused: bool = False
     pause_reason: ConfiguredStr = ""
+    #: The operator's own monitoring, joined to the estate. Absent by default,
+    #: and a deployment that leaves it absent watches entirely by its own
+    #: polling — which is the arrangement most homelabs are in.
+    bridge: ObservabilityBridgeSettings = ObservabilityBridgeSettings()
 
 
 #: What each scope kind cannot be without. ``deployment`` needs nothing — it is
