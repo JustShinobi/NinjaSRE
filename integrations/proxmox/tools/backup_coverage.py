@@ -29,7 +29,6 @@ datastore's contents for the sizes.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from typing import Any
 
 from core.capability.decorator import tool
@@ -39,7 +38,12 @@ from integrations._base.access import current
 from integrations._base.capability import unconfigured, vendor_failure
 from integrations._base.errors import IntegrationError
 from integrations.proxmox.client import ProxmoxClient
-from integrations.proxmox.investigation import bounded, report, seconds_as_phrase
+from integrations.proxmox.investigation import (
+    bounded,
+    observed_now,
+    report,
+    seconds_as_phrase,
+)
 from integrations.proxmox.models import BackupJob, TaskRecord
 from integrations.proxmox.schema import INTEGRATION
 
@@ -115,7 +119,7 @@ async def proxmox_backup_coverage() -> CapabilityResult:
             continue
         covered |= set(guests) if job.covers_everything else set(job.vmids)
 
-    now = int(datetime.now(UTC).timestamp())
+    now = int(observed_now().timestamp())
     last = [
         {
             "guest": vmid,

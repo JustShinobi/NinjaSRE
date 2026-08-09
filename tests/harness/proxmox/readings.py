@@ -9,9 +9,14 @@ scenario that declared that reading, in the change that caused it, by name.
 
 Two properties fall out of doing it this way, and both are requirements.
 
-**Reproducibility is free.** The recorded responses are a value, the tools are
-pure over them, and there is no clock in the path — so the same scenario
-produces the same readings on every machine and every run.
+**Reproducibility is bought, and this is what it cost.** The recorded responses
+are a value and the tools are pure over them — except for the clock, which
+several of them need to turn a recorded task's timestamp into an age. So the
+instant they read as of is pinned to the corpus's own declared one, and the
+same scenario then produces the same readings on every machine and in every
+week. Leaving the process clock in the path made the suite disagree with itself
+whenever two runs fell either side of a second boundary, which is a gate that
+fails for a reason nobody can act on.
 
 **Staleness is detectable.** A recording answering a path nothing requests any
 more is a fixture that has rotted, and a suite that quietly stopped exercising it
@@ -23,10 +28,16 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
+from config.constants.hypervisor_scenarios import HYPERVISOR_SCENARIO_OBSERVED_AT
+from integrations.proxmox.investigation import reading_as_of
 from tests.harness.proxmox.declaration import Scenario, ToolCall
 from tests.support.proxmox import ClusterState, RecordedProxmox, investigating
+
+#: The instant every scenario's recordings are read as of, parsed once.
+OBSERVED_AT = datetime.fromisoformat(HYPERVISOR_SCENARIO_OBSERVED_AT)
 
 
 class StaleFixture(Exception):
@@ -175,9 +186,10 @@ async def read(scenario: Scenario) -> Readings:
     overlay = scenario.fixtures.overlaid()
     entries: list[ToolReading] = []
 
-    with investigating(
-        state, unreachable=scenario.fixtures.unreachable, responses=overlay
-    ) as bench:
+    with (
+        investigating(state, unreachable=scenario.fixtures.unreachable, responses=overlay) as bench,
+        reading_as_of(OBSERVED_AT),
+    ):
         for call in scenario.readings.tools:
             entries.append(await _run_tool(call))
         requested = tuple(bench.seen)

@@ -28,7 +28,6 @@ node's datastore list.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
 from typing import Any
 
 from core.capability.decorator import tool
@@ -38,7 +37,12 @@ from integrations._base.access import current
 from integrations._base.capability import unconfigured, vendor_failure
 from integrations._base.errors import IntegrationError
 from integrations.proxmox.client import ProxmoxClient
-from integrations.proxmox.investigation import MAX_REPORTED_ITEMS, report, seconds_as_phrase
+from integrations.proxmox.investigation import (
+    MAX_REPORTED_ITEMS,
+    observed_now,
+    report,
+    seconds_as_phrase,
+)
 from integrations.proxmox.models import GuestStatus, NodeStatus, TaskRecord
 from integrations.proxmox.schema import INTEGRATION
 
@@ -170,7 +174,7 @@ def _lock(guest: GuestStatus, tasks: Sequence[TaskRecord]) -> dict[str, Any]:
             "verdict": "no lock is held",
         }
 
-    now = int(datetime.now(UTC).timestamp())
+    now = int(observed_now().timestamp())
     for task in tasks:
         if task.vmid != guest.vmid:
             continue

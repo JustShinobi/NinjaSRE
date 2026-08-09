@@ -34,6 +34,18 @@ HYPERVISOR_SCENARIO_SCHEMA_VERSION: Final = "1"
 #: that moving one is a reviewable change rather than an invisible one.
 HYPERVISOR_BASELINE_FILENAME: Final = "baseline.json"
 
+#: The instant the corpus's recorded responses are read as of.
+#:
+#: Fixed, and it has to be. Every recorded task, backup and lock in the corpus
+#: carries an absolute timestamp, so a tool that measured their age against the
+#: process clock would report a different number every second the suite ran —
+#: which is the difference between a gate and a number that drifts. Fixing it
+#: also keeps each scenario's own narrative true: a job that failed for eleven
+#: days reads as eleven days rather than as however long ago the recording was
+#: taken. Just after the latest observation any scenario carries, which is what
+#: "we have just read this cluster" means.
+HYPERVISOR_SCENARIO_OBSERVED_AT: Final = "2025-08-10T07:00:00+00:00"
+
 # --- The four domains --------------------------------------------------------
 
 #: The four areas a hypervisor fails in, which is also the order an
@@ -146,6 +158,7 @@ __all__ = [
     "HYPERVISOR_SCENARIO_DOMAINS",
     "HYPERVISOR_SCENARIO_FILENAME",
     "HYPERVISOR_SCENARIO_MINIMUM",
+    "HYPERVISOR_SCENARIO_OBSERVED_AT",
     "HYPERVISOR_SCENARIO_SCHEMA_VERSION",
     "HYPERVISOR_SUITE_BUDGET_SECONDS",
     "MODEL_HOSTED",

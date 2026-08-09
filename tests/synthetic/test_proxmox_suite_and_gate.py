@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,7 @@ from config.constants.hypervisor_scenarios import (
     ARM_NO_MEMORY,
     HYPERVISOR_SCENARIO_DOMAINS,
     HYPERVISOR_SCENARIO_MINIMUM,
+    HYPERVISOR_SCENARIO_OBSERVED_AT,
     HYPERVISOR_SUITE_BUDGET_SECONDS,
     MODEL_HOSTED,
     MODEL_SELF_HOSTED,
@@ -31,6 +33,7 @@ from config.constants.hypervisor_scenarios import (
 from tests.harness.proxmox.baseline import Regressed, baseline_path, gate, read_baseline
 from tests.harness.proxmox.coverage import exercised, unjustified_claims
 from tests.harness.proxmox.declaration import declared_capabilities
+from tests.harness.proxmox.readings import read
 from tests.harness.proxmox.suite import CORPUS_ROOT, load_corpus, run_suite
 from tests.harness.proxmox.verdicts import ActionVerdict, DiagnosisVerdict
 
@@ -106,6 +109,29 @@ async def test_the_suite_produces_identical_readings_and_identical_scores_twice(
     first, second = await run_suite(CORPUS_ROOT), await run_suite(CORPUS_ROOT)
 
     assert first.to_artifact() == second.to_artifact()
+
+
+async def test_every_age_in_a_reading_is_measured_from_the_declared_instant() -> None:
+    """SC-002, from the other end: the clock must not be in the path at all.
+
+    Two runs a second apart agree only by accident if each tool measures its
+    ages against the moment it happened to run. Recorded responses carry fixed
+    instants, so the instant they are read *as of* has to be fixed too — and
+    then a reading is a function of the responses, on every machine and in
+    every week.
+    """
+    observed = int(datetime.fromisoformat(HYPERVISOR_SCENARIO_OBSERVED_AT).timestamp())
+    scenario = next(
+        found for found, _ in load_corpus(CORPUS_ROOT) if found.scenario_id.startswith("b2-")
+    )
+
+    readings = await read(scenario)
+    coverage = next(entry for entry in readings.entries if entry.tool == "proxmox_backup_coverage")
+    successes = coverage.value["last_successful"]
+
+    assert successes, "the fixture stopped carrying a backup to measure an age against"
+    for success in successes:
+        assert success["age_seconds"] == observed - success["finished_at"]
 
 
 async def test_the_suite_finishes_inside_its_declared_budget() -> None:

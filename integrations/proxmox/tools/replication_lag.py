@@ -26,7 +26,6 @@ actually sits on.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from typing import Any
 
 from core.capability.decorator import tool
@@ -40,6 +39,7 @@ from integrations.proxmox.investigation import (
     MAX_REPORTED_ITEMS,
     Undetermined,
     bounded,
+    observed_now,
     report,
     seconds_as_phrase,
 )
@@ -144,7 +144,7 @@ async def proxmox_replication_lag() -> CapabilityResult:
     except IntegrationError as error:
         return vendor_failure(TOOL_NAME, error)
 
-    now = int(datetime.now(UTC).timestamp())
+    now = int(observed_now().timestamp())
     replicated = {job.guest for job in jobs}
     unreplicated = [entry for entry in local if entry["guest"] not in replicated]
     matters = len(status.members) > 1 and status.is_clustered

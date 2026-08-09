@@ -171,6 +171,27 @@ def test_no_proxmox_capability_module_calls_anything_that_writes() -> None:
             assert verb not in source, f"{name}: calls {verb}"
 
 
+def test_no_tool_reads_the_process_clock_for_itself() -> None:
+    """Every age in a reading measures from one instant, or two disagree.
+
+    A tool that calls ``datetime.now`` at the point it needs an age reads a
+    different clock from the tool beside it, and a scenario replayed over
+    recorded responses produces a different number every second it is run.
+    ``observed_now`` is the one place the instant comes from, so a reading is a
+    function of the responses rather than of when somebody ran it.
+    """
+    import inspect
+
+    from integrations.proxmox import tools
+
+    for name in tools.__all__:
+        source = inspect.getsource(inspect.getmodule(getattr(tools, name)))
+        assert "datetime.now(" not in source, (
+            f"{name}: reads the process clock directly. Call "
+            f"integrations.proxmox.investigation.observed_now() instead."
+        )
+
+
 # --- NFR-003: an unreachable cluster is reported, not imagined ---------------
 
 

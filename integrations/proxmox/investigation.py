@@ -29,7 +29,8 @@ the model on each run.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Final
@@ -77,6 +78,43 @@ PREDICTIVE_SMART_ATTRIBUTES: Final[tuple[str, ...]] = (
 #: rather than lost. One is an event; several is a fault that is still happening,
 #: and the two have completely different remedies.
 LINK_FLAP_TRANSITIONS: Final = 2
+
+
+#: The instant readings are taken as of, when something has pinned one. ``None``
+#: is the live case and is what every deployment runs with.
+_OBSERVED_AT: datetime | None = None
+
+
+def observed_now() -> datetime:
+    """Return the instant this reading is taken as of.
+
+    A fourth obligation, and the one that is easiest to lose: every age,
+    exposure and staleness figure in this package measures from *here* rather
+    than from the clock at the point it is needed. Two tools reading the same
+    cluster a second apart would otherwise disagree about how old the same task
+    is, and a reading replayed over recorded responses — which carry absolute
+    timestamps — would produce a different number every second it was replayed.
+
+    Live, this is the clock. There is no configuration that moves it.
+    """
+    return _OBSERVED_AT if _OBSERVED_AT is not None else datetime.now(UTC)
+
+
+@contextmanager
+def reading_as_of(moment: datetime) -> Iterator[None]:
+    """Read as of ``moment`` for the duration of the block.
+
+    For replaying recorded responses, which is the only case where "now" is a
+    fact about the recording rather than about the machine. Restores whatever
+    was pinned before, so one replay cannot leak its instant into the next.
+    """
+    global _OBSERVED_AT  # noqa: PLW0603 - one pinned instant per process, restored on exit
+    previous = _OBSERVED_AT
+    _OBSERVED_AT = moment
+    try:
+        yield
+    finally:
+        _OBSERVED_AT = previous
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,6 +295,8 @@ __all__ = [
     "age_in_days",
     "bounded",
     "gap",
+    "observed_now",
+    "reading_as_of",
     "report",
     "scrub_finished_at",
     "seconds_as_phrase",

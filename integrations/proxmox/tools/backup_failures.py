@@ -18,7 +18,6 @@ Source of truth: each node's task history, filtered to ``vzdump``.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 from core.capability.decorator import tool
@@ -28,7 +27,12 @@ from integrations._base.access import current
 from integrations._base.capability import unconfigured, vendor_failure
 from integrations._base.errors import IntegrationError
 from integrations.proxmox.client import ProxmoxClient
-from integrations.proxmox.investigation import bounded, report, seconds_as_phrase
+from integrations.proxmox.investigation import (
+    bounded,
+    observed_now,
+    report,
+    seconds_as_phrase,
+)
 from integrations.proxmox.schema import INTEGRATION
 
 TOOL_NAME = "proxmox_backup_failures"
@@ -78,7 +82,7 @@ async def proxmox_backup_failures() -> CapabilityResult:
         attempted: set[int] = set()
         succeeded: set[int] = set()
         failed: list[dict[str, Any]] = []
-        now = int(datetime.now(UTC).timestamp())
+        now = int(observed_now().timestamp())
         for node in nodes:
             for task in await client.backup_outcomes(node):
                 if not task.vmid:

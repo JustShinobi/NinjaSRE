@@ -31,7 +31,6 @@ Source of truth: ``/nodes/<node>/disks/zfs`` and each pool's own detail.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from typing import Any
 
 from core.capability.decorator import tool
@@ -47,6 +46,7 @@ from integrations.proxmox.investigation import (
     Undetermined,
     age_in_days,
     gap,
+    observed_now,
     report,
     scrub_finished_at,
 )
@@ -146,7 +146,7 @@ def _pool(
             ),
             published_by="zpool status, on the node",
         )
-    now = datetime.now(UTC)
+    now = observed_now()
     age = age_in_days(finished, now=now) if finished is not None else None
 
     return (

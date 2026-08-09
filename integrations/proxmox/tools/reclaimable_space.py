@@ -27,7 +27,6 @@ retention rules.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from typing import Any
 
 from core.capability.decorator import tool
@@ -41,6 +40,7 @@ from integrations.proxmox.investigation import (
     MAX_REPORTED_ITEMS,
     Undetermined,
     bounded,
+    observed_now,
     report,
     seconds_as_phrase,
 )
@@ -291,7 +291,7 @@ def _entry(
     protects: str,
 ) -> dict[str, Any]:
     """Return one reclaimable item. There is no path here without ``protects``."""
-    now = int(datetime.now(UTC).timestamp())
+    now = int(observed_now().timestamp())
     age = max(now - created, 0) if created else 0
     return {
         "kind": kind,
