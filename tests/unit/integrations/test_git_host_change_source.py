@@ -30,10 +30,9 @@ from integrations._base.changes import (
     GitHostChangeSource,
     UnsupportedGitHost,
 )
-from integrations._base.transport import ProxyRequest
 from platform.changes.models import ChangeWindow
 from platform.changes.port import ChangeSource
-from platform.credentials.proxy.model import OutboundResponse
+from platform.credentials.proxy.model import OutboundResponse, ProxyRequest
 
 pytestmark = pytest.mark.unit
 
