@@ -123,26 +123,6 @@ class TestPressureOnAContainerComesFromTheHost:
         assert "kernel" in pressure.detail
         assert "host" in pressure.detail
 
-    def test_a_guest_the_estate_holds_no_identifier_for_is_a_named_gap(self) -> None:
-        """Not a query built on an empty key: that returns an empty result and
-        reads as a container under no pressure at all."""
-        unkeyed = Resource(
-            resource_id="prox-ct-999",
-            kind=KIND_CONTAINER,
-            source="proxmox",
-            native_id="lxc/HAL9000/2025-01-01/999",
-            display_name="mystery",
-            attributes={"address": "10.20.20.9"},
-            last_seen_at=SEEN,
-        )
-
-        found = signal_map_for(unkeyed, configured=EVERYTHING)
-
-        assert found.source_for(SIGNAL_QUESTION_PRESSURE) is None
-        gap = found.missing_for(SIGNAL_QUESTION_PRESSURE)
-        assert gap is not None
-        assert "vmid" in gap.why
-
     def test_a_virtual_machine_is_keyed_the_same_way(self) -> None:
         guest = Resource(
             resource_id="prox-vm-201",
@@ -170,17 +150,42 @@ class TestPressureOnAContainerComesFromTheHost:
         assert pressure.key == "10.20.10.11"
 
 
+def test_pressure_for_a_guest_with_no_identifier_is_a_named_gap() -> None:
+    """Not a query built on an empty key: that returns an empty result and reads
+    as a container under no pressure at all. A resource swept before ``vmid`` was
+    declared is exactly this case."""
+    unkeyed = Resource(
+        resource_id="prox-ct-999",
+        kind=KIND_CONTAINER,
+        source="proxmox",
+        native_id="lxc/HAL9000/2025-01-01/999",
+        display_name="mystery",
+        attributes={"address": "10.20.20.9"},
+        last_seen_at=SEEN,
+    )
+
+    found = signal_map_for(unkeyed, configured=EVERYTHING)
+
+    assert found.source_for(SIGNAL_QUESTION_PRESSURE) is None
+    gap = found.missing_for(SIGNAL_QUESTION_PRESSURE)
+    assert gap is not None
+    assert "vmid" in gap.why
+
+
 # --- the other five questions ---------------------------------------------------
 
 
+def test_up_is_answered_by_whatever_declares_the_resource_exists() -> None:
+    """Not a rule naming Proxmox: the integration that discovered a resource is
+    the one that reports its state, whatever provider it happens to be."""
+    found = signal_map_for(container(), configured=EVERYTHING)
+    up = found.source_for(SIGNAL_QUESTION_UP)
+
+    assert up is not None
+    assert up.integration == "proxmox"
+
+
 class TestTheRestOfTheMap:
-    def test_up_is_answered_by_whatever_declares_the_resource_exists(self) -> None:
-        found = signal_map_for(container(), configured=EVERYTHING)
-        up = found.source_for(SIGNAL_QUESTION_UP)
-
-        assert up is not None
-        assert up.integration == "proxmox"
-
     def test_logs_prefer_loki_and_fall_back_to_the_next_configured_store(self) -> None:
         both = signal_map_for(container(), configured=EVERYTHING)
         assert both.source_for(SIGNAL_QUESTION_LOGS).integration == "loki"  # type: ignore[union-attr]
@@ -236,26 +241,26 @@ class TestAnAbsenceIsNamedRatherThanBlank:
 # --- what acceptance 3 asks for -------------------------------------------------
 
 
-class TestEveryResourceResolvesTheTwoThatMatter:
-    @pytest.mark.parametrize("resource", [container(), node(), datastore()])
-    def test_up_and_logs_are_answered_or_named(self, resource: Resource) -> None:
-        found = signal_map_for(resource, configured=EVERYTHING)
+@pytest.mark.parametrize("resource", [container(), node(), datastore()])
+def test_every_resource_answers_or_names_up_and_logs(resource: Resource) -> None:
+    found = signal_map_for(resource, configured=EVERYTHING)
 
-        assert found.answers(SIGNAL_QUESTION_UP)
-        assert found.answers(SIGNAL_QUESTION_LOGS)
+    assert found.answers(SIGNAL_QUESTION_UP)
+    assert found.answers(SIGNAL_QUESTION_LOGS)
 
-    @pytest.mark.parametrize("resource", [container(), node(), datastore()])
-    def test_with_nothing_configured_both_are_named_gaps_rather_than_silence(
-        self, resource: Resource
-    ) -> None:
-        found = signal_map_for(resource, configured=())
 
-        assert not found.answers(SIGNAL_QUESTION_UP)
-        for question in (SIGNAL_QUESTION_UP, SIGNAL_QUESTION_LOGS):
-            gap = found.missing_for(question)
-            assert gap is not None
-            assert gap.wanted, f"{question}: a gap that names nothing is a blank with a schema"
-            assert gap.why.strip()
+@pytest.mark.parametrize("resource", [container(), node(), datastore()])
+def test_with_nothing_configured_up_and_logs_are_named_gaps_rather_than_silence(
+    resource: Resource,
+) -> None:
+    found = signal_map_for(resource, configured=())
+
+    assert not found.answers(SIGNAL_QUESTION_UP)
+    for question in (SIGNAL_QUESTION_UP, SIGNAL_QUESTION_LOGS):
+        gap = found.missing_for(question)
+        assert gap is not None
+        assert gap.wanted, f"{question}: a gap that names nothing is a blank with a schema"
+        assert gap.why.strip()
 
 
 class TestTheRecordASurfaceRenders:

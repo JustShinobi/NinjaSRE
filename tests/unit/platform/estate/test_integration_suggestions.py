@@ -116,13 +116,14 @@ class TestWhatItRefusesToGuess:
 
         assert suggest_integrations(estate, offers=OFFERS) == ()
 
-    def test_a_hosted_vendor_with_no_default_port_is_not_suggested_from_an_address(self) -> None:
-        """A container called ``datadog`` is not a Datadog endpoint; Datadog is
-        somebody else's API, and offering a local address for it would be
-        offering a wrong answer first."""
-        estate = (resource("datadog", address="10.20.20.60"),)
 
-        assert suggest_integrations(estate, offers=OFFERS) == ()
+def test_a_hosted_vendor_with_no_default_port_is_not_suggested_from_an_address() -> None:
+    """A container called ``datadog`` is not a Datadog endpoint; Datadog is
+    somebody else's API, and offering a local address for it would be offering a
+    wrong answer first. A default port of nought is what says "hosted"."""
+    estate = (resource("datadog", address="10.20.20.60"),)
+
+    assert suggest_integrations(estate, offers=OFFERS) == ()
 
 
 class TestTheOrderIsStable:

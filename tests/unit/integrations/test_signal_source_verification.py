@@ -225,13 +225,14 @@ class TestAnEmptyWindowThatIsTheCorrectAnswer:
         assert report.ok
         assert not report.degraded
 
-    async def test_the_report_says_why_empty_is_not_a_finding_here(self) -> None:
-        report = await run(
-            Source(window=window_probe(returning(0), empty_means=EmptyWindow.EXPECTED))
-        )
 
-        printed = report_message(report)
-        assert "empty answer is a real answer" in printed
+async def test_an_expected_empty_window_says_why_empty_is_not_a_finding_here() -> None:
+    """The reason is the whole point: a reader who cannot tell "nothing is wrong"
+    from "nothing was measured" learns to ignore the check."""
+    report = await run(Source(window=window_probe(returning(0), empty_means=EmptyWindow.EXPECTED)))
+
+    printed = report_message(report)
+    assert "empty answer is a real answer" in printed
 
 
 class TestAWindowTheVendorWouldNotServe:
@@ -278,16 +279,19 @@ class TestAProbeThatWillNotSayWhatItReads:
 # --- the clock ----------------------------------------------------------------
 
 
+async def test_a_clock_inside_the_tolerance_verifies_with_the_measured_offset() -> None:
+    """The tolerance is this feature's own constant, not the one corosync needs
+    of a cluster member: thirty seconds is about correlating events, not consensus."""
+    report = await run(Source(clock=clock_probe(reporting(NOW + timedelta(seconds=2)))))
+
+    assert report.clock is not None
+    assert report.clock.state is SkewState.IN_TOLERANCE
+    assert report.clock.offset_seconds == pytest.approx(2.0)
+    assert report.clock.tolerance_seconds == SOURCE_CLOCK_SKEW_TOLERANCE_SECONDS
+    assert not report.degraded
+
+
 class TestAClockInsideTheTolerance:
-    async def test_a_source_that_agrees_verifies_with_the_measured_offset(self) -> None:
-        report = await run(Source(clock=clock_probe(reporting(NOW + timedelta(seconds=2)))))
-
-        assert report.clock is not None
-        assert report.clock.state is SkewState.IN_TOLERANCE
-        assert report.clock.offset_seconds == pytest.approx(2.0)
-        assert report.clock.tolerance_seconds == SOURCE_CLOCK_SKEW_TOLERANCE_SECONDS
-        assert not report.degraded
-
     async def test_a_source_behind_the_platform_measures_a_negative_offset(self) -> None:
         report = await run(Source(clock=clock_probe(reporting(NOW - timedelta(seconds=3)))))
 
@@ -325,12 +329,6 @@ class TestASourceThatReportsNoTime:
         assert report.clock.offset_seconds is None
         assert not report.degraded, "an unmeasured clock is not a skewed one"
 
-    async def test_the_report_says_it_could_not_be_measured_not_that_it_agreed(self) -> None:
-        report = await run(Source(clock=clock_probe(reporting(None))))
-
-        printed = report_message(report)
-        assert "does not report its own time" in printed
-
     async def test_an_unreachable_source_leaves_the_clock_unchecked(self) -> None:
         report = await run(
             Source(
@@ -341,6 +339,15 @@ class TestASourceThatReportsNoTime:
 
         assert report.clock is not None
         assert report.clock.state is SkewState.UNCHECKED
+
+
+async def test_an_unmeasured_clock_is_reported_as_unmeasured_not_as_agreeing() -> None:
+    """A probe that reported an unread clock as agreeing would be the empty-window
+    failure committed by the check built to catch it."""
+    report = await run(Source(clock=clock_probe(reporting(None))))
+
+    printed = report_message(report)
+    assert "does not report its own time" in printed
 
 
 class TestReadingAVendorsDateHeader:
@@ -369,17 +376,6 @@ class TestAVendorThatIsNotASignalSource:
         assert not report.degraded
         assert "window" not in report_message(report)
 
-    async def test_the_record_carries_the_new_probes_only_when_they_ran(self) -> None:
-        bare = (await run(Source())).to_record()
-        assert "data_window" not in bare
-        assert "clock" not in bare
-
-        probed = (
-            await run(Source(window=window_probe(returning(4)), clock=clock_probe(reporting(NOW))))
-        ).to_record()
-        assert probed["data_window"]["rows"] == 4  # type: ignore[index]
-        assert probed["clock"]["offset_seconds"] == 0.0  # type: ignore[index]
-
     async def test_a_permission_denial_still_fails_the_report_alongside_a_good_window(self) -> None:
         async def denied(transport: object, context: object) -> object:
             raise IntegrationError(
@@ -395,3 +391,17 @@ class TestAVendorThatIsNotASignalSource:
 
         assert report.missing_permissions == ("query",)
         assert not report.ok
+
+
+async def test_the_record_carries_the_new_probes_only_when_they_ran() -> None:
+    """The absent key is what lets a reader tell "this was not measured" from
+    "this measured nothing" — a null would collapse the two."""
+    bare = (await run(Source())).to_record()
+    assert "data_window" not in bare
+    assert "clock" not in bare
+
+    probed = (
+        await run(Source(window=window_probe(returning(4)), clock=clock_probe(reporting(NOW))))
+    ).to_record()
+    assert probed["data_window"]["rows"] == 4  # type: ignore[index]
+    assert probed["clock"]["offset_seconds"] == 0.0  # type: ignore[index]
