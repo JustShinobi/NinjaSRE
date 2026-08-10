@@ -22,6 +22,9 @@ import Configuration, {
 import Detectors, {
   generateMetadata as detectorsMeta,
 } from '@/app/(shell)/detectors/page';
+import FirstRun, {
+  generateMetadata as firstRunMeta,
+} from '@/app/(shell)/first-run/page';
 import IncidentDetail from '@/app/(shell)/incidents/[incidentId]/page';
 import Incidents, {
   generateMetadata as incidentsMeta,
@@ -62,7 +65,7 @@ export interface Screen {
   readonly metadata?: () => Promise<Metadata>;
 }
 
-/** The twelve areas the navigation lists, in the order the manifest declares them. */
+/** Every area the manifest declares, whether or not the navigation is showing it. */
 export const AREA_SCREENS: readonly Screen[] = [
   { id: 'dashboard', render: Overview, metadata: overviewMeta },
   { id: 'incidents', render: Incidents, metadata: incidentsMeta },
@@ -76,6 +79,7 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'catalogue', render: Catalogue, metadata: catalogueMeta },
   { id: 'autonomy', render: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
+  { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
   { id: 'administration', render: Administration, metadata: administrationMeta },
   { id: 'audit', render: Audit, metadata: auditMeta },
 ];

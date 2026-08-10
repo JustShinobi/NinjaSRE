@@ -29,6 +29,9 @@ import Configuration, {
 import Detectors, {
   generateMetadata as detectorsMeta,
 } from '@/app/(shell)/detectors/page';
+import FirstRun, {
+  generateMetadata as firstRunMeta,
+} from '@/app/(shell)/first-run/page';
 import Incidents, {
   generateMetadata as incidentsMeta,
 } from '@/app/(shell)/incidents/page';
@@ -87,6 +90,7 @@ const ROUTE_FILES: readonly RouteFile[] = [
   { id: 'knowledge', page: Knowledge, metadata: knowledgeMeta },
   { id: 'autonomy', page: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', page: Configuration, metadata: configurationMeta },
+  { id: 'first-run', page: FirstRun, metadata: firstRunMeta },
   { id: 'catalogue', page: Catalogue, metadata: catalogueMeta },
   { id: 'administration', page: Administration, metadata: administrationMeta },
   { id: 'audit', page: Audit, metadata: auditMeta },
