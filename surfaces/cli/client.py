@@ -54,6 +54,7 @@ from surfaces.cli.models import (
     AutonomyExplanation,
     AutonomyPolicyRecord,
     AutonomyRuleRecord,
+    CheckState,
     ConfigChange,
     ConfigDelta,
     ConfigDiff,
@@ -63,6 +64,7 @@ from surfaces.cli.models import (
     CostReport,
     DetectionState,
     DetectorRecord,
+    DiagnosticCheck,
     DiagnosticReport,
     DryRunRecord,
     EffectivenessRecord,
@@ -1464,21 +1466,101 @@ class RemoteClient:
         return MemoryStats(episodes=_number(payload, "episode_count"))
 
     async def list_providers(self) -> tuple[ProviderStatus, ...]:
-        """Refuse: this surface has no provider route."""
-        raise self._no_route("which model providers it can use")
+        """Return every supported provider and this deployment's state for it.
+
+        ``model_id`` is the provider's *default* model rather than a recorded
+        choice. The listing route answers with the descriptor's default because
+        that is the model this provider would run, and a deployment does not
+        store a per-provider selection to report instead.
+        """
+        payload = self._document("GET", "/v1/providers")
+        return tuple(_provider(record) for record in _records(payload, "providers"))
 
     async def verify_provider(self, provider_id: str) -> ProviderStatus:
-        """Refuse: this surface has no provider route."""
-        raise self._no_route("which model providers it can use", provider=provider_id)
+        """Check one provider end to end and return what the deployment found.
+
+        A real call against the deployment's model endpoint, which is why this
+        is a ``POST``: it spends the operator's tokens, and a method a cache or
+        a prefetch might repeat is the wrong shape for that.
+
+        Raises:
+            NotFoundError: no supported provider answers to ``provider_id``.
+        """
+        payload = self._document("POST", f"/v1/providers/{provider_id}/verify")
+        return ProviderStatus(
+            provider_id=_text(payload, "provider_id") or provider_id,
+            configured=True,
+            verified=bool(payload.get("verified", False)),
+            model_id=_text(payload, "model_id"),
+            detail=_text(payload, "detail"),
+        )
 
     async def list_integrations(self) -> tuple[IntegrationStatus, ...]:
         """Return every known integration and its current state."""
         payload = self._document("GET", "/v1/integrations")
         return tuple(_catalogued(record) for record in _records(payload, "integrations"))
 
+    def _own_node(self) -> str:
+        """Return the configuration node this caller is acting at.
+
+        Credential schemas are reachable per node rather than per client, which
+        is true and used to be read as a refusal. A client is perfectly able to
+        resolve its own node: the token's own team if it has one, and otherwise
+        the root of the tree it can see, which for an organisation-scoped caller
+        is the organisation.
+
+        Raises:
+            UnavailableError: the deployment exposes no configuration tree, so
+                there is no node to be acting at.
+        """
+        principal = self._document("GET", "/auth/me")
+        team = _text(principal, "team_node_id")
+        if team:
+            return team
+
+        nodes = _records(self._document("GET", "/v1/config"), "nodes")
+        root = next((node for node in nodes if not node.get("parent_id")), None)
+        if root is None:
+            raise UnavailableError(
+                f"{self.endpoint.url} exposes no configuration node to act at",
+                remedy="check that the deployment finished its first run",
+            )
+        return _text(root, "node_id")
+
     async def credential_fields(self, integration: str) -> tuple[CredentialFieldSpec, ...]:
-        """Refuse: credential schemas are reachable per node, not per client."""
-        raise self._no_route("what an integration's credential needs", integration=integration)
+        """Return what ``integration`` needs, as a prompt can ask for it.
+
+        Two sources, because there are two kinds of thing that take a
+        credential. An installed integration declares its schema per node, so
+        the node this caller is acting at is resolved first. A model provider
+        declares its fields in its own descriptor and is not in that listing at
+        all, so it is asked for by name second.
+
+        An empty tuple for something neither answers to. The wizard turns that
+        into its own message naming the integration, which is a better sentence
+        than anything this layer could write about a name it was handed.
+        """
+        schemas = _records(
+            self._document("GET", f"/v1/config/{self._own_node()}/integration-schemas"),
+            "schemas",
+        )
+        declared = next(
+            (schema for schema in schemas if _text(schema, "name") == integration), None
+        )
+        if declared is not None:
+            return tuple(
+                _credential_field(record)
+                for record in (
+                    *_as_records(declared.get("credential_fields")),
+                    *_as_records(declared.get("settings_fields")),
+                )
+            )
+
+        try:
+            provider = self._document("GET", f"/v1/providers/{integration}")
+        except NotFoundError:
+            return ()
+        return tuple(_credential_field(record) for record in _as_records(provider.get("fields")))
 
     async def store_integration_credential(
         self, integration: str, values: Mapping[str, str]
@@ -1518,8 +1600,66 @@ class RemoteClient:
         )
 
     async def diagnose(self) -> DiagnosticReport:
-        """Refuse: this surface has no diagnostics route."""
-        raise self._no_route("its own diagnostics")
+        """Return what is configured, reachable, and healthy, from three routes.
+
+        Composed rather than served whole, because the deployment answers three
+        different questions and ``doctor`` asks all of them: what the self-check
+        found, whether bring-up recorded a failure, and what the first-run
+        checklist still has outstanding.
+
+        A 404 from the diagnostics route is a *healthy* answer. A deployment
+        that started has no bring-up failure to describe, and reading its
+        absence as an error would put a red check on every working deployment.
+        """
+        checks: list[DiagnosticCheck] = []
+
+        report = self._document("GET", "/v1/setup/self-check")
+        for finding in _records(report, "findings"):
+            checks.append(
+                DiagnosticCheck(
+                    name=_text(finding, "check"),
+                    state=CheckState.FAILED,
+                    detail=_text(finding, "problem"),
+                    remedy=_text(finding, "action"),
+                )
+            )
+        checks.extend(
+            DiagnosticCheck(name=name, state=CheckState.OK, detail="passed")
+            for name in _strings(report, "passed")
+        )
+
+        checks.append(self._bring_up_check())
+        checks.extend(self._checklist_checks())
+        return DiagnosticReport(checks=tuple(checks))
+
+    def _bring_up_check(self) -> DiagnosticCheck:
+        """Return what the last recorded bring-up failure says, if there was one."""
+        try:
+            failure = self._document("GET", "/v1/setup/diagnostics")
+        except NotFoundError:
+            return DiagnosticCheck(
+                name="bring-up",
+                state=CheckState.OK,
+                detail="this deployment recorded no bring-up failure",
+            )
+        return DiagnosticCheck(
+            name="bring-up",
+            state=CheckState.FAILED,
+            detail=f"{_text(failure, 'stage')}: {_text(failure, 'problem')}",
+            remedy=_text(failure, "action"),
+        )
+
+    def _checklist_checks(self) -> tuple[DiagnosticCheck, ...]:
+        """Return one check per first-run step, in the order they depend on each other."""
+        return tuple(
+            DiagnosticCheck(
+                name=_text(step, "name"),
+                state=CheckState.OK if _text(step, "state") == "done" else CheckState.WARNING,
+                detail=_text(step, "detail"),
+                remedy="" if _text(step, "state") == "done" else _text(step, "action"),
+            )
+            for step in _records(self._document("GET", "/v1/setup/checklist"), "steps")
+        )
 
 
 # --- Selection ---------------------------------------------------------------
@@ -1714,6 +1854,46 @@ def _strings(payload: Mapping[str, Any], key: str) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(element) for element in value)
+
+
+def _as_records(value: Any) -> list[Mapping[str, Any]]:
+    """Return a value that should be a list of objects, defaulting to empty.
+
+    The nested form of ``_records``: the credential-schema documents carry their
+    field lists inside an entry rather than at the top level.
+    """
+    if not isinstance(value, list):
+        return []
+    return [record for record in value if isinstance(record, dict)]
+
+
+def _credential_field(record: Mapping[str, Any]) -> CredentialFieldSpec:
+    """Return one credential field as a prompt can ask for it.
+
+    ``secret`` defaults to true for a document that does not say. A field
+    wrongly treated as secret is echoed to nobody; a field wrongly treated as
+    public is a token on somebody's screen during a screen share, and only one
+    of those is recoverable.
+    """
+    return CredentialFieldSpec(
+        name=_text(record, "name"),
+        label=_text(record, "label"),
+        secret=bool(record.get("secret", True)),
+        required=bool(record.get("required", True)),
+        help=_text(record, "help"),
+    )
+
+
+def _provider(record: Mapping[str, Any]) -> ProviderStatus:
+    """Return one provider's state as a listing shows it."""
+    return ProviderStatus(
+        provider_id=_text(record, "provider_id"),
+        configured=bool(record.get("configured", False)),
+        local=bool(record.get("local", False)),
+        verified=bool(record.get("verified", False)),
+        model_id=_text(record, "default_model"),
+        detail=_text(record, "detail"),
+    )
 
 
 def _incident_params(query: IncidentFilter) -> str:
