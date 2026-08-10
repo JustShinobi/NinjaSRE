@@ -82,6 +82,51 @@ export function readViewState(
   };
 }
 
+/** Enough of a viewer to say which node is theirs. */
+export interface NodeHolder {
+  readonly teamNodeId: string;
+}
+
+/** Enough of a tree node to be chosen. */
+export interface NodeCandidate {
+  readonly id: string;
+}
+
+/**
+ * The node a node-scoped screen is showing, in the order the answers are trusted.
+ *
+ * Three screens read an endpoint with a `{node_id}` in it, and each has to
+ * answer this before it can ask the gateway anything. The rule lives here, once,
+ * for two reasons. A screen that answered it differently would show a different
+ * part of the deployment from the screen beside it, for no reason a reader could
+ * see. And a screen that answered it with *nothing* would build a path with the
+ * brace still in it, which the client refuses — a broken route rather than an
+ * empty panel, and the failure this function exists to make impossible.
+ *
+ * The order is the address, then the viewer's own team, then the root of the
+ * tree. The address first because a link somebody was sent is the most specific
+ * thing anybody said; the viewer's team next because it is the part of the
+ * deployment they are responsible for; the root last because it is the one node
+ * a deployment with any configuration at all is certain to have.
+ *
+ * The empty string is a real answer and the caller's job to handle: it means
+ * this deployment has no organisation tree yet, and the honest screen for that
+ * is an empty panel rather than a request nobody can name a subject for.
+ */
+export function resolveNode(
+  state: ViewState,
+  viewer: NodeHolder,
+  nodes: readonly NodeCandidate[],
+): string {
+  const chosen = state.filters.node;
+  if (chosen !== undefined && chosen !== '') return chosen;
+  // Before the tree, and independently of it: the tree read is its own panel and
+  // fails on its own, and a screen that lost its node because the *selector*
+  // went down would turn one dead region into a dead page.
+  if (viewer.teamNodeId !== '') return viewer.teamNodeId;
+  return nodes[0]?.id ?? '';
+}
+
 /**
  * `state` as a query string, in the order the screen declares its filters.
  *

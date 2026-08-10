@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { list, text } from './read';
+
 /**
  * The organisation, as a tree, in one pass over a flat list.
  *
@@ -89,6 +91,30 @@ export function placeNodes(nodes: readonly TreeNode[]): readonly PlacedNode[] {
     }
   }
   return placed;
+}
+
+/**
+ * The organisation a `/v1/config` payload describes, placed and ready to draw.
+ *
+ * Every screen that is scoped to a node needs the tree before it can name one,
+ * and each of them was picking `nodes`, `node_id` and `parent_id` out of an
+ * `unknown` in its own words. One reader, so a field the API renames is renamed
+ * here and nowhere else.
+ *
+ * A payload that carries nothing — an unconfigured deployment, or a read that
+ * failed and handed on `undefined` — is an empty tree rather than a throw. That
+ * is the whole point of it being one function: the emptiness is answered once,
+ * in the place that knows what the shape is.
+ */
+export function placedTree(payload: unknown): readonly PlacedNode[] {
+  return placeNodes(
+    list(payload, 'nodes').map((record) => ({
+      id: text(record, 'node_id'),
+      name: text(record, 'name'),
+      kind: text(record, 'kind'),
+      parentId: text(record, 'parent_id') === '' ? null : text(record, 'parent_id'),
+    })),
+  );
 }
 
 export interface OrgTreeProps {

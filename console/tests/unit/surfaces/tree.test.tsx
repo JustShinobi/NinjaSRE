@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { OrgTree, placeNodes, type TreeNode } from '@/surfaces/tree';
+import { OrgTree, placeNodes, placedTree, type TreeNode } from '@/surfaces/tree';
 
 /**
  * Five hundred configuration nodes, every one of them present.
@@ -117,5 +117,33 @@ describe('SC-008: five hundred nodes', () => {
       .filter((link) => link.getAttribute('aria-current') === 'true');
     expect(current).toHaveLength(1);
     expect(current[0]).toHaveAttribute('href', '/configuration?node=node-3');
+  });
+});
+
+/**
+ * The tree, read out of the payload the gateway sends.
+ *
+ * Three screens need the organisation before they can name a node, and each of
+ * them was reading `nodes`, `node_id`, `parent_id` out of an `unknown` by hand.
+ * One reader, so a field that is renamed is renamed once.
+ */
+describe('the tree a config payload describes', () => {
+  it('places the nodes it carries, root first', () => {
+    const placed = placedTree({
+      nodes: [
+        { node_id: 'team-platform', name: 'Platform', kind: 'team', parent_id: 'org' },
+        { node_id: 'org', name: 'Northwind', kind: 'organisation', parent_id: null },
+      ],
+    });
+
+    expect(placed.map((node) => node.id)).toEqual(['org', 'team-platform']);
+    expect(placed.map((node) => node.depth)).toEqual([0, 1]);
+  });
+
+  it('is empty for a payload that carries nothing, rather than a throw', () => {
+    // What a deployment nobody has configured answers, and what a failed read
+    // hands on: neither is a defect, and neither may take a page down.
+    expect(placedTree({ nodes: [] })).toEqual([]);
+    expect(placedTree(undefined)).toEqual([]);
   });
 });
