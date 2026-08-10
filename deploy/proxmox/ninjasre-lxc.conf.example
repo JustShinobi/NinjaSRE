@@ -1,0 +1,75 @@
+# A deployment's settings, kept in a file instead of on the command line.
+#
+#     cp ninjasre-lxc.conf.example pve02.conf
+#     ./ninjasre-lxc.sh --config pve02.conf
+#
+# Flags still win, so one value can be overridden for a single run:
+#
+#     ./ninjasre-lxc.sh --config pve02.conf --vmid 251 --dry-run
+#
+# Only KEY=VALUE lines are accepted; anything else is rejected rather than
+# sourced, because this file is read by a script running as root on a node.
+# Every key here is a default from ninjasre-lxc.sh — uncomment what you change.
+
+# --- Container ---------------------------------------------------------------
+
+# Leave unset to take the cluster's next free ID.
+# VMID=250
+
+# CT_HOSTNAME="ninjasre"
+
+# debian or alpine. See README.md for what actually differs between them.
+# DISTRO="debian"
+
+# An explicit template, when the pinned default is not what you want.
+# TEMPLATE="local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst"
+# TEMPLATE_STORAGE="local"
+
+# Must accept content type 'rootdir'.
+# STORAGE="local-lvm"
+# ROOTFS_GIB="32"
+
+# CORES="4"
+# The platform's own ceiling is 4096 MiB on the homelab profile. This is higher
+# because compiling the graph extension, not the running platform, is the peak.
+# MEMORY_MIB="6144"
+# SWAP_MIB="2048"
+
+# An unprivileged guest needs nesting to manage its own services at all.
+# FEATURES="nesting=1,keyctl=1"
+
+# UNPRIVILEGED="1"
+# ONBOOT="1"
+# TAGS="ninjasre"
+
+# --- Network -----------------------------------------------------------------
+
+# BRIDGE="vmbr0"
+# VLAN=""
+
+# dhcp, or an address with a prefix length. A static address needs a gateway.
+# IP_ADDRESS="dhcp"
+# GATEWAY="192.168.68.1"
+# NAMESERVER=""
+# SEARCHDOMAIN=""
+
+# --- Application ---------------------------------------------------------------
+
+# dev, homelab, standard or enterprise.
+# PROFILE="homelab"
+
+# API_PORT="8420"
+# CONSOLE_PORT="8421"
+
+# What the application and console bind to inside the container. Loopback only
+# makes sense with a reverse proxy inside the same container. The credential
+# proxy is never in this decision: it binds to loopback always.
+# BIND_ADDRESS="0.0.0.0"
+
+# An environment file to seed the deployment with — a provider key, an Ollama
+# endpoint. Any secret it does not set is generated during provisioning.
+# ENV_FILE="/root/ninjasre.env"
+
+# dir:PATH, tar:PATH or git:URL. Defaults to the repository this script is in.
+# SOURCE_SPEC="dir:/root/NinjaSRE"
+# SOURCE_REF="HEAD"
