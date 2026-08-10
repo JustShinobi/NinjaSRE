@@ -1,0 +1,103 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "providers": [
+          {
+            "configured": false,
+            "default_model": "claude-sonnet-5",
+            "detail": "no credential is stored for this provider",
+            "display_name": "Anthropic",
+            "local": false,
+            "provider_id": "anthropic",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "gpt-5",
+            "detail": "no credential is stored for this provider",
+            "display_name": "OpenAI",
+            "local": false,
+            "provider_id": "openai",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "gpt-5",
+            "detail": "no credential is stored for this provider",
+            "display_name": "Azure OpenAI",
+            "local": false,
+            "provider_id": "azure_openai",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "anthropic.claude-sonnet-5-v1:0",
+            "detail": "no credential is stored for this provider",
+            "display_name": "AWS Bedrock",
+            "local": false,
+            "provider_id": "aws_bedrock",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "gemini-3-pro",
+            "detail": "no credential is stored for this provider",
+            "display_name": "Google Gemini",
+            "local": false,
+            "provider_id": "google_gemini",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "gemini-3-pro",
+            "detail": "no credential is stored for this provider",
+            "display_name": "Google Vertex AI",
+            "local": false,
+            "provider_id": "google_vertex_ai",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "anthropic/claude-sonnet-5",
+            "detail": "no credential is stored for this provider",
+            "display_name": "OpenRouter",
+            "local": false,
+            "provider_id": "openrouter",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "meta/llama-4-70b-instruct",
+            "detail": "no credential is stored for this provider",
+            "display_name": "NVIDIA NIM",
+            "local": false,
+            "provider_id": "nvidia_nim",
+            "verified": false
+          },
+          {
+            "configured": false,
+            "default_model": "llama4:70b",
+            "detail": "no credential is stored for this provider",
+            "display_name": "Ollama or vLLM",
+            "local": true,
+            "provider_id": "ollama",
+            "verified": false
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "providers",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "providers"
+}

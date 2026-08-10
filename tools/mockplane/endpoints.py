@@ -312,6 +312,51 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         summary="every installed integration",
         records_key="integrations",
     ),
+    ConsoleEndpoint(
+        method="PUT",
+        path="/v1/integrations/{name}/credential",
+        slug="credential-write",
+        source=_GATEWAY,
+        summary="storing a credential, described without any part of it being readable",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/integrations/{name}/verify",
+        slug="integration-verify",
+        source=_GATEWAY,
+        summary="whether this team's credential for an integration is present and usable",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/providers/{provider_id}/verify",
+        slug="provider-verify",
+        source=_GATEWAY,
+        summary="what a real request to the provider's endpoint came back with",
+    ),
+    # --- Setting the deployment up ------------------------------------------------
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/setup/checklist",
+        slug="setup-checklist",
+        source=_GATEWAY,
+        summary="what is left to set up, each step verified against its dependency",
+        records_key="steps",
+    ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/providers",
+        slug="providers",
+        source=_GATEWAY,
+        summary="every supported model provider and this deployment's state for it",
+        records_key="providers",
+    ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/providers/{provider_id}",
+        slug="provider-detail",
+        source=_GATEWAY,
+        summary="one provider, with everything a form needs in order to set it up",
+    ),
     # --- Administration ---------------------------------------------------------
     ConsoleEndpoint(
         method="GET",

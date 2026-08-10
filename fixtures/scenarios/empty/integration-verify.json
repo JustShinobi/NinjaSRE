@@ -1,0 +1,23 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "integration": "metrics-store",
+        "state": "usable",
+        "usable": true
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "integration-verify",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "integration-verify"
+}

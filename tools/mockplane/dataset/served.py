@@ -18,6 +18,19 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any, Final
 
+from config.constants.first_run import (
+    SETUP_READINESS_ABSENT,
+    SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_VERIFIED,
+    SETUP_STATE_BLOCKED,
+    SETUP_STATE_DONE,
+    SETUP_STATE_READY,
+    SETUP_STEP_DURABLE_CREDENTIAL,
+    SETUP_STEP_FIRST_INVESTIGATION,
+    SETUP_STEP_INFRASTRUCTURE_SOURCE,
+    SETUP_STEP_MODEL_PROVIDER,
+)
+from core.llm.onboarding import ProviderOnboarding, all_onboardings
 from platform.config_service.schema.policies import GuardianSettings
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
@@ -804,6 +817,177 @@ def integration_records() -> tuple[CapturedRecord, ...]:
     )
 
 
+# --- Setting the deployment up -------------------------------------------------------
+
+#: The three integrations the populated deployment declares, and how far along
+#: each is. Held beside the catalogue above rather than derived from it: the
+#: catalogue reports what a *live run* found, and the checklist reports what a
+#: credential read found, and a scenario in which the two agreed by construction
+#: could not exercise the screen that tells them apart.
+_INTEGRATION_READINESS: Final[tuple[tuple[str, str], ...]] = (
+    ("chat", SETUP_READINESS_VERIFIED),
+    ("metrics-store", SETUP_READINESS_ABSENT),
+    ("ticketing", SETUP_READINESS_CONFIGURED),
+)
+
+
+def provider_records(
+    configured: Sequence[str] = (), verified: Sequence[str] = ()
+) -> tuple[CapturedRecord, ...]:
+    """Return the provider listing and one detail record per supported provider.
+
+    Built from the shipped descriptors rather than written out here. Nine
+    hand-copied provider blocks would be nine chances for the fixture to say
+    something the platform stopped saying — and the one property the first-run
+    screen has to hold, that all nine are offered with equal weight and the
+    local one among them, is only worth asserting against a list that is the
+    real list.
+    """
+    stored = frozenset(configured)
+    answered = frozenset(verified)
+
+    def listing(onboarding: ProviderOnboarding) -> dict[str, Any]:
+        present = onboarding.provider_id in stored
+        return {
+            "provider_id": onboarding.provider_id,
+            "display_name": onboarding.display_name,
+            "local": onboarding.local,
+            "configured": present,
+            "verified": onboarding.provider_id in answered,
+            "default_model": onboarding.default_model,
+            "detail": (
+                "a live request reached this endpoint"
+                if onboarding.provider_id in answered
+                else (
+                    "no verification has been run against this deployment — a stored "
+                    "credential is not the same fact as an endpoint that answers"
+                )
+                if present
+                else "no credential is stored for this provider"
+            ),
+        }
+
+    onboardings = all_onboardings()
+    records = [_record("providers", {}, {"providers": [listing(one) for one in onboardings]})]
+    for onboarding in onboardings:
+        records.append(
+            _record(
+                "provider-detail",
+                {"provider_id": onboarding.provider_id},
+                {
+                    **listing(onboarding),
+                    "fields": [field.to_record() for field in onboarding.fields],
+                    "guidance": onboarding.guidance,
+                    "where_to_get_it": onboarding.where_to_get_it,
+                    "models": list(onboarding.models),
+                    "install_hint": onboarding.install_hint,
+                },
+            )
+        )
+    return tuple(records)
+
+
+def checklist_record(
+    *,
+    provider: str = SETUP_READINESS_ABSENT,
+    source: bool = False,
+    investigated: bool = False,
+    integrations: Sequence[tuple[str, str]] = (),
+) -> CapturedRecord:
+    """Return what this deployment has left to set up.
+
+    The four steps and their vocabulary are the platform's, not this module's —
+    a fixture that invented a fifth step or a fourth state would be a console
+    tested against a document nothing serves.
+    """
+    provider_done = provider == SETUP_READINESS_VERIFIED
+    steps = [
+        {
+            "name": SETUP_STEP_DURABLE_CREDENTIAL,
+            "title": "Claim this deployment",
+            "state": SETUP_STATE_DONE,
+            "detail": "an administrator holds a credential of their own",
+            "action": "issue further credentials from administration",
+            "readiness": SETUP_READINESS_ABSENT,
+        },
+        {
+            "name": SETUP_STEP_MODEL_PROVIDER,
+            "title": "Give it something to think with",
+            "state": SETUP_STATE_DONE if provider_done else SETUP_STATE_READY,
+            "detail": (
+                "a live request reached the endpoint and called a tool"
+                if provider_done
+                else "a credential is stored and nothing has checked it"
+                if provider == SETUP_READINESS_CONFIGURED
+                else "no provider holds a credential here"
+            ),
+            "action": "choose a provider and store its credential",
+            "readiness": provider,
+        },
+        {
+            "name": SETUP_STEP_INFRASTRUCTURE_SOURCE,
+            "title": "Give it something to look at",
+            "state": (
+                SETUP_STATE_DONE
+                if source
+                else SETUP_STATE_READY
+                if provider_done
+                else SETUP_STATE_BLOCKED
+            ),
+            "detail": (
+                "the last sweep found resources" if source else "no sweep has found anything yet"
+            ),
+            "action": "connect an infrastructure source",
+            "readiness": SETUP_READINESS_ABSENT,
+        },
+        {
+            "name": SETUP_STEP_FIRST_INVESTIGATION,
+            "title": "Watch it look",
+            "state": (
+                SETUP_STATE_DONE
+                if investigated
+                else SETUP_STATE_READY
+                if source
+                else SETUP_STATE_BLOCKED
+            ),
+            "detail": (
+                "an investigation has finished here"
+                if investigated
+                else "no investigation has finished here"
+            ),
+            "action": "start an investigation and watch it run",
+            "readiness": SETUP_READINESS_ABSENT,
+        },
+    ]
+    outstanding = next((step["name"] for step in steps if step["state"] == SETUP_STATE_READY), None)
+    return _record(
+        "setup-checklist",
+        {},
+        {
+            "complete": all(step["state"] == SETUP_STATE_DONE for step in steps),
+            "steps": steps,
+            "next": outstanding,
+            "provider": provider,
+            "integrations": [
+                {"name": name, "readiness": readiness} for name, readiness in integrations
+            ],
+        },
+    )
+
+
+def setup_records() -> tuple[CapturedRecord, ...]:
+    """Return what the full deployment says about its own setup: finished."""
+    return (
+        *provider_records(configured=("anthropic",), verified=("anthropic",)),
+        checklist_record(
+            provider=SETUP_READINESS_VERIFIED,
+            source=True,
+            investigated=True,
+            integrations=_INTEGRATION_READINESS,
+        ),
+    )
+
+
 # --- Identity and audit ------------------------------------------------------------
 
 USERS: Final[tuple[Mapping[str, Any], ...]] = (
@@ -1102,6 +1286,7 @@ def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
         *integration_records(),
         *identity_records(role=role),
         *platform_records(),
+        *setup_records(),
     )
 
 
@@ -1125,13 +1310,16 @@ __all__ = [
     "VIEWER",
     "VIEWER_PERMISSIONS",
     "at",
+    "checklist_record",
     "config_records",
     "identity_records",
     "integration_records",
     "interaction_records",
     "memory_records",
     "platform_records",
+    "provider_records",
     "runs_records",
     "served_records",
+    "setup_records",
     "topology_records",
 ]

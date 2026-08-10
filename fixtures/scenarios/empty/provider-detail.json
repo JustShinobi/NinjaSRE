@@ -1,0 +1,433 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "provider_id": "anthropic"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "claude-sonnet-5",
+        "detail": "no credential is stored for this provider",
+        "display_name": "Anthropic",
+        "fields": [
+          {
+            "help": "Starts with 'sk-ant-'.",
+            "label": "API key",
+            "name": "ANTHROPIC_API_KEY",
+            "required": true,
+            "secret": true
+          }
+        ],
+        "guidance": "Hosted. Requests leave your infrastructure for Anthropic's API.",
+        "install_hint": "pip install 'ninjasre[anthropic]'",
+        "local": false,
+        "models": [
+          "claude-opus-5",
+          "claude-sonnet-5",
+          "claude-haiku-4-5"
+        ],
+        "provider_id": "anthropic",
+        "verified": false,
+        "where_to_get_it": "console.anthropic.com, under API keys."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "aws_bedrock"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "anthropic.claude-sonnet-5-v1:0",
+        "detail": "no credential is stored for this provider",
+        "display_name": "AWS Bedrock",
+        "fields": [
+          {
+            "help": "The region the model is enabled in, for example eu-west-1.",
+            "label": "Region",
+            "name": "AWS_REGION",
+            "required": true,
+            "secret": false
+          },
+          {
+            "help": "Give a profile and leave the keys empty to use an existing session.",
+            "label": "Named profile",
+            "name": "AWS_PROFILE",
+            "required": false,
+            "secret": false
+          },
+          {
+            "help": "",
+            "label": "Access key id",
+            "name": "AWS_ACCESS_KEY_ID",
+            "required": false,
+            "secret": false
+          },
+          {
+            "help": "",
+            "label": "Secret access key",
+            "name": "AWS_SECRET_ACCESS_KEY",
+            "required": false,
+            "secret": true
+          },
+          {
+            "help": "Only for temporary credentials.",
+            "label": "Session token",
+            "name": "AWS_SESSION_TOKEN",
+            "required": false,
+            "secret": true
+          }
+        ],
+        "guidance": "Hosted in your own AWS account. Model access has to be enabled on the account before a request will succeed.",
+        "install_hint": "pip install 'ninjasre[bedrock]'",
+        "local": false,
+        "models": [],
+        "provider_id": "aws_bedrock",
+        "verified": false,
+        "where_to_get_it": "IAM, or an existing named profile in your AWS configuration."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "azure_openai"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "gpt-5",
+        "detail": "no credential is stored for this provider",
+        "display_name": "Azure OpenAI",
+        "fields": [
+          {
+            "help": "",
+            "label": "API key",
+            "name": "AZURE_OPENAI_API_KEY",
+            "required": true,
+            "secret": true
+          },
+          {
+            "help": "For example https://nickel.example.invalid",
+            "label": "Endpoint",
+            "name": "AZURE_OPENAI_ENDPOINT",
+            "required": true,
+            "secret": false
+          },
+          {
+            "help": "The name you gave the deployment, not the model name.",
+            "label": "Deployment name",
+            "name": "AZURE_OPENAI_DEPLOYMENT",
+            "required": true,
+            "secret": false
+          },
+          {
+            "help": "Leave empty for the platform default.",
+            "label": "API version",
+            "name": "AZURE_OPENAI_API_VERSION",
+            "required": false,
+            "secret": false
+          }
+        ],
+        "guidance": "Hosted in your own Azure tenant. Requests stay inside the region the resource is deployed to.",
+        "install_hint": "pip install 'ninjasre[azure]'",
+        "local": false,
+        "models": [],
+        "provider_id": "azure_openai",
+        "verified": false,
+        "where_to_get_it": "The Azure portal, on the resource's Keys and Endpoint blade."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "google_gemini"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "gemini-3-pro",
+        "detail": "no credential is stored for this provider",
+        "display_name": "Google Gemini",
+        "fields": [
+          {
+            "help": "",
+            "label": "API key",
+            "name": "GOOGLE_API_KEY",
+            "required": true,
+            "secret": true
+          }
+        ],
+        "guidance": "Hosted. Requests leave your infrastructure for Google's API.",
+        "install_hint": "pip install 'ninjasre[google]'",
+        "local": false,
+        "models": [
+          "gemini-3-pro",
+          "gemini-3-flash"
+        ],
+        "provider_id": "google_gemini",
+        "verified": false,
+        "where_to_get_it": "aistudio.google.com, under API keys."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "google_vertex_ai"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "gemini-3-pro",
+        "detail": "no credential is stored for this provider",
+        "display_name": "Google Vertex AI",
+        "fields": [
+          {
+            "help": "",
+            "label": "Project id",
+            "name": "GOOGLE_CLOUD_PROJECT",
+            "required": true,
+            "secret": false
+          },
+          {
+            "help": "For example europe-west4.",
+            "label": "Location",
+            "name": "GOOGLE_CLOUD_LOCATION",
+            "required": true,
+            "secret": false
+          },
+          {
+            "help": "Paste the JSON key, or leave empty to use workload identity.",
+            "label": "Service account key",
+            "name": "GOOGLE_APPLICATION_CREDENTIALS",
+            "required": false,
+            "secret": true
+          }
+        ],
+        "guidance": "Hosted in your own Google Cloud project. Requests stay inside the location the endpoint is in.",
+        "install_hint": "pip install 'ninjasre[google]'",
+        "local": false,
+        "models": [],
+        "provider_id": "google_vertex_ai",
+        "verified": false,
+        "where_to_get_it": "The Google Cloud console, under IAM and admin."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "nvidia_nim"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "meta/llama-4-70b-instruct",
+        "detail": "no credential is stored for this provider",
+        "display_name": "NVIDIA NIM",
+        "fields": [
+          {
+            "help": "Your own NIM endpoint, or the hosted catalogue endpoint.",
+            "label": "Base URL",
+            "name": "NVIDIA_NIM_BASE_URL",
+            "required": true,
+            "secret": false
+          },
+          {
+            "help": "Not needed for a NIM you run yourself without authentication.",
+            "label": "API key",
+            "name": "NVIDIA_API_KEY",
+            "required": false,
+            "secret": true
+          }
+        ],
+        "guidance": "Runs wherever you deploy it. Pointed at your own NIM container, nothing leaves your infrastructure.",
+        "install_hint": "pip install 'ninjasre[nvidia]'",
+        "local": false,
+        "models": [],
+        "provider_id": "nvidia_nim",
+        "verified": false,
+        "where_to_get_it": "build.nvidia.com, or your own NIM deployment."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "ollama"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "llama4:70b",
+        "detail": "no credential is stored for this provider",
+        "display_name": "Ollama or vLLM",
+        "fields": [
+          {
+            "help": "For example http://127.0.0.1:11434/v1.",
+            "label": "Base URL",
+            "name": "OLLAMA_BASE_URL",
+            "required": true,
+            "secret": false
+          }
+        ],
+        "guidance": "Runs entirely on infrastructure you control. A deployment configured this way emits no model traffic off-host at all, which is the whole point of the option being here rather than in a footnote.",
+        "install_hint": "pip install 'ninjasre[ollama]'",
+        "local": true,
+        "models": [],
+        "provider_id": "ollama",
+        "verified": false,
+        "where_to_get_it": "Your own machine. Nothing to obtain."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "openai"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "gpt-5",
+        "detail": "no credential is stored for this provider",
+        "display_name": "OpenAI",
+        "fields": [
+          {
+            "help": "Starts with 'sk-'.",
+            "label": "API key",
+            "name": "OPENAI_API_KEY",
+            "required": true,
+            "secret": true
+          },
+          {
+            "help": "Leave empty unless you front the API with a gateway.",
+            "label": "Base URL",
+            "name": "OPENAI_BASE_URL",
+            "required": false,
+            "secret": false
+          }
+        ],
+        "guidance": "Hosted. Requests leave your infrastructure for OpenAI's API.",
+        "install_hint": "pip install 'ninjasre[openai]'",
+        "local": false,
+        "models": [
+          "gpt-5",
+          "gpt-5-mini",
+          "o4"
+        ],
+        "provider_id": "openai",
+        "verified": false,
+        "where_to_get_it": "platform.openai.com, under API keys."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "openrouter"
+      },
+      "body": {
+        "configured": false,
+        "default_model": "anthropic/claude-sonnet-5",
+        "detail": "no credential is stored for this provider",
+        "display_name": "OpenRouter",
+        "fields": [
+          {
+            "help": "Starts with 'sk-or-'.",
+            "label": "API key",
+            "name": "OPENROUTER_API_KEY",
+            "required": true,
+            "secret": true
+          },
+          {
+            "help": "Leave empty for the default.",
+            "label": "Base URL",
+            "name": "OPENROUTER_BASE_URL",
+            "required": false,
+            "secret": false
+          }
+        ],
+        "guidance": "Hosted, and it routes onward to whichever provider serves the model you name. Two hops rather than one, which is worth knowing before you point it at anything sensitive.",
+        "install_hint": "pip install 'ninjasre[openrouter]'",
+        "local": false,
+        "models": [],
+        "provider_id": "openrouter",
+        "verified": false,
+        "where_to_get_it": "openrouter.ai, under keys."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-detail",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "provider-detail"
+}

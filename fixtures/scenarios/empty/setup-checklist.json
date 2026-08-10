@@ -1,0 +1,58 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "complete": false,
+        "integrations": [],
+        "next": "model-provider",
+        "provider": "absent",
+        "steps": [
+          {
+            "action": "issue further credentials from administration",
+            "detail": "an administrator holds a credential of their own",
+            "name": "durable-credential",
+            "readiness": "absent",
+            "state": "done",
+            "title": "Claim this deployment"
+          },
+          {
+            "action": "choose a provider and store its credential",
+            "detail": "no provider holds a credential here",
+            "name": "model-provider",
+            "readiness": "absent",
+            "state": "ready",
+            "title": "Give it something to think with"
+          },
+          {
+            "action": "connect an infrastructure source",
+            "detail": "no sweep has found anything yet",
+            "name": "infrastructure-source",
+            "readiness": "absent",
+            "state": "blocked",
+            "title": "Give it something to look at"
+          },
+          {
+            "action": "start an investigation and watch it run",
+            "detail": "no investigation has finished here",
+            "name": "first-investigation",
+            "readiness": "absent",
+            "state": "blocked",
+            "title": "Watch it look"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "setup-checklist",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "setup-checklist"
+}

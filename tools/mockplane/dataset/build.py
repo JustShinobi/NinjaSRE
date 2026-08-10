@@ -135,6 +135,11 @@ def empty_records() -> tuple[CapturedRecord, ...]:
     ]
     records.extend(_absent_detail_records())
     records.extend(_write_responses())
+    # Nothing stored, nothing verified: the nine providers are still all nine,
+    # because they are what this build supports rather than what this deployment
+    # has done. The checklist says so in the platform's own vocabulary.
+    records.extend(served.provider_records())
+    records.append(served.checklist_record())
     return tuple(records)
 
 
@@ -181,6 +186,12 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
                 }
             ]
         },
+        # Declared and holding nothing, which is a different fact from not being
+        # declared at all — and the one the integrations step of the guided run
+        # is drawn against.
+        "setup-checklist": served.checklist_record(
+            integrations=(("metrics-store", "absent"),)
+        ).body,
     }
     return tuple(
         record.with_body(replacements[record.slug]) if record.slug in replacements else record
@@ -343,6 +354,38 @@ def _write_responses() -> tuple[CapturedRecord, ...]:
                 "approval_id": "apr-0001",
                 "executed_at": served.at(minutes=0),
                 "completed_steps": [1],
+            },
+        ),
+        # The three writes the guided first run makes. The credential response
+        # has no field a value could sit in, which is the shape the gateway's own
+        # view enforces — a fixture with one would be a fixture teaching the
+        # console to read something that never arrives.
+        (
+            "credential-write",
+            200,
+            {
+                "integration": "metrics-store",
+                "state": "usable",
+                "usable": True,
+                "version": 1,
+                "fields": ["api_token"],
+            },
+        ),
+        (
+            "integration-verify",
+            200,
+            {"integration": "metrics-store", "state": "usable", "usable": True},
+        ),
+        (
+            "provider-verify",
+            200,
+            {
+                "provider_id": "anthropic",
+                "verified": True,
+                "model_id": "claude-sonnet-5",
+                "detail": "a live request called a tool and returned structure",
+                "remedy": "",
+                "alternatives": [],
             },
         ),
         ("config-write", 200, effective),

@@ -1,0 +1,26 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "alternatives": [],
+        "detail": "a live request called a tool and returned structure",
+        "model_id": "claude-sonnet-5",
+        "provider_id": "anthropic",
+        "remedy": "",
+        "verified": true
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "provider-verify",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "provider-verify"
+}

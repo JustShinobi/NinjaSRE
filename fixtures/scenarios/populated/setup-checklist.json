@@ -1,0 +1,71 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "complete": true,
+        "integrations": [
+          {
+            "name": "chat",
+            "readiness": "verified"
+          },
+          {
+            "name": "metrics-store",
+            "readiness": "absent"
+          },
+          {
+            "name": "ticketing",
+            "readiness": "configured"
+          }
+        ],
+        "next": null,
+        "provider": "verified",
+        "steps": [
+          {
+            "action": "issue further credentials from administration",
+            "detail": "an administrator holds a credential of their own",
+            "name": "durable-credential",
+            "readiness": "absent",
+            "state": "done",
+            "title": "Claim this deployment"
+          },
+          {
+            "action": "choose a provider and store its credential",
+            "detail": "a live request reached the endpoint and called a tool",
+            "name": "model-provider",
+            "readiness": "verified",
+            "state": "done",
+            "title": "Give it something to think with"
+          },
+          {
+            "action": "connect an infrastructure source",
+            "detail": "the last sweep found resources",
+            "name": "infrastructure-source",
+            "readiness": "absent",
+            "state": "done",
+            "title": "Give it something to look at"
+          },
+          {
+            "action": "start an investigation and watch it run",
+            "detail": "an investigation has finished here",
+            "name": "first-investigation",
+            "readiness": "absent",
+            "state": "done",
+            "title": "Watch it look"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "setup-checklist",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "setup-checklist"
+}
