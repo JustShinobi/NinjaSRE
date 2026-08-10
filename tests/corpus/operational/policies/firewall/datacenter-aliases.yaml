@@ -1,0 +1,11 @@
+# Named addresses the cluster rules refer to, so a rule reads as a sentence.
+aliases:
+  - name: mgmt-net
+    cidr: 192.0.2.0/24
+    comment: The management network. Nothing outside it reaches the control plane.
+  - name: infra-zone
+    cidr: 198.51.100.0/24
+    comment: Infrastructure workloads, including host-adguard.example.invalid.
+  - name: apps-zone
+    cidr: 203.0.113.0/24
+    comment: Application workloads reached through the edge proxy.

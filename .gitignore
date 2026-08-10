@@ -10,6 +10,9 @@ __pycache__/
 .env
 .env.*
 !.env.example
+# The fixture corpus holds a decoy .env.local so a test can prove the corpus
+# source never reads one. It carries no real value and is never ingested.
+!tests/corpus/operational/.env.local
 .vscode
 
 # Tool caches

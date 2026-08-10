@@ -1,0 +1,17 @@
+# Cluster-wide rules. A rule here applies before any per-guest rule.
+rules:
+  - action: ACCEPT
+    direction: in
+    source: mgmt-net
+    dport: 8006
+    comment: The control plane interface, from the management network only.
+  - action: ACCEPT
+    direction: in
+    source: infra-zone
+    dport: 53
+    comment: DNS from infrastructure workloads to host-adguard.example.invalid.
+  - action: DROP
+    direction: in
+    source: apps-zone
+    dport: 53
+    comment: Application workloads resolve through the edge proxy, not directly.
