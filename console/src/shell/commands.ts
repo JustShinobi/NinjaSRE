@@ -14,7 +14,7 @@
 
 import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
-import { visibleAreas } from './routes';
+import { visibleAreas, type AreaContext } from './routes';
 
 /** The sections the palette groups by, in the order it shows them. */
 export const COMMAND_GROUPS = ['navigate', 'runs', 'actions'] as const;
@@ -42,8 +42,12 @@ export interface RecentRun {
 }
 
 /** The areas this viewer may reach, as commands. */
-export function navigationCommands(viewer: Viewer, locale: Locale): readonly Command[] {
-  return visibleAreas(viewer).map((area) => ({
+export function navigationCommands(
+  viewer: Viewer,
+  locale: Locale,
+  context?: AreaContext,
+): readonly Command[] {
+  return visibleAreas(viewer, context).map((area) => ({
     id: `go:${area.id}`,
     group: 'navigate' as const,
     label: message(locale, area.label),
@@ -83,9 +87,14 @@ export function commandsFor(
   viewer: Viewer,
   locale: Locale,
   runs: readonly RecentRun[] = [],
+  // The palette offers what the navigation offers. An area that has left the
+  // sidebar because its work is done must not still be reachable by typing its
+  // name — that is two answers to "what is there" and the palette's is the one
+  // nobody maintains.
+  context?: AreaContext,
 ): readonly Command[] {
   const everything = [
-    ...navigationCommands(viewer, locale),
+    ...navigationCommands(viewer, locale, context),
     ...runCommands(runs),
     ...actionCommands(locale),
   ];

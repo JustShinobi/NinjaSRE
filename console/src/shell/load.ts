@@ -188,6 +188,51 @@ async function readGuardian(credential: string): Promise<Guardian> {
   }
 }
 
+/**
+ * What the frame needs to know about the deployment's own setup.
+ *
+ * Two facts, and each degrades in the direction that is safe to be wrong in.
+ * A checklist that could not be read is **not complete**, so the one route that
+ * finishes configuring a half-up deployment stays in the navigation of exactly
+ * that deployment. And integrations are assumed **configured**, so a read that
+ * failed does not put a warning about an unconnected estate in front of
+ * somebody whose estate is connected.
+ */
+export interface SetupState {
+  readonly checklistComplete: boolean;
+  readonly integrationsConfigured: boolean;
+}
+
+const ASSUMED_SETUP: SetupState = {
+  checklistComplete: false,
+  integrationsConfigured: true,
+};
+
+/** Whether setup is finished, and whether anything is connected. */
+export async function loadSetup(credential: string): Promise<SetupState> {
+  return withDeadline(readSetupState(credential), ASSUMED_SETUP);
+}
+
+async function readSetupState(credential: string): Promise<SetupState> {
+  try {
+    const body = await read('/v1/setup/checklist', authorised(credential));
+    const declared = records(body, 'integrations');
+    return {
+      checklistComplete: Reflect.get(Object(body), 'complete') === true,
+      // Declared and holding nothing is what `absent` means, so a deployment
+      // that declares three integrations and has stored none is unconnected.
+      integrationsConfigured: declared.some(
+        (entry) => text(entry, 'readiness') !== 'absent',
+      ),
+    };
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof TypeError) {
+      return ASSUMED_SETUP;
+    }
+    throw error;
+  }
+}
+
 /** How many items of each area's kind are waiting, for the sidebar's counts. */
 export function countsFrom(
   attention: readonly AttentionItem[],

@@ -17,6 +17,7 @@ import { useNow } from './browser';
 import { commandsFor, type Command, type RecentRun } from './commands';
 import type { Deployment } from './deployment';
 import { ImpersonationBanner } from './impersonation';
+import type { SetupState } from './load';
 import { NotificationCentre } from './notifications';
 import { isPaletteShortcut, Palette } from './palette';
 import { GuardianFooter, Sidebar, SidebarNav, type Guardian } from './sidebar';
@@ -46,6 +47,14 @@ export interface ShellProps {
   readonly attention: readonly AttentionItem[];
   readonly recentRuns: readonly RecentRun[];
   readonly counts?: Readonly<Record<string, number>>;
+  /**
+   * What the deployment says about its own setup.
+   *
+   * The frame reads it because two things in the frame depend on it: the
+   * navigation entry that exists only while there is something left to do, and
+   * the caveat the investigation drawer carries when nothing is connected.
+   */
+  readonly setup?: SetupState;
   /** When the session ends, as the server knows it. Absent means it does not say. */
   readonly expiresAt?: string | null;
   readonly children: ReactNode;
@@ -66,6 +75,7 @@ export function Shell({
   attention,
   recentRuns,
   counts,
+  setup = { checklistComplete: false, integrationsConfigured: true },
   expiresAt = null,
   children,
   navigate = defaultNavigate,
@@ -103,8 +113,11 @@ export function Shell({
   }, []);
 
   const commands = useMemo(
-    () => commandsFor(viewer, locale, recentRuns),
-    [viewer, locale, recentRuns],
+    () =>
+      commandsFor(viewer, locale, recentRuns, {
+        checklistComplete: setup.checklistComplete,
+      }),
+    [viewer, locale, recentRuns, setup.checklistComplete],
   );
 
   // An item resolved on any surface leaves the list here, without a refresh and
@@ -136,6 +149,7 @@ export function Shell({
           locale={locale}
           current={current}
           guardian={guardian}
+          checklistComplete={setup.checklistComplete}
           {...(counts === undefined ? {} : { counts })}
         />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -206,6 +220,7 @@ export function Shell({
       <InvestigateDrawer
         open={investigateOpen}
         locale={locale}
+        integrationsConfigured={setup.integrationsConfigured}
         onClose={() => {
           setInvestigateOpen(false);
         }}
@@ -239,6 +254,7 @@ export function Shell({
               viewer={viewer}
               locale={locale}
               current={current}
+              checklistComplete={setup.checklistComplete}
               {...(counts === undefined ? {} : { counts })}
               onNavigate={() => {
                 setDrawerOpen(false);

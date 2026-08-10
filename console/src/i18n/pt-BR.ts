@@ -14,10 +14,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'app.skipToContent': 'Ir para o conteúdo',
 
   'nav.label': 'Áreas',
-  'nav.group.operate': 'Operar',
-  'nav.group.estate': 'Parque',
-  'nav.group.learn': 'Aprender',
-  'nav.group.govern': 'Governar',
+  'nav.group.now': 'Agora',
+  'nav.group.environment': 'O ambiente',
+  'nav.group.settings': 'Ajustes',
+  'nav.firstRun': 'Primeiros passos',
   'nav.dashboard': 'Painel',
   'nav.incidents': 'Incidentes',
   'nav.runs': 'Execuções',
@@ -35,6 +35,140 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.open': 'Abrir a navegação',
   'nav.close': 'Fechar a navegação',
   'nav.pending': '{count} aguardando',
+
+  'page.firstRun.title': 'Primeiros passos',
+  'page.firstRun.context':
+    'O que configurar, em ordem, com a razão de cada passo e a opção de parar depois de qualquer um deles.',
+  'credential.submit': 'Guardar esta credencial',
+  'credential.sending': 'Guardando…',
+  'credential.stored': 'Guardada no cofre. Nunca é mostrada de novo.',
+  'credential.absent': 'Esta não declara nenhum campo de credencial.',
+  'credential.whereToGetIt': 'Onde obter:',
+  'credential.required': 'Todo campo obrigatório precisa de um valor.',
+  'credential.saved': 'Guardada. Nada do que você digitou fica aqui.',
+
+  'firstRun.steps.title': 'O que falta',
+  'firstRun.progress': '{done} de {total} concluídos',
+  'firstRun.steps.empty.heading': 'Este deployment não disse o que falta',
+  'firstRun.steps.empty.body':
+    'Esta tela é desenhada a partir da checklist de configuração do próprio deployment, e ela não respondeu. O resto do console não é afetado.',
+  'firstRun.steps.empty.action': 'Ir para a visão geral',
+  'firstRun.refused': 'O deployment recusou:',
+  'firstRun.unreachable': 'Não foi possível alcançar o deployment.',
+
+  'firstRun.step.provider': 'Escolher um provider de modelo',
+  'firstRun.step.credential': 'Guardar a credencial dele',
+  'firstRun.step.model': 'Escolher um modelo',
+  'firstRun.step.integrations': 'Conectar o que ele pode consultar',
+  'firstRun.step.verify': 'Verificar que cada coisa funciona',
+  'firstRun.step.estate': 'Dar a ele um parque para observar',
+  'firstRun.step.alerts': 'Apontar seus alertas para ele',
+
+  'firstRun.why.provider':
+    'Nada pode ser verificado sem um, e a plataforma se recusa a iniciar sem um configurado. Os nove são oferecidos nos mesmos termos, incluindo o que roda no seu próprio hardware.',
+  'firstRun.why.credential':
+    'O valor vai direto para o cofre. Não é escrito em configuração, não é devolvido, e nunca é mostrado de novo — nem mascarado.',
+  'firstRun.why.model':
+    'Com qual modelo este deployment pensa. Salvar pergunta ao deployment no que a mudança resultaria antes de fazê-la.',
+  'firstRun.why.integrations':
+    'Opcionais, todas elas. Um deployment com provider e sem integração ainda investiga — a partir do que lhe é contado em vez do que consegue consultar.',
+  'firstRun.why.verify':
+    'Não é opcional, e não é grátis: cada verificação faz uma requisição real. Uma credencial guardada e uma que funciona são os dois estados que você tenta distinguir às três da manhã.',
+  'firstRun.why.estate':
+    'O que transforma uma plataforma instalada numa que sabe do que é responsável.',
+  'firstRun.why.alerts':
+    'Os receptores existem. Nada aponta para eles ainda, então nada chega sozinho.',
+
+  'firstRun.provider.local': 'Roda na sua própria infraestrutura',
+  'firstRun.provider.hosted': 'Hospedado — as requisições saem da sua infraestrutura',
+  'firstRun.provider.choose': 'Usar este provider',
+  'firstRun.credential.chooseFirst': 'Nenhum provider foi escolhido ainda.',
+
+  'firstRun.model.known': 'Modelo',
+  'firstRun.model.free': 'Identificador do modelo',
+  'firstRun.model.preview': 'O que isto mudaria?',
+  'firstRun.model.previewing': 'Perguntando…',
+  'firstRun.model.save': 'Salvar',
+  'firstRun.model.saving': 'Salvando…',
+  'firstRun.model.wouldChange': 'Salvar isto resultaria em:',
+  'firstRun.model.nothingWouldChange': 'Nada mudaria: isto já é o que se aplica.',
+  'firstRun.model.saved': 'Salvo.',
+  'firstRun.model.needsPreview': 'Veja o que mudaria antes de salvar.',
+
+  'firstRun.integrations.search': 'Buscar no catálogo',
+  'firstRun.integrations.none': 'Nada no catálogo corresponde a isso.',
+  'firstRun.integrations.connected': 'Há uma credencial guardada para esta.',
+  'firstRun.integrations.notConnected': 'Nada está guardado para esta.',
+  'firstRun.integrations.optional':
+    'Todas estas são opcionais, e uma que falhe não abandona as outras.',
+  'firstRun.integrations.summary': 'Conectadas nesta sessão: {names}.',
+  'firstRun.integrations.summaryNone': 'Nada foi conectado nesta sessão.',
+  'firstRun.integrations.failed': 'Estas foram recusadas e podem ser tentadas de novo:',
+
+  'firstRun.verify.check': 'Verificar',
+  'firstRun.verify.checking': 'Verificando…',
+  'firstRun.verify.retry': 'Verificar de novo',
+  'firstRun.verify.passed': 'Respondeu.',
+  'firstRun.verify.failed': 'Não respondeu.',
+  'firstRun.verify.unchecked': 'Ninguém verificou esta.',
+  'firstRun.verify.nothing':
+    'Nada está configurado ainda, então não há o que verificar. Guarde primeiro uma credencial de provider.',
+  'firstRun.verify.remedy': 'O que fazer:',
+
+  'firstRun.established.title': 'O que já está configurado',
+  'firstRun.established.verified': 'respondeu',
+  'firstRun.established.configured': 'guardado, não verificado',
+  'firstRun.established.empty.heading': 'Nada está configurado ainda',
+  'firstRun.established.empty.body':
+    'Tudo para o que este deployment tem credencial aparece aqui, com se algo realmente chegou lá. Ele não tem nenhuma, então ainda não consegue investigar.',
+  'firstRun.established.empty.action': 'Escolher um provider de modelo',
+  'firstRun.handover.estate': 'Ir para o parque',
+  'firstRun.handover.alerts': 'Ir para os detectores',
+
+  'setup.checklist.title': 'Terminar a configuração',
+  'setup.checklist.remaining': 'Faltam {count} de {total} passos',
+  'setup.checklist.open': 'Fazer isto agora',
+  'setup.checklist.empty.heading': 'Não foi possível ler o estado da configuração',
+  'setup.checklist.empty.body':
+    'Este painel é desenhado a partir da checklist do próprio deployment, e ela não respondeu. Todo o resto desta página não é afetado.',
+  'setup.checklist.empty.action': 'Abrir os primeiros passos',
+  'setup.noProvider.heading': 'Nenhum provider de modelo está configurado',
+  'setup.noProvider.body':
+    'Nada pode ser investigado até que haja um. É uma credencial, e a plataforma oferece nove providers, incluindo um que roda no seu próprio hardware.',
+  'setup.noProvider.action': 'Escolher um provider',
+  'setup.actions.title': 'Ações rápidas',
+  'setup.actions.knowledge': 'Carregar o que sua equipe já sabe',
+  'setup.actions.agent': 'Ajustar o que o agente pode fazer',
+  'setup.actions.memory': 'Ver o que ele aprendeu',
+  'setup.actions.empty.heading': 'Nada a fazer daqui',
+  'setup.actions.empty.body':
+    'As ações deste painel são as que a checklist está cobrando. Ela não está cobrando nenhuma.',
+  'setup.actions.empty.action': 'Ir para a visão geral',
+
+  'tutorial.title': 'O que é isto, em cinco telas',
+  'tutorial.skip': 'Pular',
+  'tutorial.next': 'Próximo',
+  'tutorial.back': 'Voltar',
+  'tutorial.done': 'Começar a configurar',
+  'tutorial.progress': '{step} de {total}',
+  'tutorial.slide.1.title': 'Ele investiga, não apenas alerta',
+  'tutorial.slide.1.body':
+    'Um alerta chega, uma investigação começa, e o que volta é um diagnóstico com a evidência por trás dele — não um gráfico e um dar de ombros.',
+  'tutorial.slide.2.title': 'Como uma investigação funciona',
+  'tutorial.slide.2.body':
+    'Ele raciocina, chama as ferramentas que suas integrações liberam, guarda cada leitura que usou, e para quando consegue dizer por quê. Você pode assistir, interromper e assumir.',
+  'tutorial.slide.3.title': 'O que conectar',
+  'tutorial.slide.3.body':
+    'Um provider de modelo primeiro — nada funciona sem um. Depois, o que ele deve poder consultar. A qualidade decorre do que ele consegue ler.',
+  'tutorial.slide.4.title': 'O que ele pode fazer sozinho',
+  'tutorial.slide.4.body':
+    'Nada, até você dizer o contrário. Toda mudança é proposta com seu raio de impacto e seu rollback até a postura dizer que ele pode agir.',
+  'tutorial.slide.5.title': 'Teste antes de valer',
+  'tutorial.slide.5.body':
+    'Descreva um incidente e veja uma investigação real rodar. Sem nada conectado ele raciocina e não consulta nada, o que é honesto em vez de impressionante.',
+
+  'live.investigate.caveat':
+    'A qualidade depende do que está conectado. Sem nenhuma integração configurada o agente raciocina e não consulta nada.',
 
   'page.dashboard.title': 'Visão geral',
   'page.dashboard.context':

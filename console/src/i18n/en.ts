@@ -18,10 +18,10 @@ export const EN = {
 
   // --- Navigation --------------------------------------------------------------
   'nav.label': 'Areas',
-  'nav.group.operate': 'Operate',
-  'nav.group.estate': 'Estate',
-  'nav.group.learn': 'Learn',
-  'nav.group.govern': 'Govern',
+  'nav.group.now': 'Now',
+  'nav.group.environment': 'The environment',
+  'nav.group.settings': 'Settings',
+  'nav.firstRun': 'First steps',
   'nav.dashboard': 'Dashboard',
   'nav.incidents': 'Incidents',
   'nav.runs': 'Runs',
@@ -41,6 +41,9 @@ export const EN = {
   'nav.pending': '{count} waiting',
 
   // --- What each area is for ---------------------------------------------------
+  'page.firstRun.title': 'First steps',
+  'page.firstRun.context':
+    'What to set up, in order, with the reason for each and the option to stop after any of them.',
   'page.dashboard.title': 'Overview',
   'page.dashboard.context':
     'What needs a person, what is running, and how the estate is.',
@@ -231,6 +234,138 @@ export const EN = {
   'dashboard.guardian.empty.body':
     'A guardian that stopped looks exactly like a cluster with no problems, so this panel says so rather than staying quiet.',
   'dashboard.guardian.empty.action': 'Look at the deployment',
+
+  // --- Writing a credential, wherever it is written from -----------------------------
+  'credential.submit': 'Store this credential',
+  'credential.sending': 'Storing…',
+  'credential.stored': 'Stored in the vault. It is never shown again.',
+  'credential.absent': 'This one declares no credential fields.',
+  'credential.whereToGetIt': 'Where to get it:',
+  'credential.required': 'Every required field needs a value.',
+  'credential.saved': 'Stored. Nothing you typed is kept here.',
+
+  // --- The guided first run -----------------------------------------------------------
+  'firstRun.steps.title': 'What is left',
+  'firstRun.progress': '{done} of {total} done',
+  'firstRun.steps.empty.heading': 'This deployment did not say what is left',
+  'firstRun.steps.empty.body':
+    'The setup checklist is what this screen is drawn from, and it could not be read. The rest of the console is unaffected.',
+  'firstRun.steps.empty.action': 'Go to the overview',
+  'firstRun.refused': 'The deployment refused:',
+  'firstRun.unreachable': 'The deployment could not be reached.',
+
+  'firstRun.step.provider': 'Choose a model provider',
+  'firstRun.step.credential': 'Store its credential',
+  'firstRun.step.model': 'Choose a model',
+  'firstRun.step.integrations': 'Connect what it may look at',
+  'firstRun.step.verify': 'Check that each of them works',
+  'firstRun.step.estate': 'Give it an estate to watch',
+  'firstRun.step.alerts': 'Point your alerts at it',
+
+  'firstRun.why.provider':
+    'Nothing can be verified without one, and the platform refuses to start without one configured. All nine are offered on the same terms, including the one that runs on your own hardware.',
+  'firstRun.why.credential':
+    'The value goes straight to the vault. It is not written to configuration, not returned, and never shown again — not even masked.',
+  'firstRun.why.model':
+    'Which model this deployment thinks with. Saving asks the deployment what the change would resolve to before it is made.',
+  'firstRun.why.integrations':
+    'Optional, every one of them. A deployment with a provider and no integration still investigates — from what it is told rather than from what it can go and look at.',
+  'firstRun.why.verify':
+    'Not optional, and not free: each check makes a real request. A stored credential and a working one are the two states you are trying to tell apart at three in the morning.',
+  'firstRun.why.estate':
+    'What turns an installed platform into one that knows what it is responsible for.',
+  'firstRun.why.alerts':
+    'The receivers exist. Nothing points at them yet, so nothing arrives on its own.',
+
+  'firstRun.provider.local': 'Runs on your own infrastructure',
+  'firstRun.provider.hosted': 'Hosted — requests leave your infrastructure',
+  'firstRun.provider.choose': 'Use this provider',
+  'firstRun.credential.chooseFirst': 'No provider has been chosen yet.',
+
+  'firstRun.model.known': 'Model',
+  'firstRun.model.free': 'Model identifier',
+  'firstRun.model.preview': 'What would this change?',
+  'firstRun.model.previewing': 'Asking…',
+  'firstRun.model.save': 'Save it',
+  'firstRun.model.saving': 'Saving…',
+  'firstRun.model.wouldChange': 'Saving this would resolve to:',
+  'firstRun.model.nothingWouldChange':
+    'Nothing would change: this is already what applies.',
+  'firstRun.model.saved': 'Saved.',
+  'firstRun.model.needsPreview': 'See what it would change before saving it.',
+
+  'firstRun.integrations.search': 'Search the catalogue',
+  'firstRun.integrations.none': 'Nothing in the catalogue matches that.',
+  'firstRun.integrations.connected': 'A credential is stored for this one.',
+  'firstRun.integrations.notConnected': 'Nothing is stored for this one.',
+  'firstRun.integrations.optional':
+    'Every one of these is optional, and one that fails does not abandon the rest.',
+  'firstRun.integrations.summary': 'Connected in this session: {names}.',
+  'firstRun.integrations.summaryNone': 'Nothing has been connected in this session.',
+  'firstRun.integrations.failed': 'These were refused and can be tried again:',
+
+  'firstRun.verify.check': 'Check it',
+  'firstRun.verify.checking': 'Checking…',
+  'firstRun.verify.retry': 'Check it again',
+  'firstRun.verify.passed': 'It answered.',
+  'firstRun.verify.failed': 'It did not answer.',
+  'firstRun.verify.unchecked': 'Nobody has checked this one.',
+  'firstRun.verify.nothing':
+    'Nothing is configured yet, so there is nothing to check. Store a provider credential first.',
+  'firstRun.verify.remedy': 'What to do:',
+
+  'firstRun.established.title': 'What is set up so far',
+  'firstRun.established.verified': 'it answered',
+  'firstRun.established.configured': 'stored, unchecked',
+  'firstRun.established.empty.heading': 'Nothing is set up yet',
+  'firstRun.established.empty.body':
+    'Everything this deployment holds a credential for appears here, with whether anything has actually reached it. It holds none, so it cannot investigate yet.',
+  'firstRun.established.empty.action': 'Choose a model provider',
+  'firstRun.handover.estate': 'Go to the estate',
+  'firstRun.handover.alerts': 'Go to the detectors',
+
+  // --- The checklist and the tutorial, where an operator is already working -------------
+  'setup.checklist.title': 'Finish setting up',
+  'setup.checklist.remaining': '{count} of {total} steps left',
+  'setup.checklist.open': 'Do this next',
+  'setup.checklist.empty.heading': 'Setup state could not be read',
+  'setup.checklist.empty.body':
+    'This panel is drawn from the deployment’s own setup checklist, and it did not answer. Everything else on this page is unaffected.',
+  'setup.checklist.empty.action': 'Open first steps',
+  'setup.noProvider.heading': 'No model provider is configured',
+  'setup.noProvider.body':
+    'Nothing can be investigated until one is. It takes one credential, and the platform offers nine providers including one that runs on your own hardware.',
+  'setup.noProvider.action': 'Choose a provider',
+  'setup.actions.title': 'Quick actions',
+  'setup.actions.knowledge': 'Load what your team already knows',
+  'setup.actions.agent': 'Tune what the agent may do',
+  'setup.actions.memory': 'See what it has learned',
+  'setup.actions.empty.heading': 'Nothing to do from here',
+  'setup.actions.empty.body':
+    'The actions this panel offers are the ones the setup checklist is asking for. It is asking for none.',
+  'setup.actions.empty.action': 'Go to the overview',
+
+  'tutorial.title': 'What this is, in five screens',
+  'tutorial.skip': 'Skip',
+  'tutorial.next': 'Next',
+  'tutorial.back': 'Back',
+  'tutorial.done': 'Start setting it up',
+  'tutorial.progress': '{step} of {total}',
+  'tutorial.slide.1.title': 'It investigates, it does not just alert',
+  'tutorial.slide.1.body':
+    'An alert arrives, an investigation starts, and what comes back is a diagnosis with the evidence behind it — not a graph and a shrug.',
+  'tutorial.slide.2.title': 'How an investigation works',
+  'tutorial.slide.2.body':
+    'It reasons, calls the tools your integrations unlock, keeps every reading it used, and stops when it can say why. You can watch it, interrupt it, and take over.',
+  'tutorial.slide.3.title': 'What to connect',
+  'tutorial.slide.3.body':
+    'A model provider first — nothing works without one. Then whatever it should be allowed to look at. Quality follows from what it can read.',
+  'tutorial.slide.4.title': 'What it may do on its own',
+  'tutorial.slide.4.body':
+    'Nothing, until you say otherwise. Every change is proposed with its blast radius and its rollback until the posture says it may act.',
+  'tutorial.slide.5.title': 'Try it before it counts',
+  'tutorial.slide.5.body':
+    'Describe an incident and watch a real investigation run. With nothing connected it reasons and consults nothing, which is honest rather than impressive.',
 
   // --- Runs ------------------------------------------------------------------------
   'runs.column.run': 'Run',
@@ -581,6 +716,8 @@ export const EN = {
   'live.investigate.required': 'An objective is what the investigation is about.',
   'live.investigate.started': 'The investigation has started.',
   'live.investigate.close': 'Close',
+  'live.investigate.caveat':
+    'Quality depends on what is connected. With no integration configured the agent reasons and consults nothing.',
 } as const;
 
 /** Every key the console may render. Derived, so a typo is a type error. */

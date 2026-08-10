@@ -60,9 +60,43 @@ describe('the route manifest', () => {
   });
 
   it('names only groups the navigation declares, in the documented order', () => {
-    expect([...NAV_GROUPS]).toEqual(['operate', 'estate', 'learn', 'govern']);
+    // Three zones separated by how often somebody opens them, not by subject.
+    // "Now" is first because it is where a person is when something broke.
+    expect([...NAV_GROUPS]).toEqual(['now', 'environment', 'settings']);
     for (const area of AREAS) {
       expect(NAV_GROUPS, area.id).toContain(area.group);
+    }
+  });
+
+  it('puts every area in the zone the information architecture assigns it', () => {
+    const zones: Readonly<Record<string, string>> = {
+      dashboard: 'now',
+      incidents: 'now',
+      runs: 'now',
+      approvals: 'now',
+      resources: 'environment',
+      topology: 'environment',
+      detectors: 'environment',
+      knowledge: 'environment',
+      memory: 'environment',
+      catalogue: 'environment',
+      'first-run': 'settings',
+      autonomy: 'settings',
+      configuration: 'settings',
+      administration: 'settings',
+      audit: 'settings',
+    };
+    for (const area of AREAS) {
+      expect(zones[area.id], `${area.id} is in no declared zone`).toBeDefined();
+      expect(area.group, area.id).toBe(zones[area.id]);
+    }
+    // Both directions: a zone assignment for an area that no longer exists is
+    // a rename nobody finished.
+    for (const id of Object.keys(zones)) {
+      expect(
+        AREAS.some((area) => area.id === id),
+        `${id} is assigned a zone and is not an area`,
+      ).toBe(true);
     }
   });
 
@@ -119,12 +153,52 @@ describe('what a viewer may see', () => {
     const viewer = viewerHolding(['investigation.read']);
     const groups = groupsFor(viewer).map((group) => group.group);
 
-    expect(groups).toContain('operate');
-    expect(groups).not.toContain('govern');
+    expect(groups).toContain('now');
+    expect(groups).not.toContain('settings');
   });
 
   it('keeps the groups in the documented order', () => {
     expect(groupsFor(OWNER).map((group) => group.group)).toEqual([...NAV_GROUPS]);
+  });
+});
+
+describe('an area whose presence depends on the deployment rather than the viewer', () => {
+  it('is absent when its own rule says so, and present when it does not', () => {
+    const closed = visibleAreas(OWNER, { checklistComplete: true });
+    const open = visibleAreas(OWNER, { checklistComplete: false });
+
+    expect(closed.map((area) => area.id)).not.toContain('first-run');
+    expect(open.map((area) => area.id)).toContain('first-run');
+  });
+
+  it('is shown when nobody said, because a checklist that could not be read is not a finished one', () => {
+    // The shell reads the checklist for its own frame and degrades rather than
+    // failing. Defaulting to hidden would take the one route that fixes a
+    // half-configured deployment out of the navigation of exactly that
+    // deployment.
+    expect(visibleAreas(OWNER).map((area) => area.id)).toContain('first-run');
+  });
+
+  it('still answers to permission, whatever its own rule says', () => {
+    const viewer = viewerHolding(['investigation.read']);
+    expect(
+      visibleAreas(viewer, { checklistComplete: false }).map((a) => a.id),
+    ).not.toContain('first-run');
+  });
+
+  it('drops out of the navigation groups too, not only out of the list', () => {
+    const groups = groupsFor(OWNER, { checklistComplete: true });
+    const settings = groups.find((group) => group.group === 'settings');
+
+    expect(settings?.areas.map((area) => area.id)).not.toContain('first-run');
+    // The zone itself survives: it holds more than this one entry.
+    expect(settings?.areas.length).toBeGreaterThan(0);
+  });
+
+  it('is still reachable by address once it leaves the navigation', () => {
+    // "Appears and disappears" is about the sidebar. A route that stopped
+    // resolving would make the settings link to it a dead end.
+    expect(areaByPath('/first-run')?.id).toBe('first-run');
   });
 });
 

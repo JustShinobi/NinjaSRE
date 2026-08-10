@@ -24,6 +24,7 @@ import {
   BrainIcon,
   CheckIcon,
   ClipboardIcon,
+  CompassIcon,
   DatabaseIcon,
   GridIcon,
   ListIcon,
@@ -37,10 +38,41 @@ import {
 import type { MessageKey } from '@/i18n/en';
 import { may, type Viewer } from '@/session/viewer';
 
-/** The four groups the sidebar draws, in the order it draws them. */
-export const NAV_GROUPS = ['operate', 'estate', 'learn', 'govern'] as const;
+/**
+ * The three zones the sidebar draws, in the order it draws them.
+ *
+ * Separated by how often somebody opens them rather than by subject. The
+ * previous four — Operate, Estate, Learn, Govern — described the system: they
+ * put the page opened a hundred times a day and the page opened twice a year at
+ * the same weight, and they gathered four unrelated screens under a heading
+ * nobody thinks in. "Now" is first because it is where a person is standing
+ * when something has broken.
+ */
+export const NAV_GROUPS = ['now', 'environment', 'settings'] as const;
 
 export type NavGroup = (typeof NAV_GROUPS)[number];
+
+/**
+ * What the shell knows about the deployment when it decides what to draw.
+ *
+ * One field today, and the shape is the point: an area's presence is a question
+ * about the *deployment*, so the answer has to be passed in rather than read
+ * here. `routes.ts` makes no request.
+ */
+export interface AreaContext {
+  /** Whether every first-run step is done. */
+  readonly checklistComplete: boolean;
+}
+
+/**
+ * What the navigation assumes when nothing has told it.
+ *
+ * Incomplete, so an area gated on the checklist is *shown*. The shell's own
+ * read of the checklist degrades rather than throwing, and the failure this
+ * default is chosen against is the one that matters: a deployment whose gateway
+ * is half up losing the one route that finishes configuring it.
+ */
+const ASSUMED: AreaContext = { checklistComplete: false };
 
 /** One area of the product: a route, a place in the navigation, and a gate. */
 export interface Area {
@@ -53,6 +85,16 @@ export interface Area {
   /** The permission the API requires on the data this area reads. */
   readonly permission: string;
   readonly icon: (props: IconProps) => ReactNode;
+  /**
+   * Whether the deployment's own state warrants showing this area at all.
+   *
+   * Absent for all but one: an area is normally present for everybody who holds
+   * its permission, and a navigation that appeared and disappeared for reasons
+   * a reader cannot name is a navigation they stop trusting. The exception is
+   * the guided first run, which is a task rather than a place — it belongs in
+   * front of somebody until it is done, and nowhere afterwards.
+   */
+  readonly visible?: (context: AreaContext) => boolean;
 }
 
 /**
@@ -69,7 +111,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'dashboard',
     path: '/',
-    group: 'operate',
+    group: 'now',
     label: 'nav.dashboard',
     title: 'page.dashboard.title',
     context: 'page.dashboard.context',
@@ -79,7 +121,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'incidents',
     path: '/incidents',
-    group: 'operate',
+    group: 'now',
     label: 'nav.incidents',
     title: 'page.incidents.title',
     context: 'page.incidents.context',
@@ -89,7 +131,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'runs',
     path: '/runs',
-    group: 'operate',
+    group: 'now',
     label: 'nav.runs',
     title: 'page.runs.title',
     context: 'page.runs.context',
@@ -99,7 +141,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'approvals',
     path: '/approvals',
-    group: 'operate',
+    group: 'now',
     label: 'nav.approvals',
     title: 'page.approvals.title',
     context: 'page.approvals.context',
@@ -109,7 +151,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'resources',
     path: '/resources',
-    group: 'estate',
+    group: 'environment',
     label: 'nav.resources',
     title: 'page.resources.title',
     context: 'page.resources.context',
@@ -119,7 +161,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'topology',
     path: '/topology',
-    group: 'estate',
+    group: 'environment',
     label: 'nav.topology',
     title: 'page.topology.title',
     context: 'page.topology.context',
@@ -129,7 +171,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'detectors',
     path: '/detectors',
-    group: 'estate',
+    group: 'environment',
     label: 'nav.detectors',
     title: 'page.detectors.title',
     context: 'page.detectors.context',
@@ -139,7 +181,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'memory',
     path: '/memory',
-    group: 'learn',
+    group: 'environment',
     label: 'nav.memory',
     title: 'page.memory.title',
     context: 'page.memory.context',
@@ -149,7 +191,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'knowledge',
     path: '/knowledge',
-    group: 'learn',
+    group: 'environment',
     label: 'nav.knowledge',
     title: 'page.knowledge.title',
     context: 'page.knowledge.context',
@@ -157,9 +199,24 @@ export const AREAS: readonly Area[] = [
     icon: BookIcon,
   },
   {
+    // First in its zone, and the one entry with a `visible` rule: this is a
+    // task rather than a place. It sits *inside* the shell — nothing redirects
+    // to it, so an operator still deciding whether to keep this product can
+    // look at the whole of it before filling in a form.
+    id: 'first-run',
+    path: '/first-run',
+    group: 'settings',
+    label: 'nav.firstRun',
+    title: 'page.firstRun.title',
+    context: 'page.firstRun.context',
+    permission: 'config.read',
+    icon: CompassIcon,
+    visible: (context) => !context.checklistComplete,
+  },
+  {
     id: 'autonomy',
     path: '/autonomy',
-    group: 'govern',
+    group: 'settings',
     label: 'nav.autonomy',
     title: 'page.autonomy.title',
     context: 'page.autonomy.context',
@@ -169,7 +226,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'configuration',
     path: '/configuration',
-    group: 'govern',
+    group: 'settings',
     label: 'nav.configuration',
     title: 'page.configuration.title',
     context: 'page.configuration.context',
@@ -179,10 +236,11 @@ export const AREAS: readonly Area[] = [
   {
     id: 'catalogue',
     path: '/catalogue',
-    // Grouped with memory and knowledge rather than with governance: what the
-    // deployment *can do* belongs beside what it knows, and a reader who holds
-    // only `investigation.read` should not be shown a "Govern" group for it.
-    group: 'learn',
+    // Grouped with memory, knowledge and the estate rather than with settings:
+    // what the deployment *can do* is part of what exists and what is known
+    // about it, and it is read far more often than it is changed — which is the
+    // axis the zones are cut on.
+    group: 'environment',
     label: 'nav.catalogue',
     title: 'page.catalogue.title',
     context: 'page.catalogue.context',
@@ -192,7 +250,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'administration',
     path: '/administration',
-    group: 'govern',
+    group: 'settings',
     label: 'nav.administration',
     title: 'page.administration.title',
     context: 'page.administration.context',
@@ -202,7 +260,7 @@ export const AREAS: readonly Area[] = [
   {
     id: 'audit',
     path: '/audit',
-    group: 'govern',
+    group: 'settings',
     label: 'nav.audit',
     title: 'page.audit.title',
     context: 'page.audit.context',
@@ -235,14 +293,24 @@ export function areaByPath(path: string): Area | undefined {
 }
 
 /**
- * The areas `viewer` may reach.
+ * The areas `viewer` may reach, in the deployment's current state.
  *
  * Absence, not disabled state. A disabled entry still tells a reader that the
  * capability exists and still ships whatever sits behind it; an absent one tells
  * them nothing, which is what a permission boundary is for.
+ *
+ * Two questions, and they are asked in this order for a reason. Permission
+ * first, because it is the one that must never be got wrong; the deployment's
+ * own rule second, because it is about relevance rather than entitlement and an
+ * area it hides is still served at its address.
  */
-export function visibleAreas(viewer: Viewer): readonly Area[] {
-  return AREAS.filter((area) => may(viewer, area.permission));
+export function visibleAreas(
+  viewer: Viewer,
+  context: AreaContext = ASSUMED,
+): readonly Area[] {
+  return AREAS.filter(
+    (area) => may(viewer, area.permission) && (area.visible?.(context) ?? true),
+  );
 }
 
 /** One group of the navigation, with the areas of it this viewer may reach. */
@@ -252,8 +320,11 @@ export interface AreaGroup {
 }
 
 /** The navigation, grouped and in order, with empty groups dropped entirely. */
-export function groupsFor(viewer: Viewer): readonly AreaGroup[] {
-  const visible = visibleAreas(viewer);
+export function groupsFor(
+  viewer: Viewer,
+  context: AreaContext = ASSUMED,
+): readonly AreaGroup[] {
+  const visible = visibleAreas(viewer, context);
   return NAV_GROUPS.map((group) => ({
     group,
     areas: visible.filter((area) => area.group === group),

@@ -48,6 +48,15 @@ export interface SidebarProps {
   readonly guardian: Guardian;
   /** Per-area counts — the badge the design draws on Incidents and Approvals. */
   readonly counts?: Readonly<Record<string, number>>;
+  /**
+   * Whether the deployment has finished setting itself up.
+   *
+   * The navigation asks because one entry is a *task* rather than a place: it
+   * belongs in front of somebody until the checklist closes and nowhere
+   * afterwards. Passed in rather than read here, because a navigation
+   * component that made a request would make one per render.
+   */
+  readonly checklistComplete?: boolean;
   /** Set when the sidebar is being rendered inside the drawer. */
   readonly onNavigate?: () => void;
 }
@@ -65,11 +74,12 @@ export function SidebarNav({
   locale,
   current,
   counts = {},
+  checklistComplete = false,
   onNavigate,
 }: Omit<SidebarProps, 'guardian'>): ReactNode {
   return (
     <div className="flex-1 overflow-y-auto py-1">
-      {groupsFor(viewer).map((group) => (
+      {groupsFor(viewer, { checklistComplete }).map((group) => (
         <div key={group.group} className="px-2 pt-3 pb-1">
           <p className="px-2 pb-1 text-micro uppercase text-muted">
             {message(locale, `nav.group.${group.group}`)}
@@ -163,6 +173,7 @@ export function Sidebar({
   current,
   guardian,
   counts,
+  checklistComplete = false,
 }: SidebarProps): ReactNode {
   return (
     <nav
@@ -183,6 +194,7 @@ export function Sidebar({
         viewer={viewer}
         locale={locale}
         current={current}
+        checklistComplete={checklistComplete}
         {...(counts === undefined ? {} : { counts })}
       />
       <GuardianFooter locale={locale} guardian={guardian} />
