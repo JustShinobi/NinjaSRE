@@ -415,6 +415,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.usage.empty.body':
     'O custo e os tokens são registados por passo. Esta execução ainda não deu nenhum.',
   'run.usage.empty.action': 'Voltar à lista de execuções',
+  'run.changes.title': 'O que mudou, na mesma régua',
+  'run.changes.body':
+    'Cada mudança que a investigação consultou, posicionada contra o instante em que ela começou. Uma mudança marcada como gerenciando o recurso afetado alterou algo que o governa; uma marcada como coincidência apenas divide a janela.',
+  'run.changes.investigation': 'esta investigação começou',
+  'run.changes.window': 'de {start} até {end}',
   'run.links.title': 'O que esta execução tocou',
   'run.links.resources': 'Recursos',
   'run.links.incident': 'Incidente',

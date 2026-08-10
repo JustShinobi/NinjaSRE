@@ -6,6 +6,7 @@ import { formatCurrency, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
+import { rulerFromReplay } from '../changes';
 import type { SurfaceContext } from '../context';
 import { eventTimes, panelLabels, transcriptLabels } from '../labels';
 import { Panel } from '../panel';
@@ -81,6 +82,12 @@ export async function RunDetailScreen(
   );
 
   const started = timestamp(locale, text(run, 'started_at'), now, zone);
+
+  // The footer, and it is drawn from the transcript rather than from a query of
+  // its own. A run that never asked what changed has no ruler: an empty axis on
+  // every investigation would read as "nothing changed", which is a claim only a
+  // run that asked can make.
+  const ruler = rulerFromReplay(replayed, { startedAt: text(run, 'started_at') });
 
   return (
     <>
@@ -364,6 +371,78 @@ export async function RunDetailScreen(
           </Panel>
         </div>
       </div>
+
+      {ruler === undefined ? null : (
+        <Panel
+          title={message(locale, 'run.changes.title')}
+          state="ready"
+          labels={panelLabels(locale, message(locale, 'run.changes.title'))}
+          empty={{
+            heading: message(locale, 'run.changes.title'),
+            body: message(locale, 'run.changes.body'),
+            actionLabel: message(locale, 'transcript.empty.action'),
+            href: '/resources',
+          }}
+        >
+          <div className="flex flex-col gap-4" data-testid="change-ruler">
+            <p className="text-meta text-muted">{ruler.statement}</p>
+
+            {/* The ruler itself. One track, marks positioned along it by the
+                fraction of the window each one fell at — the same axis for the
+                deploy and for the moment the investigation began, which is the
+                whole point of drawing it rather than listing it. */}
+            <div className="relative h-6 rounded-full bg-subtle">
+              {ruler.investigation === undefined ? null : (
+                <span
+                  data-testid="investigation-mark"
+                  aria-label={message(locale, 'run.changes.investigation')}
+                  className="absolute top-0 h-6 w-0.5 bg-danger"
+                  style={{
+                    insetInlineStart: `${String(ruler.investigation.percent)}%`,
+                  }}
+                />
+              )}
+              {ruler.marks.map((mark) => (
+                <span
+                  key={mark.id}
+                  data-testid="change-mark"
+                  data-strength={mark.strength}
+                  data-applied={String(mark.applied)}
+                  aria-label={`${mark.id} ${mark.title}`}
+                  className={
+                    mark.temporalOnly
+                      ? 'absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted'
+                      : 'absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-info'
+                  }
+                  style={{ insetInlineStart: `${String(mark.percent)}%` }}
+                />
+              ))}
+            </div>
+
+            <p className="text-micro text-muted">
+              {message(locale, 'run.changes.window', {
+                start: timestamp(locale, ruler.start, now, zone).absolute,
+                end: timestamp(locale, ruler.end, now, zone).absolute,
+              })}
+            </p>
+
+            {/* Named beside the ruler, not only on hover. A row of unlabelled
+                ticks is a picture; the identifier is what somebody types into a
+                terminal next. */}
+            <ul className="flex flex-col gap-1 text-meta">
+              {ruler.marks.map((mark) => (
+                <li key={mark.id} className="flex flex-col">
+                  <span>
+                    <span className="text-strong">{mark.id}</span>{' '}
+                    <span className="text-muted">{mark.title}</span>
+                  </span>
+                  <span className="text-micro text-muted">{mark.detail}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Panel>
+      )}
     </>
   );
 }

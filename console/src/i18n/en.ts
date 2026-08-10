@@ -427,6 +427,11 @@ export const EN = {
   'run.usage.empty.body':
     'Cost and tokens are recorded per turn. This run has taken no turns yet.',
   'run.usage.empty.action': 'Back to the run list',
+  'run.changes.title': 'What changed, on the same ruler',
+  'run.changes.body':
+    'Every change the investigation looked at, placed against the moment it began. A change marked as managing the affected resource altered something that governs it; one marked as a coincidence only shares the window.',
+  'run.changes.investigation': 'this investigation began',
+  'run.changes.window': 'from {start} to {end}',
   'run.links.title': 'What this run touched',
   'run.links.resources': 'Resources',
   'run.links.incident': 'Incident',
