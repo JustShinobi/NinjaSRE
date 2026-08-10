@@ -183,7 +183,7 @@ def _walk(
         return
     for name, raw in schema.get("properties", {}).items():
         spec = _resolved(raw, definitions)
-        path = f"{prefix}{paths.PATH_SEPARATOR}{name}" if prefix else name
+        path = paths.join((prefix, name)) if prefix else name
         if _descends(spec):
             _walk(
                 spec,
@@ -233,7 +233,8 @@ def _resolved(spec: Mapping[str, Any], definitions: Mapping[str, Any]) -> Mappin
     """
     reference = spec.get("$ref")
     if isinstance(reference, str) and reference.startswith(_REF_PREFIX):
-        return definitions.get(reference[len(_REF_PREFIX) :], {})
+        found = definitions.get(reference[len(_REF_PREFIX) :], {})
+        return found if isinstance(found, Mapping) else {}
 
     branches = spec.get("anyOf") or spec.get("oneOf")
     if isinstance(branches, Sequence):
