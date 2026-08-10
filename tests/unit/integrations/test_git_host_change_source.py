@@ -17,8 +17,10 @@ correlation and a wrong one.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
+from copy import deepcopy
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -38,9 +40,13 @@ pytestmark = pytest.mark.unit
 NOW = datetime(2026, 8, 1, 15, 0, tzinfo=UTC)
 DAY = ChangeWindow.ending(NOW)
 
+#: A credential shape the shipped ruleset redacts, spelled the way one arrives:
+#: in a message somebody wrote while rotating it. Not a real key.
+LEAKED_KEY = "AKIAIOSFODNN7EXAMPLE"
+
 #: One commit, told three ways. Each is the shape its vendor's listing endpoint
 #: really returns, down to which key the instant lives under.
-PAYLOADS: Mapping[str, object] = {
+PAYLOADS: dict[str, Any] = {
     "gitlab": [
         {
             "id": "9f2c1abdeadbeef",
@@ -83,10 +89,16 @@ PAYLOADS: Mapping[str, object] = {
 
 
 class RecordedHost:
-    """A proxy transport that answers one vendor's listing and records the ask."""
+    """A proxy transport that answers one vendor's listing and records the ask.
 
-    def __init__(self, vendor: str) -> None:
+    Serves a copy rather than the declaration. A test that edited the shared
+    payload to say something else would be one whose neighbours pass or fail by
+    the order they ran in.
+    """
+
+    def __init__(self, vendor: str, *, subject: str = "") -> None:
         self.vendor = vendor
+        self.subject = subject
         self.asked: list[ProxyRequest] = []
 
     async def forward(self, request: ProxyRequest) -> OutboundResponse:
@@ -94,8 +106,21 @@ class RecordedHost:
         return OutboundResponse(
             status_code=200,
             headers={"content-type": "application/json"},
-            body=json.dumps(PAYLOADS[self.vendor]).encode("utf-8"),
+            body=json.dumps(self._body()).encode("utf-8"),
         )
+
+    def _body(self) -> Any:
+        """Return this vendor's payload, with the first subject line replaced."""
+        body = deepcopy(PAYLOADS[self.vendor])
+        if not self.subject:
+            return body
+        first = body[0] if isinstance(body, list) else next(iter(body.values()))[0]
+        for key in ("title", "message"):
+            if key in first:
+                first[key] = self.subject
+        if "commit" in first:
+            first["commit"]["message"] = self.subject
+        return body
 
 
 @pytest.fixture
@@ -158,18 +183,21 @@ async def test_the_absence_of_paths_is_stated_rather_than_left_as_an_empty_tuple
 
 
 @pytest.mark.asyncio
-async def test_the_message_is_screened_the_same_way_every_change_is(
-    host: RecordedHost,
-) -> None:
-    # Proved by the shape of the call rather than by a second leaked-key
-    # fixture: the source hands its changes through the same screening the
-    # apply record's do, so a credential in a commit message cannot arrive by
-    # the vendor route after being closed off on the local one.
-    source = GitHostChangeSource(vendor="gitlab")
+async def test_a_credential_in_a_commit_message_is_redacted_on_this_route_too() -> None:
+    # The leak is closed at the local source; closing it there and not here
+    # would leave the same secret one configured vendor away from the trace.
+    # Asserted against a real credential shape rather than against an empty
+    # redaction list, because an empty list is what a change carries anyway —
+    # a test that asserted one would pass with the screening deleted.
+    leaking = RecordedHost("gitlab", subject=f"fix(monitoring): rotate {LEAKED_KEY}")
+    previous = bind(IntegrationAccess(transport=leaking, org_id="org-1", team_id="team-1"))
+    try:
+        found = await GitHostChangeSource(vendor="gitlab").changes_in(DAY)
+    finally:
+        restore(previous)
 
-    found = await source.changes_in(DAY)
-
-    assert found[0].redactions == ()
+    assert LEAKED_KEY not in found[0].message
+    assert found[0].redactions == ("aws-access-key-id",)
 
 
 @pytest.mark.asyncio
