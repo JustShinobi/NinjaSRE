@@ -29,6 +29,7 @@ from config.constants.console import (
     CONSOLE_LOCALES,
     CONSOLE_ROUTE_TRANSITION_BUDGET_MS,
     CONSOLE_SESSION_COOKIE,
+    CONSOLE_SESSION_ENDPOINT,
     CONSOLE_SESSION_EXPIRY_COOKIE,
     CONSOLE_SESSION_LIFETIME_SECONDS,
     CONSOLE_SESSION_WARNING_SECONDS,
@@ -43,6 +44,7 @@ from gateway.http.security.gateway_routes import GATEWAY_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE
 from platform.identity.permissions import ROLE_ORDER, Permission, permissions_for
 from tools.console_roles import drifted, roles_path
+from tools.console_smoke import SHELL_PATHS
 from tools.console_toolchain import console_root
 from tools.mockplane.endpoints import CONSOLE_ENDPOINTS
 
@@ -151,6 +153,23 @@ def test_an_area_takes_the_permission_the_gateway_requires_of_its_data(area: str
     )
 
 
+def test_the_deploy_walk_covers_exactly_the_areas_the_console_declares() -> None:
+    """One fact, two holders, and this is what forces them to agree.
+
+    The console's manifest is the only list of what routes exist, and the deploy
+    flow's walk cannot import it — it is Python and the manifest is TypeScript.
+    So the walk restates the paths and this holds the restatement level. A
+    fifteenth area whose route nobody walks would otherwise be promoted the same
+    way the two broken ones were.
+    """
+    declared = {path for _, path, _ in declared_areas()}
+
+    assert set(SHELL_PATHS) == declared, {
+        "walked but not declared": sorted(set(SHELL_PATHS) - declared),
+        "declared but not walked": sorted(declared - set(SHELL_PATHS)),
+    }
+
+
 def test_the_role_matrix_can_tell_two_roles_apart() -> None:
     """The least privileged role reaches strictly fewer areas than the most.
 
@@ -204,6 +223,7 @@ def test_the_console_and_this_tier_agree_about_the_session() -> None:
     assert _string_constant(source, "SESSION_EXPIRY_COOKIE") == CONSOLE_SESSION_EXPIRY_COOKIE
     assert _string_constant(source, "LOCALE_COOKIE") == CONSOLE_LOCALE_COOKIE
     assert _string_constant(source, "SIGN_IN_PATH") == CONSOLE_SIGN_IN_PATH
+    assert _string_constant(source, "SESSION_ENDPOINT") == CONSOLE_SESSION_ENDPOINT
     assert _number_constant(source, "SESSION_LIFETIME_SECONDS") == CONSOLE_SESSION_LIFETIME_SECONDS
     assert _number_constant(source, "SESSION_WARNING_SECONDS") == CONSOLE_SESSION_WARNING_SECONDS
 

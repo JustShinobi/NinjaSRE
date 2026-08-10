@@ -204,6 +204,11 @@ CONSOLE_SESSION_WARNING_SECONDS: Final = 300
 #: The one route an unauthenticated visitor may reach.
 CONSOLE_SIGN_IN_PATH: Final = "/sign-in"
 
+#: Where a username and a password become a session. Named here because the
+#: deploy flow's console walk has to sign in the way a person does, and it is
+#: Python: it cannot read the console's own copy of this.
+CONSOLE_SESSION_ENDPOINT: Final = "/api/session"
+
 #: The width below which the sidebar becomes a drawer.
 CONSOLE_SIDEBAR_BREAKPOINT_PX: Final = 768
 
@@ -263,6 +268,7 @@ __all__ = [
     "CONSOLE_LOCALES",
     "CONSOLE_ROUTE_TRANSITION_BUDGET_MS",
     "CONSOLE_SESSION_COOKIE",
+    "CONSOLE_SESSION_ENDPOINT",
     "CONSOLE_SESSION_EXPIRY_COOKIE",
     "CONSOLE_SESSION_LIFETIME_SECONDS",
     "CONSOLE_SESSION_WARNING_SECONDS",
