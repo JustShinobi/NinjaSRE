@@ -1,0 +1,272 @@
+"""One problem, many notifications, one investigation.
+
+Alertmanager already groups. The failure this pins is the platform undoing that
+by opening an investigation per notification — and this cluster has two
+postmortems that would each have produced a wall of them: AdGuard recurring OOM,
+and a ClickHouse log storm. Their payload shapes are the fixtures below.
+
+The other half is the converse, and it is the one resolution bought: two
+containers complaining under the same rule carry the same alert name and the
+same components, so a key that stopped at the alert would link the second to the
+first's investigation and leave nobody looking at it.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
+from typing import Any
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, adapter_for
+from core.domain.alerts.sources import AlertSource
+from gateway.http.app import create_app
+from gateway.http.state import GatewayState
+from gateway.webhooks.router import WebhookSourceConfig
+from gateway.webhooks.verification.shared_secret import SharedSecretVerifier
+from platform.identity.tokens import TokenService
+from platform.persistence.fakes import FakePersistence
+from platform.persistence.ports.config_repository import ConfigNode, ConfigNodeKind
+from platform.persistence.ports.estate_repository import Resource
+from platform.persistence.ports.incident_store import IncidentQuery, IncidentState
+from platform.persistence.ports.transaction import TenantScope
+from tests.unit.gateway.http.conftest import ORG, TEAM_PAYMENTS, FakeInvestigationRunner
+
+pytestmark = pytest.mark.asyncio
+
+SECRET = "alertmanager-delivery-secret"
+
+#: The two guests the cluster's own postmortems are about. Both are containers,
+#: both are in the apps zone, and both would fire the same rule.
+ADGUARD_VMID = 110
+CLICKHOUSE_VMID = 111
+
+
+def container(vmid: int, name: str, address: str) -> Resource:
+    return Resource(
+        resource_id=f"proxmox:container/hal9000/{vmid}",
+        kind="container",
+        source="proxmox",
+        native_id=f"container/hal9000/{vmid}",
+        display_name=name,
+        team_node_id=TEAM_PAYMENTS,
+        attributes={"vmid": vmid, "address": address, "zone": "apps"},
+    )
+
+
+def group(
+    *,
+    vmid: int,
+    alert_name: str,
+    delivery: str,
+    status: str = "firing",
+    summary: str = "",
+) -> dict[str, Any]:
+    """Return one Alertmanager notification of one group.
+
+    The group key is in Alertmanager's own shape — the labels the receiver
+    groups by — with a delivery discriminator appended. ``delivery`` varies
+    where a real Alertmanager would repeat a notification of an unchanged
+    group: this deployment reads ``groupKey`` as the delivery identifier, so a
+    re-notification has to differ there to be seen at all rather than answered
+    as a duplicate.
+    """
+    return {
+        "receiver": "ninjasre",
+        "status": status,
+        "groupKey": f'{{}}:{{alertname="{alert_name}", vmid="{vmid}"}}::{delivery}',
+        "commonLabels": {"alertname": alert_name, "severity": "critical"},
+        "alerts": [
+            {
+                "status": status,
+                "labels": {"alertname": alert_name, "severity": "critical", "vmid": str(vmid)},
+                "annotations": {"summary": summary or f"{alert_name} on guest {vmid}"},
+                "startsAt": "2026-08-10T12:00:00Z",
+                "endsAt": "0001-01-01T00:00:00Z" if status == "firing" else "2026-08-10T12:40:00Z",
+            }
+        ],
+    }
+
+
+def adguard_oom(delivery: str, status: str = "firing") -> dict[str, Any]:
+    """The recurring out-of-memory shape: one guest, one rule, many notifications."""
+    return group(
+        vmid=ADGUARD_VMID,
+        alert_name="ContainerMemoryHigh",
+        delivery=delivery,
+        status=status,
+        summary="memory usage above 90% for ten minutes",
+    )
+
+
+def clickhouse_storm(delivery: str) -> dict[str, Any]:
+    """The log-storm shape: the same rule, a different guest."""
+    return group(
+        vmid=CLICKHOUSE_VMID,
+        alert_name="ContainerMemoryHigh",
+        delivery=delivery,
+        summary="memory usage above 90% for ten minutes",
+    )
+
+
+@dataclass(slots=True)
+class Ingress:
+    client: AsyncClient
+    state: GatewayState
+    gateway: FakePersistence
+    runner: FakeInvestigationRunner
+
+    @property
+    def scope(self) -> TenantScope:
+        return TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)
+
+
+@pytest.fixture
+async def ingress() -> AsyncIterator[Ingress]:
+    gateway = FakePersistence()
+    async with gateway.begin_system() as system:
+        await system.orgs.create_organisation(ORG, "Acme")
+    async with gateway.begin(TenantScope(org_id=ORG)) as uow:
+        await uow.config.upsert(
+            ConfigNode(
+                node_id=TEAM_PAYMENTS, kind=ConfigNodeKind.TEAM, name=TEAM_PAYMENTS, parent_id=ORG
+            )
+        )
+    async with gateway.begin(TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)) as uow:
+        await uow.estate.upsert(container(ADGUARD_VMID, "adguard", "10.20.20.10"))
+        await uow.estate.upsert(container(CLICKHOUSE_VMID, "clickhouse", "10.20.20.11"))
+
+    runner = FakeInvestigationRunner()
+    state = GatewayState(gateway=gateway, tokens=TokenService(gateway=gateway), investigator=runner)
+    app = create_app(
+        state,
+        webhook_routes={
+            "alertmanager": (
+                WebhookSourceConfig(
+                    verifier=SharedSecretVerifier(secret=SECRET, header="Authorization"),
+                    org_id=ORG,
+                    team_node_id=TEAM_PAYMENTS,
+                ),
+            )
+        },
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as client:
+        yield Ingress(client=client, state=state, gateway=gateway, runner=runner)
+
+
+async def deliver(ingress: Ingress, payload: dict[str, Any]) -> dict[str, Any]:
+    body = json.dumps(payload).encode("utf-8")
+    response = await ingress.client.post(
+        "/webhooks/alertmanager",
+        content=body,
+        headers={"Authorization": f"Bearer {SECRET}", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 202, response.text
+    if ingress.state.background_runs:
+        await asyncio.gather(*tuple(ingress.state.background_runs))
+    return dict(response.json())
+
+
+# --- The adapter ------------------------------------------------------------------
+
+
+def test_the_adapter_carries_the_group_the_upstream_put_the_alert_in() -> None:
+    """Whose group this is, kept rather than parsed back out of an identifier later."""
+    alert = adapter_for(AlertSource.ALERTMANAGER).normalise(RawAlert(payload=adguard_oom("first")))
+
+    assert alert.group_key == '{}:{alertname="ContainerMemoryHigh", vmid="110"}::first'
+
+
+def test_the_group_survives_the_record_an_alert_is_stored_as() -> None:
+    """A run read back tomorrow says which group raised it, or it is not evidence."""
+    alert = adapter_for(AlertSource.ALERTMANAGER).normalise(RawAlert(payload=adguard_oom("first")))
+
+    assert NormalisedAlert.from_record(alert.to_record()) == alert
+
+
+def test_a_source_that_does_not_group_carries_no_group() -> None:
+    """Empty rather than invented: not every sender has the concept."""
+    alert = adapter_for(AlertSource.WEBHOOK).normalise(
+        RawAlert(payload={"alert_name": "CustomAlert", "summary": "something broke"})
+    )
+
+    assert alert.group_key == ""
+
+
+# --- A storm of one group ---------------------------------------------------------
+
+
+async def test_a_storm_of_notifications_of_one_group_is_one_investigation(
+    ingress: Ingress,
+) -> None:
+    """The AdGuard shape: eight notifications of one recurring condition."""
+    responses = [await deliver(ingress, adguard_oom(f"n{index}")) for index in range(8)]
+
+    assert len(ingress.runner.started) == 1
+    assert responses[0]["linked"] is False
+    assert all(response["linked"] is True for response in responses[1:])
+    assert {response["run_id"] for response in responses} == {responses[0]["run_id"]}
+
+
+async def test_every_delivery_of_the_storm_lands_on_the_one_incident(
+    ingress: Ingress,
+) -> None:
+    """Linked, not discarded: an operator who thinks it is two can still split it."""
+    await deliver(ingress, adguard_oom("n0"))
+    await deliver(ingress, adguard_oom("n1"))
+
+    async with ingress.gateway.begin(ingress.scope) as uow:
+        incidents = await uow.incidents.query(IncidentQuery(limit=10))
+
+    assert len(incidents) == 1
+    assert incidents[0].subject_ids == (f"proxmox:container/hal9000/{ADGUARD_VMID}",)
+    # Which group the upstream said this was, kept where somebody asking "why is
+    # this one incident" can read it.
+    assert incidents[0].subjects[0].evidence["group"].startswith("{}:{alertname=")
+
+
+async def test_the_same_rule_on_a_second_guest_is_a_second_investigation(
+    ingress: Ingress,
+) -> None:
+    """Same alert name, same components, different machine — and two problems."""
+    first = await deliver(ingress, adguard_oom("n0"))
+    second = await deliver(ingress, clickhouse_storm("n0"))
+
+    assert second["linked"] is False
+    assert second["run_id"] != first["run_id"]
+    assert len(ingress.runner.started) == 2
+
+
+# --- Firing, then resolved --------------------------------------------------------
+
+
+async def test_a_firing_then_a_resolution_of_one_group_is_one_investigation(
+    ingress: Ingress,
+) -> None:
+    """Acceptance 3, against the Alertmanager payload shape rather than in the abstract."""
+    started = await deliver(ingress, adguard_oom("n0"))
+    ended = await deliver(ingress, adguard_oom("n1", status="resolved"))
+
+    assert ended["resolution"] == "linked"
+    assert ended["run_id"] == started["run_id"]
+    assert len(ingress.runner.started) == 1
+
+
+async def test_the_resolution_closes_the_incident_the_firing_opened(
+    ingress: Ingress,
+) -> None:
+    """An upstream that went green and a deployment still showing it open disagree."""
+    await deliver(ingress, adguard_oom("n0"))
+    await deliver(ingress, adguard_oom("n1", status="resolved"))
+
+    async with ingress.gateway.begin(ingress.scope) as uow:
+        incidents = await uow.incidents.query(IncidentQuery(limit=10))
+
+    assert len(incidents) == 1
+    assert incidents[0].state is IncidentState.RESOLVED
+    assert incidents[0].self_resolved is True

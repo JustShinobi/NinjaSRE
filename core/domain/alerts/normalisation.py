@@ -165,6 +165,12 @@ class NormalisedAlert:
     reference: str = ""
     resolved: bool = False
     labels: Mapping[str, str] = field(default_factory=dict)
+    #: What the sender called the group this alert is in, when it groups at all.
+    #: Kept rather than re-derived, because the grouping decision belongs to the
+    #: system that made it: a deployment that disagreed with its own Alertmanager
+    #: about which notifications are one problem would undo the grouping the
+    #: operator configured. Empty for a source with no such concept.
+    group_key: str = ""
 
     def to_record(self) -> dict[str, Any]:
         """Return a JSON-serialisable record of this alert."""
@@ -181,6 +187,7 @@ class NormalisedAlert:
             "reference": self.reference,
             "resolved": self.resolved,
             "labels": dict(self.labels),
+            "group_key": self.group_key,
         }
 
     @classmethod
@@ -199,6 +206,7 @@ class NormalisedAlert:
             reference=str(record.get("reference", "")),
             resolved=bool(record.get("resolved", False)),
             labels={str(key): str(value) for key, value in (record.get("labels") or {}).items()},
+            group_key=str(record.get("group_key", "")),
         )
 
 
@@ -382,6 +390,7 @@ class AlertmanagerAdapter:
             reference=_first(leading, "generatorURL") or _first(payload, "externalURL"),
             resolved=status == "resolved",
             labels=labels,
+            group_key=_first(payload, "groupKey"),
         )
 
 
@@ -737,6 +746,7 @@ def normalise(raw: RawAlert) -> NormalisedAlert:
             reference=normalised.reference,
             resolved=normalised.resolved,
             labels=normalised.labels,
+            group_key=normalised.group_key,
         )
     return normalised
 

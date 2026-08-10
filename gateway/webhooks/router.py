@@ -375,6 +375,7 @@ async def _raise_incident(
                 reference=alert.reference,
                 actor=matched.principal_id,
                 resolution=resolution,
+                group_key=alert.group_key,
             ),
             now=_utc_now(),
         )

@@ -58,6 +58,7 @@ def raise_for_alert(
     reference: str = "",
     actor: str = "system:webhook",
     resolution: AlertResolution | None = None,
+    group_key: str = "",
 ) -> IncidentRaise:
     """Return the raise this alert describes, in the same shape a detector's takes.
 
@@ -79,6 +80,7 @@ def raise_for_alert(
         components=components,
         reference=reference,
         resolution=resolution,
+        group_key=group_key,
     )
 
     return IncidentRaise(
@@ -104,6 +106,7 @@ def _subjects(
     components: tuple[str, ...],
     reference: str,
     resolution: AlertResolution | None,
+    group_key: str,
 ) -> tuple[IncidentSubject, ...]:
     """Return what this incident is about, in the terms the estate is keyed by.
 
@@ -118,7 +121,7 @@ def _subjects(
     otherwise push the finding off the end, and losing it is exactly the
     behaviour the finding exists to replace.
     """
-    evidence = _evidence(alert_name, reference)
+    evidence = _evidence(alert_name, reference, group_key)
     detail = summary or description
 
     if resolution is not None and resolution.resolved is not None:
@@ -168,16 +171,22 @@ def resolution_key(*, source: str, fingerprint: str) -> str:
     return correlation.for_alert(source=source, fingerprint=fingerprint)
 
 
-def _evidence(alert_name: str, reference: str) -> dict[str, str]:
+def _evidence(alert_name: str, reference: str, group_key: str = "") -> dict[str, str]:
     """Return what the alert itself said, as the subject's evidence.
 
     Thin on purpose. The upstream already decided this was worth sending, and
     copying its whole payload in here would put an unbounded document on an
     incident that a console has to render.
+
+    The group is the exception worth carrying: it is what the sender called the
+    set of notifications this one belongs to, and an operator asking why eight
+    pages became one incident is asking about exactly that string.
     """
     evidence = {"alert": alert_name} if alert_name else {}
     if reference:
         evidence["reference"] = reference
+    if group_key:
+        evidence["group"] = group_key
     return evidence
 
 
