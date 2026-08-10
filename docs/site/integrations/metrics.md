@@ -131,6 +131,7 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 
 - `prometheus_active_alerts`
 - `prometheus_metric_statistics`
+- `prometheus_resource_pressure`
 
 **Permissions:**
 
