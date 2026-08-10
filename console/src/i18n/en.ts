@@ -672,6 +672,7 @@ export const EN = {
   'configuration.editor.notEditable':
     'A list or a free-form section: it replaces entirely on write, so it is not edited a field at a time.',
   'configuration.editor.inherited': 'nothing yet',
+  'configuration.editor.useSuggested': 'Use the address found here:',
   'configuration.empty.heading': 'No configuration here',
   'configuration.empty.body':
     'Every node inherits from the one above it. This one sets nothing of its own, so what applies is what its parent applies.',

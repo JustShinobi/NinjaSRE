@@ -63,6 +63,15 @@ export interface EditableField {
   readonly allowedValues: readonly string[] | null;
   readonly minimum: number | null;
   readonly maximum: number | null;
+  /**
+   * An address the deployment already found for this field, and why.
+   *
+   * Offered rather than applied. A derived address is evidence, not a decision:
+   * filling it in silently would make the form claim somebody had chosen it,
+   * and a wrong guess would then be indistinguishable from a wrong choice.
+   */
+  readonly suggestedValue: string;
+  readonly suggestedBecause: string;
 }
 
 export interface EditorLabels {
@@ -89,6 +98,7 @@ export interface EditorLabels {
   readonly reverts: string;
   readonly notEditable: string;
   readonly inherited: string;
+  readonly useSuggested: string;
 }
 
 export interface ConfigEditorProps {
@@ -435,6 +445,27 @@ function FieldRow({
           >
             {cleared ? labels.cleared : labels.clear}
           </button>
+        ) : null}
+        {/* Only where the field is empty. An address somebody typed is a
+            decision, and offering to replace it with a derived one puts a guess
+            above a choice. */}
+        {field.suggestedValue !== '' && current === '' && field.lockedBy === '' ? (
+          <>
+            <button
+              type="button"
+              data-testid="use-suggested"
+              data-path={field.path}
+              className="text-meta text-strong underline"
+              onClick={() => {
+                onEdit(field.path, field.suggestedValue);
+              }}
+            >
+              {labels.useSuggested} {field.suggestedValue}
+            </button>
+            <span data-testid="suggested-because" className="text-meta text-muted">
+              {field.suggestedBecause}
+            </span>
+          </>
         ) : null}
       </div>
     </div>

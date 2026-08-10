@@ -24,6 +24,11 @@
             "required_permissions": [
               "metrics:read"
             ],
+            "suggested": {
+              "address": "http://thicket.example.invalid:9090",
+              "because": "a guest labelled prometheus is reachable on the metrics port",
+              "from_resource": "vm-201-metrics"
+            },
             "summary": "Range queries against the metrics store."
           },
           {

@@ -656,6 +656,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.editor.notEditable':
     'Uma lista ou uma secção livre: é substituída por inteiro na escrita, por isso não se edita campo a campo.',
   'configuration.editor.inherited': 'ainda nada',
+  'configuration.editor.useSuggested': 'Usar o endereço encontrado aqui:',
   'configuration.empty.heading': 'Nenhuma configuração aqui',
   'configuration.empty.body':
     'Cada nó herda do nó acima. Este não define nada de seu, por isso o que se aplica é o que o pai aplica.',

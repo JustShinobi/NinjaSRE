@@ -85,6 +85,7 @@ const LABELS = {
   reverts: 'Reverts to',
   notEditable: 'Edited as a document rather than here.',
   inherited: 'Inherited',
+  useSuggested: 'Use',
 };
 
 function field(over: Partial<EditableField> = {}): EditableField {
@@ -103,6 +104,8 @@ function field(over: Partial<EditableField> = {}): EditableField {
     allowedValues: null,
     minimum: 1,
     maximum: 20,
+    suggestedValue: '',
+    suggestedBecause: '',
     ...over,
   };
 }
@@ -166,6 +169,59 @@ describe('the controls the catalogue produces', () => {
     editor([field()]);
 
     expect(screen.getByTestId('field-provenance')).toHaveTextContent('org-northwind');
+  });
+});
+
+describe('an endpoint the deployment already found', () => {
+  // Assembled rather than written: a literal origin in console source is a lint
+  // failure, and the rule is the one that keeps every request pointed at the
+  // deployment.
+  const FOUND = ['http:', '//10.20.0.14:9090'].join('');
+  const TYPED = ['http:', '//metrics.internal:9090'].join('');
+
+  const ENDPOINT = field({
+    path: 'policies.observation.bridge.metrics.endpoint',
+    label: 'Endpoint',
+    type: 'string',
+    value: '',
+    provenance: '',
+    minimum: null,
+    maximum: null,
+    suggestedValue: FOUND,
+    suggestedBecause: 'a guest labelled prometheus answers on the metrics port',
+  });
+
+  it('offers the address the estate found, and says where it came from', () => {
+    editor([ENDPOINT]);
+
+    const offer = screen.getByTestId('use-suggested');
+    expect(offer).toHaveTextContent(FOUND);
+    expect(screen.getByTestId('suggested-because')).toHaveTextContent(
+      'answers on the metrics port',
+    );
+  });
+
+  it('fills the control rather than saving anything, so it is still previewed', async () => {
+    editor([ENDPOINT]);
+
+    await userEvent.click(screen.getByTestId('use-suggested'));
+
+    expect(screen.getByLabelText('Endpoint')).toHaveValue(FOUND);
+    expect(screen.queryByTestId('save-config')).toBeNull();
+  });
+
+  it('offers nothing where the field already has a value', () => {
+    // An address somebody typed is a decision. Offering to replace it with a
+    // derived one puts a guess above a choice.
+    editor([field({ ...ENDPOINT, value: TYPED })]);
+
+    expect(screen.queryByTestId('use-suggested')).toBeNull();
+  });
+
+  it('offers nothing where the deployment found nothing', () => {
+    editor([field({ ...ENDPOINT, suggestedValue: '', suggestedBecause: '' })]);
+
+    expect(screen.queryByTestId('use-suggested')).toBeNull();
   });
 });
 

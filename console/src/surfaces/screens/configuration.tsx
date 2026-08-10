@@ -7,7 +7,7 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
-import { editableFields } from '../editable';
+import { editableFields, suggestedAddresses, withSuggestions } from '../editable';
 import { Panel } from '../panel';
 import { ConfigEditor } from '../preview';
 import {
@@ -67,7 +67,20 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
             params: { node_id: selected },
           }),
         );
-  const editable = editableFields(dataOf(fields));
+  // What the deployment already found running. An endpoint an operator would
+  // otherwise have to go and read off a machine is offered here, with the reason
+  // it was derived — offered, never applied, because a derived address is
+  // evidence and typing one is a decision.
+  const catalogue =
+    !writable || selected === ''
+      ? { status: 'ready' as const, data: {} as unknown }
+      : await panelRead<unknown>('/v1/integrations', () =>
+          read('/v1/integrations', init),
+        );
+  const editable = withSuggestions(
+    editableFields(dataOf(fields)),
+    suggestedAddresses(dataOf(catalogue)),
+  );
 
   return (
     <>
@@ -200,6 +213,7 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
                   reverts: message(locale, 'configuration.editor.reverts'),
                   notEditable: message(locale, 'configuration.editor.notEditable'),
                   inherited: message(locale, 'configuration.editor.inherited'),
+                  useSuggested: message(locale, 'configuration.editor.useSuggested'),
                 }}
               />
             </Panel>

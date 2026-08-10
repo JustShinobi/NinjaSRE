@@ -884,6 +884,15 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                         "required_permissions": ["metrics:read"],
                         "parity": "full",
                         "missing_artefacts": [],
+                        # The estate found this vendor running on something it
+                        # already holds, so the address is derived rather than
+                        # typed. It is present here because a surface that
+                        # offers it has to be photographed offering it.
+                        "suggested": {
+                            "address": "http://10.20.0.14:9090",
+                            "from_resource": "vm-201-metrics",
+                            "because": "a guest labelled prometheus is reachable on the metrics port",
+                        },
                     },
                     {
                         "name": "chat",
