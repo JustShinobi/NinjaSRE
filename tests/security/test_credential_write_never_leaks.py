@@ -27,6 +27,10 @@ from httpx import ASGITransport, AsyncClient
 
 from gateway.http.app import create_app
 from gateway.http.state import GatewayState
+from integrations.registry import discover
+from platform.credentials.handles import CredentialHandle
+from platform.credentials.proxy.resolution import CredentialResolver
+from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.identity.audit.recorder import CREDENTIAL_AUDIT_ACTION_WRITE
 from platform.identity.permissions import Role
 from platform.identity.tokens import TokenService
@@ -212,6 +216,77 @@ async def test_a_written_credential_appears_in_no_response_no_log_and_no_audit_d
     # The names are expected to be there. Asserting it here is what stops the
     # sweep passing because nothing was recorded at all.
     assert "api_key" in swept
+
+
+# --- The other half: it has to be usable ----------------------------------------
+
+
+async def test_what_the_route_wrote_is_what_the_proxy_resolves(
+    wired: tuple[AsyncClient, Deployment, str],
+) -> None:
+    """A credential nothing can use is not a credential that was stored.
+
+    The sweep above proves the value went nowhere it should not. This proves it
+    went where it should: the proxy's own resolver — the single sanctioned
+    reader, and the thing that injects a secret at the network edge for every
+    authenticated call an investigation makes — finds it under the handle the
+    route wrote, at the version the response reported.
+
+    Asserted through ``platform.credentials.proxy.resolution`` rather than by
+    reading a row, because "usable" means usable by the one component that is
+    allowed to use it.
+    """
+    http, deployment, secret = wired
+
+    stored = await http.put(
+        CREDENTIAL_PATH,
+        headers={"Authorization": f"Bearer {secret}"},
+        json={"values": {"api_key": SENTINEL, "app_key": SENTINEL_APP_KEY}},
+    )
+
+    resolver = CredentialResolver(
+        gateway=deployment.gateway,
+        schemas=CredentialSchemaRegistry.from_schemas(discover()["datadog"].schema),
+    )
+    resolved = await resolver.resolve(
+        TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS),
+        CredentialHandle(integration="datadog", team_id=TEAM_PAYMENTS),
+    )
+
+    assert resolved.version == stored.json()["version"]
+    assert resolved.values == {"api_key": SENTINEL, "app_key": SENTINEL_APP_KEY}
+
+
+async def test_a_rotation_is_what_the_proxy_resolves_next(
+    wired: tuple[AsyncClient, Deployment, str],
+) -> None:
+    """Rotation takes effect on the next call, with no restart and no cache to clear."""
+    http, deployment, secret = wired
+    headers = {"Authorization": f"Bearer {secret}"}
+    rotated = "f0e1d2c3b4a5968778695a4b3c2d1e0f"
+
+    await http.put(
+        CREDENTIAL_PATH,
+        headers=headers,
+        json={"values": {"api_key": SENTINEL, "app_key": SENTINEL_APP_KEY}},
+    )
+    await http.put(
+        CREDENTIAL_PATH,
+        headers=headers,
+        json={"values": {"api_key": rotated, "app_key": SENTINEL_APP_KEY}},
+    )
+
+    resolver = CredentialResolver(
+        gateway=deployment.gateway,
+        schemas=CredentialSchemaRegistry.from_schemas(discover()["datadog"].schema),
+    )
+    resolved = await resolver.resolve(
+        TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS),
+        CredentialHandle(integration="datadog", team_id=TEAM_PAYMENTS),
+    )
+
+    assert resolved.values["api_key"] == rotated
+    assert resolved.version == 2
 
 
 async def test_a_refused_write_does_not_become_the_place_the_value_survives(
