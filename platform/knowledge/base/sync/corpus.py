@@ -30,7 +30,7 @@ adapter reads files; the change history is another feature's problem.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
@@ -41,6 +41,11 @@ from config.constants.knowledge import (
     MAX_CORPUS_FILES,
 )
 from platform.knowledge.base.models import DocumentType
+from platform.knowledge.base.postmortem import (
+    PostmortemExtractor,
+    PostmortemFields,
+    resolve_recurrences,
+)
 from platform.knowledge.base.sync.port import SourceDocument
 from platform.knowledge.errors import CorpusBoundExceeded
 from platform.observability.logging import get_logger
@@ -130,6 +135,10 @@ class CorpusSource:
     #: What this corpus's documents are namespaced under. A deployment reading
     #: two clusters' repositories names the second one.
     name: str = SOURCE
+    #: Pulls a post-mortem's structure out once, here, rather than at each
+    #: search. Absent means the corpus is ingested as text alone, which is what
+    #: every source but this one does.
+    extractor: PostmortemExtractor | None = None
     max_files: int = MAX_CORPUS_FILES
     max_file_bytes: int = MAX_CORPUS_FILE_BYTES
     #: One per file the bounds or the encoding put out of reach, as
@@ -160,24 +169,35 @@ class CorpusSource:
         ``skipped`` rather than raising: one binary file that happens to end in
         ``.md`` must not stop sixty-six runbooks syncing, and the report names
         it so somebody can look.
+
+        Post-mortem extraction happens here, on the way in, and the recurrence
+        pass runs over the whole set afterwards — it is the one derived fact
+        that needs two documents to be true, and neither of them knows about the
+        other on its own.
         """
         self.skipped.clear()
         found: list[SourceDocument] = []
+        extracted: dict[str, PostmortemFields] = {}
 
         for relative in self.readable():
             body = self._read(relative)
             if body is None or not body.strip():
                 continue
+            external_id = relative.as_posix()
+            if self.extractor is not None and classify(external_id) is DocumentType.POSTMORTEM:
+                extracted[external_id] = await self.extractor.extract(body, document=external_id)
             found.append(
                 SourceDocument(
-                    external_id=relative.as_posix(),
-                    title=title_of(body, relative.as_posix()),
+                    external_id=external_id,
+                    title=title_of(body, external_id),
                     body=body,
-                    source_uri=self._link(relative.as_posix()),
-                    document_type=classify(relative.as_posix()),
+                    source_uri=self._link(external_id),
+                    document_type=classify(external_id),
                     updated_at=_modified(self.root / relative),
                 )
             )
+
+        found = _with_metadata(found, extracted)
 
         logger.info(
             "knowledge.corpus_fetched",
@@ -240,6 +260,27 @@ class CorpusSource:
     def _link(self, relative: str) -> str:
         """Return a browse URL for a path, or the repository-relative path."""
         return f"{self.base_url.rstrip('/')}/{relative}" if self.base_url else relative
+
+
+def _with_metadata(
+    found: list[SourceDocument],
+    extracted: dict[str, PostmortemFields],
+) -> list[SourceDocument]:
+    """Return ``found`` carrying its extractions, recurrence pairs joined.
+
+    A second pass rather than a field set during the walk, because a recurrence
+    is true of two documents and the first of them is already built by the time
+    the second names it.
+    """
+    if not extracted:
+        return found
+    metadata = resolve_recurrences(extracted, [entry.external_id for entry in found])
+    return [
+        replace(entry, metadata=metadata[entry.external_id])
+        if metadata.get(entry.external_id)
+        else entry
+        for entry in found
+    ]
 
 
 def _modified(path: Path) -> datetime | None:

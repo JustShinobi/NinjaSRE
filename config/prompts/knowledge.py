@@ -180,6 +180,42 @@ PROPOSAL_ATTRIBUTION: Final[str] = (
 )
 
 
+#: What the model is told when it is asked to read a post-mortem whose author
+#: used no headings. Deliberately narrow: the model is reading one document and
+#: quoting it back, not diagnosing anything, and the instruction to leave a
+#: field empty is what stops it inventing the cause the document never found.
+POSTMORTEM_EXTRACTION_SYSTEM_PROMPT: Final[str] = (
+    "You are reading one post-mortem written by an infrastructure operator and "
+    "recording what it says, in its own words. Do not diagnose, do not "
+    "generalise, and do not fill a field the document does not answer — an "
+    "empty field is a correct answer and an invented one poisons every future "
+    "search for that symptom. Quote or closely paraphrase the document, in one "
+    "or two sentences per field."
+)
+
+#: The single request. The document arrives whole because a post-mortem short
+#: enough to have no headings is short enough to read whole.
+POSTMORTEM_EXTRACTION_REQUEST: Final[str] = (
+    "This document is filed as a post-mortem and has no headings this system "
+    "could read. Record what it says.\n\n"
+    "--- begin document ---\n{document}\n--- end document ---"
+)
+
+#: What a sync reports when a post-mortem needed the model and no provider was
+#: configured. Named rather than silent: a corpus whose post-mortems carry no
+#: fields looks exactly like a corpus of post-mortems that establish nothing.
+POSTMORTEM_EXTRACTION_UNCONFIGURED: Final[str] = (
+    "{document}: no model is configured for the extraction role, so this "
+    "post-mortem was read for its headings alone and has none."
+)
+
+#: The same sentence for a provider that is configured and did not answer.
+POSTMORTEM_EXTRACTION_FAILED: Final[str] = (
+    "{document}: the extraction model could not be reached ({failure}), so this "
+    "post-mortem was read for its headings alone and has none."
+)
+
+
 __all__ = [
     "KNOWLEDGE_CHUNK",
     "KNOWLEDGE_DISABLED",
@@ -187,6 +223,10 @@ __all__ = [
     "KNOWLEDGE_GUIDANCE",
     "KNOWLEDGE_HEADER",
     "KNOWLEDGE_UNCONFIGURED",
+    "POSTMORTEM_EXTRACTION_FAILED",
+    "POSTMORTEM_EXTRACTION_REQUEST",
+    "POSTMORTEM_EXTRACTION_SYSTEM_PROMPT",
+    "POSTMORTEM_EXTRACTION_UNCONFIGURED",
     "PROPOSAL_ATTRIBUTION",
     "PROPOSAL_QUEUED",
     "PROPOSAL_REFUSED",

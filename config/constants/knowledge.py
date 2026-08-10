@@ -169,6 +169,15 @@ MAX_CORPUS_FILES: Final[int] = 2_000
 #: in the reason, rather than failing the other sixty-six documents.
 MAX_CORPUS_FILE_BYTES: Final[int] = 512_000
 
+#: Characters one extracted post-mortem field may carry. A field is a sentence
+#: or two an operator reads beside a search result; past this it is the section
+#: itself, which the document already holds and a citation already points at.
+MAX_POSTMORTEM_FIELD_CHARS: Final[int] = 1_500
+
+#: Ceiling on the reply to the one post-mortem extraction call. Five fields of
+#: a sentence or two, with room for a model that pads.
+POSTMORTEM_EXTRACTION_MAX_TOKENS: Final[int] = 800
+
 #: Characters of a verification query's own text quoted onto the candidate
 #: detector it becomes. Enough that an operator deciding whether to enable it
 #: reads the sentence the author wrote; short enough to sit in a table row.
@@ -208,6 +217,7 @@ __all__ = [
     "MAX_IMPORT_NODES",
     "MAX_KNOWLEDGE_SEARCH_RESULTS",
     "MAX_KNOWLEDGE_TREE_DEPTH",
+    "MAX_POSTMORTEM_FIELD_CHARS",
     "MAX_PROPOSAL_CHARS",
     "MAX_PROPOSAL_QUEUE_RESULTS",
     "MAX_SYNC_DOCUMENTS_PER_RUN",
@@ -216,6 +226,7 @@ __all__ = [
     "MIN_CHUNK_CHARS",
     "NINJASRE_KNOWLEDGE_ENV",
     "NINJASRE_TOPOLOGY_ENV",
+    "POSTMORTEM_EXTRACTION_MAX_TOKENS",
     "PROPOSAL_APPROVAL_ACTION",
     "PROPOSAL_REVIEW_TTL_HOURS",
     "SECRET_LOCATION_CONTEXT_CHARS",
