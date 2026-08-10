@@ -7,7 +7,7 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { CredentialField } from '../credential';
-import { panelLabels } from '../labels';
+import { credentialLabels, panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
   authorised,
@@ -212,14 +212,21 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
                     </span>
                     <CredentialField
                       integration={name}
-                      required={list(integration, 'required_credentials').map(String)}
-                      labels={{
-                        title: message(locale, 'catalogue.credential.title'),
-                        replace: message(locale, 'catalogue.credential.replace'),
-                        stored: message(locale, 'catalogue.credential.stored'),
-                        absent: message(locale, 'catalogue.credential.absent'),
-                        verify: message(locale, 'catalogue.integrations.verify'),
-                      }}
+                      // The catalogue knows the field *names* a vendor
+                      // requires and nothing else about them; the guided
+                      // first run reads the declared schema and has the
+                      // labels and the help. Both are secret and required,
+                      // which is what `required_credentials` means.
+                      fields={list(integration, 'required_credentials').map(
+                        (field) => ({
+                          name: String(field),
+                          label: String(field),
+                          help: '',
+                          secret: true,
+                          required: true,
+                        }),
+                      )}
+                      labels={credentialLabels(locale)}
                     />
                   </li>
                 );

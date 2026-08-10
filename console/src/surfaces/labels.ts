@@ -1,5 +1,6 @@
 import { message, type Locale } from '@/i18n/messages';
 import { formatNumber, timestamp } from '@/i18n/format';
+import type { CredentialLabels } from './credential';
 import type { PanelLabels } from './panel';
 import type { PayloadLabels, Bound } from './payload';
 import type { RowListLabels } from './rows';
@@ -27,6 +28,28 @@ export function panelLabels(locale: Locale, panel: string): PanelLabels {
     errorHeading: message(locale, 'surface.error.heading'),
     errorDetail: message(locale, 'surface.error.detail'),
     retry: message(locale, 'surface.error.retry'),
+  };
+}
+
+/**
+ * Every sentence a write-only credential form renders.
+ *
+ * One builder for both call sites — the catalogue's replace-this-credential and
+ * the guided run's connect-this-vendor — because they are the same form doing
+ * the same thing, and two sets of words for one operation is how one of them
+ * ends up promising something the other does not.
+ */
+export function credentialLabels(locale: Locale): CredentialLabels {
+  return {
+    submit: message(locale, 'credential.submit'),
+    sending: message(locale, 'credential.sending'),
+    stored: message(locale, 'credential.stored'),
+    absent: message(locale, 'credential.absent'),
+    whereToGetIt: message(locale, 'credential.whereToGetIt'),
+    required: message(locale, 'credential.required'),
+    saved: message(locale, 'credential.saved'),
+    refused: message(locale, 'firstRun.refused'),
+    unreachable: message(locale, 'firstRun.unreachable'),
   };
 }
 

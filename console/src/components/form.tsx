@@ -100,6 +100,16 @@ export interface InputProps extends FieldProps {
    * credential the person at the next desk has read.
    */
   readonly type?: 'text' | 'search' | 'number' | 'date' | 'password';
+  /**
+   * What the browser may remember and offer back.
+   *
+   * Here for the same reason `password` is: an operations credential that the
+   * browser's own memory offers back on a shared machine is a credential the
+   * next person at that keyboard has. `off` is the only value a caller needs,
+   * and spelling it as a prop rather than as a literal attribute is what makes
+   * "every secret field turns it off" a thing a test can walk.
+   */
+  readonly autoComplete?: 'off' | undefined;
   readonly value?: string;
   readonly defaultValue?: string;
   readonly onValueChange?: (value: string) => void;
@@ -113,6 +123,7 @@ export function Input({
   error,
   disabled = false,
   type = 'text',
+  autoComplete,
   value,
   defaultValue,
   onValueChange,
@@ -124,6 +135,7 @@ export function Input({
         id={id}
         name={name}
         type={type}
+        autoComplete={autoComplete}
         disabled={disabled}
         value={value}
         defaultValue={defaultValue}
