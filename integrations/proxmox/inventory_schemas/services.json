@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "declared services",
+  "description": "The domain each workload answers on, and the guest that serves it. This is the edge between a failing request and the container behind it.",
+  "type": "object",
+  "required": ["services"],
+  "additionalProperties": false,
+  "properties": {
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "domain"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string"},
+          "domain": {"type": "string"},
+          "vmid": {"type": "integer", "minimum": 100},
+          "node": {"type": "string"},
+          "description": {"type": "string"}
+        }
+      }
+    }
+  }
+}

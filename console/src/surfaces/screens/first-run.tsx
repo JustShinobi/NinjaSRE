@@ -9,6 +9,7 @@ import { areaFor } from '@/shell/routes';
 import { credentialLabels, panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { CredentialField, type CredentialFieldSpec } from '../credential';
+import { EstateStep } from '../first-run/estate';
 import { IntegrationsStep, type IntegrationOffer } from '../first-run/integrations';
 import { ModelStep } from '../first-run/model';
 import { VerifyStep, type VerifiableThing } from '../first-run/verify';
@@ -64,6 +65,9 @@ import type { SurfaceContext } from '../context';
  */
 
 /** Where the alert receivers and the estate onboarding will be reached. */
+/** The catalogue category an estate is discovered from. */
+const ESTATE_CATEGORY = 'cloud_control_plane';
+
 const HANDOVER: Readonly<Record<'estate' | 'alerts', string>> = {
   estate: '/resources',
   alerts: '/detectors',
@@ -145,6 +149,24 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   const declared = new Map(
     list(dataOf(schemas), 'schemas').map((schema) => [text(schema, 'name'), schema]),
   );
+  // Which connected integration an estate is discovered from. A cloud control
+  // plane is what knows the whole shape of an estate — a log store does not —
+  // and it has to be *configured*, because previewing a cluster nothing holds a
+  // credential for would refuse for a reason the step could not explain.
+  // Nothing configured leaves this empty, and the step hands over instead.
+  const estateSource =
+    list(dataOf(integrations), 'integrations')
+      .filter(
+        (record) =>
+          text(record, 'category') === ESTATE_CATEGORY &&
+          setup.integrations.some(
+            (entry) =>
+              entry.name === text(record, 'name') && entry.readiness !== 'absent',
+          ),
+      )
+      .map((record) => text(record, 'name'))
+      .at(0) ?? '';
+
   const offers: readonly IntegrationOffer[] = list(
     dataOf(integrations),
     'integrations',
@@ -460,7 +482,36 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                 />
               ) : null}
 
-              {here === 'estate' || here === 'alerts' ? (
+              {here === 'estate' && estateSource !== '' ? (
+                <EstateStep
+                  integration={estateSource}
+                  zones={{}}
+                  labels={{
+                    integration: message(locale, 'firstRun.estate.integration'),
+                    check: message(locale, 'firstRun.estate.check'),
+                    checking: message(locale, 'firstRun.estate.checking'),
+                    recheck: message(locale, 'firstRun.estate.recheck'),
+                    sufficient: message(locale, 'firstRun.estate.sufficient'),
+                    insufficient: message(locale, 'firstRun.estate.insufficient'),
+                    missingRead: message(locale, 'firstRun.estate.missingRead'),
+                    missingAdvisory: message(locale, 'firstRun.estate.missingAdvisory'),
+                    grantedAt: message(locale, 'firstRun.estate.grantedAt'),
+                    preview: message(locale, 'firstRun.estate.preview'),
+                    previewing: message(locale, 'firstRun.estate.previewing'),
+                    found: message(locale, 'firstRun.estate.found'),
+                    unplaced: message(locale, 'firstRun.estate.unplaced'),
+                    incomplete: message(locale, 'firstRun.estate.incomplete'),
+                    confirm: message(locale, 'firstRun.estate.confirm'),
+                    confirming: message(locale, 'firstRun.estate.confirming'),
+                    confirmed: message(locale, 'firstRun.estate.confirmed'),
+                    needsPreview: message(locale, 'firstRun.estate.needsPreview'),
+                    refused: message(locale, 'firstRun.refused'),
+                    unreachable: message(locale, 'firstRun.unreachable'),
+                  }}
+                />
+              ) : null}
+
+              {(here === 'estate' && estateSource === '') || here === 'alerts' ? (
                 <div
                   data-testid="handover"
                   data-step={here}

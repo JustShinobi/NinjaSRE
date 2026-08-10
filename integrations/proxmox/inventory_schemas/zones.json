@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "cluster zones",
+  "description": "The networks a cluster is divided into. A zone is a CIDR with a name; every guest's zone is derived from its address falling inside one of these, and nothing else.",
+  "type": "object",
+  "required": ["zones"],
+  "additionalProperties": false,
+  "properties": {
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "cidr"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string"},
+          "cidr": {"type": "string"},
+          "gateway": {"type": "string"},
+          "mtu": {"type": "integer", "minimum": 576},
+          "description": {"type": "string"}
+        }
+      }
+    }
+  }
+}

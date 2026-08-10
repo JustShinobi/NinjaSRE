@@ -20,6 +20,12 @@ out of reach of the credential a first run is holding.
 the operator's own endpoint and it spends their tokens, so it is a managed
 action rather than a read — the same reason it is a ``POST`` and the same reason
 the self-check does not run it by default.
+
+The deep verify beside it takes the same permission for the same reason: it runs
+the vendor's own verifier, which is several live calls against somebody's
+cluster. The shallow ``/verify`` is a read of what this deployment already
+stored and is declared with the rest of the API's rows; these two are the ones
+that leave the building.
 """
 
 from __future__ import annotations
@@ -35,6 +41,12 @@ ONBOARDING_ROUTES: Final[tuple[Route, ...]] = (
         method="PUT",
         path="/v1/integrations/{name}/credential",
         permission=Permission.CREDENTIAL_WRITE,
+    ),
+    # --- Asking a vendor what this credential may actually do --------------------
+    Route(
+        method="POST",
+        path="/v1/integrations/{name}/verify/report",
+        permission=Permission.INTEGRATION_MANAGE,
     ),
     # --- The providers this deployment can be pointed at -------------------------
     Route(method="GET", path="/v1/providers", permission=Permission.CONFIG_READ),

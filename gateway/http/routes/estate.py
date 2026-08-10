@@ -76,6 +76,10 @@ class ResourceSummaryView(BaseModel):
     source: str
     sources: list[str] = Field(default_factory=list)
     native_id: str = ""
+    #: What two descriptions of one thing agree on, and what a declared
+    #: inventory is matched against. Served so a client can mark the rows a
+    #: divergence report names without a second lookup per row.
+    correlation_key: str = ""
     parent_id: str | None = None
     #: The parent's display name when the same read produced it, empty
     #: otherwise. A table shows this rather than the parent's identifier.
@@ -185,6 +189,7 @@ def _row(view: ResourceView) -> ResourceSummaryView:
         source=resource.source,
         sources=[entry.integration for entry in resource.sources],
         native_id=resource.native_id,
+        correlation_key=resource.correlation_key,
         parent_id=resource.parent_id,
         parent_name=view.parent_name,
         team_node_id=resource.team_node_id,

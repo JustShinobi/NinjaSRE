@@ -111,6 +111,11 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "load_average": AttributeType.FLOAT,
             "uptime_seconds": AttributeType.INTEGER,
             "version": AttributeType.STRING,
+            # Where on the network this sits. Declared on the three kinds that
+            # have one, because it is what a zone is derived from — and a kind
+            # that declares no address is one nothing expects a zone of, which
+            # is what keeps a backup job out of the unplaced list.
+            "address": AttributeType.STRING,
         },
     ),
     ResourceKind(
@@ -125,6 +130,7 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "operating_system": AttributeType.STRING,
             "boot_order": AttributeType.STRING,
             "started_at": AttributeType.TIMESTAMP,
+            "address": AttributeType.STRING,
         },
     ),
     ResourceKind(
@@ -137,6 +143,7 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "memory_bytes": AttributeType.INTEGER,
             "image": AttributeType.STRING,
             "started_at": AttributeType.TIMESTAMP,
+            "address": AttributeType.STRING,
         },
     ),
     ResourceKind(

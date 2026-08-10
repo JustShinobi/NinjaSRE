@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "declared nodes",
+  "description": "What the operator says each hypervisor node is for. Matched on the node's own name, which is what the cluster reports.",
+  "type": "object",
+  "required": ["nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string"},
+          "criticality": {"type": "string"},
+          "tier": {"type": "string"},
+          "owner": {"type": "string"},
+          "description": {"type": "string"}
+        }
+      }
+    }
+  }
+}

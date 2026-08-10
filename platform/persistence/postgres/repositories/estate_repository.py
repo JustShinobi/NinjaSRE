@@ -170,6 +170,7 @@ def _to_sweep(row: models.DiscoverySweep) -> SweepRecord:
         provider_calls=row.provider_calls,
         cursor=row.cursor,
         reason=row.reason,
+        findings=dict(row.findings or {}),
     )
 
 
@@ -387,6 +388,7 @@ class PostgresEstateRepository(TenantBound):
         row.provider_calls = record.provider_calls
         row.cursor = record.cursor
         row.reason = record.reason
+        row.findings = dict(record.findings) or None
         with translating(kind="discovery sweep", identifier=record.sweep_id):
             await self.session.flush()
         return record

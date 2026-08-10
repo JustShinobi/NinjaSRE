@@ -16,6 +16,7 @@ import {
   field,
   list,
   number,
+  optionalRead,
   panelRead,
   read,
   stateOf,
@@ -90,11 +91,33 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   const state = readViewState(search, RESOURCE_FILTERS);
 
   const init = authorised(credential);
-  const [resources, summary] = await Promise.all([
+  const [resources, summary, discovery] = await Promise.all([
     panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
     panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
+    // Optional: a deployment that has never swept anything has no report, and
+    // that is the ordinary state of one nothing is pointed at yet.
+    optionalRead('/v1/estate/discovery/report', () =>
+      read('/v1/estate/discovery/report', init),
+    ),
   ]);
   const records = list(dataOf(resources), 'resources');
+
+  // Divergence is content, not an error. Two facts come out of the last sweep
+  // of each source: which resources the declared inventory does not describe,
+  // and which entries it describes that no longer exist. The first marks a row;
+  // the second has no row to mark, which is why it gets a panel of its own —
+  // "this machine is gone and the file still believes in it" is a finding
+  // nobody would ever see if it were only rendered on the resource it lacks.
+  const reports = list(dataOf(discovery), 'reports');
+  const divergences = reports.flatMap((report) => list(report, 'divergences'));
+  const undeclared = new Set(
+    divergences
+      .filter((entry) => text(entry, 'kind') === 'only_in_provider')
+      .map((entry) => text(entry, 'subject')),
+  );
+  const departed = divergences.filter(
+    (entry) => text(entry, 'kind') === 'only_in_file',
+  );
 
   const kinds = [...new Set(records.map((record) => text(record, 'kind')))].sort();
   const states = [...new Set(records.map((record) => text(record, 'health')))].sort();
@@ -119,11 +142,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   const rows: readonly ListRow[] = sorted.map((record) => {
     const id = text(record, 'resource_id');
     const used = utilisation(record);
+    const diverges = undeclared.has(text(record, 'correlation_key'));
     return {
       id,
       href: `/resources?selected=${id}`,
       cells: [
-        { kind: 'text', text: text(record, 'display_name') },
+        {
+          kind: 'text',
+          text: diverges
+            ? `${text(record, 'display_name')} ${message(locale, 'resources.divergent.mark')}`
+            : text(record, 'display_name'),
+        },
         { kind: 'muted', text: text(record, 'kind') },
         {
           kind: 'muted',
@@ -231,6 +260,33 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           rows={rows}
         />
       </Panel>
+
+      {departed.length === 0 ? null : (
+        <Panel
+          title={message(locale, 'resources.departed.title')}
+          state={stateOf(discovery, false)}
+          dependency={dependencyOf(discovery)}
+          labels={panelLabels(locale, message(locale, 'resources.departed.title'))}
+          empty={{
+            heading: message(locale, 'resources.departed.title'),
+            body: message(locale, 'resources.departed.body'),
+            actionLabel: message(locale, 'resources.empty.action'),
+            href: '/configuration',
+          }}
+        >
+          <ul className="flex flex-col gap-1 text-small" data-testid="departed">
+            <li className="text-meta text-muted">
+              {message(locale, 'resources.departed.body')}
+            </li>
+            {departed.map((entry) => (
+              <li key={text(entry, 'subject')} data-testid="departed-entry">
+                <span className="text-strong">{text(entry, 'subject')}</span>{' '}
+                <span className="text-muted">{text(entry, 'detail')}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
     </>
   );
 }

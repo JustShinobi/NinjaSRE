@@ -122,6 +122,32 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.established.empty.body':
     'Tudo para o que este deployment tem credencial aparece aqui, com se algo realmente chegou lá. Ele não tem nenhuma, então ainda não consegue investigar.',
   'firstRun.established.empty.action': 'Escolher um provider de modelo',
+  'firstRun.estate.integration':
+    'O parque vem de {integration}, cuja credencial está guardada.',
+  'firstRun.estate.check': 'Perguntar ao cluster o que este token pode fazer',
+  'firstRun.estate.checking': 'Perguntando…',
+  'firstRun.estate.recheck': 'Perguntar de novo',
+  'firstRun.estate.sufficient':
+    'O token consegue ler tudo o que este deployment precisa.',
+  'firstRun.estate.insufficient':
+    'O token não consegue ler tudo o que este deployment precisa.',
+  'firstRun.estate.missingRead': 'Faltando, e cada um impede algo de funcionar:',
+  'firstRun.estate.missingAdvisory':
+    'Concedido pelo papel recomendado e não presente. Nada deixa de funcionar hoje:',
+  'firstRun.estate.grantedAt': 'Concedido em:',
+  'firstRun.estate.preview': 'Ver o que seria descoberto',
+  'firstRun.estate.previewing': 'Vendo…',
+  'firstRun.estate.found':
+    '{nodes} nós, {guests} convidados, {running} em execução, {zones} zonas. Nada foi gravado.',
+  'firstRun.estate.unplaced':
+    '{count} deles estão em nenhuma rede declarada, então não carregam zona.',
+  'firstRun.estate.incomplete':
+    'O cluster não terminou de enumerar em uma passagem, então estes são um piso e não um total.',
+  'firstRun.estate.confirm': 'Descobrir este parque a partir de agora',
+  'firstRun.estate.confirming': 'Registrando…',
+  'firstRun.estate.confirmed': 'Registrado. A primeira varredura está pronta agora.',
+  'firstRun.estate.needsPreview':
+    'Veja primeiro. Confirmar sem ter lido as contagens é um formulário, não uma decisão.',
   'firstRun.handover.estate': 'Ir para o parque',
   'firstRun.handover.alerts': 'Ir para os detectores',
 
@@ -466,6 +492,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.sorted': 'Pior primeiro',
   'resources.summary':
     '{watched} vigiados · {healthy} saudáveis · {degraded} degradados',
+  'resources.divergent.mark': '(fora do inventário)',
+  'resources.departed.title': 'Declarado e ausente',
+  'resources.departed.body':
+    'O inventário ainda nomeia estes e a fonte não os reporta mais. Um recurso que existe só num arquivo é um recurso que não existe mais.',
   'resources.empty.heading': 'Ainda não há recursos',
   'resources.empty.body':
     'Ligue uma fonte de infra-estrutura e o parque preenche-se sozinho dentro de um minuto. Nada aqui é introduzido à mão.',

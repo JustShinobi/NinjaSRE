@@ -321,6 +321,31 @@ export const EN = {
   'firstRun.established.empty.body':
     'Everything this deployment holds a credential for appears here, with whether anything has actually reached it. It holds none, so it cannot investigate yet.',
   'firstRun.established.empty.action': 'Choose a model provider',
+  'firstRun.estate.integration':
+    'The estate comes from {integration}, whose credential is stored.',
+  'firstRun.estate.check': 'Ask the cluster what this token may do',
+  'firstRun.estate.checking': 'Asking…',
+  'firstRun.estate.recheck': 'Ask again',
+  'firstRun.estate.sufficient': 'The token can read everything this deployment needs.',
+  'firstRun.estate.insufficient':
+    'The token cannot read everything this deployment needs.',
+  'firstRun.estate.missingRead': 'Missing, and each one stops something working:',
+  'firstRun.estate.missingAdvisory':
+    'Granted by the recommended role and not held. Nothing stops working today:',
+  'firstRun.estate.grantedAt': 'Granted at:',
+  'firstRun.estate.preview': 'Look at what would be discovered',
+  'firstRun.estate.previewing': 'Looking…',
+  'firstRun.estate.found':
+    '{nodes} nodes, {guests} guests, {running} running, {zones} zones. Nothing has been stored.',
+  'firstRun.estate.unplaced':
+    '{count} of them sit on no declared network, so they carry no zone.',
+  'firstRun.estate.incomplete':
+    'The cluster did not finish enumerating in one pass, so these are a floor rather than a total.',
+  'firstRun.estate.confirm': 'Discover this estate from now on',
+  'firstRun.estate.confirming': 'Registering…',
+  'firstRun.estate.confirmed': 'Registered. The first sweep is due now.',
+  'firstRun.estate.needsPreview':
+    'Look first. Confirming without having read the counts is a form, not a decision.',
   'firstRun.handover.estate': 'Go to the estate',
   'firstRun.handover.alerts': 'Go to the detectors',
 
@@ -481,6 +506,10 @@ export const EN = {
   'resources.list.caption': 'Everything this deployment watches',
   'resources.sorted': 'Worst first',
   'resources.summary': '{watched} watched · {healthy} healthy · {degraded} degraded',
+  'resources.divergent.mark': '(not in the inventory)',
+  'resources.departed.title': 'Declared and gone',
+  'resources.departed.body':
+    'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',
   'resources.empty.heading': 'No resources yet',
   'resources.empty.body':
     'Connect an infrastructure source and the estate populates itself within a minute. Nothing here is entered by hand.',

@@ -32,13 +32,15 @@ sequence somebody reconstructs six months later.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from gateway.http.credential_schemas import schema_for
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
-from gateway.http.errors import bad_request
+from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
 from integrations._catalogue.discovery import catalogue
 from platform.credentials.errors import CredentialSchemaViolation
@@ -88,6 +90,21 @@ class IntegrationVerification(BaseModel):
     integration: str
     state: str
     usable: bool
+
+
+class IntegrationVerificationReport(BaseModel):
+    """What an integration's own verifier found, in the vendor's own terms.
+
+    ``report`` is deliberately untyped at this layer. Each verifier answers the
+    question its vendor can actually be asked — Proxmox reports the token's
+    effective privileges because Proxmox has an endpoint for them; another
+    vendor reports which probes were permitted because it has not. A schema
+    imposed here would either be the union of every vendor's answer or the
+    intersection, and the intersection is a boolean.
+    """
+
+    integration: str
+    report: dict[str, Any]
 
 
 class CredentialWriteRequest(BaseModel):
@@ -179,6 +196,43 @@ async def verify_integration(
     return IntegrationVerification(
         integration=name, state=entry.state.value, usable=entry.state.usable
     )
+
+
+@router.post("/{name}/verify/report", response_model=IntegrationVerificationReport)
+async def verify_integration_deeply(
+    name: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> IntegrationVerificationReport:
+    """Run ``name``'s own verifier against the vendor and return its report.
+
+    A separate route rather than a flag on the verify beside it, and the
+    separation is the point. The shallow verify is cheap and safe to call from
+    any screen that wants to know whether a credential is configured; this one
+    makes live vendor calls and answers with a document. Two behaviours behind
+    one route with a query parameter is how a screen accidentally makes the
+    expensive call on every render.
+
+    Raises:
+        ApiProblem: this deployment composed no deep verifier, or ``name`` has
+            none to run (404). The refusal says which of the two it was.
+    """
+    del auth
+    if state.deep_verifier is None:
+        raise not_found(
+            f"This deployment cannot verify {name!r} against its vendor: no deep verifier "
+            f"is composed. Reaching a vendor means a credential proxy and a transport, "
+            f"which are wired at composition rather than guessed here. The credential "
+            f"state itself is answered by POST /v1/integrations/{name}/verify."
+        )
+    report = await state.deep_verifier(name)
+    if report is None:
+        raise not_found(
+            f"{name!r} has no verifier that produces a report. Its credential state is "
+            f"answered by POST /v1/integrations/{name}/verify; there is nothing further "
+            f"this vendor can be asked."
+        )
+    return IntegrationVerificationReport(integration=name, report=dict(report))
 
 
 @router.put("/{name}/credential", response_model=CredentialWriteView)

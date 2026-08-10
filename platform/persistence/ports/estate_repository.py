@@ -282,6 +282,12 @@ class SweepRecord:
     provider_calls: int = 0
     cursor: str = ""
     reason: str = ""
+    #: What this sweep concluded beyond the counts. Free-form because it is what
+    #: a *post-step* produced — today an enrichment's divergence report, which is
+    #: content rather than an error and has to survive the process that found it.
+    #: Kept on the sweep rather than on the resources because the interesting
+    #: half of a divergence is the entry that has no resource.
+    findings: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

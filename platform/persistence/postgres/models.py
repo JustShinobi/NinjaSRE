@@ -768,6 +768,7 @@ class DiscoverySweep(Base):
     provider_calls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     cursor: Mapped[str] = mapped_column(Text, nullable=False, default="")
     reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    findings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
 
 class SignalRow(Base):

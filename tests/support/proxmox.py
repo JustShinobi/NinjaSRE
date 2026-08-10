@@ -868,8 +868,16 @@ def recorded(state: ClusterState) -> RecordedCluster:
         f"/nodes/{PRIMARY}/replication": [],
         # The cluster-wide datastore definitions: which nodes may see each one.
         "/storage": list(_STORAGE_CONFIGURATION),
+        # What the reference cluster's token actually holds: the audit family
+        # plus Sys.Syslog, which is what /cluster/log sits behind, and SDN.Audit,
+        # which the recommended role grants and nothing shipped reads yet.
         "/access/permissions": {
-            "/": {"Sys.Audit": 1, "Datastore.Audit": 1},
+            "/": {
+                "Sys.Audit": 1,
+                "Datastore.Audit": 1,
+                "Sys.Syslog": 1,
+                "SDN.Audit": 1,
+            },
             "/vms": {"VM.Audit": 1},
             "/storage": {"Datastore.Audit": 1},
             "/nodes": {"Sys.Audit": 1},

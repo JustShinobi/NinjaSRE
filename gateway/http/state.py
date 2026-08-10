@@ -8,8 +8,9 @@ surface by constructing one value and wiring it in — the same reason
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 from core.llm.verification import ModelVerdict
 from gateway.http.rate_limit import ApiRateLimiter
@@ -26,6 +27,7 @@ from gateway.http.services import InvestigationRunner
 from gateway.webhooks.dedup import DeduplicationIndex
 from gateway.webhooks.idempotency import IdempotencyIndex
 from gateway.webhooks.shedding import LoadShedder, LoadShedRecord
+from platform.estate.discovery.port import ResourceReader
 from platform.estate.kinds import KindRegistry, core_registry
 from platform.guardrails.engine import GuardrailEngine
 from platform.identity.local_accounts import LocalSignIn
@@ -57,6 +59,17 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
 #: that a key is present.
 ProviderVerifier = Callable[[str], Awaitable[ModelVerdict]]
 
+#: How this deployment runs an integration's *own* verifier — the one that makes
+#: live vendor calls and answers with a document rather than a boolean. Takes an
+#: integration name and returns its report, or ``None`` for an integration that
+#: has no deep verifier to run.
+#:
+#: Supplied at composition for the same reason ``ProviderVerifier`` is: reaching
+#: a vendor means a credential proxy and a transport, and a gateway that built
+#: one from whatever ambient configuration was present would be reaching a
+#: cluster nobody chose.
+DeepVerifier = Callable[[str], Awaitable[Mapping[str, Any] | None]]
+
 
 @dataclass(slots=True)
 class GatewayState:
@@ -71,6 +84,15 @@ class GatewayState:
     #: ``None`` falls back to the same end-to-end preflight ``make preflight``
     #: runs, which is the honest default rather than a report nobody made.
     model_verifier: ProviderVerifier | None = None
+    #: How a deep verify reaches a vendor. ``None`` in a deployment that composed
+    #: none, and then the deep-verify route refuses with a sentence naming what
+    #: is missing rather than reporting an empty document as a clean bill.
+    deep_verifier: DeepVerifier | None = None
+    #: The discovery sources this deployment has been pointed at, by integration
+    #: name. Empty until composition wires one, because a source needs a vendor
+    #: client and a client needs the credential proxy — neither of which the
+    #: gateway builds for itself.
+    discovery_sources: Mapping[str, ResourceReader] = field(default_factory=dict)
     route_table: RouteTable = APPLICATION_ROUTE_TABLE
     broker: RunEventBroker = field(default_factory=RunEventBroker)
     guardrails: GuardrailEngine = field(default_factory=GuardrailEngine)
@@ -117,4 +139,4 @@ class GatewayState:
         return self.webhook_shedder.log.most_recent(source=source, team_node_id=team_node_id)
 
 
-__all__ = ["GatewayState"]
+__all__ = ["DeepVerifier", "GatewayState", "ProviderVerifier"]

@@ -727,6 +727,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/estate/discovery/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Discovery
+         * @description Return what one pass over ``integration`` would find, storing none of it.
+         *
+         *     Raises:
+         *         ApiProblem: no source for that integration is composed (404).
+         */
+        post: operations["preview_discovery_v1_estate_discovery_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/discovery/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discovery Report
+         * @description Return each swept source's last pass and every disagreement it recorded.
+         *
+         *     Divergence is content, so it is served rather than logged. Naming a
+         *     ``source`` narrows to one and answers 404 when nothing has ever swept it —
+         *     which is a different fact from a sweep that found nothing to disagree with,
+         *     and collapsing the two would let an unconfigured deployment read as a
+         *     perfectly reconciled one. Naming none returns what there is, which for a
+         *     deployment that has swept nothing is an empty list.
+         *
+         *     Raises:
+         *         ApiProblem: a named source nothing has ever swept (404).
+         */
+        get: operations["discovery_report_v1_estate_discovery_report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/discovery/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register Discovery Source
+         * @description Register ``integration``'s recurring sweep, and say when it is next due.
+         *
+         *     Due immediately. An operator who has just confirmed a preview expects the
+         *     estate to fill, and a first sweep that waited out the declared interval
+         *     would leave them looking at an empty screen for five minutes with nothing
+         *     to distinguish "scheduled" from "broken".
+         *
+         *     Raises:
+         *         ApiProblem: no source for that integration is composed (404).
+         */
+        post: operations["register_discovery_source_v1_estate_discovery_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/estate/resources": {
         parameters: {
             query?: never;
@@ -963,6 +1044,37 @@ export interface paths {
          *     refuse the second half of its own flow.
          */
         post: operations["verify_integration_v1_integrations__name__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{name}/verify/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Integration Deeply
+         * @description Run ``name``'s own verifier against the vendor and return its report.
+         *
+         *     A separate route rather than a flag on the verify beside it, and the
+         *     separation is the point. The shallow verify is cheap and safe to call from
+         *     any screen that wants to know whether a credential is configured; this one
+         *     makes live vendor calls and answers with a document. Two behaviours behind
+         *     one route with a query parameter is how a screen accidentally makes the
+         *     expensive call on every render.
+         *
+         *     Raises:
+         *         ApiProblem: this deployment composed no deep verifier, or ``name`` has
+         *             none to run (404). The refusal says which of the two it was.
+         */
+        post: operations["verify_integration_deeply_v1_integrations__name__verify_report_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2519,6 +2631,135 @@ export interface components {
             /** Stage */
             stage: string;
         };
+        /**
+         * DiscoveryPreviewRequest
+         * @description What to preview, and what to place its resources into.
+         *
+         *     ``zones`` is optional and is a plain CIDR-to-name mapping rather than an
+         *     ingestion of the operator's inventory: the preview happens before anything
+         *     is stored, so it must be answerable from what the request carries plus what
+         *     the provider says. A preview with no zone map reports every resource as
+         *     unplaced, which is honest rather than empty.
+         */
+        DiscoveryPreviewRequest: {
+            /** Integration */
+            integration: string;
+            /** Zones */
+            zones?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * DiscoveryPreviewView
+         * @description What a sweep would find, counted, with nothing written.
+         */
+        DiscoveryPreviewView: {
+            /** By Kind */
+            by_kind?: {
+                [key: string]: number;
+            };
+            /** By Zone */
+            by_zone?: {
+                [key: string]: number;
+            };
+            /** Complete */
+            complete: boolean;
+            /** Guests */
+            guests: number;
+            /** Integration */
+            integration: string;
+            /** Nodes */
+            nodes: number;
+            /** Provider Calls */
+            provider_calls: number;
+            /** Running */
+            running: number;
+            /** Total */
+            total: number;
+            /**
+             * Unplaced
+             * @default 0
+             */
+            unplaced: number;
+            /** Zones */
+            zones: number;
+        };
+        /**
+         * DiscoveryReportListView
+         * @description One report per source that has ever been swept, in name order.
+         */
+        DiscoveryReportListView: {
+            /** Reports */
+            reports?: components["schemas"]["DiscoveryReportView"][];
+        };
+        /**
+         * DiscoveryReportView
+         * @description The last sweep of one source, and what it disagreed with the file about.
+         */
+        DiscoveryReportView: {
+            /**
+             * Annotated
+             * @default 0
+             */
+            annotated: number;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Divergences */
+            divergences?: components["schemas"]["DivergenceView"][];
+            /** Outcome */
+            outcome: string;
+            /**
+             * Provider Calls
+             * @default 0
+             */
+            provider_calls: number;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Seen Count
+             * @default 0
+             */
+            seen_count: number;
+            /** Source */
+            source: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+        };
+        /**
+         * DiscoverySourceView
+         * @description The sweep this deployment will now run, and when it next comes due.
+         */
+        DiscoverySourceView: {
+            /** Integration */
+            integration: string;
+            /** Interval Seconds */
+            interval_seconds: number;
+            /** Job Id */
+            job_id: string;
+            /**
+             * Next Run At
+             * Format: date-time
+             */
+            next_run_at: string;
+        };
+        /**
+         * DivergenceView
+         * @description One disagreement between the declared inventory and the live source.
+         */
+        DivergenceView: {
+            /** Detail */
+            detail: string;
+            /** Kind */
+            kind: string;
+            /** Subject */
+            subject: string;
+        };
         /** DryRunRequest */
         DryRunRequest: {
             /** Enabled */
@@ -2947,6 +3188,25 @@ export interface components {
             state: string;
             /** Usable */
             usable: boolean;
+        };
+        /**
+         * IntegrationVerificationReport
+         * @description What an integration's own verifier found, in the vendor's own terms.
+         *
+         *     ``report`` is deliberately untyped at this layer. Each verifier answers the
+         *     question its vendor can actually be asked — Proxmox reports the token's
+         *     effective privileges because Proxmox has an endpoint for them; another
+         *     vendor reports which probes were permitted because it has not. A schema
+         *     imposed here would either be the union of every vendor's answer or the
+         *     intersection, and the intersection is a boolean.
+         */
+        IntegrationVerificationReport: {
+            /** Integration */
+            integration: string;
+            /** Report */
+            report: {
+                [key: string]: unknown;
+            };
         };
         /** IntegrationView */
         IntegrationView: {
@@ -3731,6 +3991,11 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
+            /**
+             * Correlation Key
+             * @default
+             */
+            correlation_key: string;
             /** Display Name */
             display_name: string;
             /**
@@ -5509,6 +5774,109 @@ export interface operations {
             };
         };
     };
+    preview_discovery_v1_estate_discovery_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoveryPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryPreviewView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discovery_report_v1_estate_discovery_report_get: {
+        parameters: {
+            query?: {
+                source?: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryReportListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_discovery_source_v1_estate_discovery_sources_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoveryPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverySourceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_resources_v1_estate_resources_get: {
         parameters: {
             query?: {
@@ -5907,6 +6275,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationVerification"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_integration_deeply_v1_integrations__name__verify_report_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationVerificationReport"];
                 };
             };
             /** @description Validation Error */

@@ -642,7 +642,10 @@ def test_every_read_privilege_says_what_stops_working_without_it() -> None:
 
 def test_the_write_privileges_are_declared_but_not_required_for_this_feature() -> None:
     report = privilege_report(
-        {"/": {"Sys.Audit": 1, "Datastore.Audit": 1}, "/vms": {"VM.Audit": 1}}
+        {
+            "/": {"Sys.Audit": 1, "Datastore.Audit": 1, "Sys.Syslog": 1},
+            "/vms": {"VM.Audit": 1},
+        }
     )
 
     assert report.read_sufficient

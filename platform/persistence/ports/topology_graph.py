@@ -73,6 +73,12 @@ class NodeKind(StrEnum):
     #: enumeration is not: a traversal must keep working when a deployment
     #: connects a hypervisor nobody here has heard of.
     RESOURCE = "resource"
+    #: A network the estate is divided into — the thing every guest inside it
+    #: depends on and whose gateway failing takes all of them with it. Distinct
+    #: from ``RESOURCE`` because a zone is not something a sweep discovered: it
+    #: is a division somebody declared, and a traversal asking "what else is on
+    #: this network" must not have to filter resources by an attribute.
+    ZONE = "zone"
 
 
 class EdgeKind(StrEnum):

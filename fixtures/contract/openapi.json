@@ -1129,6 +1129,228 @@
         "title": "DiagnosisView",
         "type": "object"
       },
+      "DiscoveryPreviewRequest": {
+        "description": "What to preview, and what to place its resources into.\n\n``zones`` is optional and is a plain CIDR-to-name mapping rather than an\ningestion of the operator's inventory: the preview happens before anything\nis stored, so it must be answerable from what the request carries plus what\nthe provider says. A preview with no zone map reports every resource as\nunplaced, which is honest rather than empty.",
+        "properties": {
+          "integration": {
+            "minLength": 1,
+            "title": "Integration",
+            "type": "string"
+          },
+          "zones": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Zones",
+            "type": "object"
+          }
+        },
+        "required": [
+          "integration"
+        ],
+        "title": "DiscoveryPreviewRequest",
+        "type": "object"
+      },
+      "DiscoveryPreviewView": {
+        "description": "What a sweep would find, counted, with nothing written.",
+        "properties": {
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Kind",
+            "type": "object"
+          },
+          "by_zone": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Zone",
+            "type": "object"
+          },
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "guests": {
+            "title": "Guests",
+            "type": "integer"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "nodes": {
+            "title": "Nodes",
+            "type": "integer"
+          },
+          "provider_calls": {
+            "title": "Provider Calls",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unplaced": {
+            "default": 0,
+            "title": "Unplaced",
+            "type": "integer"
+          },
+          "zones": {
+            "title": "Zones",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "integration",
+          "complete",
+          "provider_calls",
+          "total",
+          "nodes",
+          "guests",
+          "running",
+          "zones"
+        ],
+        "title": "DiscoveryPreviewView",
+        "type": "object"
+      },
+      "DiscoveryReportListView": {
+        "description": "One report per source that has ever been swept, in name order.",
+        "properties": {
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryReportView"
+            },
+            "title": "Reports",
+            "type": "array"
+          }
+        },
+        "title": "DiscoveryReportListView",
+        "type": "object"
+      },
+      "DiscoveryReportView": {
+        "description": "The last sweep of one source, and what it disagreed with the file about.",
+        "properties": {
+          "annotated": {
+            "default": 0,
+            "title": "Annotated",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "divergences": {
+            "items": {
+              "$ref": "#/components/schemas/DivergenceView"
+            },
+            "title": "Divergences",
+            "type": "array"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "provider_calls": {
+            "default": 0,
+            "title": "Provider Calls",
+            "type": "integer"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "seen_count": {
+            "default": 0,
+            "title": "Seen Count",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "outcome",
+          "started_at"
+        ],
+        "title": "DiscoveryReportView",
+        "type": "object"
+      },
+      "DiscoverySourceView": {
+        "description": "The sweep this deployment will now run, and when it next comes due.",
+        "properties": {
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "interval_seconds": {
+            "title": "Interval Seconds",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "next_run_at": {
+            "format": "date-time",
+            "title": "Next Run At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "integration",
+          "job_id",
+          "interval_seconds",
+          "next_run_at"
+        ],
+        "title": "DiscoverySourceView",
+        "type": "object"
+      },
+      "DivergenceView": {
+        "description": "One disagreement between the declared inventory and the live source.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject",
+          "detail"
+        ],
+        "title": "DivergenceView",
+        "type": "object"
+      },
       "DryRunRequest": {
         "properties": {
           "enabled": {
@@ -1987,6 +2209,26 @@
           "usable"
         ],
         "title": "IntegrationVerification",
+        "type": "object"
+      },
+      "IntegrationVerificationReport": {
+        "description": "What an integration's own verifier found, in the vendor's own terms.\n\n``report`` is deliberately untyped at this layer. Each verifier answers the\nquestion its vendor can actually be asked — Proxmox reports the token's\neffective privileges because Proxmox has an endpoint for them; another\nvendor reports which probes were permitted because it has not. A schema\nimposed here would either be the union of every vendor's answer or the\nintersection, and the intersection is a boolean.",
+        "properties": {
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "report": {
+            "additionalProperties": true,
+            "title": "Report",
+            "type": "object"
+          }
+        },
+        "required": [
+          "integration",
+          "report"
+        ],
+        "title": "IntegrationVerificationReport",
         "type": "object"
       },
       "IntegrationView": {
@@ -3587,6 +3829,11 @@
             "additionalProperties": true,
             "title": "Attributes",
             "type": "object"
+          },
+          "correlation_key": {
+            "default": "",
+            "title": "Correlation Key",
+            "type": "string"
           },
           "display_name": {
             "title": "Display Name",
@@ -7115,6 +7362,186 @@
         ]
       }
     },
+    "/v1/estate/discovery/preview": {
+      "post": {
+        "description": "Return what one pass over ``integration`` would find, storing none of it.\n\nRaises:\n    ApiProblem: no source for that integration is composed (404).",
+        "operationId": "preview_discovery_v1_estate_discovery_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Discovery",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/discovery/report": {
+      "get": {
+        "description": "Return each swept source's last pass and every disagreement it recorded.\n\nDivergence is content, so it is served rather than logged. Naming a\n``source`` narrows to one and answers 404 when nothing has ever swept it —\nwhich is a different fact from a sweep that found nothing to disagree with,\nand collapsing the two would let an unconfigured deployment read as a\nperfectly reconciled one. Naming none returns what there is, which for a\ndeployment that has swept nothing is an empty list.\n\nRaises:\n    ApiProblem: a named source nothing has ever swept (404).",
+        "operationId": "discovery_report_v1_estate_discovery_report_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryReportListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discovery Report",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/discovery/sources": {
+      "post": {
+        "description": "Register ``integration``'s recurring sweep, and say when it is next due.\n\nDue immediately. An operator who has just confirmed a preview expects the\nestate to fill, and a first sweep that waited out the declared interval\nwould leave them looking at an empty screen for five minutes with nothing\nto distinguish \"scheduled\" from \"broken\".\n\nRaises:\n    ApiProblem: no source for that integration is composed (404).",
+        "operationId": "register_discovery_source_v1_estate_discovery_sources_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoverySourceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Discovery Source",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
     "/v1/estate/resources": {
       "get": {
         "description": "Return the resources matching every filter given, by identifier.",
@@ -7963,6 +8390,65 @@
           }
         },
         "summary": "Verify Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{name}/verify/report": {
+      "post": {
+        "description": "Run ``name``'s own verifier against the vendor and return its report.\n\nA separate route rather than a flag on the verify beside it, and the\nseparation is the point. The shallow verify is cheap and safe to call from\nany screen that wants to know whether a credential is configured; this one\nmakes live vendor calls and answers with a document. Two behaviours behind\none route with a query parameter is how a screen accidentally makes the\nexpensive call on every render.\n\nRaises:\n    ApiProblem: this deployment composed no deep verifier, or ``name`` has\n        none to run (404). The refusal says which of the two it was.",
+        "operationId": "verify_integration_deeply_v1_integrations__name__verify_report_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationVerificationReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Integration Deeply",
         "tags": [
           "integrations"
         ]

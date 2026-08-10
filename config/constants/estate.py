@@ -102,6 +102,21 @@ DEFAULT_TRANSITION_HISTORY: Final[int] = 50
 #: in one screen does not explain anything.
 MAX_HEALTH_SIGNALS: Final[int] = 20
 
+# --- Declared inventory, ingested for enrichment -------------------------------
+
+#: Bytes one ingested inventory document may be. An operator points this at a
+#: directory somebody else maintains, so the size of what arrives is not a
+#: decision this deployment took — which is exactly the shape everything else in
+#: this module bounds. A megabyte is two orders of magnitude above the reference
+#: repository's largest file and small enough that a wrong path fails loudly
+#: rather than filling memory.
+MAX_ENRICHMENT_DOCUMENT_BYTES: Final[int] = 1_048_576
+
+#: Entries one ingested document may declare. Separate from the byte bound
+#: because a small file can still declare a hundred thousand hosts, and it is
+#: the entry count that decides how much annotation work follows.
+MAX_ENRICHMENT_ENTRIES: Final[int] = 5_000
+
 # --- Retention ----------------------------------------------------------------
 
 #: How long estate history is kept when the operator configures nothing. Longer
@@ -119,6 +134,8 @@ __all__ = [
     "ESTATE_DISCOVERY_JOB_KIND",
     "ESTATE_SUMMARY_BUDGET_RESOURCES",
     "ESTATE_SUMMARY_BUDGET_SECONDS",
+    "MAX_ENRICHMENT_DOCUMENT_BYTES",
+    "MAX_ENRICHMENT_ENTRIES",
     "MAX_ESTATE_PAGE_SIZE",
     "MAX_HEALTH_SIGNALS",
     "MAX_MAINTENANCE_SECONDS",
