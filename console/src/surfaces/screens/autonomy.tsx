@@ -3,9 +3,12 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/status';
 import { formatNumber } from '@/i18n/format';
 import { message } from '@/i18n/messages';
+import { timestamp } from '@/i18n/format';
+import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { AutonomyEditor, type EditableRule } from '../autonomy-editor';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -52,6 +55,12 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 export const AUTONOMY_FILTERS: readonly FilterName[] = ['node'];
 
+/** The permission that decides whether the editor is on the page at all. */
+const WRITE = 'config.write';
+
+/** The levels the deployment declares, least autonomous first. */
+const LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report', 'act_silently'];
+
 /** Least specific first, which is the order resolution considers them in. */
 const SCOPE_ORDER = [
   'deployment',
@@ -88,7 +97,7 @@ function specificityOf(rule: unknown): number {
 }
 
 export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, viewer, search } = context;
+  const { credential, locale, viewer, search, now, zone } = context;
   const state = readViewState(search, AUTONOMY_FILTERS);
   const init = authorised(credential);
 
@@ -126,6 +135,22 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const freezes = list(dataOf(bounds), 'freezes');
   const budgets = list(dataOf(bounds), 'budgets');
   const overrides = list(dataOf(bounds), 'overrides');
+  const writable = may(viewer, WRITE);
+
+  // Every rule carried back as the deployment sent it, so a save changes the
+  // level and nothing else. A console that rebuilt the record from the columns
+  // it renders would drop whatever it does not render.
+  const editable: readonly EditableRule[] = rules.map((rule, position) => {
+    const scope = field(rule, 'scope');
+    return {
+      ruleId: text(rule, 'rule_id') || `${text(scope, 'kind')}-${String(position)}`,
+      scope: text(scope, 'kind'),
+      matcher: matcherOf(scope),
+      level: text(rule, 'level'),
+      riskBound: text(rule, 'risk_bound'),
+      record: rule as Readonly<Record<string, unknown>>,
+    };
+  });
 
   return (
     <>
@@ -211,6 +236,55 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               {message(locale, 'autonomy.dry_run')}
             </p>
           ) : null}
+
+          {/* Absent, not disabled, for a viewer who may not write. */}
+          {writable && nodeId !== '' ? (
+            <div className="mt-5">
+              <Panel
+                title={message(locale, 'autonomy.editor.save')}
+                state={stateOf(policy, rules.length === 0)}
+                dependency={dependencyOf(policy)}
+                labels={panelLabels(locale, message(locale, 'autonomy.editor.save'))}
+                empty={{
+                  heading: message(locale, 'autonomy.empty.heading'),
+                  body: message(locale, 'autonomy.empty.body'),
+                  actionLabel: message(locale, 'autonomy.empty.action'),
+                  href: '/configuration',
+                }}
+              >
+                <AutonomyEditor
+                  nodeId={nodeId}
+                  rules={editable}
+                  levels={LEVELS}
+                  dryRun={simulated}
+                  labels={{
+                    level: message(locale, 'autonomy.editor.level'),
+                    preview: message(locale, 'autonomy.editor.preview'),
+                    previewing: message(locale, 'autonomy.editor.previewing'),
+                    explain: message(locale, 'autonomy.editor.explain'),
+                    explaining: message(locale, 'autonomy.editor.explaining'),
+                    explainCapability: message(locale, 'autonomy.editor.capability'),
+                    explainResource: message(locale, 'autonomy.editor.resource'),
+                    save: message(locale, 'autonomy.editor.save'),
+                    saving: message(locale, 'autonomy.editor.saving'),
+                    saved: message(locale, 'autonomy.editor.saved'),
+                    failed: message(locale, 'autonomy.editor.failed'),
+                    unreachable: message(locale, 'autonomy.editor.unreachable'),
+                    previewFirst: message(locale, 'autonomy.editor.previewFirst'),
+                    considered: message(locale, 'autonomy.editor.considered'),
+                    changed: message(locale, 'autonomy.editor.changed'),
+                    newlyAutonomous: message(locale, 'autonomy.editor.newlyAutonomous'),
+                    nothingChanges: message(locale, 'autonomy.editor.nothingChanges'),
+                    dryRunOn: message(locale, 'autonomy.editor.dryRunOn'),
+                    dryRunOff: message(locale, 'autonomy.editor.dryRunOff'),
+                    dryRunBanner: message(locale, 'autonomy.editor.dryRunBanner'),
+                    decision: message(locale, 'autonomy.editor.decision'),
+                    winningRule: message(locale, 'autonomy.editor.winningRule'),
+                  }}
+                />
+              </Panel>
+            </div>
+          ) : null}
         </div>
 
         <div className="min-w-0 flex flex-col gap-5">
@@ -271,21 +345,49 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   </dd>
                 </div>
               ))}
-              {overrides.map((override) => (
-                <div
-                  key={text(override, 'name')}
-                  className="flex items-center gap-3"
-                  data-testid="bound"
-                  data-bound="override"
-                >
-                  <dt className="font-mono min-w-0 truncate">
-                    {text(override, 'name')}
-                  </dt>
-                  <dd className="ml-auto flex items-center gap-2">
-                    <Badge status={text(override, 'level')} />
-                  </dd>
-                </div>
-              ))}
+              {overrides.map((override) => {
+                // Duration and reason in the row itself. An override is a
+                // deliberate, temporary widening of what may happen without a
+                // person, and a list that showed only its name would make
+                // "until when, and who said so" a second lookup nobody makes.
+                const expires = timestamp(
+                  locale,
+                  text(override, 'expires_at'),
+                  now,
+                  zone,
+                );
+                return (
+                  <div
+                    key={text(override, 'name')}
+                    className="flex flex-wrap items-center gap-3"
+                    data-testid="bound"
+                    data-bound="override"
+                  >
+                    <dt className="font-mono min-w-0 truncate">
+                      {text(override, 'name')}
+                    </dt>
+                    <dd className="flex flex-wrap items-center gap-2">
+                      <Badge status={text(override, 'level')} />
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="override-duration"
+                      >
+                        {message(locale, 'autonomy.override.duration')}{' '}
+                        <time dateTime={expires.iso} title={expires.absolute}>
+                          {expires.relative}
+                        </time>
+                      </span>
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="override-reason"
+                      >
+                        {message(locale, 'autonomy.override.reason')}{' '}
+                        {text(override, 'reason')}
+                      </span>
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
           </Panel>
         </div>
