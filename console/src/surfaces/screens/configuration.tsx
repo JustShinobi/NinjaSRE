@@ -7,8 +7,9 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
+import { editableFields } from '../editable';
 import { Panel } from '../panel';
-import { ConfigPreview } from '../preview';
+import { ConfigEditor } from '../preview';
 import {
   authorised,
   dataOf,
@@ -54,6 +55,19 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
   const values = pairs(dataOf(effective), 'values');
   const provenance = new Map(pairs(dataOf(effective), 'provenance'));
   const writable = may(viewer, WRITE);
+
+  // Asked for only by somebody who may write. A viewer who may not has no
+  // editor on the page, so the read behind it would be a request nothing uses.
+  const fields =
+    !writable || selected === ''
+      ? { status: 'ready' as const, data: {} as unknown }
+      : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', {
+            ...init,
+            params: { node_id: selected },
+          }),
+        );
+  const editable = editableFields(dataOf(fields));
 
   return (
     <>
@@ -142,12 +156,12 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
           {/* Absent, not disabled, for a viewer who may not write. */}
           {writable ? (
             <Panel
-              title={message(locale, 'configuration.preview.title')}
-              state={stateOf(effective, values.length === 0)}
-              dependency={dependencyOf(effective)}
+              title={message(locale, 'configuration.editor.title')}
+              state={stateOf(fields, editable.length === 0)}
+              dependency={dependencyOf(fields)}
               labels={panelLabels(
                 locale,
-                message(locale, 'configuration.preview.title'),
+                message(locale, 'configuration.editor.title'),
               )}
               empty={{
                 heading: message(locale, 'configuration.preview.empty.heading'),
@@ -157,15 +171,20 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
               }}
             >
               <p className="text-meta text-muted mb-3">
-                {message(locale, 'configuration.preview.lead')}
+                {message(locale, 'configuration.editor.lead')}
               </p>
-              <ConfigPreview
+              <ConfigEditor
                 nodeId={selected}
-                settings={values.map(([name, value]) => ({ name, value }))}
+                fields={editable}
                 labels={{
                   setting: message(locale, 'configuration.column.setting'),
                   value: message(locale, 'configuration.column.value'),
-                  submit: message(locale, 'configuration.preview.title'),
+                  submit: message(locale, 'configuration.editor.submit'),
+                  save: message(locale, 'configuration.editor.save'),
+                  saving: message(locale, 'configuration.editor.saving'),
+                  saved: message(locale, 'configuration.editor.saved'),
+                  failed: message(locale, 'configuration.editor.failed'),
+                  unreachable: message(locale, 'configuration.editor.unreachable'),
                   before: message(locale, 'configuration.preview.before'),
                   after: message(locale, 'configuration.preview.after'),
                   locked: message(locale, 'configuration.locked'),
@@ -174,6 +193,13 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
                   gatedDetail: message(locale, 'configuration.gated.detail'),
                   provenance: message(locale, 'configuration.column.provenance'),
                   empty: message(locale, 'configuration.preview.empty.heading'),
+                  previewFirst: message(locale, 'configuration.editor.previewFirst'),
+                  clear: message(locale, 'configuration.editor.clear'),
+                  cleared: message(locale, 'configuration.editor.cleared'),
+                  redundant: message(locale, 'configuration.editor.redundant'),
+                  reverts: message(locale, 'configuration.editor.reverts'),
+                  notEditable: message(locale, 'configuration.editor.notEditable'),
+                  inherited: message(locale, 'configuration.editor.inherited'),
                 }}
               />
             </Panel>

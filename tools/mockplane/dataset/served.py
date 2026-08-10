@@ -548,6 +548,89 @@ CONFIG_NODES: Final[tuple[Mapping[str, Any], ...]] = (
 )
 
 
+#: The fields the editor draws, one per setting the effective view above holds.
+#:
+#: Hand-written to match that record rather than derived from the real schema,
+#: and deliberately: this dataset is a *plausible deployment*, and a form
+#: listing ninety fields nothing beside it shows a value for would be a screen
+#: nobody could read a screenshot of. The derivation itself is proven where it
+#: lives, against the schema, in the configuration service's own suite.
+_CONFIG_FIELDS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "path": "investigation.max_loops",
+        "label": "Max loops",
+        "type": "integer",
+        "description": "How many times one investigation may go round before it stops.",
+        "section": "investigation",
+        "section_summary": "What an investigation may spend before it reports.",
+        "default": 12,
+        "minimum": 1,
+        "maximum": 20,
+    },
+    {
+        "path": "investigation.reasoning_effort",
+        "label": "Reasoning effort",
+        "type": "string",
+        "section": "investigation",
+        "section_summary": "What an investigation may spend before it reports.",
+        "default": "medium",
+        "allowed_values": ["low", "medium", "high"],
+    },
+    {
+        "path": "approval.required_above",
+        "label": "Required above",
+        "type": "string",
+        "description": "The side-effect level past which a person decides.",
+        "section": "approval",
+        "section_summary": "Which actions a person answers for.",
+        "default": "read",
+        "allowed_values": ["read", "write_reversible", "write_irreversible"],
+    },
+    {
+        "path": "retention.audit_days",
+        "label": "Audit days",
+        "type": "integer",
+        "section": "retention",
+        "section_summary": "How long each class of record is kept.",
+        "default": 365,
+        "minimum": 1,
+    },
+)
+
+
+def _config_fields(node_id: str, *, inherited: bool) -> list[dict[str, Any]]:
+    """Return the field catalogue as one node stands on it.
+
+    The provenance mirrors the effective record beside it, so the editor and the
+    values table above it cannot disagree about which level set what — which is
+    the one thing a configuration screen must never do.
+    """
+    source = {
+        "investigation.max_loops": ORG_NODE if inherited else node_id,
+        "investigation.reasoning_effort": node_id,
+        "approval.required_above": ORG_NODE if inherited else node_id,
+        "retention.audit_days": ORG_NODE if inherited else node_id,
+    }
+    values: Mapping[str, Any] = {
+        "investigation.max_loops": 12,
+        "investigation.reasoning_effort": "medium",
+        "approval.required_above": "read",
+        "retention.audit_days": 365,
+    }
+    return [
+        {
+            **dict(declared),
+            "value": values[str(declared["path"])],
+            "provenance": source[str(declared["path"])],
+            "set_here": source[str(declared["path"])] == node_id,
+            "locked_by": "",
+            "approval_gated": str(declared["path"]) == "approval.required_above",
+            "required": False,
+        }
+        for declared in _CONFIG_FIELDS
+    ]
+
+
 def config_records() -> tuple[CapturedRecord, ...]:
     """Return the organisation tree, and each node's effective configuration."""
     records: list[CapturedRecord] = [_record("config-tree", {}, {"nodes": list(CONFIG_NODES)})]
@@ -573,6 +656,13 @@ def config_records() -> tuple[CapturedRecord, ...]:
                         "retention.audit_days": ORG_NODE if inherited else identifier,
                     },
                 },
+            )
+        )
+        records.append(
+            _record(
+                "config-fields",
+                {"node_id": identifier},
+                {"fields": _config_fields(identifier, inherited=inherited)},
             )
         )
         records.append(

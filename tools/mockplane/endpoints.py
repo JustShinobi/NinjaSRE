@@ -291,6 +291,14 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/config/{node_id}/fields",
+        slug="config-fields",
+        source=_GATEWAY,
+        summary="every editable field, its type and range, and where its value comes from",
+        records_key="fields",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/config/{node_id}/guardian",
         slug="config-guardian",
         source=_GATEWAY,

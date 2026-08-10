@@ -241,6 +241,7 @@ def _absent_detail_records() -> tuple[CapturedRecord, ...]:
         "document-detail",
         "config-effective",
         "config-catalogue",
+        "config-fields",
         "autonomy-policy",
         "autonomy-bounds",
         "config-integration-schemas",

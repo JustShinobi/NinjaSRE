@@ -1,0 +1,455 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "fields": [
+          {
+            "approval_gated": false,
+            "default": 12,
+            "description": "How many times one investigation may go round before it stops.",
+            "label": "Max loops",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "investigation.max_loops",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "allowed_values": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "approval_gated": false,
+            "default": "medium",
+            "label": "Reasoning effort",
+            "locked_by": "",
+            "path": "investigation.reasoning_effort",
+            "provenance": "env-production",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": true,
+            "type": "string",
+            "value": "medium"
+          },
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
+          {
+            "approval_gated": false,
+            "default": 365,
+            "label": "Audit days",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "retention.audit_days",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "retention",
+            "section_summary": "How long each class of record is kept.",
+            "set_here": false,
+            "type": "integer",
+            "value": 365
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-fields",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "fields": [
+          {
+            "approval_gated": false,
+            "default": 12,
+            "description": "How many times one investigation may go round before it stops.",
+            "label": "Max loops",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "investigation.max_loops",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "allowed_values": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "approval_gated": false,
+            "default": "medium",
+            "label": "Reasoning effort",
+            "locked_by": "",
+            "path": "investigation.reasoning_effort",
+            "provenance": "env-staging",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": true,
+            "type": "string",
+            "value": "medium"
+          },
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
+          {
+            "approval_gated": false,
+            "default": 365,
+            "label": "Audit days",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "retention.audit_days",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "retention",
+            "section_summary": "How long each class of record is kept.",
+            "set_here": false,
+            "type": "integer",
+            "value": 365
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-fields",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "fields": [
+          {
+            "approval_gated": false,
+            "default": 12,
+            "description": "How many times one investigation may go round before it stops.",
+            "label": "Max loops",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "investigation.max_loops",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": true,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "allowed_values": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "approval_gated": false,
+            "default": "medium",
+            "label": "Reasoning effort",
+            "locked_by": "",
+            "path": "investigation.reasoning_effort",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": true,
+            "type": "string",
+            "value": "medium"
+          },
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": true,
+            "type": "string",
+            "value": "read"
+          },
+          {
+            "approval_gated": false,
+            "default": 365,
+            "label": "Audit days",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "retention.audit_days",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "retention",
+            "section_summary": "How long each class of record is kept.",
+            "set_here": true,
+            "type": "integer",
+            "value": 365
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-fields",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "fields": [
+          {
+            "approval_gated": false,
+            "default": 12,
+            "description": "How many times one investigation may go round before it stops.",
+            "label": "Max loops",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "investigation.max_loops",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "allowed_values": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "approval_gated": false,
+            "default": "medium",
+            "label": "Reasoning effort",
+            "locked_by": "",
+            "path": "investigation.reasoning_effort",
+            "provenance": "team-platform",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": true,
+            "type": "string",
+            "value": "medium"
+          },
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
+          {
+            "approval_gated": false,
+            "default": 365,
+            "label": "Audit days",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "retention.audit_days",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "retention",
+            "section_summary": "How long each class of record is kept.",
+            "set_here": false,
+            "type": "integer",
+            "value": 365
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-fields",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "fields": [
+          {
+            "approval_gated": false,
+            "default": 12,
+            "description": "How many times one investigation may go round before it stops.",
+            "label": "Max loops",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "investigation.max_loops",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "allowed_values": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "approval_gated": false,
+            "default": "medium",
+            "label": "Reasoning effort",
+            "locked_by": "",
+            "path": "investigation.reasoning_effort",
+            "provenance": "team-storage",
+            "required": false,
+            "section": "investigation",
+            "section_summary": "What an investigation may spend before it reports.",
+            "set_here": true,
+            "type": "string",
+            "value": "medium"
+          },
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
+          {
+            "approval_gated": false,
+            "default": 365,
+            "label": "Audit days",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "retention.audit_days",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "retention",
+            "section_summary": "How long each class of record is kept.",
+            "set_here": false,
+            "type": "integer",
+            "value": 365
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-fields",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-fields"
+}

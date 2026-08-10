@@ -36,7 +36,7 @@ const WRITE_CONTROLS = [
   { testId: 'decision', permission: 'remediation.approve' },
   { testId: 'approve', permission: 'remediation.approve' },
   { testId: 'reject', permission: 'remediation.approve' },
-  { testId: 'config-preview', permission: 'config.write' },
+  { testId: 'config-editor', permission: 'config.write' },
   { testId: 'ask-preview', permission: 'config.write' },
   { testId: 'credential', permission: 'integration.manage' },
   { testId: 'verify', permission: 'integration.manage' },
@@ -102,6 +102,6 @@ describe('the write controls, per role', () => {
       throw new Error('there is no configuration screen');
     render(await configuration.render({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByTestId('config-preview')).toBeInTheDocument();
+    expect(screen.getByTestId('config-editor')).toBeInTheDocument();
   });
 });

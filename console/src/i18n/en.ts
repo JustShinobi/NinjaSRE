@@ -654,6 +654,24 @@ export const EN = {
   'configuration.preview.empty.body':
     'A preview is the deployment’s answer to a patch. No patch is pending for this node.',
   'configuration.preview.empty.action': 'Look at the effective values',
+  'configuration.editor.title': 'Change what applies here',
+  'configuration.editor.lead':
+    'Every control below comes from the deployment’s own schema. Change what you need, then see what saving would resolve to — the save appears once you have.',
+  'configuration.editor.submit': 'Preview this change',
+  'configuration.editor.save': 'Save',
+  'configuration.editor.saving': 'Saving…',
+  'configuration.editor.saved': 'Saved. The values above are the new ones.',
+  'configuration.editor.failed': 'The deployment refused this change.',
+  'configuration.editor.unreachable': 'The deployment could not be reached.',
+  'configuration.editor.previewFirst':
+    'Preview this change before saving it — the diff is the only place inheritance is visible.',
+  'configuration.editor.clear': 'Remove this override',
+  'configuration.editor.cleared': 'Will go back to being inherited',
+  'configuration.editor.redundant': 'Already inherited with this value from',
+  'configuration.editor.reverts': 'Reverts to',
+  'configuration.editor.notEditable':
+    'A list or a free-form section: it replaces entirely on write, so it is not edited a field at a time.',
+  'configuration.editor.inherited': 'nothing yet',
   'configuration.empty.heading': 'No configuration here',
   'configuration.empty.body':
     'Every node inherits from the one above it. This one sets nothing of its own, so what applies is what its parent applies.',

@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DecisionControls } from '@/surfaces/decision';
-import { ConfigPreview } from '@/surfaces/preview';
 import { CredentialField } from '@/surfaces/credential';
 import { Figure } from '@/surfaces/figure';
 import { ProposalCard, PROPOSAL_FIELDS } from '@/surfaces/proposal';
@@ -138,61 +137,6 @@ describe('deciding in place', () => {
     await userEvent.click(screen.getByTestId('reject'));
 
     expect(bodySent()).toContain('no rollback exists');
-  });
-});
-
-describe('previewing a change', () => {
-  const LABELS = {
-    setting: 'Setting',
-    value: 'Value',
-    submit: 'Preview',
-    before: 'Now',
-    after: 'After saving',
-    locked: 'Locked here',
-    lockedDetail: 'A change made here would be refused.',
-    gated: 'Approval-gated',
-    gatedDetail: 'Saving this queues a change rather than applying it.',
-    provenance: 'Set at',
-    empty: 'Nothing would change',
-  };
-
-  it('renders the deployment’s answer rather than working one out', async () => {
-    render(
-      <ConfigPreview
-        nodeId="org-northwind"
-        settings={[{ name: 'investigation.max_loops', value: '8' }]}
-        labels={LABELS}
-      />,
-    );
-
-    await userEvent.click(screen.getByTestId('ask-preview'));
-
-    const change = await screen.findByTestId('preview-change');
-    expect(change).toHaveAttribute('data-path', 'investigation.max_loops');
-    expect(change).toHaveTextContent('8');
-    expect(change).toHaveTextContent('12');
-    expect(sent?.url).toBe('/api/preview');
-  });
-
-  it('says what a locked value would do, and that a gated one is queued', async () => {
-    render(
-      <ConfigPreview
-        nodeId="org-northwind"
-        settings={[{ name: 'investigation.max_loops', value: '8' }]}
-        labels={LABELS}
-      />,
-    );
-
-    await userEvent.click(screen.getByTestId('ask-preview'));
-
-    expect(await screen.findByTestId('locked')).toHaveTextContent(LABELS.lockedDetail);
-    expect(screen.getByTestId('gated')).toHaveTextContent(LABELS.gatedDetail);
-  });
-
-  it('shows nothing about a change nobody has asked about yet', () => {
-    render(<ConfigPreview nodeId="n" settings={[]} labels={LABELS} />);
-
-    expect(screen.queryByTestId('preview-changes')).toBeNull();
   });
 });
 

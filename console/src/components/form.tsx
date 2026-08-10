@@ -110,6 +110,16 @@ export interface InputProps extends FieldProps {
    * "every secret field turns it off" a thing a test can walk.
    */
   readonly autoComplete?: 'off' | undefined;
+  /**
+   * The bounds a numeric field accepts, when the deployment declared some.
+   *
+   * On the control rather than only in a validation message, because the
+   * browser's own stepper and its own refusal are what stop a value being typed
+   * that the write path would reject — and a form that only says no after a
+   * round trip is a form people learn to distrust.
+   */
+  readonly min?: number | undefined;
+  readonly max?: number | undefined;
   readonly value?: string;
   readonly defaultValue?: string;
   readonly onValueChange?: (value: string) => void;
@@ -124,6 +134,8 @@ export function Input({
   disabled = false,
   type = 'text',
   autoComplete,
+  min,
+  max,
   value,
   defaultValue,
   onValueChange,
@@ -136,6 +148,8 @@ export function Input({
         name={name}
         type={type}
         autoComplete={autoComplete}
+        min={min}
+        max={max}
         disabled={disabled}
         value={value}
         defaultValue={defaultValue}
