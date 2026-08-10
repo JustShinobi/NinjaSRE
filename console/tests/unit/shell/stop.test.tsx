@@ -167,3 +167,22 @@ describe('the control, for whoever may use it', () => {
     );
   });
 });
+
+describe('when the deployment refuses', () => {
+  it('says it refused rather than reporting a stop that did not happen', async () => {
+    answerWith({ ok: false, reachable: true }, 403);
+    render(
+      <KillSwitchControl
+        viewer={viewer(['remediation.execute'])}
+        locale="en"
+        engaged={false}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('engage-stop'));
+    await userEvent.click(screen.getByTestId('confirm-stop'));
+
+    expect(await screen.findByTestId('stop-failure')).toBeInTheDocument();
+    expect(screen.queryByTestId('release-stop')).toBeNull();
+  });
+});

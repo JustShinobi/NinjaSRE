@@ -4991,6 +4991,247 @@
         "title": "SkillView",
         "type": "object"
       },
+      "SsoClaimView": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "groups": {
+            "title": "Groups",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "email",
+          "display_name",
+          "groups"
+        ],
+        "title": "SsoClaimView",
+        "type": "object"
+      },
+      "SsoTestRequest": {
+        "description": "The claim set the provider returned for a test user.",
+        "properties": {
+          "claims": {
+            "additionalProperties": true,
+            "title": "Claims",
+            "type": "object"
+          }
+        },
+        "title": "SsoTestRequest",
+        "type": "object"
+      },
+      "SsoTestView": {
+        "properties": {
+          "email": {
+            "default": "",
+            "title": "Email",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "mapped_node_id": {
+            "default": "",
+            "title": "Mapped Node Id",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "boolean"
+          },
+          "used_default": {
+            "default": false,
+            "title": "Used Default",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "succeeded"
+        ],
+        "title": "SsoTestView",
+        "type": "object"
+      },
+      "SsoView": {
+        "description": "The configuration, and the two facts about it that decide what may happen.",
+        "properties": {
+          "authorisation_endpoint": {
+            "default": "",
+            "title": "Authorisation Endpoint",
+            "type": "string"
+          },
+          "claims": {
+            "$ref": "#/components/schemas/SsoClaimView"
+          },
+          "client_id": {
+            "default": "",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "default_node_id": {
+            "default": "",
+            "title": "Default Node Id",
+            "type": "string"
+          },
+          "group_to_node": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Group To Node",
+            "type": "object"
+          },
+          "is_active": {
+            "default": false,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "issuer": {
+            "default": "",
+            "title": "Issuer",
+            "type": "string"
+          },
+          "jwks_uri": {
+            "default": "",
+            "title": "Jwks Uri",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "provider": {
+            "default": "",
+            "title": "Provider",
+            "type": "string"
+          },
+          "redirect_uri": {
+            "default": "",
+            "title": "Redirect Uri",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "token_endpoint": {
+            "default": "",
+            "title": "Token Endpoint",
+            "type": "string"
+          },
+          "verified": {
+            "default": false,
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "claims"
+        ],
+        "title": "SsoView",
+        "type": "object"
+      },
+      "SsoWriteRequest": {
+        "properties": {
+          "authorisation_endpoint": {
+            "default": "",
+            "title": "Authorisation Endpoint",
+            "type": "string"
+          },
+          "claims": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SsoClaimView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "client_id": {
+            "default": "",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "default_node_id": {
+            "default": "",
+            "title": "Default Node Id",
+            "type": "string"
+          },
+          "group_to_node": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Group To Node",
+            "type": "object"
+          },
+          "issuer": {
+            "default": "",
+            "title": "Issuer",
+            "type": "string"
+          },
+          "jwks_uri": {
+            "default": "",
+            "title": "Jwks Uri",
+            "type": "string"
+          },
+          "provider": {
+            "default": "",
+            "title": "Provider",
+            "type": "string"
+          },
+          "redirect_uri": {
+            "default": "",
+            "title": "Redirect Uri",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "token_endpoint": {
+            "default": "",
+            "title": "Token Endpoint",
+            "type": "string"
+          }
+        },
+        "title": "SsoWriteRequest",
+        "type": "object"
+      },
       "SubjectRequest": {
         "description": "One resource an explained action would touch.",
         "properties": {
@@ -6307,6 +6548,224 @@
           }
         },
         "summary": "List Principals",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/sso": {
+      "get": {
+        "description": "Return the identity provider this deployment is pointed at.",
+        "operationId": "read_sso_identity_sso_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Sso",
+        "tags": [
+          "identity"
+        ]
+      },
+      "put": {
+        "description": "Replace the configuration, and drop any test result it invalidates.\n\nThe digest is cleared explicitly as well as being invalidated by\nconstruction, so the *stored* document never carries a result that belongs\nto settings it no longer holds. Two mechanisms for one property, and the\nreason is that this is the property somebody gets locked out over.",
+        "operationId": "write_sso_identity_sso_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Sso",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/sso/activate": {
+      "post": {
+        "description": "Make this provider the way in, refusing until a test has passed on it.\n\nThree refusals, and they are one refusal: there is no result, the settings\nare not usable, or the result was produced by different settings. All three\nmean nobody has watched this configuration complete a sign-in, and every one\nof them ends with an operator locked out.",
+        "operationId": "activate_sso_identity_sso_activate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Sso",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/sso/test": {
+      "post": {
+        "description": "Run a real claim set through the configuration, and record whether it worked.\n\nThe result is stored as the digest of the settings it passed against, so it\ncovers *these* settings and nothing else. A failure stores nothing, which\nleaves activation refused — the correct outcome, and the one that does not\ndepend on anybody reading the response.",
+        "operationId": "test_sso_identity_sso_test_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoTestView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Sso",
         "tags": [
           "identity"
         ]

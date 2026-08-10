@@ -31,6 +31,7 @@ from gateway.http.routes import (
     remediation,
     runs,
     schedules,
+    sso,
     threads,
     topology,
 )
@@ -97,6 +98,7 @@ def create_app(
         providers.router,
         identity.auth_router,
         identity.identity_router,
+        sso.router,
         audit.router,
         health.router,
     ):

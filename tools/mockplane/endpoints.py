@@ -391,6 +391,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/identity/sso",
+        slug="sso",
+        source=_GATEWAY,
+        summary="the identity provider this deployment is pointed at, and whether it is tested",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/identity/tokens",
         slug="tokens",
         source=_GATEWAY,

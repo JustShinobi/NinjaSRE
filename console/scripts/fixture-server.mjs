@@ -63,6 +63,7 @@ export const SHELL_ENDPOINTS = Object.freeze({
   '/v1/capabilities': 'capabilities',
   '/identity/principals': 'principals',
   '/identity/grants': 'grants',
+  '/identity/sso': 'sso',
   '/identity/tokens': 'tokens',
   '/audit/events': 'audit-events',
   '/v1/estate/summary': 'estate-summary',

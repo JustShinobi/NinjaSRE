@@ -9,6 +9,7 @@ import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
+import { SsoForm, type SsoField } from '../sso';
 import { TokenPanel, type IssuedToken } from '../tokens';
 import {
   authorised,
@@ -45,11 +46,14 @@ export async function AdministrationScreen(
   const { credential, locale, viewer, now, zone } = context;
   const init = authorised(credential);
 
-  const [principals, grants, tokens] = await Promise.all([
+  const [principals, grants, tokens, sso] = await Promise.all([
     panelRead('/identity/principals', () => read('/identity/principals', init)),
     panelRead('/identity/grants', () => read('/identity/grants', init)),
     may(viewer, TOKENS)
       ? panelRead<unknown>('/identity/tokens', () => read('/identity/tokens', init))
+      : Promise.resolve({ status: 'ready' as const, data: {} }),
+    may(viewer, SSO)
+      ? panelRead<unknown>('/identity/sso', () => read('/identity/sso', init))
       : Promise.resolve({ status: 'ready' as const, data: {} }),
   ]);
 
@@ -57,6 +61,20 @@ export async function AdministrationScreen(
   const held = list(dataOf(grants), 'grants');
   const issued = list(dataOf(tokens), 'tokens');
   const none = message(locale, 'surface.none');
+
+  // Field by field rather than by spreading the body: the form is driven by the
+  // closed list the module declares, and a body carrying an extra key must not
+  // become a control nobody wrote.
+  const ssoSettings: Record<SsoField, string> = {
+    provider: text(dataOf(sso), 'provider'),
+    issuer: text(dataOf(sso), 'issuer'),
+    client_id: text(dataOf(sso), 'client_id'),
+    authorisation_endpoint: text(dataOf(sso), 'authorisation_endpoint'),
+    token_endpoint: text(dataOf(sso), 'token_endpoint'),
+    jwks_uri: text(dataOf(sso), 'jwks_uri'),
+    redirect_uri: text(dataOf(sso), 'redirect_uri'),
+    default_node_id: text(dataOf(sso), 'default_node_id'),
+  };
 
   const emptyState = {
     heading: message(locale, 'admin.empty.heading'),
@@ -164,15 +182,46 @@ export async function AdministrationScreen(
         {may(viewer, SSO) ? (
           <Panel
             title={message(locale, 'admin.sso.title')}
-            state="empty"
+            state={stateOf(sso, false)}
+            dependency={dependencyOf(sso)}
             labels={panelLabels(locale, message(locale, 'admin.sso.title'))}
-            empty={{
-              heading: message(locale, 'admin.sso.title'),
-              body: message(locale, 'page.administration.context'),
-              actionLabel: message(locale, 'admin.sso.configure'),
-              href: '/configuration',
-            }}
-          />
+            empty={emptyState}
+          >
+            <SsoForm
+              settings={ssoSettings}
+              isActive={flag(dataOf(sso), 'is_active')}
+              verified={flag(dataOf(sso), 'verified')}
+              problems={list(dataOf(sso), 'problems').map(String)}
+              labels={{
+                field: {
+                  provider: message(locale, 'admin.sso.provider'),
+                  issuer: message(locale, 'admin.sso.issuer'),
+                  client_id: message(locale, 'admin.sso.clientId'),
+                  authorisation_endpoint: message(locale, 'admin.sso.authorisation'),
+                  token_endpoint: message(locale, 'admin.sso.token'),
+                  jwks_uri: message(locale, 'admin.sso.jwks'),
+                  redirect_uri: message(locale, 'admin.sso.redirect'),
+                  default_node_id: message(locale, 'admin.sso.defaultNode'),
+                },
+                save: message(locale, 'admin.sso.save'),
+                saving: message(locale, 'admin.sso.saving'),
+                test: message(locale, 'admin.sso.test'),
+                testing: message(locale, 'admin.sso.testing'),
+                claims: message(locale, 'admin.sso.claims'),
+                claimsHelp: message(locale, 'admin.sso.claimsHelp'),
+                activate: message(locale, 'admin.sso.activate'),
+                activating: message(locale, 'admin.sso.activating'),
+                active: message(locale, 'admin.sso.active'),
+                verified: message(locale, 'admin.sso.verified'),
+                notVerified: message(locale, 'admin.sso.notVerified'),
+                testFirst: message(locale, 'admin.sso.testFirst'),
+                pendingEdit: message(locale, 'admin.sso.pendingEdit'),
+                failed: message(locale, 'admin.sso.failed'),
+                unreachable: message(locale, 'admin.sso.unreachable'),
+                problems: message(locale, 'admin.sso.problems'),
+              }}
+            />
+          </Panel>
         ) : null}
       </div>
     </>

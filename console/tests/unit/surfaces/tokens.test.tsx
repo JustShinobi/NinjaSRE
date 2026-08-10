@@ -183,3 +183,66 @@ describe('revoking one', () => {
     expect(screen.getByText(LABELS.revoked)).toBeInTheDocument();
   });
 });
+
+describe('when the deployment cannot be reached', () => {
+  it('says so on an issuance rather than reporting a refusal', async () => {
+    panel();
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')));
+
+    await userEvent.type(screen.getByLabelText(LABELS.name), 'ci-runner');
+    await userEvent.click(screen.getByTestId('issue-token'));
+
+    expect(await screen.findByTestId('token-failure')).toHaveTextContent(
+      LABELS.unreachable,
+    );
+  });
+
+  it('says so on a revocation too, and leaves the row alone', async () => {
+    panel();
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')));
+
+    await userEvent.click(screen.getByTestId('revoke-token'));
+    await userEvent.click(screen.getByTestId('confirm-revoke'));
+
+    expect(await screen.findByTestId('token-failure')).toHaveTextContent(
+      LABELS.unreachable,
+    );
+    expect(screen.queryByText(LABELS.revoked)).toBeNull();
+  });
+
+  it('reports a refused revocation in the deployment’s own words', async () => {
+    panel();
+    answerWith({ ok: false, reachable: true, reason: 'no live token' }, 404);
+
+    await userEvent.click(screen.getByTestId('revoke-token'));
+    await userEvent.click(screen.getByTestId('confirm-revoke'));
+
+    expect(await screen.findByTestId('token-failure')).toHaveTextContent(
+      'no live token',
+    );
+  });
+
+  it('shows a token with no recorded expiry as one, rather than as blank', () => {
+    panel([
+      {
+        tokenId: 'tok-2',
+        name: 'no-expiry',
+        scopes: [],
+        revoked: false,
+        expires: '',
+      },
+    ]);
+
+    expect(screen.getByText(LABELS.none)).toBeInTheDocument();
+  });
+
+  it('holds back a secret an answer did not actually carry', async () => {
+    panel();
+    answerWith({ ok: true, reachable: true });
+
+    await userEvent.type(screen.getByLabelText(LABELS.name), 'ci-runner');
+    await userEvent.click(screen.getByTestId('issue-token'));
+
+    expect(screen.queryByTestId('token-secret')).toBeNull();
+  });
+});

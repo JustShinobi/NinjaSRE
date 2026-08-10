@@ -1,0 +1,45 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "authorisation_endpoint": "https://sorrel.example.invalid/auth",
+        "claims": {
+          "display_name": "name",
+          "email": "anchor.maple@example.invalid",
+          "groups": "groups",
+          "subject": "sub"
+        },
+        "client_id": "ninjasre",
+        "default_node_id": "org-northwind",
+        "group_to_node": {
+          "sre": "team-platform"
+        },
+        "is_active": false,
+        "issuer": "https://sorrel.example.invalid/realms/main",
+        "jwks_uri": "https://sorrel.example.invalid/certs",
+        "problems": [],
+        "provider": "keycloak",
+        "redirect_uri": "https://amber.example.invalid/auth/callback",
+        "scopes": [
+          "openid",
+          "email",
+          "profile"
+        ],
+        "token_endpoint": "[removed]",
+        "verified": true
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "sso",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "sso"
+}

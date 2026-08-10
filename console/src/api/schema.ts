@@ -172,6 +172,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/identity/sso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Sso
+         * @description Return the identity provider this deployment is pointed at.
+         */
+        get: operations["read_sso_identity_sso_get"];
+        /**
+         * Write Sso
+         * @description Replace the configuration, and drop any test result it invalidates.
+         *
+         *     The digest is cleared explicitly as well as being invalidated by
+         *     construction, so the *stored* document never carries a result that belongs
+         *     to settings it no longer holds. Two mechanisms for one property, and the
+         *     reason is that this is the property somebody gets locked out over.
+         */
+        put: operations["write_sso_identity_sso_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/sso/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Sso
+         * @description Make this provider the way in, refusing until a test has passed on it.
+         *
+         *     Three refusals, and they are one refusal: there is no result, the settings
+         *     are not usable, or the result was produced by different settings. All three
+         *     mean nobody has watched this configuration complete a sign-in, and every one
+         *     of them ends with an operator locked out.
+         */
+        post: operations["activate_sso_identity_sso_activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/sso/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Sso
+         * @description Run a real claim set through the configuration, and record whether it worked.
+         *
+         *     The result is stored as the digest of the settings it passed against, so it
+         *     covers *these* settings and nothing else. A failure stores nothing, which
+         *     leaves activation refused — the correct outcome, and the one that does not
+         *     depend on anybody reading the response.
+         */
+        post: operations["test_sso_identity_sso_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/identity/tokens": {
         parameters: {
             query?: never;
@@ -4667,6 +4746,171 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** SsoClaimView */
+        SsoClaimView: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Groups */
+            groups: string;
+            /** Subject */
+            subject: string;
+        };
+        /**
+         * SsoTestRequest
+         * @description The claim set the provider returned for a test user.
+         */
+        SsoTestRequest: {
+            /** Claims */
+            claims?: {
+                [key: string]: unknown;
+            };
+        };
+        /** SsoTestView */
+        SsoTestView: {
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+            /** Groups */
+            groups?: string[];
+            /**
+             * Mapped Node Id
+             * @default
+             */
+            mapped_node_id: string;
+            /** Problems */
+            problems?: string[];
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /** Succeeded */
+            succeeded: boolean;
+            /**
+             * Used Default
+             * @default false
+             */
+            used_default: boolean;
+        };
+        /**
+         * SsoView
+         * @description The configuration, and the two facts about it that decide what may happen.
+         */
+        SsoView: {
+            /**
+             * Authorisation Endpoint
+             * @default
+             */
+            authorisation_endpoint: string;
+            claims: components["schemas"]["SsoClaimView"];
+            /**
+             * Client Id
+             * @default
+             */
+            client_id: string;
+            /**
+             * Default Node Id
+             * @default
+             */
+            default_node_id: string;
+            /** Group To Node */
+            group_to_node?: {
+                [key: string]: string;
+            };
+            /**
+             * Is Active
+             * @default false
+             */
+            is_active: boolean;
+            /**
+             * Issuer
+             * @default
+             */
+            issuer: string;
+            /**
+             * Jwks Uri
+             * @default
+             */
+            jwks_uri: string;
+            /** Problems */
+            problems?: string[];
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Redirect Uri
+             * @default
+             */
+            redirect_uri: string;
+            /** Scopes */
+            scopes?: string[];
+            /**
+             * Token Endpoint
+             * @default
+             */
+            token_endpoint: string;
+            /**
+             * Verified
+             * @default false
+             */
+            verified: boolean;
+        };
+        /** SsoWriteRequest */
+        SsoWriteRequest: {
+            /**
+             * Authorisation Endpoint
+             * @default
+             */
+            authorisation_endpoint: string;
+            claims?: components["schemas"]["SsoClaimView"] | null;
+            /**
+             * Client Id
+             * @default
+             */
+            client_id: string;
+            /**
+             * Default Node Id
+             * @default
+             */
+            default_node_id: string;
+            /** Group To Node */
+            group_to_node?: {
+                [key: string]: string;
+            };
+            /**
+             * Issuer
+             * @default
+             */
+            issuer: string;
+            /**
+             * Jwks Uri
+             * @default
+             */
+            jwks_uri: string;
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Redirect Uri
+             * @default
+             */
+            redirect_uri: string;
+            /** Scopes */
+            scopes?: string[];
+            /**
+             * Token Endpoint
+             * @default
+             */
+            token_endpoint: string;
+        };
         /**
          * SubjectRequest
          * @description One resource an explained action would touch.
@@ -5272,6 +5516,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_sso_identity_sso_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    write_sso_identity_sso_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SsoWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_sso_identity_sso_activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_sso_identity_sso_test_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SsoTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoTestView"];
                 };
             };
             /** @description Validation Error */

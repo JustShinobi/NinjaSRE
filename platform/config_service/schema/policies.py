@@ -75,6 +75,11 @@ from config.constants.observation import (
 from config.constants.security import (
     DEFAULT_MASKING_POLICY,
     MASKING_POLICY_LEVELS,
+    OIDC_DEFAULT_SCOPES,
+    OIDC_EMAIL_CLAIM,
+    OIDC_GROUPS_CLAIM,
+    OIDC_NAME_CLAIM,
+    OIDC_SUBJECT_CLAIM,
     SIDE_EFFECT_LEVELS,
     SIDE_EFFECT_WRITE_REVERSIBLE,
 )
@@ -780,10 +785,60 @@ class ChangeSourceSettings(ConfigSection):
     git_host: GitHostSettings = GitHostSettings()
 
 
+class SsoClaimSettings(ConfigSection):
+    """Which claim carries which fact.
+
+    Overridable because "groups" is spelled at least four ways across the
+    providers operators actually run, and a deployment that has to be patched to
+    read its own directory is a deployment that forks.
+    """
+
+    subject: ConfiguredStr = OIDC_SUBJECT_CLAIM
+    email: ConfiguredStr = OIDC_EMAIL_CLAIM
+    display_name: ConfiguredStr = OIDC_NAME_CLAIM
+    groups: ConfiguredStr = OIDC_GROUPS_CLAIM
+
+
+class SsoSettings(ConfigSection):
+    """The identity provider an operator points this deployment at.
+
+    Configuration rather than a store of its own, which puts it under the same
+    preview, provenance and audit as everything else somebody changes here — and
+    keeps it out of the credential vault, where it does not belong: none of
+    these fields is a secret.
+
+    ``verified_digest`` is what binds a passing test to the settings that passed
+    it. It holds the digest of the configuration a successful test was run
+    against, so *editing anything invalidates the test by construction*: the
+    digest is derived from the settings, and a changed setting produces a
+    different one. That is the lockout prevention the whole flow exists for, and
+    it is a property here rather than a rule somebody has to remember to apply.
+    """
+
+    provider: ConfiguredStr = ""
+    issuer: ConfiguredStr = ""
+    client_id: ConfiguredStr = ""
+    authorisation_endpoint: ConfiguredStr = ""
+    token_endpoint: ConfiguredStr = ""
+    jwks_uri: ConfiguredStr = ""
+    redirect_uri: ConfiguredStr = ""
+    scopes: ConfiguredStrList = OIDC_DEFAULT_SCOPES
+    claims: SsoClaimSettings = SsoClaimSettings()
+    #: Provider group name to node id. A group naming no node is ignored, which
+    #: is what lets a directory carry groups this deployment does not care about.
+    group_to_node: Mapping[str, str] = {}
+    #: Where a user with no mapped group lands. Without it there is no answer but
+    #: refusal, and a directory change nobody made deliberately becomes an outage.
+    default_node_id: ConfiguredStr = ""
+    is_active: bool = False
+    verified_digest: ConfiguredStr = ""
+
+
 class PoliciesConfig(ConfigSection):
     """Every policy switch, in one section."""
 
     changes: ChangeSourceSettings = ChangeSourceSettings()
+    sso: SsoSettings = SsoSettings()
     memory: MemoryPolicySettings = MemoryPolicySettings()
     strategy: StrategyPolicySettings = StrategyPolicySettings()
     knowledge: KnowledgePolicySettings = KnowledgePolicySettings()

@@ -426,3 +426,97 @@ describe('the save', () => {
     );
   });
 });
+
+describe('the answers the deployment gives that are not diffs', () => {
+  it('says nothing would change when the deployment says nothing would', async () => {
+    answerWith({
+      ...ANSWER,
+      changes: [],
+      locked: {},
+      approval_gated: [],
+      requires_approval: false,
+      redundant: [],
+    });
+    editor([field()]);
+
+    await userEvent.clear(screen.getByLabelText('Tool budget'));
+    await userEvent.type(screen.getByLabelText('Tool budget'), '12');
+    await userEvent.click(screen.getByTestId('ask-preview'));
+
+    expect(await screen.findByText(LABELS.empty)).toBeInTheDocument();
+    expect(screen.queryByTestId('preview-changes')).toBeNull();
+  });
+
+  it('says the deployment could not be reached when the preview never arrives', async () => {
+    editor([field()]);
+    await userEvent.clear(screen.getByLabelText('Tool budget'));
+    await userEvent.type(screen.getByLabelText('Tool budget'), '12');
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')));
+
+    await userEvent.click(screen.getByTestId('ask-preview'));
+
+    expect(await screen.findByTestId('save-failure')).toHaveTextContent(
+      LABELS.unreachable,
+    );
+  });
+
+  it('falls back to its own words when a refusal named no reason', async () => {
+    editor([field()]);
+    await userEvent.clear(screen.getByLabelText('Tool budget'));
+    await userEvent.type(screen.getByLabelText('Tool budget'), '12');
+    await userEvent.click(screen.getByTestId('ask-preview'));
+    await screen.findByTestId('save-config');
+    answerWith({ ok: false, reachable: true }, 500);
+
+    await userEvent.click(screen.getByTestId('save-config'));
+
+    expect(await screen.findByTestId('save-failure')).toHaveTextContent(LABELS.failed);
+  });
+
+  it('says which level a field with no value at all comes from', () => {
+    editor([field({ provenance: '', value: null })]);
+
+    expect(screen.getByTestId('field-provenance')).toHaveTextContent(LABELS.inherited);
+  });
+
+  it('draws a plain string field as text rather than as a number', () => {
+    editor([
+      field({
+        path: 'policies.masking.level',
+        label: 'Level',
+        type: 'string',
+        value: 'standard',
+        minimum: null,
+        maximum: null,
+      }),
+    ]);
+
+    expect(screen.getByLabelText('Level')).toHaveAttribute('type', 'text');
+  });
+
+  it('says a gated field will be queued, beside the control that queues it', () => {
+    editor([field({ approvalGated: true })]);
+
+    expect(screen.getByTestId('field-gated')).toHaveTextContent(LABELS.gatedDetail);
+  });
+
+  it('offers no clear on a locked field, whatever this node set', () => {
+    editor([field({ setHere: true, lockedBy: 'org-northwind' })]);
+
+    expect(screen.queryByTestId('clear-override')).toBeNull();
+  });
+
+  it('reports success and clears the pending change once a save lands', async () => {
+    editor([field()]);
+    await userEvent.clear(screen.getByLabelText('Tool budget'));
+    await userEvent.type(screen.getByLabelText('Tool budget'), '12');
+    await userEvent.click(screen.getByTestId('ask-preview'));
+    await screen.findByTestId('save-config');
+    answerWith({ ok: true, reachable: true, reason: '', values: {} });
+
+    await userEvent.click(screen.getByTestId('save-config'));
+
+    expect(await screen.findByTestId('save-result')).toHaveTextContent(LABELS.saved);
+    expect(screen.queryByTestId('preview-changes')).toBeNull();
+  });
+});

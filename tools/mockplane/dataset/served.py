@@ -1321,6 +1321,34 @@ def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
             },
         ),
         _record("principals", {}, {"users": list(USERS)}),
+        # Configured, tested, and not yet the way in — the state an operator is
+        # in for exactly as long as it takes them to read the consequence, and
+        # the only one where every control on the panel is worth photographing.
+        _record(
+            "sso",
+            {},
+            {
+                "provider": "keycloak",
+                "issuer": "https://id.northwind.invalid/realms/main",
+                "client_id": "ninjasre",
+                "authorisation_endpoint": "https://id.northwind.invalid/auth",
+                "token_endpoint": "https://id.northwind.invalid/token",
+                "jwks_uri": "https://id.northwind.invalid/certs",
+                "redirect_uri": "https://ninjasre.northwind.invalid/auth/callback",
+                "scopes": ["openid", "email", "profile"],
+                "claims": {
+                    "subject": "sub",
+                    "email": "email",
+                    "display_name": "name",
+                    "groups": "groups",
+                },
+                "group_to_node": {"sre": PLATFORM_TEAM_NODE},
+                "default_node_id": ORG_NODE,
+                "is_active": False,
+                "verified": True,
+                "problems": [],
+            },
+        ),
         _record("grants", {}, {"grants": list(GRANTS)}),
         _record(
             "tokens",

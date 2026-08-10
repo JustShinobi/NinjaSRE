@@ -269,8 +269,8 @@ CLAIMS: Final[tuple[Claim, ...]] = (
     Claim(
         "SC-005",
         "and the console renders that answer rather than working one out",
-        "tests/unit/surfaces/decide.test.tsx",
-        "renders the deployment",
+        "tests/unit/surfaces/config-editor.test.tsx",
+        "renders the server",
     ),
     Claim(
         "SC-006",
