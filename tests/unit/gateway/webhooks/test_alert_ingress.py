@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from config.constants.runs import TRIGGER_ALERT
 from gateway.http.app import create_app
 from gateway.http.state import GatewayState
 from gateway.webhooks.router import WebhookSourceConfig
@@ -30,6 +31,7 @@ from platform.persistence.ports.config_repository import ConfigNode, ConfigNodeK
 from platform.persistence.ports.estate_repository import ReferenceKind, Resource
 from platform.persistence.ports.incident_store import IncidentQuery
 from platform.persistence.ports.transaction import TenantScope
+from platform.runs.recorder import RecordedCall, RecordedTurn, RunRecorder
 from tests.unit.gateway.http.conftest import (
     ORG,
     TEAM_PAYMENTS,
@@ -246,3 +248,64 @@ async def test_an_estate_that_resolves_the_alert_reports_no_unresolved_target(
         headers={"Authorization": f"Bearer {ingress.token}"},
     )
     assert response.json()["targets"] == []
+
+
+async def test_the_run_the_alert_started_replays_from_its_own_recorded_events(
+    ingress: Ingress,
+) -> None:
+    """Acceptance 6, against the route the specification names.
+
+    The whole path: an alert creates a run, the run records what it did, and
+    ``GET /v1/runs/{run_id}/replay`` reconstructs it from the stored events
+    alone. The investigation body is the suite's stand-in — what is being
+    asserted is that a run *created by the alert path* is reachable and
+    reproducible through the ordinary route, which nothing before this feature
+    had a reason to check.
+    """
+    started = await deliver(ingress, firing({"vmid": "110"}))
+    run_id = started["run_id"]
+
+    async with ingress.gateway.begin(ingress.scope) as uow:
+        recorder = RunRecorder(store=uow.run_traces)
+        turn = await recorder.record_turn(
+            RecordedTurn(
+                run_id=run_id,
+                index=0,
+                model="scenario-1",
+                selection_rationale="the alert names a guest, so start at the hypervisor",
+                offered_capabilities=("proxmox_guest_state",),
+            )
+        )
+        await recorder.record_call(
+            RecordedCall(
+                run_id=run_id,
+                turn_id=turn.turn_id,
+                name="proxmox_guest_state",
+                arguments={"vmid": "110"},
+                result={"status": "running", "restarts": 2},
+            )
+        )
+
+    response = await ingress.client.get(
+        f"/v1/runs/{run_id}/replay", headers={"Authorization": f"Bearer {ingress.token}"}
+    )
+
+    assert response.status_code == 200, response.text
+    replayed = response.json()
+    assert replayed["run_id"] == run_id
+    assert [call["name"] for turn in replayed["turns"] for call in turn["calls"]] == [
+        "proxmox_guest_state"
+    ]
+    assert not replayed["is_interrupted"]
+
+
+async def test_the_replayed_run_is_the_one_the_alert_created(ingress: Ingress) -> None:
+    """The run is keyed by the alert's own fingerprint, so the two are one thing."""
+    started = await deliver(ingress, firing({"vmid": "110"}))
+
+    async with ingress.gateway.begin(ingress.scope) as uow:
+        run = await uow.run_traces.get_run(started["run_id"])
+
+    assert run is not None
+    assert run.trigger == TRIGGER_ALERT
+    assert run.alert_id
