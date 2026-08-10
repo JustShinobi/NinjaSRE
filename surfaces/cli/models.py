@@ -353,6 +353,10 @@ class IntegrationStatus:
     healthy: bool = False
     credential_state: str = ""
     detail: str = ""
+    #: Where this deployment's own estate says this vendor is already running.
+    #: Empty for everything the estate says nothing about, which is most of the
+    #: catalogue and is the ordinary case.
+    suggested_address: str = ""
 
     def to_record(self) -> dict[str, Any]:
         """Return this status as a JSON-serialisable document."""
@@ -362,6 +366,7 @@ class IntegrationStatus:
             "healthy": self.healthy,
             "credential_state": self.credential_state,
             "detail": self.detail,
+            "suggested_address": self.suggested_address,
         }
 
 

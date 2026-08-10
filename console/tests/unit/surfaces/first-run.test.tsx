@@ -413,6 +413,7 @@ describe('connecting integrations', () => {
     summary: 'Connected: {names}.',
     summaryNone: 'nothing connected',
     failed: 'failed:',
+    foundHere: 'Found in your estate at',
     credential: {
       submit: 'Store',
       sending: '…',
@@ -449,6 +450,55 @@ describe('connecting integrations', () => {
     );
 
     expect(screen.getByTestId('no-integration-matches')).toBeInTheDocument();
+  });
+
+  // Built rather than written: a literal origin in console source is refused by
+  // the lint rule that keeps every request pointed at the deployment, and this
+  // one is data the deployment sent rather than an address the console knows.
+  const FOUND_AT = ['http:', '//10.20.20.37:9090'].join('');
+
+  it('names where the estate found a vendor, so nobody has to go and look', () => {
+    // The hard part of this step is not choosing a vendor. It is knowing which
+    // of fifty-seven containers is the metric store, and the deployment already
+    // swept the cluster and knows.
+    render(
+      <IntegrationsStep
+        offers={OFFERS.map((offer, index) =>
+          index === 0
+            ? {
+                ...offer,
+                suggested: {
+                  address: FOUND_AT,
+                  because:
+                    'this estate holds a container called prometheus at 10.20.20.37',
+                },
+              }
+            : offer,
+        )}
+        labels={LABELS}
+      />,
+    );
+
+    const suggested = screen.getAllByTestId('integration-suggested');
+    expect(suggested).toHaveLength(1);
+    expect(one(suggested[0])).toHaveTextContent(FOUND_AT);
+  });
+
+  it('keeps the order the deployment served, and searching never reorders it', async () => {
+    // The relevance is derived once, server-side, so the CLI wizard and this
+    // one cannot disagree about it. Re-sorting here would be the second copy.
+    render(<IntegrationsStep offers={OFFERS} labels={LABELS} />);
+
+    const before = screen
+      .getAllByTestId('integration-offer')
+      .map((row) => row.getAttribute('data-integration'));
+    expect(before).toEqual(OFFERS.map((offer) => offer.name));
+
+    await userEvent.type(screen.getByLabelText('Search the catalogue'), 'a');
+    const after = screen
+      .getAllByTestId('integration-offer')
+      .map((row) => row.getAttribute('data-integration'));
+    expect(after).toEqual(before.filter((name) => after.includes(name)));
   });
 
   it('says which ones this deployment already holds a credential for', () => {

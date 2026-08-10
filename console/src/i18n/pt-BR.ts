@@ -637,6 +637,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.empty.body':
     'Uma capacidade é declarada pela instalação e não configurada aqui. Esta não declara nenhuma.',
   'catalogue.empty.action': 'Ver a configuração',
+  'catalogue.gaps.title': 'Não coberto, e por quê',
+  'catalogue.gaps.decided': '— avaliado e descartado',
+  'catalogue.gaps.unreachable': '— não dá para alcançar daqui',
+  'catalogue.gaps.resolution': 'O que mudaria isso:',
+  'firstRun.integrations.foundHere': 'Encontrado no seu estate em',
   'catalogue.integrations.title': 'Integrações',
   'catalogue.integrations.state': 'Ligação',
   'catalogue.integrations.verified': 'Última verificação',

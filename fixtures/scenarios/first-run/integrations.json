@@ -26,6 +26,80 @@
             ],
             "summary": "Range queries against the metrics store."
           }
+        ],
+        "known_gaps": [
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "PostgreSQL",
+            "integration": "postgresql",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "A protocol bridge that terminates the credential outside the agent process, the way the HTTP proxy does. Until there is one, a managed PostgreSQL is reachable through its cloud control plane — `aws_rds` for RDS and Aurora, `supabase` for Supabase — which answers instance state, failovers, and parameter changes but not sessions or query plans."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "MySQL",
+            "integration": "mysql",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "The same bridge PostgreSQL needs. A managed MySQL is reachable through `aws_rds`, which answers instance state and the event history and not what is executing inside the engine."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "MariaDB",
+            "integration": "mariadb",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "The same bridge MySQL needs — MariaDB speaks the MySQL protocol and has the same constraint for the same reason."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "MongoDB",
+            "integration": "mongodb",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "A protocol bridge, or Atlas: `mongodb_atlas` reaches a hosted deployment through the Atlas administration API and answers process and cluster state. A self-hosted replica set on port 27017 has no equivalent."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "Redis (self-hosted)",
+            "integration": "redis_server",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "A protocol bridge. `redis` is in the catalogue and reads Redis Cloud's control plane over HTTP; the keyspace, the slow log, and `INFO` on a self-hosted server are RESP and are not reachable."
+          },
+          {
+            "category": "communication",
+            "cause": "unreachable",
+            "display_name": "SMTP",
+            "integration": "smtp",
+            "reason": "SMTP is a stateful line protocol over its own port, not a request-response API. The credential proxy attaches a secret to an HTTP request; an SMTP session has no such request, and authentication happens inside a conversation the proxy cannot participate in.",
+            "resolution": "Either a protocol bridge that terminates the SMTP credential outside the agent process, or delivery through a vendor with an HTTP API — `twilio` and `pushover` are both in the catalogue and reach a person without an SMTP session."
+          },
+          {
+            "category": "cicd",
+            "cause": "unreachable",
+            "display_name": "Helm",
+            "integration": "helm",
+            "reason": "Helm 3 has no server component. A release is a Secret in the cluster and the CLI is what reads it, so there is no API for an integration to hold a credential against — the credential that matters is the cluster's.",
+            "resolution": "Nothing about Helm. Release history is already reachable: `kubernetes` reads the release Secrets in a namespace, and `argocd` answers the same question for the estates that deploy charts through it."
+          },
+          {
+            "category": "observability",
+            "cause": "not_built",
+            "display_name": "Gatus",
+            "integration": "gatus",
+            "reason": "Gatus answers one question — is this endpoint responding — and two configured sources already answer it by different routes: the hypervisor reports each guest's own state, and a blackbox exporter reports reachability from outside, both reaching the platform through Prometheus. A third path to the same answer is a third thing to keep credentials for and no new signal, and an investigation offered three sources for one question spends turns choosing between them.",
+            "resolution": "A synthetic check that asserts something neither of the other two can — a login flow, a certificate chain, a response body — or an estate where Gatus is the only thing watching a class of endpoint the hypervisor cannot see."
+          },
+          {
+            "category": "infrastructure",
+            "cause": "not_built",
+            "display_name": "NetBox",
+            "integration": "netbox",
+            "reason": "NetBox is a source of truth for network and addressing, and both already reach the platform: the addressing comes from the hypervisor with each guest, and the zones come from the declared inventory the estate is reconciled against. Ingesting the same facts from a third place is a third answer to 'which network is this on', and the failure that produces is two of them disagreeing quietly.",
+            "resolution": "An estate that grows past what the repository's own inventory describes — hardware, circuits, addressing NetBox is the only record of — at which point it stops being a duplicate and becomes the source for facts nothing else holds."
+          }
         ]
       },
       "contract_version": "1.0.0",

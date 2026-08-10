@@ -2343,12 +2343,14 @@ def _catalogued(record: Mapping[str, Any]) -> IntegrationStatus:
     it across rather than collapsing the two into one boolean.
     """
     health = _text(record, "health")
+    suggested = record.get("suggested")
     return IntegrationStatus(
         integration=_text(record, "name"),
         configured=bool(health) and health != _HEALTH_UNKNOWN,
         healthy=health == _HEALTH_HEALTHY,
         credential_state=health,
         detail=_text(record, "health_detail"),
+        suggested_address=(_text(suggested, "address") if isinstance(suggested, Mapping) else ""),
     )
 
 

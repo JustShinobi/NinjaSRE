@@ -654,6 +654,11 @@ export const EN = {
   'catalogue.empty.body':
     'A capability is declared by the deployment rather than configured here. This one declares none.',
   'catalogue.empty.action': 'Look at the configuration',
+  'catalogue.gaps.title': 'Not covered, and why',
+  'catalogue.gaps.decided': '— weighed and decided against',
+  'catalogue.gaps.unreachable': '— cannot be reached from here',
+  'catalogue.gaps.resolution': 'What would change it:',
+  'firstRun.integrations.foundHere': 'Found in your estate at',
   'catalogue.integrations.title': 'Integrations',
   'catalogue.integrations.state': 'Connection',
   'catalogue.integrations.verified': 'Last verified',

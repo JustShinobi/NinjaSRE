@@ -25,6 +25,13 @@ import {
  * investigates — from what it is told rather than from what it can go and look
  * at — and forcing a choice here is exactly how a guided setup gets abandoned
  * at step four.
+ *
+ * **The order is the deployment's, not this file's.** Discovery has already been
+ * through the cluster, so the deployment knows which of these vendors is running
+ * on it and where — and serves the catalogue with those first. Re-sorting here
+ * would be the console deriving relevance a second time, and two surfaces
+ * deriving it separately is how one offers Prometheus first while the other
+ * buries it. The search filters; it never reorders.
  */
 
 /** One vendor, and the form it declares. */
@@ -37,6 +44,15 @@ export interface IntegrationOffer {
   readonly fields: readonly CredentialFieldSpec[];
   /** Whether this deployment already holds a credential for it. */
   readonly configured: boolean;
+  /**
+   * Where this deployment's own estate says this vendor is already running.
+   *
+   * Absent for everything the estate says nothing about, which is most of the
+   * catalogue. Present, it is the answer to the only hard question on this
+   * screen: which of fifty-seven containers is the metric store.
+   */
+  readonly suggested?:
+    { readonly address: string; readonly because: string } | undefined;
 }
 
 export interface IntegrationsStepLabels {
@@ -48,6 +64,7 @@ export interface IntegrationsStepLabels {
   readonly summary: string;
   readonly summaryNone: string;
   readonly failed: string;
+  readonly foundHere: string;
   readonly credential: CredentialLabels;
 }
 
@@ -98,6 +115,14 @@ export function IntegrationsStep({ offers, labels }: IntegrationsStepProps): Rea
             >
               <p className="text-strong">{offer.displayName}</p>
               <p className="text-meta text-muted">{offer.summary}</p>
+              {offer.suggested === undefined ? null : (
+                <p
+                  className="text-meta text-accent"
+                  data-testid="integration-suggested"
+                >
+                  {labels.foundHere} {offer.suggested.address}
+                </p>
+              )}
               <p className="text-meta text-muted" data-testid="integration-state">
                 {offer.configured || stored.includes(offer.name)
                   ? labels.connected

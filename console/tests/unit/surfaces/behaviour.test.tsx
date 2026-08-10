@@ -194,6 +194,41 @@ describe('a viewer who may act', () => {
     expect(screen.getAllByTestId('integration').length).toBeGreaterThan(0);
   });
 
+  it('is told what the catalogue does not cover, and why', async () => {
+    // An operator evaluating this platform against their own stack otherwise
+    // discovers an absence by looking for it and not finding it, which is the
+    // worst moment and the worst way. A decision with the reasoning written
+    // down is also where the next "should we build X" conversation starts.
+    serveScenario(
+      'populated',
+      principalHolding(['investigation.read', 'config.read', 'integration.manage']),
+    );
+    await renderArea('catalogue');
+
+    const gaps = screen.getAllByTestId('known-gap');
+    const named = gaps.map((gap) => gap.getAttribute('data-integration'));
+    expect(named).toContain('gatus');
+    expect(named).toContain('netbox');
+
+    const gatus = gaps.find((gap) => gap.getAttribute('data-integration') === 'gatus');
+    expect(gatus).toHaveAttribute('data-cause', 'not_built');
+    expect(gatus).toHaveTextContent('blackbox exporter');
+    expect(gatus).toHaveTextContent('What would change it:');
+  });
+
+  it('tells a decision apart from something the architecture forbids', async () => {
+    serveScenario(
+      'populated',
+      principalHolding(['investigation.read', 'config.read', 'integration.manage']),
+    );
+    await renderArea('catalogue');
+
+    const causes = screen
+      .getAllByTestId('known-gap')
+      .map((gap) => gap.getAttribute('data-cause'));
+    expect(new Set(causes)).toEqual(new Set(['not_built', 'unreachable']));
+  });
+
   it('is offered the token list and the sign-on panel on administration', async () => {
     serveScenario(
       'populated',

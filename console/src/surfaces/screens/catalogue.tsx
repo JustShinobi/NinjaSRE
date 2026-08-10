@@ -78,6 +78,10 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
     ]),
   );
   const installed = list(dataOf(integrations), 'integrations');
+  // What this catalogue does not cover, and why. Rendered greyed rather than
+  // omitted: an operator evaluating the platform against their own stack finds
+  // an absence by looking for it, which is the worst moment and the worst way.
+  const gaps = list(dataOf(integrations), 'known_gaps');
   const none = message(locale, 'surface.none');
 
   // One panel, two reads. Without this the availability column renders "—" for
@@ -232,6 +236,42 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
                 );
               })}
             </ul>
+
+            {gaps.length === 0 ? null : (
+              <div className="flex flex-col gap-2 pt-4" data-testid="known-gaps">
+                <p className="text-meta text-muted">
+                  {message(locale, 'catalogue.gaps.title')}
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {gaps.map((gap) => (
+                    <li
+                      key={text(gap, 'integration')}
+                      data-testid="known-gap"
+                      data-integration={text(gap, 'integration')}
+                      data-cause={text(gap, 'cause')}
+                      className="flex flex-col gap-1 text-muted"
+                    >
+                      <span className="text-small">
+                        {text(gap, 'display_name')}{' '}
+                        <span className="text-meta">
+                          {message(
+                            locale,
+                            text(gap, 'cause') === 'not_built'
+                              ? 'catalogue.gaps.decided'
+                              : 'catalogue.gaps.unreachable',
+                          )}
+                        </span>
+                      </span>
+                      <span className="text-meta">{text(gap, 'reason')}</span>
+                      <span className="text-meta">
+                        {message(locale, 'catalogue.gaps.resolution')}{' '}
+                        {text(gap, 'resolution')}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Panel>
         ) : null}
       </div>

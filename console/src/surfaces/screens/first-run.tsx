@@ -73,6 +73,22 @@ const HANDOVER: Readonly<Record<'estate' | 'alerts', string>> = {
   alerts: '/detectors',
 };
 
+/**
+ * Where the deployment says this vendor is already running, if it says so.
+ *
+ * Read rather than derived. The estate and the catalogue are both the
+ * deployment's, and the rule that matches one against the other lives there —
+ * a second copy here would be a second answer to "which of these do I need".
+ */
+function suggestionOf(
+  record: unknown,
+): { readonly address: string; readonly because: string } | undefined {
+  const found = field(record, 'suggested');
+  if (found === null || found === undefined) return undefined;
+  const address = text(found, 'address');
+  return address === '' ? undefined : { address, because: text(found, 'because') };
+}
+
 function fieldsOf(record: unknown, key: string): readonly CredentialFieldSpec[] {
   return list(record, key).map((declared) => ({
     name: text(declared, 'name'),
@@ -194,6 +210,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
       configured: setup.integrations.some(
         (entry) => entry.name === name && entry.readiness !== 'absent',
       ),
+      suggested: suggestionOf(record),
     };
   });
 
@@ -460,6 +477,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                     summary: message(locale, 'firstRun.integrations.summary'),
                     summaryNone: message(locale, 'firstRun.integrations.summaryNone'),
                     failed: message(locale, 'firstRun.integrations.failed'),
+                    foundHere: message(locale, 'firstRun.integrations.foundHere'),
                     credential: credentialLabels(locale),
                   }}
                 />
