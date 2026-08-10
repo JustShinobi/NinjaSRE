@@ -145,18 +145,64 @@ MAX_SYNC_DOCUMENTS_PER_RUN: Final[int] = 200
 #: The scheduled-job kind a knowledge sync is registered under.
 KNOWLEDGE_SYNC_JOB_KIND: Final = "knowledge.sync"
 
+# --- The documentation corpus ------------------------------------------------
+
+#: The directory a repository's prose lives in, and the only Markdown root the
+#: corpus source will walk. Named rather than configured because the whole point
+#: of the source is that it reads two directories of a repository that holds
+#: fifteen thousand files, and a configurable root is one somebody eventually
+#: points at the repository.
+CORPUS_DOCUMENT_ROOT: Final = "docs"
+
+#: The directory a repository's declarative policy lives in. Firewall rules are
+#: operational knowledge: half of "I cannot reach X" is answered there.
+CORPUS_POLICY_ROOT: Final = "policies"
+
+#: Files one corpus may hold across both roots. A tree past this is a repository
+#: somebody pointed the source at rather than a documentation directory, and
+#: reading it would be an embedding bill for lockfiles. Refused rather than
+#: truncated: a corpus silently missing its second half is one nobody detects.
+MAX_CORPUS_FILES: Final[int] = 2_000
+
+#: Bytes one corpus file may carry. Past this the file is a manual or a data
+#: dump that happens to end in ``.md``; it is skipped by name, with the constant
+#: in the reason, rather than failing the other sixty-six documents.
+MAX_CORPUS_FILE_BYTES: Final[int] = 512_000
+
+#: Characters of a verification query's own text quoted onto the candidate
+#: detector it becomes. Enough that an operator deciding whether to enable it
+#: reads the sentence the author wrote; short enough to sit in a table row.
+MAX_DETECTOR_ORIGIN_EXCERPT_CHARS: Final[int] = 400
+
+#: Candidate detectors one document may propose. A verification document past
+#: this is a signal catalogue, and importing it wholesale would bury the
+#: detectors somebody actually enabled.
+MAX_DETECTOR_CANDIDATES: Final[int] = 50
+
+#: Documents one resource's detail panel lists. The panel answers "what has
+#: been written about this"; past this it is a corpus listing, which the
+#: knowledge screen already is.
+MAX_DOCUMENTS_PER_RESOURCE: Final[int] = 10
+
 #: The scheduled-job kind a topology discovery run is registered under.
 TOPOLOGY_DISCOVERY_JOB_KIND: Final = "topology.discovery"
 
 
 __all__ = [
     "CHUNK_OVERLAP_CHARS",
+    "CORPUS_DOCUMENT_ROOT",
+    "CORPUS_POLICY_ROOT",
     "DEFAULT_KNOWLEDGE_SEARCH_RESULTS",
     "KNOWLEDGE_SEARCH_CANDIDATE_FACTOR",
     "KNOWLEDGE_SYNC_JOB_KIND",
     "MAX_ANNOTATION_CHARS",
     "MAX_CHUNKS_PER_DOCUMENT",
     "MAX_CHUNK_CHARS",
+    "MAX_CORPUS_FILES",
+    "MAX_CORPUS_FILE_BYTES",
+    "MAX_DETECTOR_CANDIDATES",
+    "MAX_DETECTOR_ORIGIN_EXCERPT_CHARS",
+    "MAX_DOCUMENTS_PER_RESOURCE",
     "MAX_DOCUMENT_CHUNKS",
     "MAX_IMPORT_EDGES",
     "MAX_IMPORT_NODES",

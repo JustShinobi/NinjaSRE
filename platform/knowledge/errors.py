@@ -51,6 +51,27 @@ class ImportInvalid(KnowledgeError):
         self.problems = problems
 
 
+class CorpusBoundExceeded(KnowledgeError):
+    """A corpus asked for more than its bound allows.
+
+    Raised where the corpus is enumerated rather than where a document is
+    ingested, because the case it catches is a source pointed at a repository
+    root instead of at its documentation directory — and the honest answer to
+    that is to refuse the whole run naming the ceiling, not to embed the first
+    two thousand lockfiles it happened to reach.
+    """
+
+    def __init__(self, *, parameter: str, requested: int, limit: int, constant: str) -> None:
+        super().__init__(
+            f"{parameter} of {requested} exceeds {limit}, which is {constant}. "
+            f"Point the source at the documentation directory, or raise the constant."
+        )
+        self.parameter = parameter
+        self.requested = requested
+        self.limit = limit
+        self.constant = constant
+
+
 class DocumentRejected(KnowledgeError):
     """Ingestion refused a document, and says where without saying what."""
 
@@ -86,6 +107,7 @@ class ProposalUnknown(KnowledgeError):
 
 
 __all__ = [
+    "CorpusBoundExceeded",
     "DocumentRejected",
     "ImportInvalid",
     "KnowledgeError",

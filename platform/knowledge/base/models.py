@@ -52,6 +52,11 @@ PARENT_KEY = "parent_id"
 VERSION_KEY = "version"
 TAGS_KEY = "tags"
 ATTRIBUTION_KEY = "attribution"
+#: Where a document's derived facts sit inside the stored metadata bag. One key
+#: holding a sub-mapping rather than fields spread across the bag, so reading
+#: them back is a lookup instead of a list of names this module has to keep in
+#: step with whatever last wrote one.
+EXTRA_KEY = "extra"
 SECTION_KEY = "section"
 START_KEY = "start"
 END_KEY = "end"
@@ -70,17 +75,30 @@ SECTION_SEPARATOR = " > "
 class DocumentType(StrEnum):
     """What kind of document this is (FR-010).
 
-    The four kinds are read differently by anyone using them, and the difference
-    is worth carrying into the model's context. A runbook is a procedure to
-    follow, a post-mortem is a record of one past failure, an architecture note
+    The kinds are read differently by anyone using them, and the difference is
+    worth carrying into the model's context. A runbook is a procedure to follow,
+    a post-mortem is a record of one past failure, an architecture note
     describes intent, and a procedure is an operational routine. An agent that
     cannot tell a post-mortem from a runbook will follow the post-mortem.
+
+    ``POLICY`` and ``REFERENCE`` were added when a real repository's
+    documentation was first ingested, and each earns its place by being read
+    differently rather than by being filed differently. A firewall rule set is
+    *enforced*: what it says is true of the network right now, which is the
+    opposite of a runbook's "this was true when it was written", and an agent
+    that treats one as the other will propose a change the packet filter has
+    already refused. A reference document — a capacity review, a migration plan,
+    a requirements note — is context and is the one kind an agent must not
+    follow at all; without a name of its own it would arrive as a runbook,
+    which is the default and the worst available answer for it.
     """
 
     RUNBOOK = "runbook"
     POSTMORTEM = "postmortem"
     ARCHITECTURE = "architecture"
     PROCEDURE = "procedure"
+    POLICY = "policy"
+    REFERENCE = "reference"
 
     @classmethod
     def parse(cls, value: str) -> DocumentType:
@@ -137,6 +155,16 @@ def _tags(values: Iterable[str] | None) -> tuple[str, ...]:
     return tuple(seen)
 
 
+def _extra(value: Any) -> Mapping[str, Any]:
+    """Return the derived-facts bag a stored record carries, or an empty one.
+
+    A row written before this key existed reads as "nothing was derived" rather
+    than raising, which is what lets a corpus ingested by an earlier version
+    still be searched.
+    """
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
 @dataclass(frozen=True, slots=True)
 class Document:
     """One document as the team owns it: typed, placed, versioned, attributed."""
@@ -154,6 +182,11 @@ class Document:
     tags: tuple[str, ...] = ()
     attribution: str = ""
     updated_at: datetime | None = None
+    #: Facts derived from the body once, at ingestion, rather than at each
+    #: search — a post-mortem's root cause, the entry it recurs from. Kept out
+    #: of the checksum on purpose: the body is what makes a version, and an
+    #: extractor that improved would otherwise supersede a corpus nobody edited.
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.document_id.strip():
@@ -211,6 +244,7 @@ class Document:
                 VERSION_KEY: self.version,
                 TAGS_KEY: list(self.tags),
                 ATTRIBUTION_KEY: self.attribution,
+                EXTRA_KEY: dict(self.metadata),
             },
         )
 
@@ -239,6 +273,7 @@ class Document:
             tags=_tags(metadata.get(TAGS_KEY)),
             attribution=str(metadata.get(ATTRIBUTION_KEY, "")),
             updated_at=stored.updated_at,
+            metadata=_extra(metadata.get(EXTRA_KEY)),
         )
 
 
@@ -371,6 +406,7 @@ __all__ = [
     "CHECKSUM_LENGTH",
     "DOCUMENT_TYPE_KEY",
     "END_KEY",
+    "EXTRA_KEY",
     "ORIGIN_KEY",
     "PARENT_KEY",
     "SECTION_KEY",
