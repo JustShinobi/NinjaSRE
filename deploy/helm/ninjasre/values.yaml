@@ -105,7 +105,7 @@ sandbox:
   # cannot express "this vendor's host and nothing else".
   egress:
     enabled: true
-    image: envoyproxy/envoy:v1.32.3
+    image: envoyproxy/envoy:v1.39.0
     listenerPort: 15001
     adminPort: 15000
     networkPolicy: true

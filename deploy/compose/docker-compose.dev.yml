@@ -21,7 +21,7 @@ services:
       context: ../..
       dockerfile: deploy/images/postgres.Dockerfile
       args:
-        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
+        BASE_POSTGRES: ${BASE_POSTGRES:-postgres:18.4-trixie}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
@@ -45,7 +45,7 @@ services:
       context: ../..
       dockerfile: deploy/images/app.Dockerfile
       args:
-        BASE_PYTHON: ${BASE_PYTHON:-python:3.12.11-slim-bookworm}
+        BASE_PYTHON: ${BASE_PYTHON:-python:3.14.7-slim-trixie}
     environment:
       NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-dev}
       NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}

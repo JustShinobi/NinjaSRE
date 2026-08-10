@@ -27,7 +27,7 @@ name: ninjasre
 x-image-build: &image-build
   context: ../..
   args:
-    BASE_PYTHON: ${BASE_PYTHON:-python:3.12.11-slim-bookworm}
+    BASE_PYTHON: ${BASE_PYTHON:-python:3.14.7-slim-trixie}
 
 services:
   postgres:
@@ -35,7 +35,7 @@ services:
       context: ../..
       dockerfile: deploy/images/postgres.Dockerfile
       args:
-        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
+        BASE_POSTGRES: ${BASE_POSTGRES:-postgres:18.4-trixie}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
