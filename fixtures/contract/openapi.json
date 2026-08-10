@@ -2507,6 +2507,13 @@
             ],
             "title": "Node Id"
           },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
           "user_id": {
             "default": "",
             "title": "User Id",

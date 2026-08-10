@@ -153,11 +153,16 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
     ),
 )
 
-#: Alert ingestion is public in the permission sense: there is no NinjaSRE
-#: principal behind an Alertmanager receiver. Trust is established per source by
-#: signature, shared secret, or mTLS in ``gateway/webhooks/verification/``, and
-#: an unverified request is rejected and audited (FR-016) — a different boundary
-#: than ``Permission``, enforced in the handler rather than by this table.
+#: Alert ingestion is public in the permission sense, and the table is the wrong
+#: place to say otherwise: trust is established per source by signature, shared
+#: secret, or mTLS in ``gateway/webhooks/verification/``, and an unverified
+#: request is rejected and audited (FR-016).
+#:
+#: A sender with no signing scheme may instead present a machine token scoped to
+#: ``Permission.WEBHOOK_DELIVER``, which the handler checks after every
+#: configured verifier has declined. That check is deliberately not a row here:
+#: a guard on the route would refuse the signature-verified deliveries, which
+#: carry no NinjaSRE principal at all and never will.
 WEBHOOK_ROUTES: Final[tuple[Route, ...]] = tuple(
     Route(
         method="POST",

@@ -34,7 +34,7 @@ import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol, runtime_checkable
+from typing import Final, Protocol, runtime_checkable
 
 from fastapi import APIRouter, Request, Response
 
@@ -57,6 +57,8 @@ from gateway.webhooks.sources import (
 )
 from gateway.webhooks.sources.profile import WebhookSourceProfile
 from platform.estate.alert_resolution import AlertResolution, resolve_alert
+from platform.identity.errors import TokenRejected
+from platform.identity.permissions import Permission
 from platform.incidents.dispatch import objective_for
 from platform.incidents.ingestion import raise_for_alert, resolution_key
 from platform.incidents.lifecycle import IncidentLifecycle
@@ -108,6 +110,28 @@ class WebhookSourceConfig:
     org_id: str
     team_node_id: str
     principal_id: str = "system:webhook"
+
+
+#: The scheme a delivery token is presented under, lower-cased for comparison.
+_BEARER: Final = "bearer "
+
+
+@dataclass(frozen=True, slots=True)
+class _AlreadyVerified:
+    """The verifier a token-authenticated route carries.
+
+    ``WebhookSourceConfig`` needs one, and the request has already been
+    authenticated by something stronger than a shared secret. Returning ``True``
+    here would be a verifier that verifies anything, so it returns ``False`` and
+    is never consulted: nothing puts this instance in ``source_routes``.
+    """
+
+    def verify(self, *, headers: Mapping[str, str], body: bytes) -> bool:  # noqa: ARG002 — WebhookVerifier's shape
+        """Return ``False``: this route was authenticated before it was built."""
+        return False
+
+
+_ALREADY_VERIFIED: Final = _AlreadyVerified()
 
 
 def _utc_now() -> datetime:
@@ -162,6 +186,8 @@ def _handler(
             ),
             None,
         )
+        if matched is None:
+            matched = await _delivery_token_route(state, headers=request.headers)
         if matched is None:
             logger.warning("webhooks.unverified", source=path_name)
             raise ApiProblem(
@@ -265,6 +291,52 @@ def _handler(
         return _ack({"run_id": run_id, "incident_id": incident.incident_id, "linked": False})
 
     return handle
+
+
+async def _delivery_token_route(
+    state: GatewayState,
+    *,
+    headers: Mapping[str, str],
+) -> WebhookSourceConfig | None:
+    """Return the route a delivery token presents, or ``None``.
+
+    Tried only after every configured verifier declined, which keeps it purely
+    additive: a source an operator wired with a signature or a shared secret
+    verifies exactly as it did, including the ones whose shared secret rides in
+    the same ``Authorization`` header this reads.
+
+    The token decides the team, which keeps routing and authentication one
+    decision — the same property ``WebhookSourceConfig`` holds, reached the
+    other way. ``WEBHOOK_DELIVER`` and nothing else is required, and it is the
+    narrowest permission there is on purpose: this credential lives in an alert
+    router's configuration file, outside anything this deployment rotates.
+    """
+    presented = headers.get("authorization", "")
+    if not presented.lower().startswith(_BEARER):
+        return None
+    secret = presented[len(_BEARER) :].strip()
+    if not secret:
+        return None
+
+    try:
+        token = await state.tokens.authenticate(secret)
+    except TokenRejected:
+        return None
+    # Checked at the node the token was issued for, which is the node its team
+    # routing comes from. Asking at the root would refuse a token granted
+    # exactly where it is meant to deliver.
+    if not token.permissions.allows(Permission.WEBHOOK_DELIVER, node_id=token.scope.team_node_id):
+        logger.warning(
+            "webhooks.token_without_delivery_permission", principal=token.principal.principal_id
+        )
+        return None
+
+    return WebhookSourceConfig(
+        verifier=_ALREADY_VERIFIED,
+        org_id=token.scope.org_id,
+        team_node_id=token.scope.team_node_id or "",
+        principal_id=token.principal.principal_id,
+    )
 
 
 async def _resolve_against_estate(

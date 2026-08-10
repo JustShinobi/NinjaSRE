@@ -22,6 +22,7 @@ from gateway.http.errors import bad_request, not_found, unauthorized
 from gateway.http.state import GatewayState
 from platform.identity.audit.recorder import AuditContext
 from platform.identity.errors import LocalSignInRejected, TooManyRevocations
+from platform.identity.permissions import Permission
 from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
 from platform.startup.bootstrap import organisation_id
@@ -92,6 +93,13 @@ class IssueTokenRequest(BaseModel):
     node_id: str | None = None
     description: str | None = None
     lifetime_days: int | None = None
+    #: A ceiling, not a grant: the token may do these and nothing else, and
+    #: never more than its owner already holds. Empty means "as wide as the
+    #: owner", which is what a personal access token is. Naming a permission
+    #: this build does not have is a refusal rather than a silent drop — a
+    #: mistyped scope that quietly widened the token would be the worst
+    #: possible outcome of a typo.
+    permissions: list[str] = Field(default_factory=list)
 
 
 class IssuedTokenView(BaseModel):
@@ -145,6 +153,26 @@ def _grant_view(binding: RoleBinding) -> GrantView:
         role=binding.role,
         node_id=binding.node_id,
     )
+
+
+def _permissions(names: list[str]) -> tuple[Permission, ...]:
+    """Return the permissions ``names`` describes, refusing one this build lacks.
+
+    Refused rather than dropped. A dropped scope widens the token — a typo in
+    one entry of a two-entry list would issue a credential holding everything
+    its owner does — and the caller has no way to notice, because the response
+    reports the scopes it stored rather than the ones it was asked for.
+    """
+    resolved: list[Permission] = []
+    for name in names:
+        try:
+            resolved.append(Permission(name))
+        except ValueError as unknown:
+            raise bad_request(
+                f"{name!r} is not a permission this deployment has. A token scoped to a "
+                f"name nothing recognises would be as wide as its owner."
+            ) from unknown
+    return tuple(resolved)
 
 
 def _audit_context(auth: AuthenticatedRequest) -> AuditContext:
@@ -288,6 +316,7 @@ async def issue_token(
         node_id=body.node_id,
         description=body.description,
         lifetime_days=body.lifetime_days,
+        permissions=_permissions(body.permissions),
     )
     return IssuedTokenView(token=_token_view(issued.token), secret=issued.secret)
 
