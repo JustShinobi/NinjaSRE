@@ -85,22 +85,8 @@ NO_CHANGE_SOURCE: Final[str] = (
     "applies this cluster's state, or at the git host it lives on."
 )
 
-#: The guidance the agent is given about the capability, once, at run start. It
-#: carries no change and no resource — the same rule topology and the knowledge
-#: base follow.
-CHANGES_GUIDANCE: Final[str] = (
-    "Change history is available but is NOT loaded for you. Once you have identified the "
-    "resource that is actually affected, ask what changed for it. The answer is correlated "
-    "through the resource rather than by time: a change reported as managing the resource "
-    "altered something that governs it, and a change reported as a temporal coincidence "
-    "shares only a window and must not be presented as a cause. An empty answer is an "
-    "answer — 'nothing changed here' is evidence, and it is worth stating in the report."
-)
-
-
 __all__ = [
     "CHANGES_FOUND",
-    "CHANGES_GUIDANCE",
     "CHANGE_MANAGES_RESOURCE",
     "CHANGE_PATHS_UNAVAILABLE",
     "CHANGE_TOUCHES_SHARED_POLICY",

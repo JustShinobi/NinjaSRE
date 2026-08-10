@@ -4,9 +4,18 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-220 tools and 93 skills, 36 of them approval-gated.
+221 tools and 94 skills, 36 of them approval-gated.
 
 ## Skills
+
+### `changes`
+
+Asking what changed before this broke, and refusing to blame a coincidence.
+
+- **Domain:** changes
+
+Directs no tools — methodology only.
+
 
 ### `cicd-argocd`
 
@@ -1227,6 +1236,28 @@ Code search across every repository at once: where a symbol, a string, or a conf
 - `sourcegraph_recent_changes`
 
 ## Tools
+
+### changes
+
+#### `changes_in_window`
+
+Return what changed for a specific resource in a window, correlated through the resource rather than by time: each result says whether the change altered something that manages this resource, touched policy the resource shares, or merely landed in the same window. A change reported as a temporal coincidence is not evidence of a cause. An empty answer is a finding — it states that nothing touched this resource, and names what was consulted to establish it. Call this once you know which resource is affected, not on the alert text.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** change from change_history
+- **Parallel safe:** yes
+
+**Use when:**
+
+- checking whether anything was deployed shortly before a symptom started
+- ruling deploys out, so an investigation stops looking at them and looks elsewhere
+- finding which apply touched the component that manages an affected workload
+
+**Not for:**
+
+- asking on the alert text before an affected resource has been identified
+- reading what a change contained, which this deliberately never reports
+- listing a repository's history, which is a report rather than an investigation
 
 ### cicd
 
