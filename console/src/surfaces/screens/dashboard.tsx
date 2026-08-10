@@ -15,14 +15,23 @@ import {
   counts,
   dataOf,
   dependencyOf,
+  field,
   flag,
   list,
   number,
+  optionalRead,
   panelRead,
   read,
   stateOf,
   text,
 } from '../read';
+import {
+  ChecklistPanel,
+  NoProviderNotice,
+  QuickActions,
+} from '../first-run/checklist-panel';
+import { outstanding, readSetup } from '../first-run/plan';
+import { TUTORIAL_SETTING, Tutorial } from '../first-run/tutorial';
 import type { SurfaceContext } from '../context';
 
 /**
@@ -48,17 +57,27 @@ const FAILED = new Set(['failed', 'error', 'cancelled']);
 const FEED_LENGTH = 8;
 
 export async function DashboardScreen(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, now, zone } = context;
+  const { credential, locale, now, viewer, zone } = context;
   const init = authorised(credential);
+  const node = viewer.teamNodeId;
 
-  const [approvals, runs, estate, health, detectors, incidents] = await Promise.all([
-    panelRead('/v1/approvals', () => read('/v1/approvals', init)),
-    panelRead('/v1/runs', () => read('/v1/runs', init)),
-    panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
-    panelRead('/health/ready', () => read('/health/ready', init)),
-    panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
-    panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
-  ]);
+  const [approvals, runs, estate, health, detectors, incidents, checklist, effective] =
+    await Promise.all([
+      panelRead('/v1/approvals', () => read('/v1/approvals', init)),
+      panelRead('/v1/runs', () => read('/v1/runs', init)),
+      panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
+      panelRead('/health/ready', () => read('/health/ready', init)),
+      panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
+      panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
+      panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
+      optionalRead('/v1/config/{node_id}', () =>
+        node === ''
+          ? Promise.resolve({})
+          : read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
+      ),
+    ]);
+
+  const setup = readSetup(dataOf(checklist), field(dataOf(effective), 'values'));
 
   const runRecords = list(dataOf(runs), 'runs');
   const approvalRecords = list(dataOf(approvals), 'approvals');
@@ -166,7 +185,24 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
 
   return (
     <>
+      {/* Only while something is outstanding. A dismissal that never reached
+          the deployment therefore cannot leave a configured one behind an
+          overlay: the worst it can do is show this a second time. */}
+      {outstanding(setup) === 0 ? null : (
+        <Tutorial
+          locale={locale}
+          nodeId={node}
+          dismissed={flag(field(dataOf(effective), 'values'), TUTORIAL_SETTING)}
+        />
+      )}
+
       <AreaHeader area={areaFor('dashboard')} locale={locale} />
+
+      {/* Above the attention block and inside the page. A deployment with no
+          provider genuinely cannot investigate, and it is told so here rather
+          than by a door it cannot open — the figures below stay visible and
+          honest at zero. */}
+      <NoProviderNotice locale={locale} setup={setup} />
 
       <AttentionBlock
         heading={message(locale, 'dashboard.attention.count', {
@@ -198,7 +234,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
 
       {/* Every figure has a period, a comparison and a list behind it. A figure
           that had none of those would not compile — see `figure.tsx`. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5">
+      <div
+        data-testid="main-figures"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5"
+      >
         <Figure
           label={message(locale, 'dashboard.stat.watched')}
           value={formatNumber(locale, watched)}
@@ -259,6 +298,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           </Panel>
         </div>
         <div className="flex flex-col gap-5 min-w-0">
+          {/* First in the right-hand column while anything is outstanding, and
+              gone entirely once nothing is. */}
+          <ChecklistPanel locale={locale} setup={setup} source={checklist} />
+          <QuickActions locale={locale} />
+
           <Panel
             title={message(locale, 'dashboard.estate.title')}
             state={stateOf(estate, watched === 0)}

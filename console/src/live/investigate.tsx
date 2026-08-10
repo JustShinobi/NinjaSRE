@@ -28,6 +28,16 @@ export interface InvestigateDrawerProps {
   readonly open: boolean;
   readonly locale: Locale;
   readonly onClose: () => void;
+  /**
+   * Whether anything is connected for the investigation to consult.
+   *
+   * The drawer says so when nothing is. A run against a deployment with no
+   * integration still happens and is still a real investigation — it reasons
+   * from what it is told and consults nothing — and somebody who was not warned
+   * reads that as the product being poor rather than as the estate being
+   * unconnected.
+   */
+  readonly integrationsConfigured?: boolean;
   /** Where the new run's page is. Injected so the suite can watch it. */
   readonly navigate?: (href: string) => void;
 }
@@ -36,6 +46,7 @@ export function InvestigateDrawer({
   open,
   locale,
   onClose,
+  integrationsConfigured = true,
   navigate,
 }: InvestigateDrawerProps): ReactNode {
   const router = useRouter();
@@ -89,6 +100,15 @@ export function InvestigateDrawer({
         onClose={onClose}
       >
         <div data-testid="investigate-drawer" className="flex flex-col gap-3">
+          {/* Beside the field rather than after the disappointment. This is
+              what resolves "I want to see it work" against "I have not
+              connected anything yet": the run is real either way, and the
+              difference in what it can reach is stated rather than discovered. */}
+          {integrationsConfigured ? null : (
+            <p className="text-meta text-muted" data-testid="investigate-caveat">
+              {message(locale, 'live.investigate.caveat')}
+            </p>
+          )}
           <Textarea
             label={message(locale, 'live.investigate.objective')}
             name="objective"
