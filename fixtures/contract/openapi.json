@@ -752,6 +752,72 @@
         "title": "ContributionView",
         "type": "object"
       },
+      "CorrelatedChangeView": {
+        "description": "One change that landed in the window, and what connects it to this resource.\n\n``strength`` and ``temporal_only`` are both served, and the redundancy is\ndeliberate: the first is what the panel groups on and the second is what a\nclient that has never met a new strength still renders correctly.",
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "change_id": {
+            "title": "Change Id",
+            "type": "string"
+          },
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "instant": {
+            "title": "Instant",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Paths",
+            "type": "array"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "strength": {
+            "title": "Strength",
+            "type": "string"
+          },
+          "temporal_only": {
+            "title": "Temporal Only",
+            "type": "boolean"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change_id",
+          "author",
+          "message",
+          "component",
+          "applied",
+          "instant",
+          "strength",
+          "temporal_only",
+          "why"
+        ],
+        "title": "CorrelatedChangeView",
+        "type": "object"
+      },
       "CreateInvestigationRequest": {
         "properties": {
           "alert_source": {
@@ -3918,9 +3984,65 @@
         "title": "RejectRequest",
         "type": "object"
       },
+      "ResourceChangesView": {
+        "description": "What changed under this resource, and the claim that goes with it.\n\n``statement`` is served rather than composed by the client, because it is\nthe same sentence the investigation's own report carries — and a console\nthat phrased it differently would be a second opinion nobody asked for.\n\n``answered`` is the field that stops an empty panel being read as \"nothing\nhas changed\". A deployment that consulted nothing has established nothing.",
+        "properties": {
+          "answered": {
+            "default": false,
+            "title": "Answered",
+            "type": "boolean"
+          },
+          "degraded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degraded",
+            "type": "array"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/CorrelatedChangeView"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "statement": {
+            "default": "",
+            "title": "Statement",
+            "type": "string"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "window_hours": {
+            "default": 0.0,
+            "title": "Window Hours",
+            "type": "number"
+          }
+        },
+        "title": "ResourceChangesView",
+        "type": "object"
+      },
       "ResourceDetailView": {
         "description": "One resource's page: its state, why, its history, and what touched it.",
         "properties": {
+          "changes": {
+            "$ref": "#/components/schemas/ResourceChangesView"
+          },
           "children": {
             "items": {
               "$ref": "#/components/schemas/ResourceSummaryView"

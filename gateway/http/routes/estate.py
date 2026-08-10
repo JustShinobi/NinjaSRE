@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from config.constants.changes import DEFAULT_CHANGE_WINDOW_HOURS
 from config.constants.estate import (
     DEFAULT_TRANSITION_HISTORY,
     MAX_ESTATE_PAGE_SIZE,
@@ -26,6 +27,9 @@ from config.constants.observation import MAX_INCIDENT_PAGE_SIZE
 from gateway.http.configured import configured_integrations
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.state import GatewayState
+from platform.changes.correlation import CorrelatedChange, views_of
+from platform.changes.models import ChangeWindow
+from platform.changes.service import ChangeAnswer, ChangeInquiry
 from platform.estate.alert_resolution import UnresolvedTargetFinding, unresolved_targets
 from platform.estate.service import EstateService, ResourceDetail, ResourceView
 from platform.estate.signal_map import SignalMap, signal_map_for
@@ -172,6 +176,48 @@ class LinkedDocumentView(BaseModel):
     matched_on: str = ""
 
 
+class CorrelatedChangeView(BaseModel):
+    """One change that landed in the window, and what connects it to this resource.
+
+    ``strength`` and ``temporal_only`` are both served, and the redundancy is
+    deliberate: the first is what the panel groups on and the second is what a
+    client that has never met a new strength still renders correctly.
+    """
+
+    change_id: str
+    author: str
+    message: str
+    component: str
+    applied: bool
+    instant: str
+    strength: str
+    temporal_only: bool
+    why: str
+    paths: list[str] = Field(default_factory=list)
+    source: str = ""
+
+
+class ResourceChangesView(BaseModel):
+    """What changed under this resource, and the claim that goes with it.
+
+    ``statement`` is served rather than composed by the client, because it is
+    the same sentence the investigation's own report carries — and a console
+    that phrased it differently would be a second opinion nobody asked for.
+
+    ``answered`` is the field that stops an empty panel being read as "nothing
+    has changed". A deployment that consulted nothing has established nothing.
+    """
+
+    statement: str = ""
+    answered: bool = False
+    window_hours: float = 0.0
+    sources: list[str] = Field(default_factory=list)
+    total: int = 0
+    truncated: bool = False
+    degraded: list[str] = Field(default_factory=list)
+    entries: list[CorrelatedChangeView] = Field(default_factory=list)
+
+
 class ResourceDetailView(BaseModel):
     """One resource's page: its state, why, its history, and what touched it."""
 
@@ -192,6 +238,11 @@ class ResourceDetailView(BaseModel):
     #: normal answer for most of any estate and for all of one whose corpus has
     #: not been synced, which is why it is a list rather than an absent block.
     documents: list[LinkedDocumentView] = Field(default_factory=list)
+    #: What changed under this resource in the last day, correlated through the
+    #: resource rather than by the clock. Served from the same rule the agent's
+    #: own capability uses, because two rules would eventually disagree and the
+    #: page would then show a link the report does not make.
+    changes: ResourceChangesView = Field(default_factory=ResourceChangesView)
 
 
 class EstateSummaryView(BaseModel):
@@ -362,10 +413,60 @@ def _document(entry: LinkedDocument) -> LinkedDocumentView:
     )
 
 
+def _change(entry: CorrelatedChange) -> CorrelatedChangeView:
+    """Return one correlated change as the panel reads it."""
+    return CorrelatedChangeView(
+        change_id=entry.change.change_id,
+        author=entry.change.author,
+        message=entry.change.message,
+        component=entry.component or entry.change.component,
+        applied=entry.change.applied,
+        instant=entry.change.instant.isoformat(),
+        strength=entry.strength.value,
+        temporal_only=entry.strength.is_temporal_only,
+        why=entry.why,
+        paths=list(entry.change.paths),
+        source=entry.change.source,
+    )
+
+
+def _changes(answer: ChangeAnswer) -> ResourceChangesView:
+    """Return the change half of a resource's page."""
+    return ResourceChangesView(
+        statement=answer.statement,
+        answered=answer.answered,
+        window_hours=answer.window.hours,
+        sources=list(answer.sources),
+        total=answer.total,
+        truncated=answer.truncated,
+        degraded=list(answer.degraded),
+        entries=[_change(entry) for entry in answer.changes],
+    )
+
+
+async def _changes_for(
+    state: GatewayState,
+    detail: ResourceDetail,
+    *,
+    now: datetime,
+) -> ChangeAnswer:
+    """Return what changed under this resource, from whatever is configured.
+
+    Built per request from the composed sources rather than held, for the same
+    reason the signal map is: point the deployment at a repository and the next
+    render of this page says so, with nothing to migrate.
+    """
+    view = views_of([detail.view.resource])[0]
+    return await ChangeInquiry(sources=list(state.change_sources)).about(
+        view, window=ChangeWindow.ending(now, hours=DEFAULT_CHANGE_WINDOW_HOURS)
+    )
+
+
 def _detail(
     detail: ResourceDetail,
     signals: SignalMap,
     documents: Sequence[LinkedDocument] = (),
+    changes: ChangeAnswer | None = None,
 ) -> ResourceDetailView:
     return ResourceDetailView(
         resource=_row(detail.view),
@@ -387,6 +488,7 @@ def _detail(
         parent=_row(detail.parent) if detail.parent is not None else None,
         signals=_signals(signals),
         documents=[_document(entry) for entry in documents],
+        changes=_changes(changes) if changes is not None else ResourceChangesView(),
     )
 
 
@@ -496,9 +598,8 @@ async def resource_detail(
     correct — connect a log store and the next render of this page says so,
     with nothing to migrate.
     """
-    detail = await _service(state).detail(
-        auth.scope, resource_id, now=datetime.now(UTC), history=history
-    )
+    now = datetime.now(UTC)
+    detail = await _service(state).detail(auth.scope, resource_id, now=now, history=history)
     if detail is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -508,7 +609,13 @@ async def resource_detail(
     documents = await EstateLinker(gateway=state.gateway, scope=auth.scope).documents_for(
         resource_id
     )
-    return _detail(detail, signal_map_for(detail.view.resource, configured=configured), documents)
+    changes = await _changes_for(state, detail, now=now)
+    return _detail(
+        detail,
+        signal_map_for(detail.view.resource, configured=configured),
+        documents,
+        changes,
+    )
 
 
 @router.post("/resources/{resource_id}/maintenance", response_model=ResourceSummaryView)

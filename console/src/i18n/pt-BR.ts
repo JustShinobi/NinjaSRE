@@ -502,6 +502,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.documents.title': 'O que já se escreveu sobre ele',
   'resources.documents.body':
     'Documentos do corpus que nomeiam este recurso, com o nome que cada um usou. Uma ligação feita por nome pode estar errada \u2014 o nome está aqui para você julgar.',
+  'resources.changes.title': 'O que mudou por baixo dele',
+  'resources.changes.body':
+    'Mudanças correlacionadas pelo recurso, não pelo relógio. Uma mudança marcada como gerenciando este recurso alterou algo que o governa; uma marcada como coincidência apenas divide a janela, e está aqui para você descartá-la.',
+  'resources.changes.manages': 'gerencia este recurso',
+  'resources.changes.policy': 'política compartilhada',
+  'resources.changes.coincidence': 'apenas a mesma janela',
+  'resources.changes.unapplied': 'commitada, nunca aplicada',
   'resources.departed.title': 'Declarado e ausente',
   'resources.departed.body':
     'O inventário ainda nomeia estes e a fonte não os reporta mais. Um recurso que existe só num arquivo é um recurso que não existe mais.',

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { timestamp } from '@/i18n/format';
+import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -14,6 +15,7 @@ import {
   dataOf,
   dependencyOf,
   field,
+  flag,
   list,
   number,
   optionalRead,
@@ -100,6 +102,19 @@ function utilisation(record: unknown): number {
   );
 }
 
+/**
+ * The message key naming what connects a change to this resource.
+ *
+ * A closed set with a fallback, because the endpoint's strengths are a closed
+ * enumeration and a console that met a new one should say "same window only"
+ * rather than render a raw identifier — the cautious reading is the safe one.
+ */
+function strengthLabel(strength: string): MessageKey {
+  if (strength === 'manages_resource') return 'resources.changes.manages';
+  if (strength === 'touches_shared_policy') return 'resources.changes.policy';
+  return 'resources.changes.coincidence';
+}
+
 export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, RESOURCE_FILTERS);
@@ -138,6 +153,13 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   // the panel is drawn only when there is something in it — an empty one on
   // every resource would be noise on a screen that is mostly a table.
   const documents = selected === undefined ? [] : list(dataOf(selected), 'documents');
+  // What changed underneath it. Unlike the documents, this panel is drawn even
+  // when it lists nothing: "no change touched this in the last day" is the
+  // finding, and an absent panel would be indistinguishable from a deployment
+  // that never looked. It is absent only when the detail carries no block at
+  // all, which is a gateway older than the feature rather than a quiet resource.
+  const changes =
+    selected === undefined ? undefined : field(dataOf(selected), 'changes');
   const records = list(dataOf(resources), 'resources');
 
   // Divergence is content, not an error. Two facts come out of the last sweep
@@ -396,6 +418,67 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                     ? ''
                     : ` · ${text(entry, 'matched_on')} ${text(entry, 'matched')}`}
                 </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {changes === undefined ? null : (
+        <Panel
+          title={message(locale, 'resources.changes.title')}
+          state="ready"
+          labels={panelLabels(locale, message(locale, 'resources.changes.title'))}
+          empty={{
+            heading: message(locale, 'resources.changes.title'),
+            body: message(locale, 'resources.changes.body'),
+            actionLabel: message(locale, 'resources.empty.action'),
+            href: '/configuration',
+          }}
+        >
+          <ul
+            className="flex flex-col gap-2 text-small"
+            data-testid="resource-changes"
+            data-answered={String(flag(changes, 'answered'))}
+          >
+            {/* The statement first and always. It is the same sentence the
+                investigation's own report carries, and it is the whole panel
+                when nothing is listed. */}
+            <li className="text-meta text-muted">{text(changes, 'statement')}</li>
+            {list(changes, 'entries').map((entry) => (
+              <li
+                key={text(entry, 'change_id')}
+                data-testid="resource-change"
+                data-strength={text(entry, 'strength')}
+                data-applied={String(flag(entry, 'applied'))}
+                className="flex flex-col gap-1"
+              >
+                <span>
+                  <span className="text-strong">{text(entry, 'message')}</span>{' '}
+                  <span className="text-muted">
+                    {text(entry, 'change_id')}
+                    {text(entry, 'author') === '' ? '' : ` · ${text(entry, 'author')}`}
+                    {` · ${timestamp(locale, text(entry, 'instant'), now, zone).relative}`}
+                  </span>
+                </span>
+                <span className="text-meta text-muted">
+                  <span
+                    className={
+                      text(entry, 'strength') === 'manages_resource'
+                        ? 'text-strong'
+                        : 'text-muted'
+                    }
+                  >
+                    {message(locale, strengthLabel(text(entry, 'strength')))}
+                  </span>
+                  {flag(entry, 'applied')
+                    ? ''
+                    : ` · ${message(locale, 'resources.changes.unapplied')}`}
+                  {text(entry, 'component') === ''
+                    ? ''
+                    : ` · ${text(entry, 'component')}`}
+                </span>
+                <span className="text-meta text-muted">{text(entry, 'why')}</span>
               </li>
             ))}
           </ul>

@@ -2495,6 +2495,41 @@ export interface components {
             /** Observed At */
             observed_at?: string | null;
         };
+        /**
+         * CorrelatedChangeView
+         * @description One change that landed in the window, and what connects it to this resource.
+         *
+         *     ``strength`` and ``temporal_only`` are both served, and the redundancy is
+         *     deliberate: the first is what the panel groups on and the second is what a
+         *     client that has never met a new strength still renders correctly.
+         */
+        CorrelatedChangeView: {
+            /** Applied */
+            applied: boolean;
+            /** Author */
+            author: string;
+            /** Change Id */
+            change_id: string;
+            /** Component */
+            component: string;
+            /** Instant */
+            instant: string;
+            /** Message */
+            message: string;
+            /** Paths */
+            paths?: string[];
+            /**
+             * Source
+             * @default
+             */
+            source: string;
+            /** Strength */
+            strength: string;
+            /** Temporal Only */
+            temporal_only: boolean;
+            /** Why */
+            why: string;
+        };
         /** CreateInvestigationRequest */
         CreateInvestigationRequest: {
             /**
@@ -4120,10 +4155,55 @@ export interface components {
             reason: string;
         };
         /**
+         * ResourceChangesView
+         * @description What changed under this resource, and the claim that goes with it.
+         *
+         *     ``statement`` is served rather than composed by the client, because it is
+         *     the same sentence the investigation's own report carries — and a console
+         *     that phrased it differently would be a second opinion nobody asked for.
+         *
+         *     ``answered`` is the field that stops an empty panel being read as "nothing
+         *     has changed". A deployment that consulted nothing has established nothing.
+         */
+        ResourceChangesView: {
+            /**
+             * Answered
+             * @default false
+             */
+            answered: boolean;
+            /** Degraded */
+            degraded?: string[];
+            /** Entries */
+            entries?: components["schemas"]["CorrelatedChangeView"][];
+            /** Sources */
+            sources?: string[];
+            /**
+             * Statement
+             * @default
+             */
+            statement: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /**
+             * Window Hours
+             * @default 0
+             */
+            window_hours: number;
+        };
+        /**
          * ResourceDetailView
          * @description One resource's page: its state, why, its history, and what touched it.
          */
         ResourceDetailView: {
+            changes?: components["schemas"]["ResourceChangesView"];
             /** Children */
             children?: components["schemas"]["ResourceSummaryView"][];
             /** Contributions */

@@ -8,7 +8,7 @@ surface by constructing one value and wiring it in — the same reason
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -98,6 +98,12 @@ class GatewayState:
     #: client and a client needs the credential proxy — neither of which the
     #: gateway builds for itself.
     discovery_sources: Mapping[str, ResourceReader] = field(default_factory=dict)
+    #: The change sources this deployment has been pointed at — a repository's
+    #: apply record, a git host, or neither. Empty until composition wires one,
+    #: and the routes that read it report "nothing was consulted" rather than
+    #: "nothing changed": an absence from a source nobody configured is not
+    #: evidence of anything.
+    change_sources: Sequence[Any] = field(default_factory=tuple)
     route_table: RouteTable = APPLICATION_ROUTE_TABLE
     broker: RunEventBroker = field(default_factory=RunEventBroker)
     guardrails: GuardrailEngine = field(default_factory=GuardrailEngine)

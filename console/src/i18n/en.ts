@@ -515,6 +515,13 @@ export const EN = {
   'resources.documents.title': 'What has been written about it',
   'resources.documents.body':
     'Documents from the corpus that name this resource, with the name each one used. A link drawn from a name can be wrong \u2014 the name is here so you can tell.',
+  'resources.changes.title': 'What changed underneath it',
+  'resources.changes.body':
+    'Changes correlated through the resource rather than by the clock. A change marked as managing this resource altered something that governs it; one marked as a coincidence only shares the window, and is here so you can rule it out.',
+  'resources.changes.manages': 'manages this resource',
+  'resources.changes.policy': 'shared policy',
+  'resources.changes.coincidence': 'same window only',
+  'resources.changes.unapplied': 'committed, never applied',
   'resources.departed.title': 'Declared and gone',
   'resources.departed.body':
     'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',
