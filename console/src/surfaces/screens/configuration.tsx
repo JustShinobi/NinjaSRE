@@ -13,15 +13,13 @@ import {
   authorised,
   dataOf,
   dependencyOf,
-  list,
   pairs,
   panelRead,
   read,
   stateOf,
-  text,
 } from '../read';
-import { OrgTree, placeNodes, type TreeNode } from '../tree';
-import { readViewState, type FilterName } from '../url-state';
+import { OrgTree, placedTree } from '../tree';
+import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
  * The organisation tree, what applies at a node, and where each value came from.
@@ -43,16 +41,8 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
   const init = authorised(credential);
 
   const tree = await panelRead('/v1/config', () => read('/v1/config', init));
-  const records = list(dataOf(tree), 'nodes');
-
-  const nodes: readonly TreeNode[] = records.map((record) => ({
-    id: text(record, 'node_id'),
-    name: text(record, 'name'),
-    kind: text(record, 'kind'),
-    parentId: text(record, 'parent_id') === '' ? null : text(record, 'parent_id'),
-  }));
-  const placed = placeNodes(nodes);
-  const selected = state.filters.node ?? placed[0]?.id ?? '';
+  const placed = placedTree(dataOf(tree));
+  const selected = resolveNode(state, viewer, placed);
 
   const effective =
     selected === ''

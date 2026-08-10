@@ -21,7 +21,8 @@ import {
   stateOf,
   text,
 } from '../read';
-import { readViewState, type FilterName } from '../url-state';
+import { placedTree } from '../tree';
+import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
  * What this deployment may do on its own, and why.
@@ -41,6 +42,12 @@ import { readViewState, type FilterName } from '../url-state';
  * when the table is full, because "restarting is autonomous here" and "and
  * nothing runs between 01:00 and 04:00" are both true and an operator who read
  * only the first would be surprised at two in the morning.
+ *
+ * Every one of those readings is *at a node*, so the node is resolved before
+ * anything is asked for. A deployment with no organisation tree yet resolves to
+ * none, and then nothing is asked at all: a policy request with no subject is a
+ * path with a brace still in it, which the client refuses and which used to take
+ * this route down before an operator had any way to choose a node.
  */
 
 export const AUTONOMY_FILTERS: readonly FilterName[] = ['node'];
@@ -83,20 +90,33 @@ function specificityOf(rule: unknown): number {
 export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search } = context;
   const state = readViewState(search, AUTONOMY_FILTERS);
-  const nodeId = state.filters.node ?? viewer.teamNodeId;
+  const init = authorised(credential);
 
-  const policy = await panelRead('/v1/autonomy/policy/{node_id}', () =>
-    read('/v1/autonomy/policy/{node_id}', {
-      ...authorised(credential),
-      params: { node_id: nodeId },
-    }),
-  );
-  const bounds = await panelRead('/v1/autonomy/policy/{node_id}/bounds', () =>
-    read('/v1/autonomy/policy/{node_id}/bounds', {
-      ...authorised(credential),
-      params: { node_id: nodeId },
-    }),
-  );
+  const tree = await panelRead('/v1/config', () => read('/v1/config', init));
+  const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
+
+  // Nothing empty, ready: the panels below then render their own empty state,
+  // which says there is no policy here and offers the way to make one.
+  const nothing = { status: 'ready' as const, data: {} as unknown };
+
+  const policy =
+    nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/autonomy/policy/{node_id}', () =>
+          read('/v1/autonomy/policy/{node_id}', {
+            ...init,
+            params: { node_id: nodeId },
+          }),
+        );
+  const bounds =
+    nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/autonomy/policy/{node_id}/bounds', () =>
+          read('/v1/autonomy/policy/{node_id}/bounds', {
+            ...init,
+            params: { node_id: nodeId },
+          }),
+        );
 
   const rules = [...list(dataOf(policy), 'rules')].sort(
     (left, right) => specificityOf(left) - specificityOf(right),
@@ -112,7 +132,9 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
       <AreaHeader
         area={areaFor('autonomy')}
         locale={locale}
-        nested={[{ label: nodeId }]}
+        // No crumb for a deployment that resolved to no node: a breadcrumb
+        // whose last step is blank reads as a page that lost its subject.
+        nested={nodeId === '' ? [] : [{ label: nodeId }]}
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">

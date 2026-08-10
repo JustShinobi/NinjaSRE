@@ -20,6 +20,8 @@ import {
   stateOf,
   text,
 } from '../read';
+import { placedTree } from '../tree';
+import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
  * What this deployment can do, what each of those needs, and whether this team
@@ -29,25 +31,43 @@ import {
  * everything the software could theoretically do is documentation; a catalogue
  * that says which entries are available *here*, and names the integration
  * blocking each one that is not, is an answer to "why did it not try that".
+ *
+ * "Here" is a node, which is why this screen reads the organisation tree before
+ * it reads anything scoped. A deployment whose tree is empty resolves to no
+ * node, and then the availability column is simply not asked for — asking would
+ * mean building `/v1/config/{node_id}/catalogue` with nothing to put in it,
+ * which is a broken request rather than an empty answer.
  */
 
 /** The permission the gateway requires to manage an integration. */
 const MANAGE = 'integration.manage';
 
-export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, viewer } = context;
-  const init = authorised(credential);
-  const node = viewer.teamNodeId;
+export const CATALOGUE_FILTERS: readonly FilterName[] = ['node'];
 
-  const [capabilities, entries, integrations] = await Promise.all([
+export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNode> {
+  const { credential, locale, viewer, search } = context;
+  const state = readViewState(search, CATALOGUE_FILTERS);
+  const init = authorised(credential);
+
+  const [capabilities, tree, integrations] = await Promise.all([
     panelRead('/v1/capabilities', () => read('/v1/capabilities', init)),
-    panelRead('/v1/config/{node_id}/catalogue', () =>
-      read('/v1/config/{node_id}/catalogue', { ...init, params: { node_id: node } }),
-    ),
+    panelRead('/v1/config', () => read('/v1/config', init)),
     may(viewer, MANAGE)
       ? panelRead<unknown>('/v1/integrations', () => read('/v1/integrations', init))
       : Promise.resolve({ status: 'ready' as const, data: {} }),
   ]);
+
+  const node = resolveNode(state, viewer, placedTree(dataOf(tree)));
+
+  const entries =
+    node === ''
+      ? { status: 'ready' as const, data: {} as unknown }
+      : await panelRead<unknown>('/v1/config/{node_id}/catalogue', () =>
+          read('/v1/config/{node_id}/catalogue', {
+            ...init,
+            params: { node_id: node },
+          }),
+        );
 
   const tools = list(dataOf(capabilities), 'tools');
   const skills = list(dataOf(capabilities), 'skills');
@@ -60,6 +80,12 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
   const installed = list(dataOf(integrations), 'integrations');
   const none = message(locale, 'surface.none');
 
+  // One panel, two reads. Without this the availability column renders "—" for
+  // every entry when the catalogue read failed, which is the same thing it
+  // renders for an entry nobody has an opinion about — a panel saying "we do
+  // not know" in the words of "there is nothing to know".
+  const catalogue = capabilities.status === 'error' ? capabilities : entries;
+
   return (
     <>
       <AreaHeader area={areaFor('catalogue')} locale={locale} />
@@ -67,8 +93,8 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
       <div className="flex flex-col gap-5">
         <Panel
           title={message(locale, 'catalogue.tools')}
-          state={stateOf(capabilities, tools.length === 0 && skills.length === 0)}
-          dependency={dependencyOf(capabilities)}
+          state={stateOf(catalogue, tools.length === 0 && skills.length === 0)}
+          dependency={dependencyOf(catalogue)}
           labels={panelLabels(locale, message(locale, 'catalogue.tools'))}
           empty={{
             heading: message(locale, 'catalogue.empty.heading'),
