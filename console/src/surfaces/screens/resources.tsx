@@ -137,8 +137,7 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   // most of any estate and for all of one whose corpus has not been synced, so
   // the panel is drawn only when there is something in it — an empty one on
   // every resource would be noise on a screen that is mostly a table.
-  const documents =
-    selected === undefined ? [] : list(dataOf(selected), 'documents');
+  const documents = selected === undefined ? [] : list(dataOf(selected), 'documents');
   const records = list(dataOf(resources), 'resources');
 
   // Divergence is content, not an error. Two facts come out of the last sweep

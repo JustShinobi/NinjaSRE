@@ -99,7 +99,10 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
                     <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
                       {text(record, 'name')}
                       {flag(record, 'proposed') ? (
-                        <span className="text-meta text-muted ml-2" data-testid="detector-proposed">
+                        <span
+                          className="text-meta text-muted ml-2"
+                          data-testid="detector-proposed"
+                        >
                           {message(locale, 'detectors.proposed')}
                         </span>
                       ) : null}

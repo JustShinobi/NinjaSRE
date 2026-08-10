@@ -118,9 +118,7 @@ describe('detectors a document proposed', () => {
   it('marks the candidate as a proposal', async () => {
     await detectors();
 
-    expect(rowFor(PROPOSED.detector_id)).toHaveTextContent(
-      'proposed by a document',
-    );
+    expect(rowFor(PROPOSED.detector_id)).toHaveTextContent('proposed by a document');
   });
 
   it('leaves a detector somebody wrote by hand unmarked', async () => {
@@ -128,8 +126,12 @@ describe('detectors a document proposed', () => {
     // proposal reads as coverage nobody has.
     await detectors();
 
-    expect(rowFor(RUNNING.detector_id).querySelector('[data-testid="detector-proposed"]')).toBeNull();
-    expect(rowFor(RUNNING.detector_id).querySelector('[data-testid="detector-origin"]')).toBeNull();
+    expect(
+      rowFor(RUNNING.detector_id).querySelector('[data-testid="detector-proposed"]'),
+    ).toBeNull();
+    expect(
+      rowFor(RUNNING.detector_id).querySelector('[data-testid="detector-origin"]'),
+    ).toBeNull();
   });
 
   it('quotes the sentence the proposing document was written in', async () => {
