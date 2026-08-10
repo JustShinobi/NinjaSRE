@@ -10,8 +10,8 @@ from config.constants.llm import (
     AWS_SESSION_TOKEN_ENV,
     PROVIDER_AWS_BEDROCK,
 )
-from surfaces.cli.models import CredentialFieldSpec
-from surfaces.cli.wizard.providers import ProviderOnboarding
+from core.llm.onboarding import ProviderOnboarding
+from platform.credentials.fields import CredentialFieldSpec
 
 ONBOARDING = ProviderOnboarding(
     provider_id=PROVIDER_AWS_BEDROCK,

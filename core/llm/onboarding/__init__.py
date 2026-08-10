@@ -5,10 +5,21 @@ called, which fields it needs, what a sensible default model is, and the one or
 two sentences somebody setting it up for the first time needs. That is all a
 provider gets to say, which is the point — Article VI is only true if the local
 provider is set up through the same nine-branch-free path as the hosted ones,
-and a wizard with a special case for one of them is a wizard where it is not.
+and a surface with a special case for one of them is a surface where it is not.
 
 The directory is walked rather than listed, so a tenth provider is a module
 here and a row in the constants — the same shape adding an adapter has.
+
+**This lives beside the adapters it describes rather than inside a surface.**
+Two surfaces read it now: the CLI's guided first run, and the API's
+``/v1/providers`` family, which the console renders. Those are two tier-1
+packages and they may not import each other, so a copy in either would have
+become a second answer to "what can this deployment be pointed at" — and the
+second answer is the one that ages.
+
+Nothing here is a credential. A descriptor says what to *ask for*; the value an
+operator enters goes to the vault through the same route any integration's does,
+and no type in this package has a field one could sit in.
 """
 
 from __future__ import annotations
@@ -20,20 +31,36 @@ from dataclasses import dataclass, field
 from typing import Final
 
 from config.constants.llm import LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
-from surfaces.cli.errors import ConfigurationError
-from surfaces.cli.models import CredentialFieldSpec
+from platform.credentials.fields import CredentialFieldSpec
+
+
+class UnknownProviderError(LookupError):
+    """A provider this build declares no onboarding for.
+
+    Raised rather than defaulted, for the reason ``UnknownModelError`` is: a
+    first run that quietly configured a different provider from the one somebody
+    chose is one whose result nobody can explain.
+    """
+
+    def __init__(self, provider_id: str, known: Sequence[str]) -> None:
+        super().__init__(
+            f"{provider_id!r} is not a provider this build knows how to set up. "
+            f"Choose one of: {', '.join(known)}"
+        )
+        self.provider_id = provider_id
+        self.known = tuple(known)
 
 
 @dataclass(frozen=True, slots=True)
 class ProviderOnboarding:
-    """What the wizard needs to set one provider up."""
+    """What a surface needs to set one provider up."""
 
     provider_id: str
     display_name: str
     default_model: str
     fields: tuple[CredentialFieldSpec, ...] = ()
     guidance: str = ""
-    #: Where an operator gets the credential. Printed before the prompt, because
+    #: Where an operator gets the credential. Shown before the prompt, because
     #: "paste your API key" is not an instruction to somebody who has never been
     #: to that console.
     where_to_get_it: str = ""
@@ -51,6 +78,25 @@ class ProviderOnboarding:
         if not self.extras:
             return ""
         return f"pip install 'ninjasre[{self.extras[0]}]'"
+
+    def to_record(self) -> dict[str, object]:
+        """Return this descriptor as a JSON-serialisable document.
+
+        Field *names*, labels and help text; never a value, because there is no
+        value here to return. This is what makes the descriptor servable from a
+        route without the route becoming a credential-reading path.
+        """
+        return {
+            "provider_id": self.provider_id,
+            "display_name": self.display_name,
+            "default_model": self.default_model,
+            "fields": [declared.to_record() for declared in self.fields],
+            "guidance": self.guidance,
+            "where_to_get_it": self.where_to_get_it,
+            "models": list(self.models),
+            "local": self.local,
+            "install_hint": self.install_hint,
+        }
 
 
 _REGISTRY: dict[str, ProviderOnboarding] = {}
@@ -79,14 +125,11 @@ def onboarding_for(provider_id: str) -> ProviderOnboarding:
     """Return how to onboard ``provider_id``.
 
     Raises:
-        ConfigurationError: nothing here knows how to set that provider up.
+        UnknownProviderError: nothing here knows how to set that provider up.
     """
     found = _discover().get(provider_id)
     if found is None:
-        raise ConfigurationError(
-            f"{provider_id!r} is not a provider this build knows how to set up",
-            remedy=f"choose one of: {', '.join(sorted(_discover()))}",
-        )
+        raise UnknownProviderError(provider_id, sorted(_discover()))
     return found
 
 
@@ -102,7 +145,7 @@ def all_onboardings() -> tuple[ProviderOnboarding, ...]:
 
 
 def provider_names() -> Sequence[str]:
-    """Return the identifiers the wizard offers, in declared order."""
+    """Return the identifiers a surface offers, in declared order."""
     return [onboarding.provider_id for onboarding in all_onboardings()]
 
 
@@ -116,6 +159,7 @@ EXPECTED_PROVIDERS: Final[tuple[str, ...]] = SUPPORTED_PROVIDERS
 __all__ = [
     "EXPECTED_PROVIDERS",
     "ProviderOnboarding",
+    "UnknownProviderError",
     "all_onboardings",
     "onboarding_for",
     "provider_names",

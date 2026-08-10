@@ -8,8 +8,8 @@ from config.constants.llm import (
     GOOGLE_CLOUD_PROJECT_ENV,
     PROVIDER_GOOGLE_VERTEX_AI,
 )
-from surfaces.cli.models import CredentialFieldSpec
-from surfaces.cli.wizard.providers import ProviderOnboarding
+from core.llm.onboarding import ProviderOnboarding
+from platform.credentials.fields import CredentialFieldSpec
 
 ONBOARDING = ProviderOnboarding(
     provider_id=PROVIDER_GOOGLE_VERTEX_AI,

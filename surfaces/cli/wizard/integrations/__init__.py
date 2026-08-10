@@ -16,10 +16,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from platform.credentials.fields import CredentialFieldSpec
 from platform.observability.logging import get_logger
 from surfaces.cli.client import PlatformClient
 from surfaces.cli.errors import ConfigurationError
-from surfaces.cli.models import CredentialFieldSpec, IntegrationStatus
+from surfaces.cli.models import IntegrationStatus
 from surfaces.cli.wizard.prompts import Prompter
 
 logger = get_logger(__name__)

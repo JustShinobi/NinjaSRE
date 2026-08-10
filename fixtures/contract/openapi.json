@@ -835,6 +835,57 @@
         "title": "CredentialFieldView",
         "type": "object"
       },
+      "CredentialWriteRequest": {
+        "description": "A flat map of field name to value, checked against the vendor's own schema.\n\nFlat rather than nested, because a credential is a set of named strings and\na shape with room for anything else would be a shape a secret could be\nsmuggled through under a key nothing validates.",
+        "properties": {
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "title": "CredentialWriteRequest",
+        "type": "object"
+      },
+      "CredentialWriteView": {
+        "description": "What was written, described without any part of it being readable.\n\nThere is no field here a value could sit in, which is the same argument\n``CredentialVersion`` makes one layer down: the type is the guarantee rather\nthan a rule somebody has to remember when adding a key.",
+        "properties": {
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "usable": {
+            "title": "Usable",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "integration",
+          "state",
+          "usable",
+          "version",
+          "fields"
+        ],
+        "title": "CredentialWriteView",
+        "type": "object"
+      },
       "DemoRemovalView": {
         "properties": {
           "counts": {
@@ -6311,7 +6362,7 @@
         ]
       },
       "put": {
-        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.",
+        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.\n\nGiven the integration directory, and deliberately not the capability\ncatalogue. The directory is what lets validation refuse a field a vendor's\nown schema calls secret, which is the way round\n``PUT /v1/integrations/{name}/credential`` and has to be shut. The catalogue\nwould additionally make a write reject a capability reference that\n``POST /{node_id}/preview`` accepts, and a preview that does not predict its\nown write is worse than a reference checked at read time.",
         "operationId": "write_config_v1_config__node_id__put",
         "parameters": [
           {
@@ -7571,6 +7622,75 @@
           }
         },
         "summary": "List Integrations",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{name}/credential": {
+      "put": {
+        "description": "Store this team's credential for ``name`` and report what it now is.\n\nThe team is the token's, exactly as it is for every other write on this\nsurface: a body field naming somebody else's team would be a permission\ndecision taken by the client.\n\nRaises:\n    ApiProblem: nothing installed answers to ``name`` (404), or the values\n        do not fit the vendor's declared schema (400). The refusal names\n        the fields and never quotes one.",
+        "operationId": "store_credential_v1_integrations__name__credential_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialWriteView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Credential",
         "tags": [
           "integrations"
         ]

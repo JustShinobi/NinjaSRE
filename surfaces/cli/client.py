@@ -39,6 +39,7 @@ from config.constants.surfaces import (
     TRANSPORT_LOCAL,
     TRANSPORT_REMOTE,
 )
+from platform.credentials.fields import CredentialFieldSpec
 from platform.observability.logging import get_logger
 from surfaces.cli.errors import (
     ApprovalRequiredError,
@@ -60,7 +61,6 @@ from surfaces.cli.models import (
     ConfigView,
     ConsideredRuleRecord,
     CostReport,
-    CredentialFieldSpec,
     DetectionState,
     DetectorRecord,
     DiagnosticReport,

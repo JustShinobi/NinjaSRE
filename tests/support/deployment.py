@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from config.constants.llm import DEFAULT_MODEL_ID, LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
+from platform.credentials.fields import CredentialFieldSpec
 from surfaces.cli.client import (
     EstateFilter,
     IncidentFilter,
@@ -35,7 +36,6 @@ from surfaces.cli.models import (
     ConfigView,
     ConsideredRuleRecord,
     CostReport,
-    CredentialFieldSpec,
     DetectionState,
     DetectorRecord,
     DiagnosticCheck,

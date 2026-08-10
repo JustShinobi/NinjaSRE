@@ -7,8 +7,8 @@ from config.constants.llm import (
     NVIDIA_NIM_BASE_URL_ENV,
     PROVIDER_NVIDIA_NIM,
 )
-from surfaces.cli.models import CredentialFieldSpec
-from surfaces.cli.wizard.providers import ProviderOnboarding
+from core.llm.onboarding import ProviderOnboarding
+from platform.credentials.fields import CredentialFieldSpec
 
 ONBOARDING = ProviderOnboarding(
     provider_id=PROVIDER_NVIDIA_NIM,

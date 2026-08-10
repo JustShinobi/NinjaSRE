@@ -366,38 +366,6 @@ class IntegrationStatus:
 
 
 @dataclass(frozen=True, slots=True)
-class CredentialFieldSpec:
-    """One field an integration needs, as a prompt can ask for it.
-
-    Carried out of the credential schema rather than hard-coded per vendor,
-    which is what makes adding an integration a package rather than a change to
-    the wizard. ``secret`` is what decides whether the prompt echoes — get that
-    wrong and a token is on somebody's screen during a screen share.
-    """
-
-    name: str
-    label: str = ""
-    secret: bool = True
-    required: bool = True
-    help: str = ""
-
-    @property
-    def prompt(self) -> str:
-        """Return the text the wizard shows when asking for this."""
-        return self.label or self.name.replace("_", " ")
-
-    def to_record(self) -> dict[str, Any]:
-        """Return this field as a JSON-serialisable document."""
-        return {
-            "name": self.name,
-            "label": self.prompt,
-            "secret": self.secret,
-            "required": self.required,
-            "help": self.help,
-        }
-
-
-@dataclass(frozen=True, slots=True)
 class ConfigEntry:
     """One effective configuration value, and where it came from.
 
@@ -1325,7 +1293,6 @@ __all__ = [
     "ConfigView",
     "ConsideredRuleRecord",
     "CostReport",
-    "CredentialFieldSpec",
     "DetectionState",
     "DetectorRecord",
     "DiagnosticCheck",

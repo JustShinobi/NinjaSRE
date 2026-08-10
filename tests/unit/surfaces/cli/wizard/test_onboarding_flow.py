@@ -2,9 +2,11 @@
 
 Two things are asserted that are easy to lose and expensive to discover late.
 
-**All nine providers are onboardable, and none of them is special.** A provider
-that has an adapter but no onboarding module is one nobody reaches, which is
-provider neutrality failing at the surface rather than in the adapter layer.
+**All nine providers are offered, and none of them is special.** A listing that
+buried the local option under a heading would make provider neutrality true in
+the adapter layer and false where somebody actually decides. What each provider
+*declares* is asserted where the declarations live, in
+``tests/unit/core/llm/test_provider_onboarding.py``.
 
 **The flow ends in a verification, not a claim.** "That should do it" and "a
 request went out and came back" are different statements, and the difference is
@@ -17,49 +19,15 @@ import asyncio
 
 import pytest
 
-from config.constants.llm import LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
+from config.constants.llm import SUPPORTED_PROVIDERS
 from surfaces.cli.client import LocalClient, PlatformClient
 from surfaces.cli.errors import ConfigurationError
 from surfaces.cli.wizard.flow import OnboardingFlow, onboard
 from surfaces.cli.wizard.integrations import collect, setup, setup_many
 from surfaces.cli.wizard.prompts import PromptAbandoned, ScriptedPrompter
-from surfaces.cli.wizard.providers import (
-    EXPECTED_PROVIDERS,
-    all_onboardings,
-    onboarding_for,
-    provider_names,
-)
 from tests.support.deployment import CREDENTIAL_FIELDS, FakeServices
 
 pytestmark = pytest.mark.unit
-
-
-def test_every_supported_provider_can_be_onboarded() -> None:
-    onboardable = {onboarding.provider_id for onboarding in all_onboardings()}
-    missing = set(EXPECTED_PROVIDERS) - onboardable
-
-    assert not missing, (
-        f"these providers have an adapter but no onboarding: {sorted(missing)}. "
-        f"A provider nobody can configure is a provider nobody reaches."
-    )
-
-
-def test_the_providers_are_offered_in_the_documented_order() -> None:
-    # Declared order rather than alphabetical, so the list an operator sees is
-    # the one the platform documents rather than one sorted by initial.
-    assert tuple(provider_names()) == SUPPORTED_PROVIDERS
-
-
-def test_every_onboarding_declares_something_to_enter_and_where_to_get_it() -> None:
-    for onboarding in all_onboardings():
-        assert onboarding.fields, f"{onboarding.provider_id} declares no fields"
-        assert onboarding.where_to_get_it, f"{onboarding.provider_id} says nothing about where"
-        assert onboarding.default_model, f"{onboarding.provider_id} names no default model"
-
-
-def test_the_local_provider_is_marked_local_and_the_others_are_not() -> None:
-    for onboarding in all_onboardings():
-        assert onboarding.local == (onboarding.provider_id in LOCAL_PROVIDERS)
 
 
 def test_the_local_provider_is_offered_alongside_the_rest() -> None:
@@ -78,8 +46,22 @@ def test_the_local_provider_is_offered_alongside_the_rest() -> None:
 
 
 def test_an_unknown_provider_is_refused_with_the_ones_that_exist() -> None:
-    with pytest.raises(ConfigurationError, match="anthropik"):
-        onboarding_for("anthropik")
+    """In this surface's error vocabulary, not the descriptor package's.
+
+    The descriptors moved below the surfaces and raise a lookup failure of their
+    own. What an operator has to get back is a ``ConfigurationError``, because
+    that is what carries the exit code their script branches on.
+    """
+    flow = OnboardingFlow(
+        client=LocalClient(services=FakeServices()),
+        prompter=ScriptedPrompter(answers=[]),
+        provider_id="anthropik",
+    )
+
+    with pytest.raises(ConfigurationError, match="anthropik") as refused:
+        asyncio.run(flow.choose_provider())
+
+    assert "anthropic" in (refused.value.remedy or "")
 
 
 def test_the_flow_stores_the_credential_and_verifies_the_provider() -> None:

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from config.constants.llm import GOOGLE_API_KEY_ENV, PROVIDER_GOOGLE_GEMINI
-from surfaces.cli.models import CredentialFieldSpec
-from surfaces.cli.wizard.providers import ProviderOnboarding
+from core.llm.onboarding import ProviderOnboarding
+from platform.credentials.fields import CredentialFieldSpec
 
 ONBOARDING = ProviderOnboarding(
     provider_id=PROVIDER_GOOGLE_GEMINI,

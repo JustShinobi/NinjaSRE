@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from config.constants.llm import OPENAI_API_KEY_ENV, OPENAI_BASE_URL_ENV, PROVIDER_OPENAI
-from surfaces.cli.models import CredentialFieldSpec
-from surfaces.cli.wizard.providers import ProviderOnboarding
+from core.llm.onboarding import ProviderOnboarding
+from platform.credentials.fields import CredentialFieldSpec
 
 ONBOARDING = ProviderOnboarding(
     provider_id=PROVIDER_OPENAI,

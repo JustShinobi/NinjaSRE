@@ -9,8 +9,8 @@ from config.constants.llm import (
     AZURE_OPENAI_ENDPOINT_ENV,
     PROVIDER_AZURE_OPENAI,
 )
-from surfaces.cli.models import CredentialFieldSpec
-from surfaces.cli.wizard.providers import ProviderOnboarding
+from core.llm.onboarding import ProviderOnboarding
+from platform.credentials.fields import CredentialFieldSpec
 
 ONBOARDING = ProviderOnboarding(
     provider_id=PROVIDER_AZURE_OPENAI,
