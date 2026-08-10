@@ -9,6 +9,7 @@ import {
   countsFrom,
   loadAttention,
   loadGuardian,
+  loadStopped,
   loadRecentRuns,
   loadSetup,
   loadViewer,
@@ -44,13 +45,15 @@ export default async function ShellLayout({
     redirect(signInHref(current, 'expired'));
   }
 
-  const [attention, recentRuns, guardian, setup, expiresAt] = await Promise.all([
-    loadAttention(credential),
-    loadRecentRuns(credential),
-    loadGuardian(credential),
-    loadSetup(credential),
-    requestExpiry(),
-  ]);
+  const [attention, recentRuns, guardian, setup, stopped, expiresAt] =
+    await Promise.all([
+      loadAttention(credential),
+      loadRecentRuns(credential),
+      loadGuardian(credential),
+      loadSetup(credential),
+      loadStopped(credential),
+      requestExpiry(),
+    ]);
 
   return (
     <Shell
@@ -63,6 +66,7 @@ export default async function ShellLayout({
       recentRuns={recentRuns}
       counts={countsFrom(attention)}
       setup={setup}
+      stopped={stopped}
       expiresAt={expiresAt}
     >
       {children}

@@ -65,6 +65,16 @@ AUTONOMY_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/autonomy/policy/{node_id}/bounds",
         permission=Permission.CONFIG_READ,
     ),
+    # Reading it is every viewer's. A screen where nothing is happening looks
+    # identical whether nothing needed doing or every automated write is
+    # stopped, and only one of those is a thing somebody has to be told. The
+    # asymmetry with the two rows below is the point: everybody may know,
+    # a responder may decide.
+    Route(
+        method="GET",
+        path="/v1/autonomy/kill-switch",
+        permission=Permission.INVESTIGATION_READ,
+    ),
     Route(
         method="POST",
         path="/v1/autonomy/kill-switch",

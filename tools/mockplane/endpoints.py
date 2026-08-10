@@ -291,6 +291,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/autonomy/kill-switch",
+        slug="kill-switch",
+        source=_GATEWAY,
+        summary="whether every automated write is currently stopped",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/config/{node_id}/fields",
         slug="config-fields",
         source=_GATEWAY,

@@ -49,6 +49,7 @@ export const SHELL_ENDPOINTS = Object.freeze({
   '/v1/knowledge/documents/{document_id}': 'document-detail',
   '/v1/autonomy/policy/{node_id}': 'autonomy-policy',
   '/v1/autonomy/policy/{node_id}/bounds': 'autonomy-bounds',
+  '/v1/autonomy/kill-switch': 'kill-switch',
   '/v1/config': 'config-tree',
   '/v1/config/{node_id}': 'config-effective',
   '/v1/config/{node_id}/catalogue': 'config-catalogue',

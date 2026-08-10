@@ -98,6 +98,19 @@ export const EN = {
   'shell.deployment': 'Deployment',
   'shell.close': 'Close',
 
+  // --- The emergency stop ------------------------------------------------------
+  'stop.engage': 'Stop automation',
+  'stop.consequence':
+    'This stops every automated write, immediately, everywhere this deployment acts. Investigations keep running and keep proposing; nothing is applied until somebody releases it.',
+  'stop.confirm': 'Stop everything now',
+  'stop.cancel': 'Leave it running',
+  'stop.release': 'Let automation run again',
+  'stop.engaged':
+    'Automated writes are stopped. Investigations still run and still propose; nothing is applied.',
+  'stop.reason': 'Stopped from the console.',
+  'stop.refused': 'The deployment refused to change the stop.',
+  'stop.unreachable': 'The deployment could not be reached. Stop it by hand.',
+
   // --- The sidebar footer ------------------------------------------------------
   'shell.guardian.active': 'Guardian active',
   'shell.guardian.silent': 'Guardian silent',

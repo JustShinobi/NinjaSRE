@@ -189,6 +189,29 @@ async function readGuardian(credential: string): Promise<Guardian> {
 }
 
 /**
+ * Whether every automated write is currently stopped.
+ *
+ * Read for the frame rather than for the autonomy screen, because the banner it
+ * feeds is on every screen. It degrades to **not stopped**, which is the honest
+ * direction here and the opposite of the guardian posture's: a banner claiming
+ * automation is stopped when the read merely failed would send an operator to
+ * release a switch nobody engaged.
+ */
+export async function loadStopped(credential: string): Promise<boolean> {
+  return withDeadline(readStopped(credential), false);
+}
+
+async function readStopped(credential: string): Promise<boolean> {
+  try {
+    const body = await read('/v1/autonomy/kill-switch', authorised(credential));
+    return Reflect.get(Object(body), 'engaged') === true;
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof TypeError) return false;
+    throw error;
+  }
+}
+
+/**
  * What the frame needs to know about the deployment's own setup.
  *
  * Two facts, and each degrades in the direction that is safe to be wrong in.

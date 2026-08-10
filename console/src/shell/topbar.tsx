@@ -12,6 +12,7 @@ import { may, type Viewer } from '@/session/viewer';
 import type { AttentionItem } from './attention';
 import { useChosenTheme } from './browser';
 import type { Deployment } from './deployment';
+import { KillSwitchControl } from './stop';
 
 /**
  * The utility bar: what deployment this is, the palette, the theme, what is
@@ -34,6 +35,8 @@ export interface TopbarProps {
   readonly onOpenDrawer: () => void;
   /** Open the drawer that starts an investigation, from wherever this is. */
   readonly onInvestigate: () => void;
+  /** Whether automated writes are currently stopped, as the deployment says. */
+  readonly stopped?: boolean;
   readonly onSignOut: () => void;
 }
 
@@ -49,6 +52,7 @@ export function Topbar({
   onOpenNotifications,
   onOpenDrawer,
   onInvestigate,
+  stopped = false,
   onSignOut,
 }: TopbarProps): ReactNode {
   // The stored choice lives in the browser, and the server has no answer for
@@ -126,6 +130,12 @@ export function Topbar({
           </span>
         )}
       </span>
+
+      {/* Beside the investigate control rather than on a settings page. What
+          somebody is looking at when they decide to stop everything is the
+          reason they are stopping it, and a navigation loses both the reason
+          and the seconds. */}
+      <KillSwitchControl viewer={viewer} locale={locale} engaged={stopped} />
 
       {may(viewer, 'investigation.run') ? (
         <Button variant="primary" data-testid="investigate" onClick={onInvestigate}>

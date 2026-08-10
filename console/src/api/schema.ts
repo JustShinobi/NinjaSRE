@@ -315,7 +315,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Kill Switch
+         * @description Return whether automated writes are stopped for this caller.
+         *
+         *     A read of its own, because the two write routes answer the question only for
+         *     whoever just changed it — and the thing that has to be visible is the
+         *     engaged state, on every screen, to everybody. A dashboard where nothing is
+         *     happening looks the same whether nothing needed doing or everything is
+         *     stopped, and only one of those is something a person has to be told.
+         */
+        get: operations["read_kill_switch_v1_autonomy_kill_switch_get"];
         put?: never;
         /**
          * Engage Kill Switch
@@ -5498,6 +5508,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RollbackResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_kill_switch_v1_autonomy_kill_switch_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KillSwitchView"];
                 };
             };
             /** @description Validation Error */

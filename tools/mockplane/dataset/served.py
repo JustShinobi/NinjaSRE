@@ -633,7 +633,13 @@ def _config_fields(node_id: str, *, inherited: bool) -> list[dict[str, Any]]:
 
 def config_records() -> tuple[CapturedRecord, ...]:
     """Return the organisation tree, and each node's effective configuration."""
-    records: list[CapturedRecord] = [_record("config-tree", {}, {"nodes": list(CONFIG_NODES)})]
+    records: list[CapturedRecord] = [
+        _record("config-tree", {}, {"nodes": list(CONFIG_NODES)}),
+        # Not engaged, which is the ordinary state and the one the rest of the
+        # dataset is coherent with: a stopped deployment with running
+        # investigations in it would be a screenshot of two contradictions.
+        _record("kill-switch", {}, {"engaged": False, "scopes": {}}),
+    ]
     for entry in CONFIG_NODES:
         identifier = str(entry["node_id"])
         inherited = entry["parent_id"] is not None

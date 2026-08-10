@@ -252,6 +252,19 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'shell.deployment': 'Instalação',
   'shell.close': 'Fechar',
 
+  // --- The emergency stop ------------------------------------------------------
+  'stop.engage': 'Parar a automação',
+  'stop.consequence':
+    'Isto pára toda escrita automática, imediatamente, em tudo o que este deployment faz. As investigações continuam a correr e a propor; nada é aplicado até alguém libertar.',
+  'stop.confirm': 'Parar tudo agora',
+  'stop.cancel': 'Deixar a correr',
+  'stop.release': 'Deixar a automação correr de novo',
+  'stop.engaged':
+    'As escritas automáticas estão paradas. As investigações continuam a correr e a propor; nada é aplicado.',
+  'stop.reason': 'Parado a partir do console.',
+  'stop.refused': 'O deployment recusou mudar a paragem.',
+  'stop.unreachable': 'Não foi possível alcançar o deployment. Pare-o à mão.',
+
   'shell.guardian.active': 'Guardião activo',
   'shell.guardian.silent': 'Guardião silencioso',
   'shell.guardian.state': '{liveness} · {posture}',

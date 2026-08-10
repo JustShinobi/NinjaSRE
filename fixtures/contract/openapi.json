@@ -6796,6 +6796,54 @@
           "autonomy"
         ]
       },
+      "get": {
+        "description": "Return whether automated writes are stopped for this caller.\n\nA read of its own, because the two write routes answer the question only for\nwhoever just changed it — and the thing that has to be visible is the\nengaged state, on every screen, to everybody. A dashboard where nothing is\nhappening looks the same whether nothing needed doing or everything is\nstopped, and only one of those is something a person has to be told.",
+        "operationId": "read_kill_switch_v1_autonomy_kill_switch_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KillSwitchView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Kill Switch",
+        "tags": [
+          "autonomy"
+        ]
+      },
       "post": {
         "description": "Stop every automated write, immediately, with no configuration in the way.",
         "operationId": "engage_kill_switch_v1_autonomy_kill_switch_post",

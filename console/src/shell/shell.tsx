@@ -21,6 +21,7 @@ import type { SetupState } from './load';
 import { NotificationCentre } from './notifications';
 import { isPaletteShortcut, Palette } from './palette';
 import { GuardianFooter, Sidebar, SidebarNav, type Guardian } from './sidebar';
+import { KillSwitchBanner } from './stop';
 import { Topbar } from './topbar';
 
 /**
@@ -55,6 +56,14 @@ export interface ShellProps {
    * the caveat the investigation drawer carries when nothing is connected.
    */
   readonly setup?: SetupState;
+  /**
+   * Whether every automated write is currently stopped.
+   *
+   * In the frame rather than on the autonomy screen, because a screen where
+   * nothing is happening looks the same whether nothing needed doing or
+   * everything is stopped — and that is true of every screen, not one of them.
+   */
+  readonly stopped?: boolean;
   /** When the session ends, as the server knows it. Absent means it does not say. */
   readonly expiresAt?: string | null;
   readonly children: ReactNode;
@@ -76,6 +85,7 @@ export function Shell({
   recentRuns,
   counts,
   setup = { checklistComplete: false, integrationsConfigured: true },
+  stopped = false,
   expiresAt = null,
   children,
   navigate = defaultNavigate,
@@ -143,6 +153,9 @@ export function Shell({
   return (
     <div className="flex min-h-screen flex-col bg-sunken">
       <ImpersonationBanner viewer={viewer} locale={locale} />
+      {/* Above everything, including the navigation. A stop nobody notices is a
+          stop that gets engaged twice. */}
+      <KillSwitchBanner locale={locale} engaged={stopped} />
       <div className="flex flex-1 min-h-0">
         <Sidebar
           viewer={viewer}
@@ -170,6 +183,7 @@ export function Shell({
             onInvestigate={() => {
               setInvestigateOpen(true);
             }}
+            stopped={stopped}
             onSignOut={() => {
               // The server's session ends first. Navigating away with the
               // cookie still set is not signing out, it is closing a tab —

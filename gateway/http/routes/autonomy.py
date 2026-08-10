@@ -522,6 +522,22 @@ async def read_bounds(
     )
 
 
+@router.get("/kill-switch", response_model=KillSwitchView)
+async def read_kill_switch(
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> KillSwitchView:
+    """Return whether automated writes are stopped for this caller.
+
+    A read of its own, because the two write routes answer the question only for
+    whoever just changed it — and the thing that has to be visible is the
+    engaged state, on every screen, to everybody. A dashboard where nothing is
+    happening looks the same whether nothing needed doing or everything is
+    stopped, and only one of those is something a person has to be told.
+    """
+    return _switch_view(state, auth)
+
+
 @router.post("/kill-switch", response_model=KillSwitchView)
 async def engage_kill_switch(
     body: KillSwitchRequest,

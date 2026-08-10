@@ -1,0 +1,22 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "engaged": false,
+        "scopes": {}
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "kill-switch",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "kill-switch"
+}
