@@ -35,13 +35,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from gateway.http.credential_schemas import schema_for
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
-from gateway.http.errors import bad_request, not_found
+from gateway.http.errors import bad_request
 from gateway.http.state import GatewayState
 from integrations._catalogue.discovery import catalogue
-from integrations.registry import discover
-from platform.credentials.descriptor import IntegrationDescriptor
 from platform.credentials.errors import CredentialSchemaViolation
 from platform.credentials.handles import CredentialHandle
 from platform.credentials.health import CredentialHealth
@@ -148,16 +147,15 @@ async def list_integrations(
     )
 
 
-def _descriptor_for(name: str) -> IntegrationDescriptor:
-    """Return the installed integration called ``name``, or raise a 404.
+def _team_of(auth: AuthenticatedRequest) -> str:
+    """Return the credential-handle team this request writes and reads under.
 
-    Raises:
-        ApiProblem: nothing installed answers to that name.
+    An organisation-scoped token has no team, and a handle needs one: the vault
+    spells the organisation-wide owner as a literal rather than as an empty
+    string, because ``datadog/`` and ``datadog`` would otherwise be two
+    spellings of one handle.
     """
-    descriptor = discover().get(name)
-    if descriptor is None:
-        raise not_found(f"no installed integration named {name!r}")
-    return descriptor
+    return auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM
 
 
 @router.post("/{name}/verify", response_model=IntegrationVerification)
@@ -166,13 +164,17 @@ async def verify_integration(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> IntegrationVerification:
-    """Check this team's credential for ``name``: configured, current, decryptable."""
-    descriptor = _descriptor_for(name)
+    """Check this team's credential for ``name``: configured, current, decryptable.
 
-    schemas = CredentialSchemaRegistry.from_schemas(descriptor.schema)
+    ``name`` is an installed integration or a supported model provider, the same
+    two as the write beside it — the guided first run stores a provider key and
+    then verifies it, and a verify that only knew about vendor packages would
+    refuse the second half of its own flow.
+    """
+    schemas = CredentialSchemaRegistry.from_schemas(schema_for(name))
     vault = Vault(gateway=state.gateway, schemas=schemas)
     health = CredentialHealth(vault=vault)
-    report = await health.report(auth.scope, integrations=(name,), team_id=auth.team_node_id)
+    report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
     return IntegrationVerification(
         integration=name, state=entry.state.value, usable=entry.state.usable
@@ -208,7 +210,7 @@ async def store_credential(
         gateway=state.gateway,
         schemas=CredentialSchemaRegistry.from_schemas(schema_for(name)),
     )
-    handle = CredentialHandle(integration=name, team_id=auth.team_node_id)
+    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
     try:
         stored = await vault.store(auth.scope, handle, values)
     except CredentialSchemaViolation as violation:
@@ -233,7 +235,7 @@ async def store_credential(
     logger.info("gateway.integration_credential_stored", integration=name, fields=names)
 
     health = CredentialHealth(vault=vault)
-    report = await health.report(auth.scope, integrations=(name,), team_id=auth.team_node_id)
+    report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
     return CredentialWriteView(
         integration=name,

@@ -7911,7 +7911,7 @@
     },
     "/v1/integrations/{name}/verify": {
       "post": {
-        "description": "Check this team's credential for ``name``: configured, current, decryptable.",
+        "description": "Check this team's credential for ``name``: configured, current, decryptable.\n\n``name`` is an installed integration or a supported model provider, the same\ntwo as the write beside it — the guided first run stores a provider key and\nthen verifies it, and a verify that only knew about vendor packages would\nrefuse the second half of its own flow.",
         "operationId": "verify_integration_v1_integrations__name__verify_post",
         "parameters": [
           {
