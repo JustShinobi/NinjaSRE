@@ -4,7 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SESSION_COOKIE } from '@/session/cookies';
 
 import { AREA_SCREENS } from '../support/screens';
-import { principalHolding, serveScenario } from '../support/dataset';
+import {
+  principalHolding,
+  serveScenario,
+  serveScenarioExcept,
+} from '../support/dataset';
 
 /**
  * The screens whose data is scoped to a node, in the state where there is no
@@ -132,5 +136,72 @@ describe('a node-scoped screen resolving which node to read', () => {
         .getAllByTestId('panel')
         .filter((panel) => panel.getAttribute('data-state') === 'error'),
     ).toEqual([]);
+  });
+});
+
+/**
+ * One dependency down, and the rest of the deployment fine.
+ *
+ * A whole-gateway outage cannot tell these apart: a panel that reads two
+ * endpoints renders its error state either way, whichever of the two it is
+ * actually reporting. These are the cases that say which.
+ */
+describe('a node-scoped read that fails on its own', () => {
+  it('catalogue: says the availability is unknown rather than showing none', async () => {
+    serveScenarioExcept('populated', ['/catalogue'], principalHolding(EVERYTHING));
+    await renderArea('catalogue');
+
+    expect(screen.getByTestId('page-header')).toBeInTheDocument();
+    // The capability panel, which reads capabilities *and* the entries that say
+    // which of them are available here. Rendering the capability rows with a
+    // blank availability column would be the screen saying "nothing is
+    // configured" when what happened is that nobody answered.
+    const failed = screen
+      .getAllByTestId('panel')
+      .filter((panel) => panel.getAttribute('data-state') === 'error');
+    expect(failed.length).toBe(1);
+    expect(failed[0]?.textContent).toContain('/v1/config/{node_id}/catalogue');
+  });
+
+  it('autonomy: keeps its node when the tree it did not need is unreachable', async () => {
+    // The tree read is the node *selector*. Losing it must not cost the screen
+    // the node it already had from the viewer.
+    serveScenarioExcept('populated', ['/v1/config'], principalHolding(EVERYTHING));
+    await renderArea('autonomy');
+
+    expect(screen.getByTestId('page-header')).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByTestId('panel')
+        .filter((panel) => panel.getAttribute('data-state') === 'error'),
+    ).toEqual([]);
+    expect(screen.getAllByTestId('autonomy-rule').length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The breadcrumb, which is where a screen says which node it is showing.
+ *
+ * A trail whose last step is blank reads as a page that lost its subject, and
+ * `trailFor` already draws no breadcrumb at all for a trail of one — so the
+ * absence is the designed shape rather than a missing crumb.
+ */
+describe('the crumb naming the node', () => {
+  it('autonomy: names the node it resolved', async () => {
+    serveScenario('populated', principalHolding(EVERYTHING));
+    await renderArea('autonomy', { node: 'team-storage' });
+
+    const header = screen.getByTestId('page-header');
+    const trail = header.querySelector('nav ol');
+    expect(trail).not.toBeNull();
+    expect(trail?.textContent).toContain('team-storage');
+  });
+
+  it('autonomy: draws no breadcrumb at all when it resolved none', async () => {
+    serveScenario('empty', principalHolding(EVERYTHING, ''));
+    await renderArea('autonomy');
+
+    const header = screen.getByTestId('page-header');
+    expect(header.querySelector('nav ol')).toBeNull();
   });
 });

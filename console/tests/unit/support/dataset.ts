@@ -86,6 +86,49 @@ export function serveRefusal(status = 503): void {
 }
 
 /**
+ * Answer every request from `scenario`, except the ones nothing can reach.
+ *
+ * The case a whole-gateway outage cannot produce: one dependency down and the
+ * rest of the deployment fine. A panel that reads two endpoints looks identical
+ * under a total outage whichever of them it reports, so this is the only way to
+ * say which one it is reporting.
+ *
+ * `unreachable` holds path fragments rather than whole paths, because the path
+ * a screen builds carries a node identifier the test would otherwise have to
+ * know.
+ */
+export function serveScenarioExcept(
+  scenario: Scenario,
+  unreachable: readonly string[],
+  principal?: unknown,
+): void {
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const path = new URL(String(input), BASE).pathname;
+    if (unreachable.some((fragment) => path.includes(fragment))) {
+      return Promise.reject(new TypeError('fetch failed'));
+    }
+    const body: unknown =
+      path === '/auth/me' && principal !== undefined
+        ? principal
+        : bodyFor(scenario, path);
+    if (body === null || body === undefined) {
+      return Promise.resolve(
+        new Response('{}', {
+          status: 404,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    }
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+}
+
+/**
  * Let no read reach anything, while the session still resolves.
  *
  * The other half of `serveRefusal`. A gateway that answers 503 and a gateway
