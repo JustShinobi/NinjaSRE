@@ -31,7 +31,6 @@ is what writes.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -157,11 +156,6 @@ def candidates_from(
     return tuple(found[:MAX_DETECTOR_CANDIDATES])
 
 
-def settings_entries(candidates: Mapping[str, DetectorCandidate]) -> list[dict[str, Any]]:
-    """Return the configuration entries a set of candidates becomes, by identifier."""
-    return [candidates[key].to_settings() for key in sorted(candidates)]
-
-
 def _slug(title: str) -> str:
     """Return the identifier fragment a heading becomes."""
     return NOT_IDENTIFIER.sub("-", title.lower()).strip("-")
@@ -198,5 +192,4 @@ __all__ = [
     "SIGNAL_LINE",
     "DetectorCandidate",
     "candidates_from",
-    "settings_entries",
 ]
