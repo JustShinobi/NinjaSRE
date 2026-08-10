@@ -45,8 +45,10 @@ from platform.autonomy.scopes import PolicyScope, ScopeKind
 from platform.autonomy.service import AutonomyService
 from platform.autonomy.subjects import ProposedAction, Subject
 from platform.config_service.service import ConfigService
+from platform.identity.audit.recorder import AuditRecorder
 from platform.persistence.errors import RecordNotFound
 from platform.persistence.ports.audit_repository import ActorKind
+from platform.remediation.audit import RemediationAuditor
 from platform.remediation.autonomy.kill_switch import ORGANISATION_SCOPE
 
 router = APIRouter(prefix="/v1/autonomy", tags=["autonomy"])
@@ -252,6 +254,16 @@ def _service(state: GatewayState, auth: AuthenticatedRequest) -> AutonomyService
         config=ConfigService(gateway=state.gateway, scope=auth.scope, guardrails=state.guardrails),
         stop=state.kill_switch,
     )
+
+
+def _auditor(state: GatewayState, auth: AuthenticatedRequest) -> RemediationAuditor:
+    """Return the trail the switch writes into.
+
+    The same auditor the execution path already uses, so a stop and the actions
+    it stopped are rows in one trail rather than two — and the reason a review
+    can ask "what was running when somebody pulled this" and get an answer.
+    """
+    return RemediationAuditor(scope=auth.scope, recorder=AuditRecorder(gateway=state.gateway))
 
 
 def _switch_view(state: GatewayState, auth: AuthenticatedRequest) -> KillSwitchView:
@@ -544,13 +556,20 @@ async def engage_kill_switch(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> KillSwitchView:
-    """Stop every automated write, immediately, with no configuration in the way."""
+    """Stop every automated write, immediately, with no configuration in the way.
+
+    Audited after the switch is thrown rather than before it. The stop is the
+    urgent half and must not wait on a database; the record is written straight
+    afterwards, and a store that could not take it still leaves the auditor's own
+    log line — which is the arrangement ``RemediationAuditor`` exists for.
+    """
     switch = state.kill_switch
-    switch.engage(
+    engaged = switch.engage(
         engaged_by=auth.principal_id,
         scope=body.scope or auth.team_node_id or ORGANISATION_SCOPE,
         reason=body.reason,
     )
+    await _auditor(state, auth).kill_switch(engaged, engaged=True, actor_id=auth.principal_id)
     return _switch_view(state, auth)
 
 
@@ -562,10 +581,10 @@ async def release_kill_switch(
 ) -> KillSwitchView:
     """Let automated writes happen again, for one scope, attributed to whoever asked."""
     switch = state.kill_switch
-    switch.release(
-        released_by=auth.principal_id,
-        scope=scope or auth.team_node_id or ORGANISATION_SCOPE,
-    )
+    released = scope or auth.team_node_id or ORGANISATION_SCOPE
+    before = switch.state_for(team_node_id=released)
+    switch.release(released_by=auth.principal_id, scope=released)
+    await _auditor(state, auth).kill_switch(before, engaged=False, actor_id=auth.principal_id)
     return _switch_view(state, auth)
 
 

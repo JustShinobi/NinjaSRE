@@ -15,8 +15,11 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
+from config.constants.security import REMEDIATION_AUDIT_ACTION_KILL_SWITCH
 from platform.identity.permissions import Role
-from tests.unit.gateway.http.conftest import Deployment, issue_token
+from platform.persistence.ports.audit_repository import AuditOutcome
+from platform.persistence.ports.transaction import TenantScope
+from tests.unit.gateway.http.conftest import ORG, Deployment, issue_token
 
 pytestmark = pytest.mark.anyio
 
@@ -79,3 +82,46 @@ async def test_a_viewer_still_cannot_engage_it(client: AsyncClient, deployment: 
     )
 
     assert answer.status_code == 403
+
+
+async def test_engaging_it_leaves_an_audit_row_naming_who_stopped_what(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    # The most consequential write this deployment has: everything automated
+    # stops. A stop with no record is a stop nobody can attribute afterwards,
+    # and "who stopped remediation last Tuesday" is asked in every review of a
+    # night that went wrong.
+    await client.post(
+        "/v1/autonomy/kill-switch",
+        headers=await _headers(deployment, Role.RESPONDER, "rosa"),
+        json={"reason": "the storage controller is lying about free space"},
+    )
+
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        events = await uow.audit.query()
+    stops = [event for event in events if event.action == REMEDIATION_AUDIT_ACTION_KILL_SWITCH]
+    assert len(stops) == 1
+    assert stops[0].actor_id == "rosa"
+    assert stops[0].outcome is AuditOutcome.ALLOWED
+    assert stops[0].detail["engaged"] is True
+
+
+async def test_releasing_it_is_audited_too_because_that_is_the_sensitive_direction(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    # A release is the moment automated writes become possible again. A trail
+    # that recorded only stops would leave every restart unattributed.
+    responder = await _headers(deployment, Role.RESPONDER, "rosa")
+    await client.post("/v1/autonomy/kill-switch", headers=responder, json={"reason": "stop"})
+    await client.delete("/v1/autonomy/kill-switch", headers=responder)
+
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        events = await uow.audit.query()
+    releases = [
+        event
+        for event in events
+        if event.action == REMEDIATION_AUDIT_ACTION_KILL_SWITCH
+        and event.detail.get("engaged") is False
+    ]
+    assert len(releases) == 1
+    assert releases[0].actor_id == "rosa"
