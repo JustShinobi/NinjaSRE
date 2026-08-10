@@ -15,6 +15,9 @@ import pytest
 from config.constants.first_run import (
     DEFAULT_ORGANISATION_ID,
     GUIDED_INVESTIGATION_TRIGGER,
+    SETUP_READINESS_ABSENT,
+    SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_VERIFIED,
     SETUP_STATE_BLOCKED,
     SETUP_STATE_DONE,
     SETUP_STATE_READY,
@@ -25,6 +28,13 @@ from config.constants.first_run import (
     SETUP_STEP_ORDER,
 )
 from core.llm.verification import ModelVerdict
+from platform.credentials.handles import CredentialHandle
+from platform.credentials.schemas import (
+    CredentialField,
+    CredentialSchema,
+    CredentialSchemaRegistry,
+)
+from platform.credentials.vault import Vault
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.estate_repository import Resource
@@ -59,6 +69,17 @@ async def store(environ: dict[str, str]) -> FakePersistence:
 
 def _step(checklist: object, name: str) -> object:
     return next(step for step in checklist.steps if step.name == name)  # type: ignore[attr-defined]
+
+
+async def _store_credential(gateway: FakePersistence, integration: str) -> None:
+    """Put a credential in the vault for ``integration``, as the write route would.
+
+    Through the real vault rather than by writing a row, so what the checklist
+    reads is what a credential written over HTTP actually leaves behind.
+    """
+    schema = CredentialSchema(integration=integration, fields=(CredentialField(name="api_key"),))
+    vault = Vault(gateway=gateway, schemas=CredentialSchemaRegistry.from_schemas(schema))
+    await vault.store(SCOPE, CredentialHandle.for_organisation(integration), {"api_key": "stored"})
 
 
 # --- Shape ----------------------------------------------------------------------
@@ -165,6 +186,154 @@ async def test_a_verified_provider_completes_its_step(store: FakePersistence) ->
     )
 
     assert _step(checklist, SETUP_STEP_MODEL_PROVIDER).state == SETUP_STATE_DONE
+
+
+# --- Three deployments a console has to tell apart ------------------------------
+#
+# "Nothing is set up", "a key is stored and nobody has checked it", and "ready"
+# are three different screens and three different next actions. A checklist that
+# collapsed the middle one would show a green provider to a deployment whose key
+# is wrong, which is the state this whole checklist exists to catch.
+
+
+async def test_a_deployment_with_no_provider_says_so(store: FakePersistence) -> None:
+    checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    assert checklist.provider_readiness == SETUP_READINESS_ABSENT
+    assert _step(checklist, SETUP_STEP_MODEL_PROVIDER).readiness == SETUP_READINESS_ABSENT
+
+
+async def test_a_stored_provider_credential_nobody_verified_is_its_own_state(
+    store: FakePersistence,
+) -> None:
+    """Configured is not verified, and the difference is discovered at 03:00."""
+    await _store_credential(store, "anthropic")
+
+    checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    assert checklist.provider_readiness == SETUP_READINESS_CONFIGURED
+    step = _step(checklist, SETUP_STEP_MODEL_PROVIDER)
+    assert step.state != SETUP_STATE_DONE
+    assert step.readiness == SETUP_READINESS_CONFIGURED
+    assert "anthropic" in step.detail
+
+
+async def test_a_verified_provider_reads_as_ready(store: FakePersistence) -> None:
+    await _store_credential(store, "anthropic")
+
+    async def verify() -> ModelVerdict:
+        return ModelVerdict(
+            provider_id="anthropic",
+            model_id="claude-sonnet-5",
+            satisfied=True,
+            summary_line="claude-sonnet-5 on anthropic calls tools and returns structure",
+        )
+
+    checklist = await build_checklist(
+        store, organisation_id=DEFAULT_ORGANISATION_ID, verify_model=verify
+    )
+
+    assert checklist.provider_readiness == SETUP_READINESS_VERIFIED
+    assert _step(checklist, SETUP_STEP_MODEL_PROVIDER).readiness == SETUP_READINESS_VERIFIED
+
+
+async def test_the_three_provider_states_are_distinguishable_in_the_record(
+    store: FakePersistence,
+) -> None:
+    """The document a console and ``doctor`` both branch on carries the distinction."""
+    absent = (await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)).to_record()
+    await _store_credential(store, "anthropic")
+    configured = (await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)).to_record()
+
+    async def verify() -> ModelVerdict:
+        return ModelVerdict(provider_id="anthropic", model_id="m", satisfied=True)
+
+    ready = (
+        await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID, verify_model=verify)
+    ).to_record()
+
+    assert absent["provider"] == SETUP_READINESS_ABSENT
+    assert configured["provider"] == SETUP_READINESS_CONFIGURED
+    assert ready["provider"] == SETUP_READINESS_VERIFIED
+    assert len({absent["provider"], configured["provider"], ready["provider"]}) == 3
+
+
+# --- Which integrations are where -----------------------------------------------
+
+
+async def test_a_declared_integration_with_nothing_stored_reads_as_absent(
+    store: FakePersistence,
+) -> None:
+    checklist = await build_checklist(
+        store, organisation_id=DEFAULT_ORGANISATION_ID, integrations=("datadog", "kubernetes")
+    )
+
+    assert {entry.name: entry.readiness for entry in checklist.integrations} == {
+        "datadog": SETUP_READINESS_ABSENT,
+        "kubernetes": SETUP_READINESS_ABSENT,
+    }
+
+
+async def test_an_integration_with_a_credential_reads_as_configured(
+    store: FakePersistence,
+) -> None:
+    await _store_credential(store, "datadog")
+
+    checklist = await build_checklist(
+        store, organisation_id=DEFAULT_ORGANISATION_ID, integrations=("datadog", "kubernetes")
+    )
+
+    assert {entry.name: entry.readiness for entry in checklist.integrations} == {
+        "datadog": SETUP_READINESS_CONFIGURED,
+        "kubernetes": SETUP_READINESS_ABSENT,
+    }
+
+
+async def test_an_integration_a_live_run_reached_reads_as_verified(
+    store: FakePersistence,
+) -> None:
+    """Verified means something answered, which only a live run can establish."""
+    await _store_credential(store, "datadog")
+
+    checklist = await build_checklist(
+        store,
+        organisation_id=DEFAULT_ORGANISATION_ID,
+        integrations=("datadog", "kubernetes"),
+        verified_integrations=("datadog",),
+    )
+
+    assert {entry.name: entry.readiness for entry in checklist.integrations} == {
+        "datadog": SETUP_READINESS_VERIFIED,
+        "kubernetes": SETUP_READINESS_ABSENT,
+    }
+
+
+async def test_an_integration_nobody_declared_is_not_reported(
+    store: FakePersistence,
+) -> None:
+    """The list is what this deployment has, not everything that could be installed."""
+    await _store_credential(store, "datadog")
+
+    checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    assert checklist.integrations == ()
+    assert checklist.to_record()["integrations"] == []
+
+
+async def test_the_integration_detail_is_in_the_record_the_console_reads(
+    store: FakePersistence,
+) -> None:
+    await _store_credential(store, "datadog")
+
+    record = (
+        await build_checklist(
+            store,
+            organisation_id=DEFAULT_ORGANISATION_ID,
+            integrations=("datadog",),
+        )
+    ).to_record()
+
+    assert record["integrations"] == [{"name": "datadog", "readiness": SETUP_READINESS_CONFIGURED}]
 
 
 async def test_the_source_step_is_done_when_the_estate_actually_holds_something(

@@ -435,6 +435,10 @@
             "title": "Name",
             "type": "string"
           },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          },
           "state": {
             "title": "State",
             "type": "string"
@@ -447,7 +451,8 @@
         "required": [
           "name",
           "title",
-          "state"
+          "state",
+          "readiness"
         ],
         "title": "ChecklistStepView",
         "type": "object"
@@ -457,6 +462,13 @@
           "complete": {
             "title": "Complete",
             "type": "boolean"
+          },
+          "integrations": {
+            "items": {
+              "$ref": "#/components/schemas/IntegrationReadinessView"
+            },
+            "title": "Integrations",
+            "type": "array"
           },
           "next": {
             "anyOf": [
@@ -469,6 +481,10 @@
             ],
             "title": "Next"
           },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
           "steps": {
             "items": {
               "$ref": "#/components/schemas/ChecklistStepView"
@@ -479,7 +495,9 @@
         },
         "required": [
           "complete",
-          "steps"
+          "steps",
+          "provider",
+          "integrations"
         ],
         "title": "ChecklistView",
         "type": "object"
@@ -1870,6 +1888,24 @@
           "integrations"
         ],
         "title": "IntegrationList",
+        "type": "object"
+      },
+      "IntegrationReadinessView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "readiness"
+        ],
+        "title": "IntegrationReadinessView",
         "type": "object"
       },
       "IntegrationSchemaView": {
@@ -10354,7 +10390,7 @@
     },
     "/v1/setup/checklist": {
       "get": {
-        "description": "Return what is left to set up, each step verified against its dependency.",
+        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe scheduled live runs recorded, so \"verified\" means something answered\nrather than that a credential is present.",
         "operationId": "checklist_v1_setup_checklist_get",
         "parameters": [
           {

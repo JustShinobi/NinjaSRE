@@ -24,6 +24,8 @@ from pydantic import BaseModel, Field
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
+from integrations._catalogue.discovery import catalogue
+from integrations._catalogue.entry import HealthStatus
 from platform.startup.bootstrap import establish_durable_credential, read_credential
 from platform.startup.checklist import build_checklist
 from platform.startup.demo import DemoRefused, remove_demonstration, seed_demonstration
@@ -39,12 +41,27 @@ class ChecklistStepView(BaseModel):
     state: str
     detail: str = ""
     action: str = ""
+    #: How far along the thing this step configures is: ``absent``,
+    #: ``configured``, or ``verified``. Distinct from ``state``, which is about
+    #: the step. A key that is stored and unchecked is the middle one, and it is
+    #: the state a wrong key sits in until an incident finds it.
+    readiness: str
+
+
+class IntegrationReadinessView(BaseModel):
+    name: str
+    readiness: str
 
 
 class ChecklistView(BaseModel):
     complete: bool
     steps: list[ChecklistStepView]
     next: str | None = None
+    #: The provider step's readiness, lifted to the top level because it is what
+    #: a first-run screen and ``ninjasre doctor`` both branch on first.
+    provider: str
+    #: Every integration this deployment declares, and how far along each is.
+    integrations: list[IntegrationReadinessView]
 
 
 class FindingView(BaseModel):
@@ -103,13 +120,32 @@ async def checklist(
     auth: AuthenticatedRequest = Depends(authorized),
     state: GatewayState = Depends(get_state),
 ) -> ChecklistView:
-    """Return what is left to set up, each step verified against its dependency."""
-    built = await build_checklist(state.gateway, organisation_id=auth.scope.org_id)
+    """Return what is left to set up, each step verified against its dependency.
+
+    The integration catalogue and its health ledger are read here rather than in
+    ``build_checklist``: that module is tier 3 and reaching up for ``integrations``
+    would be the boundary ``make check-imports`` exists to hold. Health is what
+    the scheduled live runs recorded, so "verified" means something answered
+    rather than that a credential is present.
+    """
+    ledger = getattr(state, "integration_health", None)
+    declared = tuple(entry.name for entry in catalogue(health=ledger))
+    reached = tuple(
+        entry.name for entry in catalogue(health=ledger) if entry.health is HealthStatus.HEALTHY
+    )
+    built = await build_checklist(
+        state.gateway,
+        organisation_id=auth.scope.org_id,
+        integrations=declared,
+        verified_integrations=reached,
+    )
     record = built.to_record()
     return ChecklistView(
         complete=bool(record["complete"]),
-        steps=[ChecklistStepView(**step) for step in built.to_record()["steps"]],
+        steps=[ChecklistStepView(**step) for step in record["steps"]],
         next=record["next"],
+        provider=str(record["provider"]),
+        integrations=[IntegrationReadinessView(**entry) for entry in record["integrations"]],
     )
 
 

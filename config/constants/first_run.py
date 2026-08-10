@@ -166,6 +166,24 @@ SETUP_STATE_BLOCKED: Final = "blocked"
 
 SETUP_STATES: Final[tuple[str, ...]] = (SETUP_STATE_DONE, SETUP_STATE_READY, SETUP_STATE_BLOCKED)
 
+#: How far along one *thing* is — a model provider, one vendor integration — as
+#: distinct from how far along the step that configures it is. Three words
+#: rather than a boolean, because "nothing is stored" and "a key is stored and
+#: nobody has checked it" are different screens with different next actions, and
+#: the second is the state a wrong key sits in until an incident finds it.
+#:
+#: ``absent`` for an integration means declared and holding nothing: the list
+#: only ever contains integrations this deployment knows about.
+SETUP_READINESS_ABSENT: Final = "absent"
+SETUP_READINESS_CONFIGURED: Final = "configured"
+SETUP_READINESS_VERIFIED: Final = "verified"
+
+SETUP_READINESS: Final[tuple[str, ...]] = (
+    SETUP_READINESS_ABSENT,
+    SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_VERIFIED,
+)
+
 #: What the guided first investigation is called in the run trace, so a
 #: deployment can tell the one it was shown from the ones it went on to run.
 GUIDED_INVESTIGATION_TRIGGER: Final = "guided-first-investigation"
@@ -253,6 +271,10 @@ __all__ = [
     "SELF_CHECK_BUDGET_SECONDS",
     "SELF_CHECK_NAMES",
     "SELF_CHECK_TIMEOUT_SECONDS",
+    "SETUP_READINESS",
+    "SETUP_READINESS_ABSENT",
+    "SETUP_READINESS_CONFIGURED",
+    "SETUP_READINESS_VERIFIED",
     "SETUP_STATES",
     "SETUP_STATE_BLOCKED",
     "SETUP_STATE_DONE",
