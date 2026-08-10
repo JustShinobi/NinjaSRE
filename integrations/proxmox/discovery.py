@@ -438,6 +438,12 @@ class ProxmoxDiscovery:
             "cores": int(row.get("maxcpu", 0) or 0),
             "memory_bytes": int(row.get("maxmem", 0) or 0),
             "address": address,
+            # What the host's exporter labels this guest's series with. Emitted
+            # as a declared attribute rather than left to be recovered from the
+            # correlation key, because a query assembled by splitting a string
+            # fails silently — and an empty metric result reads as a healthy
+            # guest.
+            "vmid": vmid,
         }
         if kind == "qemu":
             attributes["disk_bytes"] = int(row.get("maxdisk", 0) or 0)

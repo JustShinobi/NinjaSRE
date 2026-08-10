@@ -114,6 +114,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.verify.nothing':
     'Nada está configurado ainda, então não há o que verificar. Guarde primeiro uma credencial de provider.',
   'firstRun.verify.remedy': 'O que fazer:',
+  'firstRun.verify.findings':
+    'Ele respondeu, e no que respondeu n\u00e3o d\u00e1 para confiar:',
 
   'firstRun.established.title': 'O que já está configurado',
   'firstRun.established.verified': 'respondeu',
@@ -493,6 +495,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.summary':
     '{watched} vigiados · {healthy} saudáveis · {degraded} degradados',
   'resources.divergent.mark': '(fora do inventário)',
+  'resources.signals.title': 'De onde vêm os sinais dele',
+  'resources.signals.body':
+    'Qual fonte responde cada pergunta sobre este recurso, e por qual chave. Um container compartilha o kernel do host, então o uso de recursos dele é lido da série do próprio host e não de dentro do guest.',
+  'resources.signals.missing': 'nada configurado responde isso',
   'resources.departed.title': 'Declarado e ausente',
   'resources.departed.body':
     'O inventário ainda nomeia estes e a fonte não os reporta mais. Um recurso que existe só num arquivo é um recurso que não existe mais.',

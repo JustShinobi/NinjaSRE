@@ -508,6 +508,10 @@ export const EN = {
   'resources.sorted': 'Worst first',
   'resources.summary': '{watched} watched · {healthy} healthy · {degraded} degraded',
   'resources.divergent.mark': '(not in the inventory)',
+  'resources.signals.title': 'Where its signals come from',
+  'resources.signals.body':
+    'Which source answers each question about this resource, and by what key. A container shares its host\u2019s kernel, so its resource usage is read from the host\u2019s own series rather than from inside the guest.',
+  'resources.signals.missing': 'nothing configured answers this',
   'resources.departed.title': 'Declared and gone',
   'resources.departed.body':
     'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',

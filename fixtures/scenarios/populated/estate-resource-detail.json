@@ -101,6 +101,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": [
           {
@@ -221,6 +269,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -325,6 +421,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -436,6 +580,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -540,6 +732,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -651,6 +891,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -755,6 +1043,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -866,6 +1202,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -970,6 +1354,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1081,6 +1513,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1185,6 +1665,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1296,6 +1824,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1400,6 +1976,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1511,6 +2135,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1615,6 +2287,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1742,6 +2462,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": [
           {
@@ -1855,6 +2623,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -1966,6 +2782,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2068,6 +2932,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2177,6 +3089,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2286,6 +3246,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2395,6 +3403,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2504,6 +3560,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2613,6 +3717,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2722,6 +3874,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2831,6 +4031,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -2940,6 +4188,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3049,6 +4345,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3158,6 +4502,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3269,6 +4661,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3380,6 +4820,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3491,6 +4979,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3602,6 +5138,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3713,6 +5297,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3824,6 +5456,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -3935,6 +5615,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -4046,6 +5774,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -4157,6 +5933,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -4268,6 +6092,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -4379,6 +6251,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -4506,6 +6426,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": [
           {
@@ -4626,6 +6594,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -4741,6 +6757,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": [
           {
@@ -4861,6 +6925,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -4972,6 +7084,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5083,6 +7243,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5194,6 +7402,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5305,6 +7561,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5416,6 +7720,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5527,6 +7879,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5638,6 +8038,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5749,6 +8197,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5860,6 +8356,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -5971,6 +8515,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6082,6 +8674,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6193,6 +8833,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6304,6 +8992,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6415,6 +9151,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6526,6 +9310,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6637,6 +9469,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6748,6 +9628,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -6863,6 +9791,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": [
           {
@@ -6983,6 +9959,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7094,6 +10118,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7205,6 +10277,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7316,6 +10436,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7427,6 +10595,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7538,6 +10754,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7649,6 +10913,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7760,6 +11072,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7871,6 +11231,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -7982,6 +11390,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8093,6 +11549,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8204,6 +11708,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8315,6 +11867,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8426,6 +12026,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8537,6 +12185,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8648,6 +12344,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8759,6 +12503,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8870,6 +12662,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -8981,6 +12821,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -9090,6 +12978,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -10637,6 +14573,54 @@
           "team_node_id": null
         },
         "rollup_rule": "majority_healthy",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -11628,6 +15612,54 @@
           "team_node_id": null
         },
         "rollup_rule": "majority_healthy",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -11737,6 +15769,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },
@@ -11846,6 +15926,54 @@
           "team_node_id": null
         },
         "rollup_rule": "own_only",
+        "signals": {
+          "missing": [
+            {
+              "question": "traces",
+              "wanted": [
+                "signoz"
+              ],
+              "why": "nothing configured answers this. signoz would: spans this resource emitted, for a workload that carries OTLP instrumentation"
+            },
+            {
+              "question": "dashboards",
+              "wanted": [
+                "grafana"
+              ],
+              "why": "nothing configured answers this. grafana would: what a person would open to look at this"
+            }
+          ],
+          "sources": [
+            {
+              "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
+              "integration": "proxmox",
+              "key": "ct-100",
+              "keyed_by": "name",
+              "question": "up"
+            },
+            {
+              "detail": "an LXC container shares the host's kernel, so its CPU, memory, disk and network counters are the host's to report — read from inside the guest they describe cgroup accounting through a namespace that was never built to publish it, and the wrong number comes back looking exactly like the right one. The host-side exporter series, keyed by this guest's own identifier, is the answer",
+              "integration": "prometheus",
+              "key": "100",
+              "keyed_by": "vmid",
+              "question": "pressure"
+            },
+            {
+              "detail": "log lines this resource wrote, matched on the name it ships them under",
+              "integration": "loki",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "logs"
+            },
+            {
+              "detail": "what is complaining about this resource right now",
+              "integration": "alertmanager",
+              "key": "plateau",
+              "keyed_by": "name",
+              "question": "firing"
+            }
+          ]
+        },
         "transitions": [],
         "volumes": []
       },

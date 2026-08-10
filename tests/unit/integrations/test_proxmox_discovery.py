@@ -197,6 +197,28 @@ async def test_a_sweep_produces_every_declared_kind_with_its_parent() -> None:
         assert container.parent_native_id.startswith("node/")
 
 
+async def test_every_guest_carries_the_identifier_its_host_side_series_are_keyed_by() -> None:
+    """The one attribute a container's resource usage cannot be looked up without.
+
+    Read from a declared attribute rather than split back out of the correlation
+    key, because a query built from a parsed string returns nothing the day the
+    format changes — and nothing is what a container under no pressure looks
+    like.
+    """
+    page, _ = await sweep()
+
+    guests = [
+        resource
+        for resource in page.resources
+        if resource.kind in {KIND_CONTAINER, KIND_VIRTUAL_MACHINE}
+    ]
+    assert guests
+    for guest in guests:
+        vmid = guest.attributes.get("vmid")
+        assert isinstance(vmid, int) and vmid > 0, f"{guest.native_id} carries no vmid"
+        assert guest.correlation_key.endswith(f"/{vmid}")
+
+
 async def test_the_cluster_carries_quorum_as_an_attribute_and_a_signal() -> None:
     page, _ = await sweep()
 

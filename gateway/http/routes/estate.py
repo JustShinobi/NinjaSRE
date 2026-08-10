@@ -17,9 +17,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from config.constants.estate import DEFAULT_TRANSITION_HISTORY, MAX_ESTATE_PAGE_SIZE
+from gateway.http.configured import configured_integrations
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.state import GatewayState
 from platform.estate.service import EstateService, ResourceDetail, ResourceView
+from platform.estate.signal_map import SignalMap, signal_map_for
 from platform.persistence.errors import BoundExceeded, RecordNotFound
 from platform.persistence.ports.estate_repository import (
     EstateQuery,
@@ -114,6 +116,37 @@ class ReferenceView(BaseModel):
     summary: str = ""
 
 
+class SignalSourceView(BaseModel):
+    """Which source answers one question about this resource, and by what key."""
+
+    question: str
+    integration: str
+    keyed_by: str
+    key: str
+    detail: str
+
+
+class MissingSignalView(BaseModel):
+    """A question nothing configured answers, and what would answer it."""
+
+    question: str
+    wanted: list[str] = Field(default_factory=list)
+    why: str
+
+
+class SignalsView(BaseModel):
+    """Where an investigation of this resource should go for each question.
+
+    Two lists rather than one with nulls in it. "Prometheus answers this, keyed
+    by vmid" and "nothing answers this, loki or openobserve would" are different
+    kinds of statement, and a client that had to inspect a field to tell them
+    apart would render one as the other on the day somebody adds a field.
+    """
+
+    sources: list[SignalSourceView] = Field(default_factory=list)
+    missing: list[MissingSignalView] = Field(default_factory=list)
+
+
 class ResourceDetailView(BaseModel):
     """One resource's page: its state, why, its history, and what touched it."""
 
@@ -126,6 +159,10 @@ class ResourceDetailView(BaseModel):
     references: list[ReferenceView] = Field(default_factory=list)
     children: list[ResourceSummaryView] = Field(default_factory=list)
     parent: ResourceSummaryView | None = None
+    #: Derived per request from what this team has configured, never stored. A
+    #: map written down once is a map that is right until somebody connects a
+    #: log store.
+    signals: SignalsView = Field(default_factory=SignalsView)
 
 
 class EstateSummaryView(BaseModel):
@@ -238,7 +275,26 @@ def _summary(summary: EstateSummary) -> EstateSummaryView:
     )
 
 
-def _detail(detail: ResourceDetail) -> ResourceDetailView:
+def _signals(found: SignalMap) -> SignalsView:
+    return SignalsView(
+        sources=[
+            SignalSourceView(
+                question=source.question,
+                integration=source.integration,
+                keyed_by=source.keyed_by,
+                key=source.key,
+                detail=source.detail,
+            )
+            for source in found.sources
+        ],
+        missing=[
+            MissingSignalView(question=gap.question, wanted=list(gap.wanted), why=gap.why)
+            for gap in found.missing
+        ],
+    )
+
+
+def _detail(detail: ResourceDetail, signals: SignalMap) -> ResourceDetailView:
     return ResourceDetailView(
         resource=_row(detail.view),
         derivation=_derivation(detail.view.derivation),
@@ -257,6 +313,7 @@ def _detail(detail: ResourceDetail) -> ResourceDetailView:
         references=[_reference(entry) for entry in detail.references],
         children=[_row(child) for child in detail.children],
         parent=_row(detail.parent) if detail.parent is not None else None,
+        signals=_signals(signals),
     )
 
 
@@ -336,7 +393,14 @@ async def resource_detail(
     auth: AuthenticatedRequest = Depends(authorized),
     history: int = DEFAULT_TRANSITION_HISTORY,
 ) -> ResourceDetailView:
-    """Return one resource's state, why, its history, and what touched it."""
+    """Return one resource's state, why, its history, and what touched it.
+
+    The ``signals`` block is derived here rather than by the estate service,
+    because it needs a fact the estate does not hold: which integrations this
+    team has a credential for. Deriving it per request is also what keeps it
+    correct — connect a log store and the next render of this page says so,
+    with nothing to migrate.
+    """
     detail = await _service(state).detail(
         auth.scope, resource_id, now=datetime.now(UTC), history=history
     )
@@ -345,7 +409,8 @@ async def resource_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"no resource {resource_id!r} in this estate",
         )
-    return _detail(detail)
+    configured = await configured_integrations(state, auth)
+    return _detail(detail, signal_map_for(detail.view.resource, configured=configured))
 
 
 @router.post("/resources/{resource_id}/maintenance", response_model=ResourceSummaryView)

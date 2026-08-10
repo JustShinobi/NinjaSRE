@@ -131,6 +131,12 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "boot_order": AttributeType.STRING,
             "started_at": AttributeType.TIMESTAMP,
             "address": AttributeType.STRING,
+            # The hypervisor's own numeric identifier for this guest. Declared
+            # for the same reason `address` is: it is the label every host-side
+            # series for the guest is keyed by, and a resource-usage query built
+            # without it returns nothing — which reads as a guest under no
+            # pressure rather than as a question nobody asked properly.
+            "vmid": AttributeType.INTEGER,
         },
     ),
     ResourceKind(
@@ -144,6 +150,11 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "image": AttributeType.STRING,
             "started_at": AttributeType.TIMESTAMP,
             "address": AttributeType.STRING,
+            # As above, and here it is load-bearing rather than convenient: a
+            # container shares the host's kernel, so the host's series keyed by
+            # this identifier is the *only* correct source for its resource
+            # usage.
+            "vmid": AttributeType.INTEGER,
         },
     ),
     ResourceKind(

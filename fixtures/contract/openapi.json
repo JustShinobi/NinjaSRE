@@ -2719,6 +2719,32 @@
         "title": "MemoryStats",
         "type": "object"
       },
+      "MissingSignalView": {
+        "description": "A question nothing configured answers, and what would answer it.",
+        "properties": {
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "wanted": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Wanted",
+            "type": "array"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "why"
+        ],
+        "title": "MissingSignalView",
+        "type": "object"
+      },
       "ObservationListView": {
         "properties": {
           "observations": {
@@ -3778,6 +3804,9 @@
             "title": "Rollup Rule",
             "type": "string"
           },
+          "signals": {
+            "$ref": "#/components/schemas/SignalsView"
+          },
           "transitions": {
             "items": {
               "$ref": "#/components/schemas/TransitionView"
@@ -4377,6 +4406,40 @@
         "title": "SignInView",
         "type": "object"
       },
+      "SignalSourceView": {
+        "description": "Which source answers one question about this resource, and by what key.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "keyed_by": {
+            "title": "Keyed By",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "integration",
+          "keyed_by",
+          "key",
+          "detail"
+        ],
+        "title": "SignalSourceView",
+        "type": "object"
+      },
       "SignalView": {
         "properties": {
           "name": {
@@ -4404,6 +4467,27 @@
           "observed_at"
         ],
         "title": "SignalView",
+        "type": "object"
+      },
+      "SignalsView": {
+        "description": "Where an investigation of this resource should go for each question.\n\nTwo lists rather than one with nulls in it. \"Prometheus answers this, keyed\nby vmid\" and \"nothing answers this, loki or openobserve would\" are different\nkinds of statement, and a client that had to inspect a field to tell them\napart would render one as the other on the day somebody adds a field.",
+        "properties": {
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/MissingSignalView"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SignalSourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "title": "SignalsView",
         "type": "object"
       },
       "SkillView": {
@@ -7686,7 +7770,7 @@
     },
     "/v1/estate/resources/{resource_id}": {
       "get": {
-        "description": "Return one resource's state, why, its history, and what touched it.",
+        "description": "Return one resource's state, why, its history, and what touched it.\n\nThe ``signals`` block is derived here rather than by the estate service,\nbecause it needs a fact the estate does not hold: which integrations this\nteam has a credential for. Deriving it per request is also what keeps it\ncorrect — connect a log store and the next render of this page says so,\nwith nothing to migrate.",
         "operationId": "resource_detail_v1_estate_resources__resource_id__get",
         "parameters": [
           {

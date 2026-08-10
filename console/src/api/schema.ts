@@ -838,6 +838,12 @@ export interface paths {
         /**
          * Resource Detail
          * @description Return one resource's state, why, its history, and what touched it.
+         *
+         *     The ``signals`` block is derived here rather than by the estate service,
+         *     because it needs a fact the estate does not hold: which integrations this
+         *     team has a credential for. Deriving it per request is also what keeps it
+         *     correct — connect a log store and the next render of this page says so,
+         *     with nothing to migrate.
          */
         get: operations["resource_detail_v1_estate_resources__resource_id__get"];
         put?: never;
@@ -3393,6 +3399,18 @@ export interface components {
             /** Episode Count */
             episode_count: number;
         };
+        /**
+         * MissingSignalView
+         * @description A question nothing configured answers, and what would answer it.
+         */
+        MissingSignalView: {
+            /** Question */
+            question: string;
+            /** Wanted */
+            wanted?: string[];
+            /** Why */
+            why: string;
+        };
         /** ObservationListView */
         ObservationListView: {
             /** Observations */
@@ -3972,6 +3990,7 @@ export interface components {
             resource: components["schemas"]["ResourceSummaryView"];
             /** Rollup Rule */
             rollup_rule: string;
+            signals?: components["schemas"]["SignalsView"];
             /** Transitions */
             transitions?: components["schemas"]["TransitionView"][];
         };
@@ -4228,6 +4247,22 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * SignalSourceView
+         * @description Which source answers one question about this resource, and by what key.
+         */
+        SignalSourceView: {
+            /** Detail */
+            detail: string;
+            /** Integration */
+            integration: string;
+            /** Key */
+            key: string;
+            /** Keyed By */
+            keyed_by: string;
+            /** Question */
+            question: string;
+        };
         /** SignalView */
         SignalView: {
             /** Name */
@@ -4244,6 +4279,21 @@ export interface components {
             source: string;
             /** Value */
             value: string;
+        };
+        /**
+         * SignalsView
+         * @description Where an investigation of this resource should go for each question.
+         *
+         *     Two lists rather than one with nulls in it. "Prometheus answers this, keyed
+         *     by vmid" and "nothing answers this, loki or openobserve would" are different
+         *     kinds of statement, and a client that had to inspect a field to tell them
+         *     apart would render one as the other on the day somebody adds a field.
+         */
+        SignalsView: {
+            /** Missing */
+            missing?: components["schemas"]["MissingSignalView"][];
+            /** Sources */
+            sources?: components["schemas"]["SignalSourceView"][];
         };
         /** SkillView */
         SkillView: {
