@@ -2424,6 +2424,8 @@ export interface components {
             patch?: {
                 [key: string]: unknown;
             };
+            /** Remove */
+            remove?: string[];
         };
         /** ConfigPreviewView */
         ConfigPreviewView: {
@@ -2441,8 +2443,12 @@ export interface components {
             provenance: {
                 [key: string]: string;
             };
+            /** Redundant */
+            redundant?: components["schemas"]["InheritedValueView"][];
             /** Requires Approval */
             requires_approval: boolean;
+            /** Reverts */
+            reverts?: components["schemas"]["InheritedValueView"][];
             /** Values */
             values: {
                 [key: string]: unknown;
@@ -3282,6 +3288,18 @@ export interface components {
             url: string;
             /** Verification */
             verification: string;
+        };
+        /**
+         * InheritedValueView
+         * @description One path, a value, and the node that supplies it from above.
+         */
+        InheritedValueView: {
+            /** Inherited From */
+            inherited_from: string;
+            /** Path */
+            path: string;
+            /** Value */
+            value?: unknown;
         };
         /** IntegrationList */
         IntegrationList: {

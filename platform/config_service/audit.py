@@ -49,7 +49,7 @@ from config.constants.config_service import (
 )
 from config.constants.security import REDACTION_PLACEHOLDER
 from platform.config_service.field_policy import changed_paths
-from platform.config_service.merge import deep_merge
+from platform.config_service.merge import deep_merge, deep_prune
 from platform.guardrails.engine import GuardrailEngine
 from platform.persistence.ports import (
     ActorKind,
@@ -280,13 +280,20 @@ async def record(
             await uow.audit.append(event)
 
 
-def settings_after(before: Mapping[str, Any], patch: Mapping[str, Any]) -> Mapping[str, Any]:
-    """Return what a node's settings become when ``patch`` is applied.
+def settings_after(
+    before: Mapping[str, Any], patch: Mapping[str, Any], remove: Sequence[str] = ()
+) -> Mapping[str, Any]:
+    """Return what a node's settings become when ``patch`` and ``remove`` are applied.
 
     The same ``deep_merge`` the hierarchy uses, so a partial update behaves the
     way an operator expects from every other part of this package.
+
+    ``remove`` is applied afterwards, so a path named in both loses its value.
+    Clearing an override is the more explicit of the two intentions — the patch
+    may be carrying a whole section a form assembled — and a caller that meant
+    the other thing can simply not name it.
     """
-    return deep_merge(before, patch)
+    return deep_prune(deep_merge(before, patch), remove)
 
 
 __all__ = ["ConfigAuditor", "ConfigChange", "record", "settings_after"]

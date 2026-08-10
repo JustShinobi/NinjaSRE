@@ -61,6 +61,14 @@ class EffectiveConfigView(BaseModel):
 
 class ConfigPatchRequest(BaseModel):
     patch: dict[str, Any] = Field(default_factory=dict)
+    #: Paths whose node-local value goes, so the field is inherited again.
+    #:
+    #: Beside the patch rather than inside it, because no key in a configuration
+    #: document is ever a directive — a field called ``_delete`` is a field
+    #: called ``_delete``. Clearing an override is also not the same operation as
+    #: setting it to the parent's current value: one keeps following the parent,
+    #: the other freezes today's answer into this node.
+    remove: list[str] = Field(default_factory=list)
 
 
 class ConfigNodeView(BaseModel):
@@ -80,6 +88,15 @@ class PreviewChangeView(BaseModel):
     after: Any = None
 
 
+class InheritedValueView(BaseModel):
+    """One path, a value, and the node that supplies it from above."""
+
+    path: str
+    value: Any = None
+    #: Empty when nothing above supplies the field at all.
+    inherited_from: str
+
+
 class ConfigPreviewView(BaseModel):
     node_id: str
     values: dict[str, Any]
@@ -90,6 +107,13 @@ class ConfigPreviewView(BaseModel):
     locked: dict[str, str]
     approval_gated: list[str]
     requires_approval: bool
+    #: Paths the patch would set to exactly what this node already inherits. The
+    #: write is real — the field becomes locally set — and resolves to the same
+    #: value it resolved to before, which is why "I changed it and nothing
+    #: happened" is the most common configuration complaint there is.
+    redundant: list[InheritedValueView] = Field(default_factory=list)
+    #: Paths ``remove`` would clear, and what each falls back to once it is gone.
+    reverts: list[InheritedValueView] = Field(default_factory=list)
 
 
 class CatalogueEntryView(BaseModel):
@@ -277,7 +301,11 @@ async def write_config(
         integrations=installed_integrations(),
     )
     await service.set_settings(
-        node_id, body.patch, actor_id=auth.principal_id, actor_kind=ActorKind.USER
+        node_id,
+        body.patch,
+        actor_id=auth.principal_id,
+        actor_kind=ActorKind.USER,
+        remove=tuple(body.remove),
     )
     effective = await service.resolve(node_id)
     return EffectiveConfigView(
@@ -300,7 +328,7 @@ async def preview_config(
     save a change that did something other than what they were shown.
     """
     await _check_scope(node_id, state, auth)
-    preview = await _service(state, auth).preview_settings(node_id, body.patch)
+    preview = await _service(state, auth).preview_settings(node_id, body.patch, tuple(body.remove))
     return ConfigPreviewView(
         node_id=preview.node_id,
         values=dict(preview.values),
@@ -312,6 +340,18 @@ async def preview_config(
         locked=dict(preview.locked),
         approval_gated=list(preview.approval_gated),
         requires_approval=preview.requires_approval,
+        redundant=[
+            InheritedValueView(
+                path=entry.path, value=entry.value, inherited_from=entry.inherited_from
+            )
+            for entry in preview.redundant
+        ],
+        reverts=[
+            InheritedValueView(
+                path=entry.path, value=entry.value, inherited_from=entry.inherited_from
+            )
+            for entry in preview.reverts
+        ],
     )
 
 

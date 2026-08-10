@@ -30,6 +30,7 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
+from platform.config_service import paths
 from platform.config_service.audit import ConfigAuditor, record, settings_after
 from platform.config_service.catalogue import (
     CapabilityCatalogueReader,
@@ -47,6 +48,7 @@ from platform.config_service.effective import (
 from platform.config_service.errors import (
     ChangeRequiresApproval,
     ConfigInvalid,
+    FieldLocked,
     UnknownNode,
 )
 from platform.config_service.field_policy import (
@@ -59,6 +61,7 @@ from platform.config_service.field_policy import (
     merged_along,
 )
 from platform.config_service.hierarchy import Hierarchy
+from platform.config_service.merge import deep_prune
 from platform.config_service.preview import ConfigPreview, preview_of
 from platform.config_service.templates import TemplateDiff, TemplateLibrary
 from platform.config_service.validation import ConfigValidator
@@ -209,14 +212,18 @@ class ConfigService:
         document = await self.document(node_id)
         return self._templates.preview(template, document.settings)
 
-    async def preview_settings(self, node_id: str, patch: Mapping[str, Any]) -> ConfigPreview:
+    async def preview_settings(
+        self, node_id: str, patch: Mapping[str, Any], remove: Sequence[str] = ()
+    ) -> ConfigPreview:
         """Return what applying ``patch`` to ``node_id`` would resolve to, storing nothing.
 
         The same chain, the same merge, and the same lock and gate rules
         ``set_settings`` applies — which is the only thing that makes the answer
-        worth showing somebody before they commit to it.
+        worth showing somebody before they commit to it. ``remove`` is the same
+        clear-to-inherit list the write takes, so a preview of a clear and the
+        clear itself cannot disagree either.
         """
-        return preview_of(node_id, await self._chain(node_id), patch)
+        return preview_of(node_id, await self._chain(node_id), patch, remove)
 
     # --- Writing -------------------------------------------------------------
 
@@ -228,20 +235,31 @@ class ConfigService:
         actor_id: str,
         actor_kind: ActorKind = ActorKind.USER,
         replace: bool = False,
+        remove: Sequence[str] = (),
     ) -> ConfigNode:
         """Apply ``patch`` to ``node_id``'s own settings and return the stored node.
 
         ``patch`` is merged onto what is there unless ``replace`` is set, which
         is what makes "change the masking level" one field rather than a whole
         document a caller had to reconstruct and could get wrong.
+
+        ``remove`` clears node-local values, so the field goes back to being
+        inherited. It is a first-class operation rather than "set it to the
+        parent's value", because the two diverge the moment the parent changes:
+        one follows, and one froze today's answer into this node.
         """
         node = await self._node(node_id)
         document = NodeDocument.of_node(node)
-        proposed = dict(patch) if replace else dict(settings_after(document.settings, patch))
+        proposed = (
+            dict(deep_prune(patch, remove))
+            if replace
+            else dict(settings_after(document.settings, patch, remove))
+        )
 
         chain = await self._chain(node_id)
         inherited_locks = _inherited_locks(chain[:-1])
         check_locks(node_id, proposed, inherited_locks, own=document.policies)
+        _check_removable(node_id, remove, inherited_locks, own=document.policies)
 
         await self._validate_or_audit(node_id, proposed, actor_id, actor_kind)
 
@@ -506,6 +524,29 @@ class ConfigService:
         async with self._gateway.begin(self._scope) as uow:
             stored = await uow.approvals.create_request(request)
         return stored.approval_id
+
+
+def _check_removable(
+    node_id: str,
+    remove: Sequence[str],
+    inherited_locks: Mapping[str, str],
+    own: PolicySet,
+) -> None:
+    """Raise ``FieldLocked`` if a clear names a path an ancestor locked.
+
+    ``check_locks`` cannot see this one: a removal leaves *nothing* at the path,
+    so there is no leaf in the proposed document to test. Without this, clearing
+    a locked field would report success and change nothing, which tells an
+    operator they lifted a constraint they cannot lift.
+    """
+    exempt = own.locked_paths()
+    for path in remove:
+        for candidate in paths.prefixes(path):
+            if candidate in exempt:
+                break
+            locking = inherited_locks.get(candidate)
+            if locking is not None:
+                raise FieldLocked(path=path, locking_node_id=locking, node_id=node_id)
 
 
 def _policies(chain: Sequence[ConfigNode]) -> tuple[PolicySet, ...]:

@@ -592,6 +592,13 @@
             "additionalProperties": true,
             "title": "Patch",
             "type": "object"
+          },
+          "remove": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Remove",
+            "type": "array"
           }
         },
         "title": "ConfigPatchRequest",
@@ -631,9 +638,23 @@
             "title": "Provenance",
             "type": "object"
           },
+          "redundant": {
+            "items": {
+              "$ref": "#/components/schemas/InheritedValueView"
+            },
+            "title": "Redundant",
+            "type": "array"
+          },
           "requires_approval": {
             "title": "Requires Approval",
             "type": "boolean"
+          },
+          "reverts": {
+            "items": {
+              "$ref": "#/components/schemas/InheritedValueView"
+            },
+            "title": "Reverts",
+            "type": "array"
           },
           "values": {
             "additionalProperties": true,
@@ -2227,6 +2248,28 @@
           "verification"
         ],
         "title": "IngressSourceView",
+        "type": "object"
+      },
+      "InheritedValueView": {
+        "description": "One path, a value, and the node that supplies it from above.",
+        "properties": {
+          "inherited_from": {
+            "title": "Inherited From",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "path",
+          "inherited_from"
+        ],
+        "title": "InheritedValueView",
         "type": "object"
       },
       "IntegrationList": {
