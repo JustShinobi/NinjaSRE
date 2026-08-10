@@ -180,10 +180,32 @@ class NotificationPolicySettings(ConfigSection):
         return value
 
 
+class ConsoleSurfaceSettings(ConfigSection):
+    """What the web console remembers about a team, on the deployment's side.
+
+    One field, and the reason it is here rather than in the browser is the whole
+    of it: a dismissal kept in browser storage is a dismissal that has not
+    happened on the second machine, or in the second browser, or for the second
+    person on the same team. The guided tutorial is about *this deployment*, so
+    what records that somebody has seen it belongs where the deployment's other
+    per-team decisions live.
+
+    Nothing here is a secret, and nothing here may become one. What the console
+    keeps on this side is what a colleague could read over your shoulder without
+    it mattering.
+    """
+
+    #: Whether the guided tutorial has been dismissed for this team. The overlay
+    #: is only ever shown while the setup checklist has something outstanding,
+    #: so a stale ``False`` cannot trap a configured deployment behind it.
+    tutorial_dismissed: bool = False
+
+
 class SurfacesConfig(ConfigSection):
     """Which surfaces this team uses, and where their output goes."""
 
     enabled: ConfiguredStrList = ()
+    console: ConsoleSurfaceSettings = ConsoleSurfaceSettings()
     channels: tuple[ChannelSettings, ...] = ()
     report_destinations: tuple[DestinationSettings, ...] = ()
     notification_sinks: tuple[SinkSettings, ...] = ()
@@ -214,6 +236,7 @@ class SurfacesConfig(ConfigSection):
 
 
 SURFACES_FIELDS: tuple[str, ...] = tuple(SurfacesConfig.model_fields)
+CONSOLE_SURFACE_FIELDS: tuple[str, ...] = tuple(ConsoleSurfaceSettings.model_fields)
 CHANNEL_FIELDS: tuple[str, ...] = tuple(ChannelSettings.model_fields)
 DESTINATION_FIELDS: tuple[str, ...] = tuple(DestinationSettings.model_fields)
 SINK_FIELDS: tuple[str, ...] = tuple(SinkSettings.model_fields)
@@ -222,6 +245,8 @@ NOTIFICATION_POLICY_FIELDS: tuple[str, ...] = tuple(NotificationPolicySettings.m
 
 __all__ = [
     "CHANNEL_FIELDS",
+    "CONSOLE_SURFACE_FIELDS",
+    "ConsoleSurfaceSettings",
     "DESTINATION_FIELDS",
     "DESTINATION_KINDS",
     "GENERIC_DESTINATION_KINDS",
