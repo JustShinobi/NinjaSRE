@@ -200,6 +200,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     for result in results:
         print(f"  {'ok     ' if result.ok else 'FAILED '} {result.path} ({result.status})")
+    # Two streams, one report: without this the summary below overtakes the
+    # walk it is summarising, and the reader is told which routes failed before
+    # being shown any.
+    sys.stdout.flush()
 
     broken = [result for result in results if not result.ok]
     if broken:
