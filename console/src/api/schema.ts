@@ -524,6 +524,14 @@ export interface paths {
         /**
          * Write Config
          * @description Apply a patch to ``node_id``'s own settings and return the new effective view.
+         *
+         *     Given the integration directory, and deliberately not the capability
+         *     catalogue. The directory is what lets validation refuse a field a vendor's
+         *     own schema calls secret, which is the way round
+         *     ``PUT /v1/integrations/{name}/credential`` and has to be shut. The catalogue
+         *     would additionally make a write reject a capability reference that
+         *     ``POST /{node_id}/preview`` accepts, and a preview that does not predict its
+         *     own write is worse than a reference checked at read time.
          */
         put: operations["write_config_v1_config__node_id__put"];
         post?: never;
@@ -903,6 +911,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/integrations/{name}/credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Credential
+         * @description Store this team's credential for ``name`` and report what it now is.
+         *
+         *     ``name`` is an installed integration or a supported model provider. One
+         *     route for both, because a provider key that took a different path would be
+         *     a second place credentials live and the one the audit misses.
+         *
+         *     The team is the token's, exactly as it is for every other write on this
+         *     surface: a body field naming somebody else's team would be a permission
+         *     decision taken by the client.
+         *
+         *     Raises:
+         *         ApiProblem: nothing answers to ``name`` (404), or the values do not fit
+         *             the declared schema (400). The refusal names the fields and never
+         *             quotes one.
+         */
+        put: operations["store_credential_v1_integrations__name__credential_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/integrations/{name}/verify": {
         parameters: {
             query?: never;
@@ -915,6 +956,11 @@ export interface paths {
         /**
          * Verify Integration
          * @description Check this team's credential for ``name``: configured, current, decryptable.
+         *
+         *     ``name`` is an installed integration or a supported model provider, the same
+         *     two as the write beside it — the guided first run stores a provider key and
+         *     then verifies it, and a verify that only knew about vendor packages would
+         *     refuse the second half of its own flow.
          */
         post: operations["verify_integration_v1_integrations__name__verify_post"];
         delete?: never;
@@ -1295,6 +1341,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Providers
+         * @description Return every supported provider, in the order the platform documents them.
+         */
+        get: operations["list_providers_v1_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/{provider_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show Provider
+         * @description Return one provider with everything needed to set it up.
+         *
+         *     Raises:
+         *         ApiProblem: no supported provider answers to ``provider_id`` (404).
+         */
+        get: operations["show_provider_v1_providers__provider_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/{provider_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Provider
+         * @description Check ``provider_id`` end to end and report what came back.
+         *
+         *     A real request, and the claim being made is about what happened rather than
+         *     about what is configured. "It should work now" is not the same statement as
+         *     "a call went out, called a tool, and returned structure", and the difference
+         *     is discovered at 03:00 by whoever was told the first one.
+         *
+         *     Raises:
+         *         ApiProblem: no supported provider answers to ``provider_id`` (404).
+         */
+        post: operations["verify_provider_v1_providers__provider_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/remediations": {
         parameters: {
             query?: never;
@@ -1601,6 +1718,12 @@ export interface paths {
         /**
          * Checklist
          * @description Return what is left to set up, each step verified against its dependency.
+         *
+         *     The integration catalogue and its health ledger are read here rather than in
+         *     ``build_checklist``: that module is tier 3 and reaching up for ``integrations``
+         *     would be the boundary ``make check-imports`` exists to hold. Health is what
+         *     the scheduled live runs recorded, so "verified" means something answered
+         *     rather than that a credential is present.
          */
         get: operations["checklist_v1_setup_checklist_get"];
         put?: never;
@@ -2053,6 +2176,8 @@ export interface components {
             detail: string;
             /** Name */
             name: string;
+            /** Readiness */
+            readiness: string;
             /** State */
             state: string;
             /** Title */
@@ -2062,8 +2187,12 @@ export interface components {
         ChecklistView: {
             /** Complete */
             complete: boolean;
+            /** Integrations */
+            integrations: components["schemas"]["IntegrationReadinessView"][];
             /** Next */
             next?: string | null;
+            /** Provider */
+            provider: string;
             /** Steps */
             steps: components["schemas"]["ChecklistStepView"][];
         };
@@ -2244,6 +2373,40 @@ export interface components {
             required: boolean;
             /** Secret */
             secret: boolean;
+        };
+        /**
+         * CredentialWriteRequest
+         * @description A flat map of field name to value, checked against the vendor's own schema.
+         *
+         *     Flat rather than nested, because a credential is a set of named strings and
+         *     a shape with room for anything else would be a shape a secret could be
+         *     smuggled through under a key nothing validates.
+         */
+        CredentialWriteRequest: {
+            /** Values */
+            values?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * CredentialWriteView
+         * @description What was written, described without any part of it being readable.
+         *
+         *     There is no field here a value could sit in, which is the same argument
+         *     ``CredentialVersion`` makes one layer down: the type is the guarantee rather
+         *     than a rule somebody has to remember when adding a key.
+         */
+        CredentialWriteView: {
+            /** Fields */
+            fields: string[];
+            /** Integration */
+            integration: string;
+            /** State */
+            state: string;
+            /** Usable */
+            usable: boolean;
+            /** Version */
+            version: number;
         };
         /** DemoRemovalView */
         DemoRemovalView: {
@@ -2750,6 +2913,13 @@ export interface components {
         IntegrationList: {
             /** Integrations */
             integrations: components["schemas"]["IntegrationView"][];
+        };
+        /** IntegrationReadinessView */
+        IntegrationReadinessView: {
+            /** Name */
+            name: string;
+            /** Readiness */
+            readiness: string;
         };
         /** IntegrationSchemaView */
         IntegrationSchemaView: {
@@ -3381,6 +3551,104 @@ export interface components {
             title: string;
             /** Window Seconds */
             window_seconds: number;
+        };
+        /**
+         * ProviderDetailView
+         * @description One provider in full: everything a form or a prompt needs to set it up.
+         */
+        ProviderDetailView: {
+            /** Configured */
+            configured: boolean;
+            /** Default Model */
+            default_model: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Display Name */
+            display_name: string;
+            /** Fields */
+            fields: components["schemas"]["CredentialFieldView"][];
+            /**
+             * Guidance
+             * @default
+             */
+            guidance: string;
+            /**
+             * Install Hint
+             * @default
+             */
+            install_hint: string;
+            /** Local */
+            local: boolean;
+            /** Models */
+            models: string[];
+            /** Provider Id */
+            provider_id: string;
+            /** Verified */
+            verified: boolean;
+            /**
+             * Where To Get It
+             * @default
+             */
+            where_to_get_it: string;
+        };
+        /** ProviderList */
+        ProviderList: {
+            /** Providers */
+            providers: components["schemas"]["ProviderView"][];
+        };
+        /**
+         * ProviderVerificationView
+         * @description What a real request to the provider's endpoint came back with.
+         *
+         *     ``detail`` is the sentence — the working configuration when it passed, the
+         *     limitation when it did not. Never "verification failed", which is a
+         *     restatement rather than something anybody can act on.
+         */
+        ProviderVerificationView: {
+            /** Alternatives */
+            alternatives: string[];
+            /** Detail */
+            detail: string;
+            /** Model Id */
+            model_id: string;
+            /** Provider Id */
+            provider_id: string;
+            /**
+             * Remedy
+             * @default
+             */
+            remedy: string;
+            /** Verified */
+            verified: boolean;
+        };
+        /**
+         * ProviderView
+         * @description One provider, its descriptor and this deployment's state for it.
+         *
+         *     There is no field here a stored credential could be read back into, which is
+         *     what lets the whole document be served to anyone who may read configuration.
+         */
+        ProviderView: {
+            /** Configured */
+            configured: boolean;
+            /** Default Model */
+            default_model: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Display Name */
+            display_name: string;
+            /** Local */
+            local: boolean;
+            /** Provider Id */
+            provider_id: string;
+            /** Verified */
+            verified: boolean;
         };
         /** QueueMessageRequest */
         QueueMessageRequest: {
@@ -5582,6 +5850,43 @@ export interface operations {
             };
         };
     };
+    store_credential_v1_integrations__name__credential_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialWriteView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     verify_integration_v1_integrations__name__verify_post: {
         parameters: {
             query?: never;
@@ -6245,6 +6550,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_providers_v1_providers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_provider_v1_providers__provider_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderDetailView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_provider_v1_providers__provider_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderVerificationView"];
                 };
             };
             /** @description Validation Error */
