@@ -46,11 +46,23 @@ from platform.credentials.handles import CredentialHandle
 from platform.credentials.health import CredentialHealth
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
+from platform.identity.audit.recorder import (
+    CREDENTIAL_AUDIT_ACTION_WRITE,
+    AuditContext,
+    AuditRecorder,
+)
 from platform.observability.logging import get_logger
+from platform.persistence.ports.audit_repository import ActorKind
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/v1/integrations", tags=["integrations"])
+
+#: What an audit query groups a credential write by. The integration, never the
+#: handle: a handle carries the team identifier as well and reads as an internal
+#: address, whereas the question people ask the trail is "who changed Datadog's
+#: key, and when".
+_CREDENTIAL_RESOURCE_KIND = "credential"
 
 
 class IntegrationView(BaseModel):
@@ -200,6 +212,18 @@ async def store_credential(
         # quote one, so it crosses the boundary as it stands.
         raise bad_request(str(violation)) from violation
 
+    # The actor, the integration, the field names and the version sequence — and
+    # no value. A credential replaced at 02:00 during an incident is a fact
+    # somebody needs six months later, and the record of it must not be the
+    # place the credential survives.
+    await AuditRecorder(gateway=state.gateway).record(
+        auth.scope,
+        AuditContext(actor_kind=ActorKind.USER, actor_id=auth.principal_id),
+        action=CREDENTIAL_AUDIT_ACTION_WRITE,
+        resource_kind=_CREDENTIAL_RESOURCE_KIND,
+        resource_id=name,
+        detail={"integration": name, "fields": names, "version": stored.version},
+    )
     # The field names, never their values. This is the line that gets pasted
     # into a support thread.
     logger.info("gateway.integration_credential_stored", integration=name, fields=names)
