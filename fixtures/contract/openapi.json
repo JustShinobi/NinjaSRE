@@ -2787,6 +2787,45 @@
         "title": "KnownGapView",
         "type": "object"
       },
+      "LinkedDocumentView": {
+        "description": "One document somebody has written about this resource.\n\n``matched`` and ``matched_on`` are served rather than kept internal because\nthey are what lets an operator dismiss a link that is wrong: a list with no\nreason beside each entry is a list that has to be trusted whole.",
+        "properties": {
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_type": {
+            "title": "Document Type",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "matched": {
+            "default": "",
+            "title": "Matched",
+            "type": "string"
+          },
+          "matched_on": {
+            "default": "",
+            "title": "Matched On",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "location",
+          "document_type"
+        ],
+        "title": "LinkedDocumentView",
+        "type": "object"
+      },
       "LivenessView": {
         "properties": {
           "live": {
@@ -3890,6 +3929,13 @@
                 "type": "null"
               }
             ]
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedDocumentView"
+            },
+            "title": "Documents",
+            "type": "array"
           },
           "freshness_seconds": {
             "title": "Freshness Seconds",

@@ -10,6 +10,7 @@ to have exactly one.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -28,6 +29,7 @@ from gateway.http.state import GatewayState
 from platform.estate.alert_resolution import UnresolvedTargetFinding, unresolved_targets
 from platform.estate.service import EstateService, ResourceDetail, ResourceView
 from platform.estate.signal_map import SignalMap, signal_map_for
+from platform.knowledge.base.estate_links import EstateLinker, LinkedDocument
 from platform.persistence.errors import BoundExceeded, RecordNotFound
 from platform.persistence.ports.estate_repository import (
     EstateQuery,
@@ -154,6 +156,22 @@ class SignalsView(BaseModel):
     missing: list[MissingSignalView] = Field(default_factory=list)
 
 
+class LinkedDocumentView(BaseModel):
+    """One document somebody has written about this resource.
+
+    ``matched`` and ``matched_on`` are served rather than kept internal because
+    they are what lets an operator dismiss a link that is wrong: a list with no
+    reason beside each entry is a list that has to be trusted whole.
+    """
+
+    document_id: str
+    title: str
+    location: str
+    document_type: str
+    matched: str = ""
+    matched_on: str = ""
+
+
 class ResourceDetailView(BaseModel):
     """One resource's page: its state, why, its history, and what touched it."""
 
@@ -170,6 +188,10 @@ class ResourceDetailView(BaseModel):
     #: map written down once is a map that is right until somebody connects a
     #: log store.
     signals: SignalsView = Field(default_factory=SignalsView)
+    #: What has been written about this resource, from the corpus. Empty is the
+    #: normal answer for most of any estate and for all of one whose corpus has
+    #: not been synced, which is why it is a list rather than an absent block.
+    documents: list[LinkedDocumentView] = Field(default_factory=list)
 
 
 class EstateSummaryView(BaseModel):
@@ -329,7 +351,22 @@ def _signals(found: SignalMap) -> SignalsView:
     )
 
 
-def _detail(detail: ResourceDetail, signals: SignalMap) -> ResourceDetailView:
+def _document(entry: LinkedDocument) -> LinkedDocumentView:
+    return LinkedDocumentView(
+        document_id=entry.document_id,
+        title=entry.title,
+        location=entry.location,
+        document_type=entry.document_type.value,
+        matched=entry.matched,
+        matched_on=entry.matched_on,
+    )
+
+
+def _detail(
+    detail: ResourceDetail,
+    signals: SignalMap,
+    documents: Sequence[LinkedDocument] = (),
+) -> ResourceDetailView:
     return ResourceDetailView(
         resource=_row(detail.view),
         derivation=_derivation(detail.view.derivation),
@@ -349,6 +386,7 @@ def _detail(detail: ResourceDetail, signals: SignalMap) -> ResourceDetailView:
         children=[_row(child) for child in detail.children],
         parent=_row(detail.parent) if detail.parent is not None else None,
         signals=_signals(signals),
+        documents=[_document(entry) for entry in documents],
     )
 
 
@@ -467,7 +505,10 @@ async def resource_detail(
             detail=f"no resource {resource_id!r} in this estate",
         )
     configured = await configured_integrations(state, auth)
-    return _detail(detail, signal_map_for(detail.view.resource, configured=configured))
+    documents = await EstateLinker(gateway=state.gateway, scope=auth.scope).documents_for(
+        resource_id
+    )
+    return _detail(detail, signal_map_for(detail.view.resource, configured=configured), documents)
 
 
 @router.post("/resources/{resource_id}/maintenance", response_model=ResourceSummaryView)

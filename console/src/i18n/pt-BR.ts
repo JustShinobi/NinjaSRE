@@ -499,6 +499,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.signals.body':
     'Qual fonte responde cada pergunta sobre este recurso, e por qual chave. Um container compartilha o kernel do host, então o uso de recursos dele é lido da série do próprio host e não de dentro do guest.',
   'resources.signals.missing': 'nada configurado responde isso',
+  'resources.documents.title': 'O que já se escreveu sobre ele',
+  'resources.documents.body':
+    'Documentos do corpus que nomeiam este recurso, com o nome que cada um usou. Uma ligação feita por nome pode estar errada \u2014 o nome está aqui para você julgar.',
   'resources.departed.title': 'Declarado e ausente',
   'resources.departed.body':
     'O inventário ainda nomeia estes e a fonte não os reporta mais. Um recurso que existe só num arquivo é um recurso que não existe mais.',

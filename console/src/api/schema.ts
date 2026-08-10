@@ -3476,6 +3476,34 @@ export interface components {
             /** Resolution */
             resolution: string;
         };
+        /**
+         * LinkedDocumentView
+         * @description One document somebody has written about this resource.
+         *
+         *     ``matched`` and ``matched_on`` are served rather than kept internal because
+         *     they are what lets an operator dismiss a link that is wrong: a list with no
+         *     reason beside each entry is a list that has to be trusted whole.
+         */
+        LinkedDocumentView: {
+            /** Document Id */
+            document_id: string;
+            /** Document Type */
+            document_type: string;
+            /** Location */
+            location: string;
+            /**
+             * Matched
+             * @default
+             */
+            matched: string;
+            /**
+             * Matched On
+             * @default
+             */
+            matched_on: string;
+            /** Title */
+            title: string;
+        };
         /** LivenessView */
         LivenessView: {
             /** Live */
@@ -4086,6 +4114,8 @@ export interface components {
             /** Contributions */
             contributions?: components["schemas"]["ContributionView"][];
             derivation?: components["schemas"]["DerivationView"] | null;
+            /** Documents */
+            documents?: components["schemas"]["LinkedDocumentView"][];
             /** Freshness Seconds */
             freshness_seconds: number;
             parent?: components["schemas"]["ResourceSummaryView"] | null;

@@ -512,6 +512,9 @@ export const EN = {
   'resources.signals.body':
     'Which source answers each question about this resource, and by what key. A container shares its host\u2019s kernel, so its resource usage is read from the host\u2019s own series rather than from inside the guest.',
   'resources.signals.missing': 'nothing configured answers this',
+  'resources.documents.title': 'What has been written about it',
+  'resources.documents.body':
+    'Documents from the corpus that name this resource, with the name each one used. A link drawn from a name can be wrong \u2014 the name is here so you can tell.',
   'resources.departed.title': 'Declared and gone',
   'resources.departed.body':
     'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',

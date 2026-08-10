@@ -133,6 +133,12 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   ]);
   const signals =
     selected === undefined ? undefined : field(dataOf(selected), 'signals');
+  // The corpus's own answer to "what do we already know about this". Empty for
+  // most of any estate and for all of one whose corpus has not been synced, so
+  // the panel is drawn only when there is something in it — an empty one on
+  // every resource would be noise on a screen that is mostly a table.
+  const documents =
+    selected === undefined ? [] : list(dataOf(selected), 'documents');
   const records = list(dataOf(resources), 'resources');
 
   // Divergence is content, not an error. Two facts come out of the last sweep
@@ -349,6 +355,48 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                   </span>
                 </span>
                 <span className="text-meta text-muted">{text(entry, 'why')}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {documents.length === 0 ? null : (
+        <Panel
+          title={message(locale, 'resources.documents.title')}
+          state="ready"
+          labels={panelLabels(locale, message(locale, 'resources.documents.title'))}
+          empty={{
+            heading: message(locale, 'resources.documents.title'),
+            body: message(locale, 'resources.documents.body'),
+            actionLabel: message(locale, 'resources.empty.action'),
+            href: '/knowledge',
+          }}
+        >
+          <ul
+            className="flex flex-col gap-2 text-small"
+            data-testid="resource-documents"
+          >
+            <li className="text-meta text-muted">
+              {message(locale, 'resources.documents.body')}
+            </li>
+            {documents.map((entry) => (
+              <li
+                key={text(entry, 'document_id')}
+                data-testid="resource-document"
+                data-document-type={text(entry, 'document_type')}
+                className="flex flex-col gap-1"
+              >
+                <span>
+                  <span className="text-strong">{text(entry, 'title')}</span>{' '}
+                  <span className="text-muted">{text(entry, 'document_type')}</span>
+                </span>
+                <span className="text-meta text-muted">
+                  {text(entry, 'location')}
+                  {text(entry, 'matched') === ''
+                    ? ''
+                    : ` · ${text(entry, 'matched_on')} ${text(entry, 'matched')}`}
+                </span>
               </li>
             ))}
           </ul>
