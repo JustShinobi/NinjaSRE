@@ -345,7 +345,9 @@ class VerificationRunner:
         )
 
 
-def runner_for(descriptors: Iterable[Any]) -> VerificationRunner:
+def runner_for(
+    descriptors: Iterable[Any], *, clock: Callable[[], datetime] = _utc_now
+) -> VerificationRunner:
     """Return a runner over the verifiers the given descriptors declare.
 
     Takes descriptors rather than verifiers so composition hands over the same
@@ -357,7 +359,8 @@ def runner_for(descriptors: Iterable[Any]) -> VerificationRunner:
             descriptor.verifier
             for descriptor in descriptors
             if isinstance(descriptor.verifier, IntegrationVerifier)
-        ]
+        ],
+        clock=clock,
     )
 
 

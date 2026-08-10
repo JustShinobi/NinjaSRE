@@ -14,8 +14,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
+from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
+from integrations._verification.diagnostics import (
+    ClockSkewProbe,
+    DataWindow,
+    DataWindowProbe,
+    EmptyWindow,
+    client_clock_probe,
+    client_window_probe,
+)
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -82,6 +91,13 @@ PERMISSIONS: Final[tuple[RequiredPermission, ...]] = (
 )
 
 
+_WINDOW_ADVICE: Final = (
+    "SigNoz answered and is holding no spans for this window. On a cluster where nothing "
+    "has been instrumented yet that is the ordinary state and not a fault; where something "
+    "has, check that its OTLP exporter is pointed at this collector."
+)
+
+
 @dataclass(frozen=True, slots=True)
 class SignozVerifier:
     """Checks a stored SigNoz credential end to end, and what it may do."""
@@ -112,6 +128,45 @@ class SignozVerifier:
                 call=lambda client: client.slow_traces(limit=1),
                 fallback_note=_NO_INTROSPECTION,
             ),
+        )
+
+    def data_window_probe(self) -> DataWindowProbe | None:
+        """Return the read that proves this SigNoz is holding recent spans.
+
+        Empty is *expected* here rather than broken. SigNoz answers "what did it
+        call", and a deployment whose containers carry no OTLP instrumentation
+        has nothing to call with — reporting that as a fault would train an
+        operator to ignore the check on the day it means something.
+        """
+
+        async def read(client: SignozClient, window: DataWindow) -> int:
+            answer = await client.search_traces(
+                start=window.start_epoch_milliseconds,
+                end=window.end_epoch_milliseconds,
+                limit=VERIFY_WINDOW_SAMPLE_LIMIT,
+            )
+            return len(answer)
+
+        return client_window_probe(
+            description=(
+                "queries /api/v3/query_range for spans across the window with no service "
+                "filter, in the milliseconds this API indexes in"
+            ),
+            build=self._client,
+            read=read,
+            advice=_WINDOW_ADVICE,
+            empty_means=EmptyWindow.EXPECTED,
+        )
+
+    def clock_probe(self) -> ClockSkewProbe | None:
+        """Return the reading that says what time this SigNoz thinks it is."""
+        return client_clock_probe(
+            description=(
+                "reads the Date header SigNoz returns on /api/v1/version, which costs no "
+                "extra call and is the server's own clock rather than a proxy's"
+            ),
+            build=self._client,
+            call=lambda client: client.ping(),
         )
 
     async def connect(self, transport: object, context: object) -> Connectivity:

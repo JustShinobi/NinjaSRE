@@ -99,6 +99,12 @@ SIGNAL_KEYS: Final[tuple[str, ...]] = (
 #: an hour ago is not certified by its own history.
 VERIFY_WINDOW_MINUTES: Final[int] = 15
 
+#: How many records a verification read pulls before it stops counting. Small:
+#: the only question is whether the answer was empty, and a setup screen that
+#: dragged an incident's worth of log lines through the credential proxy to
+#: establish that would be its own kind of failure.
+VERIFY_WINDOW_SAMPLE_LIMIT: Final[int] = 5
+
 #: How far a signal source's clock may be from the platform's before the
 #: correlation it takes part in stops meaning anything. Thirty seconds, and the
 #: number is about *correlation* rather than about protocol: the Proxmox
@@ -124,4 +130,5 @@ __all__ = [
     "SIGNAL_QUESTION_UP",
     "SOURCE_CLOCK_SKEW_TOLERANCE_SECONDS",
     "VERIFY_WINDOW_MINUTES",
+    "VERIFY_WINDOW_SAMPLE_LIMIT",
 ]

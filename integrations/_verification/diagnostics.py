@@ -87,6 +87,16 @@ class DataWindow:
         return str(int(self.end.timestamp()))
 
     @property
+    def start_epoch_milliseconds(self) -> str:
+        """Return the start in milliseconds, which is what some trace stores index in."""
+        return str(int(self.start.timestamp() * 1_000))
+
+    @property
+    def end_epoch_milliseconds(self) -> str:
+        """Return the end in milliseconds."""
+        return str(int(self.end.timestamp() * 1_000))
+
+    @property
     def start_epoch_microseconds(self) -> str:
         """Return the start in microseconds, which is what some stores index in."""
         return str(int(self.start.timestamp() * 1_000_000))
