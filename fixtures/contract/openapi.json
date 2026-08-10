@@ -5231,6 +5231,63 @@
         "title": "TurnView",
         "type": "object"
       },
+      "UnresolvedTargetListView": {
+        "properties": {
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedTargetView"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "title": "UnresolvedTargetListView",
+        "type": "object"
+      },
+      "UnresolvedTargetView": {
+        "description": "An alert that arrived for something this estate does not hold.",
+        "properties": {
+          "alert_name": {
+            "title": "Alert Name",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "observed_at": {
+            "title": "Observed At",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          },
+          "zone": {
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "zone",
+          "why",
+          "incident_id",
+          "alert_name",
+          "observed_at"
+        ],
+        "title": "UnresolvedTargetView",
+        "type": "object"
+      },
       "UpdateScheduleRequest": {
         "properties": {
           "cron": {
@@ -8088,6 +8145,56 @@
           }
         },
         "summary": "Estate Summary",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/unresolved-alert-targets": {
+      "get": {
+        "description": "Return the alert targets this estate does not hold, newest first.\n\nA finding of the same class as the reconciliation divergence a sweep\nproduces, and read from the live incidents that recorded it rather than from\na store of its own: the incident is already the record that the alert\narrived, and a second one would be a second thing to expire.",
+        "operationId": "list_unresolved_alert_targets_v1_estate_unresolved_alert_targets_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnresolvedTargetListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Unresolved Alert Targets",
         "tags": [
           "estate"
         ]

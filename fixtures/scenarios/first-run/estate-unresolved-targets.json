@@ -1,0 +1,21 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "targets": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "estate-unresolved-targets",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "estate-unresolved-targets"
+}

@@ -898,6 +898,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/estate/unresolved-alert-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Unresolved Alert Targets
+         * @description Return the alert targets this estate does not hold, newest first.
+         *
+         *     A finding of the same class as the reconciliation divergence a sweep
+         *     produces, and read from the live incidents that recorded it rather than from
+         *     a store of its own: the incident is already the record that the alert
+         *     arrived, and a second one would be a second thing to expire.
+         */
+        get: operations["list_unresolved_alert_targets_v1_estate_unresolved_alert_targets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/incidents": {
         parameters: {
             query?: never;
@@ -4634,6 +4659,31 @@ export interface components {
             /** Turn Id */
             turn_id: string;
         };
+        /** UnresolvedTargetListView */
+        UnresolvedTargetListView: {
+            /** Targets */
+            targets?: components["schemas"]["UnresolvedTargetView"][];
+        };
+        /**
+         * UnresolvedTargetView
+         * @description An alert that arrived for something this estate does not hold.
+         */
+        UnresolvedTargetView: {
+            /** Alert Name */
+            alert_name: string;
+            /** Incident Id */
+            incident_id: string;
+            /** Label */
+            label: string;
+            /** Observed At */
+            observed_at: string;
+            /** Value */
+            value: string;
+            /** Why */
+            why: string;
+            /** Zone */
+            zone: string;
+        };
         /** UpdateScheduleRequest */
         UpdateScheduleRequest: {
             /** Cron */
@@ -6137,6 +6187,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EstateSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_unresolved_alert_targets_v1_estate_unresolved_alert_targets_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnresolvedTargetListView"];
                 };
             };
             /** @description Validation Error */

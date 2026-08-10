@@ -233,6 +233,25 @@
             "suppressed_by": "",
             "team_node_id": "",
             "title": "Quorum margin is zero"
+          },
+          {
+            "close_reason": "",
+            "closed_at": null,
+            "detector": "alertmanager",
+            "incident_id": "inc-alert-0001",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "alert",
+            "run_id": null,
+            "self_resolved": false,
+            "severity": "high",
+            "state": "open",
+            "subjects": [
+              "unresolved-target:184"
+            ],
+            "summary": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
+            "suppressed_by": "",
+            "team_node_id": "",
+            "title": "ContainerMemoryHigh"
           }
         ]
       },

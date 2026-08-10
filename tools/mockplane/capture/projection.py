@@ -20,6 +20,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 from platform.estate.signal_map import signal_map_for
 from platform.persistence.ports.estate_repository import Resource
 from tools.mockplane.capture.parsers import (
@@ -291,10 +292,16 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     to turn a reading into a resource is here.
     """
     observations = tuple(_observations(reading))
-    incidents = tuple(_incidents(reading, observations))
+    incidents = (*_incidents(reading, observations), *_alert_incidents(reading))
     records: list[CapturedRecord] = [
         _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
         _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
+        _record(
+            "estate-unresolved-targets",
+            {},
+            {"targets": _unresolved_targets(incidents)},
+            Provenance.GATEWAY,
+        ),
         _record("incidents", {}, {"incidents": list(incidents)}, Provenance.GATEWAY),
         _record(
             "detectors", {}, {"detectors": _detectors(reading, observations)}, Provenance.GATEWAY
@@ -418,6 +425,79 @@ def project(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
 
 
 # --- The estate ------------------------------------------------------------------
+
+
+def _absent_vmid(reading: ClusterReading) -> str:
+    """Return a guest identifier this reading provably does not hold.
+
+    One past the highest it carries, so the fixture cannot drift from the
+    cluster it describes: a reading that later gains that guest produces a
+    different finding rather than a fixture quietly asserting something untrue.
+    """
+    numbered = sorted(int(guest.vmid) for guest in reading.guests if guest.vmid.isdigit())
+    return str(numbered[-1] + 1) if numbered else ""
+
+
+def _alert_incidents(reading: ClusterReading) -> tuple[dict[str, Any], ...]:
+    """Return the incidents an ingested alert raised, in the route's own shape.
+
+    One, and it is the case this dataset had no example of: an alert whose
+    target nothing in the estate holds. The subject is the finding rather than a
+    resource, because there is no resource — which is the whole of what the
+    ``unresolved-target:`` prefix means.
+    """
+    absent = _absent_vmid(reading)
+    if not absent:
+        return ()
+    return (
+        {
+            "incident_id": "inc-alert-0001",
+            "title": "ContainerMemoryHigh",
+            "severity": "high",
+            "state": "open",
+            "origin": "alert",
+            "opened_at": reading.captured_at,
+            "closed_at": None,
+            "subjects": [f"unresolved-target:{absent}"],
+            "detector": "alertmanager",
+            "run_id": None,
+            "team_node_id": "",
+            "self_resolved": False,
+            "suppressed_by": "",
+            "close_reason": "",
+            "summary": (
+                f"the alert is about hypervisor guest {absent}, and no guest in this estate "
+                f"carries that identifier. Either it was created since the last sweep, or "
+                f"this receiver is pointed at a deployment that does not watch that cluster"
+            ),
+        },
+    )
+
+
+def _unresolved_targets(incidents: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Return the unresolved alert targets ``incidents`` recorded.
+
+    Read back off the incidents rather than built beside them, so the listing
+    and the incident that is the record of it cannot disagree — which is the
+    same derivation the route itself performs.
+    """
+    found: list[dict[str, Any]] = []
+    for incident in incidents:
+        for subject in incident["subjects"]:
+            if not str(subject).startswith(UNRESOLVED_TARGET_PREFIX):
+                continue
+            found.append(
+                {
+                    "value": str(subject)[len(UNRESOLVED_TARGET_PREFIX) :],
+                    "label": "vmid",
+                    "zone": "",
+                    "why": str(incident["summary"]),
+                    "incident_id": str(incident["incident_id"]),
+                    "alert_name": str(incident["title"]),
+                    "observed_at": str(incident["opened_at"]),
+                }
+            )
+    return found
 
 
 def _record(
@@ -970,13 +1050,19 @@ def _timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
     both, because "it opened" is not an answer to the question a timeline is
     read to answer.
     """
+    subjects = len(incident["subjects"])
+    raised_by_alert = incident["origin"] == "alert"
     return [
         {
             "at": str(incident["opened_at"]),
             "kind": "opened",
-            "actor": "system:observation",
+            "actor": "system:webhook" if raised_by_alert else "system:observation",
             "cause": str(incident["summary"]),
-            "detail": f"{incident['detector']} found {len(incident['subjects'])} subject(s)",
+            "detail": (
+                f"{incident['detector']} delivered an alert about {subjects} target(s)"
+                if raised_by_alert
+                else f"{incident['detector']} found {subjects} subject(s)"
+            ),
         }
     ]
 

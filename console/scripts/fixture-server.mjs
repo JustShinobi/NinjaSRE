@@ -66,6 +66,7 @@ export const SHELL_ENDPOINTS = Object.freeze({
   '/v1/estate/summary': 'estate-summary',
   '/v1/estate/resources': 'estate-resources',
   '/v1/estate/resources/{resource_id}': 'estate-resource-detail',
+  '/v1/estate/unresolved-alert-targets': 'estate-unresolved-targets',
   '/v1/estate/nodes': 'estate-nodes',
   '/v1/estate/storage': 'estate-storage',
   '/v1/estate/backups': 'estate-backups',

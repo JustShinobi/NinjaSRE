@@ -116,6 +116,7 @@ def empty_records() -> tuple[CapturedRecord, ...]:
             "absent": 0,
         },
         "estate-resources": {"resources": []},
+        "estate-unresolved-targets": {"targets": []},
         "estate-nodes": {"nodes": []},
         "estate-storage": {"datastores": [], "thin_pools": [], "volumes": []},
         "estate-backups": {"jobs": []},

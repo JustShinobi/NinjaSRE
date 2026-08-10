@@ -447,6 +447,14 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="one resource, its health, its history and what touched it",
     ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/estate/unresolved-alert-targets",
+        slug="estate-unresolved-targets",
+        source=_GATEWAY,
+        summary="alerts that arrived for something this estate does not hold",
+        records_key="targets",
+    ),
     # --- Projected: what the Proxmox integration will serve ------------------------
     ConsoleEndpoint(
         method="GET",

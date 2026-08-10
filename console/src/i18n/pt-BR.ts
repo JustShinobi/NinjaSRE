@@ -502,6 +502,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.departed.title': 'Declarado e ausente',
   'resources.departed.body':
     'O inventário ainda nomeia estes e a fonte não os reporta mais. Um recurso que existe só num arquivo é um recurso que não existe mais.',
+  'resources.unresolved.title': 'Alertas sobre o que não está aqui',
+  'resources.unresolved.body':
+    'Algo está alertando sobre um alvo que este parque não contém. Ou ninguém o varreu ainda, ou um receptor de alertas aponta para a implantação errada — e vale saber qual dos dois.',
   'resources.empty.heading': 'Ainda não há recursos',
   'resources.empty.body':
     'Ligue uma fonte de infra-estrutura e o parque preenche-se sozinho dentro de um minuto. Nada aqui é introduzido à mão.',

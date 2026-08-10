@@ -515,6 +515,9 @@ export const EN = {
   'resources.departed.title': 'Declared and gone',
   'resources.departed.body':
     'The inventory still names these and the source no longer reports them. A resource that exists only in a file is one that no longer exists.',
+  'resources.unresolved.title': 'Alerts for things not here',
+  'resources.unresolved.body':
+    'Something is alerting about a target this estate does not hold. Either nobody has swept it, or an alert receiver is pointed at the wrong deployment — and both are worth knowing.',
   'resources.empty.heading': 'No resources yet',
   'resources.empty.body':
     'Connect an infrastructure source and the estate populates itself within a minute. Nothing here is entered by hand.',

@@ -1,0 +1,31 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "targets": [
+          {
+            "alert_name": "ContainerMemoryHigh",
+            "incident_id": "inc-alert-0001",
+            "label": "vmid",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "value": "184",
+            "why": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
+            "zone": ""
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "estate-unresolved-targets"
+}

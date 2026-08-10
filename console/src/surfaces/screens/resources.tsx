@@ -52,6 +52,12 @@ import { readViewState, type FilterName } from '../url-state';
  * leaving an investigation to ask inside the guest and get a plausible wrong
  * number. The absences are the same panel's other half — a blank where a log
  * store should be reads as "there are no logs".
+ *
+ * **The findings sit below, and there are two kinds.** What the declared
+ * inventory names and the provider no longer reports, and what an alert named
+ * that this estate does not hold. They come from opposite directions and share
+ * a shape: neither has a row to mark, so neither would be visible at all if it
+ * were only rendered on the resource it lacks.
  */
 
 export const RESOURCE_FILTERS: readonly FilterName[] = ['kind', 'state'];
@@ -100,13 +106,18 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
 
   const init = authorised(credential);
   const selection = state.selection;
-  const [resources, summary, discovery, selected] = await Promise.all([
+  const [resources, summary, discovery, unresolved, selected] = await Promise.all([
     panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
     panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
     // Optional: a deployment that has never swept anything has no report, and
     // that is the ordinary state of one nothing is pointed at yet.
     optionalRead('/v1/estate/discovery/report', () =>
       read('/v1/estate/discovery/report', init),
+    ),
+    // Optional for the same reason, and one more: a deployment nothing has
+    // alerted has no findings, which is the ordinary state rather than a fault.
+    optionalRead('/v1/estate/unresolved-alert-targets', () =>
+      read('/v1/estate/unresolved-alert-targets', init),
     ),
     // Only when a row is selected. The detail read is per resource, and making
     // it on every render of the list would be one request per page view for a
@@ -140,6 +151,12 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   const departed = divergences.filter(
     (entry) => text(entry, 'kind') === 'only_in_file',
   );
+
+  // The third finding on this screen, and the one that comes from the other
+  // direction: not "the file names something the provider does not", but
+  // "something outside is complaining about a target nothing here holds". Same
+  // shape of answer, same reason for a panel — there is no row to mark.
+  const unresolvedTargets = list(dataOf(unresolved), 'targets');
 
   const kinds = [...new Set(records.map((record) => text(record, 'kind')))].sort();
   const states = [...new Set(records.map((record) => text(record, 'health')))].sort();
@@ -329,6 +346,47 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
                   <span className="text-strong">{text(entry, 'question')}</span>{' '}
                   <span className="text-warning">
                     {message(locale, 'resources.signals.missing')}
+                  </span>
+                </span>
+                <span className="text-meta text-muted">{text(entry, 'why')}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      {unresolvedTargets.length === 0 ? null : (
+        <Panel
+          title={message(locale, 'resources.unresolved.title')}
+          state={stateOf(unresolved, false)}
+          dependency={dependencyOf(unresolved)}
+          labels={panelLabels(locale, message(locale, 'resources.unresolved.title'))}
+          empty={{
+            heading: message(locale, 'resources.unresolved.title'),
+            body: message(locale, 'resources.unresolved.body'),
+            actionLabel: message(locale, 'resources.empty.action'),
+            href: '/configuration',
+          }}
+        >
+          <ul
+            className="flex flex-col gap-1 text-small"
+            data-testid="unresolved-targets"
+          >
+            <li className="text-meta text-muted">
+              {message(locale, 'resources.unresolved.body')}
+            </li>
+            {unresolvedTargets.map((entry) => (
+              <li
+                key={`${text(entry, 'label')}:${text(entry, 'value')}`}
+                data-testid="unresolved-target-entry"
+                className="flex flex-col gap-1"
+              >
+                <span>
+                  <span className="text-strong">{text(entry, 'value')}</span>{' '}
+                  <span className="text-muted">
+                    {text(entry, 'label')}
+                    {text(entry, 'zone') === '' ? '' : ` · ${text(entry, 'zone')}`}
+                    {` · ${text(entry, 'alert_name')}`}
                   </span>
                 </span>
                 <span className="text-meta text-muted">{text(entry, 'why')}</span>
