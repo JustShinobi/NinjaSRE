@@ -33,6 +33,27 @@ async function currentArea(page: Page): Promise<string | null> {
     .getAttribute('data-area');
 }
 
+/**
+ * Open the palette from the keyboard, pressing until the console is listening.
+ *
+ * `goto` resolves on `load`, which says the document finished — not that the
+ * shell has attached the window listener the shortcut needs. The gap is usually
+ * under a tenth of a second, and on a busy machine it is not: with the keydown
+ * recorded from inside the page, a single `Control`+`K` fired the instant `goto`
+ * returned was dispatched to a window with no listener on it about three times
+ * in sixty loads. Nothing re-sends a lost keystroke, so a one-shot press is a
+ * reading that varies with the machine rather than with the console.
+ *
+ * Pressing until it answers removes that, and weakens nothing: the palette
+ * still has to open from the keyboard, and from nothing else.
+ */
+async function openPalette(page: Page): Promise<void> {
+  await expect(async () => {
+    await page.keyboard.press('Control+k');
+    await expect(page.getByTestId('palette')).toBeVisible({ timeout: 250 });
+  }).toPass({ timeout: 10_000 });
+}
+
 test.describe('an unauthenticated visitor', () => {
   for (const area of AREAS) {
     test(`sees the sign-in and nothing else at ${area.path}`, async ({ page }) => {
@@ -98,9 +119,8 @@ test.describe('a signed-in operator', () => {
     page,
   }) => {
     await page.goto('/');
-    await page.keyboard.press('Control+k');
+    await openPalette(page);
 
-    await expect(page.getByTestId('palette')).toBeVisible();
     await page.keyboard.type('audit');
     await page.keyboard.press('Enter');
 
@@ -109,7 +129,9 @@ test.describe('a signed-in operator', () => {
 
   test('dismisses the palette without changing the page', async ({ page }) => {
     await page.goto('/knowledge');
-    await page.keyboard.press('Control+k');
+    // Opened for real first. Dismissing something that was never there is a
+    // test that cannot fail for the reason it exists.
+    await openPalette(page);
     await page.keyboard.press('Escape');
 
     await expect(page.getByTestId('palette')).toHaveCount(0);
