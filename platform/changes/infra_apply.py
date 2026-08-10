@@ -44,6 +44,7 @@ from config.constants.changes import (
 )
 from platform.changes.errors import ChangeStateInvalid
 from platform.changes.models import Change, ChangeWindow
+from platform.changes.screening import screen_all
 from platform.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -101,8 +102,14 @@ class InfraApplySource:
         *,
         limit: int = MAX_CHANGES_PER_WINDOW,
     ) -> Sequence[Change]:
-        """Return what was applied or committed inside ``window``, newest first."""
-        return self.read_state().in_window(window, limit=limit)
+        """Return what was applied or committed inside ``window``, newest first.
+
+        Screened on the way out rather than on the way in. The whole record is
+        parsed once and cached by nothing; screening the window's worth is the
+        smaller scan, and a change that has left this method has already been
+        through it.
+        """
+        return screen_all(self.read_state().in_window(window, limit=limit))
 
     def components(self) -> Mapping[str, tuple[str, ...]]:
         """Return what each component manages, by the estate's correlation keys."""
