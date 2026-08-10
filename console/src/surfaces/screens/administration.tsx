@@ -9,6 +9,7 @@ import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
+import { TokenPanel, type IssuedToken } from '../tokens';
 import {
   authorised,
   dataOf,
@@ -29,9 +30,10 @@ import {
  * not disabled — the panel is not in the document at all, so there is nothing to
  * tell them a capability exists that somebody else has.
  *
- * Single sign-on is stated rather than configured here: nothing serves its
- * settings yet, and a form that posted nowhere would be worse than a sentence
- * saying where it will live.
+ * The token panel is never empty for somebody who may manage tokens: a
+ * deployment with no machine tokens is exactly the deployment that needs the
+ * control to issue one, and an empty state saying "none yet" with no way to
+ * make one is a dead end.
  */
 
 const TOKENS = 'token.manage';
@@ -124,36 +126,38 @@ export async function AdministrationScreen(
         {may(viewer, TOKENS) ? (
           <Panel
             title={message(locale, 'admin.tokens.title')}
-            state={stateOf(tokens, issued.length === 0)}
+            state={stateOf(tokens, false)}
             dependency={dependencyOf(tokens)}
             labels={panelLabels(locale, message(locale, 'admin.tokens.title'))}
             empty={emptyState}
           >
-            <ul className="flex flex-col gap-2 text-small">
-              {issued.map((token) => {
+            <TokenPanel
+              tokens={issued.map((token): IssuedToken => {
                 const expires = timestamp(locale, text(token, 'expires_at'), now, zone);
-                return (
-                  <li
-                    key={text(token, 'token_id')}
-                    data-testid="token"
-                    className="flex items-center gap-3 min-w-0"
-                  >
-                    <span className="truncate">{text(token, 'name')}</span>
-                    <span className="text-meta text-muted truncate">
-                      {list(token, 'scopes').map(String).join(', ')}
-                    </span>
-                    <span className="ml-auto flex items-center gap-2">
-                      {/* Never the secret. A token is shown once, at issue, by
-                          the deployment — and never again by anything. */}
-                      <Badge status={flag(token, 'revoked') ? 'revoked' : 'healthy'} />
-                      <span className="text-meta text-muted">
-                        {expires.relative === '' ? none : expires.relative}
-                      </span>
-                    </span>
-                  </li>
-                );
+                return {
+                  tokenId: text(token, 'token_id'),
+                  name: text(token, 'name'),
+                  scopes: list(token, 'scopes').map(String),
+                  revoked: flag(token, 'revoked'),
+                  expires: expires.relative,
+                };
               })}
-            </ul>
+              labels={{
+                name: message(locale, 'admin.tokens.name'),
+                issue: message(locale, 'admin.tokens.issue'),
+                issuing: message(locale, 'admin.tokens.issuing'),
+                shownOnce: message(locale, 'admin.tokens.shownOnce'),
+                revoke: message(locale, 'admin.tokens.revoke'),
+                revoking: message(locale, 'admin.tokens.revoking'),
+                revoked: message(locale, 'admin.tokens.revoked'),
+                revokeConsequence: message(locale, 'admin.tokens.revokeConsequence'),
+                revokeConfirm: message(locale, 'admin.tokens.revokeConfirm'),
+                revokeCancel: message(locale, 'admin.tokens.revokeCancel'),
+                failed: message(locale, 'admin.tokens.failed'),
+                unreachable: message(locale, 'admin.tokens.unreachable'),
+                none: none,
+              }}
+            />
           </Panel>
         ) : null}
 
