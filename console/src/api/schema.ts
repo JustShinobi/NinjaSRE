@@ -988,6 +988,12 @@ export interface paths {
         /**
          * List Integrations
          * @description Return the catalogue: every installed integration and what is known about it.
+         *
+         *     Ordered by relevance where the estate supplies any and by name otherwise.
+         *     The ordering is computed here rather than by each surface, because the
+         *     console wizard and the CLI wizard ask the same question and two surfaces
+         *     deriving relevance separately is how one of them offers Prometheus first
+         *     while the other buries it, with nobody able to say which is right.
          */
         get: operations["list_integrations_v1_integrations_get"];
         put?: never;
@@ -3160,6 +3166,8 @@ export interface components {
         IntegrationList: {
             /** Integrations */
             integrations: components["schemas"]["IntegrationView"][];
+            /** Known Gaps */
+            known_gaps?: components["schemas"]["KnownGapView"][];
         };
         /** IntegrationReadinessView */
         IntegrationReadinessView: {
@@ -3238,6 +3246,7 @@ export interface components {
             required_credentials: string[];
             /** Required Permissions */
             required_permissions: string[];
+            suggested?: components["schemas"]["SuggestionView"] | null;
             /** Summary */
             summary: string;
         };
@@ -3371,6 +3380,28 @@ export interface components {
             title: string;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /**
+         * KnownGapView
+         * @description A vendor this catalogue does not cover, and why it does not.
+         *
+         *     ``cause`` separates "the architecture cannot reach this" from "this was
+         *     weighed and decided against". Collapsing them would turn a decision somebody
+         *     can reopen into a limitation nobody can.
+         */
+        KnownGapView: {
+            /** Category */
+            category: string;
+            /** Cause */
+            cause: string;
+            /** Display Name */
+            display_name: string;
+            /** Integration */
+            integration: string;
+            /** Reason */
+            reason: string;
+            /** Resolution */
+            resolution: string;
         };
         /** LivenessView */
         LivenessView: {
@@ -4344,6 +4375,22 @@ export interface components {
             observed_at?: string | null;
             /** Resource Id */
             resource_id: string;
+        };
+        /**
+         * SuggestionView
+         * @description Where this deployment already found this vendor running.
+         *
+         *     Present only where the estate makes it obvious, which is the whole design:
+         *     a suggestion that had to be guessed is one an operator has to verify, and
+         *     then the alphabet would have been cheaper.
+         */
+        SuggestionView: {
+            /** Address */
+            address: string;
+            /** Because */
+            because: string;
+            /** From Resource */
+            from_resource: string;
         };
         /**
          * SuppressRequest
@@ -6251,7 +6298,9 @@ export interface operations {
     list_integrations_v1_integrations_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -6264,6 +6313,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -38,6 +38,8 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port a default OpenObserve serves its API and UI on.
+    default_port=5080,
 )
 
 __all__ = [

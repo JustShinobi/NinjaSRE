@@ -32,6 +32,7 @@ sequence somebody reconstructs six months later.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -43,11 +44,14 @@ from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
 from integrations._catalogue.discovery import catalogue
+from integrations._catalogue.gaps import gaps
 from platform.credentials.errors import CredentialSchemaViolation
 from platform.credentials.handles import CredentialHandle
 from platform.credentials.health import CredentialHealth
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
+from platform.estate.service import EstateService
+from platform.estate.suggestions import Suggestion, suggest_integrations
 from platform.identity.audit.recorder import (
     CREDENTIAL_AUDIT_ACTION_WRITE,
     AuditContext,
@@ -55,6 +59,7 @@ from platform.identity.audit.recorder import (
 )
 from platform.observability.logging import get_logger
 from platform.persistence.ports.audit_repository import ActorKind
+from platform.persistence.ports.estate_repository import EstateQuery
 
 logger = get_logger(__name__)
 
@@ -65,6 +70,40 @@ router = APIRouter(prefix="/v1/integrations", tags=["integrations"])
 #: address, whereas the question people ask the trail is "who changed Datadog's
 #: key, and when".
 _CREDENTIAL_RESOURCE_KIND = "credential"
+
+#: How much of the estate the suggestion pass reads. A homelab's whole estate
+#: fits inside it; past that, a suggestion nobody scrolled to was not worth a
+#: second page of a listing that renders on every visit to the catalogue.
+MAX_ESTATE_SCAN = 500
+
+
+class SuggestionView(BaseModel):
+    """Where this deployment already found this vendor running.
+
+    Present only where the estate makes it obvious, which is the whole design:
+    a suggestion that had to be guessed is one an operator has to verify, and
+    then the alphabet would have been cheaper.
+    """
+
+    address: str
+    from_resource: str
+    because: str
+
+
+class KnownGapView(BaseModel):
+    """A vendor this catalogue does not cover, and why it does not.
+
+    ``cause`` separates "the architecture cannot reach this" from "this was
+    weighed and decided against". Collapsing them would turn a decision somebody
+    can reopen into a limitation nobody can.
+    """
+
+    integration: str
+    display_name: str
+    category: str
+    cause: str
+    reason: str
+    resolution: str
 
 
 class IntegrationView(BaseModel):
@@ -80,10 +119,19 @@ class IntegrationView(BaseModel):
     health_detail: str
     parity: str
     missing_artefacts: list[str]
+    #: Set when the estate holds something this vendor plainly runs on. Absent
+    #: otherwise, and absent is the ordinary case.
+    suggested: SuggestionView | None = None
 
 
 class IntegrationList(BaseModel):
     integrations: list[IntegrationView]
+    #: The vendors this catalogue does not cover. Served with the catalogue
+    #: rather than from a route of their own, because the question they answer —
+    #: "can this deployment look at X" — is the question the catalogue is being
+    #: read to answer, and an operator who has to know to ask a second time
+    #: discovers the absence by not finding it.
+    known_gaps: list[KnownGapView] = Field(default_factory=list)
 
 
 class IntegrationVerification(BaseModel):
@@ -137,13 +185,59 @@ class CredentialWriteView(BaseModel):
     fields: list[str]
 
 
+async def _suggestions(
+    state: GatewayState, auth: AuthenticatedRequest, entries: Any
+) -> dict[str, Suggestion]:
+    """Return what this team's estate says about where each vendor is running.
+
+    Empty for a deployment that has discovered nothing, which is every
+    deployment until the estate step of the wizard has run — and is why the
+    steps are in that order.
+    """
+    offers = {entry.name: entry.profile.default_port for entry in entries}
+    if not any(offers.values()):
+        return {}
+    service = EstateService(gateway=state.gateway, kinds=state.estate_kinds)
+    found = await service.query(
+        auth.scope,
+        EstateQuery(include_absent=False, limit=MAX_ESTATE_SCAN),
+        now=datetime.now(UTC),
+    )
+    return {
+        suggestion.integration: suggestion
+        for suggestion in suggest_integrations((view.resource for view in found), offers=offers)
+    }
+
+
 @router.get("", response_model=IntegrationList)
 async def list_integrations(
     state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
 ) -> IntegrationList:
-    """Return the catalogue: every installed integration and what is known about it."""
+    """Return the catalogue: every installed integration and what is known about it.
+
+    Ordered by relevance where the estate supplies any and by name otherwise.
+    The ordering is computed here rather than by each surface, because the
+    console wizard and the CLI wizard ask the same question and two surfaces
+    deriving relevance separately is how one of them offers Prometheus first
+    while the other buries it, with nobody able to say which is right.
+    """
     ledger = getattr(state, "integration_health", None)
+    entries = catalogue(health=ledger)
+    suggested = await _suggestions(state, auth, entries)
+    ordered = sorted(entries, key=lambda entry: (entry.name not in suggested, entry.name))
     return IntegrationList(
+        known_gaps=[
+            KnownGapView(
+                integration=str(record["integration"]),
+                display_name=str(record["display_name"]),
+                category=str(record["category"]),
+                cause=str(record["cause"]),
+                reason=str(record["reason"]),
+                resolution=str(record["resolution"]),
+            )
+            for record in (gap.to_record() for gap in gaps())
+        ],
         integrations=[
             IntegrationView(
                 name=entry.name,
@@ -158,9 +252,18 @@ async def list_integrations(
                 health_detail=entry.health_detail,
                 parity=entry.parity.status.value,
                 missing_artefacts=[artefact.value for artefact in entry.parity.missing],
+                suggested=(
+                    SuggestionView(
+                        address=suggested[entry.name].address,
+                        from_resource=suggested[entry.name].from_resource,
+                        because=suggested[entry.name].because,
+                    )
+                    if entry.name in suggested
+                    else None
+                ),
             )
-            for entry in catalogue(health=ledger)
-        ]
+            for entry in ordered
+        ],
     )
 
 

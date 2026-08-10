@@ -38,6 +38,8 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port a default Prometheus serves its API on.
+    default_port=9090,
 )
 
 __all__ = [

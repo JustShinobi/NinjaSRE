@@ -2104,6 +2104,13 @@
             },
             "title": "Integrations",
             "type": "array"
+          },
+          "known_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/KnownGapView"
+            },
+            "title": "Known Gaps",
+            "type": "array"
           }
         },
         "required": [
@@ -2294,6 +2301,16 @@
             },
             "title": "Required Permissions",
             "type": "array"
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "summary": {
             "title": "Summary",
@@ -2670,6 +2687,45 @@
           "metadata"
         ],
         "title": "KnowledgeDocumentView",
+        "type": "object"
+      },
+      "KnownGapView": {
+        "description": "A vendor this catalogue does not cover, and why it does not.\n\n``cause`` separates \"the architecture cannot reach this\" from \"this was\nweighed and decided against\". Collapsing them would turn a decision somebody\ncan reopen into a limitation nobody can.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "cause": {
+            "title": "Cause",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "resolution": {
+            "title": "Resolution",
+            "type": "string"
+          }
+        },
+        "required": [
+          "integration",
+          "display_name",
+          "category",
+          "cause",
+          "reason",
+          "resolution"
+        ],
+        "title": "KnownGapView",
         "type": "object"
       },
       "LivenessView": {
@@ -4588,6 +4644,30 @@
           "resource_id"
         ],
         "title": "SubjectView",
+        "type": "object"
+      },
+      "SuggestionView": {
+        "description": "Where this deployment already found this vendor running.\n\nPresent only where the estate makes it obvious, which is the whole design:\na suggestion that had to be guessed is one an operator has to verify, and\nthen the alphabet would have been cheaper.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "because": {
+            "title": "Because",
+            "type": "string"
+          },
+          "from_resource": {
+            "title": "From Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "from_resource",
+          "because"
+        ],
+        "title": "SuggestionView",
         "type": "object"
       },
       "SuppressRequest": {
@@ -8331,8 +8411,26 @@
     },
     "/v1/integrations": {
       "get": {
-        "description": "Return the catalogue: every installed integration and what is known about it.",
+        "description": "Return the catalogue: every installed integration and what is known about it.\n\nOrdered by relevance where the estate supplies any and by name otherwise.\nThe ordering is computed here rather than by each surface, because the\nconsole wizard and the CLI wizard ask the same question and two surfaces\nderiving relevance separately is how one of them offers Prometheus first\nwhile the other buries it, with nobody able to say which is right.",
         "operationId": "list_integrations_v1_integrations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -8343,6 +8441,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Integrations",

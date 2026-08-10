@@ -38,6 +38,8 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port a default Grafana serves on.
+    default_port=3000,
 )
 
 __all__ = [

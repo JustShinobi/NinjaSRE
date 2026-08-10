@@ -38,6 +38,8 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port SigNoz's query service serves on, which is the API rather than the UI.
+    default_port=8080,
 )
 
 __all__ = [

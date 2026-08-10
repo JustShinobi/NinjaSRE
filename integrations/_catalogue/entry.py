@@ -81,8 +81,19 @@ class IntegrationProfile:
     regions: RegionMap
     permissions: tuple[RequiredPermission, ...] = ()
     pagination: tuple[EndpointPagination, ...] = ()
+    #: Where a default install of this vendor listens, for the ones an operator
+    #: runs themselves. Nought for a hosted API, and the difference matters: a
+    #: container somebody called ``datadog`` is not a Datadog endpoint, so a
+    #: vendor with no port here is never offered a local address derived from
+    #: the estate.
+    default_port: int = 0
 
     def __post_init__(self) -> None:
+        if not 0 <= self.default_port <= 65_535:
+            raise ValueError(
+                f"{self.integration}: {self.default_port} is not a port. Nought means this "
+                f"vendor is hosted and has no default install to point at."
+            )
         if self.regions.integration != self.integration:
             raise ValueError(
                 f"the profile for {self.integration!r} carries a region map for "

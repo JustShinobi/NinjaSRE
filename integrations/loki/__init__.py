@@ -38,6 +38,8 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port a default Loki serves its API on.
+    default_port=3100,
 )
 
 __all__ = [

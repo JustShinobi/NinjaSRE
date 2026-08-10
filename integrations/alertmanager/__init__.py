@@ -38,6 +38,8 @@ PROFILE: Final = IntegrationProfile(
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port a default Alertmanager serves its API on.
+    default_port=9093,
 )
 
 __all__ = [
