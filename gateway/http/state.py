@@ -8,8 +8,10 @@ surface by constructing one value and wiring it in — the same reason
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
+from core.llm.verification import ModelVerdict
 from gateway.http.rate_limit import ApiRateLimiter
 from gateway.http.security.autonomy_routes import AUTONOMY_ROUTES
 from gateway.http.security.console_routes import CONSOLE_ROUTES
@@ -49,6 +51,13 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
 )
 
 
+#: How this deployment checks that a provider can actually run an investigation.
+#: Takes a provider identifier and returns the verdict — tool calling and
+#: structured output exercised against the operator's own endpoint, not a check
+#: that a key is present.
+ProviderVerifier = Callable[[str], Awaitable[ModelVerdict]]
+
+
 @dataclass(slots=True)
 class GatewayState:
     """The composition root's answer to "what does this deployment run on"."""
@@ -56,6 +65,12 @@ class GatewayState:
     gateway: PersistenceGateway
     tokens: TokenService
     investigator: InvestigationRunner
+    #: Supplied at composition, because *how* this deployment reaches its models
+    #: is a deployment concern: a process wired with the credential proxy verifies
+    #: through it, and one running against environment credentials does not.
+    #: ``None`` falls back to the same end-to-end preflight ``make preflight``
+    #: runs, which is the honest default rather than a report nobody made.
+    model_verifier: ProviderVerifier | None = None
     route_table: RouteTable = APPLICATION_ROUTE_TABLE
     broker: RunEventBroker = field(default_factory=RunEventBroker)
     guardrails: GuardrailEngine = field(default_factory=GuardrailEngine)

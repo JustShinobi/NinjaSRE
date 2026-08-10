@@ -15,8 +15,11 @@ demanded of a caller.
 from __future__ import annotations
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
+from config.constants.llm import LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
+from core.llm.verification import ModelVerdict
+from gateway.http.app import create_app
 from platform.credentials.handles import CredentialHandle
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
@@ -198,6 +201,236 @@ async def test_an_empty_body_is_refused_rather_than_stored(
     )
 
     assert response.status_code == 400
+
+
+# --- A provider's credential takes the same route ------------------------------
+
+
+async def test_a_provider_credential_is_written_through_the_integration_route(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """One credential path, not two.
+
+    A provider is not an installed integration — it has no vendor package — but
+    it declares the same shape of credential, and a second write path for
+    provider keys would be a second place credentials live and the one the audit
+    misses.
+    """
+    response = await client.put(
+        "/v1/integrations/anthropic/credential",
+        headers=_headers(operator_token),
+        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["integration"] == "anthropic"
+    assert body["fields"] == ["ANTHROPIC_API_KEY"]
+    assert SENTINEL_API_KEY not in response.text
+
+
+async def test_a_provider_credential_outside_its_declared_fields_is_refused(
+    client: AsyncClient, operator_token: str
+) -> None:
+    response = await client.put(
+        "/v1/integrations/anthropic/credential",
+        headers=_headers(operator_token),
+        json={"values": {"NOT_A_FIELD": "whatever"}},
+    )
+
+    assert response.status_code == 400
+    assert "NOT_A_FIELD" in response.text
+    assert "ANTHROPIC_API_KEY" in response.text
+
+
+# --- The provider surface -------------------------------------------------------
+
+
+async def test_every_supported_provider_is_listed_in_the_documented_order(
+    client: AsyncClient, operator_token: str
+) -> None:
+    response = await client.get("/v1/providers", headers=_headers(operator_token))
+
+    assert response.status_code == 200
+    listed = response.json()["providers"]
+    assert [entry["provider_id"] for entry in listed] == list(SUPPORTED_PROVIDERS)
+    assert all(entry["display_name"] for entry in listed)
+    assert [entry["provider_id"] for entry in listed if entry["local"]] == list(LOCAL_PROVIDERS)
+
+
+async def test_the_listing_says_which_providers_this_deployment_has_a_credential_for(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """Configured means a credential is in the vault, established by asking it."""
+    before = await client.get("/v1/providers", headers=_headers(operator_token))
+    await client.put(
+        "/v1/integrations/anthropic/credential",
+        headers=_headers(operator_token),
+        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+    )
+    after = await client.get("/v1/providers", headers=_headers(operator_token))
+
+    assert not any(entry["configured"] for entry in before.json()["providers"])
+    configured = {
+        entry["provider_id"] for entry in after.json()["providers"] if entry["configured"]
+    }
+    assert configured == {"anthropic"}
+    assert SENTINEL_API_KEY not in after.text
+
+
+async def test_nothing_in_the_listing_claims_a_verification_nobody_ran(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """Configured and verified are different facts, and a listing may not merge them.
+
+    A key that is present and a key that works are exactly the two states this
+    distinction exists to separate, and the second is only knowable by calling
+    the endpoint — which a listing must not do.
+    """
+    await client.put(
+        "/v1/integrations/anthropic/credential",
+        headers=_headers(operator_token),
+        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+    )
+
+    listed = (await client.get("/v1/providers", headers=_headers(operator_token))).json()
+    anthropic = next(entry for entry in listed["providers"] if entry["provider_id"] == "anthropic")
+
+    assert anthropic["configured"]
+    assert not anthropic["verified"]
+    assert anthropic["detail"]
+
+
+async def test_one_provider_comes_back_with_its_fields_guidance_and_models(
+    client: AsyncClient, operator_token: str
+) -> None:
+    response = await client.get("/v1/providers/anthropic", headers=_headers(operator_token))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider_id"] == "anthropic"
+    assert body["default_model"]
+    assert body["models"]
+    assert body["guidance"]
+    assert body["where_to_get_it"]
+    assert [declared["name"] for declared in body["fields"]] == ["ANTHROPIC_API_KEY"]
+    assert body["fields"][0]["secret"] is True
+    assert body["fields"][0]["label"]
+
+
+async def test_a_provider_descriptor_carries_no_field_a_value_could_sit_in(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """Which is what makes the whole descriptor servable to an unprivileged reader."""
+    await client.put(
+        "/v1/integrations/anthropic/credential",
+        headers=_headers(operator_token),
+        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+    )
+
+    response = await client.get("/v1/providers/anthropic", headers=_headers(operator_token))
+
+    assert SENTINEL_API_KEY not in response.text
+    assert set(response.json()["fields"][0]) == {"name", "label", "secret", "required", "help"}
+
+
+async def test_a_provider_nobody_supports_is_not_found(
+    client: AsyncClient, operator_token: str
+) -> None:
+    response = await client.get("/v1/providers/anthropik", headers=_headers(operator_token))
+
+    assert response.status_code == 404
+    # The refusal names what does exist, so the next request is the right one.
+    assert "anthropic" in response.text
+
+
+# --- Verifying a provider is a real call ----------------------------------------
+
+
+async def test_verifying_a_provider_reports_what_came_back(
+    deployment: Deployment, operator_token: str
+) -> None:
+    """End to end against the model endpoint, not a check that a key is present."""
+    asked: list[str] = []
+
+    async def verifier(provider_id: str) -> ModelVerdict:
+        asked.append(provider_id)
+        return ModelVerdict(
+            provider_id=provider_id,
+            model_id="claude-sonnet-5",
+            satisfied=True,
+            summary_line="claude-sonnet-5 on anthropic calls tools and returns structure",
+        )
+
+    deployment.state.model_verifier = verifier
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as http:
+        response = await http.post(
+            "/v1/providers/anthropic/verify", headers=_headers(operator_token)
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert asked == ["anthropic"]
+    assert body["provider_id"] == "anthropic"
+    assert body["verified"] is True
+    assert body["model_id"] == "claude-sonnet-5"
+    assert "calls tools" in body["detail"]
+
+
+async def test_a_verification_that_failed_says_what_could_not_be_done(
+    deployment: Deployment, operator_token: str
+) -> None:
+    """A refusal names the limitation, never 'verification failed'."""
+
+    async def verifier(provider_id: str) -> ModelVerdict:
+        return ModelVerdict(
+            provider_id=provider_id,
+            model_id="llama4:70b",
+            satisfied=False,
+            limitation="the endpoint answered, but the model did not call the tool it was given",
+            remedy="choose a model that supports tool calling",
+            alternatives=("llama4:405b",),
+        )
+
+    deployment.state.model_verifier = verifier
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as http:
+        response = await http.post("/v1/providers/ollama/verify", headers=_headers(operator_token))
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["verified"] is False
+    assert "did not call the tool" in body["detail"]
+    assert body["remedy"]
+    assert body["alternatives"] == ["llama4:405b"]
+
+
+async def test_verifying_a_provider_nobody_supports_is_not_found(
+    client: AsyncClient, operator_token: str
+) -> None:
+    response = await client.post("/v1/providers/anthropik/verify", headers=_headers(operator_token))
+
+    assert response.status_code == 404
+
+
+async def test_reading_the_provider_listing_never_verifies_anything(
+    deployment: Deployment, operator_token: str
+) -> None:
+    """Rendering a page must not be able to spend an operator's tokens by accident."""
+    calls: list[str] = []
+
+    async def verifier(provider_id: str) -> ModelVerdict:
+        calls.append(provider_id)
+        return ModelVerdict(provider_id=provider_id, model_id="m", satisfied=True)
+
+    deployment.state.model_verifier = verifier
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as http:
+        await http.get("/v1/providers", headers=_headers(operator_token))
+        await http.get("/v1/providers/anthropic", headers=_headers(operator_token))
+
+    assert calls == []
 
 
 # --- The configuration route stays sealed --------------------------------------

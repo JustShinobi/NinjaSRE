@@ -35,6 +35,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from gateway.http.credential_schemas import schema_for
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
@@ -187,22 +188,25 @@ async def store_credential(
 ) -> CredentialWriteView:
     """Store this team's credential for ``name`` and report what it now is.
 
+    ``name`` is an installed integration or a supported model provider. One
+    route for both, because a provider key that took a different path would be
+    a second place credentials live and the one the audit misses.
+
     The team is the token's, exactly as it is for every other write on this
     surface: a body field naming somebody else's team would be a permission
     decision taken by the client.
 
     Raises:
-        ApiProblem: nothing installed answers to ``name`` (404), or the values
-            do not fit the vendor's declared schema (400). The refusal names
-            the fields and never quotes one.
+        ApiProblem: nothing answers to ``name`` (404), or the values do not fit
+            the declared schema (400). The refusal names the fields and never
+            quotes one.
     """
-    descriptor = _descriptor_for(name)
     values = dict(body.values)
     names = sorted(values)
 
     vault = Vault(
         gateway=state.gateway,
-        schemas=CredentialSchemaRegistry.from_schemas(descriptor.schema),
+        schemas=CredentialSchemaRegistry.from_schemas(schema_for(name)),
     )
     handle = CredentialHandle(integration=name, team_id=auth.team_node_id)
     try:

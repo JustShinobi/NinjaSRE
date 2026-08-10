@@ -3153,6 +3153,183 @@
         "title": "ProblemView",
         "type": "object"
       },
+      "ProviderDetailView": {
+        "description": "One provider in full: everything a form or a prompt needs to set it up.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "default_model": {
+            "title": "Default Model",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/CredentialFieldView"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "guidance": {
+            "default": "",
+            "title": "Guidance",
+            "type": "string"
+          },
+          "install_hint": {
+            "default": "",
+            "title": "Install Hint",
+            "type": "string"
+          },
+          "local": {
+            "title": "Local",
+            "type": "boolean"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          },
+          "where_to_get_it": {
+            "default": "",
+            "title": "Where To Get It",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "display_name",
+          "local",
+          "configured",
+          "verified",
+          "default_model",
+          "fields",
+          "models"
+        ],
+        "title": "ProviderDetailView",
+        "type": "object"
+      },
+      "ProviderList": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderView"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "providers"
+        ],
+        "title": "ProviderList",
+        "type": "object"
+      },
+      "ProviderVerificationView": {
+        "description": "What a real request to the provider's endpoint came back with.\n\n``detail`` is the sentence — the working configuration when it passed, the\nlimitation when it did not. Never \"verification failed\", which is a\nrestatement rather than something anybody can act on.",
+        "properties": {
+          "alternatives": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "remedy": {
+            "default": "",
+            "title": "Remedy",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider_id",
+          "verified",
+          "model_id",
+          "detail",
+          "alternatives"
+        ],
+        "title": "ProviderVerificationView",
+        "type": "object"
+      },
+      "ProviderView": {
+        "description": "One provider, its descriptor and this deployment's state for it.\n\nThere is no field here a stored credential could be read back into, which is\nwhat lets the whole document be served to anyone who may read configuration.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "default_model": {
+            "title": "Default Model",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "local": {
+            "title": "Local",
+            "type": "boolean"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider_id",
+          "display_name",
+          "local",
+          "configured",
+          "verified",
+          "default_model"
+        ],
+        "title": "ProviderView",
+        "type": "object"
+      },
       "QueueMessageRequest": {
         "properties": {
           "text": {
@@ -7629,7 +7806,7 @@
     },
     "/v1/integrations/{name}/credential": {
       "put": {
-        "description": "Store this team's credential for ``name`` and report what it now is.\n\nThe team is the token's, exactly as it is for every other write on this\nsurface: a body field naming somebody else's team would be a permission\ndecision taken by the client.\n\nRaises:\n    ApiProblem: nothing installed answers to ``name`` (404), or the values\n        do not fit the vendor's declared schema (400). The refusal names\n        the fields and never quotes one.",
+        "description": "Store this team's credential for ``name`` and report what it now is.\n\n``name`` is an installed integration or a supported model provider. One\nroute for both, because a provider key that took a different path would be\na second place credentials live and the one the audit misses.\n\nThe team is the token's, exactly as it is for every other write on this\nsurface: a body field naming somebody else's team would be a permission\ndecision taken by the client.\n\nRaises:\n    ApiProblem: nothing answers to ``name`` (404), or the values do not fit\n        the declared schema (400). The refusal names the fields and never\n        quotes one.",
         "operationId": "store_credential_v1_integrations__name__credential_put",
         "parameters": [
           {
@@ -8923,6 +9100,174 @@
         "summary": "List Observations",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/v1/providers": {
+      "get": {
+        "description": "Return every supported provider, in the order the platform documents them.",
+        "operationId": "list_providers_v1_providers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Providers",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/v1/providers/{provider_id}": {
+      "get": {
+        "description": "Return one provider with everything needed to set it up.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
+        "operationId": "show_provider_v1_providers__provider_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Show Provider",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/v1/providers/{provider_id}/verify": {
+      "post": {
+        "description": "Check ``provider_id`` end to end and report what came back.\n\nA real request, and the claim being made is about what happened rather than\nabout what is configured. \"It should work now\" is not the same statement as\n\"a call went out, called a tool, and returned structure\", and the difference\nis discovered at 03:00 by whoever was told the first one.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
+        "operationId": "verify_provider_v1_providers__provider_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderVerificationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Provider",
+        "tags": [
+          "providers"
         ]
       }
     },

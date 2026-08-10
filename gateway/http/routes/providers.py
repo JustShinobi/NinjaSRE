@@ -1,0 +1,257 @@
+"""The model providers this deployment can be pointed at, and whether one works.
+
+Three routes, and the split between them is the whole design.
+
+The two ``GET``s are free. They read the nine descriptors — what each provider is
+called, which fields it needs, what it is known for — and join them to what this
+deployment has in its vault. Nothing they do leaves the host, so a console can
+render them on every page load and a first run can show the choice before
+anything is configured.
+
+``POST /{provider_id}/verify`` is not free. It exercises tool calling and
+structured output against the operator's own endpoint, which costs them tokens,
+so it is a ``POST`` an operator asks for rather than something a listing does on
+their behalf. ``first_run.py`` records the same decision for the self-check, and
+this keeps it: a page that spent money every time somebody opened it is a page
+nobody opens twice.
+
+**Configured and verified are separate facts and are never merged.** A key that
+is present and a key that works are exactly the two states an operator is trying
+to tell apart at three in the morning, and a listing that reported the first as
+the second would be wrong in the one direction that matters.
+
+Nothing here reads a credential. A descriptor says what to *ask for*; the value
+goes in through ``PUT /v1/integrations/{name}/credential`` like any integration's
+and comes back out through nothing at all.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+from config.constants.llm import SUPPORTED_PROVIDERS
+from core.llm.onboarding import (
+    ProviderOnboarding,
+    UnknownProviderError,
+    all_onboardings,
+    credential_schema_for,
+    onboarding_for,
+    provider_names,
+)
+from core.llm.verification import ModelVerdict, verify_model
+from gateway.http.deps import AuthenticatedRequest, authorized, get_state
+from gateway.http.errors import not_found
+from gateway.http.state import GatewayState
+from platform.credentials.health import CredentialHealth
+from platform.credentials.schemas import CredentialSchemaRegistry
+from platform.credentials.vault import Vault
+
+router = APIRouter(prefix="/v1/providers", tags=["providers"])
+
+#: What the listing says about a provider nothing has been verified against.
+#: Spelled out rather than left empty, because a blank cell reads as "fine" and
+#: this state is the one an operator has to act on.
+_NOT_VERIFIED = (
+    "no verification has been run against this deployment — a stored credential "
+    "is not the same fact as an endpoint that answers"
+)
+
+_NOT_CONFIGURED = "no credential is stored for this provider"
+
+
+class CredentialFieldView(BaseModel):
+    name: str
+    label: str
+    secret: bool
+    required: bool
+    help: str
+
+
+class ProviderView(BaseModel):
+    """One provider, its descriptor and this deployment's state for it.
+
+    There is no field here a stored credential could be read back into, which is
+    what lets the whole document be served to anyone who may read configuration.
+    """
+
+    provider_id: str
+    display_name: str
+    #: Whether this provider runs on the operator's own infrastructure. Reported
+    #: for every provider rather than only the ones that do: a listing that
+    #: marked only the local one would make "which of these leaves my
+    #: infrastructure" a question about absence.
+    local: bool
+    configured: bool
+    verified: bool
+    default_model: str
+    detail: str = ""
+
+
+class ProviderList(BaseModel):
+    providers: list[ProviderView]
+
+
+class ProviderDetailView(ProviderView):
+    """One provider in full: everything a form or a prompt needs to set it up."""
+
+    fields: list[CredentialFieldView]
+    guidance: str = ""
+    where_to_get_it: str = ""
+    models: list[str]
+    install_hint: str = ""
+
+
+class ProviderVerificationView(BaseModel):
+    """What a real request to the provider's endpoint came back with.
+
+    ``detail`` is the sentence — the working configuration when it passed, the
+    limitation when it did not. Never "verification failed", which is a
+    restatement rather than something anybody can act on.
+    """
+
+    provider_id: str
+    verified: bool
+    model_id: str
+    detail: str
+    remedy: str = ""
+    #: The endpoint's other models that would satisfy the contract, where it
+    #: could be asked. Empty when it could not, which is honest rather than
+    #: encouraging.
+    alternatives: list[str]
+
+
+def _onboarding(provider_id: str) -> ProviderOnboarding:
+    """Return the named provider's descriptor, or raise a 404 naming the nine.
+
+    Raises:
+        ApiProblem: no supported provider answers to that identifier.
+    """
+    try:
+        return onboarding_for(provider_id)
+    except UnknownProviderError as unknown:
+        raise not_found(
+            f"no supported provider named {provider_id!r}. This build supports: "
+            f"{', '.join(provider_names())}"
+        ) from unknown
+
+
+async def _configured(state: GatewayState, auth: AuthenticatedRequest) -> frozenset[str]:
+    """Return which providers this team has a usable credential for.
+
+    Established by asking the vault rather than by reading configuration: a
+    provider named in a settings document with nothing behind it is a provider
+    that fails at the first request.
+    """
+    schemas = CredentialSchemaRegistry.from_schemas(
+        *(credential_schema_for(name) for name in SUPPORTED_PROVIDERS)
+    )
+    health = CredentialHealth(vault=Vault(gateway=state.gateway, schemas=schemas))
+    report = await health.report(
+        auth.scope, integrations=SUPPORTED_PROVIDERS, team_id=auth.team_node_id
+    )
+    return frozenset(entry.integration for entry in report.entries if entry.state.usable)
+
+
+def _view(onboarding: ProviderOnboarding, *, configured: bool) -> ProviderView:
+    """Return the listing row for one provider.
+
+    ``verified`` is always false here. Verifying makes a live call, and a
+    listing that made nine of them would spend an operator's money to render a
+    page — so what this reports is that nobody has checked, which is a different
+    claim from "it does not work" and is worded as one.
+    """
+    return ProviderView(
+        provider_id=onboarding.provider_id,
+        display_name=onboarding.display_name,
+        local=onboarding.local,
+        configured=configured,
+        verified=False,
+        default_model=onboarding.default_model,
+        detail=_NOT_VERIFIED if configured else _NOT_CONFIGURED,
+    )
+
+
+@router.get("", response_model=ProviderList)
+async def list_providers(
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> ProviderList:
+    """Return every supported provider, in the order the platform documents them."""
+    configured = await _configured(state, auth)
+    return ProviderList(
+        providers=[
+            _view(onboarding, configured=onboarding.provider_id in configured)
+            for onboarding in all_onboardings()
+        ]
+    )
+
+
+@router.get("/{provider_id}", response_model=ProviderDetailView)
+async def show_provider(
+    provider_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> ProviderDetailView:
+    """Return one provider with everything needed to set it up.
+
+    Raises:
+        ApiProblem: no supported provider answers to ``provider_id`` (404).
+    """
+    onboarding = _onboarding(provider_id)
+    configured = await _configured(state, auth)
+    listing = _view(onboarding, configured=provider_id in configured)
+    return ProviderDetailView(
+        **listing.model_dump(),
+        fields=[CredentialFieldView(**declared.to_record()) for declared in onboarding.fields],
+        guidance=onboarding.guidance,
+        where_to_get_it=onboarding.where_to_get_it,
+        models=list(onboarding.models),
+        install_hint=onboarding.install_hint,
+    )
+
+
+@router.post(
+    "/{provider_id}/verify",
+    response_model=ProviderVerificationView,
+    dependencies=[Depends(authorized)],
+)
+async def verify_provider(
+    provider_id: str,
+    state: GatewayState = Depends(get_state),
+) -> ProviderVerificationView:
+    """Check ``provider_id`` end to end and report what came back.
+
+    A real request, and the claim being made is about what happened rather than
+    about what is configured. "It should work now" is not the same statement as
+    "a call went out, called a tool, and returned structure", and the difference
+    is discovered at 03:00 by whoever was told the first one.
+
+    Raises:
+        ApiProblem: no supported provider answers to ``provider_id`` (404).
+    """
+    _onboarding(provider_id)
+    verify = state.model_verifier
+    verdict = await (verify(provider_id) if verify is not None else _preflight(provider_id))
+    return ProviderVerificationView(
+        provider_id=verdict.provider_id or provider_id,
+        verified=verdict.satisfied,
+        model_id=verdict.model_id,
+        detail=verdict.summary_line if verdict.satisfied else verdict.limitation,
+        remedy=verdict.remedy,
+        alternatives=list(verdict.alternatives),
+    )
+
+
+async def _preflight(provider_id: str) -> ModelVerdict:
+    """Return the verdict a default composition produces for ``provider_id``.
+
+    The same end-to-end check ``make preflight`` runs, against however this
+    process resolves provider credentials. A deployment that reaches its models
+    through the credential proxy supplies its own verifier on ``GatewayState``
+    instead, because only the composition root knows which of the two it is.
+    """
+    return await verify_model(provider_id=provider_id)
+
+
+__all__ = ["router"]

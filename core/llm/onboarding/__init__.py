@@ -32,6 +32,7 @@ from typing import Final
 
 from config.constants.llm import LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
 from platform.credentials.fields import CredentialFieldSpec
+from platform.credentials.schemas import CredentialField, CredentialSchema, FieldKind
 
 
 class UnknownProviderError(LookupError):
@@ -149,6 +150,37 @@ def provider_names() -> Sequence[str]:
     return [onboarding.provider_id for onboarding in all_onboardings()]
 
 
+def credential_schema_for(provider_id: str) -> CredentialSchema:
+    """Return the vault schema a provider's credential is validated against.
+
+    A provider is not an installed integration — it ships no vendor package —
+    but its key is stored the same way, under the same handle shape, through the
+    same route. This is the translation that makes that one path rather than
+    two, and it lives beside the descriptor so a tenth provider still needs
+    nothing but a module and a constant.
+
+    No pattern is imposed. A provider's key format is the provider's business
+    and changes without notice; a nearly-right pattern would refuse the
+    deployment that is already using the newer format, with no way to override.
+
+    Raises:
+        UnknownProviderError: nothing here knows how to set that provider up.
+    """
+    onboarding = onboarding_for(provider_id)
+    return CredentialSchema(
+        integration=provider_id,
+        fields=tuple(
+            CredentialField(
+                name=declared.name,
+                description=declared.help,
+                required=declared.required,
+                kind=FieldKind.SECRET if declared.secret else FieldKind.PUBLIC,
+            )
+            for declared in onboarding.fields
+        ),
+    )
+
+
 #: Every supported provider must have one of these. The contract suite asserts
 #: it, because a provider that is adaptable but not onboardable is one nobody
 #: reaches — which is provider neutrality failing at the surface instead of in
@@ -161,6 +193,7 @@ __all__ = [
     "ProviderOnboarding",
     "UnknownProviderError",
     "all_onboardings",
+    "credential_schema_for",
     "onboarding_for",
     "provider_names",
 ]
