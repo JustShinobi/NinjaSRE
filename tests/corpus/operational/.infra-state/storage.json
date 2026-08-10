@@ -1,0 +1,15 @@
+{
+  "component": "storage",
+  "manages": ["hal9000/lxc/120"],
+  "applies": [
+    {
+      "revision": "b0c99fe",
+      "author": "erik",
+      "message": "feat(storage): add the second datastore backups land on",
+      "committed_at": "2026-07-28T09:00:00Z",
+      "applied_at": "2026-07-28T09:11:00Z",
+      "outcome": "applied",
+      "paths": ["services/storage/datastore/main.tf"]
+    }
+  ]
+}

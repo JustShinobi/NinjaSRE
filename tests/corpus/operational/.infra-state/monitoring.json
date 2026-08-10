@@ -1,0 +1,26 @@
+{
+  "component": "monitoring",
+  "manages": ["hal9000/lxc/115", "hal9000/lxc/116"],
+  "applies": [
+    {
+      "revision": "9f2c1ab",
+      "author": "erik",
+      "message": "feat(monitoring): raise the scrape interval on the stack",
+      "committed_at": "2026-08-01T14:02:11Z",
+      "applied_at": "2026-08-01T14:19:03Z",
+      "outcome": "applied",
+      "paths": [
+        "services/monitoring/stack/values.yaml",
+        "services/monitoring/stack/main.tf"
+      ]
+    },
+    {
+      "revision": "3d81e0c",
+      "author": "erik",
+      "message": "chore(monitoring): tidy the alert rule comments",
+      "committed_at": "2026-08-01T14:25:40Z",
+      "outcome": "committed",
+      "paths": ["services/monitoring/rules/node.yaml"]
+    }
+  ]
+}

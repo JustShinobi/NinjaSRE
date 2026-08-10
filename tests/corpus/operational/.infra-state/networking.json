@@ -1,0 +1,15 @@
+{
+  "component": "networking",
+  "manages": ["hal9000/lxc/104"],
+  "applies": [
+    {
+      "revision": "7ba4d19",
+      "author": "erik",
+      "message": "fix(networking)!: tighten the infra zone firewall profile",
+      "committed_at": "2026-08-01T14:10:00Z",
+      "applied_at": "2026-08-01T14:14:52Z",
+      "outcome": "applied",
+      "paths": ["policies/firewall/infra-zone.yaml"]
+    }
+  ]
+}
