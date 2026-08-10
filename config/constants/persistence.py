@@ -131,7 +131,11 @@ TOPOLOGY_GRAPH_NAME: Final = "ninjasre_topology"
 
 #: Hops any traversal may take (FR-017). Beyond five, blast radius in a
 #: service graph of any size returns most of the estate, and an answer that
-#: names everything answers nothing.
+#: names everything answers nothing. The bound is semantic rather than a budget:
+#: a traversal is an indexed walk over the subgraph it reaches, so its cost
+#: follows the size of the answer rather than the size of the estate, and depth
+#: five over forty thousand nodes is single-digit milliseconds. What actually
+#: binds first at this depth is ``MAX_GRAPH_RESULTS``.
 MAX_GRAPH_DEPTH: Final[int] = 5
 
 #: Depth used when a caller does not name one. Deep enough to cross a

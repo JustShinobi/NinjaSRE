@@ -164,7 +164,7 @@ class TopologyAvailability:
 
 @runtime_checkable
 class TopologyGraph(Protocol):
-    """The eleven parameterised shapes, within one tenant."""
+    """The twelve parameterised shapes, within one tenant."""
 
     async def availability(self) -> TopologyAvailability:
         """Return whether graph storage is usable right now (FR-002).
@@ -212,6 +212,25 @@ class TopologyGraph(Protocol):
 
     async def direct_dependents(self, node_id: str) -> TraversalResult:
         """Return what depends on ``node_id``, one hop in."""
+
+    async def transitive_dependencies(
+        self,
+        node_id: str,
+        *,
+        depth: int = DEFAULT_GRAPH_DEPTH,
+    ) -> TraversalResult:
+        """Return everything ``node_id`` depends on within ``depth`` hops.
+
+        The mirror of ``transitive_dependents``, and it exists for the same
+        reason the backend rather than the caller should walk: composing it from
+        ``direct_dependencies`` means one round trip per node in the frontier,
+        which is a query count that grows with the estate to answer a question
+        the database can answer in one. The origin is excluded — a cycle would
+        otherwise report a service as its own dependency, which is true of the
+        graph and useless to an operator.
+
+        Raises ``BoundExceeded`` above ``MAX_GRAPH_DEPTH``.
+        """
 
     async def transitive_dependents(
         self,

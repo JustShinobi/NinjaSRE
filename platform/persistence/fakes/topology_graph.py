@@ -110,6 +110,48 @@ class FakeTopologyGraph:
             edge.from_node_id for edge in self._dependency_edges() if edge.to_node_id == node_id
         )
 
+    async def transitive_dependencies(
+        self,
+        node_id: str,
+        *,
+        depth: int = DEFAULT_GRAPH_DEPTH,
+    ) -> TraversalResult:
+        """Return everything ``node_id`` depends on within ``depth`` hops."""
+        self._require_available()
+        _check_depth(depth)
+
+        # Breadth-first, so the bound cuts the frontier rather than a branch:
+        # the services one hop out are the ones an investigation checks first,
+        # and a depth-first walk that spent the whole result budget on one long
+        # chain would leave them out. ``seen`` starts holding the origin, which
+        # is what makes a cycle terminate and keeps a service out of its own
+        # dependency set.
+        found: dict[str, TopologyNode] = {}
+        seen = {node_id}
+        frontier = deque([(node_id, 0)])
+
+        while frontier:
+            current, distance = frontier.popleft()
+            if distance >= depth:
+                continue
+            for edge in self._dependency_edges():
+                if edge.from_node_id != current or edge.to_node_id in seen:
+                    continue
+                seen.add(edge.to_node_id)
+                node = self.state.topology_nodes.get(edge.to_node_id)
+                if node is None:
+                    continue
+                found[edge.to_node_id] = node
+                frontier.append((edge.to_node_id, distance + 1))
+
+        # Ordered then cut, for the reason ``_collect`` gives: which services a
+        # truncated page holds must be a fact about the graph.
+        ordered = [found[key] for key in sorted(found)]
+        return TraversalResult(
+            nodes=tuple(ordered[:MAX_GRAPH_RESULTS]),
+            truncated=len(ordered) > MAX_GRAPH_RESULTS,
+        )
+
     async def transitive_dependents(
         self,
         node_id: str,
@@ -136,7 +178,6 @@ class FakeTopologyGraph:
         reached: list[BlastRadiusEntry] = []
         seen = {node_id}
         frontier = deque([(node_id, 0)])
-        truncated = False
 
         while frontier:
             current, distance = frontier.popleft()
@@ -149,19 +190,20 @@ class FakeTopologyGraph:
                 node = self.state.topology_nodes.get(edge.from_node_id)
                 if node is None:
                     continue
-                if len(reached) >= MAX_GRAPH_RESULTS:
-                    truncated = True
-                    frontier.clear()
-                    break
                 reached.append(BlastRadiusEntry(node=node, depth=distance + 1))
                 frontier.append((edge.from_node_id, distance + 1))
 
+        # Nearest first, ties broken by id, and only then cut. Sorting first is
+        # what keeps a truncated radius the *nearest* services rather than the
+        # ones the walk happened to reach first — and it is what the backend's
+        # ``ORDER BY hops, node_id ... LIMIT`` does, so the two agree on which
+        # part of a partial answer the operator is shown.
         reached.sort(key=lambda entry: (entry.depth, entry.node.node_id))
         return BlastRadius(
             origin_id=node_id,
             max_depth=depth,
-            reaches=tuple(reached),
-            truncated=truncated,
+            reaches=tuple(reached[:MAX_GRAPH_RESULTS]),
+            truncated=len(reached) > MAX_GRAPH_RESULTS,
         )
 
     async def shortest_path(
@@ -228,24 +270,25 @@ class FakeTopologyGraph:
         )
 
     def _collect(self, node_ids: Iterable[str]) -> TraversalResult:
-        """Return the named nodes, deduplicated, ordered, and bounded by result size."""
+        """Return the named nodes, deduplicated, ordered, and bounded by result size.
+
+        Ordered *then* cut, rather than cut then ordered. The difference only
+        shows on a hub with more neighbours than the bound, and there it decides
+        which neighbours the caller sees: cutting first hands back whichever ones
+        happened to be stored earliest, which is not a fact about the graph and
+        does not survive a re-import. The real backend orders by node id and
+        limits, and this is where the two are held to the same answer.
+        """
         found: dict[str, TopologyNode] = {}
-        truncated = False
-
         for node_id in node_ids:
-            if node_id in found:
-                continue
             node = self.state.topology_nodes.get(node_id)
-            if node is None:
-                continue
-            if len(found) >= MAX_GRAPH_RESULTS:
-                truncated = True
-                break
-            found[node_id] = node
+            if node is not None:
+                found.setdefault(node_id, node)
 
+        ordered = [found[key] for key in sorted(found)]
         return TraversalResult(
-            nodes=tuple(found[key] for key in sorted(found)),
-            truncated=truncated,
+            nodes=tuple(ordered[:MAX_GRAPH_RESULTS]),
+            truncated=len(ordered) > MAX_GRAPH_RESULTS,
         )
 
     def _path_to(self, target: str, previous: dict[str, str]) -> tuple[TopologyNode, ...]:
