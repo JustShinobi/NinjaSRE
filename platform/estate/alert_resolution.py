@@ -35,6 +35,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from ipaddress import IPv4Address, ip_address, ip_network
 from typing import Any, Final
@@ -49,6 +50,7 @@ from core.domain.alerts.normalisation import NormalisedAlert
 from platform.estate.enrichment import ZoneMap
 from platform.estate.signal_map import ADDRESS_ATTRIBUTE, VMID_ATTRIBUTE
 from platform.persistence.ports.estate_repository import Resource
+from platform.persistence.ports.incident_store import Incident
 
 #: The attribute a workload carries the domain it answers on. Written by the
 #: declared inventory rather than by a sweep — a provider knows a container's
@@ -57,6 +59,18 @@ DOMAIN_ATTRIBUTE: Final = "domain"
 
 #: The attribute an applied enrichment records a resource's network division in.
 ZONE_ATTRIBUTE: Final = "zone"
+
+#: What an unresolved target is called where a resource identifier is expected —
+#: an incident subject, most of all. Prefixed rather than left bare so a finding
+#: can never be mistaken for a resource this deployment holds, and so the
+#: findings can be selected without a second store to keep them in.
+UNRESOLVED_TARGET_PREFIX: Final = "unresolved-target:"
+
+#: What the finding is called when the alert named nothing at all. A word rather
+#: than an empty tail, because ``unresolved-target:`` on its own reads as a
+#: truncation and this is a real, distinct case: a rule that does not say what
+#: it is about.
+UNNAMED_TARGET: Final = "unnamed"
 
 
 class AlertMatch(StrEnum):
@@ -108,6 +122,20 @@ class ResolvedTarget:
             "zone": self.zone,
         }
 
+    def evidence(self) -> dict[str, str]:
+        """Return what an incident subject records about how it was identified.
+
+        Narrower than the record: the resource is already the subject, so what
+        is left to say is how the claim was reached — which is what an operator
+        checks when the answer turns out to be about the wrong machine.
+        """
+        return {
+            "matched_on": self.matched_on.value,
+            "target_label": self.label,
+            "target": self.value,
+            "zone": self.zone,
+        }
+
     @classmethod
     def from_record(cls, record: Mapping[str, str]) -> ResolvedTarget:
         """Return the target a stored record describes."""
@@ -143,6 +171,20 @@ class UnresolvedAlertTarget:
     def to_record(self) -> dict[str, str]:
         """Return the JSON-serialisable form an incident stores."""
         return {"label": self.label, "value": self.value, "why": self.why, "zone": self.zone}
+
+    @property
+    def subject_id(self) -> str:
+        """Return the identifier an incident names this finding by.
+
+        Prefixed, so a screen listing subjects never renders a finding as
+        though it were a resource, and so the findings can be selected out of
+        the incidents that hold them without a store of their own.
+        """
+        return f"{UNRESOLVED_TARGET_PREFIX}{self.value or self.label or UNNAMED_TARGET}"
+
+    def evidence(self) -> dict[str, str]:
+        """Return what an incident subject records about this finding."""
+        return {"target_label": self.label, "target": self.value, "zone": self.zone}
 
     @classmethod
     def from_record(cls, record: Mapping[str, str]) -> UnresolvedAlertTarget:
@@ -182,6 +224,64 @@ class AlertResolution:
             return {"resolved": self.resolved.to_record()}
         assert self.unresolved is not None  # noqa: S101 — the invariant above
         return {"unresolved": self.unresolved.to_record()}
+
+
+@dataclass(frozen=True, slots=True)
+class UnresolvedTargetFinding:
+    """One unresolved target, and the incident that is the record of it.
+
+    Read back out of the incidents rather than kept in a store of its own. The
+    finding only exists because an alert arrived, the incident is already the
+    record of that alert, and a second store would be a second thing to expire.
+    """
+
+    target: UnresolvedAlertTarget
+    incident_id: str
+    alert_name: str
+    observed_at: datetime
+
+    def to_record(self) -> dict[str, str]:
+        """Return the JSON-serialisable form a route serves and a screen renders."""
+        return {
+            **self.target.to_record(),
+            "incident_id": self.incident_id,
+            "alert_name": self.alert_name,
+            "observed_at": self.observed_at.isoformat(),
+        }
+
+
+def unresolved_targets(incidents: Sequence[Incident]) -> tuple[UnresolvedTargetFinding, ...]:
+    """Return every unresolved alert target ``incidents`` recorded, newest first.
+
+    One entry per target rather than per incident: a receiver pointed at the
+    wrong deployment produces the same finding on every delivery, and a list
+    that repeated it would bury the second thing it is telling you.
+    """
+    found: dict[str, UnresolvedTargetFinding] = {}
+    for incident in incidents:
+        for subject in incident.subjects:
+            if not subject.resource_id.startswith(UNRESOLVED_TARGET_PREFIX):
+                continue
+            target = UnresolvedAlertTarget(
+                label=subject.evidence.get("target_label", ""),
+                value=subject.evidence.get("target", ""),
+                why=subject.detail,
+                zone=subject.evidence.get("zone", ""),
+            )
+            existing = found.get(subject.resource_id)
+            if existing is not None and existing.observed_at >= incident.opened_at:
+                continue
+            found[subject.resource_id] = UnresolvedTargetFinding(
+                target=target,
+                incident_id=incident.incident_id,
+                alert_name=subject.evidence.get("alert", incident.title),
+                observed_at=incident.opened_at,
+            )
+    return tuple(
+        sorted(
+            found.values(), key=lambda entry: (entry.observed_at, entry.target.value), reverse=True
+        )
+    )
 
 
 def resolve_alert(
@@ -443,10 +543,14 @@ class _EstateIndex:
 
 __all__ = [
     "DOMAIN_ATTRIBUTE",
+    "UNNAMED_TARGET",
+    "UNRESOLVED_TARGET_PREFIX",
     "ZONE_ATTRIBUTE",
     "AlertMatch",
     "AlertResolution",
     "ResolvedTarget",
     "UnresolvedAlertTarget",
+    "UnresolvedTargetFinding",
     "resolve_alert",
+    "unresolved_targets",
 ]

@@ -16,6 +16,16 @@ the incident rather than standing in for it.
 **A resolution closes the incident the firing alert opened.** The upstream's own
 fingerprint is the correlation key, so the two find each other without this
 deployment holding a second opinion about which alerts are the same alert.
+
+**The alert's labels are resolved against the estate before anything is
+raised.** ``instance``, ``vmid`` and a prober's target are the vocabulary of
+whatever sent the alert; every stage after this is keyed by a resource
+identifier. The resolution decides the incident's subject and the run's opening
+context, and a target this estate does not hold becomes a finding stored on the
+incident rather than a label nobody can act on. The rule itself lives in
+``platform/estate/alert_resolution.py`` — this handler is a caller, because
+062's routing rules and the detectors need the same function and tier 1 must not
+own what tiers 2 and 3 want.
 """
 
 from __future__ import annotations
@@ -28,6 +38,7 @@ from typing import Protocol, runtime_checkable
 
 from fastapi import APIRouter, Request, Response
 
+from config.constants.estate import MAX_ESTATE_PAGE_SIZE
 from config.constants.runs import TRIGGER_ALERT
 from config.constants.surfaces import WEBHOOK_MAX_PAYLOAD_BYTES
 from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, adapter_for
@@ -45,10 +56,16 @@ from gateway.webhooks.sources import (
     sentry,
 )
 from gateway.webhooks.sources.profile import WebhookSourceProfile
+from platform.estate.alert_resolution import AlertResolution, resolve_alert
 from platform.incidents.dispatch import objective_for
 from platform.incidents.ingestion import raise_for_alert, resolution_key
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.observability.logging import get_logger
+from platform.persistence.ports.estate_repository import (
+    EstateQuery,
+    ReferenceKind,
+    ResourceReference,
+)
 from platform.persistence.ports.incident_store import Incident
 from platform.persistence.ports.transaction import TenantScope
 from platform.runs.events import TraceEventKind
@@ -182,8 +199,9 @@ def _handler(
         alert = adapter_for(profile.source).normalise(
             RawAlert(payload=payload, received_at=_utc_now())
         )
-        key = fingerprint(alert, team_node_id=matched.team_node_id)
         scope = TenantScope(org_id=matched.org_id, team_node_id=matched.team_node_id)
+        resolution = await _resolve_against_estate(state, scope=scope, alert=alert)
+        key = fingerprint(alert, team_node_id=matched.team_node_id, resolution=resolution)
         linked_run = state.webhook_dedup.linked_run(key)
 
         if alert.resolved:
@@ -198,7 +216,21 @@ def _handler(
 
         state.webhook_idempotency.record(path_name, event_id)
         incident = await _raise_incident(
-            state, scope=scope, alert=alert, source=profile.source.value, key=key, matched=matched
+            state,
+            scope=scope,
+            alert=alert,
+            source=profile.source.value,
+            key=key,
+            matched=matched,
+            resolution=resolution,
+        )
+        await _link_resource(
+            state,
+            scope=scope,
+            resolution=resolution,
+            kind=ReferenceKind.INCIDENT,
+            reference_id=incident.incident_id,
+            summary=incident.title,
         )
 
         if linked_run is not None:
@@ -212,8 +244,17 @@ def _handler(
             principal_id=matched.principal_id,
             alert_source=profile.source.value,
             alert_id=key,
+            context=_investigation_context(resolution),
         )
         state.webhook_dedup.link(key, run_id)
+        await _link_resource(
+            state,
+            scope=scope,
+            resolution=resolution,
+            kind=ReferenceKind.RUN,
+            reference_id=run_id,
+            summary=incident.title,
+        )
         async with state.gateway.begin(scope) as uow:
             await IncidentLifecycle(store=uow.incidents).attach_run(
                 incident.incident_id,
@@ -226,6 +267,84 @@ def _handler(
     return handle
 
 
+async def _resolve_against_estate(
+    state: GatewayState,
+    *,
+    scope: TenantScope,
+    alert: NormalisedAlert,
+) -> AlertResolution:
+    """Return which estate resource ``alert`` is about, or the finding that it is not.
+
+    One bounded read of the estate per delivery. The repository has no attribute
+    filter — ``instance``, ``vmid`` and a declared domain are all attributes —
+    so the page is what resolution matches against, exactly as enrichment does.
+    An estate larger than the page bound resolves against its first page, which
+    is the same limit 053 recorded and the same cursor 062 is asked for.
+    """
+    async with state.gateway.begin(scope) as uow:
+        resources = await uow.estate.query(EstateQuery(limit=MAX_ESTATE_PAGE_SIZE))
+    resolution = resolve_alert(alert, resources=resources)
+    if resolution.unresolved is not None:
+        logger.info(
+            "webhooks.unresolved_target",
+            source=alert.alert_source.value,
+            alert_name=alert.alert_name,
+            label=resolution.unresolved.label,
+            target=resolution.unresolved.value,
+            zone=resolution.unresolved.zone,
+        )
+    return resolution
+
+
+def _investigation_context(resolution: AlertResolution) -> Mapping[str, str]:
+    """Return what the run is told about its subject before its first turn.
+
+    Empty when nothing resolved, deliberately: a context naming a resource this
+    deployment does not hold would send the agent looking for it, and "we do not
+    know what this is about" is already on the incident where a person reads it.
+    """
+    target = resolution.resolved
+    if target is None:
+        return {}
+    return {
+        "resource_id": target.resource_id,
+        "resource_kind": target.kind,
+        "resource_name": target.display_name,
+        "resource_zone": target.zone,
+        "resolved_from": f"{target.label}={target.value}",
+    }
+
+
+async def _link_resource(
+    state: GatewayState,
+    *,
+    scope: TenantScope,
+    resolution: AlertResolution,
+    kind: ReferenceKind,
+    reference_id: str,
+    summary: str,
+) -> None:
+    """Record on the resource that this incident or run touched it.
+
+    Only when the alert resolved. A reference from a target nothing matched
+    would have no resource to hang on, which is what the finding on the incident
+    is for instead.
+    """
+    target = resolution.resolved
+    if target is None:
+        return
+    async with state.gateway.begin(scope) as uow:
+        await uow.estate.link(
+            ResourceReference(
+                resource_id=target.resource_id,
+                reference_kind=kind,
+                reference_id=reference_id,
+                recorded_at=_utc_now(),
+                summary=summary,
+            )
+        )
+
+
 async def _raise_incident(
     state: GatewayState,
     *,
@@ -234,6 +353,7 @@ async def _raise_incident(
     source: str,
     key: str,
     matched: WebhookSourceConfig,
+    resolution: AlertResolution,
 ) -> Incident:
     """Raise — or correlate onto — the incident this alert belongs to.
 
@@ -254,6 +374,7 @@ async def _raise_incident(
                 team_node_id=matched.team_node_id,
                 reference=alert.reference,
                 actor=matched.principal_id,
+                resolution=resolution,
             ),
             now=_utc_now(),
         )

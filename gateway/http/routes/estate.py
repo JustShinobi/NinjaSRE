@@ -16,10 +16,16 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from config.constants.estate import DEFAULT_TRANSITION_HISTORY, MAX_ESTATE_PAGE_SIZE
+from config.constants.estate import (
+    DEFAULT_TRANSITION_HISTORY,
+    MAX_ESTATE_PAGE_SIZE,
+    MAX_UNRESOLVED_ALERT_TARGETS,
+)
+from config.constants.observation import MAX_INCIDENT_PAGE_SIZE
 from gateway.http.configured import configured_integrations
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.state import GatewayState
+from platform.estate.alert_resolution import UnresolvedTargetFinding, unresolved_targets
 from platform.estate.service import EstateService, ResourceDetail, ResourceView
 from platform.estate.signal_map import SignalMap, signal_map_for
 from platform.persistence.errors import BoundExceeded, RecordNotFound
@@ -31,6 +37,7 @@ from platform.persistence.ports.estate_repository import (
     ResourceHealth,
     ResourceReference,
 )
+from platform.persistence.ports.incident_store import IncidentOrigin, IncidentQuery
 
 router = APIRouter(prefix="/v1/estate", tags=["estate"])
 
@@ -176,6 +183,22 @@ class EstateSummaryView(BaseModel):
     absent: int = 0
 
 
+class UnresolvedTargetView(BaseModel):
+    """An alert that arrived for something this estate does not hold."""
+
+    value: str
+    label: str
+    zone: str
+    why: str
+    incident_id: str
+    alert_name: str
+    observed_at: str
+
+
+class UnresolvedTargetListView(BaseModel):
+    targets: list[UnresolvedTargetView] = Field(default_factory=list)
+
+
 class MaintenanceRequest(BaseModel):
     """How long a resource is suppressed from the problem count, and why.
 
@@ -190,6 +213,18 @@ class MaintenanceRequest(BaseModel):
 
 def _service(state: GatewayState) -> EstateService:
     return EstateService(gateway=state.gateway, kinds=state.estate_kinds)
+
+
+def _unresolved(finding: UnresolvedTargetFinding) -> UnresolvedTargetView:
+    return UnresolvedTargetView(
+        value=finding.target.value,
+        label=finding.target.label,
+        zone=finding.target.zone,
+        why=finding.target.why,
+        incident_id=finding.incident_id,
+        alert_name=finding.alert_name,
+        observed_at=finding.observed_at.isoformat(),
+    )
 
 
 def _signal(signal: Any) -> SignalView:
@@ -374,6 +409,28 @@ async def list_resources(
         ) from exceeded
 
     return ResourceListView(resources=[_row(view) for view in found])
+
+
+@router.get("/unresolved-alert-targets", response_model=UnresolvedTargetListView)
+async def list_unresolved_alert_targets(
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> UnresolvedTargetListView:
+    """Return the alert targets this estate does not hold, newest first.
+
+    A finding of the same class as the reconciliation divergence a sweep
+    produces, and read from the live incidents that recorded it rather than from
+    a store of its own: the incident is already the record that the alert
+    arrived, and a second one would be a second thing to expire.
+    """
+    async with state.gateway.begin(auth.scope) as uow:
+        incidents = await uow.incidents.query(
+            IncidentQuery(
+                origins=(IncidentOrigin.ALERT,), live_only=True, limit=MAX_INCIDENT_PAGE_SIZE
+            )
+        )
+    findings = unresolved_targets(incidents)[:MAX_UNRESOLVED_ALERT_TARGETS]
+    return UnresolvedTargetListView(targets=[_unresolved(entry) for entry in findings])
 
 
 @router.get("/summary", response_model=EstateSummaryView)

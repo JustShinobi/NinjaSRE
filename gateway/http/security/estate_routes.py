@@ -38,6 +38,14 @@ ESTATE_ROUTES: Final[tuple[Route, ...]] = (
     # What the last sweep disagreed with the declared inventory about. A read:
     # it answers from what this deployment already stored and reaches nothing.
     Route(method="GET", path="/v1/estate/discovery/report", permission=Permission.ESTATE_READ),
+    # Alerts that arrived for something this estate does not hold. The same
+    # class of finding as a divergence, and the same permission: it answers from
+    # incidents this deployment already stored.
+    Route(
+        method="GET",
+        path="/v1/estate/unresolved-alert-targets",
+        permission=Permission.ESTATE_READ,
+    ),
     Route(method="GET", path="/v1/estate/resources", permission=Permission.ESTATE_READ),
     Route(method="GET", path="/v1/estate/summary", permission=Permission.ESTATE_READ),
     Route(
