@@ -259,9 +259,23 @@ async def write_config(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> EffectiveConfigView:
-    """Apply a patch to ``node_id``'s own settings and return the new effective view."""
+    """Apply a patch to ``node_id``'s own settings and return the new effective view.
+
+    Given the integration directory, and deliberately not the capability
+    catalogue. The directory is what lets validation refuse a field a vendor's
+    own schema calls secret, which is the way round
+    ``PUT /v1/integrations/{name}/credential`` and has to be shut. The catalogue
+    would additionally make a write reject a capability reference that
+    ``POST /{node_id}/preview`` accepts, and a preview that does not predict its
+    own write is worse than a reference checked at read time.
+    """
     await _check_scope(node_id, state, auth)
-    service = ConfigService(gateway=state.gateway, scope=auth.scope, guardrails=state.guardrails)
+    service = ConfigService(
+        gateway=state.gateway,
+        scope=auth.scope,
+        guardrails=state.guardrails,
+        integrations=installed_integrations(),
+    )
     await service.set_settings(
         node_id, body.patch, actor_id=auth.principal_id, actor_kind=ActorKind.USER
     )

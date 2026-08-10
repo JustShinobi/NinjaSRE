@@ -200,6 +200,36 @@ async def test_an_empty_body_is_refused_rather_than_stored(
     assert response.status_code == 400
 
 
+# --- The configuration route stays sealed --------------------------------------
+
+
+async def test_the_config_route_refuses_a_field_an_integration_marks_secret(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """The credential route is the only way in, so the other way has to stay shut.
+
+    Datadog's own schema calls ``api_key`` secret. Written into the one open map
+    an integration entry has, it is refused whatever it contains — a key an
+    operator invented matches nobody's pattern, so a shape scan alone would let
+    it through.
+    """
+    response = await client.put(
+        f"/v1/config/{TEAM_PAYMENTS}",
+        headers=_headers(operator_token),
+        json={
+            "patch": {
+                "integrations": {
+                    "active": [{"name": "datadog", "settings": {"api_key": "hunter2"}}]
+                }
+            }
+        },
+    )
+
+    assert response.status_code == 400
+    assert "api_key" in response.text
+    assert "hunter2" not in response.text
+
+
 # --- The permission this route demands ----------------------------------------
 
 

@@ -12,6 +12,7 @@ import pytest
 
 from platform.config_service.catalogue import (
     CapabilityDescription,
+    CredentialField,
     IntegrationSchema,
     StaticCatalogue,
     StaticIntegrationDirectory,
@@ -46,7 +47,17 @@ def catalogue() -> StaticCatalogue:
 @pytest.fixture
 def directory() -> StaticIntegrationDirectory:
     return StaticIntegrationDirectory.of(
-        [IntegrationSchema(name="datadog"), IntegrationSchema(name="kubernetes")]
+        [
+            IntegrationSchema(
+                name="datadog",
+                credential_fields=(
+                    CredentialField(name="api_key", secret=True),
+                    CredentialField(name="app_key", secret=True),
+                ),
+                settings_fields=(CredentialField(name="site", secret=False),),
+            ),
+            IntegrationSchema(name="kubernetes"),
+        ]
     )
 
 
@@ -191,6 +202,83 @@ def test_a_credential_reference_is_not_a_credential(validator: ConfigValidator) 
     assert validator.validate(
         {"integrations": {"active": [{"name": "datadog", "credential": "vault://datadog-prod"}]}}
     ).ok
+
+
+# --- A field a vendor calls secret cannot be a configuration field -----------
+#
+# ``IntegrationSettings`` is a closed schema, so ``api_key`` written beside
+# ``name`` is already refused as a shape error. Its ``settings`` map is open,
+# because the vendor defines what goes in it — and that is the way round the
+# credential route that is left. The shape scan catches a value that *looks*
+# like a credential; this catches a field the vendor's own schema calls secret,
+# whose value looks like nothing in particular. A key an operator invented
+# matches nobody's pattern.
+
+
+def test_a_field_an_integration_calls_secret_is_refused_whatever_its_value_looks_like(
+    validator: ConfigValidator,
+) -> None:
+    outcome = validator.validate(
+        {"integrations": {"active": [{"name": "datadog", "settings": {"api_key": "hunter2"}}]}}
+    )
+
+    assert not outcome.ok
+    assert outcome.paths() == ("integrations.active.0.settings.api_key",)
+    assert "vault" in outcome.errors[0].message
+
+
+def test_the_refusal_names_the_field_and_not_the_value(validator: ConfigValidator) -> None:
+    outcome = validator.validate(
+        {"integrations": {"active": [{"name": "datadog", "settings": {"app_key": "correcthorse"}}]}}
+    )
+
+    assert not outcome.ok
+    assert "app_key" in outcome.errors[0].message
+    assert all("correcthorse" not in error.message for error in outcome.errors)
+
+
+def test_a_secret_field_smuggled_under_another_vendors_settings_is_found_too(
+    validator: ConfigValidator,
+) -> None:
+    """A secret field name is one wherever it is written, not only under its own vendor."""
+    outcome = validator.validate(
+        {"integrations": {"active": [{"name": "kubernetes", "settings": {"api_key": "whatever"}}]}}
+    )
+
+    assert not outcome.ok
+    assert outcome.paths() == ("integrations.active.0.settings.api_key",)
+
+
+def test_a_field_the_same_vendor_calls_public_is_left_alone(
+    validator: ConfigValidator,
+) -> None:
+    """``site`` is configuration a capability may legitimately see, and stays so."""
+    assert validator.validate(
+        {
+            "integrations": {
+                "active": [
+                    {
+                        "name": "datadog",
+                        "site": "datadoghq.eu",
+                        "settings": {"site": "datadoghq.eu"},
+                    }
+                ]
+            }
+        }
+    ).ok
+
+
+def test_a_deployment_with_no_integration_directory_refuses_nothing_on_this_pass() -> None:
+    """The check is over what is installed, so it cannot be evaluated without it.
+
+    Not a silent pass in production — ``ConfigService`` is always composed with a
+    directory. This is the merge-test path, where the point is the merge.
+    """
+    assert (
+        ConfigValidator()
+        .validate({"integrations": {"active": [{"name": "datadog", "settings": {"api_key": "x"}}]}})
+        .ok
+    )
 
 
 # --- Everything is reported at once ------------------------------------------
