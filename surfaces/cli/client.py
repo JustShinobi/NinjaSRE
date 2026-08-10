@@ -1483,16 +1483,27 @@ class RemoteClient:
     async def store_integration_credential(
         self, integration: str, values: Mapping[str, str]
     ) -> IntegrationStatus:
-        """Refuse: this surface has no credential-write route.
+        """Write ``values`` to the deployment's vault and return what it now holds.
 
-        Refused before a request is built, so the secret is never put on the
-        wire — nor into the failure, nor into the log line, which are both
-        places an operator pastes from. Only the field *names* are recorded.
+        The values go in the request body and nowhere else — not in the path,
+        not in a query parameter, not in a header — because those are the parts
+        every proxy between here and the deployment writes down. The log line
+        carries the field *names*, which is what a support thread needs and is
+        the same line the local path emits.
+
+        The response is a status. There is no route that reads a credential
+        back, so nothing here has anywhere to put one.
         """
-        raise self._no_route(
-            "writing an integration credential",
-            integration=integration,
-            fields=sorted(values),
+        names = sorted(values)
+        logger.info("cli.integration_credential_stored", integration=integration, fields=names)
+        payload = self._document(
+            "PUT", f"/v1/integrations/{integration}/credential", {"values": dict(values)}
+        )
+        return IntegrationStatus(
+            integration=_text(payload, "integration") or integration,
+            configured=True,
+            healthy=bool(payload.get("usable", False)),
+            credential_state=_text(payload, "state"),
         )
 
     async def verify_integration(self, integration: str) -> IntegrationStatus:

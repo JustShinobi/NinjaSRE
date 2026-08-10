@@ -60,7 +60,7 @@ from surfaces.cli.client import (
     RemoteClient,
     ScheduleRequest,
 )
-from surfaces.cli.errors import UnavailableError
+from surfaces.cli.errors import CliError, UnavailableError
 from tests.unit.gateway.http.conftest import (
     ORG,
     TEAM_PAYMENTS,
@@ -111,12 +111,17 @@ class _Deployment:
             )
         )
         if answer.status_code >= 400:
+            # The body is handed over as the file object, which is what
+            # ``urllib`` does over a socket. Without it the client's own
+            # ``_failure_detail`` has nothing to read, and every refusal in this
+            # suite would read as a bare status — hiding exactly the sentence the
+            # deployment wrote for the operator.
             raise urllib.error.HTTPError(
                 url=request.full_url,
                 code=answer.status_code,
                 msg=answer.text,
                 hdrs=None,  # type: ignore[arg-type]
-                fp=None,
+                fp=_Answer(answer.content),
             )
         return _Answer(answer.content)
 
@@ -540,6 +545,79 @@ def test_verifying_an_integration_reports_its_credential_state(remote: RemoteCli
     assert status.credential_state
 
 
+# --- Writing a credential over the wire --------------------------------------
+
+#: Valid against Datadog's declared format, so the write it is used in is one
+#: the deployment really accepts. A sweep over a rejected write would prove only
+#: that a refusal is quiet.
+SENTINEL_KEY = "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+SENTINEL_APP_KEY = "abcdefghij0123456789ABCDEFGHIJ0123456789"
+
+
+def test_a_credential_written_remotely_lands_and_verifies(remote: RemoteClient) -> None:
+    """The four steps an onboarding takes, against the route that serves them."""
+    stored = asyncio.run(
+        remote.store_integration_credential(
+            "datadog", {"api_key": SENTINEL_KEY, "app_key": SENTINEL_APP_KEY}
+        )
+    )
+    verified = asyncio.run(remote.verify_integration("datadog"))
+
+    assert stored.integration == "datadog"
+    assert stored.configured
+    assert stored.credential_state == "configured"
+    assert verified.healthy
+
+
+def test_the_secret_is_in_the_request_body_and_in_nothing_else(
+    remote: RemoteClient, deployment: _Deployment
+) -> None:
+    """Where a credential is allowed to be, and the four places it is not.
+
+    Recorded off the request the client actually built, rather than asserted
+    about a request the test constructed — the failure worth preventing is a
+    client that puts a credential in a query string or a header, both of which
+    are logged by every proxy between here and the deployment.
+    """
+    seen: list[urllib.request.Request] = []
+
+    def watching(request: urllib.request.Request, timeout: float = 0) -> _Answer:
+        seen.append(request)
+        return deployment.open(request, timeout)
+
+    watched = RemoteClient(endpoint=remote.endpoint, opener=watching)
+    status = asyncio.run(
+        watched.store_integration_credential(
+            "datadog", {"api_key": SENTINEL_KEY, "app_key": SENTINEL_APP_KEY}
+        )
+    )
+
+    written = seen[-1]
+    assert written.get_method() == "PUT"
+    assert written.full_url.endswith("/v1/integrations/datadog/credential")
+    assert SENTINEL_KEY not in written.full_url
+    assert SENTINEL_KEY not in repr(dict(written.header_items()))
+    assert SENTINEL_KEY in (written.data or b"").decode()
+    # And not on the way back out.
+    assert SENTINEL_KEY not in repr(status)
+    assert SENTINEL_KEY not in repr(status.to_record())
+
+
+def test_a_credential_the_vendors_schema_refuses_names_the_field_not_the_value(
+    remote: RemoteClient,
+) -> None:
+    with pytest.raises(CliError) as refused:
+        asyncio.run(
+            remote.store_integration_credential(
+                "datadog", {"api_key": SENTINEL_KEY, "app_key": "too-short"}
+            )
+        )
+
+    assert "app_key" in str(refused.value)
+    assert SENTINEL_KEY not in str(refused.value)
+    assert "too-short" not in str(refused.value)
+
+
 # --- What the API does not answer --------------------------------------------
 
 
@@ -551,10 +629,6 @@ def test_verifying_an_integration_reports_its_credential_state(remote: RemoteCli
         pytest.param(lambda client: client.list_providers(), id="providers"),
         pytest.param(lambda client: client.verify_provider("anthropic"), id="verify-provider"),
         pytest.param(lambda client: client.credential_fields("datadog"), id="credential-fields"),
-        pytest.param(
-            lambda client: client.store_integration_credential("datadog", {"api_key": "x"}),
-            id="store-credential",
-        ),
         pytest.param(lambda client: client.diagnose(), id="doctor"),
     ],
 )
@@ -569,10 +643,12 @@ def test_what_this_api_does_not_serve_is_refused_by_name(remote: RemoteClient, a
     assert refusal.value.remedy
 
 
-def test_a_credential_never_reaches_the_deployments_access_log(remote: RemoteClient) -> None:
-    # Refused rather than sent, but the refusal must still not be the place a
-    # secret ends up: it is raised before any request is built.
+def test_a_refusal_for_something_unserved_never_carries_what_was_asked(
+    remote: RemoteClient,
+) -> None:
+    # A refusal is raised before any request is built, and must not become the
+    # place the argument ends up: it is a string an operator pastes.
     with pytest.raises(UnavailableError) as refusal:
-        asyncio.run(remote.store_integration_credential("datadog", {"api_key": "SECRET"}))
+        asyncio.run(remote.credential_fields("a-vendor-nobody-installed"))
 
-    assert "SECRET" not in str(refusal.value)
+    assert "a-vendor-nobody-installed" not in str(refusal.value)
