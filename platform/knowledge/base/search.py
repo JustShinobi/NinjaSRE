@@ -51,6 +51,7 @@ from platform.knowledge.base.models import (
     Document,
     DocumentType,
 )
+from platform.knowledge.base.postmortem import PostmortemFields, fields_from_metadata
 from platform.knowledge.clock import now as _utc_now
 from platform.knowledge.policy import KnowledgePolicy
 from platform.memory.embeddings.port import Embedder, embed_one
@@ -106,11 +107,23 @@ class RetrievedChunk:
     chunk: Chunk
     citation: Citation
     score: float = 0.0
+    #: What the corpus extracted from this document when it was ingested, for a
+    #: post-mortem, and ``None`` for everything else. Carried on the result
+    #: rather than looked up by the caller: "does this entry name a cause" is
+    #: the question that decides which of two entries about one failure to
+    #: follow, and a caller that had to fetch the document to answer it would
+    #: mostly not bother.
+    postmortem: PostmortemFields | None = None
 
     @property
     def document_id(self) -> str:
         """Return the document this passage came from."""
         return self.chunk.document_id
+
+    @property
+    def explains(self) -> bool:
+        """Return whether this passage's document names a cause."""
+        return self.postmortem is not None and self.postmortem.explains
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +146,21 @@ class KnowledgeResult:
         seen: dict[str, None] = {}
         for found in self.chunks:
             seen.setdefault(found.document_id, None)
+        return tuple(seen)
+
+    @property
+    def explaining(self) -> tuple[str, ...]:
+        """Return the post-mortems in this result that name a cause, in rank order.
+
+        The answer to "which of these actually explains it". A search for a
+        symptom that has happened twice returns both entries and only one of
+        them concluded anything; without this the caller has two documents about
+        one failure and no way to tell which is which.
+        """
+        seen: dict[str, None] = {}
+        for found in self.chunks:
+            if found.explains:
+                seen.setdefault(found.document_id, None)
         return tuple(seen)
 
 
@@ -329,11 +357,14 @@ class KnowledgeSearch:
                 per_document[chunk.document_id] = per_document.get(chunk.document_id, 0) + 1
                 found.append(
                     RetrievedChunk(
-                        chunk=chunk, citation=citation_for(document, chunk), score=match.score
+                        chunk=chunk,
+                        citation=citation_for(document, chunk),
+                        score=match.score,
+                        postmortem=postmortem_fields(document),
                     )
                 )
 
-        return tuple(found)
+        return explaining_first(found)
 
     def _visible(self, document: Document) -> bool:
         """Return whether this team is allowed to see ``document``.
@@ -357,6 +388,47 @@ class KnowledgeSearch:
         if record:
             self.ledger.record(result)
         return result
+
+
+def postmortem_fields(document: Document) -> PostmortemFields | None:
+    """Return what a post-mortem's ingestion extracted, or ``None``.
+
+    Only for post-mortems. A runbook carrying a stray ``root_cause`` key in its
+    metadata is not a post-mortem, and returning fields for it would put a
+    procedure into the set of entries that "explain" a failure.
+    """
+    if document.document_type is not DocumentType.POSTMORTEM:
+        return None
+    fields = fields_from_metadata(document.metadata)
+    return None if fields.empty else fields
+
+
+def explaining_first(found: Sequence[RetrievedChunk]) -> tuple[RetrievedChunk, ...]:
+    """Return ``found`` with the post-mortems that name a cause ahead of those that do not.
+
+    Deliberately narrow. Only post-mortems move, and they move only among the
+    positions post-mortems already occupied — a runbook stays exactly where
+    similarity put it, and a result with no post-mortem in it is returned
+    unchanged. Anything wider would be this module deciding that a document's
+    metadata outranks how well it matched the query, which is a ranking model
+    rather than a tie-break.
+
+    Stable within each group, so two entries that both explain keep their
+    similarity order and two runs of one query produce one order.
+    """
+    positions = [index for index, entry in enumerate(found) if entry.postmortem is not None]
+    if len(positions) < 2:
+        return tuple(found)
+
+    postmortems = [found[index] for index in positions]
+    reordered = [entry for entry in postmortems if entry.explains] + [
+        entry for entry in postmortems if not entry.explains
+    ]
+
+    ranked = list(found)
+    for index, entry in zip(positions, reordered, strict=True):
+        ranked[index] = entry
+    return tuple(ranked)
 
 
 def citation_for(document: Document, chunk: Chunk) -> Citation:
