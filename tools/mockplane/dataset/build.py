@@ -21,6 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
+from integrations._catalogue.gaps import gaps
 from tools.mockplane.anonymise.pipeline import ProcessedCapture, process
 from tools.mockplane.anonymise.pseudonyms import PseudonymBook
 from tools.mockplane.capture.projection import estate, project
@@ -89,7 +90,7 @@ def empty_records() -> tuple[CapturedRecord, ...]:
         "memory-stats": {"episode_count": 0},
         "documents": {"documents": []},
         "config-tree": {"nodes": []},
-        "integrations": {"integrations": []},
+        "integrations": {"integrations": [], "known_gaps": [gap.to_record() for gap in gaps()]},
         "principals": {"users": []},
         "grants": {"grants": []},
         "tokens": {"tokens": []},
@@ -169,6 +170,7 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
         "principals": {"users": [dict(served.USERS[0])]},
         "grants": {"grants": [dict(served.GRANTS[0])]},
         "integrations": {
+            "known_gaps": [gap.to_record() for gap in gaps()],
             "integrations": [
                 {
                     "name": "metrics-store",
@@ -184,7 +186,7 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
                     "parity": "full",
                     "missing_artefacts": [],
                 }
-            ]
+            ],
         },
         # Declared and holding nothing, which is a different fact from not being
         # declared at all — and the one the integrations step of the guided run

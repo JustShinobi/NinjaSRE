@@ -8,7 +8,7 @@ Every integration ships the same seven artefacts. The build fails naming both
 the integration and the artefact when one is missing, which is what makes "full
 parity" a property rather than an aspiration.
 
-84 integration(s), 84 at full parity, 7 recorded as unreachable.
+84 integration(s), 84 at full parity, 9 recorded as unreachable.
 
 ## The seven artefacts
 
@@ -1941,6 +1941,7 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 
 - `prometheus_active_alerts`
 - `prometheus_metric_statistics`
+- `prometheus_resource_pressure`
 
 **Permissions:**
 
@@ -2453,3 +2454,15 @@ A vendor nobody wrote is a vendor nobody is told about, so the omissions are a d
 - **Category:** cicd
 - **Why not:** Helm 3 has no server component. A release is a Secret in the cluster and the CLI is what reads it, so there is no API for an integration to hold a credential against — the credential that matters is the cluster's.
 - **What would change it:** Nothing about Helm. Release history is already reachable: `kubernetes` reads the release Secrets in a namespace, and `argocd` answers the same question for the estates that deploy charts through it.
+
+### `gatus` — Gatus
+
+- **Category:** observability
+- **Why not:** Gatus answers one question — is this endpoint responding — and two configured sources already answer it by different routes: the hypervisor reports each guest's own state, and a blackbox exporter reports reachability from outside, both reaching the platform through Prometheus. A third path to the same answer is a third thing to keep credentials for and no new signal, and an investigation offered three sources for one question spends turns choosing between them.
+- **What would change it:** A synthetic check that asserts something neither of the other two can — a login flow, a certificate chain, a response body — or an estate where Gatus is the only thing watching a class of endpoint the hypervisor cannot see.
+
+### `netbox` — NetBox
+
+- **Category:** infrastructure
+- **Why not:** NetBox is a source of truth for network and addressing, and both already reach the platform: the addressing comes from the hypervisor with each guest, and the zones come from the declared inventory the estate is reconciled against. Ingesting the same facts from a third place is a third answer to 'which network is this on', and the failure that produces is two of them disagreeing quietly.
+- **What would change it:** An estate that grows past what the repository's own inventory describes — hardware, circuits, addressing NetBox is the only record of — at which point it stops being a duplicate and becomes the source for facts nothing else holds.

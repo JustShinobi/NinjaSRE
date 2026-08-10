@@ -31,6 +31,7 @@ from config.constants.first_run import (
     SETUP_STEP_MODEL_PROVIDER,
 )
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
+from integrations._catalogue.gaps import gaps
 from platform.config_service.schema.policies import GuardianSettings
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
@@ -762,12 +763,21 @@ def config_records() -> tuple[CapturedRecord, ...]:
 
 
 def integration_records() -> tuple[CapturedRecord, ...]:
-    """Return every installed integration, one of them unhealthy."""
+    """Return every installed integration, one of them unhealthy.
+
+    ``known_gaps`` is the other half of the same answer and is served with it:
+    the question this endpoint is read to answer is "what can this deployment
+    look at", and an operator who has to know to ask a second time about the
+    absences discovers them by not finding them. Read from the declaration
+    rather than restated here, because a second copy of the reasoning is a copy
+    that stops matching the first.
+    """
     return (
         _record(
             "integrations",
             {},
             {
+                "known_gaps": [gap.to_record() for gap in gaps()],
                 "integrations": [
                     {
                         "name": "metrics-store",
@@ -811,7 +821,7 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                         "parity": "partial",
                         "missing_artefacts": ["synthetic scenario"],
                     },
-                ]
+                ],
             },
         ),
     )

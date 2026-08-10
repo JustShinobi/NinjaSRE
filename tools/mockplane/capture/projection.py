@@ -20,6 +20,8 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from platform.estate.signal_map import signal_map_for
+from platform.persistence.ports.estate_repository import Resource
 from tools.mockplane.capture.parsers import (
     BootReading,
     MountReading,
@@ -347,6 +349,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
                         "raw_status": resource["health"],
                         "explanation": resource["explanation"],
                     },
+                    "signals": _signals(resource),
                     "rollup_rule": "majority_healthy" if resource["kind"] == "node" else "own_only",
                     "freshness_seconds": 3600,
                     "contributions": [
@@ -428,6 +431,32 @@ def _record(
         provenance=provenance,
         request=Request(command=f"projected from a direct read ({provenance.value})"),
     )
+
+
+def _signals(resource: Mapping[str, Any]) -> dict[str, Any]:
+    """Return which source answers each question about ``resource``.
+
+    Derived by the deployment's own rule rather than written out here, so the
+    dataset a screen is photographed against and the document a deployment
+    serves are one thing. What is configured in this dataset is the hypervisor
+    and nothing else — so "is it up" resolves and the rest come back as named
+    gaps, which is exactly what an estate nobody has connected a log store to
+    looks like, and is the state the empty-half of the panel exists for.
+    """
+    found = signal_map_for(
+        Resource(
+            resource_id=str(resource["resource_id"]),
+            kind=str(resource["kind"]),
+            source=str(resource["source"]),
+            native_id=str(resource["native_id"]),
+            display_name=str(resource["display_name"]),
+            attributes=dict(resource["attributes"]),
+            labels=tuple(str(label) for label in resource["labels"]),
+        ),
+        configured=(_SOURCE,),
+    )
+    record = found.to_record()
+    return {"sources": record["sources"], "missing": record["missing"]}
 
 
 def _resources(reading: ClusterReading) -> list[dict[str, Any]]:

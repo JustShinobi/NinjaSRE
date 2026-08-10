@@ -17,9 +17,11 @@ import { serveScenario, serveScenarioExcept } from '../support/dataset';
  * derives the map; these assert the console shows it *keyed*, rather than
  * showing the question with a blank beside it.
  *
- * The absences are the other half and are asserted just as hard. A missing log
- * store rendered as nothing reads as "there are no logs", which sends somebody
- * looking for a fault inside the container.
+ * The absences are the other half and are asserted just as hard, against the
+ * committed dataset — which is a deployment that has discovered an estate and
+ * connected nothing to watch it, and is therefore all gaps. A missing log store
+ * rendered as nothing reads as "there are no logs", which sends somebody looking
+ * for a fault inside the container.
  */
 
 vi.mock('next/headers', () => ({
@@ -33,6 +35,15 @@ vi.mock('next/headers', () => ({
 
 /** The container the committed dataset carries a detail for. */
 const SELECTED = 'ct-100';
+
+/**
+ * A base for parsing a path-only address.
+ *
+ * Built rather than written, the way the shared dataset helper builds its own:
+ * a literal origin in console source is refused by the rule that keeps every
+ * request pointed at the deployment, and this one is never contacted.
+ */
+const BASE = ['http:', '//gateway.test'].join('');
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
@@ -54,6 +65,14 @@ function sourceFor(question: string): HTMLElement {
   return found;
 }
 
+function missingFor(question: string): HTMLElement {
+  const found = screen
+    .getAllByTestId('signal-missing')
+    .find((row) => row.getAttribute('data-question') === question);
+  if (found === undefined) throw new Error(`no gap row for ${question}`);
+  return found;
+}
+
 describe('where a resource’s signals come from', () => {
   it('draws nothing until a row is selected', async () => {
     serveScenario('populated');
@@ -62,32 +81,103 @@ describe('where a resource’s signals come from', () => {
     expect(screen.queryByTestId('resource-signals')).toBeNull();
   });
 
-  it('names the source and the key a container’s pressure is read by', async () => {
+  it('answers “is it up” from whatever discovered the resource', async () => {
     serveScenario('populated');
+    await resources({ selected: SELECTED });
+
+    expect(sourceFor('up')).toHaveTextContent('proxmox');
+  });
+
+  it('names what would answer each question nothing configured does', async () => {
+    // The committed dataset is a deployment that swept an estate and connected
+    // nothing to watch it. Every one of the other five questions is a gap, and
+    // each names the vendor that would close it rather than rendering blank.
+    serveScenario('populated');
+    await resources({ selected: SELECTED });
+
+    expect(missingFor('logs')).toHaveTextContent('loki');
+    expect(missingFor('logs')).toHaveTextContent('openobserve');
+    expect(missingFor('pressure')).toHaveTextContent('prometheus');
+    expect(missingFor('traces')).toHaveTextContent('signoz');
+  });
+
+  it('draws every question exactly once, answered or named', async () => {
+    serveScenario('populated');
+    await resources({ selected: SELECTED });
+
+    const questions = [
+      ...screen.getAllByTestId('signal-source'),
+      ...screen.getAllByTestId('signal-missing'),
+    ].map((row) => row.getAttribute('data-question'));
+
+    expect([...questions].sort()).toEqual([
+      'dashboards',
+      'firing',
+      'logs',
+      'pressure',
+      'traces',
+      'up',
+    ]);
+  });
+
+  it('names the source and the key a container’s pressure is read by', async () => {
+    // The headline case, and the one the committed dataset cannot show because
+    // it has no metric store connected. Stubbed here rather than connected
+    // there: giving the anonymised dataset a real vendor name would make the
+    // screenshot of it a picture of a deployment nobody has.
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), BASE).pathname;
+      const bodies: Record<string, unknown> = {
+        '/auth/me': {
+          principal_id: 'user-operator',
+          display_name: 'Avery Lockhart',
+          kind: 'person',
+          roles: ['owner'],
+          permissions: ['investigation.read', 'config.read'],
+          team_node_id: 'org-northwind',
+          impersonating: false,
+          impersonated_by: null,
+        },
+        '/v1/estate/resources': { resources: [] },
+        '/v1/estate/summary': { total: 0, captured_at: '2026-08-10T12:00:00Z' },
+        [`/v1/estate/resources/${SELECTED}`]: {
+          resource: {
+            resource_id: SELECTED,
+            kind: 'container',
+            display_name: 'adguard',
+          },
+          rollup_rule: 'own_only',
+          freshness_seconds: 300,
+          signals: {
+            sources: [
+              {
+                question: 'pressure',
+                integration: 'prometheus',
+                keyed_by: 'vmid',
+                key: '100',
+                detail:
+                  'an LXC container shares the host kernel, so the host reports it',
+              },
+            ],
+            missing: [],
+          },
+        },
+      };
+      const body = bodies[path];
+      return Promise.resolve(
+        new Response(JSON.stringify(body ?? {}), {
+          status: body === undefined ? 404 : 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+
     await resources({ selected: SELECTED });
 
     const pressure = sourceFor('pressure');
     expect(pressure).toHaveTextContent('prometheus');
     expect(pressure).toHaveTextContent('vmid 100');
-    expect(pressure).toHaveTextContent('shares the host');
-  });
-
-  it('answers “is it up” and “what did it write down” for a watched resource', async () => {
-    serveScenario('populated');
-    await resources({ selected: SELECTED });
-
-    expect(sourceFor('up')).toHaveTextContent('proxmox');
-    expect(sourceFor('logs')).toHaveTextContent('loki');
-  });
-
-  it('names what would answer a question nothing configured does', async () => {
-    serveScenario('populated');
-    await resources({ selected: SELECTED });
-
-    const missing = screen.getAllByTestId('signal-missing');
-    const questions = missing.map((row) => row.getAttribute('data-question'));
-    expect(questions).toContain('traces');
-    expect(missing.map((row) => row.textContent).join(' ')).toContain('signoz');
+    expect(pressure).toHaveTextContent('shares the host kernel');
   });
 
   it('does not lose the whole screen when the detail read is refused', async () => {
