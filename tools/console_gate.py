@@ -58,6 +58,10 @@ from tools.console_toolchain import (
 )
 
 #: The value of ``NINJASRE_CONSOLE_TOOLCHAIN`` that turns a skip into a failure.
+#: The committed dataset of a deployment that has been configured and not
+#: finished, which is what the first-day browser project is drawn against.
+FIRST_DAY_SCENARIO: Final = "first-run"
+
 REQUIRED: Final = "required"
 
 
@@ -273,12 +277,24 @@ def budget() -> int:
 
 
 def end_to_end() -> int:
-    """Drive a browser against the built console and the committed dataset."""
-    status = _module("tools.console_e2e", ["run"])
-    if status == 2:
-        return _skip("the end-to-end backing could not be started")
-    if status != 0:
-        return _fail("e2e", "a browser test failed — see the output above")
+    """Drive a browser against the built console and the committed dataset.
+
+    Twice, against two datasets. The first is a deployment mid-operation, which
+    is what most of the console is about. The second is a deployment on its
+    first day — a separate run because one mock plane serves one scenario, and
+    because the claims worth making about a fresh deployment (honest zeroes, a
+    dismissable tutorial, a checklist with somewhere to click, and no redirect
+    out of the shell) are exactly the ones a full dataset cannot make.
+    """
+    for project, scenario in (("behaviour", ""), ("first-day", FIRST_DAY_SCENARIO)):
+        arguments = ["run", "--project", project]
+        if scenario:
+            arguments += ["--scenario", scenario]
+        status = _module("tools.console_e2e", arguments)
+        if status == 2:
+            return _skip("the end-to-end backing could not be started")
+        if status != 0:
+            return _fail("e2e", f"a browser test failed in {project} — see the output above")
     return 0
 
 
