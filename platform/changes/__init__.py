@@ -34,9 +34,20 @@ consulted to establish it.
 
 from __future__ import annotations
 
+from platform.changes.correlation import (
+    ComponentMap,
+    CorrelatedChange,
+    CorrelationStrength,
+    ResourceView,
+    component_for,
+    correlate,
+    correlate_all,
+    views_of,
+)
 from platform.changes.errors import ChangeStateInvalid, ChangeWindowInvalid
 from platform.changes.models import Change, ChangeWindow
 from platform.changes.port import ChangeSource
+from platform.changes.screening import screen, screen_all
 
 __all__ = [
     "Change",
@@ -44,4 +55,14 @@ __all__ = [
     "ChangeStateInvalid",
     "ChangeWindow",
     "ChangeWindowInvalid",
+    "ComponentMap",
+    "CorrelatedChange",
+    "CorrelationStrength",
+    "ResourceView",
+    "component_for",
+    "correlate",
+    "correlate_all",
+    "screen",
+    "screen_all",
+    "views_of",
 ]
