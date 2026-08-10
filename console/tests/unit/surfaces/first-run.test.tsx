@@ -515,6 +515,7 @@ describe('verifying what is configured', () => {
     unreachable: 'unreachable',
     nothing: 'nothing to check',
     remedy: 'What to do:',
+    findings: 'It answered, and what it answered cannot be relied on:',
   };
 
   const THINGS = [
@@ -580,6 +581,47 @@ describe('verifying what is configured', () => {
     await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
 
     expect(screen.getByTestId('verify-remedy')).toHaveTextContent('ANTHROPIC_API_KEY');
+  });
+
+  it('names what makes a source that answered unusable anyway', async () => {
+    // The failure this is about: a metric store that authenticates, answers
+    // 200, and is holding nothing. Every other signal on this row says it
+    // passed, and an investigation that reaches it will conclude that nothing
+    // happened.
+    vi.stubGlobal(
+      'fetch',
+      answerWith({
+        verified: true,
+        reason: 'the credential works',
+        findings: [
+          'it answered and holds nothing for the last 15 minutes. Check its scrape targets.',
+          "its clock is 90.0s from the platform's, outside the 30.0s correlation tolerates",
+        ],
+      }),
+    );
+    render(<VerifyStep things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+
+    const findings = screen.getAllByTestId('verify-finding');
+    expect(findings).toHaveLength(2);
+    expect(one(findings[0])).toHaveTextContent('holds nothing for the last 15 minutes');
+    expect(one(findings[1])).toHaveTextContent('90.0s');
+    expect(screen.getByTestId('verify-findings')).toHaveTextContent(
+      'cannot be relied on',
+    );
+  });
+
+  it('draws no findings block for a source that had none', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({ verified: true, reason: 'the credential works' }),
+    );
+    render(<VerifyStep things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+
+    expect(screen.queryByTestId('verify-findings')).toBeNull();
   });
 
   it('says the deployment was unreachable rather than that a check failed', async () => {

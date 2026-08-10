@@ -99,6 +99,11 @@ class _Deployment:
     http: AsyncClient
     gateway: FakePersistence
     token: str
+    #: Held so a test can compose what this deployment was built without. The
+    #: deep verifier is the case: it is a composition concern by design, so a
+    #: suite that wants one has to supply it rather than expect the fixture to
+    #: have guessed a vendor.
+    state: GatewayState
 
     def run(self, coroutine: Any) -> Any:
         """Run ``coroutine`` on the application's own loop and return its result."""
@@ -263,7 +268,9 @@ def deployment() -> Iterator[_Deployment]:
     )
     http = AsyncClient(transport=ASGITransport(app=create_app(state)), base_url=ENDPOINT_URL)
 
-    running = _Deployment(loop=loop, thread=thread, http=http, gateway=gateway, token=token)
+    running = _Deployment(
+        loop=loop, thread=thread, http=http, gateway=gateway, token=token, state=state
+    )
     try:
         yield running
     finally:

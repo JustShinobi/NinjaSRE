@@ -23,6 +23,13 @@ import { StatusDot } from '@/components/status';
  * deployment carries that — it reports which fields were skipped — and passing
  * it through unedited is the difference between "verification failed" and
  * something a person can go and fix.
+ *
+ * **A thing that answered can still be unusable, and that is its own line.** A
+ * metric store holding nothing for the last quarter of an hour, or one whose
+ * clock is a minute out, passes every check a credential can be put through and
+ * will make an investigation say something false. The deployment measures both
+ * and names them; a row that showed only pass or fail would drop exactly the
+ * finding nothing else in the console is going to surface.
  */
 
 /** One configured thing to check. */
@@ -44,6 +51,7 @@ export interface VerifyStepLabels {
   readonly unreachable: string;
   readonly nothing: string;
   readonly remedy: string;
+  readonly findings: string;
 }
 
 export interface VerifyStepProps {
@@ -57,6 +65,14 @@ interface Verdict {
   readonly state: 'passed' | 'failed' | 'unreachable';
   readonly detail: string;
   readonly remedy: string;
+  /** What the deployment measured that makes this source's answers unsafe. */
+  readonly findings: readonly string[];
+}
+
+/** The `findings` of an answer that crossed a process, as strings or as none. */
+function findingsOf(body: unknown): readonly string[] {
+  const found: unknown = Reflect.get(Object(body), 'findings');
+  return Array.isArray(found) ? found.filter((each) => typeof each === 'string') : [];
 }
 
 function keyOf(thing: VerifiableThing): string {
@@ -87,10 +103,21 @@ export function VerifyStep({ things, labels }: VerifyStepProps): ReactNode {
             state: Reflect.get(Object(body), 'verified') === true ? 'passed' : 'failed',
             detail: typeof reason === 'string' ? reason : '',
             remedy: typeof remedy === 'string' ? remedy : '',
+            findings: findingsOf(body),
           }
-        : { state: 'unreachable', detail: labels.unreachable, remedy: '' };
+        : {
+            state: 'unreachable',
+            detail: labels.unreachable,
+            remedy: '',
+            findings: [],
+          };
     } catch {
-      verdict = { state: 'unreachable', detail: labels.unreachable, remedy: '' };
+      verdict = {
+        state: 'unreachable',
+        detail: labels.unreachable,
+        remedy: '',
+        findings: [],
+      };
     }
     setRunning((held) => held.filter((each) => each !== key));
     setVerdicts((held) => ({ ...held, [key]: verdict }));
@@ -151,6 +178,22 @@ export function VerifyStep({ things, labels }: VerifyStepProps): ReactNode {
             {verdict?.remedy === undefined || verdict.remedy === '' ? null : (
               <span className="text-meta text-warning" data-testid="verify-remedy">
                 {labels.remedy} {verdict.remedy}
+              </span>
+            )}
+            {verdict === undefined || verdict.findings.length === 0 ? null : (
+              <span className="flex flex-col gap-1" data-testid="verify-findings">
+                <span className="text-meta text-warning">{labels.findings}</span>
+                <ul className="flex flex-col gap-1">
+                  {verdict.findings.map((finding) => (
+                    <li
+                      key={finding}
+                      data-testid="verify-finding"
+                      className="text-meta text-muted"
+                    >
+                      {finding}
+                    </li>
+                  ))}
+                </ul>
               </span>
             )}
           </li>

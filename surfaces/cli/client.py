@@ -383,6 +383,15 @@ class PlatformClient(Protocol):
     async def verify_integration(self, integration: str) -> IntegrationStatus:
         """Check one integration's credential and connectivity."""
 
+    async def verify_integration_report(self, integration: str) -> Mapping[str, Any] | None:
+        """Return the vendor's own answer about ``integration``, or ``None``.
+
+        ``None`` means this deployment cannot reach the vendor — no deep
+        verifier is composed, or this vendor has nothing further to be asked.
+        Distinguished from an empty document deliberately: an empty document
+        reads as a clean bill of health.
+        """
+
     async def diagnose(self) -> DiagnosticReport:
         """Return what is configured, reachable, and healthy."""
 
@@ -895,6 +904,17 @@ class LocalClient:
     async def verify_integration(self, integration: str) -> IntegrationStatus:
         """Check one integration's credential and connectivity."""
         return await self.services.check_integration(integration)
+
+    async def verify_integration_report(self, integration: str) -> Mapping[str, Any] | None:
+        """Return ``None``: an in-process CLI composes no path to a vendor.
+
+        The same answer the gateway route gives for the same reason. Reaching a
+        vendor means a credential proxy and a transport, both wired at
+        composition; a client that built one from whatever ambient configuration
+        was present would be calling a cluster nobody chose.
+        """
+        del integration
+        return None
 
     async def diagnose(self) -> DiagnosticReport:
         """Return what is configured, reachable, and healthy."""
@@ -1598,6 +1618,21 @@ class RemoteClient:
             healthy=usable,
             credential_state=_text(payload, "state"),
         )
+
+    async def verify_integration_report(self, integration: str) -> Mapping[str, Any] | None:
+        """Return the vendor's own answer about ``integration``, or ``None``.
+
+        A 404 here is not an error to surface. The route answers it for two
+        different deployments that are both working — one that composed no deep
+        verifier, and one whose vendor has nothing further to be asked — and
+        raising would turn "there is no more to say" into a failed command.
+        """
+        try:
+            payload = self._document("POST", f"/v1/integrations/{integration}/verify/report")
+        except NotFoundError:
+            return None
+        report = payload.get("report")
+        return report if isinstance(report, dict) else None
 
     async def diagnose(self) -> DiagnosticReport:
         """Return what is configured, reachable, and healthy, from three routes.

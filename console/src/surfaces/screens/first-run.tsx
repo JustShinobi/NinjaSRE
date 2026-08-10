@@ -478,6 +478,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                     unreachable: message(locale, 'firstRun.unreachable'),
                     nothing: message(locale, 'firstRun.verify.nothing'),
                     remedy: message(locale, 'firstRun.verify.remedy'),
+                    findings: message(locale, 'firstRun.verify.findings'),
                   }}
                 />
               ) : null}

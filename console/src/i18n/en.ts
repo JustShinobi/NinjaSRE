@@ -313,6 +313,7 @@ export const EN = {
   'firstRun.verify.nothing':
     'Nothing is configured yet, so there is nothing to check. Store a provider credential first.',
   'firstRun.verify.remedy': 'What to do:',
+  'firstRun.verify.findings': 'It answered, and what it answered cannot be relied on:',
 
   'firstRun.established.title': 'What is set up so far',
   'firstRun.established.verified': 'it answered',
