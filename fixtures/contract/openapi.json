@@ -7304,7 +7304,7 @@
         ]
       },
       "post": {
-        "description": "Stop every automated write, immediately, with no configuration in the way.",
+        "description": "Stop every automated write, immediately, with no configuration in the way.\n\nAudited after the switch is thrown rather than before it. The stop is the\nurgent half and must not wait on a database; the record is written straight\nafterwards, and a store that could not take it still leaves the auditor's own\nlog line — which is the arrangement ``RemediationAuditor`` exists for.",
         "operationId": "engage_kill_switch_v1_autonomy_kill_switch_post",
         "parameters": [
           {

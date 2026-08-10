@@ -409,6 +409,11 @@ export interface paths {
         /**
          * Engage Kill Switch
          * @description Stop every automated write, immediately, with no configuration in the way.
+         *
+         *     Audited after the switch is thrown rather than before it. The stop is the
+         *     urgent half and must not wait on a database; the record is written straight
+         *     afterwards, and a store that could not take it still leaves the auditor's own
+         *     log line — which is the arrangement ``RemediationAuditor`` exists for.
          */
         post: operations["engage_kill_switch_v1_autonomy_kill_switch_post"];
         /**
