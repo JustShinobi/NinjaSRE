@@ -117,6 +117,33 @@ MAX_ENRICHMENT_DOCUMENT_BYTES: Final[int] = 1_048_576
 #: the entry count that decides how much annotation work follows.
 MAX_ENRICHMENT_ENTRIES: Final[int] = 5_000
 
+# --- An alert's target, and the resource it is about ---------------------------
+
+#: The labels that may name what an alert is about, in the order they are tried.
+#:
+#: Order is the whole of the rule. A host-side exporter labels a guest's series
+#: with the *host's* address and the guest's number, so an alert about a
+#: container carries both — and resolving the address first would produce an
+#: investigation of the hypervisor about the container's memory. The numeric
+#: identifier is the specific answer, so it is asked for first.
+ALERT_TARGET_LABELS: Final[tuple[str, ...]] = ("vmid", "target", "instance", "host", "node")
+
+#: The label whose value is a hypervisor guest's own number rather than an
+#: address or a name. Named apart because it is the one that resolves by lookup
+#: instead of by matching what the resource reports about itself.
+ALERT_VMID_LABEL: Final = "vmid"
+
+#: The prefix length an unmatched address is placed by when no zone map is
+#: declared: the estate's own resources on the same network say which zone it
+#: is. A /24 because that is how the reference estate is divided, and because a
+#: wider inference would place an address in a zone by coincidence.
+ALERT_ZONE_INFERENCE_PREFIX: Final[int] = 24
+
+#: Unresolved alert targets one listing returns. A finding per alert that
+#: named something unknown, and a deployment pointed at the wrong receiver can
+#: produce them faster than anybody reads them.
+MAX_UNRESOLVED_ALERT_TARGETS: Final[int] = 50
+
 # --- Retention ----------------------------------------------------------------
 
 #: How long estate history is kept when the operator configures nothing. Longer
@@ -126,6 +153,9 @@ MAX_ENRICHMENT_ENTRIES: Final[int] = 5_000
 RETENTION_DAYS_ESTATE_HISTORY: Final[int] = 180
 
 __all__ = [
+    "ALERT_TARGET_LABELS",
+    "ALERT_VMID_LABEL",
+    "ALERT_ZONE_INFERENCE_PREFIX",
     "DEFAULT_DISCOVERY_INTERVAL_SECONDS",
     "DEFAULT_FRESHNESS_SECONDS",
     "DEFAULT_TRANSITION_HISTORY",
@@ -142,6 +172,7 @@ __all__ = [
     "MAX_SWEEP_PROVIDER_CALLS",
     "MAX_SWEEP_RESOURCES",
     "MAX_SWEEP_SECONDS",
+    "MAX_UNRESOLVED_ALERT_TARGETS",
     "MIN_DISCOVERY_INTERVAL_SECONDS",
     "MIN_FRESHNESS_SECONDS",
     "RETENTION_DAYS_ESTATE_HISTORY",
