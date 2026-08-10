@@ -1063,6 +1063,21 @@
             "title": "Name",
             "type": "string"
           },
+          "origin": {
+            "default": "",
+            "title": "Origin",
+            "type": "string"
+          },
+          "origin_excerpt": {
+            "default": "",
+            "title": "Origin Excerpt",
+            "type": "string"
+          },
+          "proposed": {
+            "default": false,
+            "title": "Proposed",
+            "type": "boolean"
+          },
           "severity": {
             "title": "Severity",
             "type": "string"

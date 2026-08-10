@@ -132,6 +132,14 @@ class DetectorSummaryView(BaseModel):
     subjects_total: int
     last_verdict: str
     last_evaluated_at: datetime | None = None
+    #: The document that proposed this detector, when one did. Empty for every
+    #: detector somebody wrote by hand, and what lets a client separate "this is
+    #: running" from "somebody's runbook suggests this and nobody has decided".
+    origin: str = ""
+    origin_excerpt: str = ""
+    #: ``origin`` is set. Served rather than left to the client to derive, so
+    #: two surfaces cannot disagree about what makes a row a candidate.
+    proposed: bool = False
 
 
 class DetectorListView(BaseModel):
@@ -259,6 +267,9 @@ def _detector(view: DetectorView) -> DetectorSummaryView:
         subjects_total=view.subjects_total,
         last_verdict=view.last_verdict,
         last_evaluated_at=view.last_evaluated_at,
+        origin=declaration.origin,
+        origin_excerpt=declaration.origin_excerpt,
+        proposed=declaration.proposed,
     )
 
 

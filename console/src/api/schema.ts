@@ -2663,6 +2663,21 @@ export interface components {
             last_verdict: string;
             /** Name */
             name: string;
+            /**
+             * Origin
+             * @default
+             */
+            origin: string;
+            /**
+             * Origin Excerpt
+             * @default
+             */
+            origin_excerpt: string;
+            /**
+             * Proposed
+             * @default false
+             */
+            proposed: boolean;
             /** Severity */
             severity: string;
             /** Signal */

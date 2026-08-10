@@ -533,6 +533,7 @@ export const EN = {
   'detectors.column.coverage': 'Coverage',
   'detectors.column.verdict': 'Last verdict',
   'detectors.column.enabled': 'Enabled',
+  'detectors.proposed': 'proposed by a document',
   'detectors.list.title': 'Detectors',
   'detectors.list.caption': 'Every detector, what it watches and what it last found',
   'detectors.empty.heading': 'No detectors yet',

@@ -238,6 +238,15 @@ class DetectorSettings(ConfigSection):
     grouping_key: ConfiguredStr = DETECTOR_GROUPING_DETECTOR
     enabled: bool = True
     capabilities: ConfiguredStrList = ()
+    #: Where this detector came from, when it was not written by hand — the
+    #: identifier of the document that proposed it. Empty for every shipped and
+    #: operator-authored detector, which is what makes it the thing a listing
+    #: sorts candidates by.
+    origin: ConfiguredStr = ""
+    #: The sentence the proposing document's author wrote. An operator deciding
+    #: whether a threshold is right needs the reason beside it, and for a
+    #: proposed detector the reason is in somebody else's document.
+    origin_excerpt: ConfiguredStr = ""
 
     @field_validator("kind")
     @classmethod

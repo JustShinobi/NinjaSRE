@@ -519,6 +519,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'detectors.column.coverage': 'Cobertura',
   'detectors.column.verdict': 'Último veredicto',
   'detectors.column.enabled': 'Activo',
+  'detectors.proposed': 'proposto por um documento',
   'detectors.list.title': 'Detectores',
   'detectors.list.caption':
     'Cada detector, o que vigia e o que encontrou da última vez',
