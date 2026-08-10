@@ -17,6 +17,7 @@ from gateway.http.security.estate_routes import ESTATE_ROUTES
 from gateway.http.security.first_run_routes import FIRST_RUN_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES, WEBHOOK_ROUTES
 from gateway.http.security.incident_routes import INCIDENT_ROUTES
+from gateway.http.security.onboarding_routes import ONBOARDING_ROUTES
 from gateway.http.security.remediation_routes import REMEDIATION_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE, RouteTable
 from gateway.http.services import InvestigationRunner
@@ -44,6 +45,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     .extended_with(AUTONOMY_ROUTES)
     .extended_with(REMEDIATION_ROUTES)
     .extended_with(FIRST_RUN_ROUTES)
+    .extended_with(ONBOARDING_ROUTES)
 )
 
 
