@@ -1,0 +1,77 @@
+{
+  "$comment": "Which fields each post-mortem in the fixture corpus genuinely contains, decided by reading it. The ablation measures what each arm of the extractor recovers against this, so the number it reports is recall against a human reading rather than agreement with itself. A field is listed when the document answers it — 'the cause was never established' is an answer to root_cause and is listed.",
+  "documents": {
+    "docs/postmortem/2025-11-08-a-mount-that-would-not-clear.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2025-12-05-certificate-expiry-on-edge-proxy.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2026-01-19-datastore-full-during-snapshot.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2026-02-02-backup-job-disabled-and-unnoticed.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2026-03-11-quorum-lost-during-node-reboot.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2026-04-24-fileserver-nfs-hard-mount-stall.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2026-07-17-adguard-dns-stall-both-instances.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2026-07-20-adguard-dns-recurrence-memcg-oom.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction",
+      "recurrence_of"
+    ],
+    "docs/postmortem/2026-07-27-vxlan-overlay-mtu-equal-to-underlay.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ],
+    "docs/postmortem/2026-07-28-observability-stack-log-storm.md": [
+      "symptom",
+      "investigation",
+      "root_cause",
+      "correction"
+    ]
+  },
+  "explains": [
+    "docs/postmortem/2025-11-08-a-mount-that-would-not-clear.md",
+    "docs/postmortem/2025-12-05-certificate-expiry-on-edge-proxy.md",
+    "docs/postmortem/2026-01-19-datastore-full-during-snapshot.md",
+    "docs/postmortem/2026-02-02-backup-job-disabled-and-unnoticed.md",
+    "docs/postmortem/2026-03-11-quorum-lost-during-node-reboot.md",
+    "docs/postmortem/2026-04-24-fileserver-nfs-hard-mount-stall.md",
+    "docs/postmortem/2026-07-20-adguard-dns-recurrence-memcg-oom.md",
+    "docs/postmortem/2026-07-27-vxlan-overlay-mtu-equal-to-underlay.md",
+    "docs/postmortem/2026-07-28-observability-stack-log-storm.md"
+  ]
+}

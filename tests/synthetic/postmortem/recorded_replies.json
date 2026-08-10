@@ -1,0 +1,11 @@
+{
+  "$comment": "One recorded structured reply per post-mortem the headings cannot read, keyed by the document's path in the fixture corpus. Recorded rather than live for the reason the hypervisor corpus records its transcripts: the pull-request path has no provider, and an ablation whose second arm needs one is an ablation nobody runs. A document absent from here is one the model was never asked about, which the arm asserts.",
+  "replies": {
+    "docs/postmortem/2025-11-08-a-mount-that-would-not-clear.md": {
+      "symptom": "The backup target stopped answering and by the next morning every process on the node that had touched it was stuck and would not shut down.",
+      "investigation": "The target's address still answered while the export itself was gone, so the client kept waiting rather than failing.",
+      "root_cause": "The target's controller rebooted into a firmware update that never finished, leaving the address up and the export gone.",
+      "correction": "Forced the unmount and brought the controller back by hand. A check on the target answering rather than on the address answering does not exist yet."
+    }
+  }
+}
