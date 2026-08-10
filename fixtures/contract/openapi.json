@@ -552,6 +552,148 @@
         "title": "CloseRequest",
         "type": "object"
       },
+      "ConfigFieldView": {
+        "description": "One editable field, as the schema declares it and this node stands on it.\n\nEverything a client needs to draw a control and to know what pressing save\nwould do — and nothing it could have worked out for itself, because there is\nnothing here it could have. The type, range and default come from the\nPydantic section the write path validates against; the value, provenance,\nlock and gate come from this node's chain.",
+        "properties": {
+          "allowed_values": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Values"
+          },
+          "approval_gated": {
+            "default": false,
+            "title": "Approval Gated",
+            "type": "boolean"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "locked_by": {
+            "default": "",
+            "title": "Locked By",
+            "type": "string"
+          },
+          "max_items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Items"
+          },
+          "max_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "provenance": {
+            "default": "",
+            "title": "Provenance",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "section": {
+            "default": "",
+            "title": "Section",
+            "type": "string"
+          },
+          "section_summary": {
+            "default": "",
+            "title": "Section Summary",
+            "type": "string"
+          },
+          "set_here": {
+            "default": false,
+            "title": "Set Here",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "type"
+        ],
+        "title": "ConfigFieldView",
+        "type": "object"
+      },
+      "ConfigFieldsView": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigFieldView"
+            },
+            "title": "Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fields"
+        ],
+        "title": "ConfigFieldsView",
+        "type": "object"
+      },
       "ConfigNodeView": {
         "properties": {
           "kind": {
@@ -7449,6 +7591,65 @@
           }
         },
         "summary": "Node Catalogue",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/{node_id}/fields": {
+      "get": {
+        "description": "Return every field this node can be edited by, described by the schema.\n\nServed rather than shipped in a client, for the reason the whole\nconfiguration surface is: a client holding its own table of field types and\nranges agrees with the deployment on the day it is written and drifts from\nthen on. The drift arrives as a control offering a value the write path\nrefuses, which reads to an operator as the platform being arbitrary.\n\nThe per-node half — the value, which level supplied it, whether this node\noverrides it, what locks it — cannot be assembled by a client at all. It\nneeds the ancestors' documents, and nothing outside this deployment has\nthem.",
+        "operationId": "node_fields_v1_config__node_id__fields_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigFieldsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Node Fields",
         "tags": [
           "config"
         ]

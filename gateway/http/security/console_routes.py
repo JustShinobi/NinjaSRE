@@ -28,6 +28,11 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
     # a proposal would do before asking somebody who may.
     Route(method="POST", path="/v1/config/{node_id}/preview", permission=Permission.CONFIG_READ),
     Route(method="GET", path="/v1/config/{node_id}/catalogue", permission=Permission.CONFIG_READ),
+    # The editable fields and where each value comes from. ``config.read``
+    # rather than ``config.write``: it describes the shape of the document and
+    # what applies, which is exactly what somebody who may only read is entitled
+    # to see. What may be *changed* is decided at the write.
+    Route(method="GET", path="/v1/config/{node_id}/fields", permission=Permission.CONFIG_READ),
     # The shipped detector set as this node runs it, resolved server-side. Read
     # with ``config.read`` because what varies between deployments is entirely
     # configuration — the topology that was detected and the overrides applied

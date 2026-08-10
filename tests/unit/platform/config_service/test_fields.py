@@ -1,0 +1,243 @@
+"""The fields a node can be edited by, described by the schema that validates them.
+
+An editor needs four things per field — what type it is, what range it accepts,
+what it defaults to, and what it is for — and there is exactly one place in this
+deployment that already knows all four: the Pydantic sections configuration is
+validated against. Deriving the catalogue from them means a field added to the
+schema is a control in the console on the same commit, and a control the console
+offers is a field the write path will accept.
+
+The alternative is a table of field descriptions written in the client. It
+agrees with the schema on the day it is written and never again, and the
+disagreement surfaces as a control that renders a number picker for a field the
+deployment refuses.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+
+from config.constants.investigation import MAX_INVESTIGATION_LOOPS
+from platform.config_service.document import NodeDocument
+from platform.config_service.effective import build
+from platform.config_service.fields import declared_fields, fields_at
+from platform.persistence.ports import ConfigNode, ConfigNodeKind
+
+ORG = "acme"
+TEAM = "payments"
+
+
+def _by_path() -> dict[str, Any]:
+    return {declared.path: declared for declared in declared_fields()}
+
+
+def _chain(
+    org: NodeDocument | None = None, team: NodeDocument | None = None
+) -> tuple[ConfigNode, ...]:
+    """Return a two-node chain carrying the given documents, root-first."""
+    return (
+        ConfigNode(
+            node_id=ORG,
+            kind=ConfigNodeKind.ORGANISATION,
+            name="Acme",
+            parent_id=None,
+            values=(org or NodeDocument()).to_values(),
+        ),
+        ConfigNode(
+            node_id=TEAM,
+            kind=ConfigNodeKind.TEAM,
+            name="Payments",
+            parent_id=ORG,
+            values=(team or NodeDocument()).to_values(),
+        ),
+    )
+
+
+# --- What the schema declares -------------------------------------------------
+
+
+def test_every_declared_field_is_named_by_the_dotted_path_the_rest_of_the_package_uses() -> None:
+    paths = {declared.path for declared in declared_fields()}
+
+    assert "agents.tool_budget" in paths
+    assert "policies.masking.level" in paths
+
+
+def test_a_bounded_integer_carries_its_type_its_range_and_its_default() -> None:
+    budget = _by_path()["agents.max_iterations"]
+
+    assert budget.type == "integer"
+    assert budget.minimum == 1
+    assert budget.maximum == MAX_INVESTIGATION_LOOPS
+    assert budget.default == MAX_INVESTIGATION_LOOPS
+
+
+def test_a_closed_set_of_values_is_reported_as_one() -> None:
+    level = _by_path()["policies.guardrails.mode"]
+
+    assert level.allowed_values is not None
+    assert "enforcing" in level.allowed_values
+
+
+def test_a_list_is_a_leaf_because_that_is_what_the_merge_says_it_is() -> None:
+    # Lists replace entirely rather than merging, so an editor that offered to
+    # edit one entry would be offering an operation the write path does not have.
+    capabilities = _by_path()["capabilities.enabled"]
+
+    assert capabilities.type == "array"
+
+
+def test_a_section_carries_the_summary_the_fields_under_it_are_read_with() -> None:
+    budget = _by_path()["agents.tool_budget"]
+
+    assert budget.section == "agents"
+    assert budget.section_summary != ""
+
+
+def test_no_field_is_declared_twice() -> None:
+    paths = [declared.path for declared in declared_fields()]
+
+    assert len(paths) == len(set(paths))
+
+
+def test_the_catalogue_is_the_same_on_every_call() -> None:
+    # It is derived rather than stored, so "derived once, consistently" is a
+    # property worth pinning: a client caches it, and a set that reordered
+    # between two requests would reorder the form under somebody's cursor.
+    assert declared_fields() == declared_fields()
+
+
+# --- What the fields stand at, at one node ------------------------------------
+
+
+def test_a_field_nobody_set_reports_its_default_and_no_provenance() -> None:
+    chain = _chain()
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["agents.tool_budget"].value is None
+    assert at["agents.tool_budget"].provenance == ""
+    assert at["agents.tool_budget"].set_here is False
+
+
+def test_a_field_an_ancestor_set_is_attributed_to_it_and_is_not_set_here() -> None:
+    chain = _chain(org=NodeDocument.of({"agents": {"tool_budget": 3}}))
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["agents.tool_budget"].value == 3
+    assert at["agents.tool_budget"].provenance == ORG
+    assert at["agents.tool_budget"].set_here is False
+
+
+def test_a_field_this_node_set_is_marked_set_here_which_is_what_offers_the_clear() -> None:
+    team = NodeDocument.of({"agents": {"tool_budget": 9}})
+    chain = _chain(org=NodeDocument.of({"agents": {"tool_budget": 3}}), team=team)
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), team)}
+
+    assert at["agents.tool_budget"].value == 9
+    assert at["agents.tool_budget"].provenance == TEAM
+    assert at["agents.tool_budget"].set_here is True
+
+
+def test_a_locked_field_names_the_node_holding_the_lock() -> None:
+    chain = _chain(
+        org=NodeDocument.of(
+            {"policies": {"masking": {"level": "standard"}}},
+            locked=("policies.masking.level",),
+        )
+    )
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["policies.masking.level"].locked_by == ORG
+
+
+def test_an_approval_gated_field_says_so_before_anybody_edits_it() -> None:
+    chain = _chain(org=NodeDocument.of({}, approval_gated=("agents.tool_budget",)))
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["agents.tool_budget"].approval_gated is True
+
+
+def test_a_policy_narrowing_a_ceiling_narrows_the_control_rather_than_the_schema() -> None:
+    from platform.config_service.field_policy import FieldPolicy
+
+    chain = _chain(
+        org=NodeDocument.of({}, policies=(FieldPolicy(path="agents.max_iterations", max_value=4),))
+    )
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["agents.max_iterations"].maximum == 4
+
+
+def test_a_policy_cannot_widen_a_ceiling_the_schema_declares() -> None:
+    # The schema's bound is the deployment's; a node policy may only tighten it.
+    # Widening here would render a control that offers a value the write refuses.
+    from platform.config_service.field_policy import FieldPolicy
+
+    chain = _chain(
+        org=NodeDocument.of(
+            {}, policies=(FieldPolicy(path="agents.max_iterations", max_value=9_000),)
+        )
+    )
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["agents.max_iterations"].maximum == MAX_INVESTIGATION_LOOPS
+
+
+def test_a_policy_narrowing_the_allowed_values_intersects_rather_than_replaces() -> None:
+    from platform.config_service.field_policy import FieldPolicy
+
+    chain = _chain(
+        org=NodeDocument.of(
+            {},
+            policies=(
+                FieldPolicy(
+                    path="policies.guardrails.mode", allowed_values=("enforcing", "not-a-mode")
+                ),
+            ),
+        )
+    )
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["policies.guardrails.mode"].allowed_values == ("enforcing",)
+
+
+def test_a_policy_is_the_closed_set_when_the_schema_declares_none() -> None:
+    # A free string field with a policy naming what is acceptable becomes a
+    # closed control. Nothing to intersect with, so the policy stands alone.
+    from platform.config_service.field_policy import FieldPolicy
+
+    chain = _chain(
+        org=NodeDocument.of(
+            {},
+            policies=(
+                FieldPolicy(path="policies.masking.level", allowed_values=("standard", "strict")),
+            ),
+        )
+    )
+
+    at = {each.field.path: each for each in fields_at(build(TEAM, chain), NodeDocument())}
+
+    assert at["policies.masking.level"].allowed_values == ("standard", "strict")
+
+
+def test_every_declared_field_appears_at_a_node_exactly_once() -> None:
+    chain = _chain()
+
+    at = [each.field.path for each in fields_at(build(TEAM, chain), NodeDocument())]
+
+    assert at == [declared.path for declared in declared_fields()]
+
+
+@pytest.mark.parametrize("path", ["agents.prompts.investigator", "integrations.active"])
+def test_the_catalogue_reaches_into_nested_sections(path: str) -> None:
+    assert path in _by_path()

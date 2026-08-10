@@ -22,6 +22,7 @@ from gateway.http.errors import not_found
 from gateway.http.routes.tenancy import within_scope
 from gateway.http.state import GatewayState
 from platform.config_service.errors import UnknownNode
+from platform.config_service.fields import fields_at
 from platform.config_service.schema.policies import GuardianSettings
 from platform.config_service.service import ConfigService
 from platform.guardian.resolution import resolve as resolve_guardian
@@ -114,6 +115,43 @@ class ConfigPreviewView(BaseModel):
     redundant: list[InheritedValueView] = Field(default_factory=list)
     #: Paths ``remove`` would clear, and what each falls back to once it is gone.
     reverts: list[InheritedValueView] = Field(default_factory=list)
+
+
+class ConfigFieldView(BaseModel):
+    """One editable field, as the schema declares it and this node stands on it.
+
+    Everything a client needs to draw a control and to know what pressing save
+    would do — and nothing it could have worked out for itself, because there is
+    nothing here it could have. The type, range and default come from the
+    Pydantic section the write path validates against; the value, provenance,
+    lock and gate come from this node's chain.
+    """
+
+    path: str
+    label: str
+    type: str
+    description: str = ""
+    section: str = ""
+    section_summary: str = ""
+    default: Any = None
+    minimum: float | None = None
+    maximum: float | None = None
+    max_items: int | None = None
+    max_length: int | None = None
+    allowed_values: list[Any] | None = None
+    value: Any = None
+    #: The node supplying the effective value, or empty when nothing sets it.
+    provenance: str = ""
+    #: Whether *this* node overrides the field, which is the only case in which
+    #: "clear this override" is an operation at all.
+    set_here: bool = False
+    locked_by: str = ""
+    approval_gated: bool = False
+    required: bool = False
+
+
+class ConfigFieldsView(BaseModel):
+    fields: list[ConfigFieldView]
 
 
 class CatalogueEntryView(BaseModel):
@@ -352,6 +390,56 @@ async def preview_config(
             )
             for entry in preview.reverts
         ],
+    )
+
+
+@router.get("/{node_id}/fields", response_model=ConfigFieldsView)
+async def node_fields(
+    node_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> ConfigFieldsView:
+    """Return every field this node can be edited by, described by the schema.
+
+    Served rather than shipped in a client, for the reason the whole
+    configuration surface is: a client holding its own table of field types and
+    ranges agrees with the deployment on the day it is written and drifts from
+    then on. The drift arrives as a control offering a value the write path
+    refuses, which reads to an operator as the platform being arbitrary.
+
+    The per-node half — the value, which level supplied it, whether this node
+    overrides it, what locks it — cannot be assembled by a client at all. It
+    needs the ancestors' documents, and nothing outside this deployment has
+    them.
+    """
+    await _check_scope(node_id, state, auth)
+    service = _service(state, auth)
+    effective = await service.resolve(node_id)
+    document = await service.document(node_id)
+    return ConfigFieldsView(
+        fields=[
+            ConfigFieldView(
+                path=each.field.path,
+                label=each.field.label,
+                type=each.field.type,
+                description=each.field.description,
+                section=each.field.section,
+                section_summary=each.field.section_summary,
+                default=each.field.default,
+                minimum=each.field.minimum,
+                maximum=each.maximum,
+                max_items=each.field.max_items,
+                max_length=each.field.max_length,
+                allowed_values=(None if each.allowed_values is None else list(each.allowed_values)),
+                value=each.value,
+                provenance=each.provenance,
+                set_here=each.set_here,
+                locked_by=each.locked_by,
+                approval_gated=each.approval_gated,
+                required=each.required,
+            )
+            for each in fields_at(effective, document)
+        ]
     )
 
 

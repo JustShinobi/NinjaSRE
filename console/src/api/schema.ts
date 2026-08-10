@@ -566,6 +566,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/config/{node_id}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Node Fields
+         * @description Return every field this node can be edited by, described by the schema.
+         *
+         *     Served rather than shipped in a client, for the reason the whole
+         *     configuration surface is: a client holding its own table of field types and
+         *     ranges agrees with the deployment on the day it is written and drifts from
+         *     then on. The drift arrives as a control offering a value the write path
+         *     refuses, which reads to an operator as the platform being arbitrary.
+         *
+         *     The per-node half — the value, which level supplied it, whether this node
+         *     overrides it, what locks it — cannot be assembled by a client at all. It
+         *     needs the ancestors' documents, and nothing outside this deployment has
+         *     them.
+         */
+        get: operations["node_fields_v1_config__node_id__fields_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/config/{node_id}/guardian": {
         parameters: {
             query?: never;
@@ -2406,6 +2437,83 @@ export interface components {
              * @default false
              */
             resolved: boolean;
+        };
+        /**
+         * ConfigFieldView
+         * @description One editable field, as the schema declares it and this node stands on it.
+         *
+         *     Everything a client needs to draw a control and to know what pressing save
+         *     would do — and nothing it could have worked out for itself, because there is
+         *     nothing here it could have. The type, range and default come from the
+         *     Pydantic section the write path validates against; the value, provenance,
+         *     lock and gate come from this node's chain.
+         */
+        ConfigFieldView: {
+            /** Allowed Values */
+            allowed_values?: unknown[] | null;
+            /**
+             * Approval Gated
+             * @default false
+             */
+            approval_gated: boolean;
+            /** Default */
+            default?: unknown;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Label */
+            label: string;
+            /**
+             * Locked By
+             * @default
+             */
+            locked_by: string;
+            /** Max Items */
+            max_items?: number | null;
+            /** Max Length */
+            max_length?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Path */
+            path: string;
+            /**
+             * Provenance
+             * @default
+             */
+            provenance: string;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Section
+             * @default
+             */
+            section: string;
+            /**
+             * Section Summary
+             * @default
+             */
+            section_summary: string;
+            /**
+             * Set Here
+             * @default false
+             */
+            set_here: boolean;
+            /** Type */
+            type: string;
+            /** Value */
+            value?: unknown;
+        };
+        /** ConfigFieldsView */
+        ConfigFieldsView: {
+            /** Fields */
+            fields: components["schemas"]["ConfigFieldView"][];
         };
         /** ConfigNodeView */
         ConfigNodeView: {
@@ -5866,6 +5974,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogueEntriesView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    node_fields_v1_config__node_id__fields_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigFieldsView"];
                 };
             };
             /** @description Validation Error */

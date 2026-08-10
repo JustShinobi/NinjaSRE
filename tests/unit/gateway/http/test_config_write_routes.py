@@ -58,6 +58,80 @@ async def _store(deployment: Deployment, node_id: str, document: NodeDocument) -
         )
 
 
+# --- The field catalogue an editor is built from ------------------------------
+
+
+async def test_the_node_catalogue_describes_every_editable_field(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    answer = await client.get(
+        f"/v1/config/{TEAM_PAYMENTS}/fields", headers=await _owner(deployment)
+    )
+
+    assert answer.status_code == 200
+    fields = {entry["path"]: entry for entry in answer.json()["fields"]}
+    budget = fields["agents.max_iterations"]
+    assert budget["type"] == "integer"
+    assert budget["minimum"] == 1
+    assert budget["maximum"] == budget["default"]
+    assert budget["section"] == "agents"
+
+
+async def test_a_field_says_which_node_supplies_its_value_and_whether_this_one_set_it(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    await _store(deployment, ORG, NodeDocument.of({"agents": {"tool_budget": 3}}))
+    await _store(deployment, TEAM_PAYMENTS, NodeDocument.of({"agents": {"max_iterations": 4}}))
+
+    answer = await client.get(
+        f"/v1/config/{TEAM_PAYMENTS}/fields", headers=await _owner(deployment)
+    )
+
+    fields = {entry["path"]: entry for entry in answer.json()["fields"]}
+    assert fields["agents.tool_budget"]["provenance"] == ORG
+    assert fields["agents.tool_budget"]["set_here"] is False
+    assert fields["agents.max_iterations"]["provenance"] == TEAM_PAYMENTS
+    assert fields["agents.max_iterations"]["set_here"] is True
+
+
+async def test_a_locked_field_is_reported_as_locked_before_anybody_edits_it(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    await _store(
+        deployment,
+        ORG,
+        NodeDocument.of(
+            {"policies": {"masking": {"level": "standard"}}},
+            locked=("policies.masking.level",),
+        ),
+    )
+
+    answer = await client.get(
+        f"/v1/config/{TEAM_PAYMENTS}/fields", headers=await _owner(deployment)
+    )
+
+    fields = {entry["path"]: entry for entry in answer.json()["fields"]}
+    assert fields["policies.masking.level"]["locked_by"] == ORG
+
+
+async def test_the_field_catalogue_of_another_team_s_node_is_not_found(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    secret = await issue_token(
+        deployment.gateway,
+        deployment.tokens,
+        user_id="ines",
+        role=Role.OPERATOR,
+        node_id=TEAM_PAYMENTS,
+    )
+
+    answer = await client.get(
+        f"/v1/config/{ORG}/fields", headers={"authorization": f"Bearer {secret}"}
+    )
+
+    assert answer.status_code == 404
+
+
 # --- The redundant warning ----------------------------------------------------
 
 
