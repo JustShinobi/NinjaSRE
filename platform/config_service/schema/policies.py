@@ -750,9 +750,40 @@ class AutonomyPolicySettings(ConfigSection):
         return value
 
 
+class GitHostSettings(ConfigSection):
+    """One git host's commit listing, as a change source.
+
+    ``vendor`` names which client reads it and ``repository`` names what to
+    read. Both are needed: a vendor with no repository would compose a listing
+    request for the empty string, which is a source that fails on every
+    investigation rather than one that is absent.
+    """
+
+    vendor: ConfiguredStr = ""
+    repository: ConfiguredStr = ""
+
+
+class ChangeSourceSettings(ConfigSection):
+    """Where this deployment reads "what changed" from.
+
+    Configuration rather than a build-time choice, because which of these a
+    deployment has is a fact about the operator's estate. Both are optional and
+    neither is a default: a deployment that configured none reports that nothing
+    was consulted, which is a different finding from nothing having changed and
+    leads somewhere different.
+    """
+
+    #: The repository root whose ``.infra-state`` apply record is read. The
+    #: repository root rather than the state directory, so it is the same path a
+    #: deployment already configures its documentation corpus with.
+    repository_path: ConfiguredStr = ""
+    git_host: GitHostSettings = GitHostSettings()
+
+
 class PoliciesConfig(ConfigSection):
     """Every policy switch, in one section."""
 
+    changes: ChangeSourceSettings = ChangeSourceSettings()
     memory: MemoryPolicySettings = MemoryPolicySettings()
     strategy: StrategyPolicySettings = StrategyPolicySettings()
     knowledge: KnowledgePolicySettings = KnowledgePolicySettings()

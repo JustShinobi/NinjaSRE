@@ -17,8 +17,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
+from gateway.http.change_sources import compose_change_sources
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
+from platform.startup.bootstrap import organisation_id
 
 logger = get_logger(__name__)
 
@@ -35,6 +37,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         ready=health.is_ready,
         reasons=list(health.reasons),
     )
+
+    # After the store is known to answer, because it is read from the
+    # configuration tree — and before the first request, so a resource page
+    # never renders "nothing was consulted" for a deployment that had.
+    if health.is_ready:
+        await compose_change_sources(state, org_id=organisation_id())
 
     try:
         yield

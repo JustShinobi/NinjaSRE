@@ -24,12 +24,16 @@ from config.constants.estate import (
     MAX_UNRESOLVED_ALERT_TARGETS,
 )
 from config.constants.observation import MAX_INCIDENT_PAGE_SIZE
+from gateway.http.change_sources import change_sources_from
 from gateway.http.configured import configured_integrations
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.state import GatewayState
+from integrations._base.changes import UnsupportedGitHost
 from platform.changes.correlation import CorrelatedChange, views_of
 from platform.changes.models import ChangeWindow
 from platform.changes.service import ChangeAnswer, ChangeInquiry
+from platform.config_service.errors import UnknownNode
+from platform.config_service.service import ConfigService
 from platform.estate.alert_resolution import UnresolvedTargetFinding, unresolved_targets
 from platform.estate.service import EstateService, ResourceDetail, ResourceView
 from platform.estate.signal_map import SignalMap, signal_map_for
@@ -446,18 +450,33 @@ def _changes(answer: ChangeAnswer) -> ResourceChangesView:
 
 async def _changes_for(
     state: GatewayState,
+    auth: AuthenticatedRequest,
     detail: ResourceDetail,
     *,
     now: datetime,
 ) -> ChangeAnswer:
     """Return what changed under this resource, from whatever is configured.
 
-    Built per request from the composed sources rather than held, for the same
-    reason the signal map is: point the deployment at a repository and the next
-    render of this page says so, with nothing to migrate.
+    Built per request from *this caller's* configuration, falling back to what
+    the process composed at startup. That is the same reason the signal map is
+    derived per request: point the deployment at a repository in the console and
+    the next render of this page says so, with nothing to restart and nothing to
+    migrate.
+
+    A vendor nothing can read falls back rather than raising. The change block
+    is one part of a resource page, and a typo in an optional setting must not
+    take the whole page down.
     """
+    try:
+        effective = await ConfigService(gateway=state.gateway, scope=auth.scope).resolve(
+            auth.team_node_id or auth.scope.org_id
+        )
+        configured = change_sources_from(effective.config.policies.changes)
+    except (UnsupportedGitHost, UnknownNode):
+        configured = ()
+
     view = views_of([detail.view.resource])[0]
-    return await ChangeInquiry(sources=list(state.change_sources)).about(
+    return await ChangeInquiry(sources=list(configured or state.change_sources)).about(
         view, window=ChangeWindow.ending(now, hours=DEFAULT_CHANGE_WINDOW_HOURS)
     )
 
@@ -609,7 +628,7 @@ async def resource_detail(
     documents = await EstateLinker(gateway=state.gateway, scope=auth.scope).documents_for(
         resource_id
     )
-    changes = await _changes_for(state, detail, now=now)
+    changes = await _changes_for(state, auth, detail, now=now)
     return _detail(
         detail,
         signal_map_for(detail.view.resource, configured=configured),
