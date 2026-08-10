@@ -183,4 +183,14 @@ WEBHOOK_ROUTES: Final[tuple[Route, ...]] = tuple(
     )
 )
 
-__all__ = ["GATEWAY_ROUTES", "WEBHOOK_ROUTES"]
+#: What to paste into the system that will send the alerts. A read, and an
+#: operator's: it is the first step of connecting a source, which is the same
+#: act ``INTEGRATION_MANAGE`` guards everywhere else. It carries no secret —
+#: the credential is issued through the token route and shown once — but it does
+#: describe every way into this deployment, and that is a map a viewer has no
+#: use for.
+INGRESS_ROUTES: Final[tuple[Route, ...]] = (
+    Route(method="GET", path="/v1/ingress/sources", permission=Permission.INTEGRATION_MANAGE),
+)
+
+__all__ = ["GATEWAY_ROUTES", "INGRESS_ROUTES", "WEBHOOK_ROUTES"]

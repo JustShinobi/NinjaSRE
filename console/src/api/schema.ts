@@ -1003,6 +1003,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ingress/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ingress Sources
+         * @description Return every receiver this deployment serves, with its address and its body.
+         */
+        get: operations["list_ingress_sources_v1_ingress_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/integrations": {
         parameters: {
             query?: never;
@@ -3187,6 +3207,32 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** IngressSourceListView */
+        IngressSourceListView: {
+            /**
+             * Delivery Permission
+             * @default webhook.deliver
+             */
+            delivery_permission: string;
+            /** Sources */
+            sources?: components["schemas"]["IngressSourceView"][];
+        };
+        /**
+         * IngressSourceView
+         * @description One receiver an alert router can be pointed at.
+         */
+        IngressSourceView: {
+            /** Expects */
+            expects: string;
+            /** Path */
+            path: string;
+            /** Source */
+            source: string;
+            /** Url */
+            url: string;
+            /** Verification */
+            verification: string;
+        };
         /** IntegrationList */
         IntegrationList: {
             /** Integrations */
@@ -3330,6 +3376,8 @@ export interface components {
             name: string;
             /** Node Id */
             node_id?: string | null;
+            /** Permissions */
+            permissions?: string[];
             /**
              * User Id
              * @default
@@ -6363,6 +6411,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidentSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ingress_sources_v1_ingress_sources_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngressSourceListView"];
                 };
             };
             /** @description Validation Error */

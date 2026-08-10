@@ -13,6 +13,15 @@ def _event_id(payload: Mapping[str, Any]) -> str:
     return field(payload, "data", "id") or field(payload, "id")
 
 
-PROFILE = WebhookSourceProfile(source=AlertSource.SENTRY, event_id_of=_event_id)
+PROFILE = WebhookSourceProfile(
+    source=AlertSource.SENTRY,
+    event_id_of=_event_id,
+    expects=(
+        "a Sentry issue-alert body: a `culprit` and a `data.issue` object carrying the title."
+    ),
+    verification=(
+        "Sentry's HMAC signature in `Sentry-Hook-Signature`, or a machine token scoped to alert delivery"
+    ),
+)
 
 __all__ = ["PROFILE"]

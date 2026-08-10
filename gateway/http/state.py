@@ -18,7 +18,11 @@ from gateway.http.security.autonomy_routes import AUTONOMY_ROUTES
 from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.estate_routes import ESTATE_ROUTES
 from gateway.http.security.first_run_routes import FIRST_RUN_ROUTES
-from gateway.http.security.gateway_routes import GATEWAY_ROUTES, WEBHOOK_ROUTES
+from gateway.http.security.gateway_routes import (
+    GATEWAY_ROUTES,
+    INGRESS_ROUTES,
+    WEBHOOK_ROUTES,
+)
 from gateway.http.security.incident_routes import INCIDENT_ROUTES
 from gateway.http.security.onboarding_routes import ONBOARDING_ROUTES
 from gateway.http.security.remediation_routes import REMEDIATION_ROUTES
@@ -43,6 +47,7 @@ from platform.runs.stream import RunEventBroker
 APPLICATION_ROUTE_TABLE: RouteTable = (
     ROUTE_TABLE.extended_with(GATEWAY_ROUTES)
     .extended_with(WEBHOOK_ROUTES)
+    .extended_with(INGRESS_ROUTES)
     .extended_with(CONSOLE_ROUTES)
     .extended_with(ESTATE_ROUTES)
     .extended_with(INCIDENT_ROUTES)

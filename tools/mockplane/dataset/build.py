@@ -124,6 +124,11 @@ def empty_records() -> tuple[CapturedRecord, ...]:
         "detectors": {"detectors": []},
         "observations": {"observations": []},
     }
+    # The seven receivers exist on any deployment, populated or not: they are
+    # routes this build serves rather than something an operator filled in. An
+    # empty scenario that answered 404 here would be one where the panel telling
+    # somebody how to connect their first alert source is the panel that is
+    # missing.
     records = [
         CapturedRecord(
             slug=slug,
@@ -135,6 +140,7 @@ def empty_records() -> tuple[CapturedRecord, ...]:
         )
         for slug, body in bodies.items()
     ]
+    records.extend(served.ingress_records())
     records.extend(_absent_detail_records())
     records.extend(_write_responses())
     # Nothing stored, nothing verified: the nine providers are still all nine,

@@ -2096,6 +2096,58 @@
         "title": "IncidentSummaryView",
         "type": "object"
       },
+      "IngressSourceListView": {
+        "properties": {
+          "delivery_permission": {
+            "default": "webhook.deliver",
+            "title": "Delivery Permission",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IngressSourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "title": "IngressSourceListView",
+        "type": "object"
+      },
+      "IngressSourceView": {
+        "description": "One receiver an alert router can be pointed at.",
+        "properties": {
+          "expects": {
+            "title": "Expects",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "verification": {
+            "title": "Verification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "path",
+          "url",
+          "expects",
+          "verification"
+        ],
+        "title": "IngressSourceView",
+        "type": "object"
+      },
       "IntegrationList": {
         "properties": {
           "integrations": {
@@ -8520,6 +8572,56 @@
         "summary": "Suppress Incident",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/v1/ingress/sources": {
+      "get": {
+        "description": "Return every receiver this deployment serves, with its address and its body.",
+        "operationId": "list_ingress_sources_v1_ingress_sources_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngressSourceListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ingress Sources",
+        "tags": [
+          "ingress"
         ]
       }
     },

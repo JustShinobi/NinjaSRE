@@ -661,6 +661,16 @@ export const EN = {
   'catalogue.gaps.decided': '— weighed and decided against',
   'catalogue.gaps.unreachable': '— cannot be reached from here',
   'catalogue.gaps.resolution': 'What would change it:',
+  'ingress.title': 'Where to send alerts',
+  'ingress.body':
+    'The one step that happens outside this deployment. Point the alert router at the address for its own kind, and it will parse the body that system already sends \u2014 nothing here is written into your monitoring stack.',
+  'ingress.verification': 'Trusted by',
+  'ingress.token.issue': 'Issue a delivery token',
+  'ingress.token.issuing': 'Issuing\u2026',
+  'ingress.token.shownOnce':
+    'Copy it now. It is shown once and is never readable again \u2014 the deployment keeps only a hash of it.',
+  'ingress.token.failed': 'The deployment refused to issue it.',
+  'ingress.token.unreachable': 'The deployment could not be reached.',
   'firstRun.integrations.foundHere': 'Found in your estate at',
   'catalogue.integrations.title': 'Integrations',
   'catalogue.integrations.state': 'Connection',

@@ -644,6 +644,17 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.gaps.decided': '— avaliado e descartado',
   'catalogue.gaps.unreachable': '— não dá para alcançar daqui',
   'catalogue.gaps.resolution': 'O que mudaria isso:',
+  'ingress.title': 'Para onde enviar alertas',
+  'ingress.body':
+    'O \u00fanico passo que acontece fora desta implanta\u00e7\u00e3o. Aponte o roteador de alertas para o endere\u00e7o do seu tipo e ele vai interpretar o corpo que aquele sistema j\u00e1 envia \u2014 nada aqui \u00e9 escrito na sua pilha de observabilidade.',
+  'ingress.verification': 'Confiado por',
+  'ingress.token.issue': 'Emitir um token de entrega',
+  'ingress.token.issuing': 'Emitindo\u2026',
+  'ingress.token.shownOnce':
+    'Copie agora. \u00c9 mostrado uma vez e nunca mais pode ser lido \u2014 a implanta\u00e7\u00e3o guarda apenas um hash dele.',
+  'ingress.token.failed': 'A implanta\u00e7\u00e3o recusou a emiss\u00e3o.',
+  'ingress.token.unreachable':
+    'N\u00e3o foi poss\u00edvel alcan\u00e7ar a implanta\u00e7\u00e3o.',
   'firstRun.integrations.foundHere': 'Encontrado no seu estate em',
   'catalogue.integrations.title': 'Integrações',
   'catalogue.integrations.state': 'Ligação',

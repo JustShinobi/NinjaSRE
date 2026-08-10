@@ -1,0 +1,72 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "delivery_permission": "webhook.deliver",
+        "sources": [
+          {
+            "expects": "Alertmanager's own grouped notification body: a `groupKey`, `commonLabels`, and an `alerts` array. Point a `webhook_config` at the URL; nothing else has to change.",
+            "path": "/webhooks/alertmanager",
+            "source": "alertmanager",
+            "url": "https://ninjasre.example.invalid/webhooks/alertmanager",
+            "verification": "a shared secret in the `Authorization` header, or a machine token scoped to alert delivery"
+          },
+          {
+            "expects": "a Datadog webhook body carrying `id`, `alert_title` and `alert_transition`. The @-mention webhook integration sends it unchanged.",
+            "path": "/webhooks/datadog",
+            "source": "datadog",
+            "url": "https://ninjasre.example.invalid/webhooks/datadog",
+            "verification": "a token in the `X-Datadog-Token` header, or a machine token scoped to alert delivery"
+          },
+          {
+            "expects": "any JSON object naming the alert: `alert_name`, `summary`, `severity`, and an `event_id` or `id` if the sender has one. What anything without a vendor integration posts.",
+            "path": "/webhooks/generic",
+            "source": "generic",
+            "url": "https://ninjasre.example.invalid/webhooks/generic",
+            "verification": "an HMAC-SHA256 signature over the body in `X-Webhook-Signature`, or a machine token scoped to alert delivery"
+          },
+          {
+            "expects": "Grafana unified alerting's body: an `alerts` array with `labels` and `annotations`, plus the fields only Grafana sends. Configure it as a contact point of type webhook.",
+            "path": "/webhooks/grafana",
+            "source": "grafana",
+            "url": "https://ninjasre.example.invalid/webhooks/grafana",
+            "verification": "a shared secret in the `Authorization` header, or a machine token scoped to alert delivery"
+          },
+          {
+            "expects": "an Opsgenie webhook body: an `action` and an `alert` object carrying `alertId` and `message`.",
+            "path": "/webhooks/opsgenie",
+            "source": "opsgenie",
+            "url": "https://ninjasre.example.invalid/webhooks/opsgenie",
+            "verification": "a shared secret in the `Authorization` header, or a machine token scoped to alert delivery"
+          },
+          {
+            "expects": "a PagerDuty v3 webhook body: an `event` object with an `id` and an `event_type`.",
+            "path": "/webhooks/pagerduty",
+            "source": "pagerduty",
+            "url": "https://ninjasre.example.invalid/webhooks/pagerduty",
+            "verification": "PagerDuty's HMAC signature in `X-PagerDuty-Signature`, or a machine token scoped to alert delivery"
+          },
+          {
+            "expects": "a Sentry issue-alert body: a `culprit` and a `data.issue` object carrying the title.",
+            "path": "/webhooks/sentry",
+            "source": "sentry",
+            "url": "https://ninjasre.example.invalid/webhooks/sentry",
+            "verification": "Sentry's HMAC signature in `Sentry-Hook-Signature`, or a machine token scoped to alert delivery"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "ingress-sources",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "ingress-sources"
+}

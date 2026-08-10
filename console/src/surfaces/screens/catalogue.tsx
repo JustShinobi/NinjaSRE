@@ -7,6 +7,7 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { CredentialField } from '../credential';
+import { DeliveryToken } from '../ingress';
 import { credentialLabels, panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -15,6 +16,7 @@ import {
   dependencyOf,
   flag,
   list,
+  optionalRead,
   panelRead,
   read,
   stateOf,
@@ -49,11 +51,17 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
   const state = readViewState(search, CATALOGUE_FILTERS);
   const init = authorised(credential);
 
-  const [capabilities, tree, integrations] = await Promise.all([
+  const [capabilities, tree, integrations, ingress] = await Promise.all([
     panelRead('/v1/capabilities', () => read('/v1/capabilities', init)),
     panelRead('/v1/config', () => read('/v1/config', init)),
     may(viewer, MANAGE)
       ? panelRead<unknown>('/v1/integrations', () => read('/v1/integrations', init))
+      : Promise.resolve({ status: 'ready' as const, data: {} }),
+    // Where an alert router posts. Optional and manage-only: a viewer has no
+    // use for a map of every way into the deployment, and a build serving it is
+    // not something a deployment has to have configured.
+    may(viewer, MANAGE)
+      ? optionalRead('/v1/ingress/sources', () => read('/v1/ingress/sources', init))
       : Promise.resolve({ status: 'ready' as const, data: {} }),
   ]);
 
@@ -82,6 +90,11 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
   // omitted: an operator evaluating the platform against their own stack finds
   // an absence by looking for it, which is the worst moment and the worst way.
   const gaps = list(dataOf(integrations), 'known_gaps');
+  // The receivers this build serves, and what to paste into each sender. The
+  // one step of the alert loop that happens outside this deployment, so the
+  // most it can do is be exact about it.
+  const receivers = list(dataOf(ingress), 'sources');
+  const deliveryPermission = text(dataOf(ingress), 'delivery_permission');
   const none = message(locale, 'surface.none');
 
   // One panel, two reads. Without this the availability column renders "—" for
@@ -179,6 +192,58 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
             </table>
           </div>
         </Panel>
+
+        {receivers.length === 0 ? null : (
+          <Panel
+            title={message(locale, 'ingress.title')}
+            state="ready"
+            labels={panelLabels(locale, message(locale, 'ingress.title'))}
+            empty={{
+              heading: message(locale, 'ingress.title'),
+              body: message(locale, 'ingress.body'),
+              actionLabel: message(locale, 'catalogue.empty.action'),
+              href: '/configuration',
+            }}
+          >
+            <div className="flex flex-col gap-3" data-testid="ingress">
+              <p className="text-meta text-muted">{message(locale, 'ingress.body')}</p>
+              <ul className="flex flex-col gap-3">
+                {receivers.map((receiver) => (
+                  <li
+                    key={text(receiver, 'source')}
+                    data-testid="ingress-source"
+                    data-source={text(receiver, 'source')}
+                    className="flex flex-col gap-1"
+                  >
+                    <span className="text-small text-strong">
+                      {text(receiver, 'source')}
+                    </span>
+                    <code className="text-meta break-all">{text(receiver, 'url')}</code>
+                    <span className="text-meta text-muted">
+                      {text(receiver, 'expects')}
+                    </span>
+                    <span className="text-meta text-muted">
+                      {message(locale, 'ingress.verification')}{' '}
+                      {text(receiver, 'verification')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {deliveryPermission === '' ? null : (
+                <DeliveryToken
+                  permission={deliveryPermission}
+                  labels={{
+                    issue: message(locale, 'ingress.token.issue'),
+                    issuing: message(locale, 'ingress.token.issuing'),
+                    shownOnce: message(locale, 'ingress.token.shownOnce'),
+                    failed: message(locale, 'ingress.token.failed'),
+                    unreachable: message(locale, 'ingress.token.unreachable'),
+                  }}
+                />
+              )}
+            </div>
+          </Panel>
+        )}
 
         {/* Absent, not disabled, for a viewer who may not manage integrations. */}
         {may(viewer, MANAGE) ? (

@@ -13,6 +13,13 @@ def _event_id(payload: Mapping[str, Any]) -> str:
     return field(payload, "event", "id") or field(payload, "id")
 
 
-PROFILE = WebhookSourceProfile(source=AlertSource.PAGERDUTY, event_id_of=_event_id)
+PROFILE = WebhookSourceProfile(
+    source=AlertSource.PAGERDUTY,
+    event_id_of=_event_id,
+    expects=("a PagerDuty v3 webhook body: an `event` object with an `id` and an `event_type`."),
+    verification=(
+        "PagerDuty's HMAC signature in `X-PagerDuty-Signature`, or a machine token scoped to alert delivery"
+    ),
+)
 
 __all__ = ["PROFILE"]

@@ -449,6 +449,14 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/ingress/sources",
+        slug="ingress-sources",
+        source=_GATEWAY,
+        summary="where an alert router posts, and what body each receiver parses",
+        records_key="sources",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/estate/unresolved-alert-targets",
         slug="estate-unresolved-targets",
         source=_GATEWAY,

@@ -31,10 +31,12 @@ from config.constants.first_run import (
     SETUP_STEP_MODEL_PROVIDER,
 )
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
+from gateway.webhooks.router import PROFILES
 from integrations._catalogue.gaps import gaps
 from platform.config_service.schema.policies import GuardianSettings
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
+from platform.identity.permissions import Permission
 from tools.mockplane.dataset import profile
 from tools.mockplane.records import CapturedRecord, Provenance, Request
 
@@ -985,6 +987,41 @@ def checklist_record(
     )
 
 
+#: The address the ingress panel's URLs are built from in the dataset. The real
+#: route derives it from the request, which a fixture has none of; an obviously
+#: fictional host is the honest stand-in, and it is the same shape an operator
+#: sees.
+INGRESS_BASE_URL: Final = "https://ninjasre.example.invalid"
+
+
+def ingress_records() -> tuple[CapturedRecord, ...]:
+    """Return what an operator pastes into each alert router, per source.
+
+    Derived from the shipped profiles rather than written out, for the reason
+    the signal block is: a fixture that carried its own copy of the seven
+    receivers would go on describing a receiver after it was removed.
+    """
+    return (
+        _record(
+            "ingress-sources",
+            {},
+            {
+                "sources": [
+                    {
+                        "source": name,
+                        "path": f"/webhooks/{name}",
+                        "url": f"{INGRESS_BASE_URL}/webhooks/{name}",
+                        "expects": profile_of.expects,
+                        "verification": profile_of.verification,
+                    }
+                    for name, profile_of in sorted(PROFILES.items())
+                ],
+                "delivery_permission": Permission.WEBHOOK_DELIVER.value,
+            },
+        ),
+    )
+
+
 def setup_records() -> tuple[CapturedRecord, ...]:
     """Return what the full deployment says about its own setup: finished."""
     return (
@@ -1296,6 +1333,7 @@ def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
         *integration_records(),
         *identity_records(role=role),
         *platform_records(),
+        *ingress_records(),
         *setup_records(),
     )
 
