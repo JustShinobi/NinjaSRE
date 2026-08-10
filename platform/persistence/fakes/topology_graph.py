@@ -11,7 +11,7 @@ contract suite against both backends exists to catch.
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
 
 from config.constants.persistence import (
@@ -30,6 +30,10 @@ from platform.persistence.ports.topology_graph import (
     TopologyNode,
     TraversalResult,
 )
+
+#: Edge kinds a dependency traversal never crosses, in one place so the walk and
+#: the two methods that read involvement cannot disagree about the set.
+UNTRAVERSED: frozenset[EdgeKind] = frozenset({EdgeKind.INVOLVED, EdgeKind.DOCUMENTED_BY})
 
 
 @dataclass(slots=True)
@@ -83,10 +87,18 @@ class FakeTopologyGraph:
         self.state.topology_edges[key] = merged
         return merged
 
-    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
+    async def edges_from(
+        self, node_id: str, *, kinds: Sequence[EdgeKind] = ()
+    ) -> tuple[TopologyEdge, ...]:
         """Return the edges leaving ``node_id``, with their stored properties."""
         self._require_available()
-        found = [edge for edge in self._dependency_edges() if edge.from_node_id == node_id]
+        wanted = frozenset(kinds)
+        edges = (
+            [edge for edge in self.state.topology_edges.values() if edge.kind in wanted]
+            if wanted
+            else list(self._dependency_edges())
+        )
+        found = [edge for edge in edges if edge.from_node_id == node_id]
         found.sort(key=lambda edge: (edge.to_node_id, edge.kind.value))
         return tuple(found[:MAX_GRAPH_RESULTS])
 
@@ -258,15 +270,15 @@ class FakeTopologyGraph:
     def _dependency_edges(self) -> tuple[TopologyEdge, ...]:
         """Return every edge that expresses a dependency.
 
-        ``INVOLVED`` is excluded. An episode is attached to the components it
-        touched, and letting a traversal cross that edge would make every
-        service that ever appeared in an incident a dependent of every other
-        one that did.
+        ``INVOLVED`` and ``DOCUMENTED_BY`` are excluded. An episode is attached
+        to the components it touched, and letting a traversal cross that edge
+        would make every service that ever appeared in an incident a dependent
+        of every other one that did. A document is attached to the resource it
+        is about, and a document cannot fail — a blast radius that reached one
+        would answer "what does this outage take with it" with a runbook.
         """
         return tuple(
-            edge
-            for edge in self.state.topology_edges.values()
-            if edge.kind is not EdgeKind.INVOLVED
+            edge for edge in self.state.topology_edges.values() if edge.kind not in UNTRAVERSED
         )
 
     def _collect(self, node_ids: Iterable[str]) -> TraversalResult:

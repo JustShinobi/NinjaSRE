@@ -15,6 +15,7 @@ named differently.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -102,10 +103,15 @@ class PostgresTopologyGraph(TenantBound):
         )
         return merged
 
-    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
+    async def edges_from(
+        self, node_id: str, *, kinds: Sequence[EdgeKind] = ()
+    ) -> tuple[TopologyEdge, ...]:
         """Return the edges leaving ``node_id``, with their stored properties."""
         self._require_available()
-        rows = await self._read(queries.EDGES_FROM, node_id)
+        statement = (
+            queries.edges_from(tuple(kind.value for kind in kinds)) if kinds else queries.EDGES_FROM
+        )
+        rows = await self._read(statement, node_id)
         return tuple(
             TopologyEdge(
                 from_node_id=node_id,

@@ -43,7 +43,7 @@ before committing to a plan that needs an answer.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
@@ -79,6 +79,13 @@ class NodeKind(StrEnum):
     #: is a division somebody declared, and a traversal asking "what else is on
     #: this network" must not have to filter resources by an attribute.
     ZONE = "zone"
+    #: A document in the knowledge base — a runbook, a post-mortem, a policy.
+    #: It sits in the graph for the same reason an episode does: "what has been
+    #: written about this thing" is a traversal from the thing, and the
+    #: alternative is a join table that duplicates what the graph is for. It is
+    #: not infrastructure and nothing depends on it, which is why the edge that
+    #: reaches it is excluded from every dependency walk.
+    DOCUMENT = "document"
 
 
 class EdgeKind(StrEnum):
@@ -107,6 +114,13 @@ class EdgeKind(StrEnum):
     #: A resource's state is copied to another. Traversed for the same reason
     #: ``BACKS_UP`` is: a replica's failure is a fact about its primary.
     REPLICATES_TO = "replicates_to"
+    #: Somebody has written about this resource. From the resource to the
+    #: document, which is the direction ``edges_from`` walks and the direction
+    #: the question is asked in. **Not a dependency** — a runbook cannot fail,
+    #: and a blast radius that reached one would answer "what does this outage
+    #: take with it" with a document. It is excluded from every dependency
+    #: traversal, exactly as ``INVOLVED`` is and for the same reason.
+    DOCUMENTED_BY = "documented_by"
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,7 +209,9 @@ class TopologyGraph(Protocol):
         would mean dropping real topology on ordering alone.
         """
 
-    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
+    async def edges_from(
+        self, node_id: str, *, kinds: Sequence[EdgeKind] = ()
+    ) -> tuple[TopologyEdge, ...]:
         """Return the edges leaving ``node_id``, with their stored properties.
 
         The only method that returns edges rather than nodes, and it exists for
@@ -203,6 +219,13 @@ class TopologyGraph(Protocol):
         delete an operator's edge both require reading what is on the edge.
         Ordered by target then kind, so two runs over an unchanged graph produce
         the same diff. Bounded by ``MAX_GRAPH_RESULTS``.
+
+        ``kinds`` empty means the dependency edges — what reconciliation asks
+        for, and the default because it is the reading that must not change by
+        accident when a non-dependency kind is added. Naming kinds returns
+        exactly those, including the ones a dependency walk never crosses: that
+        is how "which documents is this resource written about in" is asked,
+        without the answer also appearing in a blast radius.
         """
 
     async def delete_edge(self, edge: TopologyEdge) -> bool:

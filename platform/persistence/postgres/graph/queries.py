@@ -54,6 +54,7 @@ Two more AGE limitations shape what is below:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Final
 
 from config.constants.persistence import (
@@ -82,6 +83,16 @@ EDGE_LABEL: Final = "Edge"
 #: exclude ``involved``, because an episode touching two services does not make
 #: either depend on the other.
 INVOLVED_KIND: Final = "involved"
+
+#: The other edge a dependency walk never crosses: a resource to a document
+#: somebody wrote about it. A document cannot fail, so a blast radius that
+#: reached one would answer "what does this outage take with it" with a runbook.
+DOCUMENTED_BY_KIND: Final = "documented_by"
+
+#: Every kind a dependency traversal excludes, named once. Two exclusions
+#: spelled separately in five statements is how one of them comes to be missing
+#: from the sixth.
+UNTRAVERSED_KINDS: Final[tuple[str, ...]] = (INVOLVED_KIND, DOCUMENTED_BY_KIND)
 
 
 #: The label tables, as SQL identifiers. AGE stores a label in an ordinary
@@ -116,9 +127,12 @@ def property_of(alias: str, name: str) -> str:
     )
 
 
-#: A dependency edge is any edge that is not an involvement. An episode touching
-#: two services does not make either one depend on the other.
-NOT_INVOLVED: Final = f"{kind_of('e')} <> '\"{INVOLVED_KIND}\"'::ag_catalog.agtype"
+#: A dependency edge is any edge that is neither an involvement nor a document
+#: link. An episode touching two services does not make either one depend on the
+#: other, and a runbook about a container is not something the container needs.
+NOT_INVOLVED: Final = " AND ".join(
+    f"{kind_of('e')} <> '\"{kind}\"'::ag_catalog.agtype" for kind in UNTRAVERSED_KINDS
+)
 
 IS_INVOLVED: Final = f"{kind_of('e')} = '\"{INVOLVED_KIND}\"'::ag_catalog.agtype"
 
@@ -196,18 +210,42 @@ DELETE_EDGE = statement(
     "kind ag_catalog.agtype",
 )
 
+
 #: The one shape that returns edges rather than nodes. Reconciliation needs the
 #: properties on an edge — the operator's annotation, and whether a human drew it
 #: — and no traversal above can carry them, because they all return nodes.
-EDGES_FROM = f"""
+def edges_from(kinds: Sequence[str] = ()) -> str:
+    """Return the edge read, for the dependency edges or for named kinds.
+
+    No kinds means the dependency edges, which is what reconciliation asks for.
+    Naming kinds returns exactly those, including the ones a dependency walk
+    never crosses — which is how a resource's documents are read without them
+    also appearing in its blast radius.
+
+    The kinds are interpolated rather than bound, and they are safe to
+    interpolate because they are ``EdgeKind`` values by the time they arrive:
+    the repository takes the enumeration and passes ``.value``, so nothing a
+    caller typed reaches here.
+    """
+    predicate = (
+        " OR ".join(f"{kind_of('e')} = '\"{kind}\"'::ag_catalog.agtype" for kind in kinds)
+        if kinds
+        else NOT_INVOLVED
+    )
+    return f"""
 SELECT {property_of("b", "node_id")}, {kind_of("e")}, {property_of("e", "properties")}
 FROM {EDGE_TABLE} e
 JOIN ({ANCHOR}) a ON e.start_id = a.id
 JOIN {NODE_TABLE} b ON b.id = e.end_id
-WHERE {NOT_INVOLVED}
+WHERE ({predicate})
 ORDER BY 1, 2
 LIMIT {MAX_GRAPH_RESULTS}
 """
+
+
+#: The dependency-edge read, kept as a constant because it is the default and
+#: because the catalogue is closed by what is named here.
+EDGES_FROM = edges_from()
 
 
 # --- One-hop reads --------------------------------------------------------------
@@ -418,6 +456,7 @@ __all__ = [
     "DEPENDENCIES_BY_DEPTH",
     "DIRECT_DEPENDENCIES",
     "DIRECT_DEPENDENTS",
+    "DOCUMENTED_BY_KIND",
     "EDGES_FROM",
     "EDGE_LABEL",
     "EPISODES_FOR_COMPONENT",
@@ -429,8 +468,10 @@ __all__ = [
     "SHORTEST_PATH_BY_DEPTH",
     "STATEMENTS",
     "UPSERT_EDGE",
+    "UNTRAVERSED_KINDS",
     "UPSERT_NODE",
     "blast_radius",
+    "edges_from",
     "check_depth",
     "shortest_path",
     "statement",
