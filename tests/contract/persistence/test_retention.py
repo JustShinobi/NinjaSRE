@@ -16,6 +16,7 @@ from platform.persistence.ports import (
     Episode,
     EvidenceRecord,
     HealthDerivation,
+    PayloadSample,
     PersistenceGateway,
     ReferenceKind,
     Resource,
@@ -26,6 +27,10 @@ from platform.persistence.ports import (
     RunStatus,
     SessionRecord,
     TenantScope,
+    TransitDelivery,
+    TransitDirection,
+    TransitOutcome,
+    TransitQuery,
     TurnRecord,
 )
 
@@ -262,6 +267,44 @@ async def test_estate_history_inside_its_window_is_left_alone(
     assert report.deleted == 0
     async with gateway.begin(scope) as uow:
         assert len(await uow.estate.transitions("res-1")) == 1
+
+
+async def test_transit_rows_age_out_and_the_samples_do_not(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The delivery log is a history; the sample is one row per source.
+
+    Sweeping the samples by age would delete "what does this source send" from
+    exactly the sources that send rarely, which is the question they exist for.
+    """
+    async with gateway.begin(scope) as uow:
+        await uow.transit.record(
+            TransitDelivery(
+                delivery_id="alertmanager-1",
+                direction=TransitDirection.INGRESS,
+                source="alertmanager",
+                occurred_at=EPOCH,
+                outcome=TransitOutcome.ACCEPTED,
+            )
+        )
+        await uow.transit.store_sample(
+            PayloadSample(
+                source="alertmanager",
+                captured_at=EPOCH,
+                body='{"status":"firing"}',
+                masking_policy="standard",
+            )
+        )
+
+    async with gateway.begin_system() as system:
+        report = await system.retention.purge(
+            RetentionPolicy(data_class=DataClass.TRANSIT, retention_days=1), now=LATER
+        )
+
+    assert report.deleted == 1
+    async with gateway.begin(scope) as uow:
+        assert await uow.transit.deliveries(TransitQuery()) == ()
+        assert await uow.transit.sample("alertmanager") is not None
 
 
 def test_every_data_class_is_swept_by_the_same_sweeper() -> None:

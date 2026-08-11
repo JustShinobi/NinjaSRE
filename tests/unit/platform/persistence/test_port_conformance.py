@@ -36,6 +36,7 @@ from platform.persistence.ports import (
     TenantScope,
     TokenDirectory,
     TopologyGraph,
+    TransitLedger,
     UnitOfWork,
     VectorIndex,
 )
@@ -44,7 +45,7 @@ from platform.persistence.ports.transaction import SystemUnitOfWork
 
 pytestmark = pytest.mark.unit
 
-#: The sixteen, as ``(attribute on the unit of work, the protocol it must satisfy)``.
+#: The seventeen, as ``(attribute on the unit of work, the protocol it must satisfy)``.
 TENANT_PORTS = (
     ("config", ConfigRepository),
     ("identity", IdentityRepository),
@@ -62,6 +63,7 @@ TENANT_PORTS = (
     ("signals", SignalStore),
     ("incidents", IncidentStore),
     ("remediation", RemediationLedger),
+    ("transit", TransitLedger),
 )
 
 SYSTEM_PORTS = (
@@ -72,17 +74,18 @@ SYSTEM_PORTS = (
 )
 
 
-def test_the_specification_names_exactly_sixteen_ports() -> None:
-    """A seventeenth is a specification change, not a refactor.
+def test_the_specification_names_exactly_seventeen_ports() -> None:
+    """An eighteenth is a specification change, not a refactor.
 
     The count was twelve until the estate arrived, thirteen and fourteen until
-    continuous observation brought the signal history and the incident, and
-    fifteen until closed-loop remediation brought the ledger of what each
-    remediation did — which is exactly what this test is for: adding a port is a
-    deliberate act with a plan behind it, and the number moving without one is
-    the thing worth catching.
+    continuous observation brought the signal history and the incident, fifteen
+    until closed-loop remediation brought the ledger of what each remediation
+    did, and sixteen until ingress and delivery brought the record of what
+    crossed the boundary — which is exactly what this test is for: adding a port
+    is a deliberate act with a plan behind it, and the number moving without one
+    is the thing worth catching.
     """
-    assert len(TENANT_PORTS) == 16
+    assert len(TENANT_PORTS) == 17
 
 
 def test_the_in_memory_gateway_is_a_persistence_gateway() -> None:

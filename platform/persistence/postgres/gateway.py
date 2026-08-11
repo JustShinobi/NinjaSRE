@@ -65,6 +65,7 @@ from platform.persistence.postgres.repositories.schedule_store import (
 from platform.persistence.postgres.repositories.session_store import PostgresSessionStore
 from platform.persistence.postgres.repositories.signal_store import PostgresSignalStore
 from platform.persistence.postgres.repositories.topology_graph import PostgresTopologyGraph
+from platform.persistence.postgres.repositories.transit_ledger import PostgresTransitLedger
 from platform.persistence.postgres.repositories.vector_index import PostgresVectorIndex
 
 
@@ -80,7 +81,7 @@ class _RollbackOnly(Exception):
 
 @dataclass(slots=True)
 class PostgresUnitOfWork:
-    """Sixteen repositories over one session and one tenant."""
+    """Seventeen repositories over one session and one tenant."""
 
     scope: TenantScope
     session: AsyncSession
@@ -166,6 +167,11 @@ class PostgresUnitOfWork:
     def remediation(self) -> PostgresRemediationLedger:
         """Return what each remediation did and whether it worked."""
         return PostgresRemediationLedger(self.scope.org_id, self.session)
+
+    @property
+    def transit(self) -> PostgresTransitLedger:
+        """Return what crossed the boundary, in which direction, and how it ended."""
+        return PostgresTransitLedger(self.scope.org_id, self.session)
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""

@@ -801,6 +801,69 @@ class SignalRow(Base):
     labels: Mapped[dict[str, Any]] = _json()
 
 
+class TransitDeliveryRow(Base):
+    """One crossing of the deployment's boundary, whichever way it went.
+
+    The primary key is the caller's derived delivery id, so a handler that
+    retried its own ledger write upserts its own row rather than recording the
+    same arrival twice.
+
+    ``ix_transit_recent`` leads with ``(org_id, direction, source, occurred_at)``
+    because that is the shape of every read the screen makes: one direction, one
+    source, newest first. ``ix_transit_age`` is on the timestamp alone and
+    deliberately not tenant-scoped, for the reason ``ix_signals_age`` is not:
+    retention sweeps the deployment at once, and leading with ``org_id`` would
+    make the sweep one index scan per organisation.
+    """
+
+    __tablename__ = "transit_deliveries"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_transit_recent", "org_id", "direction", "source", "occurred_at"),
+        Index("ix_transit_age", "occurred_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    delivery_id: Mapped[str] = _id()
+    direction: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    matched_rule: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    incident_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    event_type: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    detail: Mapped[dict[str, Any]] = _json()
+
+
+class TransitSampleRow(Base):
+    """The last masked payload one source sent.
+
+    Keyed by ``source`` rather than by an identifier of its own, which is what
+    makes "one sample per source" a property of the table instead of something
+    every writer has to remember. The body stored here has already been through
+    the masking policy — there is no column holding a raw payload, so there is
+    none to forget to clear.
+    """
+
+    __tablename__ = "transit_samples"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), primary_key=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    masking_policy: Mapped[str] = mapped_column(String(32), nullable=False)
+    delivery_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
 class IncidentRow(Base):
     """One thing that is wrong, whatever noticed it.
 
@@ -1008,6 +1071,8 @@ __all__ = [
     "Session",
     "SignalRow",
     "ToolCall",
+    "TransitDeliveryRow",
+    "TransitSampleRow",
     "User",
     "VectorGenerationRow",
     "VectorIndexRow",

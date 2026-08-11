@@ -1,4 +1,4 @@
-"""The sixteen repository ports, and the unit of work that composes them.
+"""The seventeen repository ports, and the unit of work that composes them.
 
 This package is the whole export surface of NinjaSRE's storage layer. Everything
 above tier 3 imports from here and from nowhere else in ``persistence/``: the
@@ -6,7 +6,7 @@ Postgres implementation, the in-memory fakes, and any future backend are
 details, and a caller that named one would be the reason the second could not be
 written.
 
-The sixteen, and what each owns:
+The seventeen, and what each owns:
 
 ===========================  ==================================================
 ``ConfigRepository``         the org/team/service hierarchy and its config
@@ -25,9 +25,10 @@ The sixteen, and what each owns:
 ``SignalStore``              the observation history the detectors read
 ``IncidentStore``            incidents, their subjects, and their timelines
 ``RemediationLedger``        what each remediation did, and whether it worked
+``TransitLedger``            what crossed the boundary, which way, and how it ended
 ===========================  ==================================================
 
-They are reached through ``UnitOfWork``, which binds all sixteen to one
+They are reached through ``UnitOfWork``, which binds all seventeen to one
 transaction and one tenant. Read ``transaction`` first: it explains why the
 ports take no organisation argument, and that fact is the one most likely to
 surprise somebody adding a method here.
@@ -172,6 +173,15 @@ from platform.persistence.ports.transaction import (
     TenantScope,
     UnitOfWork,
 )
+from platform.persistence.ports.transit_ledger import (
+    PayloadSample,
+    SourceActivity,
+    TransitDelivery,
+    TransitDirection,
+    TransitLedger,
+    TransitOutcome,
+    TransitQuery,
+)
 from platform.persistence.ports.vector_index import (
     IndexDescriptor,
     SimilarityMatch,
@@ -231,6 +241,7 @@ __all__ = [
     "NodeKind",
     "OrgDirectory",
     "Organisation",
+    "PayloadSample",
     "PersistenceGateway",
     "PrincipalKind",
     "PurgeReport",
@@ -262,6 +273,7 @@ __all__ = [
     "SignalQuery",
     "SignalStore",
     "SimilarityMatch",
+    "SourceActivity",
     "StoreHealth",
     "StoredStrategy",
     "SweepOutcome",
@@ -280,6 +292,11 @@ __all__ = [
     "TopologyGraph",
     "TopologyNode",
     "TraceEventRecord",
+    "TransitDelivery",
+    "TransitDirection",
+    "TransitLedger",
+    "TransitOutcome",
+    "TransitQuery",
     "TraversalResult",
     "TurnRecord",
     "UnitOfWork",
