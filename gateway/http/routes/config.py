@@ -195,6 +195,16 @@ class ConfigPreviewView(BaseModel):
     redundant: list[InheritedValueView] = Field(default_factory=list)
     #: Paths ``remove`` would clear, and what each falls back to once it is gone.
     reverts: list[InheritedValueView] = Field(default_factory=list)
+    #: Every reason the write would be refused, from the validator the write
+    #: runs. Empty is the ordinary answer. Reported rather than raised, because
+    #: this is a preview and a refusal somebody can still act on is worth more
+    #: than a 4xx: the values beside it are what the document *would* resolve to,
+    #: which is the useful thing to look at while fixing the field that is wrong.
+    errors: list[FieldErrorView] = Field(default_factory=list)
+    #: Whether the write this preview describes would be accepted at all. Note
+    #: that a gated change is accepted and queued rather than refused, so this is
+    #: not the same question as ``requires_approval``.
+    accepted: bool = True
 
 
 class ItemFieldView(BaseModel):
@@ -486,9 +496,18 @@ async def preview_config(
     that merged the patch itself would be a second implementation of
     inheritance, locking, and gating — and the day it drifted, somebody would
     save a change that did something other than what they were shown.
+
+    ``errors`` is the fourth thing the write decides and the last one this route
+    learned to predict. The merge, the locks and the gates were always here;
+    validation was not, so a document the write would refuse previewed clean and
+    the refusal arrived as a 400 after somebody pressed save. It is reported
+    rather than raised for the reason the whole surface exists: somebody who can
+    still edit the field is better served by being told than by a status code.
     """
     await _check_scope(node_id, state, auth)
-    preview = await _service(state, auth).preview_settings(node_id, body.patch, tuple(body.remove))
+    service = _service(state, auth)
+    preview = await service.preview_settings(node_id, body.patch, tuple(body.remove))
+    outcome = await service.validation_of_write(node_id, body.patch, tuple(body.remove))
     return ConfigPreviewView(
         node_id=preview.node_id,
         values=dict(preview.values),
@@ -512,6 +531,8 @@ async def preview_config(
             )
             for entry in preview.reverts
         ],
+        errors=[FieldErrorView(path=error.path, message=error.message) for error in outcome.errors],
+        accepted=outcome.ok,
     )
 
 

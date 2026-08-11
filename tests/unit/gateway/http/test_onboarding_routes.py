@@ -484,6 +484,45 @@ async def test_the_config_route_refuses_a_capability_nothing_installed(
     assert "assess_evidenec_sufficiency" in response.text
 
 
+async def test_the_preview_names_the_refusal_the_write_would_make(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """The half that makes the refusal above a prediction rather than a surprise.
+
+    A preview that reports the merge, the locks and the gates and says nothing
+    about validation reads as approval — and the refusal then arrives as a 400
+    after somebody has pressed save on a screen that told them the outcome. Both
+    answers come from one validator, so they cannot disagree about a document.
+    """
+    response = await client.post(
+        f"/v1/config/{TEAM_PAYMENTS}/preview",
+        headers=_headers(operator_token),
+        json={"patch": {"capabilities": {"enabled": ["assess_evidenec_sufficiency"]}}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["accepted"] is False
+    assert [error["path"] for error in body["errors"]] == [
+        "capabilities.assess_evidenec_sufficiency"
+    ]
+
+
+async def test_a_preview_of_an_ordinary_change_reports_nothing_wrong_with_it(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """Otherwise the field above would be a warning nobody can distinguish."""
+    response = await client.post(
+        f"/v1/config/{TEAM_PAYMENTS}/preview",
+        headers=_headers(operator_token),
+        json={"patch": {"capabilities": {"enabled": ["assess_evidence_sufficiency"]}}},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["accepted"] is True
+    assert response.json()["errors"] == []
+
+
 async def test_a_capability_this_deployment_does_have_is_written(
     client: AsyncClient, operator_token: str
 ) -> None:

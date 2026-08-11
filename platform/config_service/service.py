@@ -237,6 +237,25 @@ class ConfigService:
         """
         return self._validator.validate(settings)
 
+    async def validation_of_write(
+        self, node_id: str, patch: Mapping[str, Any], remove: Sequence[str] = ()
+    ) -> ValidationOutcome:
+        """Return what validation would make of the document this write would store.
+
+        ``validation_of`` takes a document somebody has already assembled;
+        this takes the same arguments the write takes and assembles it the same
+        way ``set_settings`` does, so a preview cannot be shown the verdict on a
+        document other than the one the save would produce.
+
+        It exists because a preview that predicts the merge, the locks and the
+        gates and stays silent about validation reads as approval. Every refusal
+        it now names — a field a vendor's schema calls secret, a value shaped
+        like a credential, a capability nothing installed — was a 400 arriving
+        after somebody pressed save on a screen that had told them the outcome.
+        """
+        document = NodeDocument.of_node(await self._node(node_id))
+        return self._validator.validate(settings_after(document.settings, patch, remove))
+
     # --- Writing -------------------------------------------------------------
 
     async def set_settings(

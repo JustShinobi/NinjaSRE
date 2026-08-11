@@ -972,6 +972,11 @@
       },
       "ConfigPreviewView": {
         "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
           "approval_gated": {
             "items": {
               "type": "string"
@@ -984,6 +989,13 @@
               "$ref": "#/components/schemas/PreviewChangeView"
             },
             "title": "Changes",
+            "type": "array"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FieldErrorView"
+            },
+            "title": "Errors",
             "type": "array"
           },
           "locked": {
@@ -9669,7 +9681,7 @@
         ]
       },
       "put": {
-        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.\n\nGiven the integration directory, and deliberately not the capability\ncatalogue. The directory is what lets validation refuse a field a vendor's\nown schema calls secret, which is the way round\n``PUT /v1/integrations/{name}/credential`` and has to be shut. The catalogue\nwould additionally make a write reject a capability reference that\n``POST /{node_id}/preview`` accepts, and a preview that does not predict its\nown write is worse than a reference checked at read time.",
+        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.\n\nGiven both live registries, which is what makes validation here the same\nvalidation the read routes report. The integration directory is what lets a\nfield a vendor's own schema calls secret be refused, which is the way round\n``PUT /v1/integrations/{name}/credential`` and has to be shut. The capability\ncatalogue is what lets a name no capability answers to be refused, which is\notherwise a setting that stores happily and never does anything.\n\nWithholding the catalogue was once argued for on the grounds that a write\nwould then refuse what ``POST /{node_id}/preview`` accepts. The preview runs\nno validation at all — it answers what a document would *resolve* to — so\nevery refusal this route makes is already one the preview does not predict,\nand the argument protected a property that does not exist. Predicting them is\nworth doing, and it is a change to what the preview returns rather than a\nreason to check less here.",
         "operationId": "write_config_v1_config__node_id__put",
         "parameters": [
           {
@@ -10102,7 +10114,7 @@
     },
     "/v1/config/{node_id}/preview": {
       "post": {
-        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating — and the day it drifted, somebody would\nsave a change that did something other than what they were shown.",
+        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating — and the day it drifted, somebody would\nsave a change that did something other than what they were shown.\n\n``errors`` is the fourth thing the write decides and the last one this route\nlearned to predict. The merge, the locks and the gates were always here;\nvalidation was not, so a document the write would refuse previewed clean and\nthe refusal arrived as a 400 after somebody pressed save. It is reported\nrather than raised for the reason the whole surface exists: somebody who can\nstill edit the field is better served by being told than by a status code.",
         "operationId": "preview_config_v1_config__node_id__preview_post",
         "parameters": [
           {

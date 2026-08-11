@@ -755,13 +755,20 @@ export interface paths {
          * Write Config
          * @description Apply a patch to ``node_id``'s own settings and return the new effective view.
          *
-         *     Given the integration directory, and deliberately not the capability
-         *     catalogue. The directory is what lets validation refuse a field a vendor's
-         *     own schema calls secret, which is the way round
-         *     ``PUT /v1/integrations/{name}/credential`` and has to be shut. The catalogue
-         *     would additionally make a write reject a capability reference that
-         *     ``POST /{node_id}/preview`` accepts, and a preview that does not predict its
-         *     own write is worse than a reference checked at read time.
+         *     Given both live registries, which is what makes validation here the same
+         *     validation the read routes report. The integration directory is what lets a
+         *     field a vendor's own schema calls secret be refused, which is the way round
+         *     ``PUT /v1/integrations/{name}/credential`` and has to be shut. The capability
+         *     catalogue is what lets a name no capability answers to be refused, which is
+         *     otherwise a setting that stores happily and never does anything.
+         *
+         *     Withholding the catalogue was once argued for on the grounds that a write
+         *     would then refuse what ``POST /{node_id}/preview`` accepts. The preview runs
+         *     no validation at all — it answers what a document would *resolve* to — so
+         *     every refusal this route makes is already one the preview does not predict,
+         *     and the argument protected a property that does not exist. Predicting them is
+         *     worth doing, and it is a change to what the preview returns rather than a
+         *     reason to check less here.
          */
         put: operations["write_config_v1_config__node_id__put"];
         post?: never;
@@ -977,6 +984,13 @@ export interface paths {
          *     that merged the patch itself would be a second implementation of
          *     inheritance, locking, and gating — and the day it drifted, somebody would
          *     save a change that did something other than what they were shown.
+         *
+         *     ``errors`` is the fourth thing the write decides and the last one this route
+         *     learned to predict. The merge, the locks and the gates were always here;
+         *     validation was not, so a document the write would refuse previewed clean and
+         *     the refusal arrived as a 400 after somebody pressed save. It is reported
+         *     rather than raised for the reason the whole surface exists: somebody who can
+         *     still edit the field is better served by being told than by a status code.
          */
         post: operations["preview_config_v1_config__node_id__preview_post"];
         delete?: never;
@@ -3242,10 +3256,17 @@ export interface components {
         };
         /** ConfigPreviewView */
         ConfigPreviewView: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
             /** Approval Gated */
             approval_gated: string[];
             /** Changes */
             changes: components["schemas"]["PreviewChangeView"][];
+            /** Errors */
+            errors?: components["schemas"]["FieldErrorView"][];
             /** Locked */
             locked: {
                 [key: string]: string;
