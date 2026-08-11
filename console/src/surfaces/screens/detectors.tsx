@@ -3,9 +3,11 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/status';
 import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
+import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { DetectorControls } from '../detector-controls';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -19,10 +21,13 @@ import {
   read,
   stateOf,
   text,
+  type PanelData,
 } from '../read';
+import { Schedules, type ScheduleRecord } from '../schedules';
 
 /**
- * What is being watched for, how well it is covered, and what it last found.
+ * What is being watched for, how well it is covered, and what it last found —
+ * and, beside it, what is watched for on a clock rather than by a detector.
  *
  * Each row carries its own description rather than pointing at documentation:
  * the rationale for a threshold is what somebody needs at the moment they are
@@ -31,15 +36,51 @@ import {
  *
  * Coverage is the column that turns "this detector exists" into "this detector
  * is looking at 84 of 92 things", which are very different claims.
+ *
+ * A scheduled investigation belongs on this screen rather than in an area of
+ * its own: it is the other mechanism by which something runs without a person
+ * starting it, and an operator checking what is watching this team's estate
+ * should not have to know which of the two produced a given entry.
+ *
+ * `GET /v1/schedules` itself takes `schedule.manage` — there is no read-only
+ * view of a schedule — so the whole panel, not only its writes, is fetched and
+ * shown only for a viewer who holds it. Absent, not disabled.
  */
 
-export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, now, zone } = context;
+/** Who may see or change this team's scheduled investigations. */
+const SCHEDULE_MANAGE = 'schedule.manage';
 
-  const detectors = await panelRead('/v1/detectors', () =>
-    read('/v1/detectors', authorised(credential)),
-  );
+/** `data` read as a bare array, and an empty one when it is not. */
+function rowsOf(data: unknown): readonly unknown[] {
+  return Array.isArray(data) ? data : [];
+}
+
+export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNode> {
+  const { credential, locale, now, viewer, zone } = context;
+  const init = authorised(credential);
+
+  const detectors = await panelRead('/v1/detectors', () => read('/v1/detectors', init));
   const records = list(dataOf(detectors), 'detectors');
+
+  const canManageSchedules = may(viewer, SCHEDULE_MANAGE);
+  const schedules: PanelData<unknown> = canManageSchedules
+    ? await panelRead('/v1/schedules', () => read('/v1/schedules', init))
+    : { status: 'ready', data: [] };
+  const scheduleRows = rowsOf(dataOf(schedules));
+  const scheduleRecords: readonly ScheduleRecord[] = scheduleRows.map(
+    (row): ScheduleRecord => {
+      const nextRunAt = text(row, 'next_run_at');
+      return {
+        jobId: text(row, 'job_id'),
+        name: text(row, 'name'),
+        cron: text(row, 'cron'),
+        objective: text(row, 'objective'),
+        timezone: text(row, 'timezone'),
+        enabled: flag(row, 'enabled'),
+        nextRun: nextRunAt === '' ? null : timestamp(locale, nextRunAt, now, zone),
+      };
+    },
+  );
 
   return (
     <>
@@ -138,9 +179,43 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
                       </span>
                     </td>
                     <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                      <Badge
-                        status={flag(record, 'enabled') ? 'healthy' : 'disabled'}
-                      />
+                      <div className="flex flex-col items-start gap-2">
+                        <Badge
+                          status={flag(record, 'enabled') ? 'healthy' : 'disabled'}
+                        />
+                        <DetectorControls
+                          detectorId={text(record, 'detector_id')}
+                          enabled={flag(record, 'enabled')}
+                          viewer={viewer}
+                          labels={{
+                            dryRun: message(locale, 'detectors.control.dryRun'),
+                            dryRunning: message(locale, 'detectors.control.dryRunning'),
+                            wouldFire: message(locale, 'detectors.control.wouldFire'),
+                            wouldNotFire: message(
+                              locale,
+                              'detectors.control.wouldNotFire',
+                            ),
+                            observations: message(
+                              locale,
+                              'detectors.control.observations',
+                            ),
+                            noObservations: message(
+                              locale,
+                              'detectors.control.noObservations',
+                            ),
+                            enable: message(locale, 'detectors.control.enable'),
+                            enabling: message(locale, 'detectors.control.enabling'),
+                            disable: message(locale, 'detectors.control.disable'),
+                            disabling: message(locale, 'detectors.control.disabling'),
+                            cancel: message(locale, 'detectors.control.cancel'),
+                            failed: message(locale, 'detectors.control.failed'),
+                            unreachable: message(
+                              locale,
+                              'detectors.control.unreachable',
+                            ),
+                          }}
+                        />
+                      </div>
                     </td>
                   </tr>
                 );
@@ -149,6 +224,61 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
           </table>
         </div>
       </Panel>
+
+      {canManageSchedules ? (
+        <div className="mt-5">
+          <Panel
+            title={message(locale, 'schedules.title')}
+            state={stateOf(schedules, false)}
+            dependency={dependencyOf(schedules)}
+            labels={panelLabels(locale, message(locale, 'schedules.title'))}
+            empty={{
+              heading: message(locale, 'schedules.empty.heading'),
+              body: message(locale, 'schedules.empty.body'),
+              actionLabel: message(locale, 'schedules.empty.action'),
+              href: '/detectors',
+            }}
+          >
+            <Schedules
+              schedules={scheduleRecords}
+              viewer={viewer}
+              labels={{
+                column: {
+                  name: message(locale, 'schedules.column.name'),
+                  cron: message(locale, 'schedules.column.cron'),
+                  objective: message(locale, 'schedules.column.objective'),
+                  timezone: message(locale, 'schedules.column.timezone'),
+                  nextRun: message(locale, 'schedules.column.nextRun'),
+                  enabled: message(locale, 'schedules.column.enabled'),
+                },
+                never: message(locale, 'schedules.never'),
+                enable: message(locale, 'schedules.enable'),
+                enabling: message(locale, 'schedules.enabling'),
+                disable: message(locale, 'schedules.disable'),
+                disabling: message(locale, 'schedules.disabling'),
+                save: message(locale, 'schedules.save'),
+                saving: message(locale, 'schedules.saving'),
+                delete: message(locale, 'schedules.delete'),
+                deleteConsequence: message(locale, 'schedules.deleteConsequence'),
+                deleteCancel: message(locale, 'schedules.deleteCancel'),
+                deleteClose: message(locale, 'schedules.deleteClose'),
+                create: {
+                  title: message(locale, 'schedules.create.title'),
+                  jobId: message(locale, 'schedules.create.jobId'),
+                  name: message(locale, 'schedules.create.name'),
+                  cron: message(locale, 'schedules.create.cron'),
+                  objective: message(locale, 'schedules.create.objective'),
+                  timezone: message(locale, 'schedules.create.timezone'),
+                  submit: message(locale, 'schedules.create.submit'),
+                  submitting: message(locale, 'schedules.create.submitting'),
+                },
+                failed: message(locale, 'schedules.failed'),
+                unreachable: message(locale, 'schedules.unreachable'),
+              }}
+            />
+          </Panel>
+        </div>
+      ) : null}
     </>
   );
 }
