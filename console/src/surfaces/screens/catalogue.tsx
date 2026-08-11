@@ -5,7 +5,7 @@ import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
-import { capabilityRows } from '../capabilities';
+import { capabilityRows } from '../capability-rows';
 import type { SurfaceContext } from '../context';
 import { CredentialField } from '../credential';
 import { DeliveryToken } from '../ingress';

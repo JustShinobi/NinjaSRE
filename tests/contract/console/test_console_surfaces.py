@@ -352,7 +352,7 @@ def test_the_console_and_the_platform_agree_about_which_levels_only_read() -> No
     """
     from config.constants.security import SIDE_EFFECT_LEVELS, SIDE_EFFECT_READ
 
-    source = _source(console_root() / "src" / "surfaces" / "capabilities.ts")
+    source = _source(console_root() / "src" / "surfaces" / "capability-rows.ts")
     declared = re.search(r"READ_ONLY_LEVELS: readonly string\[\] = \[([^\]]*)\]", source)
     assert declared is not None, "the console does not declare which levels only read"
     named = tuple(

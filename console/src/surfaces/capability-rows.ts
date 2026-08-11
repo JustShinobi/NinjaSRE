@@ -3,6 +3,12 @@ import { field, flag, list, text } from './read';
 /**
  * What this deployment can do, joined with whether it can do it *here*.
  *
+ * Named `capability-rows` rather than `capabilities` because the boundary check
+ * that keeps this console from reaching into the Python tree matches a relative
+ * path's first segment against the Python package names, and a sibling import
+ * of a module called `capabilities` is one of them. A file name is cheaper to
+ * change than a guard is to weaken.
+ *
  * Two reads meet in this file: `/v1/capabilities`, which is what the build
  * declares, and `/v1/config/{node_id}/catalogue`, which is what that node
  * resolves — available or not, and the integration blocking anything that is

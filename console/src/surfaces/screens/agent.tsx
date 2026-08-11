@@ -5,7 +5,7 @@ import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
-import { bridgedServers, capabilityRows, type CapabilityRow } from '../capabilities';
+import { bridgedServers, capabilityRows, type CapabilityRow } from '../capability-rows';
 import type { SurfaceContext } from '../context';
 import { HierarchyGraph, type HierarchyRank } from '../graph';
 import { panelLabels } from '../labels';

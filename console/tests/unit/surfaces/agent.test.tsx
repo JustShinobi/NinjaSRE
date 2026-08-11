@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
-import { bridgedServers, capabilityRows } from '@/surfaces/capabilities';
+import { bridgedServers, capabilityRows } from '@/surfaces/capability-rows';
 import { AGENT_TABS, tabFrom } from '@/surfaces/screens/agent';
 
 import { AREA_SCREENS } from '../support/screens';
