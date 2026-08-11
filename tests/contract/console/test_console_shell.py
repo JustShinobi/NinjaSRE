@@ -67,16 +67,35 @@ def _source(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+#: One entry's identifier. Each object literal in the manifest declares exactly
+#: one, which is what makes it the thing to split the file on.
+_ENTRY: Final = re.compile(r"\bid: '([a-z-]+)',")
+
+
 def declared_areas() -> tuple[tuple[str, str, str], ...]:
-    """Return ``(id, path, permission)`` for every area the console declares."""
+    """Return ``(id, path, permission)`` for every area the console declares.
+
+    Read from each identifier rather than from the opening brace. The earlier
+    reading anchored on ``{`` followed by ``id``, so an entry whose explanatory
+    comment sat *inside* its braces matched nothing here — and an area this
+    function cannot see is one no check below can require anybody to walk. Two
+    were hidden that way, ``/first-run`` and the whole agent screen, and both
+    were absent from the deploy walk with the coverage test green.
+
+    Each entry is read only as far as the next identifier, so a field one entry
+    omits is a failure here rather than a value borrowed from its neighbour.
+    """
     source = _source(ROUTES_MODULE)
+    entries = list(_ENTRY.finditer(source))
     found: list[tuple[str, str, str]] = []
-    for block in re.finditer(
-        r"\{\s*id:\s*'([a-z-]+)',\s*path:\s*'([^']+)',.*?permission:\s*'([a-z.]+)',",
-        source,
-        re.DOTALL,
-    ):
-        found.append((block.group(1), block.group(2), block.group(3)))
+    for position, entry in enumerate(entries):
+        ends = entries[position + 1].start() if position + 1 < len(entries) else len(source)
+        body = source[entry.end() : ends]
+        path = re.search(r"\bpath: '([^']+)',", body)
+        permission = re.search(r"\bpermission: '([a-z.]+)',", body)
+        assert path is not None, f"{entry.group(1)} declares no path"
+        assert permission is not None, f"{entry.group(1)} declares no permission"
+        found.append((entry.group(1), path.group(1), permission.group(1)))
     return tuple(found)
 
 
@@ -93,6 +112,20 @@ def _number_constant(source: str, name: str) -> float:
 
 
 # --- The manifest is a manifest ---------------------------------------------------
+
+
+def test_the_parser_sees_every_entry_the_manifest_spells_out() -> None:
+    """No area may be invisible to the reader the coverage checks are built on.
+
+    ``declared_areas`` is the only list of areas Python has, and every check
+    below is a statement about what it returns. So an entry it cannot see is not
+    a gap in one test — it is an area excluded from all of them, silently, while
+    they pass. Counted here against the identifiers the file spells with a
+    quoted literal, which is one per entry and independent of how the entry is
+    laid out.
+    """
+    spelled = re.findall(r"^\s+id: '([a-z-]+)',$", _source(ROUTES_MODULE), re.MULTILINE)
+    assert [identifier for identifier, _, _ in declared_areas()] == spelled
 
 
 def test_the_console_declares_at_least_the_areas_the_design_draws() -> None:

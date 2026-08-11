@@ -56,11 +56,17 @@ SHELL_PATHS: Final[tuple[str, ...]] = (
     "/detectors",
     "/memory",
     "/knowledge",
+    # A task rather than a place, and walked like every other route anyway: it
+    # sits inside the shell, it is reachable by address, and the deployment it
+    # renders for is the one with nothing configured — which is the state a
+    # release is most likely to break and least likely to be tried in.
+    "/first-run",
     "/autonomy",
     "/configuration",
     "/team-context",
     "/proposals",
     "/catalogue",
+    "/agent",
     "/data",
     "/administration",
     "/audit",
