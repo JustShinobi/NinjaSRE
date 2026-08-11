@@ -67,6 +67,7 @@ def build_pipeline(
     destinations: Sequence[DeliveryDestination] = (),
     stream: EventStream | None = None,
     end_hooks: Sequence[PipelineEndHook] = (),
+    system_prompt: str = "",
     strict: bool = False,
 ) -> Pipeline:
     """Return the six-stage investigation pipeline.
@@ -78,6 +79,14 @@ def build_pipeline(
     structuring. One client rather than two because they are the same role
     doing the same kind of work, and a deployment that wants them separate
     passes a client bound to whichever model it prefers.
+
+    ``system_prompt`` is what the investigating half runs under — a team's
+    prompt override with its operating context already appended, from
+    ``RuntimeBindings.system_prompt_for``. Empty leaves the shipped default,
+    which is the whole of what a deployment that configured nothing needs.
+    Intake and diagnosis are deliberately not given it: they classify and
+    structure rather than investigate, and both run on every alert including
+    the ones that never become an investigation.
     """
     return Pipeline(
         (
@@ -86,7 +95,7 @@ def build_pipeline(
             ),
             IntakeStage(llm=llm, index=incidents),
             PlanEvidenceStage(ranker=ranker),
-            GatherEvidenceStage(runtime=runtime, stream=stream),
+            GatherEvidenceStage(runtime=runtime, stream=stream, system_prompt=system_prompt),
             DiagnoseStage(llm=llm),
             DeliverStage(destinations=tuple(destinations)),
         ),
