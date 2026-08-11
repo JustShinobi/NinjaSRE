@@ -72,6 +72,17 @@ class ConfigField:
     max_items: int | None = None
     max_length: int | None = None
     allowed_values: tuple[Any, ...] | None = None
+    #: For an array whose entries are objects: what one entry is made of.
+    #:
+    #: Empty for every other field, including an array of strings — there is
+    #: nothing inside a string to draw, and an editor offering a row of controls
+    #: for one would be inventing a shape the write path does not have.
+    #:
+    #: Each item's ``path`` is *relative to the entry*, not absolute. An entry
+    #: an operator has not added yet has no index, so an absolute path would
+    #: name a row that does not exist; the editor joins the index on when it
+    #: knows one.
+    item_fields: tuple[ConfigField, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,8 +219,32 @@ def _walk(
                 max_items=_int_or_none(spec.get("maxItems")),
                 max_length=_int_or_none(spec.get("maxLength")),
                 allowed_values=_allowed(spec),
+                item_fields=_entry_fields(spec, definitions, depth),
             )
         )
+
+
+def _entry_fields(
+    spec: Mapping[str, Any], definitions: Mapping[str, Any], depth: int
+) -> tuple[ConfigField, ...]:
+    """Return the fields one entry of an array of objects has, or nothing.
+
+    Walked with the *same* walker the rest of the catalogue uses, so an entry's
+    field is described by the schema that validates it exactly as a top-level
+    one is. A second description written for entries would be a second thing to
+    keep in step, and the one that drifted would be the one the console draws.
+    """
+    if spec.get("type") != "array":
+        return ()
+    items = spec.get("items")
+    if not isinstance(items, Mapping):
+        return ()
+    entry = _resolved(items, definitions)
+    if not _descends(entry):
+        return ()
+    collected: list[ConfigField] = []
+    _walk(entry, definitions, "", str(entry.get("description", "")), collected, depth + 1)
+    return tuple(collected)
 
 
 def _descends(spec: Mapping[str, Any]) -> bool:

@@ -86,6 +86,12 @@ const LABELS = {
   notEditable: 'Edited as a document rather than here.',
   inherited: 'Inherited',
   useSuggested: 'Use',
+  addEntry: 'Add another',
+  removeEntry: 'Remove',
+  moveUp: 'Move earlier',
+  moveDown: 'Move later',
+  entryPosition: 'Evaluated',
+  emptyList: 'Nothing declared here yet.',
 };
 
 function field(over: Partial<EditableField> = {}): EditableField {
@@ -106,6 +112,9 @@ function field(over: Partial<EditableField> = {}): EditableField {
     maximum: 20,
     suggestedValue: '',
     suggestedBecause: '',
+    // A list of plain values, which is what the test below is about: there is
+    // nothing inside a string to draw a row of controls from.
+    itemFields: [],
     ...over,
   };
 }

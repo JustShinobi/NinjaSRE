@@ -241,3 +241,51 @@ def test_every_declared_field_appears_at_a_node_exactly_once() -> None:
 @pytest.mark.parametrize("path", ["agents.prompts.investigator", "integrations.active"])
 def test_the_catalogue_reaches_into_nested_sections(path: str) -> None:
     assert path in _by_path()
+
+
+# -- an ordered list of objects ------------------------------------------------
+#
+# A list of *scalars* is a leaf and stays one: it replaces entirely, and there
+# is nothing inside an entry to draw. A list of *objects* is different in the
+# one way that matters to an editor — each entry has named, typed fields — and
+# an editor with no description of them has two choices, both bad: refuse to
+# edit the field at all, which is where the console was, or hold its own table
+# of what a routing rule looks like, which is the client-side schema this whole
+# module exists to avoid.
+
+
+def test_a_list_of_objects_describes_the_fields_one_entry_has() -> None:
+    rules = _by_path()["transit.rules"]
+
+    assert rules.type == "array"
+    assert {item.path for item in rules.item_fields} >= {"team", "action", "reason"}
+
+
+def test_an_entrys_field_carries_its_own_type_and_closed_set() -> None:
+    rules = _by_path()["transit.rules"]
+    action = next(item for item in rules.item_fields if item.path == "action")
+
+    assert action.type == "string"
+    assert action.allowed_values is not None
+    assert "investigate" in action.allowed_values
+
+
+def test_an_entrys_path_is_relative_because_its_index_is_not_known_yet() -> None:
+    """A new entry has no index, so an absolute path would name a row nobody added."""
+    rules = _by_path()["transit.rules"]
+
+    assert all("." not in item.path for item in rules.item_fields)
+
+
+def test_a_list_of_scalars_describes_no_entry_fields() -> None:
+    """Nothing inside a string to draw; offering an empty row editor would be a lie."""
+    capabilities = _by_path()["capabilities.enabled"]
+
+    assert capabilities.item_fields == ()
+
+
+def test_the_specialists_a_team_declares_are_an_ordered_list_of_objects_too() -> None:
+    subagents = _by_path()["agents.subagents"]
+
+    assert subagents.type == "array"
+    assert {item.path for item in subagents.item_fields} >= {"name", "system_prompt"}

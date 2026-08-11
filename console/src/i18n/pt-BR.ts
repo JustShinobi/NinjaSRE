@@ -816,6 +816,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.editor.notEditable':
     'Uma lista ou uma secção livre: é substituída por inteiro na escrita, por isso não se edita campo a campo.',
   'configuration.editor.inherited': 'ainda nada',
+  'configuration.editor.addEntry': 'Adicionar outro',
+  'configuration.editor.removeEntry': 'Remover',
+  'configuration.editor.moveUp': 'Mover para antes',
+  'configuration.editor.moveDown': 'Mover para depois',
+  'configuration.editor.entryPosition': 'Avaliada',
+  'configuration.editor.emptyList': 'Nada declarado aqui ainda.',
   'configuration.editor.useSuggested': 'Usar o endereço encontrado aqui:',
   'configuration.empty.heading': 'Nenhuma configuração aqui',
   'configuration.empty.body':

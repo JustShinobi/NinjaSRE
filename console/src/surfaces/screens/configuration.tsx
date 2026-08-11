@@ -214,6 +214,12 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
                   notEditable: message(locale, 'configuration.editor.notEditable'),
                   inherited: message(locale, 'configuration.editor.inherited'),
                   useSuggested: message(locale, 'configuration.editor.useSuggested'),
+                  addEntry: message(locale, 'configuration.editor.addEntry'),
+                  removeEntry: message(locale, 'configuration.editor.removeEntry'),
+                  moveUp: message(locale, 'configuration.editor.moveUp'),
+                  moveDown: message(locale, 'configuration.editor.moveDown'),
+                  entryPosition: message(locale, 'configuration.editor.entryPosition'),
+                  emptyList: message(locale, 'configuration.editor.emptyList'),
                 }}
               />
             </Panel>

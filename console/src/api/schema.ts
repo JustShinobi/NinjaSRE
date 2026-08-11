@@ -1936,6 +1936,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/protocols/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bridged Catalogue View
+         * @description Return this team's bridged tools, their origin, and each server's health.
+         *
+         *     Built from the team's own registrations rather than from whatever the
+         *     adapter happens to hold, so a server registered and never reached still
+         *     appears — with the reason where its tools would be.
+         */
+        get: operations["bridged_catalogue_view_v1_protocols_catalogue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/providers": {
         parameters: {
             query?: never;
@@ -2853,6 +2877,94 @@ export interface components {
              */
             stopped: boolean;
         };
+        /**
+         * BridgedCatalogueView
+         * @description Everything one team bridges, as a screen renders it.
+         */
+        BridgedCatalogueView: {
+            /** Awaiting Classification */
+            awaiting_classification?: string[];
+            /** Declared */
+            declared?: string[];
+            /** Excluded */
+            excluded?: components["schemas"]["ExcludedToolView"][];
+            /** Servers */
+            servers?: components["schemas"]["BridgedServerView"][];
+            /**
+             * Unavailable Reason
+             * @default
+             */
+            unavailable_reason: string;
+        };
+        /**
+         * BridgedServerView
+         * @description One registered server: whether it answered, and what it gave.
+         */
+        BridgedServerView: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Protocol
+             * @default
+             */
+            protocol: string;
+            /**
+             * Reachable
+             * @default true
+             */
+            reachable: boolean;
+            /** Server */
+            server: string;
+            /** Tools */
+            tools?: components["schemas"]["BridgedToolView"][];
+        };
+        /**
+         * BridgedToolView
+         * @description One tool a server offers, with where it came from and what it may do.
+         */
+        BridgedToolView: {
+            /**
+             * Awaiting Classification
+             * @default false
+             */
+            awaiting_classification: boolean;
+            /** Catalogue Name */
+            catalogue_name: string;
+            /**
+             * Classification
+             * @default
+             */
+            classification: string;
+            /**
+             * Declared Side Effect
+             * @default
+             */
+            declared_side_effect: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Executable
+             * @default false
+             */
+            executable: boolean;
+            /** Qualified Name */
+            qualified_name: string;
+            /** Server */
+            server: string;
+            /** Tool */
+            tool: string;
+        };
         /** BulkRevokeRequest */
         BulkRevokeRequest: {
             /**
@@ -3054,6 +3166,8 @@ export interface components {
              * @default
              */
             description: string;
+            /** Item Fields */
+            item_fields?: components["schemas"]["ItemFieldView"][];
             /** Label */
             label: string;
             /**
@@ -3897,6 +4011,25 @@ export interface components {
             total: number;
         };
         /**
+         * ExcludedToolView
+         * @description A tool that was offered and is not available, and why.
+         */
+        ExcludedToolView: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Qualified Name */
+            qualified_name: string;
+            /** Reason */
+            reason: string;
+            /** Server */
+            server: string;
+            /** Tool */
+            tool: string;
+        };
+        /**
          * ExplainRequest
          * @description A hypothetical action, asked about before anybody proposes it.
          */
@@ -4392,6 +4525,39 @@ export interface components {
             /** Secret */
             secret: string;
             token: components["schemas"]["TokenView"];
+        };
+        /**
+         * ItemFieldView
+         * @description One field inside an entry of an ordered list of objects.
+         *
+         *     A separate model from ``ConfigFieldView`` because half of that one is about
+         *     a node — provenance, whether this node sets it, which node locks it — and
+         *     none of it is true of a field *inside* a list entry. A list replaces
+         *     entirely, so the entry inherits the list's answer to all of those and has
+         *     none of its own.
+         */
+        ItemFieldView: {
+            /** Allowed Values */
+            allowed_values?: unknown[] | null;
+            /** Default */
+            default?: unknown;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Label */
+            label: string;
+            /** Max Length */
+            max_length?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Path */
+            path: string;
+            /** Type */
+            type: string;
         };
         /**
          * KillSwitchRequest
@@ -9383,6 +9549,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bridged_catalogue_view_v1_protocols_catalogue_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BridgedCatalogueView"];
                 };
             };
             /** @description Validation Error */

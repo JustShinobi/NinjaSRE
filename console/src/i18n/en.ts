@@ -836,8 +836,14 @@ export const EN = {
   'configuration.editor.redundant': 'Already inherited with this value from',
   'configuration.editor.reverts': 'Reverts to',
   'configuration.editor.notEditable':
-    'A list or a free-form section: it replaces entirely on write, so it is not edited a field at a time.',
+    'A list of plain values or a free-form section: it replaces entirely on write, so it is not edited a field at a time.',
   'configuration.editor.inherited': 'nothing yet',
+  'configuration.editor.addEntry': 'Add another',
+  'configuration.editor.removeEntry': 'Remove',
+  'configuration.editor.moveUp': 'Move earlier',
+  'configuration.editor.moveDown': 'Move later',
+  'configuration.editor.entryPosition': 'Evaluated',
+  'configuration.editor.emptyList': 'Nothing declared here yet.',
   'configuration.editor.useSuggested': 'Use the address found here:',
   'configuration.empty.heading': 'No configuration here',
   'configuration.empty.body':

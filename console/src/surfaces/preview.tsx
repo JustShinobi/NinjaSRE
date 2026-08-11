@@ -45,6 +45,27 @@ const SAVE_ENDPOINT = '/api/config';
 /** The types this surface offers a control for. Everything else is read-only here. */
 const EDITABLE_TYPES: readonly string[] = ['string', 'integer', 'number', 'boolean'];
 
+/**
+ * One field inside an entry of an ordered list of objects.
+ *
+ * Half of `EditableField` is about a *node* — where the value came from,
+ * whether this node overrides it, which ancestor locked it. None of that is
+ * true one level down: a list replaces entirely, so an entry inherits the
+ * list's answer to all of it and has none of its own.
+ */
+export interface ItemField {
+  /** Relative to the entry, because an entry nobody has added yet has no index. */
+  readonly path: string;
+  readonly label: string;
+  readonly type: string;
+  readonly description: string;
+  readonly allowedValues: readonly string[] | null;
+  readonly minimum: number | null;
+  readonly maximum: number | null;
+  /** What a newly added entry starts this field at. */
+  readonly default: unknown;
+}
+
 export interface EditableField {
   readonly path: string;
   readonly label: string;
@@ -72,6 +93,14 @@ export interface EditableField {
    */
   readonly suggestedValue: string;
   readonly suggestedBecause: string;
+  /**
+   * For an array of objects: what one entry is made of.
+   *
+   * Empty everywhere else, including an array of strings — there is nothing
+   * inside a string to draw, and a row of controls for one would be a shape
+   * this console invented.
+   */
+  readonly itemFields: readonly ItemField[];
 }
 
 export interface EditorLabels {
@@ -99,6 +128,13 @@ export interface EditorLabels {
   readonly notEditable: string;
   readonly inherited: string;
   readonly useSuggested: string;
+  readonly addEntry: string;
+  readonly removeEntry: string;
+  readonly moveUp: string;
+  readonly moveDown: string;
+  /** Prefixes an entry's position, which is what an ordered list *means*. */
+  readonly entryPosition: string;
+  readonly emptyList: string;
 }
 
 export interface ConfigEditorProps {
@@ -169,11 +205,67 @@ function inheritedFrom(body: unknown, key: string): readonly Inherited[] {
   }));
 }
 
-/** Return the value a typed control produced, as the deployment's schema wants it. */
+/** Whether this field is an ordered list of objects rather than a plain leaf. */
+function isObjectList(field: EditableField): boolean {
+  return field.type === 'array' && field.itemFields.length > 0;
+}
+
+/** The entries a list field currently holds, from the pending edit or the value. */
+function entriesOf(field: EditableField, keyed: string | undefined): readonly Entry[] {
+  const source: unknown = keyed === undefined ? field.value : safeParse(keyed);
+  if (!Array.isArray(source)) return [];
+  const found: unknown[] = source;
+  return found.map((each) =>
+    typeof each === 'object' && each !== null ? { ...(each as Entry) } : {},
+  );
+}
+
+function safeParse(keyed: string): unknown {
+  try {
+    return JSON.parse(keyed);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Return the value a typed control produced, as the deployment's schema wants it.
+ *
+ * A list of objects rides in the pending map as JSON, because that map is keyed
+ * by path and holds strings. It is parsed back here rather than kept as a
+ * second kind of pending state: one shape of pending change means one
+ * invalidates-the-preview comparison, and two would eventually disagree.
+ */
 function typed(field: EditableField, keyed: string): unknown {
+  if (isObjectList(field)) return safeParse(keyed);
   if (field.type === 'boolean') return keyed === 'true';
   if (field.type === 'integer') return Number.parseInt(keyed, 10);
   if (field.type === 'number') return Number.parseFloat(keyed);
+  return keyed;
+}
+
+/** One entry of an ordered list, as the editor holds it while it is being edited. */
+type Entry = Record<string, unknown>;
+
+/** Return the entry a newly added row starts as, from the catalogue's defaults. */
+function blankEntry(items: readonly ItemField[]): Entry {
+  const fresh: Entry = {};
+  for (const item of items) {
+    fresh[item.path] = item.default ?? (item.type === 'boolean' ? false : '');
+  }
+  return fresh;
+}
+
+/** Return one item's current value as a control's string. */
+function itemValue(entry: Entry, item: ItemField): string {
+  return stringify(entry[item.path]);
+}
+
+/** Return the value an item control produced, in the type the schema declares. */
+function itemTyped(item: ItemField, keyed: string): unknown {
+  if (item.type === 'boolean') return keyed === 'true';
+  if (item.type === 'integer') return Number.parseInt(keyed, 10);
+  if (item.type === 'number') return Number.parseFloat(keyed);
   return keyed;
 }
 
@@ -407,6 +499,14 @@ function FieldRow({
             {field.label} — {labels.lockedDetail} {field.lockedBy}
           </span>
         </span>
+      ) : isObjectList(field) ? (
+        <ObjectList
+          field={field}
+          entries={entriesOf(field, keyed)}
+          disabled={cleared}
+          labels={labels}
+          onEdit={onEdit}
+        />
       ) : EDITABLE_TYPES.includes(field.type) ? (
         <Control field={field} value={current} disabled={cleared} onEdit={onEdit} />
       ) : (
@@ -526,6 +626,220 @@ function Control({ field, value, disabled, onEdit }: ControlProps): ReactNode {
       onValueChange={(next) => {
         onEdit(field.path, next);
       }}
+    />
+  );
+}
+
+interface ObjectListProps {
+  readonly field: EditableField;
+  readonly entries: readonly Entry[];
+  readonly disabled: boolean;
+  readonly labels: EditorLabels;
+  readonly onEdit: (path: string, value: string) => void;
+}
+
+/**
+ * An ordered list of objects: rows that can be edited, added, removed and moved.
+ *
+ * The whole list is posted on every change, because that is what the merge
+ * does with a list — it replaces it entirely. A control that sent only the
+ * touched entry would silently delete every other one, which is the failure
+ * this shape of editor exists to make impossible rather than merely unlikely.
+ *
+ * **Position is drawn, because for these fields it is the value.** Routing
+ * rules are first-match-wins with an explicit last word; specialists are
+ * dispatched down the list. A row that could be moved but did not say where it
+ * sat would be an editor for a set, offered for something that is not one.
+ *
+ * Moving is two buttons rather than a drag. A drag is unusable from a keyboard
+ * without building a second interaction anyway, and the second interaction is
+ * this one.
+ */
+function ObjectList({
+  field,
+  entries,
+  disabled,
+  labels,
+  onEdit,
+}: ObjectListProps): ReactNode {
+  function write(next: readonly Entry[]): void {
+    onEdit(field.path, JSON.stringify(next));
+  }
+
+  function change(index: number, item: ItemField, keyed: string): void {
+    write(
+      entries.map((entry, at) =>
+        at === index ? { ...entry, [item.path]: itemTyped(item, keyed) } : entry,
+      ),
+    );
+  }
+
+  function move(index: number, by: number): void {
+    const target = index + by;
+    if (target < 0 || target >= entries.length) return;
+    const next = [...entries];
+    const [lifted] = next.splice(index, 1);
+    if (lifted !== undefined) next.splice(target, 0, lifted);
+    write(next);
+  }
+
+  return (
+    <fieldset
+      data-testid="object-list"
+      data-path={field.path}
+      className="flex flex-col gap-3 border-l border-subtle pl-3"
+    >
+      <legend className="text-meta text-strong">{field.label}</legend>
+      {field.description === '' ? null : (
+        <p className="text-meta text-muted">{field.description}</p>
+      )}
+
+      {entries.length === 0 ? (
+        <p className="text-meta text-muted">{labels.emptyList}</p>
+      ) : (
+        entries.map((entry, index) => (
+          <div
+            // The index is the identity here, and deliberately: an entry has no
+            // stable key of its own until somebody names one, and keying on a
+            // field the operator is in the middle of typing would remount the
+            // control under their cursor.
+            key={index}
+            data-testid="list-entry"
+            data-index={String(index)}
+            className="flex flex-col gap-2"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span data-testid="entry-position" className="text-micro uppercase text-muted">
+                {labels.entryPosition} {index + 1}
+              </span>
+              <button
+                type="button"
+                data-testid="move-entry-up"
+                disabled={disabled || index === 0}
+                className="text-meta text-strong underline"
+                onClick={() => {
+                  move(index, -1);
+                }}
+              >
+                {labels.moveUp}
+              </button>
+              <button
+                type="button"
+                data-testid="move-entry-down"
+                disabled={disabled || index === entries.length - 1}
+                className="text-meta text-strong underline"
+                onClick={() => {
+                  move(index, 1);
+                }}
+              >
+                {labels.moveDown}
+              </button>
+              <button
+                type="button"
+                data-testid="remove-entry"
+                disabled={disabled}
+                className="text-meta text-danger underline"
+                onClick={() => {
+                  write(entries.filter((_, at) => at !== index));
+                }}
+              >
+                {labels.removeEntry}
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {field.itemFields.map((item) => (
+                <div key={item.path} data-item-path={item.path}>
+                  <ItemControl
+                    item={item}
+                    name={`${field.path}.${String(index)}.${item.path}`}
+                    value={itemValue(entry, item)}
+                    disabled={disabled}
+                    onEdit={(keyed) => {
+                      change(index, item, keyed);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      )}
+
+      <div>
+        <button
+          type="button"
+          data-testid="add-entry"
+          disabled={disabled}
+          className="text-meta text-strong underline"
+          onClick={() => {
+            write([...entries, blankEntry(field.itemFields)]);
+          }}
+        >
+          {labels.addEntry}
+        </button>
+      </div>
+    </fieldset>
+  );
+}
+
+interface ItemControlProps {
+  readonly item: ItemField;
+  readonly name: string;
+  readonly value: string;
+  readonly disabled: boolean;
+  readonly onEdit: (value: string) => void;
+}
+
+/** One control inside a list entry, from the item schema and nothing else. */
+function ItemControl({
+  item,
+  name,
+  value,
+  disabled,
+  onEdit,
+}: ItemControlProps): ReactNode {
+  if (item.allowedValues !== null && item.allowedValues.length > 0) {
+    return (
+      <Select
+        label={item.label}
+        name={name}
+        description={item.description}
+        disabled={disabled}
+        value={value}
+        options={item.allowedValues.map((each) => ({ value: each, label: each }))}
+        onValueChange={onEdit}
+      />
+    );
+  }
+
+  if (item.type === 'boolean') {
+    return (
+      <Switch
+        label={item.label}
+        name={name}
+        description={item.description}
+        disabled={disabled}
+        checked={value === 'true'}
+        onCheckedChange={(next) => {
+          onEdit(next ? 'true' : 'false');
+        }}
+      />
+    );
+  }
+
+  const numeric = item.type === 'integer' || item.type === 'number';
+  return (
+    <Input
+      label={item.label}
+      name={name}
+      description={item.description}
+      disabled={disabled}
+      type={numeric ? 'number' : 'text'}
+      min={item.minimum ?? undefined}
+      max={item.maximum ?? undefined}
+      value={value}
+      onValueChange={onEdit}
     />
   );
 }

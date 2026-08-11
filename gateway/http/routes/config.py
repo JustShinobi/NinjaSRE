@@ -26,7 +26,7 @@ from gateway.http.routes.tenancy import within_scope
 from gateway.http.state import GatewayState
 from platform.config_service.effective import EffectiveConfig
 from platform.config_service.errors import UnknownNode
-from platform.config_service.fields import fields_at
+from platform.config_service.fields import ConfigField, fields_at
 from platform.config_service.schema.agents import render_sections
 from platform.config_service.schema.policies import GuardianSettings
 from platform.config_service.schema.root import RootConfig
@@ -197,6 +197,27 @@ class ConfigPreviewView(BaseModel):
     reverts: list[InheritedValueView] = Field(default_factory=list)
 
 
+class ItemFieldView(BaseModel):
+    """One field inside an entry of an ordered list of objects.
+
+    A separate model from ``ConfigFieldView`` because half of that one is about
+    a node — provenance, whether this node sets it, which node locks it — and
+    none of it is true of a field *inside* a list entry. A list replaces
+    entirely, so the entry inherits the list's answer to all of those and has
+    none of its own.
+    """
+
+    path: str
+    label: str
+    type: str
+    description: str = ""
+    default: Any = None
+    minimum: float | None = None
+    maximum: float | None = None
+    max_length: int | None = None
+    allowed_values: list[Any] | None = None
+
+
 class ConfigFieldView(BaseModel):
     """One editable field, as the schema declares it and this node stands on it.
 
@@ -219,6 +240,10 @@ class ConfigFieldView(BaseModel):
     max_items: int | None = None
     max_length: int | None = None
     allowed_values: list[Any] | None = None
+    #: For an array of objects, what one entry is made of — each item's ``path``
+    #: relative to the entry, because an entry nobody has added yet has no
+    #: index. Empty for everything else, including an array of strings.
+    item_fields: list[ItemFieldView] = Field(default_factory=list)
     value: Any = None
     #: The node supplying the effective value, or empty when nothing sets it.
     provenance: str = ""
@@ -329,6 +354,21 @@ def _service(state: GatewayState, auth: AuthenticatedRequest) -> ConfigService:
         guardrails=state.guardrails,
         catalogue=installed_catalogue(),
         integrations=installed_integrations(),
+    )
+
+
+def _item_view(item: ConfigField) -> ItemFieldView:
+    """Return one entry field as a client draws a control from it."""
+    return ItemFieldView(
+        path=item.path,
+        label=item.label,
+        type=item.type,
+        description=item.description,
+        default=item.default,
+        minimum=item.minimum,
+        maximum=item.maximum,
+        max_length=item.max_length,
+        allowed_values=(None if item.allowed_values is None else list(item.allowed_values)),
     )
 
 
@@ -511,6 +551,7 @@ async def node_fields(
                 max_items=each.field.max_items,
                 max_length=each.field.max_length,
                 allowed_values=(None if each.allowed_values is None else list(each.allowed_values)),
+                item_fields=[_item_view(item) for item in each.field.item_fields],
                 value=each.value,
                 provenance=each.provenance,
                 set_here=each.set_here,

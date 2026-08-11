@@ -303,6 +303,141 @@
         "title": "BoundsResponse",
         "type": "object"
       },
+      "BridgedCatalogueView": {
+        "description": "Everything one team bridges, as a screen renders it.",
+        "properties": {
+          "awaiting_classification": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Awaiting Classification",
+            "type": "array"
+          },
+          "declared": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Declared",
+            "type": "array"
+          },
+          "excluded": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedToolView"
+            },
+            "title": "Excluded",
+            "type": "array"
+          },
+          "servers": {
+            "items": {
+              "$ref": "#/components/schemas/BridgedServerView"
+            },
+            "title": "Servers",
+            "type": "array"
+          },
+          "unavailable_reason": {
+            "default": "",
+            "title": "Unavailable Reason",
+            "type": "string"
+          }
+        },
+        "title": "BridgedCatalogueView",
+        "type": "object"
+      },
+      "BridgedServerView": {
+        "description": "One registered server: whether it answered, and what it gave.",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "protocol": {
+            "default": "",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "reachable": {
+            "default": true,
+            "title": "Reachable",
+            "type": "boolean"
+          },
+          "server": {
+            "title": "Server",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/BridgedToolView"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "server"
+        ],
+        "title": "BridgedServerView",
+        "type": "object"
+      },
+      "BridgedToolView": {
+        "description": "One tool a server offers, with where it came from and what it may do.",
+        "properties": {
+          "awaiting_classification": {
+            "default": false,
+            "title": "Awaiting Classification",
+            "type": "boolean"
+          },
+          "catalogue_name": {
+            "title": "Catalogue Name",
+            "type": "string"
+          },
+          "classification": {
+            "default": "",
+            "title": "Classification",
+            "type": "string"
+          },
+          "declared_side_effect": {
+            "default": "",
+            "title": "Declared Side Effect",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "executable": {
+            "default": false,
+            "title": "Executable",
+            "type": "boolean"
+          },
+          "qualified_name": {
+            "title": "Qualified Name",
+            "type": "string"
+          },
+          "server": {
+            "title": "Server",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qualified_name",
+          "catalogue_name",
+          "server",
+          "tool"
+        ],
+        "title": "BridgedToolView",
+        "type": "object"
+      },
       "BulkRevokeRequest": {
         "properties": {
           "node_id": {
@@ -661,6 +796,13 @@
             "default": "",
             "title": "Description",
             "type": "string"
+          },
+          "item_fields": {
+            "items": {
+              "$ref": "#/components/schemas/ItemFieldView"
+            },
+            "title": "Item Fields",
+            "type": "array"
           },
           "label": {
             "title": "Label",
@@ -2228,6 +2370,40 @@
         "title": "EstateSummaryView",
         "type": "object"
       },
+      "ExcludedToolView": {
+        "description": "A tool that was offered and is not available, and why.",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "qualified_name": {
+            "title": "Qualified Name",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "server": {
+            "title": "Server",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qualified_name",
+          "server",
+          "tool",
+          "reason"
+        ],
+        "title": "ExcludedToolView",
+        "type": "object"
+      },
       "ExplainRequest": {
         "description": "A hypothetical action, asked about before anybody proposes it.",
         "properties": {
@@ -3353,6 +3529,83 @@
           "secret"
         ],
         "title": "IssuedTokenView",
+        "type": "object"
+      },
+      "ItemFieldView": {
+        "description": "One field inside an entry of an ordered list of objects.\n\nA separate model from ``ConfigFieldView`` because half of that one is about\na node — provenance, whether this node sets it, which node locks it — and\nnone of it is true of a field *inside* a list entry. A list replaces\nentirely, so the entry inherits the list's answer to all of those and has\nnone of its own.",
+        "properties": {
+          "allowed_values": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Values"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "type"
+        ],
+        "title": "ItemFieldView",
         "type": "object"
       },
       "KillSwitchRequest": {
@@ -12769,6 +13022,56 @@
         "summary": "Decide Proposal",
         "tags": [
           "proposals"
+        ]
+      }
+    },
+    "/v1/protocols/catalogue": {
+      "get": {
+        "description": "Return this team's bridged tools, their origin, and each server's health.\n\nBuilt from the team's own registrations rather than from whatever the\nadapter happens to hold, so a server registered and never reached still\nappears — with the reason where its tools would be.",
+        "operationId": "bridged_catalogue_view_v1_protocols_catalogue_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgedCatalogueView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bridged Catalogue View",
+        "tags": [
+          "protocols"
         ]
       }
     },

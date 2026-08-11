@@ -1,4 +1,4 @@
-import type { EditableField } from './preview';
+import type { EditableField, ItemField } from './preview';
 import { field, flag, list, text } from './read';
 
 /**
@@ -103,5 +103,28 @@ export function editableFields(body: unknown): readonly EditableField[] {
     // describes the field; what the estate found is a separate question.
     suggestedValue: '',
     suggestedBecause: '',
+    itemFields: itemFields(entry),
+  }));
+}
+
+/**
+ * The fields one entry of an ordered list of objects has, as the deployment
+ * describes them.
+ *
+ * Empty for everything else, which is how the editor tells a list it can draw
+ * rows for from one it cannot. Read rather than inferred, for the reason this
+ * whole module exists: what a routing rule is made of is the schema's answer,
+ * and a copy of it here would be right until somebody added a field to a rule.
+ */
+function itemFields(entry: unknown): readonly ItemField[] {
+  return list(entry, 'item_fields').map((item) => ({
+    path: text(item, 'path'),
+    label: text(item, 'label'),
+    type: text(item, 'type'),
+    description: text(item, 'description'),
+    allowedValues: closedSet(item, 'allowed_values'),
+    minimum: bound(item, 'minimum'),
+    maximum: bound(item, 'maximum'),
+    default: field(item, 'default'),
   }));
 }
