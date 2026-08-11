@@ -50,6 +50,7 @@ export const SHELL_ENDPOINTS = Object.freeze({
   '/v1/autonomy/policy/{node_id}': 'autonomy-policy',
   '/v1/autonomy/policy/{node_id}/bounds': 'autonomy-bounds',
   '/v1/autonomy/policy/{node_id}/outlook': 'autonomy-outlook',
+  '/v1/autonomy/policy/{node_id}/preview': 'autonomy-preview',
   '/v1/agent/pipeline': 'agent-pipeline',
   '/v1/autonomy/kill-switch': 'kill-switch',
   '/v1/config': 'config-tree',

@@ -1,0 +1,260 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "actions": [
+          {
+            "action_id": "act-2026-0814-01",
+            "after": "propose_only",
+            "after_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "at": "2026-08-14T09:12:00+00:00",
+            "before": "propose_only",
+            "before_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "capability": "restart_workload",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "ct-101"
+            ]
+          },
+          {
+            "action_id": "act-2026-0814-02",
+            "after": "act_and_report",
+            "after_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "at": "2026-08-14T09:40:00+00:00",
+            "before": "act_and_report",
+            "before_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "capability": "unlock_guest",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "vm-204"
+            ]
+          }
+        ],
+        "changed": 0,
+        "considered": 2,
+        "newly_autonomous": 0,
+        "summary": "2 recorded actions considered; none would be decided differently."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "autonomy-preview",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "actions": [
+          {
+            "action_id": "act-2026-0814-01",
+            "after": "propose_only",
+            "after_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "at": "2026-08-14T09:12:00+00:00",
+            "before": "propose_only",
+            "before_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "capability": "restart_workload",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "ct-101"
+            ]
+          },
+          {
+            "action_id": "act-2026-0814-02",
+            "after": "act_and_report",
+            "after_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "at": "2026-08-14T09:40:00+00:00",
+            "before": "act_and_report",
+            "before_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "capability": "unlock_guest",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "vm-204"
+            ]
+          }
+        ],
+        "changed": 0,
+        "considered": 2,
+        "newly_autonomous": 0,
+        "summary": "2 recorded actions considered; none would be decided differently."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "autonomy-preview",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "actions": [
+          {
+            "action_id": "act-2026-0814-01",
+            "after": "propose_only",
+            "after_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "at": "2026-08-14T09:12:00+00:00",
+            "before": "propose_only",
+            "before_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "capability": "restart_workload",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "ct-101"
+            ]
+          },
+          {
+            "action_id": "act-2026-0814-02",
+            "after": "act_and_report",
+            "after_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "at": "2026-08-14T09:40:00+00:00",
+            "before": "act_and_report",
+            "before_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "capability": "unlock_guest",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "vm-204"
+            ]
+          }
+        ],
+        "changed": 0,
+        "considered": 2,
+        "newly_autonomous": 0,
+        "summary": "2 recorded actions considered; none would be decided differently."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "autonomy-preview",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "actions": [
+          {
+            "action_id": "act-2026-0814-01",
+            "after": "propose_only",
+            "after_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "at": "2026-08-14T09:12:00+00:00",
+            "before": "propose_only",
+            "before_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "capability": "restart_workload",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "ct-101"
+            ]
+          },
+          {
+            "action_id": "act-2026-0814-02",
+            "after": "act_and_report",
+            "after_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "at": "2026-08-14T09:40:00+00:00",
+            "before": "act_and_report",
+            "before_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "capability": "unlock_guest",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "vm-204"
+            ]
+          }
+        ],
+        "changed": 0,
+        "considered": 2,
+        "newly_autonomous": 0,
+        "summary": "2 recorded actions considered; none would be decided differently."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "autonomy-preview",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "actions": [
+          {
+            "action_id": "act-2026-0814-01",
+            "after": "propose_only",
+            "after_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "at": "2026-08-14T09:12:00+00:00",
+            "before": "propose_only",
+            "before_reason": "restart_workload on ct-101 is proposed rather than run.",
+            "capability": "restart_workload",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "ct-101"
+            ]
+          },
+          {
+            "action_id": "act-2026-0814-02",
+            "after": "act_and_report",
+            "after_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "at": "2026-08-14T09:40:00+00:00",
+            "before": "act_and_report",
+            "before_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+            "capability": "unlock_guest",
+            "changed": false,
+            "more_autonomous": false,
+            "subjects": [
+              "vm-204"
+            ]
+          }
+        ],
+        "changed": 0,
+        "considered": 2,
+        "newly_autonomous": 0,
+        "summary": "2 recorded actions considered; none would be decided differently."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "autonomy-preview",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "autonomy-preview"
+}

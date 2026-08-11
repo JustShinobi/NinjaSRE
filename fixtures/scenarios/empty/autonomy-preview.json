@@ -1,0 +1,25 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "actions": [],
+        "changed": 0,
+        "considered": 0,
+        "newly_autonomous": 0,
+        "summary": "No action has been recorded in this window, so there is nothing to replay."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "autonomy-preview",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "autonomy-preview"
+}

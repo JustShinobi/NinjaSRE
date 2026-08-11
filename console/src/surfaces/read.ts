@@ -1,4 +1,4 @@
-import { ApiError, read, readProjected, type ProjectedPath } from '@/lib/api';
+import { ApiError, ask, read, readProjected, type ProjectedPath } from '@/lib/api';
 import type { PanelState } from './panel';
 
 /**
@@ -198,4 +198,4 @@ export function pairs(
 }
 
 /** The gateway read every surface makes, so the credential is applied in one place. */
-export { read };
+export { ask, read };

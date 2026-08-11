@@ -11,6 +11,7 @@ import { HierarchyGraph, type HierarchyRank } from '../graph';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
+  ask,
   authorised,
   dataOf,
   dependencyOf,
@@ -81,6 +82,34 @@ function nothing(): PanelData<unknown> {
   return { status: 'ready', data: {} };
 }
 
+/**
+ * What the posture that is stored decided about the actions that were recorded.
+ *
+ * The preview route takes a *proposed* document and replays history against it.
+ * Posting the current one back is how a reader asks the narrower question — "and
+ * what did this policy actually do" — with the deployment answering, which is
+ * the whole reason the console does not compute it: a client that replayed the
+ * history itself would be a second resolver, and the day it drifted somebody
+ * would raise autonomy on the strength of a sentence this process wrote.
+ */
+async function currentPolicyReplay(node: string, init: RequestInit): Promise<unknown> {
+  const stored = await read('/v1/autonomy/policy/{node_id}', {
+    ...init,
+    params: { node_id: node },
+  });
+  const document = {
+    dry_run: flag(stored, 'dry_run'),
+    rules: list(stored, 'rules'),
+    freezes: list(stored, 'freezes'),
+    budgets: list(stored, 'budgets'),
+    overrides: list(stored, 'overrides'),
+  };
+  return ask('/v1/autonomy/policy/{node_id}/preview', document, {
+    ...init,
+    params: { node_id: node },
+  });
+}
+
 export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search } = context;
   const state = readViewState(search, AGENT_FILTERS);
@@ -130,6 +159,19 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
           ),
     ]);
 
+  // What the posture as it stands decided about what has actually happened.
+  // Complements the representative set rather than replacing it: a deployment
+  // on its first day has no history, and the first day is when somebody decides
+  // whether to let this act. Asked only where there is both a node and the
+  // permission — the route takes `config.write`, because it reads the
+  // deployment's own decision history to answer.
+  const replay =
+    node === '' || tab !== 'autonomy' || !may(viewer, WRITE)
+      ? nothing()
+      : await optionalRead<unknown>('/v1/autonomy/policy/{node_id}/preview', () =>
+          currentPolicyReplay(node, init),
+        );
+
   return (
     <>
       <AreaHeader
@@ -166,7 +208,13 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
           />
         ) : null}
         {tab === 'autonomy' ? (
-          <AutonomyTab locale={locale} outlook={outlook} node={node} viewer={viewer} />
+          <AutonomyTab
+            locale={locale}
+            outlook={outlook}
+            replay={replay}
+            node={node}
+            viewer={viewer}
+          />
         ) : null}
       </div>
     </>
@@ -710,81 +758,127 @@ function ToolGroup({
 function AutonomyTab({
   locale,
   outlook,
+  replay,
   node,
   viewer,
 }: {
   readonly locale: Locale;
   readonly outlook: PanelData<unknown>;
+  readonly replay: PanelData<unknown>;
   readonly node: string;
   readonly viewer: SurfaceContext['viewer'];
 }): ReactNode {
   const classes = list(dataOf(outlook), 'classes');
   const simulated = flag(dataOf(outlook), 'dry_run');
   const editable = may(viewer, WRITE);
+  const recorded = list(dataOf(replay), 'actions');
 
   return (
-    <Panel
-      title={message(locale, 'agent.outlook.title')}
-      state={stateOf(outlook, classes.length === 0)}
-      dependency={dependencyOf(outlook)}
-      labels={panelLabels(locale, message(locale, 'agent.outlook.title'))}
-      empty={{
-        heading: message(locale, 'agent.outlook.empty.heading'),
-        body: message(locale, 'agent.outlook.empty.body'),
-        actionLabel: message(locale, 'agent.outlook.empty.action'),
-        href: '/autonomy',
-      }}
-    >
-      <p className="text-meta text-muted pb-3">
-        {message(locale, 'agent.outlook.body')}
-      </p>
-      {simulated ? (
-        <p className="text-meta text-muted pb-3" data-testid="agent-dry-run">
-          {message(locale, 'agent.outlook.dryRun')}
+    <>
+      <Panel
+        title={message(locale, 'agent.outlook.title')}
+        state={stateOf(outlook, classes.length === 0)}
+        dependency={dependencyOf(outlook)}
+        labels={panelLabels(locale, message(locale, 'agent.outlook.title'))}
+        empty={{
+          heading: message(locale, 'agent.outlook.empty.heading'),
+          body: message(locale, 'agent.outlook.empty.body'),
+          actionLabel: message(locale, 'agent.outlook.empty.action'),
+          href: '/autonomy',
+        }}
+      >
+        <p className="text-meta text-muted pb-3">
+          {message(locale, 'agent.outlook.body')}
         </p>
-      ) : null}
-      <ul className="flex flex-col gap-3">
-        {classes.map((entry) => (
-          <li
-            key={text(entry, 'risk_class')}
-            data-testid="outlook-class"
-            data-risk={text(entry, 'risk_class')}
-            data-decision={text(entry, 'decision')}
-            className="flex flex-col gap-1"
-          >
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-small text-strong">
-                {text(entry, 'risk_class')}
-              </span>
-              <Badge status={text(entry, 'decision')} />
-              {text(entry, 'refused_by') === '' ? null : (
-                <span className="text-meta text-muted" data-testid="outlook-bound">
-                  {message(locale, 'agent.outlook.bound', {
-                    bound: text(entry, 'refused_by'),
-                  })}
+        {simulated ? (
+          <p className="text-meta text-muted pb-3" data-testid="agent-dry-run">
+            {message(locale, 'agent.outlook.dryRun')}
+          </p>
+        ) : null}
+        <ul className="flex flex-col gap-3">
+          {classes.map((entry) => (
+            <li
+              key={text(entry, 'risk_class')}
+              data-testid="outlook-class"
+              data-risk={text(entry, 'risk_class')}
+              data-decision={text(entry, 'decision')}
+              className="flex flex-col gap-1"
+            >
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-small text-strong">
+                  {text(entry, 'risk_class')}
                 </span>
-              )}
-            </span>
-            <span className="text-small" data-testid="outlook-sentence">
-              {text(entry, 'sentence')}
-            </span>
-            <span className="text-meta text-muted">{text(entry, 'reason')}</span>
-          </li>
-        ))}
-      </ul>
-      {/* Linked, never embedded: the editor is the autonomy area's, and a
+                <Badge status={text(entry, 'decision')} />
+                {text(entry, 'refused_by') === '' ? null : (
+                  <span className="text-meta text-muted" data-testid="outlook-bound">
+                    {message(locale, 'agent.outlook.bound', {
+                      bound: text(entry, 'refused_by'),
+                    })}
+                  </span>
+                )}
+              </span>
+              <span className="text-small" data-testid="outlook-sentence">
+                {text(entry, 'sentence')}
+              </span>
+              <span className="text-meta text-muted">{text(entry, 'reason')}</span>
+            </li>
+          ))}
+        </ul>
+        {/* Linked, never embedded: the editor is the autonomy area's, and a
           second copy of it here would be a second place a posture is changed. */}
-      {editable ? (
-        <p className="text-meta text-muted pt-4">
-          <Link
-            href={
-              node === '' ? '/autonomy' : `/autonomy?node=${encodeURIComponent(node)}`
-            }
-          >
-            {message(locale, 'agent.outlook.edit')}
-          </Link>
-        </p>
+        {editable ? (
+          <p className="text-meta text-muted pt-4">
+            <Link
+              href={
+                node === '' ? '/autonomy' : `/autonomy?node=${encodeURIComponent(node)}`
+              }
+            >
+              {message(locale, 'agent.outlook.edit')}
+            </Link>
+          </p>
+        ) : null}
+      </Panel>
+
+      {/* Beside the representative set rather than instead of it. The declared
+          set answers on a deployment's first day, when there is no history and
+          the decision to trust this is being made; this answers once there is,
+          and the two disagreeing would itself be worth seeing. Absent entirely
+          for a reader who may not ask — the route reads the decision history. */}
+      {editable && recorded.length > 0 ? (
+        <Panel
+          title={message(locale, 'agent.replay.title')}
+          state="ready"
+          labels={panelLabels(locale, message(locale, 'agent.replay.title'))}
+          empty={{
+            heading: message(locale, 'agent.replay.empty.heading'),
+            body: message(locale, 'agent.replay.empty.body'),
+            actionLabel: message(locale, 'agent.outlook.empty.action'),
+            href: '/autonomy',
+          }}
+        >
+          <p className="text-meta text-muted pb-3">
+            {message(locale, 'agent.replay.body')}
+          </p>
+          <ul className="flex flex-col gap-2">
+            {recorded.map((entry) => (
+              <li
+                key={text(entry, 'action_id')}
+                data-testid="replayed-action"
+                data-capability={text(entry, 'capability')}
+                className="flex flex-wrap items-center gap-3 text-small"
+              >
+                <span className="font-mono min-w-0 truncate">
+                  {text(entry, 'capability')}
+                </span>
+                <span className="text-meta text-muted break-all">
+                  {list(entry, 'subjects').map(String).join(', ')}
+                </span>
+                <Badge status={text(entry, 'after')} />
+              </li>
+            ))}
+          </ul>
+        </Panel>
       ) : null}
-    </Panel>
+    </>
   );
 }

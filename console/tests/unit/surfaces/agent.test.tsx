@@ -314,6 +314,33 @@ describe('what it will do alone', () => {
     }
   });
 
+  it('shows what the posture decided about what actually happened, beside the classes', async () => {
+    await renderAgent({ node: NODE, tab: 'autonomy' });
+
+    // The declared set answers on a deployment's first day; the replay answers
+    // once there is a record. Both, when both are available.
+    expect(screen.getAllByTestId('outlook-class').length).toBe(5);
+    const replayed = screen.getAllByTestId('replayed-action');
+    expect(replayed.length).toBeGreaterThan(0);
+    expect(replayed.map((row) => row.getAttribute('data-capability'))).toContain(
+      'restart_workload',
+    );
+  });
+
+  it('does not ask for the record at all when the reader may not', async () => {
+    serveScenario(
+      'populated',
+      principalHolding(
+        EVERYTHING.filter((permission) => permission !== 'config.write'),
+        NODE,
+      ),
+    );
+    await renderAgent({ node: NODE, tab: 'autonomy' });
+
+    expect(screen.getAllByTestId('outlook-class').length).toBe(5);
+    expect(screen.queryAllByTestId('replayed-action')).toEqual([]);
+  });
+
   it('links the policy editor rather than embedding one', async () => {
     await renderAgent({ node: NODE, tab: 'autonomy' });
 

@@ -269,6 +269,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         summary="what an action of each risk class would meet under this posture",
     ),
     ConsoleEndpoint(
+        method="POST",
+        path="/v1/autonomy/policy/{node_id}/preview",
+        slug="autonomy-preview",
+        source=_GATEWAY,
+        summary="what a posture would have decided differently over recorded history",
+    ),
+    ConsoleEndpoint(
         method="GET",
         path="/v1/agent/pipeline",
         slug="agent-pipeline",
