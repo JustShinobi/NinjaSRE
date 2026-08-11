@@ -272,13 +272,20 @@ def test_the_budgets_the_browser_suite_reads_are_the_ones_declared_here() -> Non
 
 
 def test_the_fixture_server_answers_endpoints_the_dataset_actually_has() -> None:
-    """Its table is held against the mock plane's own catalogue.
+    """Its table is held against the mock plane's own catalogue, method by method.
 
-    Against the ``GET`` half of it, because the fixture server answers reads and
-    nothing else: one path is both a read and a write — ``/v1/config/{node_id}``
-    is the effective configuration on ``GET`` and a patch on ``PUT`` — and a
-    comparison that ignored the method would hold the read table against
-    whichever of the two the catalogue happened to list second.
+    Reads are matched against the ``GET`` half, because one path is both a read
+    and a write — ``/v1/config/{node_id}`` is the effective configuration on
+    ``GET`` and a patch on ``PUT`` — and a comparison that ignored the method
+    would hold the read table against whichever of the two the catalogue
+    happened to list second.
+
+    The writes the capture answers are matched against the *write* half rather
+    than exempted from the check. There is more than one now — a configuration
+    preview, a rule simulation, a re-send — and a list of literals to skip is a
+    list somebody appends to when a path fails this test, which is the moment it
+    stops being a check at all. Held this way an entry still has to name an
+    endpoint the catalogue declares, with the slug the catalogue gives it.
     """
     source = _source(FIXTURE_SERVER)
     table = re.search(r"SHELL_ENDPOINTS = Object\.freeze\(\{(.*?)\}\)", source, re.DOTALL)
@@ -288,17 +295,13 @@ def test_the_fixture_server_answers_endpoints_the_dataset_actually_has() -> None
     by_path = {
         endpoint.path: endpoint.slug for endpoint in CONSOLE_ENDPOINTS if endpoint.method == "GET"
     }
-    #: The reads that are spelled ``POST`` because they take a document to answer
-    #: about. Each one computes and stores nothing, and each is on a screen the
-    #: capture photographs — the configuration screen asks what a patch would
-    #: resolve to, and the agent screen asks what the stored posture decided
-    #: about the actions that were recorded.
-    asked = ("/v1/config/{node_id}/preview", "/v1/autonomy/policy/{node_id}/preview")
+    written = {
+        endpoint.path: endpoint.slug for endpoint in CONSOLE_ENDPOINTS if endpoint.method != "GET"
+    }
     for path, slug in declared.items():
-        if path in asked:
-            continue
-        assert path in by_path, f"{path} is not a read the dataset covers"
-        assert by_path[path] == slug, f"{path} is fixture {by_path[path]}, not {slug}"
+        covered = by_path.get(path, written.get(path))
+        assert covered is not None, f"{path} is not an endpoint the dataset covers"
+        assert covered == slug, f"{path} is fixture {covered}, not {slug}"
 
 
 # --- Each success criterion, against the test that proves it ----------------------
