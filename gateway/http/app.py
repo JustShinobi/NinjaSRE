@@ -10,6 +10,7 @@ from gateway.http.correlation import CorrelationIdMiddleware
 from gateway.http.errors import install_error_handlers
 from gateway.http.lifespan import lifespan
 from gateway.http.routes import (
+    agent,
     approvals,
     audit,
     autonomy,
@@ -75,6 +76,7 @@ def create_app(
     install_error_handlers(app)
 
     for router in (
+        agent.router,
         autonomy.router,
         incidents.router,
         investigations.router,
