@@ -424,3 +424,183 @@ describe('single sign-on', () => {
     expect((await post({ operation: 'save', payload: {} })).status).toBe(502);
   });
 });
+
+describe('role grants', () => {
+  async function post(body: unknown, session = true): Promise<Response> {
+    const { POST } = await import('@/app/api/grants/route');
+    return POST(request('/api/grants', body, { session }));
+  }
+
+  it('sends each named operation to its own address and method', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(201, {
+        grant_id: 'grant-1',
+        principal_id: 'user-avery',
+        role: 'owner',
+      }),
+    );
+
+    await post({
+      operation: 'add',
+      payload: { principal_id: 'user-avery', role: 'owner' },
+    });
+    expect(sent[0]?.url).toBe(`${API}/identity/grants`);
+    expect(sent[0]?.init.method).toBe('POST');
+
+    sent = [];
+    vi.stubGlobal('fetch', answering(200, { grant_id: 'grant-1' }));
+    await post({ operation: 'remove', payload: { grant_id: 'grant-1' } });
+    expect(sent[0]?.url).toBe(`${API}/identity/grants/grant-1`);
+    expect(sent[0]?.init.method).toBe('DELETE');
+  });
+
+  it('encodes a grant identifier that needs it', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+
+    await post({ operation: 'remove', payload: { grant_id: 'grant with space' } });
+
+    expect(sent[0]?.url).toBe(
+      `${API}/identity/grants/${encodeURIComponent('grant with space')}`,
+    );
+  });
+
+  it('returns the deployment’s answer verbatim under its own key', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(201, {
+        grant_id: 'grant-9',
+        principal_id: 'user-avery',
+        role: 'owner',
+      }),
+    );
+
+    const answer = await post({
+      operation: 'add',
+      payload: { principal_id: 'user-avery', role: 'owner' },
+    });
+
+    expect(await answer.json()).toMatchObject({
+      ok: true,
+      answer: { grant_id: 'grant-9', principal_id: 'user-avery', role: 'owner' },
+    });
+  });
+
+  it('reads the refusal from the {"error": {...}} envelope this route answers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(400, {
+        error: {
+          type: 'bad_request',
+          message: "'ceo' is not a role this deployment has",
+          correlation_id: 'corr-1',
+        },
+      }),
+    );
+
+    const answer = await post({
+      operation: 'add',
+      payload: { principal_id: 'user-avery', role: 'ceo' },
+    });
+
+    expect(answer.status).toBe(400);
+    expect(await answer.json()).toMatchObject({
+      ok: false,
+      reason: "'ceo' is not a role this deployment has",
+    });
+  });
+
+  it('carries the last-owner refusal back with its own status', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(409, {
+        error: {
+          type: 'conflict',
+          message:
+            'removing this grant would leave the organisation with no owner; grant ownership to somebody else first',
+          correlation_id: 'corr-2',
+        },
+      }),
+    );
+
+    const answer = await post({
+      operation: 'remove',
+      payload: { grant_id: 'grant-1' },
+    });
+
+    expect(answer.status).toBe(409);
+    const body: unknown = await answer.json();
+    expect(Reflect.get(Object(body), 'ok')).toBe(false);
+    expect(String(Reflect.get(Object(body), 'reason'))).toContain(
+      'grant ownership to somebody else first',
+    );
+  });
+
+  it('will not forward an operation the table does not name', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+
+    expect((await post({ operation: 'delete-everything', payload: {} })).status).toBe(
+      400,
+    );
+    expect(sent).toHaveLength(0);
+  });
+
+  it('will not remove a grant nobody named', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+
+    const answer = await post({ operation: 'remove', payload: {} });
+
+    expect(answer.status).toBe(400);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('treats a body that is not JSON as naming no operation, rather than crashing', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+    const { POST } = await import('@/app/api/grants/route');
+    const made = new NextRequest(`${CONSOLE_ORIGIN}/api/grants`, {
+      method: 'POST',
+      body: 'not json',
+      headers: { 'content-type': 'application/json' },
+    });
+    made.cookies.set(SESSION_COOKIE, 'tok_session');
+
+    expect((await POST(made)).status).toBe(400);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('treats a reply that is not JSON as an empty one, rather than crashing', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(new Response('not json', { status: 200 })),
+    );
+
+    const answer = await post({
+      operation: 'add',
+      payload: { principal_id: 'user-avery', role: 'owner' },
+    });
+
+    expect(answer.status).toBe(200);
+    expect(await answer.json()).toMatchObject({ ok: true, reason: '' });
+  });
+
+  it('refuses without a session, and reports an unreachable deployment', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+    expect(
+      (
+        await post(
+          { operation: 'add', payload: { principal_id: 'user-avery', role: 'owner' } },
+          false,
+        )
+      ).status,
+    ).toBe(401);
+
+    vi.stubGlobal('fetch', unreachable());
+    expect(
+      (
+        await post({
+          operation: 'add',
+          payload: { principal_id: 'user-avery', role: 'owner' },
+        })
+      ).status,
+    ).toBe(502);
+  });
+});
