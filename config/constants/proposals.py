@@ -39,6 +39,16 @@ MAX_DECIDED_PROPOSAL_HISTORY: Final[int] = 200
 #: more than five would bury it.
 MAX_RECALLED_REJECTIONS: Final[int] = 5
 
+#: Who the audit says made the change, when an approved proposal is applied.
+#:
+#: Both names, in one string, because the audit's actor is one field and the
+#: acceptance is that both appear: the agent proposed it and a person let it
+#: through, and a trail carrying only one of those answers the wrong half of
+#: "why is today's configuration different from yesterday's". The kind is
+#: ``AGENT`` alongside it, so a query for what the platform did to itself finds
+#: these without parsing the string.
+PROPOSAL_ACTOR: Final[str] = "agent ({proposal_id}), approved by {approved_by}"
+
 #: The configuration a proposal may never name, whatever its type.
 #:
 #: These are the sections that decide what the agent is allowed to do:
@@ -76,6 +86,7 @@ __all__ = [
     "MAX_DECIDED_PROPOSAL_HISTORY",
     "MAX_RECALLED_REJECTIONS",
     "PROPOSAL_ACTION_SUFFIX",
+    "PROPOSAL_ACTOR",
     "PROPOSAL_DECISION_TTL_HOURS",
     "SEALED_CONFIG_PREFIXES",
     "SEALED_FIELD_NAMES",
