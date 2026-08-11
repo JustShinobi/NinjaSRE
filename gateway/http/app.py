@@ -35,6 +35,7 @@ from gateway.http.routes import (
     sso,
     threads,
     topology,
+    transit,
 )
 from gateway.http.state import GatewayState
 from gateway.webhooks.router import WebhookSourceConfig, build_webhook_router
@@ -87,6 +88,7 @@ def create_app(
         config.router,
         integrations.router,
         ingress.router,
+        transit.router,
         memory.router,
         remediation.router,
         schedules.router,

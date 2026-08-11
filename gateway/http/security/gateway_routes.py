@@ -193,4 +193,24 @@ INGRESS_ROUTES: Final[tuple[Route, ...]] = (
     Route(method="GET", path="/v1/ingress/sources", permission=Permission.INTEGRATION_MANAGE),
 )
 
-__all__ = ["GATEWAY_ROUTES", "INGRESS_ROUTES", "WEBHOOK_ROUTES"]
+#: Where data came from and where it went. The reads are ``CONFIG_READ``: what a
+#: source has delivered, which rule caught it, and where a result went are facts
+#: about how this deployment is *configured to behave*, and they sit beside the
+#: hierarchy on the same screen. Simulation is a read too — it stores nothing,
+#: for the same reason ``preview`` does not — and the one write, a re-send,
+#: needs ``CONFIG_WRITE``, because putting a report in front of somebody again
+#: is an act rather than a look.
+TRANSIT_ROUTES: Final[tuple[Route, ...]] = (
+    Route(method="GET", path="/v1/transit/ingress", permission=Permission.CONFIG_READ),
+    Route(method="GET", path="/v1/transit/deliveries", permission=Permission.CONFIG_READ),
+    Route(method="GET", path="/v1/transit/rules", permission=Permission.CONFIG_READ),
+    Route(method="GET", path="/v1/transit/destinations", permission=Permission.CONFIG_READ),
+    Route(method="POST", path="/v1/transit/simulate", permission=Permission.CONFIG_READ),
+    Route(
+        method="POST",
+        path="/v1/transit/deliveries/{delivery_id}/resend",
+        permission=Permission.CONFIG_WRITE,
+    ),
+)
+
+__all__ = ["GATEWAY_ROUTES", "INGRESS_ROUTES", "TRANSIT_ROUTES", "WEBHOOK_ROUTES"]

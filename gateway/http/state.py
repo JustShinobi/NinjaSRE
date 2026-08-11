@@ -22,6 +22,7 @@ from gateway.http.security.first_run_routes import FIRST_RUN_ROUTES
 from gateway.http.security.gateway_routes import (
     GATEWAY_ROUTES,
     INGRESS_ROUTES,
+    TRANSIT_ROUTES,
     WEBHOOK_ROUTES,
 )
 from gateway.http.security.incident_routes import INCIDENT_ROUTES
@@ -49,6 +50,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     ROUTE_TABLE.extended_with(GATEWAY_ROUTES)
     .extended_with(WEBHOOK_ROUTES)
     .extended_with(INGRESS_ROUTES)
+    .extended_with(TRANSIT_ROUTES)
     .extended_with(CONSOLE_ROUTES)
     .extended_with(ESTATE_ROUTES)
     .extended_with(INCIDENT_ROUTES)
