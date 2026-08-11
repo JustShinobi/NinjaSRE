@@ -39,7 +39,7 @@ from config.constants.knowledge import MAX_DOCUMENTS_PER_RESOURCE
 from platform.knowledge.base.models import Document, DocumentType
 from platform.observability.logging import get_logger
 from platform.persistence.errors import PersistenceError
-from platform.persistence.ports.estate_repository import EstateQuery, Resource
+from platform.persistence.ports.estate_repository import EstateQuery, Resource, whole_estate
 from platform.persistence.ports.topology_graph import (
     EdgeKind,
     NodeKind,
@@ -198,7 +198,7 @@ class EstateLinker:
                     logger.info("knowledge.estate_link_unavailable", reason=availability.reason)
                     return LinkReport(unavailable=availability.reason or "no graph storage")
 
-                estate = await uow.estate.query(EstateQuery(limit=MAX_ESTATE_PAGE_SIZE))
+                estate = await whole_estate(uow.estate, EstateQuery(limit=MAX_ESTATE_PAGE_SIZE))
                 linked = 0
                 for document in wanted:
                     for resource_id, name, kind in matches_for(document.body, estate):

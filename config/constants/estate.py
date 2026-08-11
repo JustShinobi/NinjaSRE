@@ -78,6 +78,13 @@ MAX_MAINTENANCE_SECONDS: Final[int] = 604_800
 #: the one read whose natural size is "the whole estate".
 MAX_ESTATE_PAGE_SIZE: Final[int] = 500
 
+#: How many pages a whole-estate pass walks before it stops. The ceiling under
+#: "page until the estate runs out": at the page bound above this is 25,000
+#: resources, which is far past any deployment this platform is aimed at and
+#: still a number rather than "until it ends". A pass with no ceiling is one
+#: that turns an estate somebody grew into a request that never returns.
+MAX_ESTATE_SWEEP_PAGES: Final[int] = 50
+
 #: Seconds a summary over the whole estate may take. Declared here rather than
 #: in the benchmark, so the budget and the assertion cannot drift apart.
 ESTATE_SUMMARY_BUDGET_SECONDS: Final[float] = 1.0
@@ -167,6 +174,7 @@ __all__ = [
     "MAX_ENRICHMENT_DOCUMENT_BYTES",
     "MAX_ENRICHMENT_ENTRIES",
     "MAX_ESTATE_PAGE_SIZE",
+    "MAX_ESTATE_SWEEP_PAGES",
     "MAX_HEALTH_SIGNALS",
     "MAX_MAINTENANCE_SECONDS",
     "MAX_SWEEP_PROVIDER_CALLS",

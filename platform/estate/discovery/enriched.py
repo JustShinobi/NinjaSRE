@@ -43,7 +43,7 @@ from platform.estate.enrichment import (
     apply_enrichment,
 )
 from platform.observability.logging import get_logger
-from platform.persistence.ports.estate_repository import EstateQuery, Resource
+from platform.persistence.ports.estate_repository import EstateQuery, Resource, whole_estate
 from platform.persistence.ports.topology_graph import (
     EdgeKind,
     NodeKind,
@@ -129,8 +129,12 @@ class EnrichingSweeper:
         )
 
         async with self.sweeper.gateway.begin(scope) as uow:
-            resources = await uow.estate.query(
-                EstateQuery(sources=(report.source,), limit=MAX_ESTATE_PAGE_SIZE)
+            # The whole of this source's estate, paged. The graph this writes
+            # is the estate's own shape, and a graph built from the first page
+            # of a larger estate is a graph missing edges nobody can see are
+            # missing.
+            resources = await whole_estate(
+                uow.estate, EstateQuery(sources=(report.source,), limit=MAX_ESTATE_PAGE_SIZE)
             )
             zones, domains = await _write_graph(uow, resources)
             stored = await uow.estate.last_sweep(report.source)

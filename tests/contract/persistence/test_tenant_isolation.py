@@ -39,6 +39,7 @@ from platform.persistence.ports import (
     IncidentState,
     IncidentSubject,
     KnowledgeDocument,
+    PayloadSample,
     PersistenceGateway,
     RecurringProblem,
     ReferenceKind,
@@ -60,6 +61,10 @@ from platform.persistence.ports import (
     TimelineKind,
     TopologyEdge,
     TraceEventRecord,
+    TransitDelivery,
+    TransitDirection,
+    TransitOutcome,
+    TransitQuery,
     UnitOfWork,
     User,
 )
@@ -87,12 +92,13 @@ TENANT_SCOPED_PORTS = frozenset(
         "signals",
         "incidents",
         "remediation",
+        "transit",
     }
 )
 
 
 async def write_one_of_everything(uow: UnitOfWork) -> None:
-    """Write a record through all fifteen tenant-scoped ports."""
+    """Write a record through all seventeen tenant-scoped ports."""
     await uow.config.upsert(
         ConfigNode(
             node_id="payments",
@@ -245,6 +251,23 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
             condition_key="datastore-near-full",
         )
     )
+    await uow.transit.record(
+        TransitDelivery(
+            delivery_id="alertmanager-1",
+            direction=TransitDirection.INGRESS,
+            source="alertmanager",
+            occurred_at=at(),
+            outcome=TransitOutcome.ACCEPTED,
+        )
+    )
+    await uow.transit.store_sample(
+        PayloadSample(
+            source="alertmanager",
+            captured_at=at(),
+            body='{"status": "firing"}',
+            masking_policy="standard",
+        )
+    )
     await uow.remediation.upsert_problem(
         RecurringProblem(
             problem_id="problem-1",
@@ -291,6 +314,11 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.remediation.open_problem_for("clear_cache@res-1") is None
         assert await uow.remediation.problems() == ()
         assert await uow.remediation.purge(before=at(10)) == 0
+        assert await uow.transit.delivery("alertmanager-1") is None
+        assert await uow.transit.deliveries(TransitQuery()) == ()
+        assert await uow.transit.sample("alertmanager") is None
+        assert await uow.transit.activity(direction=TransitDirection.INGRESS, since=at()) == ()
+        assert await uow.transit.prune(before=at(10)) == 0
         assert (
             await uow.estate.mark_absent(source="proxmox", seen_ids=frozenset(), at=at(10))
         ) == ()

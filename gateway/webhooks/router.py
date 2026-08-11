@@ -79,6 +79,7 @@ from platform.persistence.ports.estate_repository import (
     EstateQuery,
     ReferenceKind,
     ResourceReference,
+    whole_estate,
 )
 from platform.persistence.ports.incident_store import Incident
 from platform.persistence.ports.transaction import TenantScope
@@ -699,14 +700,16 @@ async def _resolve_against_estate(
 ) -> AlertResolution:
     """Return which estate resource ``alert`` is about, or the finding that it is not.
 
-    One bounded read of the estate per delivery. The repository has no attribute
+    The whole estate per delivery, paged. The repository has no attribute
     filter — ``instance``, ``vmid`` and a declared domain are all attributes —
-    so the page is what resolution matches against, exactly as enrichment does.
-    An estate larger than the page bound resolves against its first page, which
-    is the same limit 053 recorded and the same cursor 062 is asked for.
+    so what resolution matches against is the resources themselves. This read
+    used to be one page, and an estate larger than it produced an unresolved
+    finding for a guest that was there: a *false* finding, which is worse than
+    a slow one. Paging is one query for any estate that fits in a page, which
+    is every deployment this has run against so far.
     """
     async with state.gateway.begin(scope) as uow:
-        resources = await uow.estate.query(EstateQuery(limit=MAX_ESTATE_PAGE_SIZE))
+        resources = await whole_estate(uow.estate, EstateQuery(limit=MAX_ESTATE_PAGE_SIZE))
     resolution = resolve_alert(alert, resources=resources)
     if resolution.unresolved is not None:
         logger.info(

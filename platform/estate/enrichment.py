@@ -44,7 +44,7 @@ from config.constants.estate import MAX_ESTATE_PAGE_SIZE
 from platform.estate.attributes import AttributeType, screened, typed
 from platform.estate.kinds import KindRegistry
 from platform.observability.logging import get_logger
-from platform.persistence.ports.estate_repository import EstateQuery, Resource
+from platform.persistence.ports.estate_repository import EstateQuery, Resource, whole_estate
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
 
 logger = get_logger(__name__)
@@ -288,7 +288,11 @@ async def apply_enrichment(
     )
 
     async with gateway.begin(scope) as uow:
-        found = await uow.estate.query(query)
+        # Paged rather than read once. An estate larger than one page used to
+        # be enriched as far as its first page and reported as truncated, which
+        # meant a resource beyond it silently kept the annotations it had —
+        # 053 recorded that, 055 recorded it again, and this is where it stops.
+        found = await whole_estate(uow.estate, query)
         for resource in found:
             key = resource.correlation_key
             if not key:

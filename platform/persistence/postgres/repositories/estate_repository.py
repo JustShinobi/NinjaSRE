@@ -249,6 +249,8 @@ class PostgresEstateRepository(TenantBound):
         """Return the resources matching ``query``, by identifier."""
         limit = check_estate_limit(query.limit)
         statement = self._filtered(query).order_by(models.EstateResource.resource_id).limit(limit)
+        if query.after:
+            statement = statement.where(models.EstateResource.resource_id > query.after)
         rows = (await self.session.execute(statement)).scalars().all()
         return tuple(_to_resource(row) for row in rows)
 
