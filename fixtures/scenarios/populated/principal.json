@@ -10,6 +10,7 @@
         "kind": "person",
         "permissions": [
           "approval.read",
+          "approval.review",
           "audit.read",
           "config.read",
           "config.write",

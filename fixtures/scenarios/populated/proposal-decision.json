@@ -1,0 +1,45 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "proposal_id": "prop-0001"
+      },
+      "body": {
+        "applied": "org-northwind: applied Record that LXC guest memory is read from the host",
+        "proposal_id": "prop-0001",
+        "state": "approved"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "proposal-decision",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "proposal_id": "prop-0002"
+      },
+      "body": {
+        "applied": "org-northwind: applied Watch the datastore fill the runbook already says to check",
+        "proposal_id": "prop-0002",
+        "state": "approved"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "proposal-decision",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "proposal-decision"
+}

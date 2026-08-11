@@ -64,6 +64,10 @@ SIGN_IN_TOKEN: Final = "fixture-session-token"
 #: console has to cope with.
 OPERATOR_PERMISSIONS: Final[tuple[str, ...]] = (
     "approval.read",
+    # Reading the proposal queue takes ``approval.read``; answering one takes
+    # this. The console renders no approve or reject control without it, so a
+    # dataset whose operator lacked it served a queue nobody could empty.
+    "approval.review",
     "audit.read",
     "config.read",
     "config.write",
@@ -724,7 +728,7 @@ PROPOSAL_ACCEPTANCE: Final[Mapping[str, Any]] = {
 
 
 def proposal_records() -> tuple[CapturedRecord, ...]:
-    """Return the proposal queue, its count, and each proposal on its own."""
+    """Return the proposal queue, its count, each proposal, and the answer to one."""
     records = [
         _record(
             "proposals",
@@ -735,6 +739,23 @@ def proposal_records() -> tuple[CapturedRecord, ...]:
     ]
     records.extend(
         _record("proposal-detail", {"proposal_id": str(proposal["proposal_id"])}, dict(proposal))
+        for proposal in PROPOSALS
+    )
+    # The decision, which the console reaches for every approve and every reject.
+    # Recorded as an approval: the served answer is the same shape either way,
+    # and ``applied`` is the sentence the owning path returns when it has
+    # written the change — empty on a rejection, because nothing was written.
+    records.extend(
+        _record(
+            "proposal-decision",
+            {"proposal_id": str(proposal["proposal_id"])},
+            {
+                "proposal_id": proposal["proposal_id"],
+                "state": "approved",
+                "applied": f"{proposal['node_id']}: applied {proposal['summary']}",
+            },
+            method="POST",
+        )
         for proposal in PROPOSALS
     )
     return tuple(records)
