@@ -1,6 +1,6 @@
 """The whole of configuration, in one type.
 
-Six sections and nothing else. That closure is what makes the rest of the
+Seven sections and nothing else. That closure is what makes the rest of the
 feature possible: a reference to a capability can be validated because there is
 one field it can appear in, and the console can render a form because the shape
 is knowable without asking a vendor.
@@ -40,9 +40,10 @@ from platform.config_service.schema.capabilities import CapabilitiesConfig
 from platform.config_service.schema.integrations import IntegrationsConfig
 from platform.config_service.schema.policies import PoliciesConfig
 from platform.config_service.schema.surfaces import SurfacesConfig
+from platform.config_service.schema.transit import TransitConfig
 from platform.config_service.schema.types import ConfigSection, field_errors
 
-#: The six sections. The tier table of configuration: a key that is not one of
+#: The seven sections. The tier table of configuration: a key that is not one of
 #: these is not configuration, whatever it is.
 ROOT_SECTIONS: tuple[str, ...] = (
     "agents",
@@ -51,6 +52,7 @@ ROOT_SECTIONS: tuple[str, ...] = (
     "integrations",
     "policies",
     "surfaces",
+    "transit",
 )
 
 
@@ -63,6 +65,7 @@ class RootConfig(ConfigSection):
     integrations: IntegrationsConfig = IntegrationsConfig()
     policies: PoliciesConfig = PoliciesConfig()
     surfaces: SurfacesConfig = SurfacesConfig()
+    transit: TransitConfig = TransitConfig()
 
     @classmethod
     def of(cls, values: Mapping[str, Any]) -> RootConfig:

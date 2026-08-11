@@ -54,6 +54,15 @@ MAX_TRANSIT_SAMPLE_BYTES: Final[int] = 8_192
 #: a truncated payload from a short one.
 TRANSIT_SAMPLE_TRUNCATION_MARKER: Final = "…[truncated]"
 
+#: How often a running storm refreshes its shed row, in sheds. A storm is one
+#: fact rather than a thousand, so it gets one ledger row per shed window
+#: carrying how many were dropped — and that row is rewritten every hundredth
+#: shed rather than every shed, because a load shedder that spends a database
+#: write per shed is doing the work it exists to refuse. The consequence is
+#: stated rather than hidden: the count on the row can trail the storm by up to
+#: this many deliveries while the storm is still running.
+TRANSIT_SHED_LEDGER_INTERVAL: Final[int] = 100
+
 #: How long delivery rows are kept. Long enough to answer "this stopped arriving
 #: some time last month", short enough that a chatty source cannot grow the
 #: table without bound.
@@ -165,11 +174,15 @@ NO_DELIVERY_CHANNEL_REASON: Final = (
 
 # --- Configuration paths ----------------------------------------------------------
 
+#: The configuration section transit lives in — the seventh, beside the six
+#: 058 established. Named here so the schema, the editor and the screen agree.
+CONFIG_SECTION_TRANSIT: Final = "transit"
+
 #: Where the ordered rule set lives in the configuration tree.
-CONFIG_PATH_ROUTING_RULES: Final = "ingress.routing.rules"
+CONFIG_PATH_ROUTING_RULES: Final = "transit.rules"
 
 #: Where the declared destinations live in the configuration tree.
-CONFIG_PATH_DESTINATIONS: Final = "delivery.destinations"
+CONFIG_PATH_DESTINATIONS: Final = "transit.destinations"
 
 # --- Audit ------------------------------------------------------------------------
 
@@ -184,6 +197,7 @@ TRANSIT_AUDIT_RESOURCE_KIND: Final = "delivery"
 __all__ = [
     "CONFIG_PATH_DESTINATIONS",
     "CONFIG_PATH_ROUTING_RULES",
+    "CONFIG_SECTION_TRANSIT",
     "DEFAULT_CATCH_ALL_RULE_ID",
     "DEFAULT_TRANSIT_PAGE_SIZE",
     "DELIVERY_DETAIL_FULL_REPORT",
@@ -212,4 +226,5 @@ __all__ = [
     "TRANSIT_AUDIT_RESOURCE_KIND",
     "TRANSIT_SAMPLES_PER_SOURCE",
     "TRANSIT_SAMPLE_TRUNCATION_MARKER",
+    "TRANSIT_SHED_LEDGER_INTERVAL",
 ]

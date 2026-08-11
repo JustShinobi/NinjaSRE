@@ -183,6 +183,17 @@ WEBHOOK_MAX_PAYLOAD_BYTES: Final[int] = 1_048_576
 #: short enough that a genuinely new incident an hour later is not swallowed.
 ALERT_DEDUP_WINDOW_SECONDS: Final[float] = 600.0
 
+#: How long one *delivery* is remembered as already processed. Shorter than the
+#: deduplication window on purpose, and the difference is what separates the two
+#: questions. This one bounds an HTTP retry — a receiver that timed out and sent
+#: the same body again — which happens in seconds. Anything arriving later is a
+#: fresh notification, and falling out of this window while still inside the
+#: deduplication one is what lets it be *linked* to the open investigation
+#: rather than answered as a duplicate and forgotten. When the two were equal, a
+#: re-notification of an unchanged Alertmanager group had no path to the
+#: investigation it belonged to.
+WEBHOOK_DELIVERY_RETRY_WINDOW_SECONDS: Final[float] = 60.0
+
 #: Inbound webhooks accepted per source per team, per window, before ingestion
 #: sheds load (FR-020). An alert storm past this is recorded as shed, never
 #: silently dropped.
@@ -376,6 +387,7 @@ __all__ = [
     "TERM_ENV",
     "TRANSPORT_LOCAL",
     "TRANSPORT_REMOTE",
+    "WEBHOOK_DELIVERY_RETRY_WINDOW_SECONDS",
     "WEBHOOK_MAX_PAYLOAD_BYTES",
     "WEBHOOK_MAX_REQUESTS_PER_TEAM",
     "WEBHOOK_RATE_LIMIT_WINDOW_SECONDS",

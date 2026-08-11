@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Final, Protocol, runtime_checkable
 
@@ -41,6 +41,11 @@ from fastapi import APIRouter, Request, Response
 from config.constants.estate import MAX_ESTATE_PAGE_SIZE
 from config.constants.runs import TRIGGER_ALERT
 from config.constants.surfaces import WEBHOOK_MAX_PAYLOAD_BYTES
+from config.constants.transit import (
+    RULE_ACTION_DISCARD,
+    RULE_ACTION_RECORD_ONLY,
+    TRANSIT_SHED_LEDGER_INTERVAL,
+)
 from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, adapter_for
 from gateway.http.errors import ApiProblem
 from gateway.http.orchestration import start_investigation
@@ -56,13 +61,20 @@ from gateway.webhooks.sources import (
     sentry,
 )
 from gateway.webhooks.sources.profile import WebhookSourceProfile
+from platform.config_service.bindings import masking_policy
+from platform.config_service.errors import UnknownNode
+from platform.config_service.schema import RootConfig
+from platform.config_service.service import ConfigService
 from platform.estate.alert_resolution import AlertResolution, resolve_alert
 from platform.identity.errors import TokenRejected
 from platform.identity.permissions import Permission
 from platform.incidents.dispatch import objective_for
 from platform.incidents.ingestion import raise_for_alert, resolution_key
 from platform.incidents.lifecycle import IncidentLifecycle
+from platform.ingress.ledger import delivery_key, masked_sample, record_delivery
+from platform.ingress.rules import RuleMatch, Signals, evaluate
 from platform.observability.logging import get_logger
+from platform.persistence.errors import RecordNotFound
 from platform.persistence.ports.estate_repository import (
     EstateQuery,
     ReferenceKind,
@@ -70,6 +82,7 @@ from platform.persistence.ports.estate_repository import (
 )
 from platform.persistence.ports.incident_store import Incident
 from platform.persistence.ports.transaction import TenantScope
+from platform.persistence.ports.transit_ledger import PayloadSample, TransitOutcome
 from platform.runs.events import TraceEventKind
 from platform.runs.recorder import RunRecorder
 
@@ -169,14 +182,24 @@ def _handler(
     source_routes: tuple[WebhookSourceConfig, ...],
 ) -> Callable[[Request], Awaitable[Response]]:
     async def handle(request: Request) -> Response:
+        received_at = _utc_now()
         body = await request.body()
+        delivery_id = delivery_key(source=path_name, received_at=received_at, body=body)
+
         if len(body) > WEBHOOK_MAX_PAYLOAD_BYTES:
-            raise ApiProblem(
-                status_code=413,
-                error_type="payload_too_large",
-                message=f"{path_name} payload of {len(body)} bytes exceeds the "
-                f"{WEBHOOK_MAX_PAYLOAD_BYTES}-byte cap",
+            message = (
+                f"{path_name} payload of {len(body)} bytes exceeds the "
+                f"{WEBHOOK_MAX_PAYLOAD_BYTES}-byte cap"
             )
+            await _ledger_refusal(
+                state,
+                source_routes,
+                delivery_id=delivery_id,
+                source=path_name,
+                occurred_at=received_at,
+                reason=message,
+            )
+            raise ApiProblem(status_code=413, error_type="payload_too_large", message=message)
 
         matched = next(
             (
@@ -190,55 +213,111 @@ def _handler(
             matched = await _delivery_token_route(state, headers=request.headers)
         if matched is None:
             logger.warning("webhooks.unverified", source=path_name)
-            raise ApiProblem(
-                status_code=401,
-                error_type="unverified",
-                message=f"this {path_name} webhook did not verify against any configured route",
+            message = f"this {path_name} webhook did not verify against any configured route"
+            await _ledger_refusal(
+                state,
+                source_routes,
+                delivery_id=delivery_id,
+                source=path_name,
+                occurred_at=received_at,
+                reason=message,
             )
+            raise ApiProblem(status_code=401, error_type="unverified", message=message)
 
+        scope = TenantScope(org_id=matched.org_id, team_node_id=matched.team_node_id)
+        recorded = _Ledgering(
+            state=state,
+            scope=scope,
+            delivery_id=delivery_id,
+            source=path_name,
+            occurred_at=received_at,
+            team_node_id=matched.team_node_id,
+        )
+
+        # The sample and the rule set are both read from configuration, and both
+        # are deferred until this delivery is known to be worth acting on. A
+        # storm past the shed limit therefore costs an idempotency lookup and a
+        # window check, which is the whole point of shedding: the rate limiter
+        # must not be the most expensive step on the path it exists to cheapen.
+        # A body that would not parse is the exception — that is exactly when
+        # somebody needs to see what arrived — so it captures its sample first.
         try:
             payload = json.loads(body) if body else {}
         except json.JSONDecodeError as error:
-            raise ApiProblem(
-                status_code=400,
-                error_type="bad_request",
-                message=f"{path_name} payload is not valid JSON",
-            ) from error
-        if not isinstance(payload, dict):
-            raise ApiProblem(
-                status_code=400,
-                error_type="bad_request",
-                message=f"{path_name} payload must be a JSON object",
+            message = f"{path_name} payload is not valid JSON"
+            recorded.sample = await _sample_of(
+                state, matched, body, path_name, received_at, delivery_id
             )
+            await recorded.refused(message)
+            raise ApiProblem(status_code=400, error_type="bad_request", message=message) from error
+        if not isinstance(payload, dict):
+            message = f"{path_name} payload must be a JSON object"
+            recorded.sample = await _sample_of(
+                state, matched, body, path_name, received_at, delivery_id
+            )
+            await recorded.refused(message)
+            raise ApiProblem(status_code=400, error_type="bad_request", message=message)
 
         event_id = profile.event_id_of(payload)
         if state.webhook_idempotency.already_processed(path_name, event_id):
+            await recorded.duplicate()
             return _ack({"acknowledged": True, "duplicate_delivery": True})
 
         if not state.webhook_shedder.admit(source=path_name, team_node_id=matched.team_node_id):
+            await _ledger_shed(state, scope=scope, source=path_name, team=matched.team_node_id)
             return Response(
                 status_code=429,
                 content=json.dumps({"shed": True, "reason": "rate limit"}),
                 media_type="application/json",
             )
 
+        settings = await _settings(state, matched)
+        recorded.sample = masked_sample(
+            body,
+            source=path_name,
+            captured_at=received_at,
+            policy=masking_policy(settings.policies),
+            delivery_id=delivery_id,
+        )
+
         alert = adapter_for(profile.source).normalise(
             RawAlert(payload=payload, received_at=_utc_now())
         )
-        scope = TenantScope(org_id=matched.org_id, team_node_id=matched.team_node_id)
         resolution = await _resolve_against_estate(state, scope=scope, alert=alert)
-        key = fingerprint(alert, team_node_id=matched.team_node_id, resolution=resolution)
+
+        # Verification decided who this is; the rules decide what happens to it.
+        # Evaluated here rather than inside any of the branches below so that
+        # every one of them — resolution, discard, record-only, investigate —
+        # is reported as the doing of one named rule.
+        match = evaluate(
+            settings.transit.rule_set(), _signals(path_name, alert, resolution, matched)
+        )
+        routed = replace(matched, team_node_id=match.team_node_id)
+        scope = TenantScope(org_id=routed.org_id, team_node_id=routed.team_node_id)
+        recorded = replace(recorded, scope=scope, team_node_id=routed.team_node_id)
+
+        key = fingerprint(alert, team_node_id=routed.team_node_id, resolution=resolution)
         linked_run = state.webhook_dedup.linked_run(key)
+
+        if match.action == RULE_ACTION_DISCARD:
+            # Still idempotent and still ledgered. A discard is a decision this
+            # deployment took, and the row saying so is the difference between
+            # "it never arrived" and "it arrived and we chose not to act".
+            state.webhook_idempotency.record(path_name, event_id)
+            await recorded.discarded(match)
+            return _ack({"discarded": True, "rule": match.rule.rule_id, "reason": match.reason})
 
         if alert.resolved:
             state.webhook_idempotency.record(path_name, event_id)
-            return await _handle_resolution(
+            answer = await _handle_resolution(
                 state,
                 scope=scope,
                 linked_run=linked_run,
                 alert_name=alert.alert_name,
                 correlation_key=resolution_key(source=profile.source.value, fingerprint=key),
             )
+            await recorded.accepted(match, resolution=resolution, run_id=linked_run or "")
+            return answer
 
         state.webhook_idempotency.record(path_name, event_id)
         incident = await _raise_incident(
@@ -247,7 +326,7 @@ def _handler(
             alert=alert,
             source=profile.source.value,
             key=key,
-            matched=matched,
+            matched=routed,
             resolution=resolution,
         )
         await _link_resource(
@@ -259,7 +338,23 @@ def _handler(
             summary=incident.title,
         )
 
+        if match.action == RULE_ACTION_RECORD_ONLY:
+            # The incident is raised and nothing investigates it. An operator
+            # who wanted the record without the spend asked for exactly this,
+            # and the row names the rule that granted it.
+            await recorded.recorded_only(match, resolution=resolution, incident=incident)
+            return _ack(
+                {
+                    "incident_id": incident.incident_id,
+                    "recorded_only": True,
+                    "rule": match.rule.rule_id,
+                }
+            )
+
         if linked_run is not None:
+            await recorded.accepted(
+                match, resolution=resolution, run_id=linked_run, incident=incident
+            )
             return _ack({"run_id": linked_run, "incident_id": incident.incident_id, "linked": True})
 
         run_id = await start_investigation(
@@ -267,7 +362,7 @@ def _handler(
             scope=scope,
             trigger=TRIGGER_ALERT,
             objective=objective_for(incident),
-            principal_id=matched.principal_id,
+            principal_id=routed.principal_id,
             alert_source=profile.source.value,
             alert_id=key,
             context=_investigation_context(resolution),
@@ -288,9 +383,266 @@ def _handler(
                 objective=objective_for(incident),
                 now=_utc_now(),
             )
+        await recorded.accepted(match, resolution=resolution, run_id=run_id, incident=incident)
         return _ack({"run_id": run_id, "incident_id": incident.incident_id, "linked": False})
 
     return handle
+
+
+def _signals(
+    path_name: str,
+    alert: NormalisedAlert,
+    resolution: AlertResolution,
+    matched: WebhookSourceConfig,
+) -> Signals:
+    """Return the dimensions a rule may speak about, for this delivery.
+
+    Zone comes from whichever half of the resolution exists: a resolved
+    resource carries the estate's own zone, and an unresolved finding carries
+    the zone its address sits in. Both are the estate's answer rather than text
+    somebody typed, which is what the plan asks a matcher to be.
+    """
+    resolved = resolution.resolved
+    zone = resolved.zone if resolved is not None else ""
+    if not zone and resolution.unresolved is not None:
+        zone = resolution.unresolved.zone
+    return Signals(
+        source=path_name,
+        zone=zone,
+        criticality=alert.severity.value,
+        resource_id=resolved.resource_id if resolved is not None else "",
+        team_node_id=matched.team_node_id,
+    )
+
+
+@dataclass(slots=True)
+class _Ledgering:
+    """One delivery's ledger row, written once, whichever way the path went.
+
+    A small object rather than a dozen keyword arguments repeated at nine call
+    sites: the identity of the crossing is fixed the moment the request
+    arrives, and only the outcome varies. Each method opens its own unit of
+    work, deliberately — a rejection has to survive the transaction that
+    rejected it, and a row that rolled back with the thing it was recording
+    would leave exactly the silence this feature exists to end.
+
+    The masked sample rides along rather than being written when it is taken.
+    The row and the payload it describes are one fact, so they commit together
+    — and on the ingress path that also means one transaction per delivery
+    instead of two, which matters because this is the path a storm arrives on.
+    """
+
+    state: GatewayState
+    scope: TenantScope
+    delivery_id: str
+    source: str
+    occurred_at: datetime
+    team_node_id: str
+    sample: PayloadSample | None = None
+
+    async def refused(self, reason: str) -> None:
+        """Record a delivery this deployment would not parse."""
+        await self._write(TransitOutcome.REJECTED, reason=reason)
+
+    async def duplicate(self) -> None:
+        """Record a delivery this deployment had already processed."""
+        await self._write(TransitOutcome.DUPLICATE, reason="already processed")
+
+    async def discarded(self, match: RuleMatch) -> None:
+        """Record a delivery a rule discarded, and why."""
+        await self._write(
+            TransitOutcome.DISCARDED, reason=match.reason, matched_rule=match.rule.rule_id
+        )
+
+    async def recorded_only(
+        self, match: RuleMatch, *, resolution: AlertResolution, incident: Incident
+    ) -> None:
+        """Record a delivery a rule kept without investigating."""
+        await self._write(
+            TransitOutcome.RECORDED,
+            matched_rule=match.rule.rule_id,
+            resolution=resolution,
+            incident_id=incident.incident_id,
+        )
+
+    async def accepted(
+        self,
+        match: RuleMatch,
+        *,
+        resolution: AlertResolution,
+        run_id: str = "",
+        incident: Incident | None = None,
+    ) -> None:
+        """Record a delivery this deployment acted on."""
+        await self._write(
+            TransitOutcome.ACCEPTED,
+            matched_rule=match.rule.rule_id,
+            resolution=resolution,
+            run_id=run_id,
+            incident_id="" if incident is None else incident.incident_id,
+        )
+
+    async def _write(
+        self,
+        outcome: TransitOutcome,
+        *,
+        reason: str = "",
+        matched_rule: str = "",
+        resolution: AlertResolution | None = None,
+        run_id: str = "",
+        incident_id: str = "",
+    ) -> None:
+        resolved = None if resolution is None else resolution.resolved
+        detail: dict[str, str] = {}
+        if resolution is not None and resolution.unresolved is not None:
+            detail["unresolved_target"] = resolution.unresolved.value
+        async with self.state.gateway.begin(self.scope) as uow:
+            if self.sample is not None:
+                await uow.transit.store_sample(self.sample)
+            await record_delivery(
+                uow,
+                delivery_id=self.delivery_id,
+                source=self.source,
+                occurred_at=self.occurred_at,
+                outcome=outcome,
+                reason=reason,
+                matched_rule=matched_rule,
+                team_node_id=self.team_node_id,
+                resource_id="" if resolved is None else resolved.resource_id,
+                run_id=run_id,
+                incident_id=incident_id,
+                detail=detail,
+            )
+
+
+async def _sample_of(
+    state: GatewayState,
+    matched: WebhookSourceConfig,
+    body: bytes,
+    source: str,
+    at: datetime,
+    delivery_id: str,
+) -> PayloadSample:
+    """Return the masked sample of a body this deployment could not parse.
+
+    The one place a sample is taken off the ordinary path, because "the format
+    changed" is precisely the question a parse failure raises, and answering it
+    from the screen is why the sample exists at all.
+    """
+    settings = await _settings(state, matched)
+    return masked_sample(
+        body,
+        source=source,
+        captured_at=at,
+        policy=masking_policy(settings.policies),
+        delivery_id=delivery_id,
+    )
+
+
+async def _ledger_shed(
+    state: GatewayState,
+    *,
+    scope: TenantScope,
+    source: str,
+    team: str,
+) -> None:
+    """Record that a storm is being shed, as one row per storm rather than per request.
+
+    A shed row is keyed on the source, the team and the window it happened in,
+    so a thousand refusals inside one window upsert onto one row carrying how
+    many there were. That is the honest shape: a storm is one fact, and a row
+    per refused request would be the unbounded growth the shedder exists to
+    prevent, paid in the store instead of in the investigator.
+
+    Rewritten every ``TRANSIT_SHED_LEDGER_INTERVAL`` sheds rather than on every
+    one, because a load shedder that spends a write per shed is doing the work
+    it is refusing to do. The count on the row therefore trails a running storm
+    by up to that many deliveries, and is exact once the storm stops.
+    """
+    shedder = state.webhook_shedder
+    shed = shedder.log.most_recent(source=source, team_node_id=team)
+    if shed is None:  # pragma: no cover — admit() logs before returning False
+        return
+    dropped = shed.count_in_window - shedder.max_requests
+    if dropped != 1 and dropped % TRANSIT_SHED_LEDGER_INTERVAL != 0:
+        return
+    # The instant floored to the shedder's own window length, so every refusal
+    # inside one storm derives the same key and upserts onto one row.
+    window = int(shed.occurred_at.timestamp() // shedder.window_seconds)
+    async with state.gateway.begin(scope) as uow:
+        await record_delivery(
+            uow,
+            delivery_id=f"{source}:shed:{team}:{window}",
+            source=source,
+            occurred_at=shed.occurred_at,
+            outcome=TransitOutcome.SHED,
+            reason=shed.reason,
+            team_node_id=team,
+            detail={"shed_in_window": str(dropped)},
+        )
+
+
+async def _ledger_refusal(
+    state: GatewayState,
+    source_routes: tuple[WebhookSourceConfig, ...],
+    *,
+    delivery_id: str,
+    source: str,
+    occurred_at: datetime,
+    reason: str,
+) -> None:
+    """Record a refusal that happened before anything established a tenant.
+
+    Against the organisation of the *first* route configured for this path. A
+    refusal is a fact about the endpoint, and the endpoint's owner is whoever
+    configured it; writing one row per tenant instead would multiply an
+    unauthenticated request's storage cost by the number of tenants, which is a
+    denial-of-service surface rather than a feature.
+
+    A path nobody configured has no tenant to attribute anything to, and the
+    warning in the log is the whole of the record — which is honest: nothing
+    here was ever asked for.
+    """
+    if not source_routes:
+        return
+    owner = source_routes[0]
+    await _Ledgering(
+        state=state,
+        scope=TenantScope(org_id=owner.org_id, team_node_id=owner.team_node_id),
+        delivery_id=delivery_id,
+        source=source,
+        occurred_at=occurred_at,
+        team_node_id="",
+    ).refused(reason)
+
+
+async def _settings(state: GatewayState, matched: WebhookSourceConfig) -> RootConfig:
+    """Return the routed team's effective configuration.
+
+    Resolved per delivery rather than held on the state, which is the pattern
+    every other route here follows: a rule an operator added thirty seconds ago
+    decides the next delivery, and a cached rule set would make "when does this
+    take effect" a question about process lifetime.
+    """
+    scope = TenantScope(org_id=matched.org_id, team_node_id=matched.team_node_id)
+    service = ConfigService(gateway=state.gateway, scope=scope, guardrails=state.guardrails)
+    # The team first, then the organisation root. A verifier may name a team the
+    # tree has no node for — routing is configured beside the receiver, and the
+    # hierarchy is configured somewhere else — and falling back to the root is
+    # what inheritance would have given had the node existed. Falling back to
+    # the shipped defaults instead would silently ignore the rules an operator
+    # wrote one level up, which is the failure this feature is about.
+    for node_id in (matched.team_node_id, matched.org_id):
+        if not node_id:
+            continue
+        try:
+            return (await service.resolve(node_id)).config
+        except (UnknownNode, RecordNotFound):
+            continue
+    # A deployment with no configuration tree at all still ingests. Refusing an
+    # alert because nobody has configured anything would make configuration a
+    # precondition for the platform working.
+    return RootConfig()
 
 
 async def _delivery_token_route(
