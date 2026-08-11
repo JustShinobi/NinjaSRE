@@ -7,8 +7,10 @@ import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { GrantPanel, type Grant } from '../grants';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
+import { ROLE_NAMES } from '../roles';
 import { SsoForm, type SsoField } from '../sso';
 import { TokenPanel, type IssuedToken } from '../tokens';
 import {
@@ -39,6 +41,7 @@ import {
 
 const TOKENS = 'token.manage';
 const SSO = 'sso.manage';
+const GRANTS = 'identity.write';
 
 export async function AdministrationScreen(
   context: SurfaceContext,
@@ -122,23 +125,37 @@ export async function AdministrationScreen(
           labels={panelLabels(locale, message(locale, 'admin.grants.title'))}
           empty={emptyState}
         >
-          <ul className="flex flex-col gap-2 text-small">
-            {held.map((grant) => (
-              <li
-                key={text(grant, 'grant_id')}
-                data-testid="grant"
-                className="flex items-center gap-3 min-w-0"
-              >
-                <span className="font-mono truncate">
-                  {text(grant, 'principal_id')}
-                </span>
-                <span className="ml-auto flex items-center gap-2">
-                  <Badge status={text(grant, 'role')} />
-                  <span className="text-meta text-muted">{text(grant, 'node_id')}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <GrantPanel
+            grants={held.map((grant): Grant => ({
+              grantId: text(grant, 'grant_id'),
+              principalId: text(grant, 'principal_id'),
+              role: text(grant, 'role'),
+              nodeId: text(grant, 'node_id'),
+            }))}
+            principals={people.map((person) => ({
+              id: text(person, 'user_id'),
+              label: text(person, 'display_name'),
+            }))}
+            roles={ROLE_NAMES}
+            canWrite={may(viewer, GRANTS)}
+            labels={{
+              principal: message(locale, 'admin.column.principal'),
+              role: message(locale, 'admin.column.role'),
+              node: message(locale, 'admin.column.node'),
+              nodeHelp: message(locale, 'admin.grant.nodeHelp'),
+              organisation: message(locale, 'admin.grant.organisation'),
+              add: message(locale, 'admin.grant.add'),
+              adding: message(locale, 'admin.grant.adding'),
+              remove: message(locale, 'admin.grant.remove'),
+              removing: message(locale, 'admin.grant.removing'),
+              removeAction: message(locale, 'admin.grant.removeAction'),
+              removeConsequence: message(locale, 'admin.grant.removeConsequence'),
+              removeClose: message(locale, 'admin.grant.removeClose'),
+              removeCancel: message(locale, 'admin.grant.removeCancel'),
+              failed: message(locale, 'admin.tokens.failed'),
+              unreachable: message(locale, 'admin.tokens.unreachable'),
+            }}
+          />
         </Panel>
 
         {may(viewer, TOKENS) ? (
