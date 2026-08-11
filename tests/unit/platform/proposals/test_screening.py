@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 
+from config.constants.proposals import SEALED_CONFIG_PREFIXES
 from platform.guardrails.engine import GuardrailEngine
 from platform.proposals.errors import ProposalRefused
 from platform.proposals.models import AgentProposal, ProposalType
@@ -48,6 +49,15 @@ def proposal(**overrides: object) -> AgentProposal:
     return AgentProposal(**fields)  # type: ignore[arg-type]
 
 
+def payload_setting(path: str, value: object) -> dict[str, object]:
+    """Return the payload that sets the dotted ``path`` to ``value``."""
+    segments = path.split(".")
+    nested: dict[str, object] = {segments[-1]: value}
+    for segment in reversed(segments[:-1]):
+        nested = {segment: nested}
+    return nested
+
+
 class TestAProposalNobodyCouldReview:
     """The three fields whose absence makes review theatre."""
 
@@ -70,23 +80,41 @@ class TestAProposalNobodyCouldReview:
         screen(proposal())
 
 
+def test_a_change_to_the_containment_is_refused() -> None:
+    """Every sealed section, read from the constant rather than listed again here.
+
+    Listing the four by hand is how a fifth is added to the seal and covered by
+    nothing: the test would still pass, naming the sections that were sealed on
+    the day it was written. Driving the cases from what the screen actually reads
+    means a section joins the seal and its case exists in the same commit.
+    """
+    for sealed in SEALED_CONFIG_PREFIXES:
+        with pytest.raises(ProposalRefused) as refusal:
+            screen(proposal(payload=payload_setting(f"{sealed}.mode", "observe")))
+        assert sealed in str(refusal.value)
+
+
+def test_emptying_a_sealed_section_is_a_change_like_any_other() -> None:
+    """The most destructive sealed edit is the one with nothing in it.
+
+    ``policies.autonomy.statements = []`` revokes every autonomy statement a team
+    has, and ``policies.guardrails = {}`` removes the section that constrains the
+    agent at all. Neither has a scalar anywhere under it, so a screen that only
+    looked at scalars would find nothing to refuse and let both through.
+    """
+    for sealed in SEALED_CONFIG_PREFIXES:
+        for payload in (
+            payload_setting(sealed, {}),
+            payload_setting(sealed, []),
+            payload_setting(f"{sealed}.statements", []),
+        ):
+            with pytest.raises(ProposalRefused) as refusal:
+                screen(proposal(payload=payload))
+            assert sealed in str(refusal.value)
+
+
 class TestTheSeal:
     """What no proposal may name, whatever it says about why."""
-
-    @pytest.mark.parametrize(
-        "payload",
-        [
-            {"policies": {"guardrails": {"mode": "observe"}}},
-            {"policies": {"masking": {"enabled": False}}},
-            {"policies": {"approvals": {"required_levels": []}}},
-            {"policies": {"autonomy": {"statements": []}}},
-        ],
-        ids=["guardrails", "masking", "approvals", "autonomy"],
-    )
-    def test_a_change_to_the_containment_is_refused(self, payload: dict[str, object]) -> None:
-        with pytest.raises(ProposalRefused) as refusal:
-            screen(proposal(payload=payload))
-        assert "policies." in str(refusal.value)
 
     def test_a_field_an_integration_calls_secret_is_refused_by_name(self) -> None:
         """Refused on the field name, whatever the value looks like."""
