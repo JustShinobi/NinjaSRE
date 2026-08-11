@@ -70,6 +70,22 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/approvals/{approval_id}/rollback",
         permission=Permission.REMEDIATION_EXECUTE,
     ),
+    # --- What the agent has proposed, and the deciding of it -------------------
+    # Read with ``approval.read`` because a proposal *is* an approval request:
+    # the queue is the same store and the same right to see what is waiting.
+    # Deciding takes ``approval.review``, which is the narrower right, and it is
+    # the one that matters — an approved proposal writes configuration, and
+    # ``config.write`` is not asked for because the write is the platform's own
+    # rather than the reviewer's. What a reviewer is being trusted with is the
+    # decision.
+    Route(method="GET", path="/v1/proposals", permission=Permission.APPROVAL_READ),
+    Route(method="GET", path="/v1/proposals/count", permission=Permission.APPROVAL_READ),
+    Route(method="GET", path="/v1/proposals/{proposal_id}", permission=Permission.APPROVAL_READ),
+    Route(
+        method="POST",
+        path="/v1/proposals/{proposal_id}/decision",
+        permission=Permission.APPROVAL_REVIEW,
+    ),
     # --- Learned material ------------------------------------------------------
     Route(method="GET", path="/v1/topology/{node_id}", permission=Permission.MEMORY_READ),
     Route(method="GET", path="/v1/knowledge/documents", permission=Permission.KNOWLEDGE_READ),
