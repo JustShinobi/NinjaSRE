@@ -145,8 +145,42 @@ export interface paths {
          */
         get: operations["list_grants_identity_grants_get"];
         put?: never;
-        post?: never;
+        /**
+         * Add Grant
+         * @description Give somebody a role, and record who gave it to them.
+         *
+         *     The principal has to exist first. Creating one here would make a typo in an
+         *     identifier into a new account holding a role, which is the shape of mistake
+         *     an identity surface must not be able to make quietly.
+         */
+        post: operations["add_grant_identity_grants_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/grants/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Grant
+         * @description Take a role away, unless doing so would leave nobody able to give it back.
+         *
+         *     The last-owner rule is evaluated over the whole organisation rather than
+         *     over the grant being removed, which is why it lives in
+         *     ``require_owner_retained`` and not here: handing ownership over is allowed
+         *     and removing the last owner is not, and a per-grant check gets one of those
+         *     two wrong whichever way it is written.
+         */
+        delete: operations["remove_grant_identity_grants__grant_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -314,6 +348,26 @@ export interface paths {
          * @description Revoke one token.
          */
         delete: operations["revoke_token_identity_tokens__token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pipeline
+         * @description Return the stages an investigation runs, in order, with what each consults.
+         */
+        get: operations["read_pipeline_v1_agent_pipeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -514,6 +568,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/autonomy/policy/{node_id}/outlook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Outlook
+         * @description Return what an action of each risk class would meet under this posture.
+         *
+         *     The reading the policy document does not give. A table of rules answers
+         *     "what did somebody configure"; this answers "what will this do if something
+         *     happens now", which is the question asked before a deployment is trusted
+         *     with an estate — and it is answered by the deployment's own gate rather than
+         *     by a client's reading of the rules, so what is shown and what would happen
+         *     cannot drift.
+         */
+        get: operations["read_outlook_v1_autonomy_policy__node_id__outlook_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/autonomy/policy/{node_id}/overrides": {
         parameters: {
             query?: never;
@@ -529,6 +610,31 @@ export interface paths {
          */
         post: operations["grant_override_v1_autonomy_policy__node_id__overrides_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}/overrides/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Override
+         * @description Take an override away before it expires, and say whether one was there.
+         *
+         *     404 rather than a quiet success for an override this node did not grant: an
+         *     operator who asked for a widening to be taken away, and was told it was,
+         *     would stop looking — and the widening would still be in force from a level
+         *     above, where it has to be revoked instead.
+         */
+        delete: operations["revoke_override_v1_autonomy_policy__node_id__overrides__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2491,6 +2597,51 @@ export interface components {
             steps: components["schemas"]["ChecklistStepView"][];
         };
         /**
+         * ClassOutlookView
+         * @description What one risk class would meet under the posture as it stands.
+         *
+         *     ``sentence`` is the whole point and the rest is what a reader checks it
+         *     against. A level and a bound are a policy's vocabulary; "would wait for a
+         *     person's approval before anything happened" is an answer.
+         */
+        ClassOutlookView: {
+            /** Capability */
+            capability: string;
+            /** Decision */
+            decision: string;
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Level */
+            level: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Refused By
+             * @default
+             */
+            refused_by: string;
+            /**
+             * Resource Kind
+             * @default
+             */
+            resource_kind: string;
+            /** Risk Class */
+            risk_class: string;
+            /** Sentence */
+            sentence: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+        };
+        /**
          * ClearRequest
          * @description What the person who looked at the resource found.
          *
@@ -3334,6 +3485,36 @@ export interface components {
             /** Grants */
             grants: components["schemas"]["GrantView"][];
         };
+        /**
+         * GrantRemovedView
+         * @description Which grant went, and whose it was.
+         */
+        GrantRemovedView: {
+            /** Grant Id */
+            grant_id: string;
+            /** Node Id */
+            node_id?: string | null;
+            /** Principal Id */
+            principal_id: string;
+            /** Role */
+            role: string;
+        };
+        /**
+         * GrantRequest
+         * @description A role for somebody, somewhere in the tree.
+         *
+         *     ``node_id`` absent means the organisation as a whole, which is a different
+         *     thing from a grant at the root node: an organisation-wide grant survives the
+         *     tree being reshaped and a grant at a node does not.
+         */
+        GrantRequest: {
+            /** Node Id */
+            node_id?: string | null;
+            /** Principal Id */
+            principal_id: string;
+            /** Role */
+            role: string;
+        };
         /** GrantView */
         GrantView: {
             /** Grant Id */
@@ -3941,6 +4122,21 @@ export interface components {
             verified_at?: string | null;
         };
         /**
+         * OutlookView
+         * @description One reading per risk class, least dangerous first.
+         */
+        OutlookView: {
+            /** Classes */
+            classes?: components["schemas"]["ClassOutlookView"][];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Node Id */
+            node_id: string;
+        };
+        /**
          * OverrideRequest
          * @description A raise in autonomy that ends by itself.
          *
@@ -3990,6 +4186,16 @@ export interface components {
              */
             team_node_id: string;
         };
+        /**
+         * OverrideRevokedView
+         * @description Which override went, and from whose document.
+         */
+        OverrideRevokedView: {
+            /** Name */
+            name: string;
+            /** Node Id */
+            node_id: string;
+        };
         /** OverrideView */
         OverrideView: {
             /**
@@ -4015,6 +4221,16 @@ export interface components {
             scope: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * PipelineView
+         * @description The investigation's shape, and the roles a deployment may bind.
+         */
+        PipelineView: {
+            /** Model Roles */
+            model_roles?: string[];
+            /** Stages */
+            stages?: components["schemas"]["StageView"][];
         };
         /**
          * PolicyDocumentView
@@ -4917,6 +5133,32 @@ export interface components {
             token_endpoint: string;
         };
         /**
+         * StageView
+         * @description One stage: where it sits, what it reads, and what it is allowed to change.
+         */
+        StageView: {
+            /** Consults */
+            consults?: string[];
+            /**
+             * Dispatches Subagents
+             * @default false
+             */
+            dispatches_subagents: boolean;
+            /**
+             * Model Role
+             * @default
+             */
+            model_role: string;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            /** Summary */
+            summary: string;
+            /** Writes */
+            writes?: string[];
+        };
+        /**
          * SubjectRequest
          * @description One resource an explained action would touch.
          */
@@ -5503,6 +5745,74 @@ export interface operations {
             };
         };
     };
+    add_grant_identity_grants_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrantView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_grant_identity_grants__grant_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrantRemovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_principals_identity_principals_get: {
         parameters: {
             query?: never;
@@ -5789,6 +6099,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevocationResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_pipeline_v1_agent_pipeline_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineView"];
                 };
             };
             /** @description Validation Error */
@@ -6178,6 +6519,39 @@ export interface operations {
             };
         };
     };
+    read_outlook_v1_autonomy_policy__node_id__outlook_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutlookView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     grant_override_v1_autonomy_policy__node_id__overrides_post: {
         parameters: {
             query?: never;
@@ -6202,6 +6576,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OverrideView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_override_v1_autonomy_policy__node_id__overrides__name__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideRevokedView"];
                 };
             };
             /** @description Validation Error */

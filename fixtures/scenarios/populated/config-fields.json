@@ -7,6 +7,26 @@
       "body": {
         "fields": [
           {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
+          {
             "approval_gated": false,
             "default": 12,
             "description": "How many times one investigation may go round before it stops.",
@@ -43,24 +63,34 @@
             "value": "medium"
           },
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Model",
             "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
+            "path": "models.investigator.model",
+            "provenance": "env-production",
             "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
             "type": "string",
-            "value": "read"
+            "value": "claude-sonnet-5"
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "env-production",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
+            "type": "string",
+            "value": "anthropic"
           },
           {
             "approval_gated": false,
@@ -96,6 +126,26 @@
       },
       "body": {
         "fields": [
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
           {
             "approval_gated": false,
             "default": 12,
@@ -133,24 +183,34 @@
             "value": "medium"
           },
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Model",
             "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
+            "path": "models.investigator.model",
+            "provenance": "env-staging",
             "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
             "type": "string",
-            "value": "read"
+            "value": "claude-sonnet-5"
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "env-staging",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
+            "type": "string",
+            "value": "anthropic"
           },
           {
             "approval_gated": false,
@@ -186,6 +246,26 @@
       },
       "body": {
         "fields": [
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": true,
+            "type": "string",
+            "value": "read"
+          },
           {
             "approval_gated": false,
             "default": 12,
@@ -223,24 +303,34 @@
             "value": "medium"
           },
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Model",
             "locked_by": "",
-            "path": "approval.required_above",
+            "path": "models.investigator.model",
             "provenance": "org-northwind",
             "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
             "set_here": true,
             "type": "string",
-            "value": "read"
+            "value": "claude-sonnet-5"
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
+            "type": "string",
+            "value": "anthropic"
           },
           {
             "approval_gated": false,
@@ -276,6 +366,26 @@
       },
       "body": {
         "fields": [
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
           {
             "approval_gated": false,
             "default": 12,
@@ -313,24 +423,34 @@
             "value": "medium"
           },
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Model",
             "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
+            "path": "models.investigator.model",
+            "provenance": "team-platform",
             "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
             "type": "string",
-            "value": "read"
+            "value": "claude-sonnet-5"
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "team-platform",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
+            "type": "string",
+            "value": "anthropic"
           },
           {
             "approval_gated": false,
@@ -366,6 +486,26 @@
       },
       "body": {
         "fields": [
+          {
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
+            "locked_by": "",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
+            "type": "string",
+            "value": "read"
+          },
           {
             "approval_gated": false,
             "default": 12,
@@ -403,24 +543,34 @@
             "value": "medium"
           },
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Model",
             "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
+            "path": "models.investigator.model",
+            "provenance": "team-storage",
             "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
             "type": "string",
-            "value": "read"
+            "value": "claude-sonnet-5"
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider and model this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "team-storage",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
+            "type": "string",
+            "value": "anthropic"
           },
           {
             "approval_gated": false,

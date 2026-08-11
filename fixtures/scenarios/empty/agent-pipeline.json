@@ -1,0 +1,138 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "model_roles": [
+          "investigator",
+          "subagent",
+          "intake",
+          "diagnose",
+          "extraction",
+          "embedding",
+          "selection",
+          "summarisation"
+        ],
+        "stages": [
+          {
+            "consults": [
+              "the capability catalogue this node resolves to",
+              "the integrations configured for this team"
+            ],
+            "dispatches_subagents": false,
+            "model_role": "",
+            "name": "resolve_integrations",
+            "order": 0,
+            "summary": "Works out what this team can actually call, and ends the run early when the answer is nothing.",
+            "writes": [
+              "investigation.catalogue",
+              "investigation.outcome"
+            ]
+          },
+          {
+            "consults": [
+              "the alert as it arrived, with whatever the adapter already parsed",
+              "recent investigations, to recognise a duplicate"
+            ],
+            "dispatches_subagents": false,
+            "model_role": "intake",
+            "name": "intake",
+            "order": 1,
+            "summary": "Decides whether there is an incident at all, and links it to one already open when it is the same thing again.",
+            "writes": [
+              "accounting.llm_calls",
+              "accounting.tokens",
+              "chat.channel",
+              "chat.messages",
+              "chat.thread_id",
+              "investigation.alert",
+              "investigation.classification",
+              "investigation.link",
+              "investigation.outcome",
+              "investigation.window"
+            ]
+          },
+          {
+            "consults": [
+              "the capabilities resolved for this team",
+              "the alert's source, severity and affected components",
+              "the team's tool budget"
+            ],
+            "dispatches_subagents": false,
+            "model_role": "",
+            "name": "plan_evidence",
+            "order": 2,
+            "summary": "Scores the available capabilities against the alert and shortlists the ones worth starting from. Deterministic, so two runs of one scenario are comparable.",
+            "writes": [
+              "investigation.plan"
+            ]
+          },
+          {
+            "consults": [
+              "every capability the catalogue allows, starting from the shortlist",
+              "the incident window, which clamps every time-bounded argument",
+              "the specialists this team declares, dispatched in parallel"
+            ],
+            "dispatches_subagents": true,
+            "model_role": "investigator",
+            "name": "gather_evidence",
+            "order": 3,
+            "summary": "The loop: calls capabilities, reads what comes back, and decides what to ask next, inside the iteration and tool ceilings.",
+            "writes": [
+              "accounting.capability_executions",
+              "accounting.iterations",
+              "accounting.llm_calls",
+              "accounting.runtime",
+              "accounting.status",
+              "accounting.tokens",
+              "evidence.entries",
+              "investigation.conclusion",
+              "investigation.outcome"
+            ]
+          },
+          {
+            "consults": [
+              "the evidence this run gathered",
+              "the closed category taxonomy"
+            ],
+            "dispatches_subagents": false,
+            "model_role": "diagnose",
+            "name": "diagnose",
+            "order": 4,
+            "summary": "One call scoped to the conclusion and the evidence, then every claim checked against the observations that back it.",
+            "writes": [
+              "accounting.llm_calls",
+              "accounting.tokens",
+              "investigation.diagnosis"
+            ]
+          },
+          {
+            "consults": [
+              "the destinations configured for this team"
+            ],
+            "dispatches_subagents": false,
+            "model_role": "",
+            "name": "deliver",
+            "order": 5,
+            "summary": "Ships the finished report wherever the team is already looking, and records which destinations accepted it.",
+            "writes": [
+              "investigation.delivery",
+              "investigation.outcome"
+            ]
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "agent-pipeline",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "agent-pipeline"
+}

@@ -861,6 +861,84 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'live.outcome.recorded': 'na transcrição desta execução',
   'live.outcome.refused': 'O deployment recusou: {reason}',
   'live.outcome.unreachable': 'Não foi possível alcançar o deployment.',
+  'nav.agent': 'Agente',
+  'page.agent.title': 'O agente',
+  'page.agent.context':
+    'O que ele é, o que ele pode fazer e o que ele vai fazer sem perguntar a ninguém.',
+  'agent.tabs': 'O que o agente é, o que pode e o que fará sozinho',
+  'agent.tab.topology': 'Topologia',
+  'agent.tab.tools': 'Ferramentas',
+  'agent.tab.autonomy': 'Autonomia',
+  'agent.graph.title': 'A investigação, do orquestrador até os especialistas',
+  'agent.rank.orchestrator': 'Orquestrador',
+  'agent.rank.stages': 'Etapas',
+  'agent.rank.specialists': 'Especialistas',
+  'agent.stages.title': 'As etapas que uma investigação executa',
+  'agent.stage.role': 'papel de modelo: {role}',
+  'agent.stage.noModel': 'nenhuma chamada de modelo',
+  'agent.stage.consults': 'Consulta:',
+  'agent.specialists.title': 'Os especialistas que esta equipe declara',
+  'agent.specialists.edit':
+    'Quais especialistas existem é configuração, editada um campo por vez.',
+  'agent.specialists.editLink': 'Editar a seção de agentes',
+  'agent.specialists.empty.heading': 'Esta equipe não declara especialistas',
+  'agent.specialists.empty.body':
+    'A investigação continua rodando; ela mesma faz a coleta em vez de despachar alguém. Declare um especialista para dividir o trabalho.',
+  'agent.specialists.empty.action': 'Editar a configuração',
+  'agent.models.title': 'Em que cada papel roda',
+  'agent.models.body':
+    'Uma etapa nomeia um papel, nunca um modelo. Aquilo em que um papel resolve é configuração, e cada linha aqui diz qual nó forneceu o valor.',
+  'agent.models.default': 'padrão do deployment — ninguém vinculou este papel',
+  'agent.models.from': 'de {node}',
+  'agent.models.empty.heading': 'Nenhum papel está descrito aqui',
+  'agent.models.empty.body':
+    'O deployment não disse quais papéis ele resolve. Todo papel continua rodando no padrão do deployment.',
+  'agent.models.empty.action': 'Editar a configuração',
+  'agent.budgets.title': 'O que uma execução pode gastar',
+  'agent.budgets.body':
+    'Uma equipe pode baixar qualquer um destes e não pode subir nenhum além do seu teto. O teto é uma constante do deployment, não um ajuste.',
+  'agent.budgets.ceiling': 'teto {ceiling}',
+  'agent.budgets.empty.heading': 'Nenhum orçamento está descrito aqui',
+  'agent.budgets.empty.body':
+    'O deployment não descreveu os campos de orçamento deste nó, então os tetos não podem ser mostrados.',
+  'agent.budgets.empty.action': 'Editar a configuração',
+  'agent.document.title': 'A mesma topologia, como documento',
+  'agent.empty.heading': 'Não foi possível descrever o pipeline',
+  'agent.empty.body':
+    'O deployment não respondeu com as etapas que uma investigação executa. Nada aqui é configuração; é o que o build é.',
+  'agent.empty.action': 'Editar a configuração',
+  'agent.tools.reads': 'Ferramentas que leem',
+  'agent.tools.reads.body': 'Estas consultam algo e não mudam nada.',
+  'agent.tools.writes': 'Ferramentas que escrevem',
+  'agent.tools.writes.body':
+    'Estas mudam algo. Cada uma passa pela política de autonomia antes de rodar.',
+  'agent.tools.origin': 'do servidor {server}',
+  'agent.tools.blocked': 'indisponível aqui: {integration} não está configurada',
+  'agent.tools.unknown':
+    'este deployment ainda não tem árvore de organização, então nada foi resolvido',
+  'agent.tools.empty.heading': 'Nada neste grupo',
+  'agent.tools.empty.body':
+    'Nenhuma capacidade deste build cai neste grupo, ou não foi possível perguntar ao deployment.',
+  'agent.tools.empty.action': 'Editar a configuração',
+  'agent.bridged.title': 'Servidores fora deste deployment',
+  'agent.bridged.body':
+    'Uma ferramenta vinda de um destes veio de onde o operador não manda. Suas ferramentas são enumeradas quando o deployment alcança o servidor, e uma que ninguém classificou não pode executar.',
+  'agent.bridged.empty.heading': 'Nenhum servidor externo registrado',
+  'agent.bridged.empty.body':
+    'Toda ferramenta que esta equipe pode rodar é uma que este build entrega. Registre um servidor externo para acrescentar ferramentas de fora.',
+  'agent.bridged.empty.action': 'Editar a configuração',
+  'agent.outlook.title': 'O que aconteceria, por classe de ação',
+  'agent.outlook.body':
+    'Uma frase por classe, respondida pelo próprio deployment sob a política tal como ela está agora.',
+  'agent.outlook.bound': 'barrado por {bound}',
+  'agent.outlook.dryRun':
+    'Tudo aqui é simulado: dry-run está ligado para este nó, então nada é executado.',
+  'agent.outlook.edit': 'Mudar o que este deployment pode fazer sozinho',
+  'agent.outlook.empty.heading': 'Não foi possível ler a postura',
+  'agent.outlook.empty.body':
+    'Este nó ainda não carrega política de autonomia, então nada foi decidido sobre o que pode acontecer sem uma pessoa. A ausência resolve para apenas propor.',
+  'agent.outlook.empty.action': 'Definir a postura',
+
   'live.investigate.title': 'Iniciar uma investigação',
   'live.investigate.objective': 'O que deve ser investigado?',
   'live.investigate.start': 'Iniciar',

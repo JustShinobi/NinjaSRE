@@ -23,7 +23,7 @@ export {
 } from './form';
 export { ProgressBar, Skeleton, Spinner, Toast, Tooltip } from './feedback';
 export { CodeBlock, DataList, DiffView, Table, Timeline } from './data';
-export { Avatar, Breadcrumb, Pagination, Tabs } from './navigation';
+export { Avatar, Breadcrumb, Pagination, TabLinks, Tabs } from './navigation';
 export { ConfirmDestructive, Drawer, Modal } from './overlay';
 export { EmptyState, ErrorState } from './state';
 export { ContentWidth, PageHeader, Section, SplitLayout } from './layout';

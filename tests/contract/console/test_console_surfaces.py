@@ -338,3 +338,30 @@ def test_the_console_and_this_tier_agree_about_the_fixed_clock() -> None:
     assert NINJASRE_CONSOLE_CLOCK_ENV in _source(console_root() / "scripts" / "visual.mjs"), (
         "the visual capture does not fix the clock, so a baseline fails on the hour"
     )
+
+
+def test_the_console_and_the_platform_agree_about_which_levels_only_read() -> None:
+    """The read/write split the agent screen groups by is the platform's own scale.
+
+    The console has to decide which side of the risk line a tool sits on, and the
+    scale is Python's. A list in TypeScript that drifted would put a write in the
+    read column — which is the one direction this must never be wrong in, because
+    the column is what an operator scans before deciding what this thing may do
+    unattended. So the console names the read-only levels once and this holds
+    them against the scale: a level added in Python fails in Python.
+    """
+    from config.constants.security import SIDE_EFFECT_LEVELS, SIDE_EFFECT_READ
+
+    source = _source(console_root() / "src" / "surfaces" / "capabilities.ts")
+    declared = re.search(r"READ_ONLY_LEVELS: readonly string\[\] = \[([^\]]*)\]", source)
+    assert declared is not None, "the console does not declare which levels only read"
+    named = tuple(
+        entry.strip().strip("'") for entry in declared.group(1).split(",") if entry.strip()
+    )
+
+    assert named[0] == SIDE_EFFECT_READ
+    for level in named:
+        assert level in SIDE_EFFECT_LEVELS, f"{level!r} is not a level this platform has"
+    # Everything else writes, and the console treats an unknown level as a write,
+    # which is the same default the platform takes for an undeclared capability.
+    assert set(named) < set(SIDE_EFFECT_LEVELS)

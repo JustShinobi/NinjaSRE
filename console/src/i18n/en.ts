@@ -34,6 +34,7 @@ export const EN = {
   'nav.autonomy': 'Autonomy',
   'nav.configuration': 'Configuration',
   'nav.catalogue': 'Catalogue',
+  'nav.agent': 'The agent',
   'nav.administration': 'Administration',
   'nav.audit': 'Audit',
   'nav.open': 'Open navigation',
@@ -76,6 +77,9 @@ export const EN = {
   'page.catalogue.title': 'Catalogue',
   'page.catalogue.context':
     'Every tool and skill this deployment declares, and which of them your team may run.',
+  'page.agent.title': 'The agent',
+  'page.agent.context':
+    'What it is, what it can do, and what it will do without asking anybody.',
   'page.administration.title': 'Administration',
   'page.administration.context':
     'Principals, the roles they hold, the machine tokens issued, and how people sign in.',
@@ -880,6 +884,83 @@ export const EN = {
   'live.investigate.required': 'An objective is what the investigation is about.',
   'live.investigate.started': 'The investigation has started.',
   'live.investigate.close': 'Close',
+
+  // --- The agent: what it is, what it can do, what it will do alone ------------
+  'agent.tabs': 'What the agent is, can do, and will do alone',
+  'agent.tab.topology': 'Topology',
+  'agent.tab.tools': 'Tools',
+  'agent.tab.autonomy': 'Autonomy',
+  'agent.graph.title':
+    'The investigation, from the orchestrator down to the specialists',
+  'agent.rank.orchestrator': 'Orchestrator',
+  'agent.rank.stages': 'Stages',
+  'agent.rank.specialists': 'Specialists',
+  'agent.stages.title': 'The stages an investigation runs',
+  'agent.stage.role': 'model role: {role}',
+  'agent.stage.noModel': 'no model call',
+  'agent.stage.consults': 'Consults:',
+  'agent.specialists.title': 'The specialists this team declares',
+  'agent.specialists.edit':
+    'Which specialists exist is configuration, edited a field at a time.',
+  'agent.specialists.editLink': 'Edit the agents section',
+  'agent.specialists.empty.heading': 'This team declares no specialists',
+  'agent.specialists.empty.body':
+    'The investigation still runs; it does the gathering itself instead of dispatching anybody. Declare a specialist to split the work.',
+  'agent.specialists.empty.action': 'Edit the configuration',
+  'agent.models.title': 'What each role runs on',
+  'agent.models.body':
+    'A stage names a role, never a model. What a role resolves to is configuration, and every row here says which node supplied it.',
+  'agent.models.default': 'deployment default — nobody bound this role',
+  'agent.models.from': 'from {node}',
+  'agent.models.empty.heading': 'No role is described here',
+  'agent.models.empty.body':
+    'The deployment could not say which roles it resolves. Every role still runs on the deployment default.',
+  'agent.models.empty.action': 'Edit the configuration',
+  'agent.budgets.title': 'What one run may spend',
+  'agent.budgets.body':
+    'A team may lower any of these and may not raise one past its ceiling. The ceiling is a constant in the deployment, not a setting.',
+  'agent.budgets.ceiling': 'ceiling {ceiling}',
+  'agent.budgets.empty.heading': 'No budget is described here',
+  'agent.budgets.empty.body':
+    'The deployment did not describe the budget fields for this node, so the ceilings cannot be shown.',
+  'agent.budgets.empty.action': 'Edit the configuration',
+  'agent.document.title': 'The same topology, as the document',
+  'agent.empty.heading': 'The pipeline could not be described',
+  'agent.empty.body':
+    'The deployment did not answer with the stages an investigation runs. Nothing here is configuration; it is what the build is.',
+  'agent.empty.action': 'Edit the configuration',
+  'agent.tools.reads': 'Tools that read',
+  'agent.tools.reads.body': 'These consult something and change nothing.',
+  'agent.tools.writes': 'Tools that write',
+  'agent.tools.writes.body':
+    'These change something. Every one of them passes the autonomy policy before it runs.',
+  'agent.tools.origin': 'from the {server} server',
+  'agent.tools.blocked': 'not available here: {integration} is not configured',
+  'agent.tools.unknown':
+    'this deployment has no organisation tree yet, so nothing was resolved',
+  'agent.tools.empty.heading': 'Nothing in this group',
+  'agent.tools.empty.body':
+    'No capability of this build falls in this group, or the deployment could not be asked.',
+  'agent.tools.empty.action': 'Edit the configuration',
+  'agent.bridged.title': 'Servers outside this deployment',
+  'agent.bridged.body':
+    'A tool from one of these came from somewhere the operator does not run. Its tools are enumerated when the deployment reaches the server, and one nobody classified cannot execute.',
+  'agent.bridged.empty.heading': 'No outside server is registered',
+  'agent.bridged.empty.body':
+    'Every tool this team can run is one this build ships. Register a bridged server to add tools from elsewhere.',
+  'agent.bridged.empty.action': 'Edit the configuration',
+  'agent.outlook.title': 'What would happen, by class of action',
+  'agent.outlook.body':
+    'One sentence per class, answered by the deployment itself under the policy as it stands right now.',
+  'agent.outlook.bound': 'stopped by the {bound}',
+  'agent.outlook.dryRun':
+    'Everything here is simulated: dry-run is on for this node, so nothing is performed.',
+  'agent.outlook.edit': 'Change what this deployment may do on its own',
+  'agent.outlook.empty.heading': 'The posture could not be read',
+  'agent.outlook.empty.body':
+    'This node carries no autonomy policy yet, so nothing has been decided about what may happen without a person. Absence resolves to propose-only.',
+  'agent.outlook.empty.action': 'Set the posture',
+
   'live.investigate.caveat':
     'Quality depends on what is connected. With no integration configured the agent reasons and consults nothing.',
 } as const;

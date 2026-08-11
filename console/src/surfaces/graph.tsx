@@ -25,6 +25,8 @@ const VIEW_WIDTH = 720;
 const VIEW_HEIGHT = 360;
 const NODE_WIDTH = 168;
 const NODE_HEIGHT = 34;
+/** How much vertical room one rank of a hierarchy takes. */
+const RANK_HEIGHT = 110;
 
 export interface GraphNode {
   readonly id: string;
@@ -149,4 +151,104 @@ export function DependencyGraph({
       ))}
     </svg>
   );
+}
+
+/** One box in a hierarchy, and whether it is currently doing anything. */
+export interface HierarchyNode extends GraphNode {
+  /** Off, in the deployment's configuration. Drawn faint rather than omitted. */
+  readonly disabled?: boolean;
+  /** Where a run starts. Exactly one node carries it. */
+  readonly entryPoint?: boolean;
+}
+
+/** One rank of the hierarchy, drawn as a row. */
+export interface HierarchyRank {
+  readonly id: string;
+  readonly label: string;
+  readonly nodes: readonly HierarchyNode[];
+}
+
+export interface HierarchyGraphProps {
+  readonly ranks: readonly HierarchyRank[];
+  readonly labels: { readonly title: string };
+}
+
+/** How many boxes a rank draws before it stops drawing. */
+export const RANK_BOUND = 8;
+
+/**
+ * A hierarchy, top to bottom, in the same visual language as the neighbourhood.
+ *
+ * Extended here rather than written as a second component, for the reason a
+ * second renderer is always the wrong answer: two pictures of "what is
+ * connected to what", drawn with two sets of geometry, become two visual
+ * languages an operator has to learn separately. The boxes, the rounding, the
+ * stroke and the bound are the ones above; what changes is the axis.
+ *
+ * **State is on the node and never on colour alone.** A disabled specialist is
+ * drawn faint *and* is marked in the list beside it, because a picture is not
+ * the accessible copy of itself.
+ */
+export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNode {
+  const drawn = ranks.map((rank) => ({
+    ...rank,
+    nodes: rank.nodes.slice(0, RANK_BOUND),
+  }));
+  const height = Math.max(VIEW_HEIGHT, drawn.length * RANK_HEIGHT);
+  const rowY = (index: number): number => index * RANK_HEIGHT + RANK_HEIGHT / 2;
+
+  return (
+    <svg
+      role="img"
+      aria-label={labels.title}
+      viewBox={`0 0 ${String(VIEW_WIDTH)} ${String(height)}`}
+      data-testid="hierarchy"
+      className="w-full h-auto"
+    >
+      <title>{labels.title}</title>
+      <g className="stroke-border" strokeWidth={1} fill="none">
+        {drawn
+          .slice(1)
+          .map((rank, index) =>
+            rank.nodes.map((node) => (
+              <line
+                key={`edge-${node.id}`}
+                x1={VIEW_WIDTH / 2}
+                y1={rowY(index) + NODE_HEIGHT / 2}
+                x2={
+                  acrossFor(rank.nodes.indexOf(node), rank.nodes.length) +
+                  NODE_WIDTH / 2
+                }
+                y2={rowY(index + 1) - NODE_HEIGHT / 2}
+              />
+            )),
+          )}
+      </g>
+      {drawn.map((rank, index) =>
+        rank.nodes.map((node, position) => (
+          <g
+            key={node.id}
+            data-testid="hierarchy-node"
+            data-node={node.id}
+            data-rank={rank.id}
+            data-disabled={node.disabled === true ? 'true' : 'false'}
+            data-entry={node.entryPoint === true ? 'true' : 'false'}
+            className={node.disabled === true ? 'opacity-60' : undefined}
+          >
+            <Box
+              node={node}
+              x={acrossFor(position, rank.nodes.length)}
+              y={rowY(index) - NODE_HEIGHT / 2}
+            />
+          </g>
+        )),
+      )}
+    </svg>
+  );
+}
+
+/** Where the `index`th of `count` boxes sits across the picture. */
+function acrossFor(index: number, count: number): number {
+  const step = VIEW_WIDTH / (count + 1);
+  return step * (index + 1) - NODE_WIDTH / 2;
 }

@@ -263,6 +263,20 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/autonomy/policy/{node_id}/outlook",
+        slug="autonomy-outlook",
+        source=_GATEWAY,
+        summary="what an action of each risk class would meet under this posture",
+    ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/agent/pipeline",
+        slug="agent-pipeline",
+        source=_GATEWAY,
+        summary="the stages an investigation runs, in order, and what each consults",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/config/{node_id}",
         slug="config-effective",
         source=_GATEWAY,

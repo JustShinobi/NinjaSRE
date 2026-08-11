@@ -1,0 +1,410 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "classes": [
+          {
+            "capability": "a reversible read-only change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible read-only change on a representative resource is proposed rather than run. a reversible read-only change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible read-only change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "trivial",
+            "sentence": "Something that undoes itself, touches one resource, and loses nothing. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Something that undoes itself, touches one resource, and loses nothing."
+          },
+          {
+            "capability": "a reversible restart of one workload",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible restart of one workload on a representative resource is proposed rather than run. a reversible restart of one workload on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible restart of one workload on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "low",
+            "sentence": "Reversible, one resource, and a brief loss of availability at most. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Reversible, one resource, and a brief loss of availability at most."
+          },
+          {
+            "capability": "a change undone only by a further change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change undone only by a further change on a representative resource is proposed rather than run. a change undone only by a further change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change undone only by a further change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "virtual_machine",
+            "risk_class": "moderate",
+            "sentence": "Undone only by a further action, or reaching several resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Undone only by a further action, or reaching several resources at once."
+          },
+          {
+            "capability": "a change that needs a restore to undo",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that needs a restore to undo on a representative resource is proposed rather than run. a change that needs a restore to undo on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that needs a restore to undo on a representative resource",
+            "refused_by": "",
+            "resource_kind": "node",
+            "risk_class": "high",
+            "sentence": "Not reversible without a restore, or reaching many resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Not reversible without a restore, or reaching many resources at once."
+          },
+          {
+            "capability": "a change that can destroy the only copy of something",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that can destroy the only copy of something on a representative resource is proposed rather than run. a change that can destroy the only copy of something on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that can destroy the only copy of something on a representative resource",
+            "refused_by": "",
+            "resource_kind": "datastore",
+            "risk_class": "critical",
+            "sentence": "Can destroy data with no other copy, or take an estate's availability down. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Can destroy data with no other copy, or take an estate's availability down."
+          }
+        ],
+        "dry_run": false,
+        "node_id": "env-production"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-outlook",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "classes": [
+          {
+            "capability": "a reversible read-only change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible read-only change on a representative resource is proposed rather than run. a reversible read-only change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible read-only change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "trivial",
+            "sentence": "Something that undoes itself, touches one resource, and loses nothing. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Something that undoes itself, touches one resource, and loses nothing."
+          },
+          {
+            "capability": "a reversible restart of one workload",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible restart of one workload on a representative resource is proposed rather than run. a reversible restart of one workload on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible restart of one workload on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "low",
+            "sentence": "Reversible, one resource, and a brief loss of availability at most. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Reversible, one resource, and a brief loss of availability at most."
+          },
+          {
+            "capability": "a change undone only by a further change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change undone only by a further change on a representative resource is proposed rather than run. a change undone only by a further change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change undone only by a further change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "virtual_machine",
+            "risk_class": "moderate",
+            "sentence": "Undone only by a further action, or reaching several resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Undone only by a further action, or reaching several resources at once."
+          },
+          {
+            "capability": "a change that needs a restore to undo",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that needs a restore to undo on a representative resource is proposed rather than run. a change that needs a restore to undo on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that needs a restore to undo on a representative resource",
+            "refused_by": "",
+            "resource_kind": "node",
+            "risk_class": "high",
+            "sentence": "Not reversible without a restore, or reaching many resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Not reversible without a restore, or reaching many resources at once."
+          },
+          {
+            "capability": "a change that can destroy the only copy of something",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that can destroy the only copy of something on a representative resource is proposed rather than run. a change that can destroy the only copy of something on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that can destroy the only copy of something on a representative resource",
+            "refused_by": "",
+            "resource_kind": "datastore",
+            "risk_class": "critical",
+            "sentence": "Can destroy data with no other copy, or take an estate's availability down. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Can destroy data with no other copy, or take an estate's availability down."
+          }
+        ],
+        "dry_run": false,
+        "node_id": "env-staging"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-outlook",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "classes": [
+          {
+            "capability": "a reversible read-only change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible read-only change on a representative resource is proposed rather than run. a reversible read-only change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible read-only change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "trivial",
+            "sentence": "Something that undoes itself, touches one resource, and loses nothing. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Something that undoes itself, touches one resource, and loses nothing."
+          },
+          {
+            "capability": "a reversible restart of one workload",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible restart of one workload on a representative resource is proposed rather than run. a reversible restart of one workload on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible restart of one workload on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "low",
+            "sentence": "Reversible, one resource, and a brief loss of availability at most. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Reversible, one resource, and a brief loss of availability at most."
+          },
+          {
+            "capability": "a change undone only by a further change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change undone only by a further change on a representative resource is proposed rather than run. a change undone only by a further change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change undone only by a further change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "virtual_machine",
+            "risk_class": "moderate",
+            "sentence": "Undone only by a further action, or reaching several resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Undone only by a further action, or reaching several resources at once."
+          },
+          {
+            "capability": "a change that needs a restore to undo",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that needs a restore to undo on a representative resource is proposed rather than run. a change that needs a restore to undo on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that needs a restore to undo on a representative resource",
+            "refused_by": "",
+            "resource_kind": "node",
+            "risk_class": "high",
+            "sentence": "Not reversible without a restore, or reaching many resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Not reversible without a restore, or reaching many resources at once."
+          },
+          {
+            "capability": "a change that can destroy the only copy of something",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that can destroy the only copy of something on a representative resource is proposed rather than run. a change that can destroy the only copy of something on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that can destroy the only copy of something on a representative resource",
+            "refused_by": "",
+            "resource_kind": "datastore",
+            "risk_class": "critical",
+            "sentence": "Can destroy data with no other copy, or take an estate's availability down. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Can destroy data with no other copy, or take an estate's availability down."
+          }
+        ],
+        "dry_run": false,
+        "node_id": "org-northwind"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-outlook",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "classes": [
+          {
+            "capability": "a reversible read-only change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible read-only change on a representative resource is proposed rather than run. a reversible read-only change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible read-only change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "trivial",
+            "sentence": "Something that undoes itself, touches one resource, and loses nothing. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Something that undoes itself, touches one resource, and loses nothing."
+          },
+          {
+            "capability": "a reversible restart of one workload",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible restart of one workload on a representative resource is proposed rather than run. a reversible restart of one workload on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible restart of one workload on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "low",
+            "sentence": "Reversible, one resource, and a brief loss of availability at most. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Reversible, one resource, and a brief loss of availability at most."
+          },
+          {
+            "capability": "a change undone only by a further change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change undone only by a further change on a representative resource is proposed rather than run. a change undone only by a further change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change undone only by a further change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "virtual_machine",
+            "risk_class": "moderate",
+            "sentence": "Undone only by a further action, or reaching several resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Undone only by a further action, or reaching several resources at once."
+          },
+          {
+            "capability": "a change that needs a restore to undo",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that needs a restore to undo on a representative resource is proposed rather than run. a change that needs a restore to undo on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that needs a restore to undo on a representative resource",
+            "refused_by": "",
+            "resource_kind": "node",
+            "risk_class": "high",
+            "sentence": "Not reversible without a restore, or reaching many resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Not reversible without a restore, or reaching many resources at once."
+          },
+          {
+            "capability": "a change that can destroy the only copy of something",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that can destroy the only copy of something on a representative resource is proposed rather than run. a change that can destroy the only copy of something on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that can destroy the only copy of something on a representative resource",
+            "refused_by": "",
+            "resource_kind": "datastore",
+            "risk_class": "critical",
+            "sentence": "Can destroy data with no other copy, or take an estate's availability down. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Can destroy data with no other copy, or take an estate's availability down."
+          }
+        ],
+        "dry_run": false,
+        "node_id": "team-platform"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-outlook",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "classes": [
+          {
+            "capability": "a reversible read-only change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible read-only change on a representative resource is proposed rather than run. a reversible read-only change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible read-only change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "trivial",
+            "sentence": "Something that undoes itself, touches one resource, and loses nothing. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Something that undoes itself, touches one resource, and loses nothing."
+          },
+          {
+            "capability": "a reversible restart of one workload",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a reversible restart of one workload on a representative resource is proposed rather than run. a reversible restart of one workload on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a reversible restart of one workload on a representative resource",
+            "refused_by": "",
+            "resource_kind": "service",
+            "risk_class": "low",
+            "sentence": "Reversible, one resource, and a brief loss of availability at most. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Reversible, one resource, and a brief loss of availability at most."
+          },
+          {
+            "capability": "a change undone only by a further change",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change undone only by a further change on a representative resource is proposed rather than run. a change undone only by a further change on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change undone only by a further change on a representative resource",
+            "refused_by": "",
+            "resource_kind": "virtual_machine",
+            "risk_class": "moderate",
+            "sentence": "Undone only by a further action, or reaching several resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Undone only by a further action, or reaching several resources at once."
+          },
+          {
+            "capability": "a change that needs a restore to undo",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that needs a restore to undo on a representative resource is proposed rather than run. a change that needs a restore to undo on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that needs a restore to undo on a representative resource",
+            "refused_by": "",
+            "resource_kind": "node",
+            "risk_class": "high",
+            "sentence": "Not reversible without a restore, or reaching many resources at once. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Not reversible without a restore, or reaching many resources at once."
+          },
+          {
+            "capability": "a change that can destroy the only copy of something",
+            "decision": "propose",
+            "dry_run": false,
+            "level": "propose_only",
+            "reason": "a change that can destroy the only copy of something on a representative resource is proposed rather than run. a change that can destroy the only copy of something on a representative resource resolves to propose_only because the whole deployment: propose_only is the most specific rule that applies. A person can run it with: a change that can destroy the only copy of something on a representative resource",
+            "refused_by": "",
+            "resource_kind": "datastore",
+            "risk_class": "critical",
+            "sentence": "Can destroy data with no other copy, or take an estate's availability down. It would be proposed for a person to run, and nothing would happen until they did.",
+            "summary": "Can destroy data with no other copy, or take an estate's availability down."
+          }
+        ],
+        "dry_run": false,
+        "node_id": "team-storage"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "autonomy-outlook",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "autonomy-outlook"
+}

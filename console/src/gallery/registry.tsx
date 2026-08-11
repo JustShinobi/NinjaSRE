@@ -36,6 +36,7 @@ import {
   StatusDot,
   Switch,
   Table,
+  TabLinks,
   Tabs,
   Textarea,
   Timeline,
@@ -670,6 +671,27 @@ export const GALLERY: readonly GalleryPrimitive[] = [
           >
             <p className="text-small">The transcript.</p>
           </Tabs>
+        ),
+      },
+    ],
+  },
+  {
+    name: 'TabLinks',
+    summary: 'The same row, as links, for a screen whose section is in its address.',
+    entries: [
+      {
+        id: 'tab-links-default',
+        label: 'default',
+        node: (
+          <TabLinks
+            label="The agent"
+            selected="topology"
+            tabs={[
+              { id: 'topology', label: 'Topology', href: '?tab=topology' },
+              { id: 'tools', label: 'Tools', href: '?tab=tools' },
+              { id: 'autonomy', label: 'Autonomy', href: '?tab=autonomy' },
+            ]}
+          />
         ),
       },
     ],

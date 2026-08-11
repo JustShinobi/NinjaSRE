@@ -81,6 +81,7 @@ describe('the route manifest', () => {
       memory: 'environment',
       catalogue: 'environment',
       'first-run': 'settings',
+      agent: 'settings',
       autonomy: 'settings',
       configuration: 'settings',
       administration: 'settings',

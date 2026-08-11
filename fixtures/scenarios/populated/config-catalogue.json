@@ -14,6 +14,32 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.failed_units",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "What is failed on a node, which no API level reports.",
+            "tags": [
+              "estate",
+              "health"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.storage_pressure",
             "reason": null,
             "required_integrations": [],
@@ -26,15 +52,14 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.enable_backup_job",
+            "kind": "skill",
+            "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
-            "summary": "Enable a backup job that exists and is disabled.",
+            "side_effect_level": "read",
+            "summary": "Search the documents an investigation is allowed to read.",
             "tags": [
-              "estate",
-              "backup"
+              "knowledge"
             ]
           },
           {
@@ -78,6 +103,32 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.failed_units",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "What is failed on a node, which no API level reports.",
+            "tags": [
+              "estate",
+              "health"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.storage_pressure",
             "reason": null,
             "required_integrations": [],
@@ -90,15 +141,14 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.enable_backup_job",
+            "kind": "skill",
+            "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
-            "summary": "Enable a backup job that exists and is disabled.",
+            "side_effect_level": "read",
+            "summary": "Search the documents an investigation is allowed to read.",
             "tags": [
-              "estate",
-              "backup"
+              "knowledge"
             ]
           },
           {
@@ -142,6 +192,32 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.failed_units",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "What is failed on a node, which no API level reports.",
+            "tags": [
+              "estate",
+              "health"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.storage_pressure",
             "reason": null,
             "required_integrations": [],
@@ -154,15 +230,14 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.enable_backup_job",
+            "kind": "skill",
+            "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
-            "summary": "Enable a backup job that exists and is disabled.",
+            "side_effect_level": "read",
+            "summary": "Search the documents an investigation is allowed to read.",
             "tags": [
-              "estate",
-              "backup"
+              "knowledge"
             ]
           },
           {
@@ -206,6 +281,32 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.failed_units",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "What is failed on a node, which no API level reports.",
+            "tags": [
+              "estate",
+              "health"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.storage_pressure",
             "reason": null,
             "required_integrations": [],
@@ -218,15 +319,14 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.enable_backup_job",
+            "kind": "skill",
+            "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
-            "summary": "Enable a backup job that exists and is disabled.",
+            "side_effect_level": "read",
+            "summary": "Search the documents an investigation is allowed to read.",
             "tags": [
-              "estate",
-              "backup"
+              "knowledge"
             ]
           },
           {
@@ -270,6 +370,32 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.enable_backup_job",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "write",
+            "summary": "Enable a backup job that exists and is disabled.",
+            "tags": [
+              "estate",
+              "backup"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
+            "name": "estate.failed_units",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "What is failed on a node, which no API level reports.",
+            "tags": [
+              "estate",
+              "health"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.storage_pressure",
             "reason": null,
             "required_integrations": [],
@@ -282,15 +408,14 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.enable_backup_job",
+            "kind": "skill",
+            "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
-            "summary": "Enable a backup job that exists and is disabled.",
+            "side_effect_level": "read",
+            "summary": "Search the documents an investigation is allowed to read.",
             "tags": [
-              "estate",
-              "backup"
+              "knowledge"
             ]
           },
           {

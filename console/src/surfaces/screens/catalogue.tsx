@@ -5,6 +5,7 @@ import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
+import { capabilityRows } from '../capabilities';
 import type { SurfaceContext } from '../context';
 import { CredentialField } from '../credential';
 import { DeliveryToken } from '../ingress';
@@ -14,7 +15,6 @@ import {
   authorised,
   dataOf,
   dependencyOf,
-  flag,
   list,
   optionalRead,
   panelRead,
@@ -77,14 +77,12 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
           }),
         );
 
-  const tools = list(dataOf(capabilities), 'tools');
-  const skills = list(dataOf(capabilities), 'skills');
-  const available = new Map(
-    list(dataOf(entries), 'entries').map((entry) => [
-      text(entry, 'name'),
-      { available: flag(entry, 'available'), reason: text(entry, 'reason') },
-    ]),
-  );
+  // The join both this screen and the agent screen read. Computed once, in one
+  // module, because two screens holding two answers about which tools are
+  // blocked is two answers an operator has to choose between.
+  const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
+  const tools = rows.filter((row) => row.kind === 'tool');
+  const skills = rows.filter((row) => row.kind === 'skill');
   const installed = list(dataOf(integrations), 'integrations');
   // What this catalogue does not cover, and why. Rendered greyed rather than
   // omitted: an operator evaluating the platform against their own stack finds
@@ -144,47 +142,46 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
                 </tr>
               </thead>
               <tbody>
-                {tools.map((tool) => {
-                  const name = text(tool, 'name');
-                  const held = available.get(name);
-                  return (
-                    <tr key={name} data-testid="capability" data-capability={name}>
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
-                        {name}
-                      </td>
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                        {text(tool, 'domain') === '' ? none : text(tool, 'domain')}
-                      </td>
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                        <Badge status={text(tool, 'side_effect_level')} />
-                      </td>
-                      <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                        {held === undefined ? (
-                          <span className="text-muted text-meta">{none}</span>
-                        ) : held.available ? (
-                          <Badge status="healthy" />
-                        ) : (
-                          <span className="text-meta text-muted">
-                            {message(locale, 'catalogue.blocked', {
-                              integration: held.reason === '' ? none : held.reason,
-                            })}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {skills.map((skill) => (
-                  <tr key={text(skill, 'name')} data-testid="capability">
+                {tools.map((tool) => (
+                  <tr
+                    key={tool.name}
+                    data-testid="capability"
+                    data-capability={tool.name}
+                  >
                     <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
-                      {text(skill, 'name')}
+                      {tool.name}
+                    </td>
+                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                      {tool.domain === '' ? none : tool.domain}
+                    </td>
+                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                      <Badge status={tool.sideEffect} />
+                    </td>
+                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                      {!tool.known ? (
+                        <span className="text-muted text-meta">{none}</span>
+                      ) : tool.available ? (
+                        <Badge status="healthy" />
+                      ) : (
+                        <span className="text-meta text-muted">
+                          {message(locale, 'catalogue.blocked', {
+                            integration: tool.reason === '' ? none : tool.reason,
+                          })}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {skills.map((skill) => (
+                  <tr key={skill.name} data-testid="capability">
+                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
+                      {skill.name}
                     </td>
                     <td
                       className="px-3 py-2 edge border-border border-t-0 border-x-0 text-muted"
                       colSpan={3}
                     >
-                      {message(locale, 'catalogue.skills')} —{' '}
-                      {text(skill, 'description')}
+                      {message(locale, 'catalogue.skills')} — {skill.summary}
                     </td>
                   </tr>
                 ))}

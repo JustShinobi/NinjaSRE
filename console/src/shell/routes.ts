@@ -19,6 +19,7 @@ import type { ReactNode } from 'react';
 
 import type { IconProps } from '@/design/icons';
 import {
+  ActivityIcon,
   AlertCircleIcon,
   BookIcon,
   BrainIcon,
@@ -246,6 +247,22 @@ export const AREAS: readonly Area[] = [
     context: 'page.catalogue.context',
     permission: 'investigation.read',
     icon: LayersIcon,
+  },
+  {
+    // What the agent is, what it can do, and what it will do alone. In
+    // settings because that is where the information architecture puts it: it
+    // is what the platform *is* rather than what is happening. The permission
+    // is the narrowest of the four reads it makes — the node's catalogue, its
+    // fields, its effective configuration and its posture are all `config.read`
+    // — following the same rule the catalogue route's row states.
+    id: 'agent',
+    path: '/agent',
+    group: 'settings',
+    label: 'nav.agent',
+    title: 'page.agent.title',
+    context: 'page.agent.context',
+    permission: 'config.read',
+    icon: ActivityIcon,
   },
   {
     id: 'administration',

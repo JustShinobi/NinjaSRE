@@ -6,6 +6,7 @@ import type { SearchParams } from '@/surfaces/context';
 import Administration, {
   generateMetadata as administrationMeta,
 } from '@/app/(shell)/administration/page';
+import Agent, { generateMetadata as agentMeta } from '@/app/(shell)/agent/page';
 import Approvals, {
   generateMetadata as approvalsMeta,
 } from '@/app/(shell)/approvals/page';
@@ -80,6 +81,7 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'autonomy', render: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
   { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
+  { id: 'agent', render: Agent, metadata: agentMeta },
   { id: 'administration', render: Administration, metadata: administrationMeta },
   { id: 'audit', render: Audit, metadata: auditMeta },
 ];

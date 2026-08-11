@@ -13,6 +13,7 @@ import { serveScenario } from '../support/dataset';
 import Approvals, {
   generateMetadata as approvalsMeta,
 } from '@/app/(shell)/approvals/page';
+import Agent, { generateMetadata as agentMeta } from '@/app/(shell)/agent/page';
 import Administration, {
   generateMetadata as administrationMeta,
 } from '@/app/(shell)/administration/page';
@@ -92,6 +93,7 @@ const ROUTE_FILES: readonly RouteFile[] = [
   { id: 'configuration', page: Configuration, metadata: configurationMeta },
   { id: 'first-run', page: FirstRun, metadata: firstRunMeta },
   { id: 'catalogue', page: Catalogue, metadata: catalogueMeta },
+  { id: 'agent', page: Agent, metadata: agentMeta },
   { id: 'administration', page: Administration, metadata: administrationMeta },
   { id: 'audit', page: Audit, metadata: auditMeta },
 ];
