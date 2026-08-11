@@ -28,6 +28,7 @@ import {
   CompassIcon,
   DatabaseIcon,
   GridIcon,
+  InboxIcon,
   ListIcon,
   LayersIcon,
   ServerIcon,
@@ -247,6 +248,21 @@ export const AREAS: readonly Area[] = [
     context: 'page.teamContext.context',
     permission: 'config.read',
     icon: BookIcon,
+  },
+  // Its own item in Settings rather than a tab of Approvals, and the reason is
+  // the question each answers. Approvals is "may the agent do this now"; this is
+  // "should the deployment be different from tomorrow". They are read at
+  // different times by, often, different people — and a queue that only exists
+  // behind somebody else's screen is a queue that grows until it is discovered.
+  {
+    id: 'proposals',
+    path: '/proposals',
+    group: 'settings',
+    label: 'nav.proposals',
+    title: 'page.proposals.title',
+    context: 'page.proposals.context',
+    permission: 'approval.read',
+    icon: InboxIcon,
   },
   {
     id: 'catalogue',

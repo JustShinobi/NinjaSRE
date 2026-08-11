@@ -143,6 +143,26 @@ async function readAttention(credential: string): Promise<readonly AttentionItem
     if (!(error instanceof ApiError || error instanceof TypeError)) throw error;
   }
   try {
+    // The list rather than the count, because the band needs a row and not a
+    // number — and reading two endpoints for one fact is how the badge and the
+    // band come to disagree about how many are waiting.
+    const body = await read('/v1/proposals', authorised(credential));
+    for (const record of records(body, 'proposals')) {
+      const id = text(record, 'proposal_id');
+      if (id === '') continue;
+      items.push({
+        id,
+        kind: 'proposal',
+        title: text(record, 'summary'),
+        detail: text(record, 'proposal_type'),
+        href: `/proposals?selected=${id}`,
+        since: text(record, 'proposed_at'),
+      });
+    }
+  } catch (error) {
+    if (!(error instanceof ApiError || error instanceof TypeError)) throw error;
+  }
+  try {
     const body = await read('/v1/runs', authorised(credential));
     for (const record of records(body, 'runs')) {
       if (!FAILED_STATUSES.has(text(record, 'status'))) continue;
@@ -262,6 +282,7 @@ export function countsFrom(
 ): Readonly<Record<string, number>> {
   return {
     approvals: attention.filter((item) => item.kind === 'approval').length,
+    proposals: attention.filter((item) => item.kind === 'proposal').length,
     incidents: attention.filter((item) => item.kind === 'incident').length,
     runs: attention.filter((item) => item.kind === 'failure').length,
   };

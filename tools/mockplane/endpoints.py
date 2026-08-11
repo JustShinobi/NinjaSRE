@@ -198,6 +198,37 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="recording that a stored rollback plan was executed",
     ),
+    # --- Changes the agent has proposed -----------------------------------------
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/proposals",
+        slug="proposals",
+        source=_GATEWAY,
+        summary="what the agent has proposed and nobody has decided",
+        records_key="proposals",
+        query=("limit",),
+    ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/proposals/count",
+        slug="proposal-count",
+        source=_GATEWAY,
+        summary="how many proposals are waiting, for the badge and the band",
+    ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/proposals/{proposal_id}",
+        slug="proposal-detail",
+        source=_GATEWAY,
+        summary="one proposal, with what was said the last few times it was refused",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/proposals/{proposal_id}/decision",
+        slug="proposal-decision",
+        source=_GATEWAY,
+        summary="approving or rejecting one proposal, with a reason on a rejection",
+    ),
     # --- Memory and knowledge ---------------------------------------------------
     ConsoleEndpoint(
         method="GET",

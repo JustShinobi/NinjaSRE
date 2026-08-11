@@ -26,6 +26,7 @@ export const EN = {
   'nav.incidents': 'Incidents',
   'nav.runs': 'Runs',
   'nav.approvals': 'Approvals',
+  'nav.proposals': 'Proposed changes',
   'nav.resources': 'Resources',
   'nav.topology': 'Topology',
   'nav.detectors': 'Detectors',
@@ -57,6 +58,9 @@ export const EN = {
   'page.approvals.title': 'Approvals',
   'page.approvals.context':
     'Changes waiting on a decision, and the rollback behind each.',
+  'page.proposals.title': 'Proposed changes',
+  'page.proposals.context':
+    'Everything the agent has proposed and nobody has decided. Each carries what would change, why, and the investigation it came out of.',
   'page.resources.title': 'Resources',
   'page.resources.context':
     'Everything the deployment watches, and the health of each.',
@@ -1139,6 +1143,41 @@ export const EN = {
 
   'live.investigate.caveat':
     'Quality depends on what is connected. With no integration configured the agent reasons and consults nothing.',
+  // --- Changes the agent has proposed ------------------------------------------
+  'proposals.title': 'Changes the agent has proposed',
+  'proposals.empty.heading': 'The agent has proposed nothing',
+  'proposals.empty.body':
+    'Proposals arrive from investigations and from the documented checks in your corpus. Nothing here is applied until you approve it.',
+  'proposals.empty.action': 'See what is running',
+  'proposals.acceptance': '{approved} of {decided} decided proposals accepted',
+  'proposals.acceptance.none': 'Nothing has been decided yet',
+  'proposals.type.knowledge': 'Knowledge',
+  'proposals.type.operating_context': 'Operating context',
+  'proposals.type.detector': 'Detector',
+  'proposals.type.configuration': 'Configuration',
+  'proposals.field.type': 'Kind',
+  'proposals.field.rationale': 'Why',
+  'proposals.field.evidence': 'Evidence',
+  'proposals.field.origin': 'From the investigation',
+  'proposals.field.node': 'Where it lands',
+  'proposals.field.effect': 'What would change',
+  'proposals.openRun': 'Open the investigation',
+  'proposals.effect.show': 'Show what this would do',
+  'proposals.effect.loading': 'Asking the deployment',
+  'proposals.effect.failed': 'The deployment did not answer. Nothing was changed.',
+  'proposals.effect.text': 'The text as it would be written',
+  'proposals.effect.preview': 'The configuration this would resolve to',
+  'proposals.effect.dryRun': 'What this detector would have found',
+  'proposals.effect.dryRun.quiet': 'It would have found nothing in the stored history.',
+  'proposals.approveFirst':
+    'Approving is available once you have seen what this would do.',
+  'proposals.approve': 'Approve and apply',
+  'proposals.reject': 'Reject',
+  'proposals.reason': 'Why it is being rejected',
+  'proposals.reason.required': 'A reason is required to reject.',
+  'proposals.prior.heading': 'Refused before',
+  'proposals.prior.entry': '{who} on {when}: {reason}',
+  'attention.proposal': 'Proposed change',
 } as const;
 
 /** Every key the console may render. Derived, so a typo is a type error. */

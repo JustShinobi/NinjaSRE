@@ -643,6 +643,103 @@ def interaction_records() -> tuple[CapturedRecord, ...]:
     return tuple(records)
 
 
+PROPOSALS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "proposal_id": "prop-0001",
+        "proposal_type": "operating_context",
+        "node_id": ORG_NODE,
+        "summary": "Record that LXC guest memory is read from the host",
+        "rationale": "Three investigations of container memory each had to rediscover it.",
+        "evidence": ["run-0001/turn-4", "run-0003/turn-2"],
+        "run_id": "run-0003",
+        "correlation_id": "agents.operating_context.Metrics",
+        "payload": {
+            "agents": {
+                "operating_context": {
+                    "sections": {
+                        "Metrics": "Container memory for LXC guests is read from the host, "
+                        "not from inside the guest."
+                    }
+                }
+            }
+        },
+        "effect": {"mechanism": "context-preview", "target": ORG_NODE},
+        "state": "pending",
+        "proposed_at": at(minutes=48),
+        "decided_at": None,
+        "decided_by": "",
+        "reason": "",
+        "prior_rejections": [],
+    },
+    {
+        "proposal_id": "prop-0002",
+        "proposal_type": "detector",
+        "node_id": ORG_NODE,
+        "summary": "Watch the datastore fill the runbook already says to check",
+        "rationale": "The verification document states this check and nothing performs it.",
+        "evidence": [
+            "No datastore is above its safe fill — a datastore past this cannot "
+            "complete a snapshot of its largest guest.",
+            "corpus:docs/verification.md",
+        ],
+        "run_id": "run-0005",
+        "correlation_id": "detector:corpus-no-datastore-is-above-its-safe-fill",
+        "payload": {
+            "detector_id": "corpus-no-datastore-is-above-its-safe-fill",
+            "name": "No datastore is above its safe fill",
+            "description": "A datastore past this cannot complete a snapshot.",
+            "signal": "datastore.used_percent",
+            "kind": "threshold",
+            "comparison": "above",
+            "fire_value": 85.0,
+            "enabled": False,
+            "origin": "corpus:docs/verification.md",
+        },
+        "effect": {
+            "mechanism": "detector-dry-run",
+            "target": "corpus-no-datastore-is-above-its-safe-fill",
+        },
+        "state": "pending",
+        "proposed_at": at(days=1, minutes=12),
+        "decided_at": None,
+        "decided_by": "",
+        "reason": "",
+        "prior_rejections": [
+            {
+                "proposal_id": "prop-0000",
+                "reason": "The snapshot window runs nightly; 85 is normal on this store.",
+                "decided_by": OPERATOR,
+                "decided_at": at(days=9),
+            }
+        ],
+    },
+)
+
+#: How this deployment has answered so far. Both numbers, never the ratio alone.
+PROPOSAL_ACCEPTANCE: Final[Mapping[str, Any]] = {
+    "decided": 5,
+    "approved": 3,
+    "rate": 0.6,
+}
+
+
+def proposal_records() -> tuple[CapturedRecord, ...]:
+    """Return the proposal queue, its count, and each proposal on its own."""
+    records = [
+        _record(
+            "proposals",
+            {},
+            {"proposals": list(PROPOSALS), "acceptance": dict(PROPOSAL_ACCEPTANCE)},
+        ),
+        _record("proposal-count", {}, {"pending": len(PROPOSALS)}),
+    ]
+    records.extend(
+        _record("proposal-detail", {"proposal_id": str(proposal["proposal_id"])}, dict(proposal))
+        for proposal in PROPOSALS
+    )
+    return tuple(records)
+
+
 # --- Memory and knowledge ----------------------------------------------------------
 
 EPISODES: Final[tuple[Mapping[str, Any], ...]] = (
@@ -2223,6 +2320,7 @@ def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
         *agent_records(),
         *runs_records(),
         *interaction_records(),
+        *proposal_records(),
         *memory_records(),
         *topology_records(),
         *config_records(),
@@ -2264,6 +2362,7 @@ __all__ = [
     "role_records",
     "integration_records",
     "interaction_records",
+    "proposal_records",
     "memory_records",
     "platform_records",
     "provider_records",

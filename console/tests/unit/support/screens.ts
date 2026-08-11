@@ -36,6 +36,9 @@ import Knowledge, {
 } from '@/app/(shell)/knowledge/page';
 import Memory, { generateMetadata as memoryMeta } from '@/app/(shell)/memory/page';
 import Overview, { generateMetadata as overviewMeta } from '@/app/(shell)/page';
+import Proposals, {
+  generateMetadata as proposalsMeta,
+} from '@/app/(shell)/proposals/page';
 import Resources, {
   generateMetadata as resourcesMeta,
 } from '@/app/(shell)/resources/page';
@@ -85,6 +88,7 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'autonomy', render: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
   { id: 'team-context', render: TeamContext, metadata: teamContextMeta },
+  { id: 'proposals', render: Proposals, metadata: proposalsMeta },
   { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
   { id: 'agent', render: Agent, metadata: agentMeta },
   { id: 'administration', render: Administration, metadata: administrationMeta },

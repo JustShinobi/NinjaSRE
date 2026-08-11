@@ -61,26 +61,39 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   const init = authorised(credential);
   const node = viewer.teamNodeId;
 
-  const [approvals, runs, estate, health, detectors, incidents, checklist, effective] =
-    await Promise.all([
-      panelRead('/v1/approvals', () => read('/v1/approvals', init)),
-      panelRead('/v1/runs', () => read('/v1/runs', init)),
-      panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
-      panelRead('/health/ready', () => read('/health/ready', init)),
-      panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
-      panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
-      panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
-      optionalRead('/v1/config/{node_id}', () =>
-        node === ''
-          ? Promise.resolve({})
-          : read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
-      ),
-    ]);
+  const [
+    approvals,
+    proposals,
+    runs,
+    estate,
+    health,
+    detectors,
+    incidents,
+    checklist,
+    effective,
+  ] = await Promise.all([
+    panelRead('/v1/approvals', () => read('/v1/approvals', init)),
+    // The same list the sidebar badge counts, so the band and the badge
+    // cannot disagree about how many are waiting.
+    panelRead('/v1/proposals', () => read('/v1/proposals', init)),
+    panelRead('/v1/runs', () => read('/v1/runs', init)),
+    panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
+    panelRead('/health/ready', () => read('/health/ready', init)),
+    panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
+    panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
+    panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
+    optionalRead('/v1/config/{node_id}', () =>
+      node === ''
+        ? Promise.resolve({})
+        : read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
+    ),
+  ]);
 
   const setup = readSetup(dataOf(checklist), field(dataOf(effective), 'values'));
 
   const runRecords = list(dataOf(runs), 'runs');
   const approvalRecords = list(dataOf(approvals), 'approvals');
+  const proposalRecords = list(dataOf(proposals), 'proposals');
   const incidentRecords = list(dataOf(incidents), 'incidents');
   const detectorRecords = list(dataOf(detectors), 'detectors');
   const summary = dataOf(estate);
@@ -97,6 +110,18 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       detail: text(record, 'action'),
       href: `/approvals?selected=${id}`,
       since: timestamp(locale, text(record, 'requested_at'), now, zone).relative,
+    });
+  }
+  for (const record of proposalRecords) {
+    const id = text(record, 'proposal_id');
+    if (id === '') continue;
+    attention.push({
+      id,
+      kind: 'proposal',
+      title: text(record, 'summary'),
+      detail: text(record, 'proposal_type'),
+      href: `/proposals?selected=${id}`,
+      since: timestamp(locale, text(record, 'proposed_at'), now, zone).relative,
     });
   }
   for (const record of incidentRecords) {

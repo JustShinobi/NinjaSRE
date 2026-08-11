@@ -1848,6 +1848,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description Return what is waiting on this team, longest-waiting first.
+         *
+         *     The acceptance figure travels with the list rather than on an endpoint of
+         *     its own. It is a property of the queue — how this team has answered — and a
+         *     second request for one number is a second thing to be out of date.
+         */
+        get: operations["list_proposals_v1_proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count Proposals
+         * @description Return how many proposals are waiting, for the badge and the band.
+         */
+        get: operations["count_proposals_v1_proposals_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal
+         * @description Return one proposal with everything a decision rests on.
+         */
+        get: operations["get_proposal_v1_proposals__proposal_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Proposal
+         * @description Approve or reject a proposal, in the caller's name.
+         *
+         *     A rejection without a reason is refused here as well as in the console. A
+         *     control is a courtesy and a server check is a rule, and the reason is what
+         *     the next proposal of the same thing is read against.
+         */
+        post: operations["decide_proposal_v1_proposals__proposal_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/providers": {
         parameters: {
             query?: never;
@@ -2643,6 +2731,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptanceView */
+        AcceptanceView: {
+            /** Approved */
+            approved: number;
+            /** Decided */
+            decided: number;
+            /** Rate */
+            rate: number;
+        };
         /** AnswerRequest */
         AnswerRequest: {
             /**
@@ -3235,6 +3332,28 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** DecisionRequest */
+        DecisionRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Verdict */
+            verdict: string;
+        };
+        /** DecisionResult */
+        DecisionResult: {
+            /**
+             * Applied
+             * @default
+             */
+            applied: string;
+            /** Proposal Id */
+            proposal_id: string;
+            /** State */
+            state: string;
+        };
         /**
          * DeliveryView
          * @description One crossing of the boundary, as a screen renders it.
@@ -3640,6 +3759,13 @@ export interface components {
             token_id: string;
             /** User Id */
             user_id: string;
+        };
+        /** EffectView */
+        EffectView: {
+            /** Mechanism */
+            mechanism: string;
+            /** Target */
+            target: string;
         };
         /** EffectiveConfigView */
         EffectiveConfigView: {
@@ -4909,6 +5035,17 @@ export interface components {
              */
             team_node_id: string;
         };
+        /** PriorRejectionView */
+        PriorRejectionView: {
+            /** Decided At */
+            decided_at?: string | null;
+            /** Decided By */
+            decided_by: string;
+            /** Proposal Id */
+            proposal_id: string;
+            /** Reason */
+            reason: string;
+        };
         /** ProblemListView */
         ProblemListView: {
             /** Problems */
@@ -4966,6 +5103,68 @@ export interface components {
             title: string;
             /** Window Seconds */
             window_seconds: number;
+        };
+        /**
+         * ProposalCount
+         * @description What the sidebar badge and the dashboard band both read.
+         */
+        ProposalCount: {
+            /** Pending */
+            pending: number;
+        };
+        /** ProposalList */
+        ProposalList: {
+            acceptance: components["schemas"]["AcceptanceView"];
+            /** Proposals */
+            proposals: components["schemas"]["ProposalView"][];
+        };
+        /** ProposalView */
+        ProposalView: {
+            /**
+             * Correlation Id
+             * @default
+             */
+            correlation_id: string;
+            /** Decided At */
+            decided_at?: string | null;
+            /**
+             * Decided By
+             * @default
+             */
+            decided_by: string;
+            effect: components["schemas"]["EffectView"];
+            /** Evidence */
+            evidence?: string[];
+            /** Node Id */
+            node_id: string;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            };
+            /** Prior Rejections */
+            prior_rejections?: components["schemas"]["PriorRejectionView"][];
+            /** Proposal Id */
+            proposal_id: string;
+            /** Proposal Type */
+            proposal_type: string;
+            /** Proposed At */
+            proposed_at?: string | null;
+            /** Rationale */
+            rationale: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+            /** State */
+            state: string;
+            /** Summary */
+            summary: string;
         };
         /**
          * ProviderDetailView
@@ -9050,6 +9249,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObservationListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_proposals_v1_proposals_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_proposals_v1_proposals_count_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalCount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_proposal_v1_proposals__proposal_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_proposal_v1_proposals__proposal_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionResult"];
                 };
             };
             /** @description Validation Error */

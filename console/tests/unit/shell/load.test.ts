@@ -141,7 +141,12 @@ describe('resolving what the shell needs', () => {
     const counts = countsFrom(await loadAttention('opaque'));
 
     expect(counts.approvals).toBeGreaterThan(0);
-    expect(Object.keys(counts).sort()).toEqual(['approvals', 'incidents', 'runs']);
+    expect(Object.keys(counts).sort()).toEqual([
+      'approvals',
+      'incidents',
+      'proposals',
+      'runs',
+    ]);
   });
 });
 

@@ -1,0 +1,26 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "acceptance": {
+          "approved": 0,
+          "decided": 0,
+          "rate": 0.0
+        },
+        "proposals": []
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "proposals",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "proposals"
+}

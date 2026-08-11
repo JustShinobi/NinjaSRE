@@ -1,0 +1,21 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "pending": 0
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "proposal-count",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "proposal-count"
+}

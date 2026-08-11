@@ -1,0 +1,100 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "acceptance": {
+          "approved": 3,
+          "decided": 5,
+          "rate": 0.6
+        },
+        "proposals": [
+          {
+            "correlation_id": "agents.operating_context.Metrics",
+            "decided_at": null,
+            "decided_by": "",
+            "effect": {
+              "mechanism": "context-preview",
+              "target": "org-northwind"
+            },
+            "evidence": [
+              "run-0001/turn-4",
+              "run-0003/turn-2"
+            ],
+            "node_id": "org-northwind",
+            "payload": {
+              "agents": {
+                "operating_context": {
+                  "sections": {
+                    "Metrics": "Container memory for LXC guests is read from the host, not from inside the guest."
+                  }
+                }
+              }
+            },
+            "prior_rejections": [],
+            "proposal_id": "prop-0001",
+            "proposal_type": "operating_context",
+            "proposed_at": "2026-08-07T11:12:00+00:00",
+            "rationale": "Three investigations of container memory each had to rediscover it.",
+            "reason": "",
+            "run_id": "run-0003",
+            "state": "pending",
+            "summary": "Record that LXC guest memory is read from the host"
+          },
+          {
+            "correlation_id": "detector:corpus-no-datastore-is-above-its-safe-fill",
+            "decided_at": null,
+            "decided_by": "",
+            "effect": {
+              "mechanism": "detector-dry-run",
+              "target": "corpus-no-datastore-is-above-its-safe-fill"
+            },
+            "evidence": [
+              "No datastore is above its safe fill — a datastore past this cannot complete a snapshot of its largest guest.",
+              "corpus:docs/verification.md"
+            ],
+            "node_id": "org-northwind",
+            "payload": {
+              "comparison": "above",
+              "description": "A datastore past this cannot complete a snapshot.",
+              "detector_id": "corpus-no-datastore-is-above-its-safe-fill",
+              "enabled": false,
+              "fire_value": 85.0,
+              "kind": "threshold",
+              "name": "No datastore is above its safe fill",
+              "origin": "corpus:docs/verification.md",
+              "signal": "datastore.used_percent"
+            },
+            "prior_rejections": [
+              {
+                "decided_at": "2026-07-29T12:00:00+00:00",
+                "decided_by": "user-operator",
+                "proposal_id": "prop-0000",
+                "reason": "The snapshot window runs nightly; 85 is normal on this store."
+              }
+            ],
+            "proposal_id": "prop-0002",
+            "proposal_type": "detector",
+            "proposed_at": "2026-08-06T11:48:00+00:00",
+            "rationale": "The verification document states this check and nothing performs it.",
+            "reason": "",
+            "run_id": "run-0005",
+            "state": "pending",
+            "summary": "Watch the datastore fill the runbook already says to check"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "proposals",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "proposals"
+}

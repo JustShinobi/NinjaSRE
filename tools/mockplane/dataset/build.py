@@ -86,6 +86,11 @@ def empty_records() -> tuple[CapturedRecord, ...]:
         },
         "runs": {"runs": []},
         "approvals": {"approvals": []},
+        "proposals": {
+            "proposals": [],
+            "acceptance": {"decided": 0, "approved": 0, "rate": 0.0},
+        },
+        "proposal-count": {"pending": 0},
         "episodes": {"episodes": []},
         "memory-stats": {"episode_count": 0},
         "documents": {"documents": []},
