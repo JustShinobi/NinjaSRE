@@ -10,6 +10,7 @@ import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { AutonomyEditor, type EditableRule } from '../autonomy-editor';
 import { panelLabels } from '../labels';
+import { OverrideEditor } from '../override-editor';
 import { Panel } from '../panel';
 import {
   authorised,
@@ -60,6 +61,9 @@ const WRITE = 'config.write';
 
 /** The levels the deployment declares, least autonomous first. */
 const LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report', 'act_silently'];
+
+/** The levels an override may raise a scope to. Overrides never grant silence. */
+const OVERRIDE_LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report'];
 
 /** Least specific first, which is the order resolution considers them in. */
 const SCOPE_ORDER = [
@@ -390,6 +394,51 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               })}
             </dl>
           </Panel>
+
+          {/* Absent, not disabled, for a viewer who may not write. */}
+          {writable && nodeId !== '' ? (
+            <Panel
+              title={message(locale, 'autonomy.override.panel.title')}
+              state={stateOf(bounds, false)}
+              dependency={dependencyOf(bounds)}
+              labels={panelLabels(
+                locale,
+                message(locale, 'autonomy.override.panel.title'),
+              )}
+              empty={{
+                heading: message(locale, 'autonomy.empty.heading'),
+                body: message(locale, 'autonomy.empty.body'),
+                actionLabel: message(locale, 'autonomy.empty.action'),
+                href: '/configuration',
+              }}
+            >
+              <OverrideEditor
+                nodeId={nodeId}
+                levels={OVERRIDE_LEVELS}
+                labels={{
+                  grantTitle: message(locale, 'autonomy.override.grant.title'),
+                  grantName: message(locale, 'autonomy.override.grant.name'),
+                  grantLevel: message(locale, 'autonomy.override.grant.level'),
+                  grantReason: message(locale, 'autonomy.override.grant.reason'),
+                  grantSeconds: message(locale, 'autonomy.override.grant.seconds'),
+                  grant: message(locale, 'autonomy.override.grant.submit'),
+                  granting: message(locale, 'autonomy.override.grant.granting'),
+                  granted: message(locale, 'autonomy.override.grant.granted'),
+                  reasonRequired: message(
+                    locale,
+                    'autonomy.override.grant.reasonRequired',
+                  ),
+                  revokeTitle: message(locale, 'autonomy.override.revoke.title'),
+                  revokeName: message(locale, 'autonomy.override.revoke.name'),
+                  revoke: message(locale, 'autonomy.override.revoke.submit'),
+                  revoking: message(locale, 'autonomy.override.revoke.revoking'),
+                  revoked: message(locale, 'autonomy.override.revoke.revoked'),
+                  failed: message(locale, 'autonomy.override.failed'),
+                  unreachable: message(locale, 'autonomy.override.unreachable'),
+                }}
+              />
+            </Panel>
+          ) : null}
         </div>
       </div>
     </>
