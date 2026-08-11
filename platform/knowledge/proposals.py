@@ -32,7 +32,6 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
-from enum import StrEnum
 from typing import Any
 
 from config.constants.knowledge import (
@@ -56,6 +55,8 @@ from platform.persistence.ports.approval_store import (
     RollbackStep,
 )
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
+from platform.proposals.models import ProposalState
+from platform.proposals.queue import queue_request
 
 logger = get_logger(__name__)
 
@@ -79,30 +80,6 @@ CORRELATION_KEY = "correlation_id"
 AMENDS_KEY = "amends"
 RATIONALE_KEY = "rationale"
 EVIDENCE_KEY = "evidence"
-
-
-class ProposalState(StrEnum):
-    """Where a proposal got to.
-
-    A mirror of ``ApprovalState`` rather than a reuse of it, because this is the
-    vocabulary the console, the capability, and the operator documentation speak,
-    and a knowledge reviewer should not have to know the approval store's names.
-    """
-
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    EXPIRED = "expired"
-
-    @classmethod
-    def of(cls, state: ApprovalState) -> ProposalState:
-        """Return the proposal state an approval state describes."""
-        return cls(state.value)
-
-    @property
-    def is_decided(self) -> bool:
-        """Return whether this state is final."""
-        return self is not ProposalState.PENDING
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,28 +269,28 @@ class ProposalQueue:
         self._screen(proposal)
 
         moment = self.clock()
-        request = proposal.to_request(at=moment)
-        async with self.gateway.begin(self.scope) as uow:
-            await uow.approvals.create_request(request)
-            await uow.approvals.store_rollback_plan(
-                RollbackPlan(
-                    plan_id=f"{proposal.proposal_id}-rollback",
-                    approval_id=proposal.proposal_id,
-                    created_at=moment,
-                    notes=(
-                        "Approving this proposal adds one document to the knowledge base. "
-                        "Undoing it deletes that document and its chunks."
+        await queue_request(
+            self.gateway,
+            self.scope,
+            proposal.to_request(at=moment),
+            RollbackPlan(
+                plan_id=f"{proposal.proposal_id}-rollback",
+                approval_id=proposal.proposal_id,
+                created_at=moment,
+                notes=(
+                    "Approving this proposal adds one document to the knowledge base. "
+                    "Undoing it deletes that document and its chunks."
+                ),
+                steps=(
+                    RollbackStep(
+                        ordinal=1,
+                        description=f"Delete the document {proposal.document_id!r}",
+                        capability=ROLLBACK_CAPABILITY,
+                        arguments={"document_id": proposal.document_id},
                     ),
-                    steps=(
-                        RollbackStep(
-                            ordinal=1,
-                            description=f"Delete the document {proposal.document_id!r}",
-                            capability=ROLLBACK_CAPABILITY,
-                            arguments={"document_id": proposal.document_id},
-                        ),
-                    ),
-                )
-            )
+                ),
+            ),
+        )
 
         self._proposed.add(proposal.proposal_id)
         logger.info(
