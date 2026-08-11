@@ -329,6 +329,95 @@ RUNS: Final[tuple[Mapping[str, Any], ...]] = (
     },
 )
 
+#: The window the storage investigation asked what changed in: the six hours
+#: ending when the run started. Fixed off the capture like every other instant
+#: here, so the ruler's geometry is the same picture on every capture rather
+#: than whatever the clock said.
+CHANGE_WINDOW_HOURS: Final = 6
+
+#: What ``changes_in_window`` answered for run-0001. Written in the shape
+#: ``platform.changes.service.ChangeAnswer.to_record`` produces — the same
+#: record the trace stores and the console's ruler reads back — because a
+#: fixture in any other shape is a fixture that teaches the console to read a
+#: field the deployment never sends. That is not hypothetical: the ruler read
+#: ``instant`` until this record was written, and no test outside the console
+#: had ever seen the real one.
+_CHANGES_IN_WINDOW: Final[Mapping[str, Any]] = {
+    "tool": "changes_in_window",
+    "resource_id": "proxmox:container/hal9000/110",
+    "resource": "adguard",
+    "window": {
+        "start": at(days=2, hours=CHANGE_WINDOW_HOURS, minutes=41),
+        "end": at(days=2, minutes=41),
+        "hours": CHANGE_WINDOW_HOURS,
+    },
+    "sources": ["infra_apply"],
+    "answered": True,
+    "statement": (
+        "Two changes landed in the six hours before this run, and one of them manages "
+        "the container that filled."
+    ),
+    "total": 2,
+    "truncated": False,
+    "degraded": [],
+    "changes": [
+        {
+            "change_id": "9f2c1ab",
+            "source": "infra_apply",
+            "component": "adguard",
+            "author": "erik",
+            "message": "feat(adguard): keep query logs for a fortnight",
+            "message_truncated": False,
+            "occurred_at": at(days=2, hours=3, minutes=41),
+            "applied": True,
+            "applied_at": at(days=2, hours=3, minutes=12),
+            "paths": ["services/adguard/stack/values.yaml"],
+            "paths_seen": 1,
+            "paths_truncated": False,
+            "redactions": [],
+            "detail": {},
+            "strength": "manages_resource",
+            "temporal_only": False,
+            "why": (
+                "services/adguard/stack/values.yaml belongs to the adguard component, "
+                "which manages this container."
+            ),
+            "correlated_component": "adguard",
+            "matched_path": "services/adguard/stack/values.yaml",
+            "matched_name": "adguard",
+            "chain": ["path", "component", "resource"],
+        },
+        {
+            "change_id": "b0c99fe",
+            "source": "infra_apply",
+            "component": "storage",
+            "author": "erik",
+            "message": "chore(storage): widen the backup datastore",
+            "message_truncated": False,
+            "occurred_at": at(days=2, hours=1, minutes=11),
+            "applied": True,
+            "applied_at": at(days=2, hours=1, minutes=4),
+            "paths": ["services/storage/datastore/main.tf"],
+            "paths_seen": 1,
+            "paths_truncated": False,
+            "redactions": [],
+            "detail": {},
+            "strength": "window_only",
+            "temporal_only": True,
+            "why": "This change happened in the same window and nothing connects it.",
+            "correlated_component": "",
+            "matched_path": "",
+            "matched_name": "",
+            "chain": [],
+        },
+    ],
+    "text": (
+        "Two changes landed in the six hours before this run. One manages the container "
+        "that filled; the other shares the window and nothing else."
+    ),
+}
+
+
 _TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
     "run-0001": (
         {
@@ -365,6 +454,22 @@ _TURNS: Final[Mapping[str, Sequence[Mapping[str, Any]]]] = {
                     "status": "succeeded",
                     "duration_ms": 96,
                     "error": None,
+                },
+                # The call the run screen's change ruler is drawn from. The
+                # console holds no query of its own for it: what the picture
+                # shows is what the investigation asked and was told, so the
+                # fixture has to carry the answer rather than the question.
+                {
+                    "call_id": "call-0001-4",
+                    "name": "changes_in_window",
+                    "status": "succeeded",
+                    "duration_ms": 341,
+                    "error": None,
+                    "arguments": {
+                        "resource": "proxmox:container/hal9000/110",
+                        "hours": CHANGE_WINDOW_HOURS,
+                    },
+                    "result": dict(_CHANGES_IN_WINDOW),
                 },
             ],
         },

@@ -121,11 +121,16 @@ export function rulerFromReplay(
 
   const marks: PlacedMark[] = [];
   for (const entry of list(result, 'changes')) {
-    const at = instant(text(entry, 'instant'));
+    // ``occurred_at``, which is what ``platform.changes.models.Change`` serialises
+    // and therefore what the capability's result actually carries. This read
+    // said ``instant`` until 062 put a real ``changes_in_window`` call into the
+    // committed fixture and the ruler came back empty — a field name nothing
+    // outside a hand-written test ever sent.
+    const at = instant(text(entry, 'occurred_at'));
     if (at === undefined) continue;
     marks.push({
       id: text(entry, 'change_id'),
-      at: text(entry, 'instant'),
+      at: text(entry, 'occurred_at'),
       percent: place(at, start, end),
       strength: text(entry, 'strength'),
       temporalOnly: flag(entry, 'temporal_only'),
