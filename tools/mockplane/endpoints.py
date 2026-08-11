@@ -549,6 +549,13 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/schedules",
+        slug="schedules",
+        source=_GATEWAY,
+        summary="the recurring investigations this team has scheduled",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/detectors",
         slug="detectors",
         source=_GATEWAY,

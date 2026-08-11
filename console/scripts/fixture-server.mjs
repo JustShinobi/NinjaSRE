@@ -79,6 +79,7 @@ export const SHELL_ENDPOINTS = Object.freeze({
   '/v1/incidents': 'incidents',
   '/v1/incidents/{incident_id}': 'incident-detail',
   '/v1/detectors': 'detectors',
+  '/v1/schedules': 'schedules',
   '/v1/observations': 'observations',
 });
 

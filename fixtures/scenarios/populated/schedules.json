@@ -1,0 +1,40 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": [
+        {
+          "cron": "0 7 * * 1",
+          "enabled": true,
+          "job_id": "weekly-storage-review",
+          "name": "Weekly storage review",
+          "next_run_at": "2026-08-17T07:00:00+00:00",
+          "objective": "Check datastore fill and backup coverage across the estate.",
+          "team_node_id": "team-storage",
+          "timezone": "Europe/Lisbon"
+        },
+        {
+          "cron": "0 3 * * *",
+          "enabled": false,
+          "job_id": "nightly-quorum-check",
+          "name": "Nightly quorum check",
+          "next_run_at": null,
+          "objective": "Establish whether the cluster would survive losing a node.",
+          "team_node_id": "team-platform",
+          "timezone": "Europe/Lisbon"
+        }
+      ],
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "schedules",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "schedules"
+}
