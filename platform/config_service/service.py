@@ -48,6 +48,7 @@ from platform.config_service.effective import (
 from platform.config_service.errors import (
     ChangeRequiresApproval,
     ConfigInvalid,
+    FieldError,
     FieldLocked,
     UnknownNode,
 )
@@ -62,7 +63,7 @@ from platform.config_service.field_policy import (
 )
 from platform.config_service.hierarchy import Hierarchy
 from platform.config_service.merge import deep_prune
-from platform.config_service.preview import ConfigPreview, preview_of
+from platform.config_service.preview import ConfigPreview, merged_with, preview_of
 from platform.config_service.templates import TemplateDiff, TemplateLibrary
 from platform.config_service.validation import ConfigValidator, ValidationOutcome
 from platform.guardrails.engine import GuardrailEngine
@@ -273,6 +274,7 @@ class ConfigService:
         _check_removable(node_id, remove, inherited_locks, own=document.policies)
 
         await self._validate_or_audit(node_id, proposed, actor_id, actor_kind)
+        await self._validate_chain(node_id, chain, proposed, actor_id, actor_kind)
 
         changed = changed_paths(document.settings, proposed)
         gated = gated_paths(changed, merged_along(_policies(chain)))
@@ -486,6 +488,68 @@ class ConfigService:
             ),
         )
         raise ConfigInvalid(outcome.errors)
+
+    async def _validate_chain(
+        self,
+        node_id: str,
+        chain: Sequence[ConfigNode],
+        proposed: Mapping[str, Any],
+        actor_id: str,
+        actor_kind: ActorKind,
+    ) -> None:
+        """Refuse a write whose *merged* result breaks a bound the node's own cannot see.
+
+        A node's document is validated on its own for a good reason — a field
+        required at the leaf may legitimately be supplied by an ancestor — but
+        some bounds are properties of the chain rather than of any node in it.
+        The operating-context token budget is the first: four nodes each writing
+        a third of it store happily and resolve to more than the whole, and the
+        deployment then sends *no* context at all, safely and silently.
+
+        **Only what this write introduces is refused.** The merged document is
+        validated as it resolves now and as it would resolve, and the difference
+        is what the write is answerable for. Without that subtraction, a chain
+        that is already over — because it was written before this check existed —
+        would refuse every unrelated edit anywhere beneath it, and the person
+        fixing a typo three levels down would be the one told to shorten
+        somebody else's paragraph.
+        """
+        introduced = self._introduced_by(node_id, chain, proposed)
+        if not introduced:
+            return
+        await record(
+            self._gateway,
+            self._scope,
+            self._auditor.rejection_events(
+                node_id,
+                [(error.path, error.message) for error in introduced],
+                actor_id=actor_id,
+                actor_kind=actor_kind,
+            ),
+        )
+        raise ConfigInvalid(introduced)
+
+    def _introduced_by(
+        self,
+        node_id: str,
+        chain: Sequence[ConfigNode],
+        proposed: Mapping[str, Any],
+    ) -> tuple[FieldError, ...]:
+        """Return the merged-document errors ``proposed`` adds, and no others."""
+        document = NodeDocument.of_node(chain[-1])
+        existing = {
+            error.path
+            for error in self._validator.validate(
+                merged_with(node_id, chain, document.settings).values
+            ).errors
+        }
+        return tuple(
+            error
+            for error in self._validator.validate(
+                merged_with(node_id, chain, proposed).values
+            ).errors
+            if error.path not in existing
+        )
 
     async def _queue(
         self,

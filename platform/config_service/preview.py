@@ -164,6 +164,21 @@ def preview_of(
     )
 
 
+def merged_with(
+    node_id: str, chain: Sequence[ConfigNode], settings: Mapping[str, Any]
+) -> EffectiveConfig:
+    """Return what ``node_id`` would resolve to if its own document were ``settings``.
+
+    The substitution the preview makes, exposed on its own so the *write* path
+    can make it too. A bound that spans a chain — the operating-context budget
+    is the first — can only be checked against the merged result, and having two
+    ways to compute that merge is how a preview and a save come to disagree.
+    """
+    node = chain[-1]
+    document = NodeDocument.of_node(node)
+    return build(node_id, (*chain[:-1], _with_settings(node, document, settings)))
+
+
 def _after(path: str, after: Mapping[str, Any], effective: EffectiveConfig) -> Any:
     """Return what ``path`` reads as once the change is in.
 
@@ -258,5 +273,6 @@ __all__ = [
     "PreviewChange",
     "RedundantValue",
     "RevertedValue",
+    "merged_with",
     "preview_of",
 ]
