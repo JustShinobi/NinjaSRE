@@ -122,6 +122,7 @@ def empty_records() -> tuple[CapturedRecord, ...]:
         "estate-backups": {"jobs": []},
         "incidents": {"incidents": []},
         "detectors": {"detectors": []},
+        "schedules": [],
         "observations": {"observations": []},
     }
     # The seven receivers exist on any deployment, populated or not: they are
@@ -141,6 +142,11 @@ def empty_records() -> tuple[CapturedRecord, ...]:
         for slug, body in bodies.items()
     ]
     records.extend(served.ingress_records())
+    # The pipeline declaration is what the build *is* rather than what a
+    # deployment configured, so it answers the same thing in an empty scenario
+    # as in a full one. Answering 404 here would say this deployment has no
+    # investigation in it, which is not what an empty deployment means.
+    records.extend(record for record in served.agent_records() if record.slug == "agent-pipeline")
     records.extend(_absent_detail_records())
     records.extend(_write_responses())
     # Nothing stored, nothing verified: the nine providers are still all nine,
@@ -244,6 +250,8 @@ def _absent_detail_records() -> tuple[CapturedRecord, ...]:
         "config-fields",
         "autonomy-policy",
         "autonomy-bounds",
+        "autonomy-outlook",
+        "autonomy-preview",
         "config-integration-schemas",
         "estate-resource-detail",
         "incident-detail",

@@ -14,10 +14,12 @@ subject has something to join to.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Any, Final
 
+from config.constants.config_service import MODEL_ROLES
 from config.constants.first_run import (
     SETUP_READINESS_ABSENT,
     SETUP_READINESS_CONFIGURED,
@@ -91,15 +93,184 @@ def at(*, days: int = 0, hours: int = 0, minutes: int = 0) -> str:
     return (_CAPTURED - timedelta(days=days, hours=hours, minutes=minutes)).isoformat()
 
 
-def _record(slug: str, arguments: Mapping[str, str], body: Any) -> CapturedRecord:
+def _record(
+    slug: str, arguments: Mapping[str, str], body: Any, *, method: str = "GET"
+) -> CapturedRecord:
     return CapturedRecord(
         slug=slug,
         arguments=dict(arguments),
         status=200,
         body=body,
         provenance=Provenance.GATEWAY,
-        request=Request(method="GET", path=slug),
+        request=Request(method=method, path=slug),
     )
+
+
+#: The specialists this team declares, the prompt it overrides, and the budgets
+#: it lowered. Three specialists so the topology has a shape, and one of them
+#: switched off — a disabled specialist has to be drawn faint rather than
+#: omitted, and a dataset where every one was on would never photograph that.
+AGENTS_SECTION: Final[Mapping[str, Any]] = {
+    "prompts": {
+        "investigator": "Prefer the storage evidence before the network evidence on this estate.",
+    },
+    "subagents": [
+        {
+            "name": "storage",
+            "description": "Datastore fill, volume fill, and what a backup job is protecting.",
+            "capabilities": ["estate.storage_pressure", "estate.enable_backup_job"],
+            "max_iterations": 6,
+            "model_role": "subagent",
+            "enabled": True,
+        },
+        {
+            "name": "cluster-health",
+            "description": "What is failed on a node, and what quorum costs if it goes.",
+            "capabilities": ["estate.failed_units"],
+            "max_iterations": 6,
+            "model_role": "subagent",
+            "enabled": True,
+        },
+        {
+            "name": "change-historian",
+            "description": "Reads the change history around the incident window.",
+            "capabilities": [],
+            "max_iterations": 4,
+            "model_role": "subagent",
+            "enabled": False,
+        },
+    ],
+    "max_iterations": 12,
+    "max_parallel_subagents": 3,
+    "max_subagent_depth": 1,
+    "tool_budget": 40,
+}
+
+#: One server outside this deployment, so the tools tab has an outside origin to
+#: name. Its tools are not listed: nothing enumerates them without reaching it.
+CAPABILITIES_SECTION: Final[Mapping[str, Any]] = {
+    "protocol_servers": [
+        {
+            "name": "runbooks",
+            "protocol": "mcp",
+            "transport": "http",
+            "url": "https://runbooks.rushes.example.invalid/mcp",
+            "enabled": True,
+        },
+    ],
+}
+
+
+def _policy_document(node_id: str) -> dict[str, Any]:
+    """Return the posture this node resolves to, as the export format spells it.
+
+    One function rather than a literal per caller, because two surfaces read it:
+    the policy screen shows the document, and the agent screen shows what it
+    would decide. A second copy would let the two disagree, which is the exact
+    failure the outlook exists to make impossible.
+
+    One rule per posture the primary story names, so the screen shows the three
+    that matter rather than one of each shape: the safe default everywhere, one
+    relaxation, and one resource that is never touched unattended.
+    """
+    return {
+        "node_id": node_id,
+        "dry_run": False,
+        "rules": [
+            {
+                "scope": {"kind": "deployment"},
+                "level": "propose_only",
+                "risk_bound": "low",
+            },
+            {
+                "scope": {"kind": "capability", "capability": "unlock_guest"},
+                "level": "act_and_report",
+                "risk_bound": "low",
+            },
+            {
+                "scope": {"kind": "labels", "labels": {"env": "lab"}},
+                "level": "act_on_low_risk",
+                "risk_bound": "moderate",
+            },
+        ],
+        "freezes": [
+            {
+                "name": "nightly-backups",
+                "scope": {"kind": "resource", "resource_id": "store-cove"},
+                "start": "01:00",
+                "end": "04:00",
+                "timezone": "Europe/Lisbon",
+                "reason": "backups run",
+            }
+        ],
+        "budgets": [
+            {
+                "name": "hourly",
+                "counted_by": "resource",
+                "limit": 5,
+                "interval_seconds": 3600.0,
+            }
+        ],
+        "overrides": [],
+    }
+
+
+# --- Recurring investigations, and the record a posture is replayed against -------
+
+#: Two schedules, one running and one not, so both states are on the screen and
+#: both are photographed.
+SCHEDULES: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "job_id": "weekly-storage-review",
+        "name": "Weekly storage review",
+        "team_node_id": "team-storage",
+        "cron": "0 7 * * 1",
+        "objective": "Check datastore fill and backup coverage across the estate.",
+        "timezone": "Europe/Lisbon",
+        "enabled": True,
+        "next_run_at": "2026-08-17T07:00:00+00:00",
+    },
+    {
+        "job_id": "nightly-quorum-check",
+        "name": "Nightly quorum check",
+        "team_node_id": "team-platform",
+        "cron": "0 3 * * *",
+        "objective": "Establish whether the cluster would survive losing a node.",
+        "timezone": "Europe/Lisbon",
+        "enabled": False,
+        "next_run_at": None,
+    },
+)
+
+#: What the policy engine decided about two actions that actually happened.
+#: ``before`` and ``after`` are the same because the document being replayed is
+#: the one that is stored — which is the question the agent screen asks.
+REPLAYED_ACTIONS: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "action_id": "act-2026-0814-01",
+        "capability": "restart_workload",
+        "subjects": ["ct-101"],
+        "at": "2026-08-14T09:12:00+00:00",
+        "before": "propose_only",
+        "after": "propose_only",
+        "before_reason": "restart_workload on ct-101 is proposed rather than run.",
+        "after_reason": "restart_workload on ct-101 is proposed rather than run.",
+        "changed": False,
+        "more_autonomous": False,
+    },
+    {
+        "action_id": "act-2026-0814-02",
+        "capability": "unlock_guest",
+        "subjects": ["vm-204"],
+        "at": "2026-08-14T09:40:00+00:00",
+        "before": "act_and_report",
+        "after": "act_and_report",
+        "before_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+        "after_reason": "unlock_guest on vm-204 resolves to act_and_report.",
+        "changed": False,
+        "more_autonomous": False,
+    },
+)
 
 
 # --- Runs -------------------------------------------------------------------------
@@ -595,6 +766,51 @@ _CONFIG_FIELDS: Final[tuple[Mapping[str, Any], ...]] = (
         "default": 365,
         "minimum": 1,
     },
+    # Two budgets, so the agent screen can show a ceiling beside a value. Both
+    # carry the schema's own bound: a team may lower either and may not raise
+    # one, which is the property the screen is there to make visible.
+    {
+        "path": "agents.max_iterations",
+        "label": "Max iterations",
+        "type": "integer",
+        "description": "How many times the loop may go round in one investigation.",
+        "section": "agents",
+        "section_summary": "Prompts, topology, and what one run may spend.",
+        "default": 20,
+        "minimum": 1,
+        "maximum": 20,
+    },
+    {
+        "path": "agents.tool_budget",
+        "label": "Tool budget",
+        "type": "integer",
+        "description": "How many capability calls one investigation may make.",
+        "section": "agents",
+        "section_summary": "Prompts, topology, and what one run may spend.",
+        "default": 40,
+        "minimum": 1,
+    },
+    # One role bound explicitly, and seven left on the deployment default. That
+    # asymmetry is the point: the agent screen has to render both, and a dataset
+    # where every role was chosen would photograph only half of it.
+    {
+        "path": "models.investigator.provider",
+        "label": "Provider",
+        "type": "string",
+        "description": "Which provider this role resolves to.",
+        "section": "models.investigator",
+        "section_summary": "What the investigator role runs on.",
+        "default": "anthropic",
+    },
+    {
+        "path": "models.investigator.model",
+        "label": "Model",
+        "type": "string",
+        "description": "Which model this role resolves to.",
+        "section": "models.investigator",
+        "section_summary": "What the investigator role runs on.",
+        "default": "claude-sonnet-5",
+    },
 )
 
 
@@ -610,12 +826,20 @@ def _config_fields(node_id: str, *, inherited: bool) -> list[dict[str, Any]]:
         "investigation.reasoning_effort": node_id,
         "approval.required_above": ORG_NODE if inherited else node_id,
         "retention.audit_days": ORG_NODE if inherited else node_id,
+        "agents.max_iterations": ORG_NODE if inherited else node_id,
+        "agents.tool_budget": ORG_NODE if inherited else node_id,
+        "models.investigator.provider": ORG_NODE if inherited else node_id,
+        "models.investigator.model": ORG_NODE if inherited else node_id,
     }
     values: Mapping[str, Any] = {
         "investigation.max_loops": 12,
         "investigation.reasoning_effort": "medium",
         "approval.required_above": "read",
         "retention.audit_days": 365,
+        "agents.max_iterations": 12,
+        "agents.tool_budget": 40,
+        "models.investigator.provider": "anthropic",
+        "models.investigator.model": "claude-sonnet-5",
     }
     return [
         {
@@ -654,12 +878,21 @@ def config_records() -> tuple[CapturedRecord, ...]:
                         "investigation.reasoning_effort": "medium",
                         "approval.required_above": "read",
                         "retention.audit_days": 365,
+                        # Nested, because that is what the route returns: the
+                        # merged settings, in the shape the schema declares.
+                        # The four flat keys above are older invented settings
+                        # this dataset has always carried.
+                        "agents": dict(AGENTS_SECTION),
+                        "capabilities": dict(CAPABILITIES_SECTION),
                     },
                     "provenance": {
                         "investigation.max_loops": ORG_NODE if inherited else identifier,
                         "investigation.reasoning_effort": identifier,
                         "approval.required_above": ORG_NODE if inherited else identifier,
                         "retention.audit_days": ORG_NODE if inherited else identifier,
+                        "agents.subagents": identifier,
+                        "agents.prompts.investigator": identifier,
+                        "capabilities.protocol_servers": identifier,
                     },
                 },
             )
@@ -672,54 +905,7 @@ def config_records() -> tuple[CapturedRecord, ...]:
             )
         )
         records.append(
-            _record(
-                "autonomy-policy",
-                {"node_id": identifier},
-                {
-                    "node_id": identifier,
-                    "dry_run": False,
-                    # One rule per posture the primary story names, so the screen
-                    # shows the three that matter rather than one of each shape:
-                    # the safe default everywhere, one relaxation, and one
-                    # resource that is never touched unattended.
-                    "rules": [
-                        {
-                            "scope": {"kind": "deployment"},
-                            "level": "propose_only",
-                            "risk_bound": "low",
-                        },
-                        {
-                            "scope": {"kind": "capability", "capability": "unlock_guest"},
-                            "level": "act_and_report",
-                            "risk_bound": "low",
-                        },
-                        {
-                            "scope": {"kind": "labels", "labels": {"env": "lab"}},
-                            "level": "act_on_low_risk",
-                            "risk_bound": "moderate",
-                        },
-                    ],
-                    "freezes": [
-                        {
-                            "name": "nightly-backups",
-                            "scope": {"kind": "resource", "resource_id": "store-cove"},
-                            "start": "01:00",
-                            "end": "04:00",
-                            "timezone": "Europe/Lisbon",
-                            "reason": "backups run",
-                        }
-                    ],
-                    "budgets": [
-                        {
-                            "name": "hourly",
-                            "counted_by": "resource",
-                            "limit": 5,
-                            "interval_seconds": 3600.0,
-                        }
-                    ],
-                    "overrides": [],
-                },
-            )
+            _record("autonomy-policy", {"node_id": identifier}, _policy_document(identifier))
         )
         records.append(
             _record(
@@ -792,6 +978,26 @@ def config_records() -> tuple[CapturedRecord, ...]:
                             "reason": None,
                             "required_integrations": [],
                             "tags": ["estate", "backup"],
+                        },
+                        {
+                            "name": "estate.failed_units",
+                            "kind": "tool",
+                            "summary": "What is failed on a node, which no API level reports.",
+                            "side_effect_level": "read",
+                            "available": True,
+                            "reason": None,
+                            "required_integrations": [],
+                            "tags": ["estate", "health"],
+                        },
+                        {
+                            "name": "knowledge.search",
+                            "kind": "skill",
+                            "summary": "Search the documents an investigation may read.",
+                            "side_effect_level": "read",
+                            "available": True,
+                            "reason": None,
+                            "required_integrations": [],
+                            "tags": ["knowledge"],
                         },
                         {
                             "name": "metrics.range_query",
@@ -1455,9 +1661,101 @@ def platform_records() -> tuple[CapturedRecord, ...]:
     )
 
 
+def agent_records() -> tuple[CapturedRecord, ...]:
+    """Return what this build says an investigation is, and what it would decide.
+
+    Resolved by the real thing rather than transcribed, for the reason the
+    guardian record gives: the stage declaration and the policy engine are both
+    in the image, so a hand-written copy here would be the one place the console
+    is shown a pipeline or a posture the deployment does not hold.
+    """
+    from core.pipeline.declaration import stage_declarations
+    from platform.autonomy.decision import AutonomyGate
+    from platform.autonomy.outlook import outlook_of, representative_actions
+    from platform.autonomy.policy import PolicySet
+
+    records = [
+        _record(
+            "agent-pipeline",
+            {},
+            {
+                "stages": [
+                    {
+                        "name": entry.name.value,
+                        "order": entry.order,
+                        "summary": entry.summary,
+                        "consults": list(entry.consults),
+                        "writes": list(entry.writes),
+                        "model_role": entry.model_role,
+                        "dispatches_subagents": entry.dispatches_subagents,
+                    }
+                    for entry in stage_declarations()
+                ],
+                "model_roles": list(MODEL_ROLES),
+            },
+        ),
+        _record("schedules", {}, [dict(entry) for entry in SCHEDULES]),
+    ]
+
+    for entry in CONFIG_NODES:
+        identifier = str(entry["node_id"])
+        policies = PolicySet.of_document(_policy_document(identifier))
+        gate = AutonomyGate(policies=policies)
+        readings = outlook_of(
+            tuple(
+                asyncio.run(gate.decide(action))
+                for action in representative_actions(team_node_id=identifier)
+            )
+        )
+        records.append(
+            _record(
+                "autonomy-outlook",
+                {"node_id": identifier},
+                {
+                    "node_id": identifier,
+                    "dry_run": any(reading.dry_run for reading in readings),
+                    "classes": [
+                        {
+                            "risk_class": reading.risk_class,
+                            "capability": reading.capability,
+                            "resource_kind": reading.resource_kind,
+                            "summary": reading.summary,
+                            "sentence": reading.describe(),
+                            "decision": reading.outcome,
+                            "level": reading.level,
+                            "refused_by": reading.refused_by,
+                            "dry_run": reading.dry_run,
+                            "reason": reading.decision.reason,
+                        }
+                        for reading in readings
+                    ],
+                },
+            )
+        )
+        records.append(
+            _record(
+                "autonomy-preview",
+                {"node_id": identifier},
+                {
+                    "summary": (
+                        f"{len(REPLAYED_ACTIONS)} recorded actions considered; "
+                        f"none would be decided differently."
+                    ),
+                    "considered": len(REPLAYED_ACTIONS),
+                    "changed": 0,
+                    "newly_autonomous": 0,
+                    "actions": [dict(action) for action in REPLAYED_ACTIONS],
+                },
+                method="POST",
+            )
+        )
+    return tuple(records)
+
+
 def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
     """Return every record the gateway half of the dataset holds."""
     return (
+        *agent_records(),
         *runs_records(),
         *interaction_records(),
         *memory_records(),
@@ -1473,6 +1771,7 @@ def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
 
 __all__ = [
     "APPROVALS",
+    "SCHEDULES",
     "AUDIT_EVENTS",
     "AUTOMATION",
     "CONFIG_NODES",
@@ -1490,6 +1789,7 @@ __all__ = [
     "USERS",
     "VIEWER",
     "VIEWER_PERMISSIONS",
+    "agent_records",
     "at",
     "checklist_record",
     "config_records",

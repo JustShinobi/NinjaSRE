@@ -7,26 +7,6 @@
       "body": {
         "fields": [
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
-            "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
-            "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
-            "type": "string",
-            "value": "read"
-          },
-          {
             "approval_gated": false,
             "default": 12,
             "description": "How many times one investigation may go round before it stops.",
@@ -63,34 +43,24 @@
             "value": "medium"
           },
           {
-            "approval_gated": false,
-            "default": "claude-sonnet-5",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Model",
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
             "locked_by": "",
-            "path": "models.investigator.model",
-            "provenance": "env-production",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
             "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
             "type": "string",
-            "value": "claude-sonnet-5"
-          },
-          {
-            "approval_gated": false,
-            "default": "anthropic",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Provider",
-            "locked_by": "",
-            "path": "models.investigator.provider",
-            "provenance": "env-production",
-            "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
-            "type": "string",
-            "value": "anthropic"
+            "value": "read"
           },
           {
             "approval_gated": false,
@@ -106,6 +76,69 @@
             "set_here": false,
             "type": "integer",
             "value": 365
+          },
+          {
+            "approval_gated": false,
+            "default": 20,
+            "description": "How many times the loop may go round in one investigation.",
+            "label": "Max iterations",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "agents.max_iterations",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "approval_gated": false,
+            "default": 40,
+            "description": "How many capability calls one investigation may make.",
+            "label": "Tool budget",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "agents.tool_budget",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 40
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "anthropic"
+          },
+          {
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which model this role resolves to.",
+            "label": "Model",
+            "locked_by": "",
+            "path": "models.investigator.model",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "claude-sonnet-5"
           }
         ]
       },
@@ -127,26 +160,6 @@
       "body": {
         "fields": [
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
-            "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
-            "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
-            "type": "string",
-            "value": "read"
-          },
-          {
             "approval_gated": false,
             "default": 12,
             "description": "How many times one investigation may go round before it stops.",
@@ -183,34 +196,24 @@
             "value": "medium"
           },
           {
-            "approval_gated": false,
-            "default": "claude-sonnet-5",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Model",
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
             "locked_by": "",
-            "path": "models.investigator.model",
-            "provenance": "env-staging",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
             "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
             "type": "string",
-            "value": "claude-sonnet-5"
-          },
-          {
-            "approval_gated": false,
-            "default": "anthropic",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Provider",
-            "locked_by": "",
-            "path": "models.investigator.provider",
-            "provenance": "env-staging",
-            "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
-            "type": "string",
-            "value": "anthropic"
+            "value": "read"
           },
           {
             "approval_gated": false,
@@ -226,6 +229,69 @@
             "set_here": false,
             "type": "integer",
             "value": 365
+          },
+          {
+            "approval_gated": false,
+            "default": 20,
+            "description": "How many times the loop may go round in one investigation.",
+            "label": "Max iterations",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "agents.max_iterations",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "approval_gated": false,
+            "default": 40,
+            "description": "How many capability calls one investigation may make.",
+            "label": "Tool budget",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "agents.tool_budget",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 40
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "anthropic"
+          },
+          {
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which model this role resolves to.",
+            "label": "Model",
+            "locked_by": "",
+            "path": "models.investigator.model",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "claude-sonnet-5"
           }
         ]
       },
@@ -247,26 +313,6 @@
       "body": {
         "fields": [
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
-            "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
-            "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": true,
-            "type": "string",
-            "value": "read"
-          },
-          {
             "approval_gated": false,
             "default": 12,
             "description": "How many times one investigation may go round before it stops.",
@@ -303,34 +349,24 @@
             "value": "medium"
           },
           {
-            "approval_gated": false,
-            "default": "claude-sonnet-5",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Model",
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
             "locked_by": "",
-            "path": "models.investigator.model",
+            "path": "approval.required_above",
             "provenance": "org-northwind",
             "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
             "set_here": true,
             "type": "string",
-            "value": "claude-sonnet-5"
-          },
-          {
-            "approval_gated": false,
-            "default": "anthropic",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Provider",
-            "locked_by": "",
-            "path": "models.investigator.provider",
-            "provenance": "org-northwind",
-            "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
-            "type": "string",
-            "value": "anthropic"
+            "value": "read"
           },
           {
             "approval_gated": false,
@@ -346,6 +382,69 @@
             "set_here": true,
             "type": "integer",
             "value": 365
+          },
+          {
+            "approval_gated": false,
+            "default": 20,
+            "description": "How many times the loop may go round in one investigation.",
+            "label": "Max iterations",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "agents.max_iterations",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": true,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "approval_gated": false,
+            "default": 40,
+            "description": "How many capability calls one investigation may make.",
+            "label": "Tool budget",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "agents.tool_budget",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": true,
+            "type": "integer",
+            "value": 40
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
+            "type": "string",
+            "value": "anthropic"
+          },
+          {
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which model this role resolves to.",
+            "label": "Model",
+            "locked_by": "",
+            "path": "models.investigator.model",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": true,
+            "type": "string",
+            "value": "claude-sonnet-5"
           }
         ]
       },
@@ -367,26 +466,6 @@
       "body": {
         "fields": [
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
-            "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
-            "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
-            "type": "string",
-            "value": "read"
-          },
-          {
             "approval_gated": false,
             "default": 12,
             "description": "How many times one investigation may go round before it stops.",
@@ -423,34 +502,24 @@
             "value": "medium"
           },
           {
-            "approval_gated": false,
-            "default": "claude-sonnet-5",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Model",
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
             "locked_by": "",
-            "path": "models.investigator.model",
-            "provenance": "team-platform",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
             "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
             "type": "string",
-            "value": "claude-sonnet-5"
-          },
-          {
-            "approval_gated": false,
-            "default": "anthropic",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Provider",
-            "locked_by": "",
-            "path": "models.investigator.provider",
-            "provenance": "team-platform",
-            "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
-            "type": "string",
-            "value": "anthropic"
+            "value": "read"
           },
           {
             "approval_gated": false,
@@ -466,6 +535,69 @@
             "set_here": false,
             "type": "integer",
             "value": 365
+          },
+          {
+            "approval_gated": false,
+            "default": 20,
+            "description": "How many times the loop may go round in one investigation.",
+            "label": "Max iterations",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "agents.max_iterations",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "approval_gated": false,
+            "default": 40,
+            "description": "How many capability calls one investigation may make.",
+            "label": "Tool budget",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "agents.tool_budget",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 40
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "anthropic"
+          },
+          {
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which model this role resolves to.",
+            "label": "Model",
+            "locked_by": "",
+            "path": "models.investigator.model",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "claude-sonnet-5"
           }
         ]
       },
@@ -487,26 +619,6 @@
       "body": {
         "fields": [
           {
-            "allowed_values": [
-              "read",
-              "write_reversible",
-              "write_irreversible"
-            ],
-            "approval_gated": true,
-            "default": "read",
-            "description": "The side-effect level past which a person decides.",
-            "label": "Required above",
-            "locked_by": "",
-            "path": "approval.required_above",
-            "provenance": "org-northwind",
-            "required": false,
-            "section": "approval",
-            "section_summary": "Which actions a person answers for.",
-            "set_here": false,
-            "type": "string",
-            "value": "read"
-          },
-          {
             "approval_gated": false,
             "default": 12,
             "description": "How many times one investigation may go round before it stops.",
@@ -543,34 +655,24 @@
             "value": "medium"
           },
           {
-            "approval_gated": false,
-            "default": "claude-sonnet-5",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Model",
+            "allowed_values": [
+              "read",
+              "write_reversible",
+              "write_irreversible"
+            ],
+            "approval_gated": true,
+            "default": "read",
+            "description": "The side-effect level past which a person decides.",
+            "label": "Required above",
             "locked_by": "",
-            "path": "models.investigator.model",
-            "provenance": "team-storage",
+            "path": "approval.required_above",
+            "provenance": "org-northwind",
             "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
+            "section": "approval",
+            "section_summary": "Which actions a person answers for.",
+            "set_here": false,
             "type": "string",
-            "value": "claude-sonnet-5"
-          },
-          {
-            "approval_gated": false,
-            "default": "anthropic",
-            "description": "Which provider and model this role resolves to.",
-            "label": "Provider",
-            "locked_by": "",
-            "path": "models.investigator.provider",
-            "provenance": "team-storage",
-            "required": false,
-            "section": "models.investigator",
-            "section_summary": "What the investigator role runs on.",
-            "set_here": true,
-            "type": "string",
-            "value": "anthropic"
+            "value": "read"
           },
           {
             "approval_gated": false,
@@ -586,6 +688,69 @@
             "set_here": false,
             "type": "integer",
             "value": 365
+          },
+          {
+            "approval_gated": false,
+            "default": 20,
+            "description": "How many times the loop may go round in one investigation.",
+            "label": "Max iterations",
+            "locked_by": "",
+            "maximum": 20,
+            "minimum": 1,
+            "path": "agents.max_iterations",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 12
+          },
+          {
+            "approval_gated": false,
+            "default": 40,
+            "description": "How many capability calls one investigation may make.",
+            "label": "Tool budget",
+            "locked_by": "",
+            "minimum": 1,
+            "path": "agents.tool_budget",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "agents",
+            "section_summary": "Prompts, topology, and what one run may spend.",
+            "set_here": false,
+            "type": "integer",
+            "value": 40
+          },
+          {
+            "approval_gated": false,
+            "default": "anthropic",
+            "description": "Which provider this role resolves to.",
+            "label": "Provider",
+            "locked_by": "",
+            "path": "models.investigator.provider",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "anthropic"
+          },
+          {
+            "approval_gated": false,
+            "default": "claude-sonnet-5",
+            "description": "Which model this role resolves to.",
+            "label": "Model",
+            "locked_by": "",
+            "path": "models.investigator.model",
+            "provenance": "org-northwind",
+            "required": false,
+            "section": "models.investigator",
+            "section_summary": "What the investigator role runs on.",
+            "set_here": false,
+            "type": "string",
+            "value": "claude-sonnet-5"
           }
         ]
       },

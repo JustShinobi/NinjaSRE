@@ -14,6 +14,19 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
@@ -39,25 +52,12 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.storage_pressure",
-            "reason": null,
-            "required_integrations": [],
-            "side_effect_level": "read",
-            "summary": "Read datastore fill and per-guest volume fill together.",
-            "tags": [
-              "estate",
-              "storage"
-            ]
-          },
-          {
-            "available": true,
             "kind": "skill",
             "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
             "side_effect_level": "read",
-            "summary": "Search the documents an investigation is allowed to read.",
+            "summary": "Search the documents an investigation may read.",
             "tags": [
               "knowledge"
             ]
@@ -103,6 +103,19 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
@@ -128,25 +141,12 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.storage_pressure",
-            "reason": null,
-            "required_integrations": [],
-            "side_effect_level": "read",
-            "summary": "Read datastore fill and per-guest volume fill together.",
-            "tags": [
-              "estate",
-              "storage"
-            ]
-          },
-          {
-            "available": true,
             "kind": "skill",
             "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
             "side_effect_level": "read",
-            "summary": "Search the documents an investigation is allowed to read.",
+            "summary": "Search the documents an investigation may read.",
             "tags": [
               "knowledge"
             ]
@@ -192,6 +192,19 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
@@ -217,25 +230,12 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.storage_pressure",
-            "reason": null,
-            "required_integrations": [],
-            "side_effect_level": "read",
-            "summary": "Read datastore fill and per-guest volume fill together.",
-            "tags": [
-              "estate",
-              "storage"
-            ]
-          },
-          {
-            "available": true,
             "kind": "skill",
             "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
             "side_effect_level": "read",
-            "summary": "Search the documents an investigation is allowed to read.",
+            "summary": "Search the documents an investigation may read.",
             "tags": [
               "knowledge"
             ]
@@ -281,6 +281,19 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
@@ -306,25 +319,12 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.storage_pressure",
-            "reason": null,
-            "required_integrations": [],
-            "side_effect_level": "read",
-            "summary": "Read datastore fill and per-guest volume fill together.",
-            "tags": [
-              "estate",
-              "storage"
-            ]
-          },
-          {
-            "available": true,
             "kind": "skill",
             "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
             "side_effect_level": "read",
-            "summary": "Search the documents an investigation is allowed to read.",
+            "summary": "Search the documents an investigation may read.",
             "tags": [
               "knowledge"
             ]
@@ -370,6 +370,19 @@
           {
             "available": true,
             "kind": "tool",
+            "name": "estate.storage_pressure",
+            "reason": null,
+            "required_integrations": [],
+            "side_effect_level": "read",
+            "summary": "Read datastore fill and per-guest volume fill together.",
+            "tags": [
+              "estate",
+              "storage"
+            ]
+          },
+          {
+            "available": true,
+            "kind": "tool",
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
@@ -395,25 +408,12 @@
           },
           {
             "available": true,
-            "kind": "tool",
-            "name": "estate.storage_pressure",
-            "reason": null,
-            "required_integrations": [],
-            "side_effect_level": "read",
-            "summary": "Read datastore fill and per-guest volume fill together.",
-            "tags": [
-              "estate",
-              "storage"
-            ]
-          },
-          {
-            "available": true,
             "kind": "skill",
             "name": "knowledge.search",
             "reason": null,
             "required_integrations": [],
             "side_effect_level": "read",
-            "summary": "Search the documents an investigation is allowed to read.",
+            "summary": "Search the documents an investigation may read.",
             "tags": [
               "knowledge"
             ]

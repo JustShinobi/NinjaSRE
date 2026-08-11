@@ -8,7 +8,7 @@
           "enabled": true,
           "job_id": "weekly-storage-review",
           "name": "Weekly storage review",
-          "next_run_at": "2026-08-17T07:00:00+00:00",
+          "next_run_at": "2026-08-17T09:19:00+00:00",
           "objective": "Check datastore fill and backup coverage across the estate.",
           "team_node_id": "team-storage",
           "timezone": "Europe/Lisbon"
