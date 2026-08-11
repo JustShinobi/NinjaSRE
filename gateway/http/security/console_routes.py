@@ -43,6 +43,16 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/config/{node_id}/integration-schemas",
         permission=Permission.CONFIG_READ,
     ),
+    # The facts a team has added to the agent's prompt, the exact text the model
+    # will receive, and — for a node that has written none — the starting
+    # document derived from what the estate has already discovered. ``config.read``
+    # for the same reason ``fields`` is: it describes what applies, and nothing
+    # here stores anything.
+    Route(
+        method="GET",
+        path="/v1/config/{node_id}/operating-context",
+        permission=Permission.CONFIG_READ,
+    ),
     # --- Approvals, and the rollback that follows one -------------------------
     Route(method="GET", path="/v1/approvals", permission=Permission.APPROVAL_READ),
     Route(method="GET", path="/v1/approvals/{approval_id}", permission=Permission.APPROVAL_READ),

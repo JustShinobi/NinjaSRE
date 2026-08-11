@@ -16,15 +16,18 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from config.constants.agents import OPERATING_CONTEXT_ROLES, OPERATING_CONTEXT_TOKEN_BUDGET
 from gateway.http.catalogue_readers import installed_catalogue, installed_integrations
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
 from gateway.http.routes.tenancy import within_scope
 from gateway.http.state import GatewayState
+from platform.config_service.effective import EffectiveConfig
 from platform.config_service.errors import UnknownNode
 from platform.config_service.fields import fields_at
 from platform.config_service.schema.policies import GuardianSettings
 from platform.config_service.service import ConfigService
+from platform.estate.operating_context import discovered_estate, template_for
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
 from platform.persistence.errors import RecordNotFound
@@ -32,6 +35,13 @@ from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.config_repository import ConfigNode
 
 router = APIRouter(prefix="/v1/config", tags=["config"])
+
+#: Where a section's provenance is looked up, and the role whose assembled
+#: prompt the screen previews. The investigator rather than a specialist:
+#: a specialist's prompt is built by the runtime from its own definition, and
+#: the investigator's is the one an operator recognises.
+_SECTIONS_PATH = "agents.operating_context.sections"
+INVESTIGATOR_ROLE = "investigator"
 
 
 async def _check_scope(node_id: str, state: GatewayState, auth: AuthenticatedRequest) -> None:
@@ -70,6 +80,39 @@ class ConfigPatchRequest(BaseModel):
     #: setting it to the parent's current value: one keeps following the parent,
     #: the other freezes today's answer into this node.
     remove: list[str] = Field(default_factory=list)
+
+
+class ContextSectionView(BaseModel):
+    """One named section: what it says, and which level said it."""
+
+    name: str
+    body: str
+    #: The node that supplied this section's body. Empty on a template section,
+    #: which no node has supplied and which is not configuration until saved.
+    provenance: str = ""
+
+
+class OperatingContextView(BaseModel):
+    """A node's operating context, its cost, and the prompt it becomes."""
+
+    node_id: str
+    enabled: bool
+    sections: list[ContextSectionView] = Field(default_factory=list)
+    #: The rendered block alone — heading and sections, nothing else.
+    context: str = ""
+    #: The whole system prompt the investigator's next run will be sent. The
+    #: deployment's own assembly, so nothing downstream has to repeat it.
+    prompt: str = ""
+    tokens_used: int = 0
+    token_budget: int = 0
+    #: The roles the context is appended to. Served rather than assumed: which
+    #: roles investigate is the deployment's answer, and a client holding its own
+    #: copy would explain the wrong thing the day it changed.
+    roles: list[str] = Field(default_factory=list)
+    #: The starting document, derived from the estate. Empty once anything is
+    #: written, because a suggestion that kept reappearing over an operator's own
+    #: text is one they stop reading.
+    template: list[ContextSectionView] = Field(default_factory=list)
 
 
 class ConfigNodeView(BaseModel):
@@ -441,6 +484,79 @@ async def node_fields(
             for each in fields_at(effective, document)
         ]
     )
+
+
+@router.get("/{node_id}/operating-context", response_model=OperatingContextView)
+async def node_operating_context(
+    node_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> OperatingContextView:
+    """Return this node's operating context, what it costs, and the text it becomes.
+
+    Three things a client cannot assemble for itself, and one it should not try.
+
+    ``prompt`` is the *exact* string the investigator's next run will be sent —
+    the shipped-or-overridden prompt with the rendered sections appended, by the
+    same function the runtime hook uses. A console that concatenated the pieces
+    itself would be a second implementation of the assembly, and the day it
+    drifted somebody would approve a prompt nobody sends.
+
+    ``provenance`` per section is the ancestors' documents, which nothing
+    outside this deployment holds.
+
+    ``template`` is served only where the node resolves to no sections at all.
+    It is derived from what the estate has discovered — kinds, zones and their
+    networks, the source answering each signal question — plus the facts that
+    are true of any deployment of this kind and the questions only a person can
+    answer. It is a suggestion: nothing here stores it, and it disappears the
+    moment anything is written, because a field that kept re-offering its own
+    starting text over somebody's edits is a field they stop editing.
+    """
+    await _check_scope(node_id, state, auth)
+    effective = await _service(state, auth).resolve(node_id)
+    agents = effective.config.agents
+    context = agents.operating_context
+
+    return OperatingContextView(
+        node_id=node_id,
+        enabled=context.enabled,
+        sections=[
+            ContextSectionView(
+                name=name,
+                body=body,
+                provenance=effective.source_of(f"{_SECTIONS_PATH}.{name}") or "",
+            )
+            for name, body in context.sections.items()
+        ],
+        context=context.render(),
+        prompt=agents.system_prompt_for(INVESTIGATOR_ROLE),
+        tokens_used=context.tokens(),
+        token_budget=OPERATING_CONTEXT_TOKEN_BUDGET,
+        roles=list(OPERATING_CONTEXT_ROLES),
+        template=[
+            ContextSectionView(name=name, body=body)
+            for name, body in await _template_for(node_id, state, auth, effective)
+        ],
+    )
+
+
+async def _template_for(
+    node_id: str,
+    state: GatewayState,
+    auth: AuthenticatedRequest,
+    effective: EffectiveConfig,
+) -> tuple[tuple[str, str], ...]:
+    """Return the starting document for ``node_id``, empty once anything is written."""
+    del node_id
+    if effective.config.agents.operating_context.sections:
+        return ()
+    discovered = await discovered_estate(
+        state.gateway,
+        auth.scope,
+        configured_integrations=effective.config.integrations.enabled_names(),
+    )
+    return template_for(discovered)
 
 
 @router.get("/{node_id}/catalogue", response_model=CatalogueEntriesView)
