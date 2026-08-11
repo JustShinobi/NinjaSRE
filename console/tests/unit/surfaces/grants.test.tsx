@@ -8,7 +8,6 @@ import {
   type GrantLabels,
   type GrantPrincipalOption,
 } from '@/surfaces/grants';
-import { ROLE_NAMES } from '@/surfaces/roles';
 
 import { ROLES } from '../shell/support';
 
@@ -132,12 +131,17 @@ function panel(
 }
 
 describe('the role catalogue this form offers', () => {
-  it('comes from the generated fixture rather than a list written here', () => {
-    // Read independently, through the same catalogue the role matrix walks —
-    // so this proves the two sources agree rather than merely that neither is
-    // empty.
-    expect(ROLE_NAMES).toEqual(ROLES.order);
-    expect(ROLE_NAMES.length).toBeGreaterThan(0);
+  it("is the deployment's own, served rather than compiled in", () => {
+    // The screen reads `/identity/roles` and hands the answer down. What this
+    // holds is that the deployment's catalogue and the one the role matrix
+    // walks are the same list — so a role added in Python appears on the form
+    // without this console changing at all.
+    panel({ roles: ROLES.order });
+
+    const offered = Array.from(
+      document.querySelectorAll('select[name="grant-role"] option'),
+    ).map((option) => option.getAttribute('value'));
+    expect(offered).toEqual([...ROLES.order]);
   });
 });
 

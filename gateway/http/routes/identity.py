@@ -34,7 +34,7 @@ from platform.identity.errors import (
     TooManyRevocations,
 )
 from platform.identity.models import Grant
-from platform.identity.permissions import Permission, Role
+from platform.identity.permissions import ROLE_ORDER, Permission, Role, permissions_for
 from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
 from platform.startup.bootstrap import organisation_id
@@ -80,6 +80,19 @@ class GrantView(BaseModel):
 
 class GrantList(BaseModel):
     grants: list[GrantView]
+
+
+class RoleView(BaseModel):
+    """One role this deployment declares, and what holding it means."""
+
+    name: str
+    permissions: list[str]
+
+
+class RoleList(BaseModel):
+    """Every role, least privileged first."""
+
+    roles: list[RoleView]
 
 
 class GrantRequest(BaseModel):
@@ -344,6 +357,32 @@ async def _all_grants(state: GatewayState, auth: AuthenticatedRequest) -> tuple[
             for binding in await uow.identity.role_bindings_for_user(user.user_id):
                 collected.append(Grant.of_binding(binding))
     return tuple(collected)
+
+
+@identity_router.get("/roles", response_model=RoleList)
+async def list_roles(auth: AuthenticatedRequest = Depends(authorized)) -> RoleList:
+    """Return the roles this deployment has, least privileged first.
+
+    Served rather than left to the client, for the reason ``tools/console_roles``
+    already gives about the fixture it generates: a second copy of the catalogue
+    written in a front end is the copy that is wrong on the day somebody adds a
+    permission. A form offering a role this build does not have is a form whose
+    every submission is refused.
+
+    The permissions are on each row because "what does granting this actually
+    do" is the question somebody asks before granting it, and answering it
+    anywhere else would mean the console deriving it.
+    """
+    _ = auth
+    return RoleList(
+        roles=[
+            RoleView(
+                name=role.value,
+                permissions=sorted(permission.value for permission in permissions_for(role)),
+            )
+            for role in ROLE_ORDER
+        ]
+    )
 
 
 @identity_router.post("/grants", response_model=GrantView, status_code=201)

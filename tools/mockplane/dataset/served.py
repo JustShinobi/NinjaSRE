@@ -1488,6 +1488,29 @@ AUDIT_EVENTS: Final[tuple[Mapping[str, Any], ...]] = (
 )
 
 
+def role_records() -> tuple[CapturedRecord, ...]:
+    """Return the role catalogue, read off the platform rather than transcribed."""
+    from platform.identity.permissions import ROLE_ORDER, permissions_for
+
+    return (
+        _record(
+            "roles",
+            {},
+            {
+                "roles": [
+                    {
+                        "name": role.value,
+                        "permissions": sorted(
+                            permission.value for permission in permissions_for(role)
+                        ),
+                    }
+                    for role in ROLE_ORDER
+                ]
+            },
+        ),
+    )
+
+
 def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
     """Return the principal, the directory, the grants, the tokens and the audit trail.
 
@@ -1763,6 +1786,7 @@ def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
         *config_records(),
         *integration_records(),
         *identity_records(role=role),
+        *role_records(),
         *platform_records(),
         *ingress_records(),
         *setup_records(),
@@ -1794,6 +1818,7 @@ __all__ = [
     "checklist_record",
     "config_records",
     "identity_records",
+    "role_records",
     "integration_records",
     "interaction_records",
     "memory_records",

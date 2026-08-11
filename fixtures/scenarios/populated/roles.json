@@ -1,0 +1,152 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "roles": [
+          {
+            "name": "viewer",
+            "permissions": [
+              "approval.read",
+              "config.read",
+              "estate.read",
+              "incident.read",
+              "investigation.read",
+              "knowledge.read",
+              "memory.read",
+              "report.read"
+            ]
+          },
+          {
+            "name": "responder",
+            "permissions": [
+              "approval.read",
+              "approval.review",
+              "config.read",
+              "estate.manage",
+              "estate.read",
+              "incident.manage",
+              "incident.read",
+              "investigation.read",
+              "investigation.run",
+              "knowledge.read",
+              "knowledge.write",
+              "memory.read",
+              "remediation.approve",
+              "remediation.execute",
+              "report.read",
+              "webhook.deliver"
+            ]
+          },
+          {
+            "name": "operator",
+            "permissions": [
+              "approval.read",
+              "approval.review",
+              "config.read",
+              "config.write",
+              "credential.read",
+              "credential.write",
+              "estate.manage",
+              "estate.read",
+              "incident.manage",
+              "incident.read",
+              "integration.manage",
+              "investigation.read",
+              "investigation.run",
+              "knowledge.read",
+              "knowledge.write",
+              "memory.read",
+              "remediation.approve",
+              "remediation.execute",
+              "report.read",
+              "schedule.manage",
+              "webhook.deliver"
+            ]
+          },
+          {
+            "name": "admin",
+            "permissions": [
+              "approval.read",
+              "approval.review",
+              "audit.export",
+              "audit.read",
+              "config.read",
+              "config.write",
+              "credential.read",
+              "credential.write",
+              "estate.manage",
+              "estate.read",
+              "identity.read",
+              "identity.write",
+              "impersonation.use",
+              "incident.manage",
+              "incident.read",
+              "integration.manage",
+              "investigation.read",
+              "investigation.run",
+              "knowledge.read",
+              "knowledge.write",
+              "memory.read",
+              "org.manage",
+              "remediation.approve",
+              "remediation.execute",
+              "report.read",
+              "schedule.manage",
+              "sso.manage",
+              "token.manage",
+              "webhook.deliver"
+            ]
+          },
+          {
+            "name": "owner",
+            "permissions": [
+              "approval.read",
+              "approval.review",
+              "audit.export",
+              "audit.read",
+              "config.read",
+              "config.write",
+              "credential.read",
+              "credential.write",
+              "estate.manage",
+              "estate.read",
+              "identity.read",
+              "identity.write",
+              "impersonation.use",
+              "incident.manage",
+              "incident.read",
+              "integration.manage",
+              "investigation.read",
+              "investigation.run",
+              "knowledge.read",
+              "knowledge.write",
+              "memory.read",
+              "org.delete",
+              "org.manage",
+              "owner.assign",
+              "remediation.approve",
+              "remediation.execute",
+              "report.read",
+              "schedule.manage",
+              "sso.manage",
+              "token.manage",
+              "webhook.deliver"
+            ]
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "roles",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "roles"
+}

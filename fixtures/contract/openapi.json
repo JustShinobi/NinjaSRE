@@ -4693,6 +4693,45 @@
         "title": "RevocationResult",
         "type": "object"
       },
+      "RoleList": {
+        "description": "Every role, least privileged first.",
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleView"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "title": "RoleList",
+        "type": "object"
+      },
+      "RoleView": {
+        "description": "One role this deployment declares, and what holding it means.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "title": "RoleView",
+        "type": "object"
+      },
       "RollbackPlanView": {
         "properties": {
           "approval_id": {
@@ -6905,6 +6944,56 @@
           }
         },
         "summary": "List Principals",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/roles": {
+      "get": {
+        "description": "Return the roles this deployment has, least privileged first.\n\nServed rather than left to the client, for the reason ``tools/console_roles``\nalready gives about the fixture it generates: a second copy of the catalogue\nwritten in a front end is the copy that is wrong on the day somebody adds a\npermission. A form offering a role this build does not have is a form whose\nevery submission is refused.\n\nThe permissions are on each row because \"what does granting this actually\ndo\" is the question somebody asks before granting it, and answering it\nanywhere else would mean the console deriving it.",
+        "operationId": "list_roles_identity_roles_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Roles",
         "tags": [
           "identity"
         ]

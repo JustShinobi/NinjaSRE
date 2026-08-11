@@ -288,10 +288,14 @@ def test_the_fixture_server_answers_endpoints_the_dataset_actually_has() -> None
     by_path = {
         endpoint.path: endpoint.slug for endpoint in CONSOLE_ENDPOINTS if endpoint.method == "GET"
     }
+    #: The reads that are spelled ``POST`` because they take a document to answer
+    #: about. Each one computes and stores nothing, and each is on a screen the
+    #: capture photographs — the configuration screen asks what a patch would
+    #: resolve to, and the agent screen asks what the stored posture decided
+    #: about the actions that were recorded.
+    asked = ("/v1/config/{node_id}/preview", "/v1/autonomy/policy/{node_id}/preview")
     for path, slug in declared.items():
-        if path == "/v1/config/{node_id}/preview":
-            # The one write the capture answers, because the configuration screen
-            # asks for a preview before it can draw one.
+        if path in asked:
             continue
         assert path in by_path, f"{path} is not a read the dataset covers"
         assert by_path[path] == slug, f"{path} is fixture {by_path[path]}, not {slug}"

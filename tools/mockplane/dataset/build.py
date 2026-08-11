@@ -147,6 +147,9 @@ def empty_records() -> tuple[CapturedRecord, ...]:
     # as in a full one. Answering 404 here would say this deployment has no
     # investigation in it, which is not what an empty deployment means.
     records.extend(record for record in served.agent_records() if record.slug == "agent-pipeline")
+    # And the role catalogue, for the same reason: which roles exist is what the
+    # build declares, not something an operator filled in.
+    records.extend(served.role_records())
     records.extend(_absent_detail_records())
     records.extend(_write_responses())
     # Nothing stored, nothing verified: the nine providers are still all nine,

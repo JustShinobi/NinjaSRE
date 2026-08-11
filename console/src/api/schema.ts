@@ -206,6 +206,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/identity/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Roles
+         * @description Return the roles this deployment has, least privileged first.
+         *
+         *     Served rather than left to the client, for the reason ``tools/console_roles``
+         *     already gives about the fixture it generates: a second copy of the catalogue
+         *     written in a front end is the copy that is wrong on the day somebody adds a
+         *     permission. A form offering a role this build does not have is a form whose
+         *     every submission is refused.
+         *
+         *     The permissions are on each row because "what does granting this actually
+         *     do" is the question somebody asks before granting it, and answering it
+         *     anywhere else would mean the console deriving it.
+         */
+        get: operations["list_roles_identity_roles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/identity/sso": {
         parameters: {
             query?: never;
@@ -4736,6 +4766,24 @@ export interface components {
             /** Token Ids */
             token_ids: string[];
         };
+        /**
+         * RoleList
+         * @description Every role, least privileged first.
+         */
+        RoleList: {
+            /** Roles */
+            roles: components["schemas"]["RoleView"][];
+        };
+        /**
+         * RoleView
+         * @description One role this deployment declares, and what holding it means.
+         */
+        RoleView: {
+            /** Name */
+            name: string;
+            /** Permissions */
+            permissions: string[];
+        };
         /** RollbackPlanView */
         RollbackPlanView: {
             /** Approval Id */
@@ -5831,6 +5879,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_roles_identity_roles_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleList"];
                 };
             };
             /** @description Validation Error */

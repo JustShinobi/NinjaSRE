@@ -10,7 +10,6 @@ import type { SurfaceContext } from '../context';
 import { GrantPanel, type Grant } from '../grants';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
-import { ROLE_NAMES } from '../roles';
 import { SsoForm, type SsoField } from '../sso';
 import { TokenPanel, type IssuedToken } from '../tokens';
 import {
@@ -49,9 +48,15 @@ export async function AdministrationScreen(
   const { credential, locale, viewer, now, zone } = context;
   const init = authorised(credential);
 
-  const [principals, grants, tokens, sso] = await Promise.all([
+  const [principals, grants, roles, tokens, sso] = await Promise.all([
     panelRead('/identity/principals', () => read('/identity/principals', init)),
     panelRead('/identity/grants', () => read('/identity/grants', init)),
+    // Asked for rather than compiled in. Which roles exist is the deployment's
+    // answer — `tools/console_roles` gives the reason: a second copy of the
+    // catalogue written in a front end is the copy that is wrong on the day
+    // somebody adds a permission, and a form offering a role this build does
+    // not have is a form whose every submission is refused.
+    panelRead('/identity/roles', () => read('/identity/roles', init)),
     may(viewer, TOKENS)
       ? panelRead<unknown>('/identity/tokens', () => read('/identity/tokens', init))
       : Promise.resolve({ status: 'ready' as const, data: {} }),
@@ -62,6 +67,7 @@ export async function AdministrationScreen(
 
   const people = list(dataOf(principals), 'users');
   const held = list(dataOf(grants), 'grants');
+  const catalogue = list(dataOf(roles), 'roles').map((role) => text(role, 'name'));
   const issued = list(dataOf(tokens), 'tokens');
   const none = message(locale, 'surface.none');
 
@@ -136,7 +142,7 @@ export async function AdministrationScreen(
               id: text(person, 'user_id'),
               label: text(person, 'display_name'),
             }))}
-            roles={ROLE_NAMES}
+            roles={catalogue}
             canWrite={may(viewer, GRANTS)}
             labels={{
               principal: message(locale, 'admin.column.principal'),

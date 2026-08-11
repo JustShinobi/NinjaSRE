@@ -200,6 +200,10 @@ _IDENTITY_ROUTES: Final[tuple[Route, ...]] = (
     ),
     # --- People and their roles -----------------------------------------------
     Route(method="GET", path="/identity/principals", permission=Permission.IDENTITY_READ),
+    # The catalogue a grant form offers. Read with the same permission as the
+    # grants themselves: what roles exist is not a secret, and a client that
+    # cannot see the grants has nothing to do with the list.
+    Route(method="GET", path="/identity/roles", permission=Permission.IDENTITY_READ),
     Route(method="GET", path="/identity/grants", permission=Permission.IDENTITY_READ),
     Route(method="POST", path="/identity/grants", permission=Permission.IDENTITY_WRITE),
     Route(

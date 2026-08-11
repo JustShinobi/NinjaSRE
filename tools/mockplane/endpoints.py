@@ -404,6 +404,14 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/identity/roles",
+        slug="roles",
+        source=_GATEWAY,
+        summary="the roles this deployment declares, and what each one holds",
+        records_key="roles",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/identity/grants",
         slug="grants",
         source=_GATEWAY,
