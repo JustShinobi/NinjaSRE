@@ -145,6 +145,11 @@ MAX_SYNC_DOCUMENTS_PER_RUN: Final[int] = 200
 #: The scheduled-job kind a knowledge sync is registered under.
 KNOWLEDGE_SYNC_JOB_KIND: Final = "knowledge.sync"
 
+#: What a scheduled pass over a repository's documentation is called. Distinct
+#: from the plain document sync because of what follows it: the estate links and
+#: the detector proposals a person then works through.
+CORPUS_SYNC_JOB_KIND: Final = "knowledge.corpus_sync"
+
 # --- The documentation corpus ------------------------------------------------
 
 #: The directory a repository's prose lives in, and the only Markdown root the
@@ -200,6 +205,7 @@ TOPOLOGY_DISCOVERY_JOB_KIND: Final = "topology.discovery"
 __all__ = [
     "CHUNK_OVERLAP_CHARS",
     "CORPUS_DOCUMENT_ROOT",
+    "CORPUS_SYNC_JOB_KIND",
     "CORPUS_POLICY_ROOT",
     "DEFAULT_KNOWLEDGE_SEARCH_RESULTS",
     "KNOWLEDGE_SEARCH_CANDIDATE_FACTOR",
