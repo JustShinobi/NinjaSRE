@@ -709,7 +709,10 @@ function ObjectList({
             className="flex flex-col gap-2"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <span data-testid="entry-position" className="text-micro uppercase text-muted">
+              <span
+                data-testid="entry-position"
+                className="text-micro uppercase text-muted"
+              >
                 {labels.entryPosition} {index + 1}
               </span>
               <button

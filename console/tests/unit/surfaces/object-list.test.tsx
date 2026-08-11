@@ -80,7 +80,9 @@ function entry(index: number): Element {
   const entries = screen.getAllByTestId('list-entry');
   const found = entries[index];
   if (found === undefined) {
-    throw new Error(`no list entry at ${String(index)}; the editor drew ${String(entries.length)}`);
+    throw new Error(
+      `no list entry at ${String(index)}; the editor drew ${String(entries.length)}`,
+    );
   }
   return found;
 }
@@ -339,7 +341,9 @@ describe('the specialists a team declares', () => {
       path: 'agents.subagents',
       label: 'Specialists',
       section: 'agents',
-      value: [{ name: 'network', system_prompt: '', model_role: 'subagent', enabled: true }],
+      value: [
+        { name: 'network', system_prompt: '', model_role: 'subagent', enabled: true },
+      ],
       itemFields: SUBAGENT_ITEMS,
     });
   }
@@ -348,7 +352,9 @@ describe('the specialists a team declares', () => {
     editor([subagents()]);
 
     expect(screen.getAllByTestId('list-entry')).toHaveLength(1);
-    expect(only(entry(0), '[data-item-path="enabled"] [role="switch"]')).toBeInTheDocument();
+    expect(
+      only(entry(0), '[data-item-path="enabled"] [role="switch"]'),
+    ).toBeInTheDocument();
     expect(only(entry(0), '[data-item-path="model_role"]')).toBeInTheDocument();
   });
 
@@ -364,5 +370,150 @@ describe('the specialists a team declares', () => {
     expect(declared).toHaveLength(2);
     expect(declared[1]?.name).toBe('');
     expect(declared[1]?.enabled).toBe(true);
+  });
+});
+
+describe('the types an entry field is written in', () => {
+  /**
+   * An entry's value has to arrive in the type the schema declares. A boolean
+   * written as the string `"true"` and an integer written as `"8"` are both
+   * refused by the write path — and refused *after* the operator has previewed
+   * and pressed save, which is the worst moment to discover a control was
+   * lying about what it produced.
+   */
+  const TYPED_ITEMS: readonly ItemField[] = [
+    item({ path: 'name', label: 'Name' }),
+    item({ path: 'enabled', label: 'Enabled', type: 'boolean', default: true }),
+    item({
+      path: 'max_iterations',
+      label: 'Iterations',
+      type: 'integer',
+      minimum: 1,
+      maximum: 20,
+      default: 4,
+    }),
+  ];
+
+  function typedList(over: Partial<EditableField> = {}): EditableField {
+    return rules({
+      path: 'agents.subagents',
+      section: 'agents',
+      value: [{ name: 'network', enabled: true, max_iterations: 4 }],
+      itemFields: TYPED_ITEMS,
+      ...over,
+    });
+  }
+
+  /** The specialists the patch would write. */
+  function patchedSubagents(): readonly Record<string, unknown>[] {
+    const patch = lastBody().patch as Record<string, unknown>;
+    const agents = patch.agents as Record<string, unknown> | undefined;
+    return (agents?.subagents ?? []) as readonly Record<string, unknown>[];
+  }
+
+  it('writes a switched-off entry as a boolean, not as the word for one', async () => {
+    editor([typedList()]);
+
+    await userEvent.click(only(entry(0), '[data-item-path="enabled"] [role="switch"]'));
+    await preview();
+
+    expect(patchedSubagents()[0]?.enabled).toBe(false);
+  });
+
+  it('writes a numeric entry field as a number, and draws it with its own range', async () => {
+    editor([typedList()]);
+
+    const iterations = only(entry(0), '[data-item-path="max_iterations"] input');
+    expect(iterations).toHaveAttribute('type', 'number');
+    expect(iterations).toHaveAttribute('min', '1');
+    expect(iterations).toHaveAttribute('max', '20');
+
+    await userEvent.clear(iterations);
+    await userEvent.type(iterations, '9');
+    await preview();
+
+    expect(patchedSubagents()[0]?.max_iterations).toBe(9);
+  });
+
+  it('starts a new entry at each field’s own default, and at empty where there is none', async () => {
+    editor([typedList()]);
+
+    await userEvent.click(screen.getByTestId('add-entry'));
+    await preview();
+
+    expect(patchedSubagents()[1]).toEqual({
+      name: '',
+      enabled: true,
+      max_iterations: 4,
+    });
+  });
+
+  it('starts a boolean with no declared default switched off rather than absent', async () => {
+    editor([
+      typedList({
+        value: [],
+        itemFields: [
+          item({ path: 'enabled', label: 'Enabled', type: 'boolean', default: null }),
+        ],
+      }),
+    ]);
+
+    await userEvent.click(screen.getByTestId('add-entry'));
+    await preview();
+
+    expect(patchedSubagents()[0]).toEqual({ enabled: false });
+  });
+});
+
+describe('a list the deployment stored in a shape the editor did not expect', () => {
+  /**
+   * Defensive, and the defence is the point: this control is rendered inside
+   * the form for a whole node. A value that is not the shape the schema
+   * declares — hand-edited, or written before a field changed type — must cost
+   * the operator that one field, not the screen they were going to fix it from.
+   */
+  it('draws an empty list rather than throwing when the value is not a list at all', () => {
+    editor([rules({ value: 'payments,platform' })]);
+
+    expect(screen.getByText('Nothing declared here yet.')).toBeInTheDocument();
+    expect(screen.queryAllByTestId('list-entry')).toHaveLength(0);
+  });
+
+  it('draws no explanation where the deployment declared none, rather than an empty one', () => {
+    editor([rules({ description: '' })]);
+
+    expect(screen.getByTestId('object-list')).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        'Evaluated in order; the last one decides what matched nothing.',
+      ),
+    ).toBeNull();
+  });
+
+  it('draws an entry that is not an object as an empty row rather than losing the list', () => {
+    editor([rules({ value: ['payments', { rule_id: 'rest', team: 'platform' }] })]);
+
+    expect(screen.getAllByTestId('list-entry')).toHaveLength(2);
+    expect(only(entry(1), '[data-item-path="rule_id"] input')).toHaveValue('rest');
+  });
+});
+
+describe('the ends of the order', () => {
+  it('cannot move the first entry earlier or the last one later', () => {
+    editor([rules()]);
+
+    expect(control('move-entry-up', 0)).toBeDisabled();
+    expect(control('move-entry-down', 1)).toBeDisabled();
+    expect(control('move-entry-down', 0)).toBeEnabled();
+    expect(control('move-entry-up', 1)).toBeEnabled();
+  });
+
+  it('offers no editing at all while the override is being cleared', async () => {
+    editor([rules({ setHere: true })]);
+
+    await userEvent.click(screen.getByTestId('clear-override'));
+
+    expect(screen.getByTestId('add-entry')).toBeDisabled();
+    expect(control('remove-entry', 0)).toBeDisabled();
   });
 });
