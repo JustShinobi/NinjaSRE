@@ -18,6 +18,11 @@ What it does, in order, and each step is a no-op when it has already happened:
 4. Install the console's dependencies from the committed lockfile, frozen — so
    a lockfile that has drifted from the manifest fails the build rather than
    being quietly rewritten into agreement with it.
+5. Download the browser the suites drive, into the same directory, at whatever
+   build the installed Playwright asks for. "The same browser as CI" is the
+   fifth item of the acceptance this file exists for, and it was the one step
+   nothing performed: the browser path points inside the checkout, so a fresh
+   worktree had an empty one and every browser test failed at launch.
 
 Usage::
 
@@ -49,6 +54,8 @@ from pathlib import Path
 from typing import Final
 
 from config.constants.console import (
+    CONSOLE_BROWSER_NAME,
+    CONSOLE_BROWSERS_DIR_NAME,
     CONSOLE_DIR_NAME,
     CONSOLE_LOCKFILE_FILENAME,
     CONSOLE_MANIFEST_FILENAME,
@@ -58,6 +65,7 @@ from config.constants.console import (
     CONSOLE_TOOLCHAIN_LOCK_FILENAME,
     NINJASRE_NODE_MIRROR_ENV,
     NODE_DIST_BASE_URL,
+    PLAYWRIGHT_BROWSERS_PATH_ENV,
 )
 
 REPO_ROOT: Final = Path(__file__).resolve().parents[1]
@@ -132,6 +140,17 @@ def console_root(root: Path | None = None) -> Path:
 def toolchain_dir(root: Path | None = None) -> Path:
     """Return where a provisioned Node and pnpm are unpacked."""
     return console_root(root) / CONSOLE_TOOLCHAIN_DIR_NAME
+
+
+def browsers_dir(root: Path | None = None) -> Path:
+    """Return where a provisioned browser is unpacked.
+
+    Inside the checkout rather than in the home-directory cache Playwright
+    defaults to, for the same reason Node is: two checkouts on one machine may
+    be pinned to different builds, and a shared cache makes which one you get
+    depend on which checkout ran last.
+    """
+    return toolchain_dir(root) / CONSOLE_BROWSERS_DIR_NAME
 
 
 def read_pin(root: Path | None = None) -> Pin:
@@ -406,7 +425,7 @@ def ensure_pnpm(pin: Pin, node: Path, into: Path) -> Path:
     return entry
 
 
-def environment(toolchain: Toolchain) -> dict[str, str]:
+def environment(toolchain: Toolchain, root: Path | None = None) -> dict[str, str]:
     """Return the environment a console command runs in.
 
     The pinned Node leads ``PATH`` so a package's own shebang finds it, and
@@ -417,6 +436,11 @@ def environment(toolchain: Toolchain) -> dict[str, str]:
     env = dict(os.environ)
     env["PATH"] = os.pathsep.join([str(toolchain.bin_dir), env.get("PATH", "")])
     env["COREPACK_ENABLE_STRICT"] = "0"
+    # Set here rather than at the one call site that launches a browser, so the
+    # command that *installs* the browser and the command that *launches* it
+    # cannot be looking in two different directories. ``setdefault``, so an
+    # operator with a populated cache of their own still gets to point at it.
+    env.setdefault(PLAYWRIGHT_BROWSERS_PATH_ENV, str(browsers_dir(root)))
     return env
 
 
@@ -435,7 +459,7 @@ def run_pnpm(
     finished = subprocess.run(
         [str(toolchain.node), str(toolchain.pnpm), *arguments],
         cwd=console_root(root),
-        env=environment(toolchain),
+        env=environment(toolchain, root),
         check=False,
     )
     if check and finished.returncode != 0:
@@ -483,7 +507,7 @@ def install_dependencies(toolchain: Toolchain, root: Path | None = None) -> None
     finished = subprocess.run(
         [str(toolchain.node), str(toolchain.pnpm), "install", "--frozen-lockfile"],
         cwd=console_root(root),
-        env=environment(toolchain),
+        env=environment(toolchain, root),
         capture_output=True,
         text=True,
         check=False,
@@ -499,14 +523,59 @@ def install_dependencies(toolchain: Toolchain, root: Path | None = None) -> None
     raise ToolchainError(f"installing the console's dependencies failed:\n{output.strip()}")
 
 
+def ensure_browsers(toolchain: Toolchain, root: Path | None = None) -> Path:
+    """Provision the browser the suites drive, and return where it lives.
+
+    Idempotent, and cheaply so: ``playwright install`` compares the build its
+    own version asks for against what is already unpacked and returns without
+    fetching when they agree. That is what makes this safe to call from the
+    harness on every run rather than only from ``make console-setup`` — a
+    contributor who never ran setup gets a browser, and one who did pays a
+    directory listing.
+
+    The build is not pinned here and deliberately so. Playwright refuses to
+    drive a browser revision other than the one it ships against, so the pin is
+    already the ``@playwright/test`` version in the committed lockfile; a second
+    number beside it could only ever disagree with the first.
+
+    Raises:
+        ToolchainError: the browser could not be provisioned, with what the
+            installer said. Never "the toolchain is fine and the tests failed":
+            a browser that is not there is a harness fault, and reporting it as
+            sixty red tests is how a real regression gets missed among them.
+    """
+    finished = subprocess.run(
+        [
+            str(toolchain.node),
+            str(toolchain.pnpm),
+            "exec",
+            "playwright",
+            "install",
+            CONSOLE_BROWSER_NAME,
+        ],
+        cwd=console_root(root),
+        env=environment(toolchain, root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if finished.returncode != 0:
+        raise ToolchainError(
+            f"provisioning {CONSOLE_BROWSER_NAME} failed:\n"
+            f"{finished.stdout.strip()}\n{finished.stderr.strip()}"
+        )
+    return browsers_dir(root)
+
+
 def provision(root: Path | None = None, *, mirror: str | None = None) -> Toolchain:
-    """Provision the toolchain and install the console's dependencies, frozen."""
+    """Provision the toolchain, the console's dependencies and the browser."""
     toolchain = resolve(root, mirror=mirror)
     directory = console_root(root)
     for required in (CONSOLE_MANIFEST_FILENAME, CONSOLE_LOCKFILE_FILENAME):
         if not (directory / required).is_file():
             raise ToolchainError(f"{directory / required} is missing")
     install_dependencies(toolchain, root)
+    ensure_browsers(toolchain, root)
     return toolchain
 
 

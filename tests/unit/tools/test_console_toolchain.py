@@ -12,27 +12,34 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import tarfile
 from pathlib import Path
 
 import pytest
 
 from config.constants.console import (
+    CONSOLE_BROWSER_NAME,
     CONSOLE_LOCKFILE_FILENAME,
     CONSOLE_MANIFEST_FILENAME,
     CONSOLE_NODE_VERSION_FILENAME,
     CONSOLE_PLATFORM_KEYS,
     CONSOLE_TOOLCHAIN_LOCK_FILENAME,
     NODE_DIST_BASE_URL,
+    PLAYWRIGHT_BROWSERS_PATH_ENV,
 )
 from tools.console_toolchain import (
     DigestMismatch,
     Pin,
+    Toolchain,
     ToolchainError,
     archive_name,
     archive_url,
+    browsers_dir,
     console_root,
+    ensure_browsers,
     ensure_node,
+    environment,
     platform_key,
     read_pin,
 )
@@ -192,3 +199,89 @@ def test_a_provisioned_toolchain_is_not_fetched_again(tmp_path: Path) -> None:
     assert first == second
     assert first.is_file()
     assert len(calls) == 1, f"provisioning fetched again: {calls}"
+
+
+# --- The browser ------------------------------------------------------------------
+#
+# The download is not exercised here either, for the reason at the top of this
+# file. What is exercised is the thing that was actually broken: the directory
+# Playwright is pointed at is inside the checkout, so *something* has to fill it,
+# and nothing did. A worktree that had never had a browser installed by hand ran
+# the whole browser suite against an executable that was not there and reported
+# it as sixty-two failing tests.
+
+
+def _fake_toolchain(tmp_path: Path) -> Toolchain:
+    """Return a Toolchain of paths that exist and are never executed."""
+    binaries = tmp_path / "bin"
+    binaries.mkdir(parents=True, exist_ok=True)
+    for name in ("node", "npm", "pnpm"):
+        (binaries / name).write_text("", encoding="utf-8")
+    return Toolchain(node=binaries / "node", npm=binaries / "npm", pnpm=binaries / "pnpm")
+
+
+def test_a_console_command_looks_for_its_browser_inside_the_checkout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Not the home-directory cache: two checkouts may want two builds."""
+    monkeypatch.delenv(PLAYWRIGHT_BROWSERS_PATH_ENV, raising=False)
+
+    where = environment(_fake_toolchain(tmp_path))[PLAYWRIGHT_BROWSERS_PATH_ENV]
+
+    assert Path(where) == browsers_dir()
+    assert console_root() in browsers_dir().parents
+
+
+def test_a_browser_directory_an_operator_chose_is_left_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An air-gapped machine with a populated cache still gets to point at it."""
+    theirs = str(tmp_path / "their-cache")
+    monkeypatch.setenv(PLAYWRIGHT_BROWSERS_PATH_ENV, theirs)
+
+    assert environment(_fake_toolchain(tmp_path))[PLAYWRIGHT_BROWSERS_PATH_ENV] == theirs
+
+
+def test_the_browser_is_installed_where_the_suite_will_look_for_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One directory, or the install and the launch disagree in silence."""
+    monkeypatch.delenv(PLAYWRIGHT_BROWSERS_PATH_ENV, raising=False)
+    seen: dict[str, object] = {}
+
+    def record(command: list[str], **keywords: object) -> subprocess.CompletedProcess[str]:
+        seen["command"] = command
+        seen["env"] = keywords["env"]
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", record)
+    toolchain = _fake_toolchain(tmp_path)
+
+    into = ensure_browsers(toolchain)
+
+    command = seen["command"]
+    environment_used = seen["env"]
+    assert isinstance(command, list)
+    assert isinstance(environment_used, dict)
+    assert command[2:] == ["exec", "playwright", "install", CONSOLE_BROWSER_NAME]
+    # The directory the installer wrote to, the directory it reported, and the
+    # directory a suite will be launched with are one directory.
+    assert environment_used[PLAYWRIGHT_BROWSERS_PATH_ENV] == str(into)
+    assert Path(environment(toolchain)[PLAYWRIGHT_BROWSERS_PATH_ENV]) == into
+
+
+def test_a_browser_that_cannot_be_provisioned_is_not_reported_as_a_failing_suite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A missing browser is a thing to install; a red suite is a thing to fix."""
+
+    def refuse(command: list[str], **keywords: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 1, "", "no route to the download host")
+
+    monkeypatch.setattr(subprocess, "run", refuse)
+
+    with pytest.raises(ToolchainError) as raised:
+        ensure_browsers(_fake_toolchain(tmp_path))
+
+    assert CONSOLE_BROWSER_NAME in str(raised.value)
+    assert "no route to the download host" in str(raised.value)

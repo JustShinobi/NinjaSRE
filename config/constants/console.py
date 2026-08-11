@@ -41,6 +41,12 @@ NINJASRE_CONSOLE_BASE_PATH_ENV: Final = "NINJASRE_CONSOLE_BASE_PATH"
 #: is a different address rather than a different level of trust.
 NINJASRE_NODE_MIRROR_ENV: Final = "NINJASRE_NODE_MIRROR"
 
+#: Where Playwright looks for a browser, and where it puts one it downloads.
+#: Pointed at the toolchain directory so a browser is provisioned per checkout
+#: with the rest of the toolchain, rather than into a home-directory cache that
+#: a fresh worktree does not have and no step of the gate would fill.
+PLAYWRIGHT_BROWSERS_PATH_ENV: Final = "PLAYWRIGHT_BROWSERS_PATH"
+
 # --- Layout ---------------------------------------------------------------------
 
 #: The console's directory, a peer of the Python tiers rather than a member of
@@ -50,6 +56,15 @@ CONSOLE_DIR_NAME: Final = "console"
 #: Where the provisioned Node and pnpm are unpacked. Inside the console
 #: directory, ignored by git, and removable without losing anything committed.
 CONSOLE_TOOLCHAIN_DIR_NAME: Final = ".toolchain"
+
+#: Where the provisioned browser is unpacked, beside the Node and the pnpm it
+#: is provisioned with.
+CONSOLE_BROWSERS_DIR_NAME: Final = "browsers"
+
+#: The Playwright browser the suites drive. The headless shell rather than the
+#: full Chromium: it is what ``devices['Desktop Chrome']`` launches headless,
+#: and it is a third of the download.
+CONSOLE_BROWSER_NAME: Final = "chromium-headless-shell"
 
 #: The pinned Node version, on its own line, in the file every Node version
 #: manager already reads.
@@ -255,6 +270,8 @@ CONSOLE_E2E_MOCK_PORT: Final = 8424
 
 __all__ = [
     "CONSOLE_BASELINE_DIR_NAME",
+    "CONSOLE_BROWSERS_DIR_NAME",
+    "CONSOLE_BROWSER_NAME",
     "CONSOLE_COLD_VERIFY_BUDGET_SECONDS",
     "CONSOLE_CONFIG_TREE_RENDER_BUDGET_MS",
     "CONSOLE_COVERAGE_THRESHOLD",
@@ -301,5 +318,6 @@ __all__ = [
     "NINJASRE_CONSOLE_BASE_URL_ENV",
     "NINJASRE_CONSOLE_TOOLCHAIN_ENV",
     "NINJASRE_NODE_MIRROR_ENV",
+    "PLAYWRIGHT_BROWSERS_PATH_ENV",
     "NODE_DIST_BASE_URL",
 ]
