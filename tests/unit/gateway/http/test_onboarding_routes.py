@@ -463,6 +463,41 @@ async def test_the_config_route_refuses_a_field_an_integration_marks_secret(
     assert "hunter2" not in response.text
 
 
+async def test_the_config_route_refuses_a_capability_nothing_installed(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """A name no capability answers to is a setting that will never do anything.
+
+    The validator has always been able to say so; the write was constructed
+    without the catalogue it needs to, so the cross-reference pass ran on the
+    read routes and on nothing that stores a document. A misspelled capability
+    was accepted, and what an operator saw afterwards was a tool that stayed
+    switched off for no stated reason.
+    """
+    response = await client.put(
+        f"/v1/config/{TEAM_PAYMENTS}",
+        headers=_headers(operator_token),
+        json={"patch": {"capabilities": {"enabled": ["assess_evidenec_sufficiency"]}}},
+    )
+
+    assert response.status_code == 400
+    assert "assess_evidenec_sufficiency" in response.text
+
+
+async def test_a_capability_this_deployment_does_have_is_written(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """The other half, because a check that refuses everything is not a check."""
+    response = await client.put(
+        f"/v1/config/{TEAM_PAYMENTS}",
+        headers=_headers(operator_token),
+        json={"patch": {"capabilities": {"enabled": ["assess_evidence_sufficiency"]}}},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["values"]["capabilities"]["enabled"] == ["assess_evidence_sufficiency"]
+
+
 # --- The permission this route demands ----------------------------------------
 
 
