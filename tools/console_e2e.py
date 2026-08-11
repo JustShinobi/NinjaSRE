@@ -16,14 +16,22 @@ different questions:
     a console which works against the dataset and not against the application.
     Run by its own CI job rather than by every ``make verify``.
 
+Neither the browser nor the ports are assumed. The browser is provisioned
+through the same toolchain that provisions Node, so a checkout that never ran
+``make console-setup`` gets one instead of sixty launch failures; the ports are
+the pinned ones when they are free and the kernel's choice when they are not, so
+a second checkout running its suite at the same time is a slower run rather than
+a suite driving somebody else's console.
+
 Usage::
 
     python -m tools.console_e2e run
     python -m tools.console_e2e run --backing compose
     python -m tools.console_e2e run --repeat 20
 
-Exits 0 when the suite passed, 1 when it did not, and 2 when the toolchain or
-the backing could not be brought up — which is a different failure and says so.
+Exits 0 when the suite passed, 1 when it did not, and 2 when the toolchain, the
+browser or the backing could not be brought up — which is a different failure
+and says so.
 """
 
 from __future__ import annotations
@@ -32,6 +40,7 @@ import argparse
 import contextlib
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -52,6 +61,7 @@ from tools.console_toolchain import (
     Toolchain,
     ToolchainError,
     console_root,
+    ensure_browsers,
     environment,
     resolve,
 )
@@ -72,6 +82,45 @@ _COMPOSE_API_URL: Final = "http://127.0.0.1:8420"
 
 class HarnessError(RuntimeError):
     """The backing or the console could not be started, so nothing was run."""
+
+
+def ports(*preferred: int) -> tuple[int, ...]:
+    """Return one free loopback port per entry in ``preferred``.
+
+    Each pinned port is used when it is free and replaced by one the kernel
+    picks when it is not, so two checkouts of this repository can run their
+    suites at the same time. That is not a convenience — it is the difference
+    between a failure and a wrong answer.
+
+    A fixed port is silently wrong under concurrency rather than loudly broken.
+    ``_wait_for`` asks whether *something* is listening, and something is: the
+    other checkout's console. Our own server exits with ``EADDRINUSE`` a moment
+    later, the wait has already succeeded against the stranger, and a suite then
+    reports on a build nobody asked it about — green or red for reasons that are
+    not in this working tree.
+
+    Every port is reserved before any is returned, so two servers in one run
+    cannot be handed the same one. The sockets are closed on the way out, which
+    leaves the usual check-then-bind gap; it is a few milliseconds against a
+    listener that lives for minutes, and the loser gets ``EADDRINUSE`` on a port
+    no other console is serving, which is the honest failure.
+    """
+    reserved: list[socket.socket] = []
+    try:
+        for want in preferred:
+            probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            reserved.append(probe)
+            try:
+                probe.bind(("127.0.0.1", want))
+            except OSError:
+                # Taken, by another checkout's run or by anything else. A port
+                # of the kernel's choosing is as good for a suite that is told
+                # its own address.
+                probe.bind(("127.0.0.1", 0))
+        return tuple(probe.getsockname()[1] for probe in reserved)
+    finally:
+        for probe in reserved:
+            probe.close()
 
 
 def _answers(url: str) -> bool:
@@ -191,7 +240,6 @@ def playwright(
     """Run one Playwright project against ``base_url`` and return its exit status."""
     env = environment(toolchain)
     env[NINJASRE_CONSOLE_BASE_URL_ENV] = base_url
-    env.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(console_root() / ".toolchain" / "browsers"))
     finished = subprocess.run(
         [
             str(toolchain.node),
@@ -221,12 +269,20 @@ def run(
 
     Raises:
         HarnessError: something failed to come up, so nothing was run.
+        ToolchainError: the toolchain or the browser could not be provisioned.
+            Distinct from a failing suite all the way out to the exit status,
+            because "no browser" is a thing to install and "a test failed" is a
+            thing to fix.
     """
     toolchain = resolve()
-    backing_context = (
-        compose_stack() if backing == "compose" else mock_plane(scenario, CONSOLE_E2E_MOCK_PORT)
-    )
-    with backing_context as api_url, console(toolchain, api_url, CONSOLE_E2E_PORT) as base_url:
+    ensure_browsers(toolchain)
+
+    mock_port, console_port = ports(CONSOLE_E2E_MOCK_PORT, CONSOLE_E2E_PORT)
+    backing_context = compose_stack() if backing == "compose" else mock_plane(scenario, mock_port)
+    with backing_context as api_url, console(toolchain, api_url, console_port) as base_url:
+        # Named, because under concurrency these are not the pinned ports and a
+        # reader of the log should not have to guess which console was driven.
+        print(f"driving the console at {base_url} against {api_url}", flush=True)
         for attempt in range(1, repeat + 1):
             if repeat > 1:
                 print(f"--- run {attempt} of {repeat} ---", flush=True)

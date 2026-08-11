@@ -241,6 +241,8 @@ test('an arrival answers which rule caught it and which run it became', async ({
     'critical-to-platform',
   );
   await expect(live.getByTestId('provenance-run')).toHaveAttribute('href', /^\/runs\//);
+});
+
 test('the operating context names the level each section came from', async ({
   page,
 }) => {
