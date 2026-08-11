@@ -313,3 +313,56 @@ describe('the preview guarantee, with a bigger control', () => {
     expect(screen.queryByTestId('save-config')).toBeNull();
   });
 });
+
+describe('the specialists a team declares', () => {
+  /**
+   * The same control, reached by the same route: `agents.subagents` is an array
+   * of objects, so the catalogue describes an entry and the editor draws rows
+   * for it. Asserted here rather than assumed, because "it will work for the
+   * other one too" is the claim that is wrong once somebody special-cases a
+   * path.
+   */
+  const SUBAGENT_ITEMS: readonly ItemField[] = [
+    item({ path: 'name', label: 'Name' }),
+    item({ path: 'system_prompt', label: 'System prompt' }),
+    item({
+      path: 'model_role',
+      label: 'Model role',
+      allowedValues: ['subagent', 'investigator'],
+      default: 'subagent',
+    }),
+    item({ path: 'enabled', label: 'Enabled', type: 'boolean', default: true }),
+  ];
+
+  function subagents(): EditableField {
+    return rules({
+      path: 'agents.subagents',
+      label: 'Specialists',
+      section: 'agents',
+      value: [{ name: 'network', system_prompt: '', model_role: 'subagent', enabled: true }],
+      itemFields: SUBAGENT_ITEMS,
+    });
+  }
+
+  it('draws a row per specialist, with the boolean as a switch and the role as a list', () => {
+    editor([subagents()]);
+
+    expect(screen.getAllByTestId('list-entry')).toHaveLength(1);
+    expect(only(entry(0), '[data-item-path="enabled"] [role="switch"]')).toBeInTheDocument();
+    expect(only(entry(0), '[data-item-path="model_role"]')).toBeInTheDocument();
+  });
+
+  it('writes the specialist an operator added, under the path the schema declares', async () => {
+    editor([subagents()]);
+
+    await userEvent.click(screen.getByTestId('add-entry'));
+    await preview();
+
+    const patch = lastBody().patch as Record<string, unknown>;
+    const agents = patch.agents as Record<string, unknown> | undefined;
+    const declared = (agents?.subagents ?? []) as readonly Record<string, unknown>[];
+    expect(declared).toHaveLength(2);
+    expect(declared[1]?.name).toBe('');
+    expect(declared[1]?.enabled).toBe(true);
+  });
+});
