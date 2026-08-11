@@ -475,3 +475,89 @@ async def _record_a_decision(gateway: PersistenceGateway) -> None:
             )
         )
     )
+
+
+async def test_the_outlook_answers_one_sentence_per_risk_class(
+    deployment: tuple[AsyncClient, GatewayState, str],
+) -> None:
+    client, _, secret = deployment
+    answer = await client.get(f"{POLICY}/outlook", headers=bearer(secret))
+    assert answer.status_code == 200
+    body = answer.json()
+    assert [entry["risk_class"] for entry in body["classes"]] == [
+        "trivial",
+        "low",
+        "moderate",
+        "high",
+        "critical",
+    ]
+    for entry in body["classes"]:
+        assert entry["sentence"]
+        assert entry["decision"] == "propose"
+
+
+async def test_the_outlook_follows_the_posture_that_is_actually_stored(
+    deployment: tuple[AsyncClient, GatewayState, str],
+) -> None:
+    client, _, secret = deployment
+    stored = await client.put(
+        POLICY,
+        json={"rules": [a_rule("act_on_low_risk", kind="deployment")]},
+        headers=bearer(secret),
+    )
+    assert stored.status_code == 200
+
+    body = (await client.get(f"{POLICY}/outlook", headers=bearer(secret))).json()
+    reached = {entry["risk_class"]: entry["decision"] for entry in body["classes"]}
+    assert reached["trivial"] == "execute"
+    assert reached["low"] == "execute"
+    assert reached["critical"] == "approve"
+
+
+async def test_dry_run_is_reported_on_the_outlook_as_a_whole(
+    deployment: tuple[AsyncClient, GatewayState, str],
+) -> None:
+    client, _, secret = deployment
+    await client.put(
+        POLICY,
+        json={"dry_run": True, "rules": [a_rule("act_and_report", kind="deployment")]},
+        headers=bearer(secret),
+    )
+    body = (await client.get(f"{POLICY}/outlook", headers=bearer(secret))).json()
+    assert body["dry_run"] is True
+    assert {entry["decision"] for entry in body["classes"]} == {"simulate"}
+
+
+async def test_an_override_is_granted_and_then_revoked_by_name(
+    deployment: tuple[AsyncClient, GatewayState, str],
+) -> None:
+    client, _, secret = deployment
+    granted = await client.post(
+        f"{POLICY}/overrides",
+        json={
+            "name": "maintenance",
+            "level": "act_and_report",
+            "reason": "planned window",
+            "seconds": 3600,
+        },
+        headers=bearer(secret),
+    )
+    assert granted.status_code == 201
+
+    bounds = (await client.get(f"{POLICY}/bounds", headers=bearer(secret))).json()
+    assert [entry["name"] for entry in bounds["overrides"]] == ["maintenance"]
+
+    revoked = await client.delete(f"{POLICY}/overrides/maintenance", headers=bearer(secret))
+    assert revoked.status_code == 200
+    assert revoked.json()["name"] == "maintenance"
+
+    after = (await client.get(f"{POLICY}/bounds", headers=bearer(secret))).json()
+    assert after["overrides"] == []
+
+
+async def test_revoking_an_override_this_node_never_granted_is_not_found(
+    deployment: tuple[AsyncClient, GatewayState, str],
+) -> None:
+    client, _, secret = deployment
+    answer = await client.delete(f"{POLICY}/overrides/never-granted", headers=bearer(secret))
+    assert answer.status_code == 404

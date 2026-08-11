@@ -205,6 +205,44 @@ class OverrideView(BaseModel):
     reason: str = ""
 
 
+class OverrideRevokedView(BaseModel):
+    """Which override went, and from whose document."""
+
+    name: str
+    node_id: str
+
+
+class ClassOutlookView(BaseModel):
+    """What one risk class would meet under the posture as it stands.
+
+    ``sentence`` is the whole point and the rest is what a reader checks it
+    against. A level and a bound are a policy's vocabulary; "would wait for a
+    person's approval before anything happened" is an answer.
+    """
+
+    risk_class: str
+    capability: str
+    resource_kind: str = ""
+    summary: str = ""
+    sentence: str
+    decision: str
+    level: str
+    refused_by: str = ""
+    dry_run: bool = False
+    #: The gate's own explanation, past tense and all, kept beside the sentence
+    #: rather than instead of it: it names the rule that decided, which is what
+    #: somebody disagreeing with the answer needs.
+    reason: str = ""
+
+
+class OutlookView(BaseModel):
+    """One reading per risk class, least dangerous first."""
+
+    node_id: str
+    dry_run: bool = False
+    classes: list[ClassOutlookView] = Field(default_factory=list)
+
+
 class KillSwitchRequest(BaseModel):
     """Why writes are being stopped, and how widely.
 
@@ -470,6 +508,70 @@ async def grant_override(
         expires_at=granted.expires_at,
         granted_by=granted.granted_by,
         reason=granted.reason,
+    )
+
+
+@router.delete("/policy/{node_id}/overrides/{name}", response_model=OverrideRevokedView)
+async def revoke_override(
+    node_id: str,
+    name: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> OverrideRevokedView:
+    """Take an override away before it expires, and say whether one was there.
+
+    404 rather than a quiet success for an override this node did not grant: an
+    operator who asked for a widening to be taken away, and was told it was,
+    would stop looking — and the widening would still be in force from a level
+    above, where it has to be revoked instead.
+    """
+    await _check_scope(node_id, state, auth)
+    revoked = await _service(state, auth).revoke_override(
+        node_id, name=name, actor_id=auth.principal_id, actor_kind=ActorKind.USER
+    )
+    if not revoked:
+        raise not_found(
+            f"{node_id!r} grants no override called {name!r}. An override it inherits is "
+            f"revoked at the node that granted it."
+        )
+    return OverrideRevokedView(name=name, node_id=node_id)
+
+
+@router.get("/policy/{node_id}/outlook", response_model=OutlookView)
+async def read_outlook(
+    node_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> OutlookView:
+    """Return what an action of each risk class would meet under this posture.
+
+    The reading the policy document does not give. A table of rules answers
+    "what did somebody configure"; this answers "what will this do if something
+    happens now", which is the question asked before a deployment is trusted
+    with an estate — and it is answered by the deployment's own gate rather than
+    by a client's reading of the rules, so what is shown and what would happen
+    cannot drift.
+    """
+    await _check_scope(node_id, state, auth)
+    readings = await _service(state, auth).outlook(node_id, team_node_id=auth.team_node_id)
+    return OutlookView(
+        node_id=node_id,
+        dry_run=any(entry.dry_run for entry in readings),
+        classes=[
+            ClassOutlookView(
+                risk_class=entry.risk_class,
+                capability=entry.capability,
+                resource_kind=entry.resource_kind,
+                summary=entry.summary,
+                sentence=entry.describe(),
+                decision=entry.outcome,
+                level=entry.level,
+                refused_by=entry.refused_by,
+                dry_run=entry.dry_run,
+                reason=entry.decision.reason,
+            )
+            for entry in readings
+        ],
     )
 
 

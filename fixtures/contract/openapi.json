@@ -502,6 +502,65 @@
         "title": "ChecklistView",
         "type": "object"
       },
+      "ClassOutlookView": {
+        "description": "What one risk class would meet under the posture as it stands.\n\n``sentence`` is the whole point and the rest is what a reader checks it\nagainst. A level and a bound are a policy's vocabulary; \"would wait for a\nperson's approval before anything happened\" is an answer.",
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "refused_by": {
+            "default": "",
+            "title": "Refused By",
+            "type": "string"
+          },
+          "resource_kind": {
+            "default": "",
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "risk_class": {
+            "title": "Risk Class",
+            "type": "string"
+          },
+          "sentence": {
+            "title": "Sentence",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk_class",
+          "capability",
+          "sentence",
+          "decision",
+          "level"
+        ],
+        "title": "ClassOutlookView",
+        "type": "object"
+      },
       "ClearRequest": {
         "description": "What the person who looked at the resource found.\n\nRequired, and refused at the schema. A suspension is raised because nobody\nknows what state a resource is in; a clearing with no reason records that\nnobody found out.",
         "properties": {
@@ -3374,6 +3433,32 @@
         "title": "OutcomeView",
         "type": "object"
       },
+      "OutlookView": {
+        "description": "One reading per risk class, least dangerous first.",
+        "properties": {
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassOutlookView"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "OutlookView",
+        "type": "object"
+      },
       "OverrideRequest": {
         "description": "A raise in autonomy that ends by itself.\n\n``reason`` is required. An override nobody explained is one the next person\ncannot decide whether to renew, and the person who granted it will not be\nthe person who finds it.",
         "properties": {
@@ -3437,6 +3522,25 @@
         "title": "OverrideRequest",
         "type": "object"
       },
+      "OverrideRevokedView": {
+        "description": "Which override went, and from whose document.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "node_id"
+        ],
+        "title": "OverrideRevokedView",
+        "type": "object"
+      },
       "OverrideView": {
         "properties": {
           "expires_at": {
@@ -3475,6 +3579,27 @@
           "expires_at"
         ],
         "title": "OverrideView",
+        "type": "object"
+      },
+      "PipelineView": {
+        "description": "The investigation's shape, and the roles a deployment may bind.",
+        "properties": {
+          "model_roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Model Roles",
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageView"
+            },
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "title": "PipelineView",
         "type": "object"
       },
       "PolicyDocumentView": {
@@ -5230,6 +5355,54 @@
           }
         },
         "title": "SsoWriteRequest",
+        "type": "object"
+      },
+      "StageView": {
+        "description": "One stage: where it sits, what it reads, and what it is allowed to change.",
+        "properties": {
+          "consults": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Consults",
+            "type": "array"
+          },
+          "dispatches_subagents": {
+            "default": false,
+            "title": "Dispatches Subagents",
+            "type": "boolean"
+          },
+          "model_role": {
+            "default": "",
+            "title": "Model Role",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "writes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Writes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "order",
+          "summary"
+        ],
+        "title": "StageView",
         "type": "object"
       },
       "SubjectRequest": {
@@ -7008,6 +7181,56 @@
         ]
       }
     },
+    "/v1/agent/pipeline": {
+      "get": {
+        "description": "Return the stages an investigation runs, in order, with what each consults.",
+        "operationId": "read_pipeline_v1_agent_pipeline_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Pipeline",
+        "tags": [
+          "agent"
+        ]
+      }
+    },
     "/v1/approvals": {
       "get": {
         "description": "Return undecided approvals, longest-waiting first (FR-008).\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
@@ -7685,6 +7908,65 @@
         ]
       }
     },
+    "/v1/autonomy/policy/{node_id}/outlook": {
+      "get": {
+        "description": "Return what an action of each risk class would meet under this posture.\n\nThe reading the policy document does not give. A table of rules answers\n\"what did somebody configure\"; this answers \"what will this do if something\nhappens now\", which is the question asked before a deployment is trusted\nwith an estate — and it is answered by the deployment's own gate rather than\nby a client's reading of the rules, so what is shown and what would happen\ncannot drift.",
+        "operationId": "read_outlook_v1_autonomy_policy__node_id__outlook_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutlookView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Outlook",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
     "/v1/autonomy/policy/{node_id}/overrides": {
       "post": {
         "description": "Raise autonomy in a scope until it expires, and record who did it.",
@@ -7749,6 +8031,74 @@
           }
         },
         "summary": "Grant Override",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}/overrides/{name}": {
+      "delete": {
+        "description": "Take an override away before it expires, and say whether one was there.\n\n404 rather than a quiet success for an override this node did not grant: an\noperator who asked for a widening to be taken away, and was told it was,\nwould stop looking — and the widening would still be in force from a level\nabove, where it has to be revoked instead.",
+        "operationId": "revoke_override_v1_autonomy_policy__node_id__overrides__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverrideRevokedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Override",
         "tags": [
           "autonomy"
         ]
