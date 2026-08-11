@@ -1192,6 +1192,87 @@
         "title": "CredentialWriteView",
         "type": "object"
       },
+      "DeliveryView": {
+        "description": "One crossing of the boundary, as a screen renders it.",
+        "properties": {
+          "attempt": {
+            "default": 1,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "delivery_id": {
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "detail": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Detail",
+            "type": "object"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "event_type": {
+            "default": "",
+            "title": "Event Type",
+            "type": "string"
+          },
+          "incident_id": {
+            "default": "",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "matched_rule": {
+            "default": "",
+            "title": "Matched Rule",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "resource_id": {
+            "default": "",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "run_id": {
+            "default": "",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "team_node_id": {
+            "default": "",
+            "title": "Team Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "direction",
+          "source",
+          "occurred_at",
+          "outcome"
+        ],
+        "title": "DeliveryView",
+        "type": "object"
+      },
       "DemoRemovalView": {
         "properties": {
           "counts": {
@@ -1288,6 +1369,77 @@
           "derived_at"
         ],
         "title": "DerivationView",
+        "type": "object"
+      },
+      "DestinationView": {
+        "description": "One place results go, and the policy that decides how much of them.",
+        "properties": {
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "destination_id": {
+            "title": "Destination Id",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "masking_policy": {
+            "default": "",
+            "title": "Masking Policy",
+            "type": "string"
+          },
+          "unconfigurable_reason": {
+            "default": "",
+            "title": "Unconfigurable Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "destination_id",
+          "channel"
+        ],
+        "title": "DestinationView",
+        "type": "object"
+      },
+      "DestinationsView": {
+        "properties": {
+          "destinations": {
+            "items": {
+              "$ref": "#/components/schemas/DestinationView"
+            },
+            "title": "Destinations",
+            "type": "array"
+          },
+          "events": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "unconfigurable_reason": {
+            "default": "",
+            "title": "Unconfigurable Reason",
+            "type": "string"
+          }
+        },
+        "title": "DestinationsView",
         "type": "object"
       },
       "DetectorListView": {
@@ -2484,6 +2636,79 @@
         "title": "IngressSourceListView",
         "type": "object"
       },
+      "IngressSourceStatusView": {
+        "description": "One receiver: where to point it, and whether anything ever arrived.",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "expects": {
+            "title": "Expects",
+            "type": "string"
+          },
+          "last_delivery_at": {
+            "default": "",
+            "title": "Last Delivery At",
+            "type": "string"
+          },
+          "last_outcome": {
+            "default": "",
+            "title": "Last Outcome",
+            "type": "string"
+          },
+          "never_delivered": {
+            "default": true,
+            "title": "Never Delivered",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "recent_rejections": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryView"
+            },
+            "title": "Recent Rejections",
+            "type": "array"
+          },
+          "sample": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SampleView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "verification": {
+            "title": "Verification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "path",
+          "url",
+          "expects",
+          "verification"
+        ],
+        "title": "IngressSourceStatusView",
+        "type": "object"
+      },
       "IngressSourceView": {
         "description": "One receiver an alert router can be pointed at.",
         "properties": {
@@ -2516,6 +2741,24 @@
           "verification"
         ],
         "title": "IngressSourceView",
+        "type": "object"
+      },
+      "IngressStatusView": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IngressSourceStatusView"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "window_hours": {
+            "default": 24,
+            "title": "Window Hours",
+            "type": "integer"
+          }
+        },
+        "title": "IngressStatusView",
         "type": "object"
       },
       "InheritedValueView": {
@@ -4829,6 +5072,81 @@
         "title": "RollbackStepView",
         "type": "object"
       },
+      "RuleView": {
+        "description": "One ordered rule, as the editor renders it.",
+        "properties": {
+          "action": {
+            "default": "",
+            "title": "Action",
+            "type": "string"
+          },
+          "criticalities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Criticalities",
+            "type": "array"
+          },
+          "is_catch_all": {
+            "default": false,
+            "title": "Is Catch All",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "team": {
+            "default": "",
+            "title": "Team",
+            "type": "string"
+          },
+          "zones": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rule_id"
+        ],
+        "title": "RuleView",
+        "type": "object"
+      },
+      "RulesView": {
+        "properties": {
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleView"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "title": "RulesView",
+        "type": "object"
+      },
       "RunList": {
         "properties": {
           "runs": {
@@ -4879,6 +5197,35 @@
           "is_interrupted"
         ],
         "title": "RunReplayView",
+        "type": "object"
+      },
+      "SampleView": {
+        "description": "The last payload a source sent, after masking, and which policy did it.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "captured_at": {
+            "title": "Captured At",
+            "type": "string"
+          },
+          "masking_policy": {
+            "title": "Masking Policy",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "captured_at",
+          "body",
+          "masking_policy"
+        ],
+        "title": "SampleView",
         "type": "object"
       },
       "ScheduleView": {
@@ -5202,6 +5549,42 @@
           }
         },
         "title": "SignalsView",
+        "type": "object"
+      },
+      "SimulationView": {
+        "description": "What today's rules would do with this payload, before anything is saved.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "signals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "object"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "action",
+          "team"
+        ],
+        "title": "SimulationView",
         "type": "object"
       },
       "SkillView": {
@@ -13275,6 +13658,370 @@
         "summary": "Get Topology",
         "tags": [
           "topology"
+        ]
+      }
+    },
+    "/v1/transit/deliveries": {
+      "get": {
+        "description": "Return recent crossings, newest first, in either direction.",
+        "operationId": "deliveries_v1_transit_deliveries_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Outcome",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeliveryView"
+                  },
+                  "title": "Response Deliveries V1 Transit Deliveries Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deliveries",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/deliveries/{delivery_id}/resend": {
+      "post": {
+        "description": "Send a failed outbound delivery again, and record that a person asked.\n\nA re-send puts a report in front of somebody, so it is a human act and is\naudited like every other one — Article III. Refused for a delivery that\ndid not fail: re-sending a message the destination already accepted would\nbe this deployment producing a duplicate nobody asked for.",
+        "operationId": "resend_delivery_v1_transit_deliveries__delivery_id__resend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resend Delivery",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/destinations": {
+      "get": {
+        "description": "Return every declared destination, and why one cannot be configured.\n\nA deployment whose catalogue holds nothing that can deliver a message says\nso once, here, rather than rendering rows that would silently never send.",
+        "operationId": "destinations_v1_transit_destinations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinationsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Destinations",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/ingress": {
+      "get": {
+        "description": "Return every receiver this deployment serves, and what it has done lately.\n\nBuilt by enumerating the *configured* sources and joining the ledger onto\nthem, never the other way round. A listing built from the ledger would omit\nexactly the source this screen exists to show: the one that has never\ndelivered anything.",
+        "operationId": "ingress_status_v1_transit_ingress_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "rejections",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "title": "Rejections",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngressStatusView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingress Status",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/rules": {
+      "get": {
+        "description": "Return the ordered rule set, with the catch-all always present and last.\n\nA deployment that has configured nothing gets the default set rather than an\nempty list, because \"what happens to a delivery here\" always has an answer\nand the screen has to be able to show it.",
+        "operationId": "rules_v1_transit_rules_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulesView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rules",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/simulate": {
+      "post": {
+        "description": "Return which rule would catch this delivery, where it would go, and what would happen.\n\nTakes either a pasted ``payload`` with its ``source``, or the\n``delivery_id`` of a crossing already in the ledger. Both end in the same\n``evaluate`` call the live ingress path makes — asserted by construction\nrather than by comparison, because there is only one implementation to call.",
+        "operationId": "simulate_v1_transit_simulate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Simulate",
+        "tags": [
+          "transit"
         ]
       }
     },

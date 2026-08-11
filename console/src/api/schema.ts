@@ -2301,6 +2301,148 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/transit/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deliveries
+         * @description Return recent crossings, newest first, in either direction.
+         */
+        get: operations["deliveries_v1_transit_deliveries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/deliveries/{delivery_id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Delivery
+         * @description Send a failed outbound delivery again, and record that a person asked.
+         *
+         *     A re-send puts a report in front of somebody, so it is a human act and is
+         *     audited like every other one — Article III. Refused for a delivery that
+         *     did not fail: re-sending a message the destination already accepted would
+         *     be this deployment producing a duplicate nobody asked for.
+         */
+        post: operations["resend_delivery_v1_transit_deliveries__delivery_id__resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Destinations
+         * @description Return every declared destination, and why one cannot be configured.
+         *
+         *     A deployment whose catalogue holds nothing that can deliver a message says
+         *     so once, here, rather than rendering rows that would silently never send.
+         */
+        get: operations["destinations_v1_transit_destinations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/ingress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ingress Status
+         * @description Return every receiver this deployment serves, and what it has done lately.
+         *
+         *     Built by enumerating the *configured* sources and joining the ledger onto
+         *     them, never the other way round. A listing built from the ledger would omit
+         *     exactly the source this screen exists to show: the one that has never
+         *     delivered anything.
+         */
+        get: operations["ingress_status_v1_transit_ingress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rules
+         * @description Return the ordered rule set, with the catch-all always present and last.
+         *
+         *     A deployment that has configured nothing gets the default set rather than an
+         *     empty list, because "what happens to a delivery here" always has an answer
+         *     and the screen has to be able to show it.
+         */
+        get: operations["rules_v1_transit_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simulate
+         * @description Return which rule would catch this delivery, where it would go, and what would happen.
+         *
+         *     Takes either a pasted ``payload`` with its ``source``, or the
+         *     ``delivery_id`` of a crossing already in the ledger. Both end in the same
+         *     ``evaluate`` call the live ingress path makes — asserted by construction
+         *     rather than by comparison, because there is only one implementation to call.
+         */
+        post: operations["simulate_v1_transit_simulate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/alertmanager": {
         parameters: {
             query?: never;
@@ -3001,6 +3143,66 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * DeliveryView
+         * @description One crossing of the boundary, as a screen renders it.
+         */
+        DeliveryView: {
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt: number;
+            /** Delivery Id */
+            delivery_id: string;
+            /** Detail */
+            detail?: {
+                [key: string]: string;
+            };
+            /** Direction */
+            direction: string;
+            /**
+             * Event Type
+             * @default
+             */
+            event_type: string;
+            /**
+             * Incident Id
+             * @default
+             */
+            incident_id: string;
+            /**
+             * Matched Rule
+             * @default
+             */
+            matched_rule: string;
+            /** Occurred At */
+            occurred_at: string;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Resource Id
+             * @default
+             */
+            resource_id: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+            /** Source */
+            source: string;
+            /**
+             * Team Node Id
+             * @default
+             */
+            team_node_id: string;
+        };
         /** DemoRemovalView */
         DemoRemovalView: {
             /** Counts */
@@ -3054,6 +3256,50 @@ export interface components {
             signals?: components["schemas"]["SignalView"][];
             /** State */
             state: string;
+        };
+        /**
+         * DestinationView
+         * @description One place results go, and the policy that decides how much of them.
+         */
+        DestinationView: {
+            /** Channel */
+            channel: string;
+            /** Destination Id */
+            destination_id: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Events */
+            events?: string[];
+            /**
+             * Masking Policy
+             * @default
+             */
+            masking_policy: string;
+            /**
+             * Unconfigurable Reason
+             * @default
+             */
+            unconfigurable_reason: string;
+        };
+        /** DestinationsView */
+        DestinationsView: {
+            /** Destinations */
+            destinations?: components["schemas"]["DestinationView"][];
+            /** Events */
+            events?: string[];
+            /**
+             * Unconfigurable Reason
+             * @default
+             */
+            unconfigurable_reason: string;
         };
         /** DetectorListView */
         DetectorListView: {
@@ -3687,6 +3933,44 @@ export interface components {
             sources?: components["schemas"]["IngressSourceView"][];
         };
         /**
+         * IngressSourceStatusView
+         * @description One receiver: where to point it, and whether anything ever arrived.
+         */
+        IngressSourceStatusView: {
+            /** Counts */
+            counts?: {
+                [key: string]: number;
+            };
+            /** Expects */
+            expects: string;
+            /**
+             * Last Delivery At
+             * @default
+             */
+            last_delivery_at: string;
+            /**
+             * Last Outcome
+             * @default
+             */
+            last_outcome: string;
+            /**
+             * Never Delivered
+             * @default true
+             */
+            never_delivered: boolean;
+            /** Path */
+            path: string;
+            /** Recent Rejections */
+            recent_rejections?: components["schemas"]["DeliveryView"][];
+            sample?: components["schemas"]["SampleView"] | null;
+            /** Source */
+            source: string;
+            /** Url */
+            url: string;
+            /** Verification */
+            verification: string;
+        };
+        /**
          * IngressSourceView
          * @description One receiver an alert router can be pointed at.
          */
@@ -3701,6 +3985,16 @@ export interface components {
             url: string;
             /** Verification */
             verification: string;
+        };
+        /** IngressStatusView */
+        IngressStatusView: {
+            /** Sources */
+            sources?: components["schemas"]["IngressSourceStatusView"][];
+            /**
+             * Window Hours
+             * @default 24
+             */
+            window_hours: number;
         };
         /**
          * InheritedValueView
@@ -4819,6 +5113,47 @@ export interface components {
             /** Ordinal */
             ordinal: number;
         };
+        /**
+         * RuleView
+         * @description One ordered rule, as the editor renders it.
+         */
+        RuleView: {
+            /**
+             * Action
+             * @default
+             */
+            action: string;
+            /** Criticalities */
+            criticalities?: string[];
+            /**
+             * Is Catch All
+             * @default false
+             */
+            is_catch_all: boolean;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Resources */
+            resources?: string[];
+            /** Rule Id */
+            rule_id: string;
+            /** Sources */
+            sources?: string[];
+            /**
+             * Team
+             * @default
+             */
+            team: string;
+            /** Zones */
+            zones?: string[];
+        };
+        /** RulesView */
+        RulesView: {
+            /** Rules */
+            rules?: components["schemas"]["RuleView"][];
+        };
         /** RunList */
         RunList: {
             /** Runs */
@@ -4836,6 +5171,23 @@ export interface components {
             total_tokens: number;
             /** Turns */
             turns: components["schemas"]["ThreadTurnView"][];
+        };
+        /**
+         * SampleView
+         * @description The last payload a source sent, after masking, and which policy did it.
+         */
+        SampleView: {
+            /** Body */
+            body: string;
+            /** Captured At */
+            captured_at: string;
+            /** Masking Policy */
+            masking_policy: string;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
         };
         /** ScheduleView */
         ScheduleView: {
@@ -5007,6 +5359,27 @@ export interface components {
             missing?: components["schemas"]["MissingSignalView"][];
             /** Sources */
             sources?: components["schemas"]["SignalSourceView"][];
+        };
+        /**
+         * SimulationView
+         * @description What today's rules would do with this payload, before anything is saved.
+         */
+        SimulationView: {
+            /** Action */
+            action: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Rule Id */
+            rule_id: string;
+            /** Signals */
+            signals?: {
+                [key: string]: string;
+            };
+            /** Team */
+            team: string;
         };
         /** SkillView */
         SkillView: {
@@ -9346,6 +9719,206 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TopologyView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliveries_v1_transit_deliveries_get: {
+        parameters: {
+            query?: {
+                direction?: string;
+                outcome?: string;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_delivery_v1_transit_deliveries__delivery_id__resend_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    destinations_v1_transit_destinations_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DestinationsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingress_status_v1_transit_ingress_get: {
+        parameters: {
+            query?: {
+                rejections?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngressStatusView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rules_v1_transit_rules_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulate_v1_transit_simulate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationView"];
                 };
             };
             /** @description Validation Error */

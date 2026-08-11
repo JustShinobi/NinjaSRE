@@ -1,0 +1,37 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "attempt": 2,
+        "delivery_id": "chat-incidents:concluded:2",
+        "detail": {
+          "channel": "slack",
+          "detail_level": "summary_with_link"
+        },
+        "direction": "outbound",
+        "event_type": "investigation_concluded",
+        "incident_id": "",
+        "matched_rule": "",
+        "occurred_at": "2026-08-07T12:00:00+00:00",
+        "outcome": "delivered",
+        "reason": "",
+        "resource_id": "",
+        "run_id": "",
+        "source": "chat-incidents",
+        "team_node_id": "team-platform"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "transit-resend",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-resend"
+}

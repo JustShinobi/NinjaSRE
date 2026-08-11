@@ -1,0 +1,41 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "destinations": [
+          {
+            "channel": "slack",
+            "destination_id": "chat-incidents",
+            "detail": "summary_with_link",
+            "enabled": true,
+            "events": [
+              "investigation_concluded",
+              "approval_pending"
+            ],
+            "masking_policy": "standard",
+            "unconfigurable_reason": ""
+          }
+        ],
+        "events": [
+          "investigation_concluded",
+          "remediation_proposed",
+          "approval_pending",
+          "source_degraded"
+        ],
+        "unconfigurable_reason": ""
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "transit-destinations",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-destinations"
+}

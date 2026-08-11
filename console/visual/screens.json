@@ -211,6 +211,28 @@
       }
     },
     {
+      "id": "data-1440-light",
+      "route": "/data",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The three columns of transit, in the order data moves through them: what arrives, what happens to it, and where the result goes. No reference is drawn for it; the baseline exists because the one thing this screen has to get right is *emphasis* — a receiver that has never delivered is drawn first and in the danger tone, and a change that quietened it would be invisible to every other check while removing the whole reason the screen is here."
+      }
+    },
+    {
+      "id": "data-320-light",
+      "route": "/data",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "Three columns at the narrowest width the console declares, where they are one column stacked. What this catches is the masked payload sample — a long unbroken string — scrolling the page sideways."
+      }
+    },
+    {
       "id": "resources-320-light",
       "route": "/resources",
       "status": "baselined",

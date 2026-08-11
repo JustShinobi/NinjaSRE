@@ -24,6 +24,7 @@ const AREAS = [
   { id: 'knowledge', path: '/knowledge', title: 'Knowledge' },
   { id: 'autonomy', path: '/autonomy', title: 'Autonomy' },
   { id: 'configuration', path: '/configuration', title: 'Configuration' },
+  { id: 'data', path: '/data', title: 'Data' },
   { id: 'audit', path: '/audit', title: 'Audit' },
 ] as const;
 

@@ -1,0 +1,28 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "destinations": [],
+        "events": [
+          "investigation_concluded",
+          "remediation_proposed",
+          "approval_pending",
+          "source_degraded"
+        ],
+        "unconfigurable_reason": "No configured integration can deliver a message. Connect a chat or notification integration in the catalogue, then declare a destination here."
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "transit-destinations",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-destinations"
+}

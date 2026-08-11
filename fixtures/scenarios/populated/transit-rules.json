@@ -1,0 +1,48 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "rules": [
+          {
+            "action": "investigate",
+            "criticalities": [
+              "critical"
+            ],
+            "is_catch_all": false,
+            "reason": "",
+            "resources": [],
+            "rule_id": "critical-to-platform",
+            "sources": [
+              "alertmanager"
+            ],
+            "team": "team-platform",
+            "zones": []
+          },
+          {
+            "action": "record_only",
+            "criticalities": [],
+            "is_catch_all": true,
+            "reason": "",
+            "resources": [],
+            "rule_id": "everything-else",
+            "sources": [],
+            "team": "",
+            "zones": []
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "transit-rules",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-rules"
+}

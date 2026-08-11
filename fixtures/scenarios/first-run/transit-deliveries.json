@@ -1,0 +1,19 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": [],
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "transit-deliveries",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-deliveries"
+}

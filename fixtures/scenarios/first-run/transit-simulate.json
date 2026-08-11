@@ -1,0 +1,30 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "action": "investigate",
+        "reason": "",
+        "rule_id": "critical-to-platform",
+        "signals": {
+          "criticality": "critical",
+          "resource_id": "proxmox:container/hal9000/110",
+          "source": "alertmanager",
+          "zone": "apps"
+        },
+        "team": "team-platform"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "transit-simulate",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-simulate"
+}

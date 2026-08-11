@@ -150,3 +150,95 @@ test('a proposal carries all eight fields before it can be decided', async ({
     'autonomy',
   ]);
 });
+
+/**
+ * Transit, in a browser, against a real deployment.
+ *
+ * Three claims that only hold here. **The simulation is the deployment's
+ * answer**: the unit suite shows the console renders what it is handed, and
+ * only a real `POST` shows that what it is handed came from the function the
+ * ingress path runs rather than from a matcher on the way. **The lock is a
+ * lock**: an operator who simulates, edits, and reaches for save has to meet a
+ * disabled button, and that is a sequence of real interactions rather than a
+ * state. And **the failed delivery is actionable**: the control is on the row
+ * and it says what happened.
+ */
+
+test('a silent receiver is the first thing on the transit screen', async ({ page }) => {
+  await page.goto('/data');
+
+  const first = page.getByTestId('ingress-source').first();
+  await expect(first).toHaveAttribute('data-never-delivered', 'true');
+  await expect(first).toContainText('Nothing has ever arrived here');
+});
+
+test('the rule that catches everything else is always drawn', async ({ page }) => {
+  await page.goto('/data');
+
+  await expect(page.getByTestId('catch-all-rule')).toBeVisible();
+  await expect(page.getByTestId('catch-all-note')).toBeVisible();
+});
+
+test('a rule cannot be saved until its effect has been seen', async ({ page }) => {
+  await page.goto('/data');
+
+  const save = page.getByTestId('simulate-save');
+  const simulate = page.getByTestId('simulate');
+  await expect(save).toBeDisabled();
+
+  await page
+    .getByTestId('simulate-payload')
+    .fill('{"groupKey": "g", "status": "firing"}');
+  await simulate.click();
+
+  // The answer is the deployment's: the rule named here is one this deployment
+  // has configured, which nothing in the browser could have known.
+  await expect(page.getByTestId('simulate-rule')).toContainText('critical-to-platform');
+  await expect(save).toBeEnabled();
+});
+
+test('editing the payload after simulating locks save again', async ({ page }) => {
+  // The bypass attempt: simulate something harmless, edit it, then save.
+  await page.goto('/data');
+
+  await page.getByTestId('simulate-payload').fill('{"groupKey": "g"}');
+  await page.getByTestId('simulate').click();
+  await expect(page.getByTestId('simulate-save')).toBeEnabled();
+
+  await page.getByTestId('simulate-payload').fill('{"groupKey": "something else"}');
+
+  await expect(page.getByTestId('simulate-save')).toBeDisabled();
+});
+
+test('a report that did not arrive can be sent again from the row it failed on', async ({
+  page,
+}) => {
+  await page.goto('/data');
+
+  const failed = page.getByTestId('failed-delivery').first();
+  await expect(failed).toContainText('channel_not_found');
+
+  await failed.getByTestId('resend-action').click();
+
+  // Whatever the second attempt did, the row says so. A control that went quiet
+  // is one an operator cannot tell from a control that did nothing.
+  await expect(failed.getByTestId('resend-outcome')).toBeVisible();
+});
+
+test('an arrival answers which rule caught it and which run it became', async ({
+  page,
+}) => {
+  await page.goto('/data');
+
+  const live = page
+    .getByTestId('ingress-source')
+    .filter({ has: page.locator('[data-source="alertmanager"]') })
+    .or(page.locator('[data-testid="ingress-source"][data-source="alertmanager"]'))
+    .first();
+  await live.getByTestId('provenance').locator('summary').click();
+
+  await expect(live.getByTestId('provenance-chain')).toContainText(
+    'critical-to-platform',
+  );
+  await expect(live.getByTestId('provenance-run')).toHaveAttribute('href', /^\/runs\//);
+});

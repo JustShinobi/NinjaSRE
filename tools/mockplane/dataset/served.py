@@ -1333,6 +1333,260 @@ def ingress_records() -> tuple[CapturedRecord, ...]:
     )
 
 
+#: The instants the transit rows are dated from. Fixed offsets off the capture,
+#: so "an hour ago" is the same sentence on every run of the suite rather than
+#: whatever the clock said.
+_TRANSIT_ACCEPTED_AT: Final = _CAPTURED - timedelta(minutes=12)
+_TRANSIT_REJECTED_AT: Final = _CAPTURED - timedelta(hours=3)
+_TRANSIT_FAILED_AT: Final = _CAPTURED - timedelta(minutes=40)
+
+#: The receiver this deployment actually uses. The other six are configured
+#: routes that have never delivered — which is deliberate: the state the screen
+#: exists to make loud has to be in the dataset the design was drawn from, or
+#: the design was drawn against a case that never appears.
+_LIVE_SOURCE: Final = "alertmanager"
+
+#: The one that is refusing rather than silent. A source delivering nothing and
+#: a source delivering rubbish are different problems with different fixes, and
+#: a dataset carrying only the first would let a screen conflate them.
+_REFUSING_SOURCE: Final = "grafana"
+
+
+def transit_records() -> tuple[CapturedRecord, ...]:
+    """Return what the Data screen shows: arrivals, rules, destinations, the ledger.
+
+    Derived from the shipped profiles for the same reason ``ingress_records``
+    is: a fixture carrying its own copy of the seven receivers goes on
+    describing one after it has been removed.
+    """
+    accepted = {
+        "delivery_id": "alertmanager:accepted",
+        "direction": "ingress",
+        "source": _LIVE_SOURCE,
+        "occurred_at": _TRANSIT_ACCEPTED_AT.isoformat(),
+        "outcome": "accepted",
+        "reason": "",
+        "matched_rule": "critical-to-platform",
+        "team_node_id": PLATFORM_TEAM_NODE,
+        "resource_id": "proxmox:container/hal9000/110",
+        "run_id": RUNS[0]["run_id"],
+        "incident_id": "",
+        "event_type": "",
+        "attempt": 1,
+        "detail": {},
+    }
+    rejected = {
+        "delivery_id": "grafana:rejected",
+        "direction": "ingress",
+        "source": _REFUSING_SOURCE,
+        "occurred_at": _TRANSIT_REJECTED_AT.isoformat(),
+        "outcome": "rejected",
+        "reason": "this grafana webhook did not verify against any configured route",
+        "matched_rule": "",
+        "team_node_id": "",
+        "resource_id": "",
+        "run_id": "",
+        "incident_id": "",
+        "event_type": "",
+        "attempt": 1,
+        "detail": {},
+    }
+    undelivered = {
+        "delivery_id": "chat-incidents:concluded",
+        "direction": "outbound",
+        "source": "chat-incidents",
+        "occurred_at": _TRANSIT_FAILED_AT.isoformat(),
+        "outcome": "failed",
+        "reason": "the channel refused the message: channel_not_found",
+        "matched_rule": "",
+        "team_node_id": PLATFORM_TEAM_NODE,
+        "resource_id": "",
+        "run_id": "",
+        "incident_id": "",
+        "event_type": "investigation_concluded",
+        "attempt": 1,
+        "detail": {"channel": "slack", "detail_level": "summary_with_link"},
+    }
+
+    def source_row(name: str, profile_of: Any) -> dict[str, Any]:
+        delivered = name == _LIVE_SOURCE
+        refused = name == _REFUSING_SOURCE
+        row: dict[str, Any] = {
+            "source": name,
+            "path": f"/webhooks/{name}",
+            "url": f"{INGRESS_BASE_URL}/webhooks/{name}",
+            "expects": profile_of.expects,
+            "verification": profile_of.verification,
+            "never_delivered": not (delivered or refused),
+            "last_delivery_at": "",
+            "last_outcome": "",
+            "counts": {},
+            "recent_rejections": [],
+            "sample": None,
+        }
+        if delivered:
+            row["last_delivery_at"] = accepted["occurred_at"]
+            row["last_outcome"] = "accepted"
+            row["counts"] = {"accepted": 14, "duplicate": 2}
+            row["sample"] = {
+                "captured_at": accepted["occurred_at"],
+                "body": (
+                    '{"status": "firing", "groupKey": "{}:{alertname=\\"ContainerMemoryHigh\\"}", '
+                    '"commonLabels": {"alertname": "ContainerMemoryHigh", '
+                    '"instance": "<ipv4-1>", "severity": "critical"}}'
+                ),
+                "masking_policy": "standard",
+                "truncated": False,
+            }
+        if refused:
+            row["last_delivery_at"] = rejected["occurred_at"]
+            row["last_outcome"] = "rejected"
+            row["counts"] = {"rejected": 6}
+            row["recent_rejections"] = [rejected]
+        return row
+
+    return (
+        _record(
+            "transit-ingress",
+            {},
+            {
+                "sources": [
+                    source_row(name, profile_of) for name, profile_of in sorted(PROFILES.items())
+                ],
+                "window_hours": 24,
+            },
+        ),
+        _record(
+            "transit-rules",
+            {},
+            {
+                "rules": [
+                    {
+                        "rule_id": "critical-to-platform",
+                        "sources": [_LIVE_SOURCE],
+                        "zones": [],
+                        "criticalities": ["critical"],
+                        "resources": [],
+                        "team": PLATFORM_TEAM_NODE,
+                        "action": "investigate",
+                        "reason": "",
+                        "is_catch_all": False,
+                    },
+                    {
+                        "rule_id": "everything-else",
+                        "sources": [],
+                        "zones": [],
+                        "criticalities": [],
+                        "resources": [],
+                        "team": "",
+                        "action": "record_only",
+                        "reason": "",
+                        "is_catch_all": True,
+                    },
+                ]
+            },
+        ),
+        _record(
+            "transit-destinations",
+            {},
+            {
+                "destinations": [
+                    {
+                        "destination_id": "chat-incidents",
+                        "channel": "slack",
+                        "events": ["investigation_concluded", "approval_pending"],
+                        "detail": "summary_with_link",
+                        "enabled": True,
+                        "masking_policy": "standard",
+                        "unconfigurable_reason": "",
+                    }
+                ],
+                "events": [
+                    "investigation_concluded",
+                    "remediation_proposed",
+                    "approval_pending",
+                    "source_degraded",
+                ],
+                "unconfigurable_reason": "",
+            },
+        ),
+        _record("transit-deliveries", {}, [accepted, rejected, undelivered]),
+    )
+
+
+def empty_transit_records() -> tuple[CapturedRecord, ...]:
+    """Return a deployment where nothing has ever arrived, and every receiver says so.
+
+    The state the ingress column exists for, in the scenario an operator's first
+    day actually looks like: seven configured routes, seven silences. It is a
+    fixture of its own rather than the populated one with the rows removed,
+    because "never delivered" is the *only* thing on this screen then, and a
+    design that was never drawn against it is a design that hides it.
+    """
+    return (
+        _record(
+            "transit-ingress",
+            {},
+            {
+                "sources": [
+                    {
+                        "source": name,
+                        "path": f"/webhooks/{name}",
+                        "url": f"{INGRESS_BASE_URL}/webhooks/{name}",
+                        "expects": profile_of.expects,
+                        "verification": profile_of.verification,
+                        "never_delivered": True,
+                        "last_delivery_at": "",
+                        "last_outcome": "",
+                        "counts": {},
+                        "recent_rejections": [],
+                        "sample": None,
+                    }
+                    for name, profile_of in sorted(PROFILES.items())
+                ],
+                "window_hours": 24,
+            },
+        ),
+        _record(
+            "transit-rules",
+            {},
+            {
+                "rules": [
+                    {
+                        "rule_id": "catch-all",
+                        "sources": [],
+                        "zones": [],
+                        "criticalities": [],
+                        "resources": [],
+                        "team": "",
+                        "action": "investigate",
+                        "reason": "",
+                        "is_catch_all": True,
+                    }
+                ]
+            },
+        ),
+        _record(
+            "transit-destinations",
+            {},
+            {
+                "destinations": [],
+                "events": [
+                    "investigation_concluded",
+                    "remediation_proposed",
+                    "approval_pending",
+                    "source_degraded",
+                ],
+                "unconfigurable_reason": (
+                    "No configured integration can deliver a message. Connect a chat or "
+                    "notification integration in the catalogue, then declare a destination here."
+                ),
+            },
+        ),
+        _record("transit-deliveries", {}, []),
+    )
+
+
 def setup_records() -> tuple[CapturedRecord, ...]:
     """Return what the full deployment says about its own setup: finished."""
     return (
@@ -1789,6 +2043,7 @@ def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
         *role_records(),
         *platform_records(),
         *ingress_records(),
+        *transit_records(),
         *setup_records(),
     )
 

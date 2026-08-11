@@ -1,0 +1,33 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "rules": [
+          {
+            "action": "investigate",
+            "criticalities": [],
+            "is_catch_all": true,
+            "reason": "",
+            "resources": [],
+            "rule_id": "catch-all",
+            "sources": [],
+            "team": "",
+            "zones": []
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "transit-rules",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-rules"
+}

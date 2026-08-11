@@ -1,0 +1,71 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": [
+        {
+          "attempt": 1,
+          "delivery_id": "alertmanager:accepted",
+          "detail": {},
+          "direction": "ingress",
+          "event_type": "",
+          "incident_id": "",
+          "matched_rule": "critical-to-platform",
+          "occurred_at": "2026-08-07T11:48:00+00:00",
+          "outcome": "accepted",
+          "reason": "",
+          "resource_id": "proxmox:container/hal9000/110",
+          "run_id": "run-0001",
+          "source": "alertmanager",
+          "team_node_id": "team-platform"
+        },
+        {
+          "attempt": 1,
+          "delivery_id": "grafana:rejected",
+          "detail": {},
+          "direction": "ingress",
+          "event_type": "",
+          "incident_id": "",
+          "matched_rule": "",
+          "occurred_at": "2026-08-07T09:00:00+00:00",
+          "outcome": "rejected",
+          "reason": "this grafana webhook did not verify against any configured route",
+          "resource_id": "",
+          "run_id": "",
+          "source": "grafana",
+          "team_node_id": ""
+        },
+        {
+          "attempt": 1,
+          "delivery_id": "chat-incidents:concluded",
+          "detail": {
+            "channel": "slack",
+            "detail_level": "summary_with_link"
+          },
+          "direction": "outbound",
+          "event_type": "investigation_concluded",
+          "incident_id": "",
+          "matched_rule": "",
+          "occurred_at": "2026-08-07T11:20:00+00:00",
+          "outcome": "failed",
+          "reason": "the channel refused the message: channel_not_found",
+          "resource_id": "",
+          "run_id": "",
+          "source": "chat-incidents",
+          "team_node_id": "team-platform"
+        }
+      ],
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "transit-deliveries",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "transit-deliveries"
+}

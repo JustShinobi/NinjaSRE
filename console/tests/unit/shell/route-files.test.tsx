@@ -27,6 +27,7 @@ import Autonomy, {
 import Configuration, {
   generateMetadata as configurationMeta,
 } from '@/app/(shell)/configuration/page';
+import Data, { generateMetadata as dataMeta } from '@/app/(shell)/data/page';
 import Detectors, {
   generateMetadata as detectorsMeta,
 } from '@/app/(shell)/detectors/page';
@@ -96,6 +97,7 @@ const ROUTE_FILES: readonly RouteFile[] = [
   { id: 'agent', page: Agent, metadata: agentMeta },
   { id: 'administration', page: Administration, metadata: administrationMeta },
   { id: 'audit', page: Audit, metadata: auditMeta },
+  { id: 'data', page: Data, metadata: dataMeta },
 ];
 
 beforeEach(() => {

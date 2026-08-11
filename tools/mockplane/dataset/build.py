@@ -150,6 +150,9 @@ def empty_records() -> tuple[CapturedRecord, ...]:
     # And the role catalogue, for the same reason: which roles exist is what the
     # build declares, not something an operator filled in.
     records.extend(served.role_records())
+    # Seven configured routes and seven silences: the state the ingress
+    # column exists for, in the scenario a first day actually looks like.
+    records.extend(served.empty_transit_records())
     records.extend(_absent_detail_records())
     records.extend(_write_responses())
     # Nothing stored, nothing verified: the nine providers are still all nine,
@@ -360,7 +363,41 @@ def _write_responses() -> tuple[CapturedRecord, ...]:
         "secret": "[removed]",
     }
 
+    # What the deployment answers when a rule is simulated, and when a failed
+    # report is sent again. Both are writes only in the HTTP sense — the
+    # simulation stores nothing, which is the property it exists to have.
+    simulated = {
+        "rule_id": "critical-to-platform",
+        "action": "investigate",
+        "team": served.PLATFORM_TEAM_NODE,
+        "reason": "",
+        "signals": {
+            "source": "alertmanager",
+            "zone": "apps",
+            "criticality": "critical",
+            "resource_id": "proxmox:container/hal9000/110",
+        },
+    }
+    resent = {
+        "delivery_id": "chat-incidents:concluded:2",
+        "direction": "outbound",
+        "source": "chat-incidents",
+        "occurred_at": served.at(minutes=0),
+        "outcome": "delivered",
+        "reason": "",
+        "matched_rule": "",
+        "team_node_id": served.PLATFORM_TEAM_NODE,
+        "resource_id": "",
+        "run_id": "",
+        "incident_id": "",
+        "event_type": "investigation_concluded",
+        "attempt": 2,
+        "detail": {"channel": "slack", "detail_level": "summary_with_link"},
+    }
+
     written: tuple[tuple[str, int, Any], ...] = (
+        ("transit-simulate", 200, simulated),
+        ("transit-resend", 200, resent),
         ("investigation-start", 202, started),
         ("investigation-message", 202, {"queued": True, "run_id": "run-0003"}),
         ("investigation-cancel", 200, cancelled),

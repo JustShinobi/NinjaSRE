@@ -274,6 +274,26 @@ export const AREAS: readonly Area[] = [
     permission: 'identity.read',
     icon: UsersIcon,
   },
+  // Its own place rather than a corner of configuration, and the reason is a
+  // different question: the configuration tree answers "what value applies
+  // here", and this answers "where did this come from and where did it go".
+  // Mixing the two is how an operator ends up opening five screens to find out
+  // why an alert never became an investigation.
+  //
+  // The comment is outside the object literal deliberately: the contract suite
+  // parses this file with a regular expression that reads `id` immediately
+  // after the brace, so a comment inside makes an area invisible to the check
+  // that every declared route is walked.
+  {
+    id: 'data',
+    path: '/data',
+    group: 'settings',
+    label: 'nav.data',
+    title: 'page.data.title',
+    context: 'page.data.context',
+    permission: 'config.read',
+    icon: DatabaseIcon,
+  },
   {
     id: 'audit',
     path: '/audit',

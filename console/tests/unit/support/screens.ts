@@ -20,6 +20,7 @@ import Catalogue, {
 import Configuration, {
   generateMetadata as configurationMeta,
 } from '@/app/(shell)/configuration/page';
+import Data, { generateMetadata as dataMeta } from '@/app/(shell)/data/page';
 import Detectors, {
   generateMetadata as detectorsMeta,
 } from '@/app/(shell)/detectors/page';
@@ -84,6 +85,7 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'agent', render: Agent, metadata: agentMeta },
   { id: 'administration', render: Administration, metadata: administrationMeta },
   { id: 'audit', render: Audit, metadata: auditMeta },
+  { id: 'data', render: Data, metadata: dataMeta },
 ];
 
 /** The two detail screens, which are reached from a list rather than the navigation. */
