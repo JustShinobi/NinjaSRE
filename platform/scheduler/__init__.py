@@ -16,6 +16,15 @@ from __future__ import annotations
 from platform.scheduler.claiming import ClaimLost, JobClaimer, fire_key, heartbeating
 from platform.scheduler.concurrency import ConcurrencyLimits
 from platform.scheduler.cron import CronError, CronExpression, FireTime
+from platform.scheduler.dispatch import (
+    DispatchResult,
+    JobContext,
+    JobKindDispatcher,
+    JobRunner,
+    ScheduledJobWorker,
+    UnknownJobKind,
+    next_due,
+)
 from platform.scheduler.executor import (
     EffectiveSettings,
     ExecutionResult,
@@ -40,11 +49,15 @@ __all__ = [
     "CronError",
     "CronExpression",
     "DisabledReason",
+    "DispatchResult",
     "EffectiveSettings",
     "ExecutionResult",
     "FireTime",
     "JobClaimer",
+    "JobContext",
     "JobExecutor",
+    "JobKindDispatcher",
+    "JobRunner",
     "LeaseReaper",
     "MisfirePolicy",
     "ReapReport",
@@ -52,8 +65,11 @@ __all__ = [
     "Schedule",
     "ScheduleService",
     "ScheduledInvestigation",
+    "ScheduledJobWorker",
     "ScheduledRunRequest",
+    "UnknownJobKind",
     "fire_key",
     "heartbeating",
+    "next_due",
     "resolve",
 ]

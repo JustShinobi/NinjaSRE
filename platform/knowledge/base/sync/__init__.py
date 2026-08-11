@@ -37,6 +37,11 @@ from platform.knowledge.base.sync.port import (
     SyncReport,
     document_id_for,
 )
+from platform.knowledge.base.sync.runner import (
+    CorpusSyncRunner,
+    KnowledgeSyncRunner,
+    UnknownSource,
+)
 from platform.knowledge.base.sync.schedule import (
     knowledge_sync_job,
     topology_discovery_job,
@@ -48,15 +53,18 @@ __all__ = [
     "CorpusReport",
     "CorpusSource",
     "CorpusSync",
+    "CorpusSyncRunner",
     "DocumentSource",
     "GitMarkdownSource",
     "GoogleDocsReader",
     "GoogleDocsSource",
     "KnowledgeSync",
+    "KnowledgeSyncRunner",
     "NotionReader",
     "NotionSource",
     "SourceDocument",
     "SyncReport",
+    "UnknownSource",
     "document_id_for",
     "knowledge_sync_job",
     "settings_patch",

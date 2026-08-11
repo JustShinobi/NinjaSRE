@@ -102,6 +102,17 @@ class GatewayState:
     #: client and a client needs the credential proxy — neither of which the
     #: gateway builds for itself.
     discovery_sources: Mapping[str, ResourceReader] = field(default_factory=dict)
+    #: The document sources a nightly ``knowledge.sync`` job can name, by source
+    #: name. Empty until composition wires one, for the same reason as above: a
+    #: wiki adapter needs a client and the client needs the credential proxy. A
+    #: job naming a source that is not here fails with the name in the message
+    #: rather than syncing nothing and reporting success.
+    knowledge_sources: Mapping[str, Any] = field(default_factory=dict)
+    #: The repositories a ``knowledge.corpus_sync`` job can name. Separate from
+    #: the document sources because a corpus pass does more than ingest — it
+    #: links to the estate and proposes detectors — and a deployment that wanted
+    #: the documents without the proposals registers the plain sync.
+    corpus_sources: Mapping[str, Any] = field(default_factory=dict)
     #: The change sources this deployment has been pointed at — a repository's
     #: apply record, a git host, or neither. Empty until composition wires one,
     #: and the routes that read it report "nothing was consulted" rather than
