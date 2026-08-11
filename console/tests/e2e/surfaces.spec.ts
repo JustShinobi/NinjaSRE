@@ -85,6 +85,15 @@ test('the configuration preview is the deployment’s answer', async ({ page }) 
   await expect(page.getByTestId('config-value').first()).toBeVisible();
   await expect(page.getByTestId('provenance').first()).toBeVisible();
 
+  // There is nothing to preview until something has been changed, so the change
+  // comes first. `approval.required_above` and not any other field: the same
+  // response has to say the change is gated, and that is the one field this
+  // deployment gates.
+  await expect(page.getByTestId('ask-preview')).toBeDisabled();
+  await page
+    .locator('select[name="approval.required_above"]')
+    .selectOption('write_irreversible');
+
   await page.getByTestId('ask-preview').click();
 
   // The values below are the deployment's, and the console has no arithmetic
