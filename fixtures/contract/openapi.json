@@ -2124,6 +2124,73 @@
         "title": "GrantList",
         "type": "object"
       },
+      "GrantRemovedView": {
+        "description": "Which grant went, and whose it was.",
+        "properties": {
+          "grant_id": {
+            "title": "Grant Id",
+            "type": "string"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "principal_id": {
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "grant_id",
+          "principal_id",
+          "role"
+        ],
+        "title": "GrantRemovedView",
+        "type": "object"
+      },
+      "GrantRequest": {
+        "description": "A role for somebody, somewhere in the tree.\n\n``node_id`` absent means the organisation as a whole, which is a different\nthing from a grant at the root node: an organisation-wide grant survives the\ntree being reshaped and a grant at a node does not.",
+        "properties": {
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "principal_id": {
+            "minLength": 1,
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "role": {
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "principal_id",
+          "role"
+        ],
+        "title": "GrantRequest",
+        "type": "object"
+      },
       "GrantView": {
         "properties": {
           "grant_id": {
@@ -6671,6 +6738,123 @@
           }
         },
         "summary": "List Grants",
+        "tags": [
+          "identity"
+        ]
+      },
+      "post": {
+        "description": "Give somebody a role, and record who gave it to them.\n\nThe principal has to exist first. Creating one here would make a typo in an\nidentifier into a new account holding a role, which is the shape of mistake\nan identity surface must not be able to make quietly.",
+        "operationId": "add_grant_identity_grants_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Grant",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/grants/{grant_id}": {
+      "delete": {
+        "description": "Take a role away, unless doing so would leave nobody able to give it back.\n\nThe last-owner rule is evaluated over the whole organisation rather than\nover the grant being removed, which is why it lives in\n``require_owner_retained`` and not here: handing ownership over is allowed\nand removing the last owner is not, and a per-grant check gets one of those\ntwo wrong whichever way it is written.",
+        "operationId": "remove_grant_identity_grants__grant_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "title": "Grant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantRemovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Grant",
         "tags": [
           "identity"
         ]

@@ -17,12 +17,24 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from config.constants.security import (
+    IDENTITY_AUDIT_RESOURCE_KIND_GRANT,
+    ORGANISATION_WIDE,
+    PERMISSION_AUDIT_ACTION_GRANT,
+    PERMISSION_AUDIT_ACTION_REVOKE,
+)
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
-from gateway.http.errors import bad_request, not_found, unauthorized
+from gateway.http.errors import bad_request, conflict, not_found, unauthorized
 from gateway.http.state import GatewayState
-from platform.identity.audit.recorder import AuditContext
-from platform.identity.errors import LocalSignInRejected, TooManyRevocations
-from platform.identity.permissions import Permission
+from platform.identity.audit.recorder import AuditContext, AuditRecorder
+from platform.identity.authorisation import require_owner_retained
+from platform.identity.errors import (
+    LastOwnerRemoval,
+    LocalSignInRejected,
+    TooManyRevocations,
+)
+from platform.identity.models import Grant
+from platform.identity.permissions import Permission, Role
 from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
 from platform.startup.bootstrap import organisation_id
@@ -68,6 +80,28 @@ class GrantView(BaseModel):
 
 class GrantList(BaseModel):
     grants: list[GrantView]
+
+
+class GrantRequest(BaseModel):
+    """A role for somebody, somewhere in the tree.
+
+    ``node_id`` absent means the organisation as a whole, which is a different
+    thing from a grant at the root node: an organisation-wide grant survives the
+    tree being reshaped and a grant at a node does not.
+    """
+
+    principal_id: str = Field(min_length=1)
+    role: str = Field(min_length=1)
+    node_id: str | None = None
+
+
+class GrantRemovedView(BaseModel):
+    """Which grant went, and whose it was."""
+
+    grant_id: str
+    principal_id: str
+    role: str
+    node_id: str | None = None
 
 
 class TokenView(BaseModel):
@@ -278,6 +312,122 @@ async def list_grants(
                 collected.extend(await uow.identity.role_bindings_for_user(user.user_id))
             bindings = tuple(collected)
     return GrantList(grants=[_grant_view(binding) for binding in bindings])
+
+
+def _grant_id(principal_id: str, role: str, node_id: str | None) -> str:
+    """Return the identifier a grant of ``role`` to ``principal_id`` at ``node_id`` has.
+
+    Derived rather than random, which makes granting the same role at the same
+    node twice one grant instead of two. Two identical bindings are one fact
+    stored twice, and the second one is only ever discovered by whoever tries to
+    revoke the role and finds it still held.
+    """
+    return f"grant:{principal_id}:{role}:{node_id or ORGANISATION_WIDE}"
+
+
+def _role(name: str) -> Role:
+    """Return the role ``name`` describes, or refuse naming the ones that exist."""
+    try:
+        return Role(name)
+    except ValueError as unknown:
+        raise bad_request(
+            f"{name!r} is not a role this deployment has; expected one of "
+            f"{', '.join(sorted(role.value for role in Role))}"
+        ) from unknown
+
+
+async def _all_grants(state: GatewayState, auth: AuthenticatedRequest) -> tuple[Grant, ...]:
+    """Return every role grant in this organisation."""
+    collected: list[Grant] = []
+    async with state.gateway.begin(auth.scope) as uow:
+        for user in await uow.identity.list_users():
+            for binding in await uow.identity.role_bindings_for_user(user.user_id):
+                collected.append(Grant.of_binding(binding))
+    return tuple(collected)
+
+
+@identity_router.post("/grants", response_model=GrantView, status_code=201)
+async def add_grant(
+    body: GrantRequest,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> GrantView:
+    """Give somebody a role, and record who gave it to them.
+
+    The principal has to exist first. Creating one here would make a typo in an
+    identifier into a new account holding a role, which is the shape of mistake
+    an identity surface must not be able to make quietly.
+    """
+    role = _role(body.role)
+    async with state.gateway.begin(auth.scope) as uow:
+        if await uow.identity.get_user(body.principal_id) is None:
+            raise not_found(f"no principal {body.principal_id!r}")
+        stored = await uow.identity.upsert_role_binding(
+            RoleBinding(
+                binding_id=_grant_id(body.principal_id, role.value, body.node_id),
+                user_id=body.principal_id,
+                role=role.value,
+                node_id=body.node_id,
+            )
+        )
+    await AuditRecorder(gateway=state.gateway).record(
+        auth.scope,
+        _audit_context(auth),
+        action=PERMISSION_AUDIT_ACTION_GRANT,
+        resource_kind=IDENTITY_AUDIT_RESOURCE_KIND_GRANT,
+        resource_id=stored.binding_id,
+        detail={
+            "principal_id": stored.user_id,
+            "role": stored.role,
+            "node_id": stored.node_id or ORGANISATION_WIDE,
+        },
+    )
+    return _grant_view(stored)
+
+
+@identity_router.delete("/grants/{grant_id}", response_model=GrantRemovedView)
+async def remove_grant(
+    grant_id: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> GrantRemovedView:
+    """Take a role away, unless doing so would leave nobody able to give it back.
+
+    The last-owner rule is evaluated over the whole organisation rather than
+    over the grant being removed, which is why it lives in
+    ``require_owner_retained`` and not here: handing ownership over is allowed
+    and removing the last owner is not, and a per-grant check gets one of those
+    two wrong whichever way it is written.
+    """
+    grants = await _all_grants(state, auth)
+    held = next((grant for grant in grants if grant.grant_id == grant_id), None)
+    if held is None:
+        raise not_found(f"no grant {grant_id!r}")
+    try:
+        require_owner_retained(grants, removing=(grant_id,))
+    except LastOwnerRemoval as refused:
+        raise conflict(str(refused)) from refused
+
+    async with state.gateway.begin(auth.scope) as uow:
+        await uow.identity.remove_role_binding(grant_id)
+    await AuditRecorder(gateway=state.gateway).record(
+        auth.scope,
+        _audit_context(auth),
+        action=PERMISSION_AUDIT_ACTION_REVOKE,
+        resource_kind=IDENTITY_AUDIT_RESOURCE_KIND_GRANT,
+        resource_id=grant_id,
+        detail={
+            "principal_id": held.principal_id,
+            "role": held.role.value,
+            "node_id": held.node_id or ORGANISATION_WIDE,
+        },
+    )
+    return GrantRemovedView(
+        grant_id=grant_id,
+        principal_id=held.principal_id,
+        role=held.role.value,
+        node_id=held.node_id,
+    )
 
 
 @identity_router.get("/tokens", response_model=TokenList)

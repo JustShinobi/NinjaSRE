@@ -553,6 +553,14 @@ IDENTITY_AUDIT_RESOURCE_KIND_TOKEN: Final = "api_token"
 IDENTITY_AUDIT_RESOURCE_KIND_SESSION: Final = "session"
 IDENTITY_AUDIT_RESOURCE_KIND_ROUTE: Final = "route"
 IDENTITY_AUDIT_RESOURCE_KIND_SSO: Final = "sso_config"
+IDENTITY_AUDIT_RESOURCE_KIND_GRANT: Final = "role_grant"
+
+#: How a grant that covers the whole organisation is spelled where a node
+#: identifier is expected — in an audit detail, and in the identifier a grant is
+#: derived from. Written out rather than left empty, because an empty node in a
+#: record reads as a field somebody forgot to fill in, and "everywhere" is the
+#: widest thing a grant can say.
+ORGANISATION_WIDE: Final = "organisation"
 
 #: The keys an impersonated action puts in its audit detail, so a reviewer's
 #: query for "everything done under impersonation" is one filter rather than a
@@ -861,6 +869,7 @@ __all__ = [
     "GUARDRAIL_AUDIT_ACTION",
     "GUARDRAIL_AUDIT_RESOURCE_KIND",
     "GUARDRAIL_RELOAD_INTERVAL_SECONDS",
+    "IDENTITY_AUDIT_RESOURCE_KIND_GRANT",
     "IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL",
     "IDENTITY_AUDIT_RESOURCE_KIND_ROUTE",
     "IDENTITY_AUDIT_RESOURCE_KIND_SESSION",
@@ -921,6 +930,7 @@ __all__ = [
     "OIDC_NAME_CLAIM",
     "OIDC_STATE_BYTES",
     "OIDC_SUBJECT_CLAIM",
+    "ORGANISATION_WIDE",
     "PATTERN_VALIDATION_BUDGET_SECONDS",
     "PENDING_CHANGE_EXPIRY_HOURS",
     "PENDING_CHANGE_MAX_EXPIRY_HOURS",
