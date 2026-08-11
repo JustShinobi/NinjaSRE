@@ -338,30 +338,47 @@ class KnowledgeProposalApplier:
         )
 
     async def apply(self, proposal: AgentProposal, *, approved_by: str) -> str:
-        """Accept the proposal into the corpus through the knowledge queue."""
-        decision = await self.proposals.approve(proposal.proposal_id, reviewer=approved_by)
+        """Accept the proposal into the corpus through the knowledge queue.
+
+        ``apply`` rather than ``approve``: the decision is already a row by the
+        time this runs — the unified queue recorded it before calling — and
+        approving twice is refused by the store, correctly. This is the write
+        half on its own, and it still reads the store and still refuses on
+        anything but a recorded approval.
+
+        ``approved_by`` is unused here for the same reason: the attribution the
+        document carries is read off the decided row by feature 012's own
+        applier, which is where the sentence a later reader sees is composed.
+        """
+        del approved_by
+        decision = await self.proposals.apply(proposal.proposal_id)
         return f"{decision.proposal.document_id}: written to the knowledge base"
 
 
 def proposal_appliers_for(
     *,
     config: ConfigService | None = None,
+    knowledge: ProposalQueue | None = None,
 ) -> dict[ProposalType, Any]:
     """Return the proposal appliers a deployment wires its review queue with.
 
     Only what this deployment can carry out. A type with no applier cannot be
-    proposed, which is the correct failure — see ``ProposalQueue.propose``.
+    proposed and does not appear in the queue, which is the correct failure: a
+    deployment with no knowledge base should refuse a knowledge proposal rather
+    than accept one it could never honour.
 
-    Knowledge is absent deliberately. Its proposals arrive through the capability
-    the agent already has and are answered on their own queue, which records the
-    decision, attributes the document and stores the delete; routing them through
-    here as well would give one proposal two places to be approved.
+    Knowledge arrives through the capability the agent already has, and the row
+    it writes is the same row this queue reads — the action feature 012 stores it
+    under is exactly ``knowledge.proposal``. So wiring it here does not give one
+    proposal two queues; it gives the one queue the fourth origin.
     """
     built: dict[ProposalType, Any] = {}
     if config is not None:
         built[ProposalType.CONFIGURATION] = ConfigurationProposalApplier(service=config)
         built[ProposalType.OPERATING_CONTEXT] = OperatingContextProposalApplier(service=config)
         built[ProposalType.DETECTOR] = DetectorProposalApplier(service=config)
+    if knowledge is not None:
+        built[ProposalType.KNOWLEDGE] = KnowledgeProposalApplier(proposals=knowledge)
     return built
 
 

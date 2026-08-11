@@ -40,6 +40,11 @@ EVIDENCE_KEY = "evidence"
 CORRELATION_KEY = "correlation_id"
 TARGET_KEY = "target"
 
+#: How the knowledge queue spells the node, from before this queue existed. Read
+#: rather than migrated: rewriting the arguments of a stored approval rewrites
+#: what somebody was asked to approve.
+LEGACY_NODE_KEY = "team_node_id"
+
 
 class ProposalState(StrEnum):
     """Where a proposal got to.
@@ -227,14 +232,19 @@ class AgentProposal:
             return None
         arguments: Mapping[str, Any] = request.arguments
         payload = arguments.get(PAYLOAD_KEY)
+        # ``team_node_id`` is the knowledge queue's spelling, and it is read here
+        # rather than migrated. A knowledge proposal written before this queue
+        # existed is still a proposal waiting on somebody, and rewriting stored
+        # approval arguments to unify a key would rewrite what was approved.
+        node = str(arguments.get(NODE_KEY) or arguments.get(LEGACY_NODE_KEY, ""))
         return cls(
             proposal_id=request.approval_id,
             proposal_type=proposal_type,
             org_id=org_id,
-            team_node_id=str(arguments.get(NODE_KEY, "")),
+            team_node_id=node,
             summary=request.summary,
-            node_id=str(arguments.get(NODE_KEY, "")),
-            payload=dict(payload) if isinstance(payload, Mapping) else {},
+            node_id=node,
+            payload=dict(payload) if isinstance(payload, Mapping) else _rest(arguments),
             rationale=str(arguments.get(RATIONALE_KEY, "")),
             evidence=tuple(str(item) for item in arguments.get(EVIDENCE_KEY) or ()),
             run_id=request.run_id,
@@ -267,6 +277,27 @@ class AgentProposal:
         }
 
 
+def _rest(arguments: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the arguments that are not the shared envelope, as the payload.
+
+    What a knowledge proposal would change *is* its title, body and document
+    type, which the knowledge queue stores as top-level arguments rather than
+    under a payload key. Reading the remainder is what lets one queue show a
+    proposal written by a capability that predates it, without either side
+    learning the other's shape.
+    """
+    envelope = {
+        NODE_KEY,
+        LEGACY_NODE_KEY,
+        PAYLOAD_KEY,
+        RATIONALE_KEY,
+        EVIDENCE_KEY,
+        CORRELATION_KEY,
+        TARGET_KEY,
+    }
+    return {name: value for name, value in arguments.items() if name not in envelope}
+
+
 @dataclass(frozen=True, slots=True)
 class PriorRejection:
     """One earlier refusal of the same proposal, as the review screen shows it.
@@ -295,6 +326,7 @@ class PriorRejection:
 
 __all__ = [
     "CORRELATION_KEY",
+    "LEGACY_NODE_KEY",
     "EFFECT_MECHANISM",
     "EVIDENCE_KEY",
     "NODE_KEY",

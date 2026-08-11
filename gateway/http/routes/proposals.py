@@ -32,6 +32,9 @@ from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
 from platform.approvals.appliers import proposal_appliers_for
 from platform.config_service.service import ConfigService
+from platform.knowledge.base.ingestion import KnowledgeIngestor
+from platform.knowledge.proposals import ProposalQueue as KnowledgeQueue
+from platform.memory.embeddings.local import LocalEmbedder
 from platform.proposals.models import AgentProposal
 from platform.proposals.service import ProposalQueue
 
@@ -121,10 +124,24 @@ def _queue(state: GatewayState, auth: AuthenticatedRequest) -> ProposalQueue:
         catalogue=installed_catalogue(),
         integrations=installed_integrations(),
     )
+    # The knowledge queue is the same team's, built here rather than held on
+    # the state: it is scoped to the caller's node, and a long-lived one would
+    # be scoped to whoever the process started for.
+    knowledge = KnowledgeQueue(
+        gateway=state.gateway,
+        scope=scope,
+        ingestor=KnowledgeIngestor(
+            gateway=state.gateway,
+            scope=scope,
+            embedder=LocalEmbedder(),
+            engine=state.guardrails,
+        ),
+        engine=state.guardrails,
+    )
     return ProposalQueue(
         gateway=state.gateway,
         scope=scope,
-        appliers=proposal_appliers_for(config=config),
+        appliers=proposal_appliers_for(config=config, knowledge=knowledge),
         credentials=InstalledSecretFields(),
         guardrails=state.guardrails,
     )
