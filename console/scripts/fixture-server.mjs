@@ -58,6 +58,8 @@ export const SHELL_ENDPOINTS = Object.freeze({
   '/v1/config/{node_id}/catalogue': 'config-catalogue',
   '/v1/config/{node_id}/fields': 'config-fields',
   '/v1/config/{node_id}/integration-schemas': 'config-integration-schemas',
+  '/v1/config/{node_id}/operating-context': 'config-operating-context',
+  '/v1/config/{node_id}/operating-context/preview': 'config-operating-context-preview',
   '/v1/config/{node_id}/preview': 'config-preview',
   '/v1/integrations': 'integrations',
   '/v1/setup/checklist': 'setup-checklist',

@@ -1,0 +1,28 @@
+{
+  "responses": [
+    {
+      "arguments": {},
+      "body": {
+        "accepted": true,
+        "context": "## Operating context for this deployment\n\n### Where the signals really are\n\nA container shares its host's kernel.",
+        "errors": [],
+        "node_id": "org-northwind",
+        "over_budget": false,
+        "prompt": "You are an SRE investigator. Establish the root cause from evidence.\n\n## Operating context for this deployment\n\nFacts an operator of this environment wrote down.\n\n### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid).",
+        "token_budget": 1200,
+        "tokens_used": 174
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "config-operating-context-preview",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-operating-context-preview"
+}

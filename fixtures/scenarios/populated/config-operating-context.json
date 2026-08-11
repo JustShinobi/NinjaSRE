@@ -1,0 +1,230 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "node_id": "env-production"
+      },
+      "body": {
+        "context": "### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "enabled": true,
+        "node_id": "env-production",
+        "prompt": "You are an SRE investigator. Establish the root cause from evidence.\n\n## Operating context for this deployment\n\n### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "roles": [
+          "investigator",
+          "subagent"
+        ],
+        "sections": [
+          {
+            "body": "A container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.",
+            "name": "Where the signals really are",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "Criticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.",
+            "name": "What criticality means here",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "The vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+            "name": "How the network is divided",
+            "provenance": "env-production"
+          }
+        ],
+        "template": [],
+        "token_budget": 1200,
+        "tokens_used": 168
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-operating-context",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "env-staging"
+      },
+      "body": {
+        "context": "### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "enabled": true,
+        "node_id": "env-staging",
+        "prompt": "You are an SRE investigator. Establish the root cause from evidence.\n\n## Operating context for this deployment\n\n### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "roles": [
+          "investigator",
+          "subagent"
+        ],
+        "sections": [
+          {
+            "body": "A container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.",
+            "name": "Where the signals really are",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "Criticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.",
+            "name": "What criticality means here",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "The vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+            "name": "How the network is divided",
+            "provenance": "env-staging"
+          }
+        ],
+        "template": [],
+        "token_budget": 1200,
+        "tokens_used": 168
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-operating-context",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "org-northwind"
+      },
+      "body": {
+        "context": "### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "enabled": true,
+        "node_id": "org-northwind",
+        "prompt": "You are an SRE investigator. Establish the root cause from evidence.\n\n## Operating context for this deployment\n\n### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "roles": [
+          "investigator",
+          "subagent"
+        ],
+        "sections": [
+          {
+            "body": "A container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.",
+            "name": "Where the signals really are",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "Criticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.",
+            "name": "What criticality means here",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "The vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+            "name": "How the network is divided",
+            "provenance": "org-northwind"
+          }
+        ],
+        "template": [],
+        "token_budget": 1200,
+        "tokens_used": 168
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-operating-context",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-platform"
+      },
+      "body": {
+        "context": "### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "enabled": true,
+        "node_id": "team-platform",
+        "prompt": "You are an SRE investigator. Establish the root cause from evidence.\n\n## Operating context for this deployment\n\n### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "roles": [
+          "investigator",
+          "subagent"
+        ],
+        "sections": [
+          {
+            "body": "A container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.",
+            "name": "Where the signals really are",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "Criticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.",
+            "name": "What criticality means here",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "The vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+            "name": "How the network is divided",
+            "provenance": "team-platform"
+          }
+        ],
+        "template": [],
+        "token_budget": 1200,
+        "tokens_used": 168
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-operating-context",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "node_id": "team-storage"
+      },
+      "body": {
+        "context": "### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "enabled": true,
+        "node_id": "team-storage",
+        "prompt": "You are an SRE investigator. Establish the root cause from evidence.\n\n## Operating context for this deployment\n\n### Where the signals really are\n\nA container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.\n\n### What criticality means here\n\nCriticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.\n\n### How the network is divided\n\nThe vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+        "roles": [
+          "investigator",
+          "subagent"
+        ],
+        "sections": [
+          {
+            "body": "A container shares its host's kernel, so memory and CPU for a guest are read from the host's own series for it, keyed by the guest's numeric id (vmid). A figure read from inside the container is the host's, and is plausible, consistent, and wrong.",
+            "name": "Where the signals really are",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "Criticality comes from the declared inventory, never from the hypervisor. A stopped guest marked critical is an incident; a stopped guest marked best-effort is a Tuesday.",
+            "name": "What criticality means here",
+            "provenance": "org-northwind"
+          },
+          {
+            "body": "The vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long TLS handshakes and shows up as timeouts that look like an unhealthy backend.",
+            "name": "How the network is divided",
+            "provenance": "team-storage"
+          }
+        ],
+        "template": [],
+        "token_budget": 1200,
+        "tokens_used": 168
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "config-operating-context",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "config-operating-context"
+}

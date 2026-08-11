@@ -264,6 +264,100 @@ async def test_the_template_is_not_offered_once_anything_has_been_written(
     assert body["template"] == []
 
 
+# --- The preview: what a pending context would send ---------------------------
+
+
+async def _preview(
+    client: AsyncClient,
+    deployment: Deployment,
+    *,
+    sections: dict[str, str],
+    enabled: bool = True,
+    node_id: str = TEAM_PAYMENTS,
+) -> dict:
+    """Return what the deployment says a pending context would produce."""
+    answer = await client.post(
+        f"/v1/config/{node_id}/operating-context/preview",
+        headers=await _owner(deployment),
+        json={"sections": sections, "enabled": enabled},
+    )
+    assert answer.status_code == 200, answer.text
+    body: dict = answer.json()
+    return body
+
+
+async def test_the_preview_shows_the_prompt_a_pending_change_would_send(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """Acceptance 6: nothing is saved without seeing the effect, and the effect is text."""
+    body = await _preview(client, deployment, sections={"network": MTU})
+
+    assert MTU in body["prompt"]
+    assert body["prompt"].startswith(DEFAULT_RUNTIME_SYSTEM_PROMPT)
+    assert body["accepted"] is True
+
+
+async def test_the_preview_stores_nothing(client: AsyncClient, deployment: Deployment) -> None:
+    await _preview(client, deployment, sections={"network": MTU})
+
+    assert (await _read(client, deployment))["sections"] == []
+
+
+async def test_the_preview_carries_what_an_ancestor_already_says(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """The pending text is merged the way a save would merge it, or it is a different answer."""
+    await _store(deployment, ORG, _context(signals=ORG_SIGNALS))
+
+    body = await _preview(client, deployment, sections={"network": MTU})
+
+    assert ORG_SIGNALS in body["prompt"]
+    assert MTU in body["prompt"]
+
+
+async def test_a_pending_context_past_the_budget_is_named_before_it_is_saved(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """Acceptance 3, where an operator can still do something about it."""
+    body = await _preview(
+        client, deployment, sections={"background": "fact " * OPERATING_CONTEXT_TOKEN_BUDGET}
+    )
+
+    assert body["over_budget"] is True
+    assert body["accepted"] is False
+    assert body["tokens_used"] > OPERATING_CONTEXT_TOKEN_BUDGET
+    assert any("agents.operating_context" in error["path"] for error in body["errors"])
+
+
+async def test_a_context_that_only_goes_over_budget_once_merged_is_still_named(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """A node whose own text fits can inherit its way past the ceiling."""
+    half = "fact " * (OPERATING_CONTEXT_TOKEN_BUDGET * 2)
+    await _store(deployment, ORG, _context(inherited=half))
+
+    body = await _preview(client, deployment, sections={"own": "One short line."})
+
+    assert body["over_budget"] is True
+
+
+async def test_a_credential_in_a_pending_section_is_refused_without_being_quoted(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """Acceptance 4, at the preview: named, located, and never echoed."""
+    secret = "ghp_" + "d" * 36
+
+    body = await _preview(client, deployment, sections={"access": f"the token is {secret}"})
+
+    assert body["accepted"] is False
+    assert any("operating_context" in error["path"] for error in body["errors"])
+    assert all(secret not in error["message"] for error in body["errors"])
+    # A refused document renders no prompt at all: the one case where rendering
+    # it would matter is the one where it is worst.
+    assert body["prompt"] == ""
+    assert body["context"] == ""
+
+
 # --- Scope --------------------------------------------------------------------
 
 

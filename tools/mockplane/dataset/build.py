@@ -254,6 +254,7 @@ def _absent_detail_records() -> tuple[CapturedRecord, ...]:
         "config-effective",
         "config-catalogue",
         "config-fields",
+        "config-operating-context",
         "autonomy-policy",
         "autonomy-bounds",
         "autonomy-outlook",
@@ -346,6 +347,33 @@ def _write_responses() -> tuple[CapturedRecord, ...]:
         "requires_approval": True,
         "approval_gated": ["investigation.max_loops"],
         "locked": {"approval.required_above": served.ORG_NODE},
+    }
+    # The prompt a pending operating context would send. Written out in full
+    # rather than assembled here: this record is what a screen claiming to show
+    # "the exact text the model receives" is photographed against, and a
+    # fixture that built it from parts would be the second implementation of the
+    # assembly the screen exists to avoid.
+    context_preview = {
+        "node_id": served.ORG_NODE,
+        "prompt": (
+            "You are an SRE investigator. Establish the root cause from evidence.\n\n"
+            "## Operating context for this deployment\n\n"
+            "Facts an operator of this environment wrote down.\n\n"
+            "### Where the signals really are\n\n"
+            "A container shares its host's kernel, so memory and CPU for a guest "
+            "are read from the host's own series for it, keyed by the guest's "
+            "numeric id (vmid)."
+        ),
+        "context": (
+            "## Operating context for this deployment\n\n"
+            "### Where the signals really are\n\n"
+            "A container shares its host's kernel."
+        ),
+        "tokens_used": 174,
+        "token_budget": 1200,
+        "over_budget": False,
+        "accepted": True,
+        "errors": [],
     }
     issued = {
         "token": {
@@ -448,6 +476,7 @@ def _write_responses() -> tuple[CapturedRecord, ...]:
         ),
         ("config-write", 200, effective),
         ("config-preview", 200, preview),
+        ("config-operating-context-preview", 200, context_preview),
         ("token-create", 201, issued),
         ("token-revoke", 200, {"revoked": 1, "token_ids": ["tok-0002"]}),
     )

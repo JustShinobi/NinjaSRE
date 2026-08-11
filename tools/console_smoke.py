@@ -58,6 +58,7 @@ SHELL_PATHS: Final[tuple[str, ...]] = (
     "/knowledge",
     "/autonomy",
     "/configuration",
+    "/team-context",
     "/catalogue",
     "/data",
     "/administration",

@@ -211,6 +211,17 @@
       }
     },
     {
+      "id": "team-context-1440-light",
+      "route": "/team-context",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The team's operating context beside the organisation tree: a section per named fact with the level that supplied it beside each, the token meter against the budget the deployment enforces, and the statement that this field takes facts rather than instructions with links to the two places an instruction belongs. No reference is drawn for it. The baseline exists because the one thing this screen must never lose is the per-section provenance — an operator editing at the wrong level otherwise sees nothing happen — and because the fact-not-instruction line is the whole of what keeps this field from becoming an unreviewed runbook."
+      }
+    },
+    {
       "id": "resources-320-light",
       "route": "/resources",
       "status": "baselined",

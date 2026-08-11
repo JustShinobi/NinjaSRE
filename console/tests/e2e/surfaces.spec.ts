@@ -241,4 +241,52 @@ test('an arrival answers which rule caught it and which run it became', async ({
     'critical-to-platform',
   );
   await expect(live.getByTestId('provenance-run')).toHaveAttribute('href', /^\/runs\//);
+test('the operating context names the level each section came from', async ({
+  page,
+}) => {
+  // Acceptance 2 in a browser: a section is the unit of inheritance here, and an
+  // operator who cannot tell an organisation's fact from their own team's edits
+  // at the wrong level and concludes nothing happened.
+  await page.goto('/team-context?node=org-northwind');
+
+  const sections = page.getByTestId('context-section');
+  await expect(sections.first()).toBeVisible();
+  await expect(page.getByTestId('section-provenance').first()).toContainText(
+    'org-northwind',
+  );
+
+  await page.goto('/team-context?node=team-platform');
+  const attributed = await page
+    .getByTestId('section-provenance')
+    .evaluateAll((nodes) => nodes.map((node) => node.textContent));
+
+  // Two levels, distinguished. The team's own section is attributed to the team
+  // and everything it inherits still names the organisation.
+  expect(attributed.some((text) => text.includes('team-platform'))).toBe(true);
+  expect(attributed.some((text) => text.includes('org-northwind'))).toBe(true);
+});
+
+test('the operating context shows the prompt before it offers a save', async ({
+  page,
+}) => {
+  // Acceptance 6, and the only place it can be made: the prompt is the
+  // deployment's own assembly, arriving over a real POST. A unit test can show
+  // the console renders what it is handed; only this shows that what it is
+  // handed came from the server.
+  await page.goto('/team-context?node=org-northwind');
+
+  await expect(page.getByTestId('ask-context-preview')).toBeDisabled();
+  await page
+    .getByTestId('context-section')
+    .first()
+    .locator('textarea')
+    .fill('Container metrics come from the host, keyed by vmid.');
+
+  await expect(page.getByTestId('save-context')).toHaveCount(0);
+  await page.getByTestId('ask-context-preview').click();
+
+  await expect(page.getByTestId('context-prompt')).toContainText(
+    'You are an SRE investigator',
+  );
+  await expect(page.getByTestId('save-context')).toBeVisible();
 });

@@ -370,6 +370,85 @@ describe('the autonomy policy', () => {
   });
 });
 
+describe('the operating context', () => {
+  async function post(body: unknown, session = true): Promise<Response> {
+    const { POST } = await import('@/app/api/operating-context/route');
+    return POST(request('/api/operating-context', body, { session }));
+  }
+
+  it('sends each named operation to its own address and method', async () => {
+    vi.stubGlobal('fetch', answering(200, { prompt: 'You are an SRE investigator.' }));
+
+    await post({
+      nodeId: 'team-platform',
+      operation: 'preview',
+      payload: { sections: {} },
+    });
+    expect(sent[0]?.url).toBe(
+      `${API}/v1/config/team-platform/operating-context/preview`,
+    );
+    expect(sent[0]?.init.method).toBe('POST');
+
+    sent = [];
+    await post({ nodeId: 'team-platform', operation: 'save', payload: { patch: {} } });
+    expect(sent[0]?.url).toBe(`${API}/v1/config/team-platform`);
+    expect(sent[0]?.init.method).toBe('PUT');
+  });
+
+  it('returns the assembled prompt verbatim rather than reshaping it', async () => {
+    // The whole point of the courier: the prompt is the deployment's assembly,
+    // and a console that rebuilt it would be a second implementation of what
+    // the model is sent.
+    vi.stubGlobal(
+      'fetch',
+      answering(200, { prompt: 'shipped\n\n### network\n\nMTU 1450' }),
+    );
+
+    const answer = await post({ nodeId: 'n', operation: 'preview', payload: {} });
+
+    expect(await answer.json()).toMatchObject({
+      ok: true,
+      answer: { prompt: 'shipped\n\n### network\n\nMTU 1450' },
+    });
+  });
+
+  it('carries the deployment’s refusal reason back', async () => {
+    vi.stubGlobal('fetch', answering(400, { detail: 'that section names a secret' }));
+
+    const answer = await post({ nodeId: 'n', operation: 'save', payload: {} });
+
+    expect(answer.status).toBe(400);
+    expect(await answer.json()).toMatchObject({
+      ok: false,
+      reason: 'that section names a secret',
+    });
+  });
+
+  it('will not forward an operation the table does not name', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+
+    expect(
+      (await post({ nodeId: 'n', operation: 'delete-everything', payload: {} })).status,
+    ).toBe(400);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('will not forward an operation with no node to apply it to', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+
+    expect((await post({ operation: 'save', payload: {} })).status).toBe(400);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('refuses without a session, and reports an unreachable deployment', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+    expect((await post({ nodeId: 'n', operation: 'save' }, false)).status).toBe(401);
+
+    vi.stubGlobal('fetch', unreachable());
+    expect((await post({ nodeId: 'n', operation: 'save' })).status).toBe(502);
+  });
+});
+
 describe('single sign-on', () => {
   async function post(body: unknown, session = true): Promise<Response> {
     const { POST } = await import('@/app/api/sso/route');

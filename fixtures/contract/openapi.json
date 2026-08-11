@@ -939,6 +939,30 @@
         "title": "ConsideredRuleView",
         "type": "object"
       },
+      "ContextSectionView": {
+        "description": "One named section: what it says, and which level said it.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "provenance": {
+            "default": "",
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "body"
+        ],
+        "title": "ContextSectionView",
+        "type": "object"
+      },
       "ContributionView": {
         "properties": {
           "display_name": {
@@ -2230,6 +2254,25 @@
           "reason"
         ],
         "title": "ExplanationView",
+        "type": "object"
+      },
+      "FieldErrorView": {
+        "description": "One reason a document would be refused, at the path it is about.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "message"
+        ],
+        "title": "FieldErrorView",
         "type": "object"
       },
       "FindingView": {
@@ -3590,6 +3633,143 @@
           "observed_at"
         ],
         "title": "ObservationView",
+        "type": "object"
+      },
+      "OperatingContextPatch": {
+        "description": "A pending context, as a client holds it before deciding to save it.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "remove": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Remove",
+            "type": "array"
+          },
+          "sections": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Sections",
+            "type": "object"
+          }
+        },
+        "title": "OperatingContextPatch",
+        "type": "object"
+      },
+      "OperatingContextPreviewView": {
+        "description": "The prompt a pending context would produce, and everything wrong with it.",
+        "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "context": {
+            "default": "",
+            "title": "Context",
+            "type": "string"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FieldErrorView"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "over_budget": {
+            "default": false,
+            "title": "Over Budget",
+            "type": "boolean"
+          },
+          "prompt": {
+            "default": "",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "token_budget": {
+            "default": 0,
+            "title": "Token Budget",
+            "type": "integer"
+          },
+          "tokens_used": {
+            "default": 0,
+            "title": "Tokens Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "OperatingContextPreviewView",
+        "type": "object"
+      },
+      "OperatingContextView": {
+        "description": "A node's operating context, its cost, and the prompt it becomes.",
+        "properties": {
+          "context": {
+            "default": "",
+            "title": "Context",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "prompt": {
+            "default": "",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ContextSectionView"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "template": {
+            "items": {
+              "$ref": "#/components/schemas/ContextSectionView"
+            },
+            "title": "Template",
+            "type": "array"
+          },
+          "token_budget": {
+            "default": 0,
+            "title": "Token Budget",
+            "type": "integer"
+          },
+          "tokens_used": {
+            "default": 0,
+            "title": "Tokens Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "node_id",
+          "enabled"
+        ],
+        "title": "OperatingContextView",
         "type": "object"
       },
       "OutcomeListView": {
@@ -9281,6 +9461,134 @@
           }
         },
         "summary": "Node Integration Schemas",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/{node_id}/operating-context": {
+      "get": {
+        "description": "Return this node's operating context, what it costs, and the text it becomes.\n\nThree things a client cannot assemble for itself, and one it should not try.\n\n``prompt`` is the *exact* string the investigator's next run will be sent —\nthe shipped-or-overridden prompt with the rendered sections appended, by the\nsame function the runtime hook uses. A console that concatenated the pieces\nitself would be a second implementation of the assembly, and the day it\ndrifted somebody would approve a prompt nobody sends.\n\n``provenance`` per section is the ancestors' documents, which nothing\noutside this deployment holds.\n\n``template`` is served only where the node resolves to no sections at all.\nIt is derived from what the estate has discovered — kinds, zones and their\nnetworks, the source answering each signal question — plus the facts that\nare true of any deployment of this kind and the questions only a person can\nanswer. It is a suggestion: nothing here stores it, and it disappears the\nmoment anything is written, because a field that kept re-offering its own\nstarting text over somebody's edits is a field they stop editing.",
+        "operationId": "node_operating_context_v1_config__node_id__operating_context_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatingContextView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Node Operating Context",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/{node_id}/operating-context/preview": {
+      "post": {
+        "description": "Return the prompt this context would produce, and everything wrong with it.\n\nThe 058 discipline, where the \"effect\" happens to be the most literal one on\nthe platform: what a person is shown before saving is the *text the model\nwill read*. Assembled by the deployment from the same merge and the same\nfunction a run uses, so there is no arrangement of the pieces a client could\nget differently.\n\nTwo refusals are reported rather than raised, because this is a preview and\na refusal an operator can still act on is worth more than a 4xx: a document\npast the token budget, and a section body carrying something\ncredential-shaped. The second never quotes what it found — a refusal that\nechoed the secret would be the first place it was written down.\n\n``over_budget`` is computed against the **merged** result rather than\nagainst this node's own document. A node whose own text fits can still\ninherit its way past the ceiling, and the resolution's answer to that is to\nsend no context at all — which is safe and silent, and this is where it\nstops being silent.",
+        "operationId": "preview_operating_context_v1_config__node_id__operating_context_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatingContextPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatingContextPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Operating Context",
         "tags": [
           "config"
         ]

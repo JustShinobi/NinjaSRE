@@ -31,6 +31,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.catalogue': 'Catálogo',
   'nav.administration': 'Administração',
   'nav.configuration': 'Configuração',
+  'nav.teamContext': 'Contexto da equipa',
   'nav.audit': 'Auditoria',
   'nav.data': 'Dados',
   'nav.open': 'Abrir a navegação',
@@ -229,6 +230,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.configuration.title': 'Configuração',
   'page.configuration.context':
     'A árvore da organização, e o resultado a que uma mudança nela levaria.',
+  'page.teamContext.title': 'Contexto da equipa',
+  'page.teamContext.context':
+    'Factos sobre este ambiente de que toda investigação devia partir.',
   'page.catalogue.title': 'Catálogo',
   'page.catalogue.context':
     'Todas as ferramentas e competências que esta instalação declara, e quais delas a sua equipa pode usar.',
@@ -749,6 +753,47 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.preview.empty.body':
     'Uma pré-visualização é a resposta da instalação a uma alteração. Não há nenhuma pendente para este nó.',
   'configuration.preview.empty.action': 'Ver os valores efectivos',
+  'teamContext.sections.title': 'O que este ambiente é',
+  'teamContext.sections.lead':
+    'Factos que um operador escreve uma vez e que entram no prompt de toda investigação. São acrescentados ao prompt distribuído, nunca no lugar dele — as substituições de prompt no ecrã de Configuração são a outra coisa, e essas substituem-no.',
+  'teamContext.factNotInstruction':
+    'Escreva factos, não instruções. “As métricas de um contentor vêm do anfitrião, por vmid” muda como o agente lê o que observa; “reinicie sempre o serviço primeiro” é um procedimento, e um procedimento pertence a um runbook ou à política de autonomia, onde é auditável e reversível.',
+  'teamContext.runbooks': 'Os runbooks vivem em Conhecimento',
+  'teamContext.policy': 'Os procedimentos vivem em Autonomia',
+  'teamContext.column.section': 'Secção',
+  'teamContext.column.body': 'O que diz',
+  'teamContext.provenance': 'Definido em',
+  'teamContext.budget': 'Orçamento do prompt',
+  'teamContext.budgetUsed': '{used} de {budget} tokens',
+  'teamContext.overBudget':
+    'Acima do orçamento. A instalação recusa isto enquanto não for mais curto.',
+  'teamContext.disabled':
+    'O contexto operacional está desligado neste nó. Fica guardado e nada é enviado.',
+  'teamContext.addSection': 'Acrescentar uma secção',
+  'teamContext.sectionName': 'Nome da secção',
+  'teamContext.remove': 'Limpar esta secção',
+  'teamContext.empty.heading': 'Ainda não há nada escrito aqui',
+  'teamContext.empty.body':
+    'Nenhum nível desta árvore escreveu contexto operacional, portanto cada investigação parte apenas do prompt distribuído. O documento inicial abaixo é derivado do que esta instalação já descobriu.',
+  'teamContext.empty.action': 'Ver a organização',
+  'teamContext.template.title': 'Um ponto de partida, a partir do que já se sabe',
+  'teamContext.template.lead':
+    'Derivado do próprio parque desta instalação — os tipos que tem, as zonas em que os endereços estão, a fonte que responde a cada pergunta de sinal. Nada aqui fica escrito até guardar.',
+  'teamContext.template.use': 'Partir daqui',
+  'teamContext.preview.title': 'O que o modelo vai receber',
+  'teamContext.preview.lead':
+    'O texto exacto que o prompt de sistema da próxima investigação vai levar, montado pela instalação. O botão de guardar aparece quando o tiver pedido.',
+  'teamContext.preview.submit': 'Mostrar-me o prompt',
+  'teamContext.preview.previewing': 'A montar…',
+  'teamContext.preview.first':
+    'Veja o prompt antes de o guardar. Este texto é enviado em cada chamada ao modelo de cada investigação.',
+  'teamContext.save': 'Guardar',
+  'teamContext.saving': 'A guardar…',
+  'teamContext.saved': 'Guardado. A próxima investigação leva isto.',
+  'teamContext.failed': 'O deployment recusou este contexto.',
+  'teamContext.unreachable': 'Não foi possível contactar o deployment.',
+  'teamContext.roles': 'Enviado a',
+
   'configuration.editor.title': 'Mudar o que se aplica aqui',
   'configuration.editor.lead':
     'Cada controlo abaixo vem do esquema do próprio deployment. Mude o que precisar e depois veja o que guardar iria resolver — o botão de guardar aparece quando o tiver visto.',

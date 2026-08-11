@@ -11,12 +11,14 @@ outside its own subtree (SC-006).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from config.constants.agents import OPERATING_CONTEXT_ROLES, OPERATING_CONTEXT_TOKEN_BUDGET
+from core.capability.tokens import estimate_tokens
 from gateway.http.catalogue_readers import installed_catalogue, installed_integrations
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
@@ -25,7 +27,9 @@ from gateway.http.state import GatewayState
 from platform.config_service.effective import EffectiveConfig
 from platform.config_service.errors import UnknownNode
 from platform.config_service.fields import fields_at
+from platform.config_service.schema.agents import render_sections
 from platform.config_service.schema.policies import GuardianSettings
+from platform.config_service.schema.root import RootConfig
 from platform.config_service.service import ConfigService
 from platform.estate.operating_context import discovered_estate, template_for
 from platform.guardian.resolution import resolve as resolve_guardian
@@ -113,6 +117,39 @@ class OperatingContextView(BaseModel):
     #: written, because a suggestion that kept reappearing over an operator's own
     #: text is one they stop reading.
     template: list[ContextSectionView] = Field(default_factory=list)
+
+
+class OperatingContextPatch(BaseModel):
+    """A pending context, as a client holds it before deciding to save it."""
+
+    sections: dict[str, str] = Field(default_factory=dict)
+    enabled: bool = True
+    #: Section paths whose node-local value goes, so the section is inherited
+    #: again. Beside the document for the reason every removal here is: no key in
+    #: a configuration document is ever a directive.
+    remove: list[str] = Field(default_factory=list)
+
+
+class FieldErrorView(BaseModel):
+    """One reason a document would be refused, at the path it is about."""
+
+    path: str
+    message: str
+
+
+class OperatingContextPreviewView(BaseModel):
+    """The prompt a pending context would produce, and everything wrong with it."""
+
+    node_id: str
+    prompt: str = ""
+    context: str = ""
+    tokens_used: int = 0
+    token_budget: int = 0
+    #: Measured against the *merged* result. A node whose own text fits can still
+    #: inherit its way past the ceiling.
+    over_budget: bool = False
+    accepted: bool = True
+    errors: list[FieldErrorView] = Field(default_factory=list)
 
 
 class ConfigNodeView(BaseModel):
@@ -539,6 +576,83 @@ async def node_operating_context(
             for name, body in await _template_for(node_id, state, auth, effective)
         ],
     )
+
+
+@router.post("/{node_id}/operating-context/preview", response_model=OperatingContextPreviewView)
+async def preview_operating_context(
+    node_id: str,
+    request: OperatingContextPatch,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> OperatingContextPreviewView:
+    """Return the prompt this context would produce, and everything wrong with it.
+
+    The 058 discipline, where the "effect" happens to be the most literal one on
+    the platform: what a person is shown before saving is the *text the model
+    will read*. Assembled by the deployment from the same merge and the same
+    function a run uses, so there is no arrangement of the pieces a client could
+    get differently.
+
+    Two refusals are reported rather than raised, because this is a preview and
+    a refusal an operator can still act on is worth more than a 4xx: a document
+    past the token budget, and a section body carrying something
+    credential-shaped. The second never quotes what it found — a refusal that
+    echoed the secret would be the first place it was written down.
+
+    ``over_budget`` is computed against the **merged** result rather than
+    against this node's own document. A node whose own text fits can still
+    inherit its way past the ceiling, and the resolution's answer to that is to
+    send no context at all — which is safe and silent, and this is where it
+    stops being silent.
+    """
+    await _check_scope(node_id, state, auth)
+    service = _service(state, auth)
+    patch = {
+        "agents": {
+            "operating_context": {
+                "sections": dict(request.sections),
+                "enabled": request.enabled,
+            }
+        }
+    }
+
+    outcome = service.validation_of(patch)
+    preview = await service.preview_settings(node_id, patch, tuple(request.remove))
+    resolved, _ = RootConfig.read(preview.values)
+    context = resolved.agents.operating_context
+
+    # A refused document renders no prompt. There is nothing to preview — this
+    # text is never going to be sent — and the one case where it would matter is
+    # the one where rendering is worst: a section carrying something
+    # credential-shaped would come back inside a block labelled as what the model
+    # will read, which is the opposite of what the refusal is for.
+    return OperatingContextPreviewView(
+        node_id=node_id,
+        prompt=resolved.agents.system_prompt_for(INVESTIGATOR_ROLE) if outcome.ok else "",
+        context=context.render() if outcome.ok else "",
+        tokens_used=_merged_tokens(preview.values),
+        token_budget=OPERATING_CONTEXT_TOKEN_BUDGET,
+        over_budget=_merged_tokens(preview.values) > OPERATING_CONTEXT_TOKEN_BUDGET,
+        accepted=outcome.ok,
+        errors=[FieldErrorView(path=error.path, message=error.message) for error in outcome.errors],
+    )
+
+
+def _merged_tokens(values: Mapping[str, Any]) -> int:
+    """Return what the merged sections cost, whether or not they build.
+
+    Read off the merged document rather than off the typed section, because the
+    typed section is exactly what disappears when the document is over budget —
+    measuring the thing that survived would report zero for the case this number
+    exists to name.
+    """
+    section = values.get("agents", {})
+    written = section.get("operating_context", {}) if isinstance(section, Mapping) else {}
+    sections = written.get("sections", {}) if isinstance(written, Mapping) else {}
+    if not isinstance(sections, Mapping):
+        return 0
+    rendered = render_sections({str(name): str(body) for name, body in sections.items()})
+    return estimate_tokens(rendered)
 
 
 async def _template_for(

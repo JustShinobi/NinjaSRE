@@ -41,6 +41,9 @@ import Resources, {
 } from '@/app/(shell)/resources/page';
 import RunDetail from '@/app/(shell)/runs/[runId]/page';
 import Runs, { generateMetadata as runsMeta } from '@/app/(shell)/runs/page';
+import TeamContext, {
+  generateMetadata as teamContextMeta,
+} from '@/app/(shell)/team-context/page';
 import Topology, {
   generateMetadata as topologyMeta,
 } from '@/app/(shell)/topology/page';
@@ -81,6 +84,7 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'catalogue', render: Catalogue, metadata: catalogueMeta },
   { id: 'autonomy', render: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
+  { id: 'team-context', render: TeamContext, metadata: teamContextMeta },
   { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
   { id: 'agent', render: Agent, metadata: agentMeta },
   { id: 'administration', render: Administration, metadata: administrationMeta },

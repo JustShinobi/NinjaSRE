@@ -234,6 +234,20 @@ export const AREAS: readonly Area[] = [
     permission: 'config.read',
     icon: SettingsIcon,
   },
+  // Beside Configuration rather than inside it. What a team knows about its own
+  // environment is prose somebody writes and rereads, not a field with a range —
+  // and a panel that needs an editor, a budget meter and a preview of the
+  // assembled prompt is a panel trying to be a screen.
+  {
+    id: 'team-context',
+    path: '/team-context',
+    group: 'settings',
+    label: 'nav.teamContext',
+    title: 'page.teamContext.title',
+    context: 'page.teamContext.context',
+    permission: 'config.read',
+    icon: BookIcon,
+  },
   {
     id: 'catalogue',
     path: '/catalogue',

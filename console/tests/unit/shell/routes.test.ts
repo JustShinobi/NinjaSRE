@@ -85,6 +85,7 @@ describe('the route manifest', () => {
       autonomy: 'settings',
       configuration: 'settings',
       data: 'settings',
+      'team-context': 'settings',
       administration: 'settings',
       audit: 'settings',
     };

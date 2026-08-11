@@ -33,6 +33,7 @@ export const EN = {
   'nav.knowledge': 'Knowledge',
   'nav.autonomy': 'Autonomy',
   'nav.configuration': 'Configuration',
+  'nav.teamContext': 'Team context',
   'nav.catalogue': 'Catalogue',
   'nav.agent': 'The agent',
   'nav.administration': 'Administration',
@@ -75,6 +76,9 @@ export const EN = {
   'page.configuration.title': 'Configuration',
   'page.configuration.context':
     'The organisation tree, and what a change to it would resolve to.',
+  'page.teamContext.title': 'Team context',
+  'page.teamContext.context':
+    'Facts about this environment that every investigation should start from.',
   'page.catalogue.title': 'Catalogue',
   'page.catalogue.context':
     'Every tool and skill this deployment declares, and which of them your team may run.',
@@ -835,6 +839,48 @@ export const EN = {
   'configuration.empty.body':
     'Every node inherits from the one above it. This one sets nothing of its own, so what applies is what its parent applies.',
   'configuration.empty.action': 'Look at the organisation',
+
+  // --- The team's operating context --------------------------------------------
+  'teamContext.sections.title': 'What this environment is',
+  'teamContext.sections.lead':
+    'Facts an operator writes once, added to the prompt of every investigation. They are added to the shipped prompt, never in place of it — the prompt overrides on the Configuration screen are the other thing, and they replace it.',
+  'teamContext.factNotInstruction':
+    'Write facts, not instructions. “Container metrics come from the host, by vmid” changes how an agent reads what it sees; “always restart the service first” is a procedure, and a procedure belongs in a runbook or in the autonomy policy, where it is auditable and reversible.',
+  'teamContext.runbooks': 'Runbooks live in Knowledge',
+  'teamContext.policy': 'Procedures live in Autonomy',
+  'teamContext.column.section': 'Section',
+  'teamContext.column.body': 'What it says',
+  'teamContext.provenance': 'Set at',
+  'teamContext.budget': 'Prompt budget',
+  'teamContext.budgetUsed': '{used} of {budget} tokens',
+  'teamContext.overBudget':
+    'Over the budget. The deployment will refuse this until it is shorter.',
+  'teamContext.disabled':
+    'The operating context is switched off for this node. It is stored and nothing is sent.',
+  'teamContext.addSection': 'Add a section',
+  'teamContext.sectionName': 'Section name',
+  'teamContext.remove': 'Clear this section',
+  'teamContext.empty.heading': 'Nothing written here yet',
+  'teamContext.empty.body':
+    'No level of this tree has written any operating context, so every investigation starts from the shipped prompt alone. The starting document below is derived from what this deployment has already discovered.',
+  'teamContext.empty.action': 'Look at the organisation',
+  'teamContext.template.title': 'A starting point, from what is already known',
+  'teamContext.template.lead':
+    'Derived from this deployment’s own estate — the kinds it holds, the zones its addresses sit on, the source that answers each signal question. Nothing here is written until you save it.',
+  'teamContext.template.use': 'Start from this',
+  'teamContext.preview.title': 'What the model will be sent',
+  'teamContext.preview.lead':
+    'The exact text the next investigation’s system prompt will carry, assembled by the deployment. The save appears once you have asked for it.',
+  'teamContext.preview.submit': 'Show me the prompt',
+  'teamContext.preview.previewing': 'Assembling…',
+  'teamContext.preview.first':
+    'See the prompt before saving it. This text is sent on every model call of every investigation.',
+  'teamContext.save': 'Save',
+  'teamContext.saving': 'Saving…',
+  'teamContext.saved': 'Saved. The next investigation carries this.',
+  'teamContext.failed': 'The deployment refused this context.',
+  'teamContext.unreachable': 'The deployment could not be reached.',
+  'teamContext.roles': 'Sent to',
 
   // --- The capability catalogue ------------------------------------------------------------------
   'catalogue.title': 'Capabilities',

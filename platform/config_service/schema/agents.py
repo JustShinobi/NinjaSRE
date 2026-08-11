@@ -156,19 +156,11 @@ class OperatingContext(ConfigSection):
 
     def written(self) -> tuple[tuple[str, str], ...]:
         """Return the sections that carry a body, in the order the document declares them."""
-        return tuple((name, body.strip()) for name, body in self.sections.items() if body.strip())
+        return written_sections(self.sections)
 
     def document(self) -> str:
         """Return the whole rendered block, whether or not it is switched on."""
-        written = self.written()
-        if not written:
-            return ""
-        return "\n\n".join(
-            (
-                OPERATING_CONTEXT_HEADING,
-                *(OPERATING_CONTEXT_SECTION.format(name=name, body=body) for name, body in written),
-            )
-        )
+        return render_sections(self.sections)
 
     def render(self) -> str:
         """Return the text the model receives, empty when there is none to send."""
@@ -177,6 +169,29 @@ class OperatingContext(ConfigSection):
     def tokens(self) -> int:
         """Return what this context costs, by the estimator the budget is set in."""
         return estimate_tokens(self.document())
+
+
+def written_sections(sections: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
+    """Return the sections of ``sections`` that carry a body, in declared order."""
+    return tuple((name, body.strip()) for name, body in sections.items() if body.strip())
+
+
+def render_sections(sections: Mapping[str, str]) -> str:
+    """Return the framed block ``sections`` renders to, empty when none carries a body.
+
+    A function rather than only a method, because the one caller that most needs
+    to measure a context is the preview — and the document it has to measure is
+    precisely the one too long to build into an ``OperatingContext`` at all.
+    """
+    written = written_sections(sections)
+    if not written:
+        return ""
+    return "\n\n".join(
+        (
+            OPERATING_CONTEXT_HEADING,
+            *(OPERATING_CONTEXT_SECTION.format(name=name, body=body) for name, body in written),
+        )
+    )
 
 
 def with_operating_context(prompt: str, context: str) -> str:
@@ -368,5 +383,7 @@ __all__ = [
     "OperatingContext",
     "PromptOverrides",
     "SubAgentConfig",
+    "render_sections",
     "with_operating_context",
+    "written_sections",
 ]

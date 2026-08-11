@@ -53,6 +53,15 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/config/{node_id}/operating-context",
         permission=Permission.CONFIG_READ,
     ),
+    # A preview computes and never stores, so it takes read for the same reason
+    # the configuration preview does: somebody who may not write should still be
+    # able to see what a proposal would send to the model before asking somebody
+    # who may.
+    Route(
+        method="POST",
+        path="/v1/config/{node_id}/operating-context/preview",
+        permission=Permission.CONFIG_READ,
+    ),
     # --- Approvals, and the rollback that follows one -------------------------
     Route(method="GET", path="/v1/approvals", permission=Permission.APPROVAL_READ),
     Route(method="GET", path="/v1/approvals/{approval_id}", permission=Permission.APPROVAL_READ),

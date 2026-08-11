@@ -960,6 +960,82 @@ def _config_fields(node_id: str, *, inherited: bool) -> list[dict[str, Any]]:
     ]
 
 
+#: The three facts this deployment's own postmortems are about, as an operator
+#: would have written them. Two at the organisation and one at the team, so the
+#: screen shows what it exists to show: a section is the unit of inheritance,
+#: and provenance says which level supplied each one.
+_CONTEXT_SECTIONS: Final[tuple[tuple[str, str, bool], ...]] = (
+    (
+        "Where the signals really are",
+        "A container shares its host's kernel, so memory and CPU for a guest are "
+        "read from the host's own series for it, keyed by the guest's numeric id "
+        "(vmid). A figure read from inside the container is the host's, and is "
+        "plausible, consistent, and wrong.",
+        False,
+    ),
+    (
+        "What criticality means here",
+        "Criticality comes from the declared inventory, never from the "
+        "hypervisor. A stopped guest marked critical is an incident; a stopped "
+        "guest marked best-effort is a Tuesday.",
+        False,
+    ),
+    (
+        "How the network is divided",
+        # No CIDR in this text on purpose. The dataset is anonymised on the way
+        # out, and an address rewritten inside a sentence comes back as a host
+        # with a prefix on it — which is not a network, and is the one thing this
+        # section is supposed to state correctly.
+        "The vk8s zone runs MTU 1450 over a 1450 underlay, which fragments long "
+        "TLS handshakes and shows up as timeouts that look like an unhealthy "
+        "backend.",
+        True,
+    ),
+)
+
+#: What the sections above cost, by the deployment's own estimator, and the
+#: ceiling it enforces. Written rather than computed: this dataset is a
+#: plausible deployment rather than a second implementation of the budget.
+_CONTEXT_TOKENS: Final = 168
+_CONTEXT_BUDGET: Final = 1200
+
+
+def _operating_context(node_id: str, *, inherited: bool) -> dict[str, Any]:
+    """Return the operating context as one node stands on it.
+
+    The team's own section is attributed to the team and the rest to the
+    organisation, which is the whole thing the screen has to be able to show. A
+    node with an ancestor has written none of its own, so nothing here claims
+    the organisation's text was typed twice.
+    """
+    sections = [
+        {
+            "name": name,
+            "body": body,
+            "provenance": node_id if (local and inherited) else ORG_NODE,
+        }
+        for name, body, local in _CONTEXT_SECTIONS
+    ]
+    return {
+        "node_id": node_id,
+        "enabled": True,
+        "sections": sections,
+        "context": "\n\n".join(f"### {entry['name']}\n\n{entry['body']}" for entry in sections),
+        "prompt": (
+            "You are an SRE investigator. Establish the root cause from evidence.\n\n"
+            "## Operating context for this deployment\n\n"
+            + "\n\n".join(f"### {entry['name']}\n\n{entry['body']}" for entry in sections)
+        ),
+        "tokens_used": _CONTEXT_TOKENS,
+        "token_budget": _CONTEXT_BUDGET,
+        "roles": ["investigator", "subagent"],
+        # Written, so the template is not offered. A screenshot showing both a
+        # filled context and its own starting document would be a screenshot of
+        # two states at once.
+        "template": [],
+    }
+
+
 def config_records() -> tuple[CapturedRecord, ...]:
     """Return the organisation tree, and each node's effective configuration."""
     records: list[CapturedRecord] = [
@@ -1007,6 +1083,13 @@ def config_records() -> tuple[CapturedRecord, ...]:
                 "config-fields",
                 {"node_id": identifier},
                 {"fields": _config_fields(identifier, inherited=inherited)},
+            )
+        )
+        records.append(
+            _record(
+                "config-operating-context",
+                {"node_id": identifier},
+                _operating_context(identifier, inherited=inherited),
             )
         )
         records.append(

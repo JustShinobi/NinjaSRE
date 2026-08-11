@@ -64,7 +64,7 @@ from platform.config_service.hierarchy import Hierarchy
 from platform.config_service.merge import deep_prune
 from platform.config_service.preview import ConfigPreview, preview_of
 from platform.config_service.templates import TemplateDiff, TemplateLibrary
-from platform.config_service.validation import ConfigValidator
+from platform.config_service.validation import ConfigValidator, ValidationOutcome
 from platform.guardrails.engine import GuardrailEngine
 from platform.persistence.errors import RecordNotFound
 from platform.persistence.ports import (
@@ -224,6 +224,17 @@ class ConfigService:
         clear itself cannot disagree either.
         """
         return preview_of(node_id, await self._chain(node_id), patch, remove)
+
+    def validation_of(self, settings: Mapping[str, Any]) -> ValidationOutcome:
+        """Return what validation makes of ``settings``, storing and auditing nothing.
+
+        The same validator the write path runs, exposed so a surface can show
+        somebody why a document *would* be refused while they can still edit it.
+        A second implementation of the check in a client would agree until the
+        day a rule moved, and then refuse nothing while the write refused
+        everything.
+        """
+        return self._validator.validate(settings)
 
     # --- Writing -------------------------------------------------------------
 

@@ -883,6 +883,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/config/{node_id}/operating-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Node Operating Context
+         * @description Return this node's operating context, what it costs, and the text it becomes.
+         *
+         *     Three things a client cannot assemble for itself, and one it should not try.
+         *
+         *     ``prompt`` is the *exact* string the investigator's next run will be sent —
+         *     the shipped-or-overridden prompt with the rendered sections appended, by the
+         *     same function the runtime hook uses. A console that concatenated the pieces
+         *     itself would be a second implementation of the assembly, and the day it
+         *     drifted somebody would approve a prompt nobody sends.
+         *
+         *     ``provenance`` per section is the ancestors' documents, which nothing
+         *     outside this deployment holds.
+         *
+         *     ``template`` is served only where the node resolves to no sections at all.
+         *     It is derived from what the estate has discovered — kinds, zones and their
+         *     networks, the source answering each signal question — plus the facts that
+         *     are true of any deployment of this kind and the questions only a person can
+         *     answer. It is a suggestion: nothing here stores it, and it disappears the
+         *     moment anything is written, because a field that kept re-offering its own
+         *     starting text over somebody's edits is a field they stop editing.
+         */
+        get: operations["node_operating_context_v1_config__node_id__operating_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config/{node_id}/operating-context/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Operating Context
+         * @description Return the prompt this context would produce, and everything wrong with it.
+         *
+         *     The 058 discipline, where the "effect" happens to be the most literal one on
+         *     the platform: what a person is shown before saving is the *text the model
+         *     will read*. Assembled by the deployment from the same merge and the same
+         *     function a run uses, so there is no arrangement of the pieces a client could
+         *     get differently.
+         *
+         *     Two refusals are reported rather than raised, because this is a preview and
+         *     a refusal an operator can still act on is worth more than a 4xx: a document
+         *     past the token budget, and a section body carrying something
+         *     credential-shaped. The second never quotes what it found — a refusal that
+         *     echoed the secret would be the first place it was written down.
+         *
+         *     ``over_budget`` is computed against the **merged** result rather than
+         *     against this node's own document. A node whose own text fits can still
+         *     inherit its way past the ceiling, and the resolution's answer to that is to
+         *     send no context at all — which is safe and silent, and this is where it
+         *     stops being silent.
+         */
+        post: operations["preview_operating_context_v1_config__node_id__operating_context_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/config/{node_id}/preview": {
         parameters: {
             query?: never;
@@ -3012,6 +3089,21 @@ export interface components {
              */
             won: boolean;
         };
+        /**
+         * ContextSectionView
+         * @description One named section: what it says, and which level said it.
+         */
+        ContextSectionView: {
+            /** Body */
+            body: string;
+            /** Name */
+            name: string;
+            /**
+             * Provenance
+             * @default
+             */
+            provenance: string;
+        };
         /** ContributionView */
         ContributionView: {
             /**
@@ -3745,6 +3837,16 @@ export interface components {
              */
             winning_rule: string;
         };
+        /**
+         * FieldErrorView
+         * @description One reason a document would be refused, at the path it is about.
+         */
+        FieldErrorView: {
+            /** Message */
+            message: string;
+            /** Path */
+            path: string;
+        };
         /** FindingView */
         FindingView: {
             /** Action */
@@ -4348,6 +4450,99 @@ export interface components {
             subject: string;
             /** Verdict */
             verdict: string;
+        };
+        /**
+         * OperatingContextPatch
+         * @description A pending context, as a client holds it before deciding to save it.
+         */
+        OperatingContextPatch: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Remove */
+            remove?: string[];
+            /** Sections */
+            sections?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * OperatingContextPreviewView
+         * @description The prompt a pending context would produce, and everything wrong with it.
+         */
+        OperatingContextPreviewView: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /**
+             * Context
+             * @default
+             */
+            context: string;
+            /** Errors */
+            errors?: components["schemas"]["FieldErrorView"][];
+            /** Node Id */
+            node_id: string;
+            /**
+             * Over Budget
+             * @default false
+             */
+            over_budget: boolean;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /**
+             * Token Budget
+             * @default 0
+             */
+            token_budget: number;
+            /**
+             * Tokens Used
+             * @default 0
+             */
+            tokens_used: number;
+        };
+        /**
+         * OperatingContextView
+         * @description A node's operating context, its cost, and the prompt it becomes.
+         */
+        OperatingContextView: {
+            /**
+             * Context
+             * @default
+             */
+            context: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Node Id */
+            node_id: string;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /** Roles */
+            roles?: string[];
+            /** Sections */
+            sections?: components["schemas"]["ContextSectionView"][];
+            /** Template */
+            template?: components["schemas"]["ContextSectionView"][];
+            /**
+             * Token Budget
+             * @default 0
+             */
+            token_budget: number;
+            /**
+             * Tokens Used
+             * @default 0
+             */
+            tokens_used: number;
         };
         /** OutcomeListView */
         OutcomeListView: {
@@ -7355,6 +7550,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationSchemasView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    node_operating_context_v1_config__node_id__operating_context_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatingContextView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_operating_context_v1_config__node_id__operating_context_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatingContextPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatingContextPreviewView"];
                 };
             };
             /** @description Validation Error */

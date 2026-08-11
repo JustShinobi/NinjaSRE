@@ -46,6 +46,9 @@ import Resources, {
   generateMetadata as resourcesMeta,
 } from '@/app/(shell)/resources/page';
 import Runs, { generateMetadata as runsMeta } from '@/app/(shell)/runs/page';
+import TeamContext, {
+  generateMetadata as teamContextMeta,
+} from '@/app/(shell)/team-context/page';
 import Topology, {
   generateMetadata as topologyMeta,
 } from '@/app/(shell)/topology/page';
@@ -92,6 +95,7 @@ const ROUTE_FILES: readonly RouteFile[] = [
   { id: 'knowledge', page: Knowledge, metadata: knowledgeMeta },
   { id: 'autonomy', page: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', page: Configuration, metadata: configurationMeta },
+  { id: 'team-context', page: TeamContext, metadata: teamContextMeta },
   { id: 'first-run', page: FirstRun, metadata: firstRunMeta },
   { id: 'catalogue', page: Catalogue, metadata: catalogueMeta },
   { id: 'agent', page: Agent, metadata: agentMeta },

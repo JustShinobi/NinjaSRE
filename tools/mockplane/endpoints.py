@@ -327,6 +327,20 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
     ),
     ConsoleEndpoint(
         method="GET",
+        path="/v1/config/{node_id}/operating-context",
+        slug="config-operating-context",
+        source=_GATEWAY,
+        summary="the facts a team has added to the agent's prompt, and the prompt they become",
+    ),
+    ConsoleEndpoint(
+        method="POST",
+        path="/v1/config/{node_id}/operating-context/preview",
+        slug="config-operating-context-preview",
+        source=_GATEWAY,
+        summary="the prompt a pending operating context would send, and what would refuse it",
+    ),
+    ConsoleEndpoint(
+        method="GET",
         path="/v1/config/{node_id}/guardian",
         slug="config-guardian",
         source=_GATEWAY,
