@@ -229,3 +229,62 @@ async def test_a_partial_rollback_is_recorded_as_partial(
 
     assert recorded.notes is not None
     assert "1 of 1" in recorded.notes
+
+
+async def test_decided_requests_come_back_most_recently_answered_first(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """A decision is evidence, so there has to be a way to read the decisions.
+
+    Ordered by when it was answered rather than by when it was asked: the queue
+    that recalls "what was said the last three times" wants the last three
+    things said, and the two orders differ whenever a proposal waited.
+    """
+    async with gateway.begin(scope) as uow:
+        for identifier, minutes in (("a-first", 0.0), ("a-second", 1.0)):
+            await uow.approvals.create_request(request_for(identifier, minutes=minutes))
+            await uow.approvals.store_rollback_plan(plan_for(identifier))
+
+        await uow.approvals.decide(
+            "a-second", state=ApprovalState.APPROVED, decided_by="u-ada", decided_at=at(5)
+        )
+        await uow.approvals.decide(
+            "a-first", state=ApprovalState.REJECTED, decided_by="u-ada", decided_at=at(9)
+        )
+        # Still waiting, so still absent from a listing of what was answered.
+        await uow.approvals.create_request(request_for("a-open", minutes=2))
+
+        decided = await uow.approvals.list_decided()
+
+    assert [item.approval_id for item in decided] == ["a-first", "a-second"]
+    assert decided[0].reason is None
+    assert decided[0].state is ApprovalState.REJECTED
+
+
+async def test_decided_requests_can_be_narrowed_to_one_action(
+    gateway: PersistenceGateway, scope: TenantScope
+) -> None:
+    """The queue reads one kind of decision, not every approval the org ever made."""
+    async with gateway.begin(scope) as uow:
+        await uow.approvals.create_request(request_for("a-restart"))
+        await uow.approvals.store_rollback_plan(plan_for("a-restart"))
+        await approve(uow, "a-restart")
+
+        other = ApprovalRequest(
+            approval_id="a-proposal",
+            run_id="run-2",
+            action="detector.proposal",
+            side_effect_level=SIDE_EFFECT_WRITE_REVERSIBLE,
+            summary="Enable the corpus quorum check.",
+            requested_at=at(1),
+            expires_at=at(60),
+        )
+        await uow.approvals.create_request(other)
+        await uow.approvals.store_rollback_plan(plan_for("a-proposal"))
+        await uow.approvals.decide(
+            "a-proposal", state=ApprovalState.APPROVED, decided_by="u-ada", decided_at=at(7)
+        )
+
+        found = await uow.approvals.list_decided(action="detector.proposal")
+
+    assert [item.approval_id for item in found] == ["a-proposal"]
