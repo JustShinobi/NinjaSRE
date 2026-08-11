@@ -213,4 +213,18 @@ TRANSIT_ROUTES: Final[tuple[Route, ...]] = (
     ),
 )
 
-__all__ = ["GATEWAY_ROUTES", "INGRESS_ROUTES", "TRANSIT_ROUTES", "WEBHOOK_ROUTES"]
+#: Reading what a team's bridged servers offer. ``CONFIG_READ`` rather than a
+#: permission of its own: the registrations *are* configuration, and somebody
+#: who may read a team's configuration is already able to read the list of
+#: servers it declares. What this adds is what those servers answered.
+PROTOCOL_ROUTES: Final[tuple[Route, ...]] = (
+    Route(method="GET", path="/v1/protocols/catalogue", permission=Permission.CONFIG_READ),
+)
+
+__all__ = [
+    "GATEWAY_ROUTES",
+    "INGRESS_ROUTES",
+    "PROTOCOL_ROUTES",
+    "TRANSIT_ROUTES",
+    "WEBHOOK_ROUTES",
+]

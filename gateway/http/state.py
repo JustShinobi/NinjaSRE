@@ -12,7 +12,9 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from capabilities.protocols.port import ProtocolAdapter
 from core.llm.verification import ModelVerdict
+from gateway.http.protocol_catalogue import ProtocolCatalogueCache
 from gateway.http.rate_limit import ApiRateLimiter
 from gateway.http.security.agent_routes import AGENT_ROUTES
 from gateway.http.security.autonomy_routes import AUTONOMY_ROUTES
@@ -22,6 +24,7 @@ from gateway.http.security.first_run_routes import FIRST_RUN_ROUTES
 from gateway.http.security.gateway_routes import (
     GATEWAY_ROUTES,
     INGRESS_ROUTES,
+    PROTOCOL_ROUTES,
     TRANSIT_ROUTES,
     WEBHOOK_ROUTES,
 )
@@ -51,6 +54,7 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
     .extended_with(WEBHOOK_ROUTES)
     .extended_with(INGRESS_ROUTES)
     .extended_with(TRANSIT_ROUTES)
+    .extended_with(PROTOCOL_ROUTES)
     .extended_with(CONSOLE_ROUTES)
     .extended_with(ESTATE_ROUTES)
     .extended_with(INCIDENT_ROUTES)
@@ -119,6 +123,16 @@ class GatewayState:
     #: "nothing changed": an absence from a source nobody configured is not
     #: evidence of anything.
     change_sources: Sequence[Any] = field(default_factory=tuple)
+    #: How this deployment reaches the MCP and ACP servers its teams registered.
+    #: ``None`` in a deployment that composed none — reaching one needs a
+    #: transport and the credential proxy — and then the bridged catalogue says
+    #: that in a sentence rather than answering "no tools", which is what an
+    #: empty catalogue and an unwired bridge would otherwise both look like.
+    protocol_adapter: ProtocolAdapter | None = None
+    #: Composed catalogues, held per team for a few seconds. Building one costs
+    #: a call per registered server to somebody else's infrastructure, and an
+    #: operator working a classification queue refreshes the screen.
+    protocol_catalogue_cache: ProtocolCatalogueCache = field(default_factory=ProtocolCatalogueCache)
     route_table: RouteTable = APPLICATION_ROUTE_TABLE
     broker: RunEventBroker = field(default_factory=RunEventBroker)
     guardrails: GuardrailEngine = field(default_factory=GuardrailEngine)
