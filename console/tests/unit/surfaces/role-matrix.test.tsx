@@ -38,6 +38,8 @@ const WRITE_CONTROLS = [
   { testId: 'reject', permission: 'remediation.approve' },
   { testId: 'config-editor', permission: 'config.write' },
   { testId: 'ask-preview', permission: 'config.write' },
+  { testId: 'grant-override', permission: 'config.write' },
+  { testId: 'revoke-override', permission: 'config.write' },
   { testId: 'credential', permission: 'integration.manage' },
   { testId: 'verify', permission: 'integration.manage' },
   { testId: 'token', permission: 'token.manage' },

@@ -237,6 +237,86 @@ describe('the autonomy policy', () => {
     expect(sent[0]?.url).toBe(`${API}/v1/autonomy/policy/team-platform/dry-run`);
   });
 
+  it('grants an override at its own address, with a reason in the body', async () => {
+    vi.stubGlobal('fetch', answering(201, { name: 'incident-widen' }));
+
+    await post({
+      nodeId: 'team-platform',
+      operation: 'override',
+      payload: { name: 'incident-widen', level: 'act_on_low_risk', reason: 'paged' },
+    });
+
+    expect(sent[0]?.url).toBe(`${API}/v1/autonomy/policy/team-platform/overrides`);
+    expect(sent[0]?.init.method).toBe('POST');
+    expect(sentBody()).toContain('incident-widen');
+  });
+
+  it('revokes an override by name, as a DELETE with no body', async () => {
+    vi.stubGlobal('fetch', answering(200, { name: 'incident-widen' }));
+
+    await post({
+      nodeId: 'team-platform',
+      operation: 'revoke-override',
+      payload: { name: 'incident-widen' },
+    });
+
+    expect(sent[0]?.url).toBe(
+      `${API}/v1/autonomy/policy/team-platform/overrides/incident-widen`,
+    );
+    expect(sent[0]?.init.method).toBe('DELETE');
+    expect(sent[0]?.init.body).toBeUndefined();
+  });
+
+  it('encodes an override name that needs it', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+
+    await post({
+      nodeId: 'team-platform',
+      operation: 'revoke-override',
+      payload: { name: 'a name/with slash' },
+    });
+
+    expect(sent[0]?.url).toBe(
+      `${API}/v1/autonomy/policy/team-platform/overrides/${encodeURIComponent('a name/with slash')}`,
+    );
+  });
+
+  it('will not revoke an override nobody named', async () => {
+    vi.stubGlobal('fetch', answering(200, {}));
+
+    const answer = await post({
+      nodeId: 'team-platform',
+      operation: 'revoke-override',
+      payload: {},
+    });
+
+    expect(answer.status).toBe(400);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('reports a revocation the deployment refused, naming where it has to happen', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(404, {
+        detail:
+          'this node granted no override named incident-widen; an inherited override is revoked at the node that granted it',
+      }),
+    );
+
+    const answer = await post({
+      nodeId: 'team-platform',
+      operation: 'revoke-override',
+      payload: { name: 'incident-widen' },
+    });
+
+    expect(answer.status).toBe(404);
+    const body: unknown = await answer.clone().json();
+    expect(await answer.json()).toMatchObject({ ok: false });
+    expect(Reflect.get(Object(body), 'reason')).toContain(
+      'is revoked at the node that granted it',
+    );
+  });
+
   it('returns the deployment’s answer verbatim under its own key', async () => {
     vi.stubGlobal(
       'fetch',
