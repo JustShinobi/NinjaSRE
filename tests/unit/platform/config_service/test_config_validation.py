@@ -204,6 +204,74 @@ def test_a_credential_reference_is_not_a_credential(validator: ConfigValidator) 
     ).ok
 
 
+# --- The operating context is free text that is sent to a model --------------
+#
+# The field this scan matters most for. Everything else in the document is a
+# reference, a switch, or a bounded number; this one invites an operator to
+# paste what they know about their environment, and what somebody knows about
+# their environment is sometimes how to log into it. The value then leaves the
+# deployment on every investigation, so a credential landing here is a
+# credential handed to a model provider.
+
+
+def test_a_credential_pasted_into_an_operating_context_section_is_refused(
+    validator: ConfigValidator,
+) -> None:
+    """Acceptance 4, and the refusal names the section it was written in."""
+    outcome = validator.validate(
+        {
+            "agents": {
+                "operating_context": {
+                    "sections": {
+                        "access": (
+                            "The hypervisor API is reached with "
+                            "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n"
+                            "-----END RSA PRIVATE KEY-----"
+                        )
+                    }
+                }
+            }
+        }
+    )
+
+    assert outcome.paths() == ("agents.operating_context.sections.access",)
+    assert "vault" in outcome.errors[0].message
+
+
+def test_the_refusal_of_a_context_section_never_quotes_what_it_found(
+    validator: ConfigValidator,
+) -> None:
+    """A refusal that echoed the secret would log it for the first time."""
+    secret = "ghp_" + "c" * 36
+    outcome = validator.validate(
+        {"agents": {"operating_context": {"sections": {"access": f"the token is {secret}"}}}}
+    )
+
+    assert not outcome.ok
+    assert all(secret not in error.message for error in outcome.errors)
+
+
+def test_an_operating_context_describing_an_estate_is_not_mistaken_for_a_secret(
+    validator: ConfigValidator,
+) -> None:
+    """The prose this field exists for has to pass, or the field is unusable."""
+    assert validator.validate(
+        {
+            "agents": {
+                "operating_context": {
+                    "sections": {
+                        "signals": (
+                            "Container metrics come from the host's own series, keyed by "
+                            "vmid. A figure read from inside the guest is wrong."
+                        ),
+                        "network": "The vk8s zone is 10.20.30.0/24 and runs MTU 1450.",
+                    }
+                }
+            }
+        }
+    ).ok
+
+
 # --- A field a vendor calls secret cannot be a configuration field -----------
 #
 # ``IntegrationSettings`` is a closed schema, so ``api_key`` written beside
