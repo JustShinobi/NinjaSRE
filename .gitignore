@@ -40,4 +40,6 @@ htmlcov/
 # sequencing of the work nor a running commentary on where code came from.
 /specs/
 /specs_v2/
+/specs_v3/
+/specs_v4/
 /docs/provenance-map.md
