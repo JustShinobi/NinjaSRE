@@ -45,7 +45,7 @@ class _Runner:
 async def test_a_declared_read_reaches_the_transport_as_a_vector() -> None:
     runner = _Runner(out="nginx.service failed")
 
-    result = await Executor(runner=runner).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=runner).perform(  # type: ignore[arg-type]
         ExecutionRequest(node="pve01", command_id="failed-units")
     )
 
@@ -61,7 +61,7 @@ async def test_a_command_nobody_declared_never_reaches_the_transport() -> None:
     transport's own judgement rather than the declared list."""
     runner = _Runner()
 
-    result = await Executor(runner=runner).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=runner).perform(  # type: ignore[arg-type]
         ExecutionRequest(node="pve01", command_id="curl-something")
     )
 
@@ -73,7 +73,7 @@ async def test_a_command_nobody_declared_never_reaches_the_transport() -> None:
 async def test_an_argument_carrying_a_shell_never_reaches_the_transport() -> None:
     runner = _Runner()
 
-    result = await Executor(runner=runner).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=runner).perform(  # type: ignore[arg-type]
         ExecutionRequest(node="pve01", command_id="guest-status", arguments={"vmid": "1; id"})
     )
 
@@ -86,7 +86,7 @@ async def test_a_write_is_refused_unless_the_caller_asked_for_one() -> None:
     by naming a command that happens to be a write."""
     runner = _Runner()
 
-    result = await Executor(runner=runner).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=runner).perform(  # type: ignore[arg-type]
         ExecutionRequest(
             node="pve01", command_id="restart-unit", arguments={"unit": "pve-cluster.service"}
         )
@@ -99,7 +99,7 @@ async def test_a_write_is_refused_unless_the_caller_asked_for_one() -> None:
 async def test_a_write_runs_when_the_caller_declared_it_intends_one() -> None:
     runner = _Runner()
 
-    result = await Executor(runner=runner).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=runner).perform(  # type: ignore[arg-type]
         ExecutionRequest(
             node="pve01",
             command_id="restart-unit",
@@ -116,7 +116,7 @@ async def test_declaring_a_write_does_not_turn_a_read_into_one() -> None:
     """The flag is permission, not instruction: it must not widen what a read does."""
     runner = _Runner()
 
-    result = await Executor(runner=runner).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=runner).perform(  # type: ignore[arg-type]
         ExecutionRequest(node="pve01", command_id="failed-units", intends_write=True)
     )
 
@@ -129,7 +129,7 @@ async def test_a_command_that_exits_non_zero_is_a_result_rather_than_a_raise() -
     investigation reads rather than something that ends it."""
     runner = _Runner(code=1, out="", err="Job for nginx.service failed")
 
-    result = await Executor(runner=runner).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=runner).perform(  # type: ignore[arg-type]
         ExecutionRequest(node="pve01", command_id="failed-units")
     )
 
@@ -148,7 +148,7 @@ async def test_a_transport_that_could_not_connect_is_told_apart_from_a_failure()
         ) -> tuple[int, str, str]:
             raise OSError("no route to host")
 
-    result = await Executor(runner=_Broken()).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=_Broken()).perform(  # type: ignore[arg-type]
         ExecutionRequest(node="pve01", command_id="failed-units")
     )
 
@@ -158,7 +158,7 @@ async def test_a_transport_that_could_not_connect_is_told_apart_from_a_failure()
 
 
 async def test_the_result_names_what_was_run_so_a_report_can_cite_it() -> None:
-    result = await Executor(runner=_Runner()).execute(  # type: ignore[arg-type]
+    result = await Executor(runner=_Runner()).perform(  # type: ignore[arg-type]
         ExecutionRequest(node="pve01", command_id="quorum-status")
     )
 

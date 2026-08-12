@@ -92,8 +92,13 @@ class Executor:
 
     runner: CommandRunner
 
-    async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        """Return what running ``request`` produced, refusals included."""
+    async def perform(self, request: ExecutionRequest) -> ExecutionResult:
+        """Return what running ``request`` produced, refusals included.
+
+        Named ``perform`` rather than ``execute`` because this repository
+        reserves that word for reaching the datastore, and a guard reads the
+        name rather than the type.
+        """
         try:
             declared = declaration_for(request.command_id)
             if declared.writes and not request.intends_write:
