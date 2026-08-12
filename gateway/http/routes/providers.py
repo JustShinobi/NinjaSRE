@@ -31,6 +31,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from config.constants.llm import SUPPORTED_PROVIDERS
+from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from core.llm.onboarding import (
     ProviderOnboarding,
     UnknownProviderError,
@@ -148,7 +149,13 @@ async def _configured(state: GatewayState, auth: AuthenticatedRequest) -> frozen
     )
     health = CredentialHealth(vault=Vault(gateway=state.gateway, schemas=schemas))
     report = await health.report(
-        auth.scope, integrations=SUPPORTED_PROVIDERS, team_id=auth.team_node_id
+        auth.scope,
+        integrations=SUPPORTED_PROVIDERS,
+        # An organisation-scoped token has no team, and a handle needs one. The
+        # same fallback the credential routes make, for the same reason: the
+        # vault spells the organisation-wide owner as a literal, and a caller
+        # with no team of its own is precisely who that owner exists for.
+        team_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
     )
     return frozenset(entry.integration for entry in report.entries if entry.state.usable)
 
