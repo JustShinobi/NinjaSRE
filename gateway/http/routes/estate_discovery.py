@@ -277,7 +277,15 @@ async def register_discovery_source(
     reader = _reader(state, request.integration)
     declaration = reader.declaration
     now = datetime.now(UTC)
-    job = sweep_job(declaration, next_run_at=now, source=request.integration)
+    # The zones the operator just confirmed in the preview, carried into the
+    # sweep. Without them the recurring pass places nothing, and the estate that
+    # fills looks nothing like the preview that was approved.
+    job = sweep_job(
+        declaration,
+        next_run_at=now,
+        source=request.integration,
+        zones=request.zones,
+    )
 
     async with state.gateway.begin(auth.scope) as uow:
         stored = await uow.schedules.upsert_job(job)

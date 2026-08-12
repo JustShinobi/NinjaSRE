@@ -25,8 +25,8 @@ from typing import Any, Protocol, runtime_checkable
 
 from platform.estate.discovery.enriched import EnrichedSweep
 from platform.estate.discovery.port import DiscoveryMode, ResourceReader, SweepBudget
-from platform.estate.discovery.schedule import PAYLOAD_MODE, PAYLOAD_SOURCE
-from platform.estate.enrichment import EnrichmentPlan
+from platform.estate.discovery.schedule import PAYLOAD_MODE, PAYLOAD_SOURCE, zones_of
+from platform.estate.enrichment import EnrichmentPlan, ZoneMap
 from platform.observability.logging import get_logger
 from platform.persistence.ports.transaction import TenantScope
 from platform.scheduler.dispatch import JobContext
@@ -95,10 +95,19 @@ class TopologyDiscoveryRunner:
         if reader is None:
             raise UnknownDiscoverySource(name, tuple(self.readers))
 
+        # The declared networks travel with the job, so a deployment that
+        # registered one source per cluster places each one the way its own
+        # preview did. A plan composed for the source still wins, because that
+        # is the operator's standing declaration rather than one registration's.
+        declared = zones_of(context.payload)
+        plan = self.plans.get(name)
+        if plan is None:
+            plan = EnrichmentPlan(zones=ZoneMap.of(declared)) if declared else EnrichmentPlan()
+
         result = await self.sweeper.sweep(
             context.scope,
             reader,
-            plan=self.plans.get(name, EnrichmentPlan()),
+            plan=plan,
             now=context.fire_time,
             mode=_mode(context),
             source=name,
