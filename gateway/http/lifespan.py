@@ -20,11 +20,13 @@ from fastapi import FastAPI
 
 from config.constants import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
+from config.constants.executor import NINJASRE_NODE_EXECUTOR_URL_ENV
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
 from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
 from gateway.http.enrichment_plans import compose_enrichment_plans_for
 from gateway.http.log_sources import compose_log_sources
+from gateway.http.node_access import compose_node_access
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
@@ -71,6 +73,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # scheduler starts, so the first sweep annotates rather than the
         # second.
         await compose_enrichment_plans_for(state, org_id=organisation_id())
+        # The node executor, if this deployment runs one. It holds an SSH
+        # identity the agent may not hold, so from here it is a vendor like
+        # any other: named by address, reached over HTTP, never trusted with
+        # a command this side composed.
+        await compose_node_access(
+            state, executor_url=os.environ.get(NINJASRE_NODE_EXECUTOR_URL_ENV, "")
+        )
         # The log system, on the same terms. Composed here rather than at the
         # first investigation that wants a line, so a deployment pointed at a
         # Loki has one before anybody asks — and one that is not says so, rather

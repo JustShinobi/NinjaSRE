@@ -14,6 +14,12 @@ from typing import Final
 #: implementation detail an investigation should never depend on.
 NODE_COMMAND_TOOL_NAME: Final[str] = "run_on_node"
 
+#: Where the executor listens, as a deployment names it. An environment
+#: variable rather than a configuration field: a deployment that has an
+#: executor decided so when it was provisioned, and the address is a fact
+#: about the deployment rather than about the estate it watches.
+NINJASRE_NODE_EXECUTOR_URL_ENV: Final[str] = "NINJASRE_NODE_EXECUTOR_URL"
+
 #: How long one command may take before the node is reported as unreachable. A
 #: node that has stopped answering must become a finding rather than a request
 #: held open.
@@ -25,6 +31,7 @@ NODE_COMMAND_TIMEOUT_SECONDS: Final[float] = 20.0
 NODE_CONNECT_TIMEOUT_SECONDS: Final[int] = 10
 
 __all__ = [
+    "NINJASRE_NODE_EXECUTOR_URL_ENV",
     "NODE_COMMAND_TIMEOUT_SECONDS",
     "NODE_COMMAND_TOOL_NAME",
     "NODE_CONNECT_TIMEOUT_SECONDS",
