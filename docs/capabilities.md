@@ -4,7 +4,7 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-223 tools and 94 skills, 36 of them approval-gated.
+224 tools and 95 skills, 36 of them approval-gated.
 
 ## Skills
 
@@ -1014,6 +1014,17 @@ MetricsQL against VictoriaMetrics and the alerts vmalert is holding, for the est
 
 - `victoriametrics_metric_statistics`
 - `victoriametrics_active_alerts`
+
+### `model-provider-google-gemini`
+
+Whether this deployment's provider key can call the model it is configured for, which is the failure a refusal naming a model hides behind one naming the key.
+
+- **Domain:** model_provider
+- **Requires:** google_gemini
+
+**Directs:**
+
+- `google_gemini_available_models`
 
 ### `observability`
 
@@ -4604,6 +4615,27 @@ Evaluate a metric query over a window and return the series grouped by one label
 
 - reading an individual log line, which a metric never contains
 - a question about a single request, where a metric has no resolution
+
+### model_provider
+
+#### `google_gemini_available_models`
+
+List the models this deployment's Google Gemini key is allowed to call. The question an operator has after storing a key, and the one a provider refusal naming a model raises. Spends no inference quota.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from google_gemini
+- **Parallel safe:** yes
+- **Requires:** google_gemini
+
+**Use when:**
+
+- checking that a stored provider key can call the model this deployment is configured for
+- explaining a provider refusal that names a model rather than the key
+
+**Not for:**
+
+- running an inference, which goes through the model layer rather than here
+- choosing a model for a task, which is a configuration decision rather than a reading
 
 ### observability
 

@@ -52,6 +52,10 @@ class IntegrationCategory(StrEnum):
     INCIDENT_MANAGEMENT = "incident"
     COMMUNICATION = "communication"
     DATA_PLATFORM = "data_platform"
+    #: A language-model provider. Present because Article IV applies to a
+    #: provider key exactly as it applies to a vendor key — more so, since it
+    #: is the one credential every investigation spends.
+    MODEL_PROVIDER = "model_provider"
 
 
 class HealthStatus(StrEnum):

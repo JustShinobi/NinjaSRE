@@ -8,7 +8,7 @@ Every integration ships the same seven artefacts. The build fails naming both
 the integration and the artefact when one is missing, which is what makes "full
 parity" a property rather than an aspiration.
 
-84 integration(s), 84 at full parity, 9 recorded as unreachable.
+85 integration(s), 85 at full parity, 9 recorded as unreachable.
 
 ## The seven artefacts
 
@@ -1982,6 +1982,29 @@ MetricsQL against VictoriaMetrics and the alerts vmalert is holding, for the est
 
 - `query_metric` — cursor on `start`
 - `list_alerts` — cursor on `start`
+
+### model_provider
+
+### `google_gemini`
+
+Google Gemini, declared so a provider key stored in the vault is reachable through the credential proxy rather than only through the process environment.
+
+- **Category:** model_provider
+- **Regions:** global
+- **Credentials:** api_key
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `google_gemini_available_models`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `generativelanguage.models.list` | list the models this key may use, and call them | `google_gemini_available_models` |
 
 ### ticketing
 
