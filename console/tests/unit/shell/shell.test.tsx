@@ -22,6 +22,32 @@ import { owner, viewerAt } from './support';
 
 const GUARDIAN = { live: true, posture: 'propose' } as const;
 
+/**
+ * The open path, driven the way the frame reads it.
+ *
+ * The frame asks the router rather than taking a prop, because a layout above
+ * it is not re-rendered by a segment navigation. Three things here depend on
+ * that value — the marked area, where signing out returns the viewer, and what
+ * staying signed in reloads — so this file declares its own mock.
+ */
+const nav = vi.hoisted(() => ({ pathname: '/' }));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+  }),
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(),
+  notFound: () => {
+    throw new Error('not found');
+  },
+  redirect: (href: string) => {
+    throw new Error(`redirected to ${href}`);
+  },
+}));
+
 const WAITING: readonly AttentionItem[] = [
   {
     id: 'apr-0001',
@@ -33,21 +59,24 @@ const WAITING: readonly AttentionItem[] = [
   },
 ];
 
-function renderShell(overrides: Partial<Parameters<typeof Shell>[0]> = {}): {
+function renderShell(
+  overrides: Partial<Parameters<typeof Shell>[0]> & { at?: string } = {},
+): {
   navigate: ReturnType<typeof vi.fn>;
 } {
+  const { at = '/', ...props } = overrides;
+  nav.pathname = at;
   const navigate = vi.fn();
   render(
     <Shell
       viewer={owner()}
       locale="en"
       deployment={{ name: 'HAL9000', timezone: 'UTC' }}
-      current="/"
       guardian={GUARDIAN}
       attention={WAITING}
       recentRuns={[]}
       navigate={navigate}
-      {...overrides}
+      {...props}
     >
       <p data-testid="page">the page</p>
     </Shell>,
@@ -81,7 +110,6 @@ describe('the shell renders before the page does', () => {
         viewer={owner()}
         locale="en"
         deployment={{ name: 'HAL9000', timezone: 'UTC' }}
-        current="/"
         guardian={GUARDIAN}
         attention={[]}
         recentRuns={[]}
@@ -217,7 +245,7 @@ describe('the notification centre, inside the shell', () => {
 
 describe('the session, from inside the shell', () => {
   it('sends the viewer to the sign-in once, however many calls were refused', async () => {
-    const { navigate } = renderShell({ current: '/approvals' });
+    const { navigate } = renderShell({ at: '/approvals' });
 
     sessionController.unauthorized('/approvals');
     sessionController.unauthorized('/approvals');
@@ -233,7 +261,7 @@ describe('the session, from inside the shell', () => {
   it('ends the session on the server before it leaves', async () => {
     const ending = vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })));
     vi.stubGlobal('fetch', ending);
-    const { navigate } = renderShell({ current: '/knowledge' });
+    const { navigate } = renderShell({ at: '/knowledge' });
 
     await userEvent.click(screen.getByTestId('sign-out'));
 
@@ -256,7 +284,7 @@ describe('the session, from inside the shell', () => {
       'fetch',
       vi.fn(() => Promise.reject(new TypeError('network'))),
     );
-    const { navigate } = renderShell({ current: '/knowledge' });
+    const { navigate } = renderShell({ at: '/knowledge' });
 
     await userEvent.click(screen.getByTestId('sign-out'));
 

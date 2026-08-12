@@ -1,6 +1,7 @@
 'use client';
 
 import NextLink from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { StatusDot } from '@/components/status';
@@ -26,6 +27,12 @@ import { groupsFor, type Area } from './routes';
  * in.** It is the one fact that has to be on screen whatever page is open,
  * because "did anything act on its own while I was reading this" is not a
  * question that should require navigating anywhere.
+ *
+ * **The open area is read here, from the router, rather than handed in.** A
+ * layout above these entries is not re-rendered by a segment navigation, so a
+ * path passed down from one is captured on the first document and never moves
+ * again — the entries keep pointing at wherever the tab was opened. The hook
+ * is the only source that changes when a link is followed.
  */
 
 /** Whether the guardian is running, and what it is currently allowed to do. */
@@ -43,8 +50,6 @@ const POSTURE_KEY = {
 export interface SidebarProps {
   readonly viewer: Viewer;
   readonly locale: Locale;
-  /** The path currently open, so exactly one entry is marked current. */
-  readonly current: string;
   readonly guardian: Guardian;
   /** Per-area counts — the badge the design draws on Incidents and Approvals. */
   readonly counts?: Readonly<Record<string, number>>;
@@ -72,11 +77,11 @@ function isCurrent(area: Area, current: string): boolean {
 export function SidebarNav({
   viewer,
   locale,
-  current,
   counts = {},
   checklistComplete = false,
   onNavigate,
 }: Omit<SidebarProps, 'guardian'>): ReactNode {
+  const current = usePathname();
   return (
     <div className="flex-1 overflow-y-auto py-1">
       {groupsFor(viewer, { checklistComplete }).map((group) => (
@@ -170,7 +175,6 @@ export function GuardianFooter({
 export function Sidebar({
   viewer,
   locale,
-  current,
   guardian,
   counts,
   checklistComplete = false,
@@ -193,7 +197,6 @@ export function Sidebar({
       <SidebarNav
         viewer={viewer}
         locale={locale}
-        current={current}
         checklistComplete={checklistComplete}
         {...(counts === undefined ? {} : { counts })}
       />

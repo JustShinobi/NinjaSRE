@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/action';
@@ -43,7 +44,6 @@ export interface ShellProps {
   readonly viewer: Viewer;
   readonly locale: Locale;
   readonly deployment: Deployment;
-  readonly current: string;
   readonly guardian: Guardian;
   readonly attention: readonly AttentionItem[];
   readonly recentRuns: readonly RecentRun[];
@@ -79,7 +79,6 @@ export function Shell({
   viewer,
   locale,
   deployment,
-  current,
   guardian,
   attention,
   recentRuns,
@@ -97,6 +96,13 @@ export function Shell({
   const [waiting, setWaiting] = useState<readonly AttentionItem[]>(attention);
   const [ending, setEnding] = useState<SessionEnding | null>(null);
   const now = useNow();
+
+  // Read here rather than handed in: a layout is not re-rendered by a segment
+  // navigation, so a path from one is the path the tab was opened at. Three
+  // things depend on it being the path the viewer is actually looking at — the
+  // marked area, where signing out returns them, and what staying signed in
+  // reloads.
+  const current = usePathname();
 
   // The session ends once, wherever the refusal came from. This is the listener
   // half of that: the controller collapses, and what a collapse *does* is here.
@@ -160,7 +166,6 @@ export function Shell({
         <Sidebar
           viewer={viewer}
           locale={locale}
-          current={current}
           guardian={guardian}
           checklistComplete={setup.checklistComplete}
           {...(counts === undefined ? {} : { counts })}
@@ -267,7 +272,6 @@ export function Shell({
             <SidebarNav
               viewer={viewer}
               locale={locale}
-              current={current}
               checklistComplete={setup.checklistComplete}
               {...(counts === undefined ? {} : { counts })}
               onNavigate={() => {

@@ -26,14 +26,39 @@ import { owner, viewerAt } from './support';
 
 const GUARDIAN = { live: true, posture: 'propose' } as const;
 
+/**
+ * The open path, driven the way the sidebar reads it.
+ *
+ * The navigation asks the router rather than taking a prop, because a layout
+ * above it is not re-rendered by a segment navigation. So a file about the
+ * navigation declares its own mock, which is what the shared setup expects of
+ * exactly this case.
+ */
+const nav = vi.hoisted(() => ({ pathname: '/' }));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+  }),
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(),
+  notFound: () => {
+    throw new Error('not found');
+  },
+  redirect: (href: string) => {
+    throw new Error(`redirected to ${href}`);
+  },
+}));
+
 function nothing(): void {
   // The chrome's handlers are not what this file is about.
 }
 
 function renderSidebar(current = '/'): void {
-  render(
-    <Sidebar viewer={owner()} locale="en" current={current} guardian={GUARDIAN} />,
-  );
+  nav.pathname = current;
+  render(<Sidebar viewer={owner()} locale="en" guardian={GUARDIAN} />);
 }
 
 describe('the sidebar', () => {
@@ -123,7 +148,6 @@ describe('the sidebar', () => {
       <Sidebar
         viewer={owner()}
         locale="en"
-        current="/"
         guardian={{ live: false, posture: 'frozen' }}
       />,
     );
@@ -139,7 +163,6 @@ describe('the sidebar', () => {
       <Sidebar
         viewer={owner()}
         locale="en"
-        current="/"
         guardian={GUARDIAN}
         counts={{ approvals: 2, incidents: 3, runs: 0 }}
       />,
@@ -150,7 +173,7 @@ describe('the sidebar', () => {
   });
 
   it('renders every label from the catalogue, in whichever language the viewer reads', () => {
-    render(<Sidebar viewer={owner()} locale="pt-BR" current="/" guardian={GUARDIAN} />);
+    render(<Sidebar viewer={owner()} locale="pt-BR" guardian={GUARDIAN} />);
 
     expect(screen.getByText(message('pt-BR', 'nav.audit'))).toBeInTheDocument();
     expect(screen.queryByText(EN['nav.audit'])).toBeNull();

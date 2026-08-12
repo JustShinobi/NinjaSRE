@@ -27,7 +27,7 @@ function nothing(): void {
 
 function renderSidebar(role: string): void {
   render(
-    <Sidebar viewer={viewerAt(role)} locale="en" current="/" guardian={GUARDIAN} />,
+    <Sidebar viewer={viewerAt(role)} locale="en" guardian={GUARDIAN} />,
   );
 }
 

@@ -34,6 +34,11 @@ export default async function ShellLayout({
   children,
 }: Readonly<{ children: ReactNode }>): Promise<ReactNode> {
   const credential = await requestCredential();
+  // Only the two redirects below use this, and both run on a real request
+  // before anything renders — which is the one moment the header *is* the
+  // path. The frame reads its own, from the router, because a layout is not
+  // re-rendered by a segment navigation and this value would go stale the
+  // first time somebody used the navigation.
   const current = (await headers()).get('x-current-path') ?? '/';
   if (credential === null) {
     redirect(signInHref(current));
@@ -60,7 +65,6 @@ export default async function ShellLayout({
       viewer={viewer}
       locale={locale}
       deployment={deployment()}
-      current={current}
       guardian={guardian}
       attention={attention}
       recentRuns={recentRuns}
