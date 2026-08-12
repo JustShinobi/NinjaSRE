@@ -24,6 +24,7 @@ from platform.config_service.service import ConfigService
 from platform.credentials.errors import VaultKeyMismatch
 from platform.observability.logging import get_logger
 from platform.persistence.ports import TenantScope
+from platform.persistence.postgres.crypto import KEY_RING
 from platform.startup.bootstrap import organisation_id
 from platform.startup.errors import StartupError
 
@@ -31,6 +32,17 @@ _LOGGER = get_logger(__name__)
 
 #: Distinct from a crash, so a supervisor does not restart a typo forever.
 CONFIGURATION_EXIT = 3
+
+
+def install_encryption_key() -> bool:
+    """Load the operator's key into this process, and say whether there was one.
+
+    The proxy is the only thing that decrypts a credential, so a ring nobody
+    loaded makes every forwarded call fail with "the key differs from the one
+    that wrote it" — and the start-up check below cannot catch it, because with
+    no key there is nothing for it to try.
+    """
+    return KEY_RING.configure_from_environment()
 
 
 async def _configured_integrations(store: Any) -> tuple[Mapping[str, Any], ...]:
@@ -51,6 +63,10 @@ async def _configured_integrations(store: Any) -> tuple[Mapping[str, Any], ...]:
 async def _serve(host: str, port: int) -> None:
     """Compose, check the key, and serve — all on one event loop."""
     app, store = build_proxy_app()
+
+    # Before the check below, which cannot verify what has not been loaded.
+    if not install_encryption_key():
+        _LOGGER.warning("proxy.no_encryption_key")
 
     health = await store.health()
     if health.undecryptable_credentials:

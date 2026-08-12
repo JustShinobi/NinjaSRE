@@ -76,3 +76,28 @@ def test_a_port_is_not_part_of_the_allow_list_entry() -> None:
     assert hosts_from_configuration(
         [{"name": "proxmox", "enabled": True, "base_url": "https://pve.lan:8006"}]
     ) == {"proxmox": ("pve.lan",)}
+
+
+async def test_the_proxy_installs_the_encryption_key_before_it_checks_it() -> None:
+    """The same defect the application had, in the process that resolves secrets.
+
+    The proxy is the only thing that decrypts a credential, and nothing loaded
+    the key into its ring. Its own start-up check for undecryptable credentials
+    passed — with no key there is nothing to try — and then every forwarded call
+    failed with "the key differs from the one that wrote it".
+    """
+    import os
+    from unittest.mock import patch
+
+    from gateway.proxy.__main__ import install_encryption_key
+    from platform.persistence.postgres.crypto import KEY_RING
+
+    KEY_RING.clear()
+    try:
+        with patch.dict(
+            os.environ, {"NINJASRE_DATABASE_ENCRYPTION_KEY": "0" * 43 + "="}, clear=False
+        ):
+            assert install_encryption_key() is True
+        assert KEY_RING.is_configured
+    finally:
+        KEY_RING.clear()
