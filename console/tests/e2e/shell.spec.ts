@@ -93,6 +93,31 @@ test.describe('a signed-in operator', () => {
     });
   }
 
+  test('moves the mark when the navigation is used, not only when a route is opened cold', async ({
+    page,
+  }) => {
+    // Every assertion above this one arrives by `goto`, which is a document
+    // load. A person arrives by clicking, which is a segment fetch that leaves
+    // the layout mounted — so a frame that read the path once, on the server,
+    // keeps pointing at wherever the tab was opened.
+    await page.goto('/');
+    expect(await currentArea(page)).toBe('dashboard');
+
+    await page.getByTestId('nav-entry').filter({ hasText: 'Incidents' }).click();
+    await expect(page).toHaveURL(/\/incidents$/);
+    expect(await currentArea(page)).toBe('incidents');
+
+    // A second hop, because the first could pass on a frame that updates once.
+    await page.getByTestId('nav-entry').filter({ hasText: 'Knowledge' }).click();
+    await expect(page).toHaveURL(/\/knowledge$/);
+    expect(await currentArea(page)).toBe('knowledge');
+
+    // And exactly one entry carries it, whichever way the viewer got there.
+    await expect(
+      page.locator('[data-testid="nav-entry"][aria-current="page"]'),
+    ).toHaveCount(1);
+  });
+
   test('renders a not-found page inside the shell, with a way back', async ({
     page,
   }) => {
