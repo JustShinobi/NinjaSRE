@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { StatusDot } from '@/components/status';
+import { Lockup } from '@/design/brand';
 import { cx } from '@/design/cx';
 import { message, type Locale } from '@/i18n/messages';
 import type { Viewer } from '@/session/viewer';
@@ -185,14 +186,11 @@ export function Sidebar({
       aria-label={message(locale, 'nav.label')}
       className="hidden md:flex w-sidebar shrink-0 flex-col bg-surface edge border-y-0 border-l-0 border-border"
     >
-      <p className="flex items-center gap-2 p-4 edge border-x-0 border-t-0 border-border">
-        <span
-          aria-hidden="true"
-          className="grid place-items-center size-5 rounded-2 bg-accent text-on-accent text-meta font-bold"
-        >
-          {message(locale, 'app.name').slice(0, 1)}
-        </span>
-        <span className="text-strong">{message(locale, 'app.name')}</span>
+      {/* p-4 is 16px, which clears the mark's own rule: nothing comes within
+          half its height — 12px at this size — on any side, the container's
+          own border included. */}
+      <p className="p-4 edge border-x-0 border-t-0 border-border">
+        <Lockup name={message(locale, 'app.name')} />
       </p>
       <SidebarNav
         viewer={viewer}
