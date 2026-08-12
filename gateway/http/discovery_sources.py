@@ -28,6 +28,7 @@ names the integration and the address, and never learns the token.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from typing import Any
 
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
@@ -40,6 +41,7 @@ from integrations.proxmox.client import ProxmoxClient
 from integrations.proxmox.discovery import ProxmoxDiscovery
 from platform.config_service.service import ConfigService
 from platform.observability.logging import get_logger
+from platform.observation.schedule import tick_job
 from platform.persistence.ports import TenantScope
 
 logger = get_logger(__name__)
@@ -152,6 +154,18 @@ async def compose_discovery_sources(
     return composed
 
 
+async def schedule_observation_tick(state: GatewayState, *, org_id: str) -> None:
+    """Register the recurring tick that polls whatever was just composed.
+
+    Upserted rather than created, so a restart does not accumulate a job per
+    boot and an operator who changed the interval keeps their change.
+    """
+    job = tick_job(next_run_at=datetime.now(UTC))
+    async with state.gateway.begin(TenantScope(org_id=org_id)) as uow:
+        await uow.schedules.upsert_job(job)
+    logger.info("observation.tick_scheduled", job_id=job.job_id)
+
+
 async def compose_signal_sources(
     state: GatewayState, *, org_id: str, proxy_url: str
 ) -> tuple[Any, ...]:
@@ -190,6 +204,13 @@ async def compose_signal_sources(
 
     state.signal_sources = tuple(composed)
     logger.info("observation.sources_composed", count=len(composed))
+    if composed:
+        # A deployment pointed at a metrics system is one that wants its
+        # numbers; scheduling the tick is the other half of that decision.
+        try:
+            await schedule_observation_tick(state, org_id=org_id)
+        except Exception as failed:  # noqa: BLE001 — a schedule must not stop a boot
+            logger.warning("observation.tick_not_scheduled", error=str(failed))
     return tuple(composed)
 
 
