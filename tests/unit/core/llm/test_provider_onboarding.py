@@ -68,7 +68,17 @@ def test_a_field_spec_carries_a_name_and_never_a_value() -> None:
         for declared in onboarding.fields:
             assert isinstance(declared, CredentialFieldSpec)
             assert declared.name
-            assert set(declared.to_record()) == {"name", "label", "secret", "required", "help"}
+            # `environment_variable` names a variable, not a value: it is what
+            # an operator would set instead of typing, and saying so is what
+            # makes the two routes to one credential visibly the same one.
+            assert set(declared.to_record()) == {
+                "name",
+                "label",
+                "secret",
+                "required",
+                "help",
+                "environment_variable",
+            }
 
 
 def test_an_unknown_provider_is_refused_naming_the_ones_that_exist() -> None:

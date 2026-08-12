@@ -96,6 +96,7 @@ function fieldsOf(record: unknown, key: string): readonly CredentialFieldSpec[] 
     help: text(declared, 'help'),
     secret: flag(declared, 'secret'),
     required: flag(declared, 'required'),
+    environmentVariable: text(declared, 'environment_variable'),
   }));
 }
 

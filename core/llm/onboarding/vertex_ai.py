@@ -17,18 +17,21 @@ ONBOARDING = ProviderOnboarding(
     default_model="gemini-3-pro",
     fields=(
         CredentialFieldSpec(
-            name=GOOGLE_CLOUD_PROJECT_ENV,
+            name="project",
+            environment_variable=GOOGLE_CLOUD_PROJECT_ENV,
             label="Project id",
             secret=False,
         ),
         CredentialFieldSpec(
-            name=GOOGLE_CLOUD_LOCATION_ENV,
+            name="location",
+            environment_variable=GOOGLE_CLOUD_LOCATION_ENV,
             label="Location",
             secret=False,
             help="For example europe-west4.",
         ),
         CredentialFieldSpec(
-            name=GOOGLE_APPLICATION_CREDENTIALS_ENV,
+            name="service_account_file",
+            environment_variable=GOOGLE_APPLICATION_CREDENTIALS_ENV,
             label="Service account key",
             secret=True,
             required=False,

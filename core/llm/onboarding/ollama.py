@@ -12,7 +12,8 @@ ONBOARDING = ProviderOnboarding(
     default_model="llama4:70b",
     fields=(
         CredentialFieldSpec(
-            name=OLLAMA_BASE_URL_ENV,
+            name="base_url",
+            environment_variable=OLLAMA_BASE_URL_ENV,
             label="Base URL",
             secret=False,
             help="For example http://127.0.0.1:11434/v1.",

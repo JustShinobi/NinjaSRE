@@ -34,11 +34,18 @@ class CredentialFieldSpec:
     every surface that sets one up.
     """
 
+    #: What this field is called wherever it is stored and read. The canonical
+    #: name an adapter resolves — never the environment variable, which is one
+    #: of several ways an operator may *supply* the same thing.
     name: str
     label: str = ""
     secret: bool = True
     required: bool = True
     help: str = ""
+    #: The variable an operator may set instead of entering a value, shown so
+    #: the two routes to one credential are visibly the same credential. Empty
+    #: when there is none.
+    environment_variable: str = ""
 
     @property
     def prompt(self) -> str:
@@ -53,6 +60,7 @@ class CredentialFieldSpec:
             "secret": self.secret,
             "required": self.required,
             "help": self.help,
+            "environment_variable": self.environment_variable,
         }
 
 

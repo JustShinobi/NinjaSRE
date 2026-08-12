@@ -12,7 +12,8 @@ ONBOARDING = ProviderOnboarding(
     default_model=DEFAULT_MODEL_ID,
     fields=(
         CredentialFieldSpec(
-            name=ANTHROPIC_API_KEY_ENV,
+            name="api_key",
+            environment_variable=ANTHROPIC_API_KEY_ENV,
             label="API key",
             secret=True,
             help="Starts with 'sk-ant-'.",

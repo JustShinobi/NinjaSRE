@@ -67,6 +67,10 @@ class CredentialFieldView(BaseModel):
     secret: bool
     required: bool
     help: str
+    #: The variable an operator may set instead of entering a value. Served so
+    #: a form can say "or set GOOGLE_API_KEY" rather than leaving somebody to
+    #: guess that the two are the same credential.
+    environment_variable: str = ""
 
 
 class ProviderView(BaseModel):

@@ -38,6 +38,21 @@ export interface CredentialFieldSpec {
   readonly help: string;
   readonly secret: boolean;
   readonly required: boolean;
+  /**
+   * The variable an operator may set instead of typing a value here.
+   *
+   * Shown beside the field so the two routes to one credential are visibly the
+   * same credential. Empty for an integration, which declares none.
+   */
+  readonly environmentVariable?: string;
+}
+
+/** What sits under the input: the field's own help, and where else it can come from. */
+function describe(field: CredentialFieldSpec): string {
+  const variable = field.environmentVariable ?? '';
+  if (variable === '') return field.help;
+  const alternative = `Or set ${variable} in the deployment's environment.`;
+  return field.help === '' ? alternative : `${field.help} ${alternative}`;
 }
 
 export interface CredentialLabels {
@@ -141,7 +156,7 @@ export function CredentialField({
             // shared machine is the failure this one attribute prevents.
             type={field.secret ? 'password' : 'text'}
             autoComplete={field.secret ? 'off' : undefined}
-            {...(field.help === '' ? {} : { description: field.help })}
+            {...(describe(field) === '' ? {} : { description: describe(field) })}
             value={values[field.name] ?? ''}
             onValueChange={(value) => {
               setValues((held) => ({ ...held, [field.name]: value }));

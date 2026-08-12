@@ -18,24 +18,28 @@ ONBOARDING = ProviderOnboarding(
     default_model="gpt-5",
     fields=(
         CredentialFieldSpec(
-            name=AZURE_OPENAI_API_KEY_ENV,
+            name="api_key",
+            environment_variable=AZURE_OPENAI_API_KEY_ENV,
             label="API key",
             secret=True,
         ),
         CredentialFieldSpec(
-            name=AZURE_OPENAI_ENDPOINT_ENV,
+            name="endpoint",
+            environment_variable=AZURE_OPENAI_ENDPOINT_ENV,
             label="Endpoint",
             secret=False,
             help="For example https://my-resource.openai.azure.com.",
         ),
         CredentialFieldSpec(
-            name=AZURE_OPENAI_DEPLOYMENT_ENV,
+            name="deployment",
+            environment_variable=AZURE_OPENAI_DEPLOYMENT_ENV,
             label="Deployment name",
             secret=False,
             help="The name you gave the deployment, not the model name.",
         ),
         CredentialFieldSpec(
-            name=AZURE_OPENAI_API_VERSION_ENV,
+            name="api_version",
+            environment_variable=AZURE_OPENAI_API_VERSION_ENV,
             label="API version",
             secret=False,
             required=False,

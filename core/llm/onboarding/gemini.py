@@ -12,7 +12,8 @@ ONBOARDING = ProviderOnboarding(
     default_model="gemini-3-pro",
     fields=(
         CredentialFieldSpec(
-            name=GOOGLE_API_KEY_ENV,
+            name="api_key",
+            environment_variable=GOOGLE_API_KEY_ENV,
             label="API key",
             secret=True,
         ),

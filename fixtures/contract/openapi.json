@@ -1309,39 +1309,6 @@
         "title": "CreateScheduleRequest",
         "type": "object"
       },
-      "CredentialFieldView": {
-        "properties": {
-          "help": {
-            "title": "Help",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "required": {
-            "title": "Required",
-            "type": "boolean"
-          },
-          "secret": {
-            "title": "Secret",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "name",
-          "label",
-          "secret",
-          "required",
-          "help"
-        ],
-        "title": "CredentialFieldView",
-        "type": "object"
-      },
       "CredentialWriteRequest": {
         "description": "A flat map of field name to value, checked against the vendor's own schema.\n\nFlat rather than nested, because a credential is a set of named strings and\na shape with room for anything else would be a shape a secret could be\nsmuggled through under a key nothing validates.",
         "properties": {
@@ -3141,7 +3108,7 @@
         "properties": {
           "credential_fields": {
             "items": {
-              "$ref": "#/components/schemas/CredentialFieldView"
+              "$ref": "#/components/schemas/gateway__http__routes__config__CredentialFieldView"
             },
             "title": "Credential Fields",
             "type": "array"
@@ -3163,7 +3130,7 @@
           },
           "settings_fields": {
             "items": {
-              "$ref": "#/components/schemas/CredentialFieldView"
+              "$ref": "#/components/schemas/gateway__http__routes__config__CredentialFieldView"
             },
             "title": "Settings Fields",
             "type": "array"
@@ -5032,7 +4999,7 @@
           },
           "fields": {
             "items": {
-              "$ref": "#/components/schemas/CredentialFieldView"
+              "$ref": "#/components/schemas/gateway__http__routes__providers__CredentialFieldView"
             },
             "title": "Fields",
             "type": "array"
@@ -7428,6 +7395,77 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "gateway__http__routes__config__CredentialFieldView": {
+        "properties": {
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "secret",
+          "required",
+          "help"
+        ],
+        "title": "CredentialFieldView",
+        "type": "object"
+      },
+      "gateway__http__routes__providers__CredentialFieldView": {
+        "properties": {
+          "environment_variable": {
+            "default": "",
+            "title": "Environment Variable",
+            "type": "string"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "secret",
+          "required",
+          "help"
+        ],
+        "title": "CredentialFieldView",
         "type": "object"
       }
     }

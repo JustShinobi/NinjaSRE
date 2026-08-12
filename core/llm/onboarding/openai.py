@@ -12,13 +12,15 @@ ONBOARDING = ProviderOnboarding(
     default_model="gpt-5",
     fields=(
         CredentialFieldSpec(
-            name=OPENAI_API_KEY_ENV,
+            name="api_key",
+            environment_variable=OPENAI_API_KEY_ENV,
             label="API key",
             secret=True,
             help="Starts with 'sk-'.",
         ),
         CredentialFieldSpec(
-            name=OPENAI_BASE_URL_ENV,
+            name="base_url",
+            environment_variable=OPENAI_BASE_URL_ENV,
             label="Base URL",
             secret=False,
             required=False,

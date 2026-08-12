@@ -3420,19 +3420,6 @@ export interface components {
              */
             timezone: string;
         };
-        /** CredentialFieldView */
-        CredentialFieldView: {
-            /** Help */
-            help: string;
-            /** Label */
-            label: string;
-            /** Name */
-            name: string;
-            /** Required */
-            required: boolean;
-            /** Secret */
-            secret: boolean;
-        };
         /**
          * CredentialWriteRequest
          * @description A flat map of field name to value, checked against the vendor's own schema.
@@ -4407,7 +4394,7 @@ export interface components {
         /** IntegrationSchemaView */
         IntegrationSchemaView: {
             /** Credential Fields */
-            credential_fields: components["schemas"]["CredentialFieldView"][];
+            credential_fields: components["schemas"]["gateway__http__routes__config__CredentialFieldView"][];
             /** Display Name */
             display_name: string;
             /** Hosts */
@@ -4415,7 +4402,7 @@ export interface components {
             /** Name */
             name: string;
             /** Settings Fields */
-            settings_fields: components["schemas"]["CredentialFieldView"][];
+            settings_fields: components["schemas"]["gateway__http__routes__config__CredentialFieldView"][];
         };
         /** IntegrationSchemasView */
         IntegrationSchemasView: {
@@ -5370,7 +5357,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Fields */
-            fields: components["schemas"]["CredentialFieldView"][];
+            fields: components["schemas"]["gateway__http__routes__providers__CredentialFieldView"][];
             /**
              * Guidance
              * @default
@@ -6523,6 +6510,37 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** CredentialFieldView */
+        gateway__http__routes__config__CredentialFieldView: {
+            /** Help */
+            help: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Secret */
+            secret: boolean;
+        };
+        /** CredentialFieldView */
+        gateway__http__routes__providers__CredentialFieldView: {
+            /**
+             * Environment Variable
+             * @default
+             */
+            environment_variable: string;
+            /** Help */
+            help: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Secret */
+            secret: boolean;
         };
     };
     responses: never;

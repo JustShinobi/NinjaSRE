@@ -1916,6 +1916,7 @@ def _credential_field(record: Mapping[str, Any]) -> CredentialFieldSpec:
         secret=bool(record.get("secret", True)),
         required=bool(record.get("required", True)),
         help=_text(record, "help"),
+        environment_variable=_text(record, "environment_variable"),
     )
 
 

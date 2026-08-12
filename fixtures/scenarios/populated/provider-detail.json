@@ -11,9 +11,10 @@
         "display_name": "Anthropic",
         "fields": [
           {
+            "environment_variable": "ANTHROPIC_API_KEY",
             "help": "Starts with 'sk-ant-'.",
             "label": "API key",
-            "name": "ANTHROPIC_API_KEY",
+            "name": "api_key",
             "required": true,
             "secret": true
           }
@@ -52,37 +53,42 @@
         "display_name": "AWS Bedrock",
         "fields": [
           {
+            "environment_variable": "AWS_REGION",
             "help": "The region the model is enabled in, for example eu-west-1.",
             "label": "Region",
-            "name": "AWS_REGION",
+            "name": "region",
             "required": true,
             "secret": false
           },
           {
+            "environment_variable": "AWS_PROFILE",
             "help": "Give a profile and leave the keys empty to use an existing session.",
             "label": "Named profile",
-            "name": "AWS_PROFILE",
+            "name": "profile",
             "required": false,
             "secret": false
           },
           {
+            "environment_variable": "AWS_ACCESS_KEY_ID",
             "help": "",
             "label": "Access key id",
-            "name": "AWS_ACCESS_KEY_ID",
+            "name": "access_key_id",
             "required": false,
             "secret": false
           },
           {
+            "environment_variable": "AWS_SECRET_ACCESS_KEY",
             "help": "",
             "label": "Secret access key",
-            "name": "AWS_SECRET_ACCESS_KEY",
+            "name": "secret_access_key",
             "required": false,
             "secret": true
           },
           {
+            "environment_variable": "AWS_SESSION_TOKEN",
             "help": "Only for temporary credentials.",
             "label": "Session token",
-            "name": "AWS_SESSION_TOKEN",
+            "name": "session_token",
             "required": false,
             "secret": true
           }
@@ -117,30 +123,34 @@
         "display_name": "Azure OpenAI",
         "fields": [
           {
+            "environment_variable": "AZURE_OPENAI_API_KEY",
             "help": "",
             "label": "API key",
-            "name": "AZURE_OPENAI_API_KEY",
+            "name": "api_key",
             "required": true,
             "secret": true
           },
           {
+            "environment_variable": "AZURE_OPENAI_ENDPOINT",
             "help": "For example https://birch.example.invalid",
             "label": "Endpoint",
-            "name": "AZURE_OPENAI_ENDPOINT",
+            "name": "endpoint",
             "required": true,
             "secret": false
           },
           {
+            "environment_variable": "AZURE_OPENAI_DEPLOYMENT",
             "help": "The name you gave the deployment, not the model name.",
             "label": "Deployment name",
-            "name": "AZURE_OPENAI_DEPLOYMENT",
+            "name": "deployment",
             "required": true,
             "secret": false
           },
           {
+            "environment_variable": "AZURE_OPENAI_API_VERSION",
             "help": "Leave empty for the platform default.",
             "label": "API version",
-            "name": "AZURE_OPENAI_API_VERSION",
+            "name": "api_version",
             "required": false,
             "secret": false
           }
@@ -175,9 +185,10 @@
         "display_name": "Google Gemini",
         "fields": [
           {
+            "environment_variable": "GOOGLE_API_KEY",
             "help": "",
             "label": "API key",
-            "name": "GOOGLE_API_KEY",
+            "name": "api_key",
             "required": true,
             "secret": true
           }
@@ -215,23 +226,26 @@
         "display_name": "Google Vertex AI",
         "fields": [
           {
+            "environment_variable": "GOOGLE_CLOUD_PROJECT",
             "help": "",
             "label": "Project id",
-            "name": "GOOGLE_CLOUD_PROJECT",
+            "name": "project",
             "required": true,
             "secret": false
           },
           {
+            "environment_variable": "GOOGLE_CLOUD_LOCATION",
             "help": "For example europe-west4.",
             "label": "Location",
-            "name": "GOOGLE_CLOUD_LOCATION",
+            "name": "location",
             "required": true,
             "secret": false
           },
           {
+            "environment_variable": "GOOGLE_APPLICATION_CREDENTIALS",
             "help": "Paste the JSON key, or leave empty to use workload identity.",
             "label": "Service account key",
-            "name": "GOOGLE_APPLICATION_CREDENTIALS",
+            "name": "service_account_file",
             "required": false,
             "secret": true
           }
@@ -266,16 +280,18 @@
         "display_name": "NVIDIA NIM",
         "fields": [
           {
+            "environment_variable": "NVIDIA_NIM_BASE_URL",
             "help": "Your own NIM endpoint, or the hosted catalogue endpoint.",
             "label": "Base URL",
-            "name": "NVIDIA_NIM_BASE_URL",
+            "name": "base_url",
             "required": true,
             "secret": false
           },
           {
+            "environment_variable": "NVIDIA_API_KEY",
             "help": "Not needed for a NIM you run yourself without authentication.",
             "label": "API key",
-            "name": "NVIDIA_API_KEY",
+            "name": "api_key",
             "required": false,
             "secret": true
           }
@@ -310,9 +326,10 @@
         "display_name": "Ollama or vLLM",
         "fields": [
           {
+            "environment_variable": "OLLAMA_BASE_URL",
             "help": "For example http://127.0.0.1:11434/v1.",
             "label": "Base URL",
-            "name": "OLLAMA_BASE_URL",
+            "name": "base_url",
             "required": true,
             "secret": false
           }
@@ -347,16 +364,18 @@
         "display_name": "OpenAI",
         "fields": [
           {
+            "environment_variable": "OPENAI_API_KEY",
             "help": "Starts with 'sk-'.",
             "label": "API key",
-            "name": "OPENAI_API_KEY",
+            "name": "api_key",
             "required": true,
             "secret": true
           },
           {
+            "environment_variable": "OPENAI_BASE_URL",
             "help": "Leave empty unless you front the API with a gateway.",
             "label": "Base URL",
-            "name": "OPENAI_BASE_URL",
+            "name": "base_url",
             "required": false,
             "secret": false
           }
@@ -395,16 +414,18 @@
         "display_name": "OpenRouter",
         "fields": [
           {
+            "environment_variable": "OPENROUTER_API_KEY",
             "help": "Starts with 'sk-or-'.",
             "label": "API key",
-            "name": "OPENROUTER_API_KEY",
+            "name": "api_key",
             "required": true,
             "secret": true
           },
           {
+            "environment_variable": "OPENROUTER_BASE_URL",
             "help": "Leave empty for the default.",
             "label": "Base URL",
-            "name": "OPENROUTER_BASE_URL",
+            "name": "base_url",
             "required": false,
             "secret": false
           }

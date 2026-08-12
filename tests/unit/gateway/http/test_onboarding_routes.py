@@ -236,13 +236,13 @@ async def test_a_provider_credential_is_written_through_the_integration_route(
     response = await client.put(
         "/v1/integrations/anthropic/credential",
         headers=_headers(operator_token),
-        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+        json={"values": {"api_key": f"sk-ant-{SENTINEL_API_KEY}"}},
     )
 
     assert response.status_code == 200
     body = response.json()
     assert body["integration"] == "anthropic"
-    assert body["fields"] == ["ANTHROPIC_API_KEY"]
+    assert body["fields"] == ["api_key"]
     assert SENTINEL_API_KEY not in response.text
 
 
@@ -257,7 +257,7 @@ async def test_a_provider_credential_outside_its_declared_fields_is_refused(
 
     assert response.status_code == 400
     assert "NOT_A_FIELD" in response.text
-    assert "ANTHROPIC_API_KEY" in response.text
+    assert "api_key" in response.text
 
 
 # --- The provider surface -------------------------------------------------------
@@ -283,7 +283,7 @@ async def test_the_listing_says_which_providers_this_deployment_has_a_credential
     await client.put(
         "/v1/integrations/anthropic/credential",
         headers=_headers(operator_token),
-        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+        json={"values": {"api_key": f"sk-ant-{SENTINEL_API_KEY}"}},
     )
     after = await client.get("/v1/providers", headers=_headers(operator_token))
 
@@ -309,7 +309,7 @@ async def test_a_caller_with_no_team_reads_the_organisation_wide_credential(
     written = await client.put(
         "/v1/integrations/anthropic/credential",
         headers=_headers(organisation_token),
-        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+        json={"values": {"api_key": f"sk-ant-{SENTINEL_API_KEY}"}},
     )
     response = await client.get("/v1/providers", headers=_headers(organisation_token))
 
@@ -334,7 +334,7 @@ async def test_nothing_in_the_listing_claims_a_verification_nobody_ran(
     await client.put(
         "/v1/integrations/anthropic/credential",
         headers=_headers(operator_token),
-        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+        json={"values": {"api_key": f"sk-ant-{SENTINEL_API_KEY}"}},
     )
 
     listed = (await client.get("/v1/providers", headers=_headers(operator_token))).json()
@@ -357,7 +357,10 @@ async def test_one_provider_comes_back_with_its_fields_guidance_and_models(
     assert body["models"]
     assert body["guidance"]
     assert body["where_to_get_it"]
-    assert [declared["name"] for declared in body["fields"]] == ["ANTHROPIC_API_KEY"]
+    assert [declared["name"] for declared in body["fields"]] == ["api_key"]
+    assert [declared["environment_variable"] for declared in body["fields"]] == [
+        "ANTHROPIC_API_KEY"
+    ]
     assert body["fields"][0]["secret"] is True
     assert body["fields"][0]["label"]
 
@@ -369,13 +372,23 @@ async def test_a_provider_descriptor_carries_no_field_a_value_could_sit_in(
     await client.put(
         "/v1/integrations/anthropic/credential",
         headers=_headers(operator_token),
-        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+        json={"values": {"api_key": f"sk-ant-{SENTINEL_API_KEY}"}},
     )
 
     response = await client.get("/v1/providers/anthropic", headers=_headers(operator_token))
 
     assert SENTINEL_API_KEY not in response.text
-    assert set(response.json()["fields"][0]) == {"name", "label", "secret", "required", "help"}
+    # `environment_variable` names a variable an operator may set; it is not a
+    # place a stored value could be read back into, which is the property this
+    # test exists to hold.
+    assert set(response.json()["fields"][0]) == {
+        "name",
+        "label",
+        "secret",
+        "required",
+        "help",
+        "environment_variable",
+    }
 
 
 async def test_a_provider_nobody_supports_is_not_found(

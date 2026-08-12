@@ -16,13 +16,15 @@ ONBOARDING = ProviderOnboarding(
     default_model="anthropic/claude-sonnet-5",
     fields=(
         CredentialFieldSpec(
-            name=OPENROUTER_API_KEY_ENV,
+            name="api_key",
+            environment_variable=OPENROUTER_API_KEY_ENV,
             label="API key",
             secret=True,
             help="Starts with 'sk-or-'.",
         ),
         CredentialFieldSpec(
-            name=OPENROUTER_BASE_URL_ENV,
+            name="base_url",
+            environment_variable=OPENROUTER_BASE_URL_ENV,
             label="Base URL",
             secret=False,
             required=False,

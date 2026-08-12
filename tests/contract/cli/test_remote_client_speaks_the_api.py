@@ -669,9 +669,7 @@ def test_a_provider_reads_as_configured_once_its_credential_is_written(
     remote: RemoteClient,
 ) -> None:
     """The two halves of the guided first run, in the order the flow does them."""
-    asyncio.run(
-        remote.store_integration_credential("anthropic", {"ANTHROPIC_API_KEY": PROVIDER_KEY})
-    )
+    asyncio.run(remote.store_integration_credential("anthropic", {"api_key": PROVIDER_KEY}))
 
     providers = asyncio.run(remote.list_providers())
     anthropic = next(status for status in providers if status.provider_id == "anthropic")
@@ -717,7 +715,10 @@ def test_credential_fields_answer_for_a_provider_too(remote: RemoteClient) -> No
     """A provider is not an installed integration, and the wizard asks the same way."""
     fields = asyncio.run(remote.credential_fields("anthropic"))
 
-    assert [declared.name for declared in fields] == ["ANTHROPIC_API_KEY"]
+    # The canonical name, the same as any integration's — the environment
+    # variable rides alongside rather than being the field's identity.
+    assert [declared.name for declared in fields] == ["api_key"]
+    assert [declared.environment_variable for declared in fields] == ["ANTHROPIC_API_KEY"]
     assert fields[0].secret
 
 

@@ -16,13 +16,15 @@ ONBOARDING = ProviderOnboarding(
     default_model="meta/llama-4-70b-instruct",
     fields=(
         CredentialFieldSpec(
-            name=NVIDIA_NIM_BASE_URL_ENV,
+            name="base_url",
+            environment_variable=NVIDIA_NIM_BASE_URL_ENV,
             label="Base URL",
             secret=False,
             help="Your own NIM endpoint, or the hosted catalogue endpoint.",
         ),
         CredentialFieldSpec(
-            name=NVIDIA_API_KEY_ENV,
+            name="api_key",
+            environment_variable=NVIDIA_API_KEY_ENV,
             label="API key",
             secret=True,
             required=False,
