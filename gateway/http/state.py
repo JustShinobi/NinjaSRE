@@ -106,6 +106,11 @@ class GatewayState:
     #: client and a client needs the credential proxy — neither of which the
     #: gateway builds for itself.
     discovery_sources: Mapping[str, ResourceReader] = field(default_factory=dict)
+    #: The metrics systems this deployment has been pointed at. Empty until
+    #: composition wires one, for the reason the discovery sources give: a
+    #: client needs the credential proxy, which the gateway does not build for
+    #: itself. An observation tick over none of them stores nothing and says so.
+    signal_sources: tuple[Any, ...] = ()
     #: The document sources a nightly ``knowledge.sync`` job can name, by source
     #: name. Empty until composition wires one, for the same reason as above: a
     #: wiki adapter needs a client and the client needs the credential proxy. A

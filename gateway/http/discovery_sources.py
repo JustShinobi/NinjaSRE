@@ -33,6 +33,9 @@ from typing import Any
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from gateway.http.state import GatewayState
 from integrations._base.transport import HttpProxyTransport, RequestContext
+from integrations.prometheus.client import PrometheusClient
+from integrations.prometheus.metrics_query import PrometheusMetrics
+from integrations.prometheus.schema import INTEGRATION as PROMETHEUS
 from integrations.proxmox.client import ProxmoxClient
 from integrations.proxmox.discovery import ProxmoxDiscovery
 from platform.config_service.service import ConfigService
@@ -43,6 +46,9 @@ logger = get_logger(__name__)
 
 #: What the proxy is told is asking, so a forwarded call is attributable.
 DISCOVERY_CAPABILITY = "estate.discovery"
+
+#: What the proxy is told is asking when a signal is read.
+OBSERVATION_CAPABILITY = "observation.tick"
 
 #: The integrations this deployment knows how to sweep, by name. A source is a
 #: reader plus a client, and only the reader differs — so adding a second vendor
@@ -146,4 +152,50 @@ async def compose_discovery_sources(
     return composed
 
 
-__all__ = ["DISCOVERY_CAPABILITY", "compose_discovery_sources"]
+async def compose_signal_sources(
+    state: GatewayState, *, org_id: str, proxy_url: str
+) -> tuple[Any, ...]:
+    """Put the metrics clients this deployment configured on ``state``.
+
+    The same shape and the same reasoning as the discovery sources above: read
+    from the configuration tree, built over the credential proxy, and skipped
+    with a line rather than fatally when there is nothing to build.
+
+    What is composed is a *client*, not a source. The source needs the estate's
+    guests, which change with every sweep, so it is built per tick by the job
+    that polls — and this hands it the thing that can answer a query.
+    """
+    if not proxy_url:
+        logger.info("observation.sources_skipped", reason="no credential proxy is configured")
+        return ()
+
+    try:
+        entries = await _active_integrations(state, org_id)
+    except Exception as unreadable:  # noqa: BLE001 — an optional source must not stop a boot
+        logger.warning("observation.sources_unreadable", error=str(unreadable))
+        return ()
+
+    transport = HttpProxyTransport(base_url=proxy_url)
+    context = RequestContext(
+        org_id=org_id, team_id=CREDENTIAL_ORG_WIDE_TEAM, capability=OBSERVATION_CAPABILITY
+    )
+
+    composed: list[Any] = []
+    for entry in entries:
+        if str(entry.get("name", "")) != PROMETHEUS or not bool(entry.get("enabled", True)):
+            continue
+        composed.append(
+            PrometheusMetrics(client=PrometheusClient(transport=transport, context=context))
+        )
+
+    state.signal_sources = tuple(composed)
+    logger.info("observation.sources_composed", count=len(composed))
+    return tuple(composed)
+
+
+__all__ = [
+    "DISCOVERY_CAPABILITY",
+    "OBSERVATION_CAPABILITY",
+    "compose_discovery_sources",
+    "compose_signal_sources",
+]

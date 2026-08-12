@@ -27,6 +27,8 @@ from config.constants.knowledge import (
     KNOWLEDGE_SYNC_JOB_KIND,
     TOPOLOGY_DISCOVERY_JOB_KIND,
 )
+from config.constants.observation import OBSERVATION_TICK_JOB_KIND
+from gateway.http.observation_job import ObservationTickJobRunner
 from gateway.http.state import GatewayState
 from platform.estate.discovery.enriched import EnrichingSweeper
 from platform.estate.discovery.runner import TopologyDiscoveryRunner
@@ -87,6 +89,7 @@ def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
     )
     dispatcher.register(TOPOLOGY_DISCOVERY_JOB_KIND, sweep)
     dispatcher.register(ESTATE_DISCOVERY_JOB_KIND, sweep)
+    dispatcher.register(OBSERVATION_TICK_JOB_KIND, ObservationTickJobRunner(state=state))
     return dispatcher
 
 

@@ -22,7 +22,7 @@ from config.constants import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
-from gateway.http.discovery_sources import compose_discovery_sources
+from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
@@ -53,6 +53,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # configured should have a source before anybody opens the estate,
         # rather than after somebody notices it is empty.
         await compose_discovery_sources(
+            state,
+            org_id=organisation_id(),
+            proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
+        )
+        # The metrics systems, on the same terms. What is composed is a client;
+        # the source that uses it is built per tick, because it needs the
+        # estate's guests and those change with every sweep.
+        await compose_signal_sources(
             state,
             org_id=organisation_id(),
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
