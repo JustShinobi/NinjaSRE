@@ -42,12 +42,21 @@ INVENTORY_PATH_OPTION = "inventory_path"
 CLUSTER_OPTION = "cluster"
 
 
+def _vendor_settings(entry: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Return the vendor's own settings on ``entry``, or an empty mapping.
+
+    Spelled ``settings`` because that is what the schema calls the open block a
+    vendor defines. Reading it under any other name finds nothing on a
+    deployment that configured it correctly, which is the failure that looks
+    exactly like not having configured it at all.
+    """
+    found = entry.get("settings") or {}
+    return found if isinstance(found, Mapping) else {}
+
+
 def inventory_path_of(entry: Mapping[str, Any]) -> str:
     """Return the repository root ``entry`` declares its inventory in, or empty."""
-    options = entry.get("options") or {}
-    if not isinstance(options, Mapping):
-        return ""
-    return str(options.get(INVENTORY_PATH_OPTION, "") or "").strip()
+    return str(_vendor_settings(entry).get(INVENTORY_PATH_OPTION, "") or "").strip()
 
 
 async def compose_enrichment_plans(
@@ -112,9 +121,7 @@ def _cluster_of(entries: Sequence[Mapping[str, Any]]) -> str:
     """
     for entry in entries:
         if str(entry.get("name", "")) == PROXMOX:
-            options = entry.get("options") or {}
-            if isinstance(options, Mapping):
-                return str(options.get(CLUSTER_OPTION, "") or "").strip()
+            return str(_vendor_settings(entry).get(CLUSTER_OPTION, "") or "").strip()
     return ""
 
 

@@ -66,18 +66,18 @@ def _repository(root: Path) -> Path:
 
 
 def test_the_path_is_read_from_the_integrations_own_options() -> None:
-    assert inventory_path_of({"options": {"inventory_path": "/srv/infra"}}) == "/srv/infra"
+    assert inventory_path_of({"settings": {"inventory_path": "/srv/infra"}}) == "/srv/infra"
 
 
 def test_an_entry_declaring_no_inventory_reads_none() -> None:
     """The ordinary state of a deployment whose operator keeps no such repository."""
-    assert inventory_path_of({"options": {}}) == ""
+    assert inventory_path_of({"settings": {}}) == ""
     assert inventory_path_of({}) == ""
 
 
 async def test_a_declared_inventory_becomes_a_plan_the_sweep_can_apply(tmp_path: Path) -> None:
     plans = await compose_enrichment_plans(
-        ({"name": "proxmox", "options": {"inventory_path": str(_repository(tmp_path))}},),
+        ({"name": "proxmox", "settings": {"inventory_path": str(_repository(tmp_path))}},),
         cluster="pve",
     )
 
@@ -93,7 +93,7 @@ async def test_a_declared_inventory_becomes_a_plan_the_sweep_can_apply(tmp_path:
 async def test_a_deployment_that_declared_no_inventory_composes_no_plan(tmp_path: Path) -> None:
     del tmp_path
     assert (
-        await compose_enrichment_plans(({"name": "proxmox", "options": {}},), cluster="pve") == {}
+        await compose_enrichment_plans(({"name": "proxmox", "settings": {}},), cluster="pve") == {}
     )
 
 
@@ -103,7 +103,7 @@ async def test_an_unreadable_inventory_loses_the_annotations_not_the_sweep(
     """An empty estate is a worse failure than an unannotated one, and only one
     of them can be fixed at leisure."""
     plans = await compose_enrichment_plans(
-        ({"name": "proxmox", "options": {"inventory_path": str(tmp_path / "nowhere")}},),
+        ({"name": "proxmox", "settings": {"inventory_path": str(tmp_path / "nowhere")}},),
         cluster="pve",
     )
 
@@ -120,7 +120,7 @@ async def test_an_invalid_inventory_is_refused_without_taking_the_boot_with_it(
     (directory / "zones.yaml").write_text("version: 1\nzones: [{name: a}]\n", encoding="utf-8")
 
     plans = await compose_enrichment_plans(
-        ({"name": "proxmox", "options": {"inventory_path": str(tmp_path)}},), cluster="pve"
+        ({"name": "proxmox", "settings": {"inventory_path": str(tmp_path)}},), cluster="pve"
     )
 
     assert plans == {}
@@ -141,7 +141,7 @@ def test_an_entrys_options_survive_the_normalisation_the_composer_reads_through(
 
     ``_as_mapping`` turns a settings object into the mapping these composers
     read, and it copied three fields. Every one of them was a field the
-    discovery source needed; ``options`` — where a vendor's own settings live,
+    discovery source needed; ``settings`` — the open block where a vendor's own options live,
     and where the inventory path is declared — was dropped on the way through.
 
     So the plan composed from a correctly configured deployment was empty, and
@@ -153,6 +153,6 @@ def test_an_entrys_options_survive_the_normalisation_the_composer_reads_through(
         name = "proxmox"
         enabled = True
         base_url = "https://cluster.example:8006/"
-        options = {"inventory_path": "/srv/infra", "cluster": "HAL9000"}
+        settings = {"inventory_path": "/srv/infra", "cluster": "HAL9000"}
 
     assert inventory_path_of(_as_mapping(_Entry())) == "/srv/infra"
