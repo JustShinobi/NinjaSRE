@@ -169,7 +169,12 @@ export function RowList({
                     sorted ? (state.descending ? 'descending' : 'ascending') : 'none'
                   }
                   className={cx(
-                    'text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0',
+                    'text-micro uppercase text-muted edge border-border border-t-0 border-x-0',
+                    // A sortable heading moves the cell's padding onto its own
+                    // link, so the padded area is the target rather than the
+                    // glyphs. An ordinary heading keeps the spacing every other
+                    // cell has.
+                    column.sortable === true ? 'p-0' : 'px-3 pb-2',
                     column.numeric === true ? 'text-right' : 'text-left',
                   )}
                 >
@@ -178,7 +183,14 @@ export function RowList({
                       href={hrefFor(path, next, filters)}
                       data-testid="sort"
                       data-column={column.key}
-                      className="inline-flex items-center gap-1 underline-offset-2 hover:underline"
+                      className={cx(
+                        'flex items-center gap-1 underline-offset-2 hover:underline',
+                        // The heading is set in the smallest type on the screen,
+                        // whose line box alone is about half of what WCAG 2.2
+                        // asks a target to be.
+                        'px-3 py-2 min-h-6',
+                        column.numeric === true ? 'justify-end' : 'justify-start',
+                      )}
                     >
                       {column.header}
                       <span className="sr-only">
