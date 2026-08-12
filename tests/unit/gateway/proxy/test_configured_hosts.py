@@ -101,3 +101,71 @@ async def test_the_proxy_installs_the_encryption_key_before_it_checks_it() -> No
         assert KEY_RING.is_configured
     finally:
         KEY_RING.clear()
+
+
+# --- The trust store, and an appliance's own certificate authority -------------
+
+
+def test_the_system_store_alone_stays_strict() -> None:
+    """A deployment that named no bundle verifies public vendors as strictly as
+    the standard library does."""
+    from gateway.proxy.sender import trust_context
+
+    context = trust_context({})
+
+    import ssl
+
+    assert bool(context.verify_flags & ssl.VERIFY_X509_STRICT)
+
+
+def test_an_operators_own_bundle_relaxes_only_the_rfc_5280_strictness(
+    tmp_path: object,
+) -> None:
+    """Python 3.13 turned on VERIFY_X509_STRICT, which requires a CA to carry
+    keyUsage=keyCertSign,cRLSign. An appliance that mints its own — Proxmox
+    does — predictably does not, so every call to the operator's own cluster
+    fails with "CA cert does not include key usage extension".
+
+    Naming a bundle is the operator's decision about their own infrastructure,
+    so that is where the flag is dropped. Chain building and hostname checking
+    stay on: this is not verify=False, which the module deliberately has no
+    setting for.
+    """
+    import ssl
+    from pathlib import Path
+
+    from gateway.proxy.sender import trust_context
+
+    bundle = Path(str(tmp_path)) / "appliance-ca.pem"
+    bundle.write_text(_SELF_SIGNED_CA, encoding="utf8")
+
+    context = trust_context({"NINJASRE_CA_BUNDLE": str(bundle)})
+
+    assert not (context.verify_flags & ssl.VERIFY_X509_STRICT)
+    assert context.verify_mode is ssl.CERT_REQUIRED
+    assert context.check_hostname is True
+
+
+#: A certificate authority with no keyUsage extension, which is the shape of the
+#: thing an appliance mints for itself and the shape RFC 5280 strictness
+#: refuses. Generated once and committed, so this test needs no openssl.
+_SELF_SIGNED_CA = """-----BEGIN CERTIFICATE-----
+MIIDGTCCAgGgAwIBAgIUbFkGOaTqc3A3rvsdkgVWqSzVKoMwDQYJKoZIhvcNAQEL
+BQAwHDEaMBgGA1UEAwwRdGVzdC1hcHBsaWFuY2UtY2EwHhcNMjYwODEyMDcyODE1
+WhcNMzYwODA5MDcyODE1WjAcMRowGAYDVQQDDBF0ZXN0LWFwcGxpYW5jZS1jYTCC
+ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMfSSvQFoBcLXokUMISH2sUd
+T5fI7vFa5aiFYEgTS4ms6Uwa2J+ezN92Qp5z/OpDirssXQipDdM1DhZ3QnguQOsV
+RdLGkzPU892cJgf5hbyqIqScicK+COaXyFn4i1xsCL405rBDM4SXrYGChB1oI+Aa
+Ouxj/KClUx2cO/rBDrrj1yNF2HKWpIwI+xYWtgaUxO7APWorgr/aFzZhOTlvShVr
+P1BQXlocodSAWU9ygpgP2ywykKdYYvzhB9zAyiDQjdsIBgNQYK7WesJs2M4rYVJi
+t9/Ba2AYSJok116n/Q+9FrZexzfATlH2FJH1MTAe2wVqUKroBd/8RU5DESgmgYMC
+AwEAAaNTMFEwHQYDVR0OBBYEFMNWeMuvBZySbJOE9RprWJ7GxqSzMB8GA1UdIwQY
+MBaAFMNWeMuvBZySbJOE9RprWJ7GxqSzMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZI
+hvcNAQELBQADggEBAI2BfCKVgSfUNtiljVvYpCp70yw/tZOQMQ1SLMBh0qp+Csgb
+a/1+2MFJJymDkPayzNAzz4b2GhwLpINF99FVtaxflyRfo5vmRVDcl8ny3DxEfjNj
+x4ezZqs0Knld9B+yCAlFJ8LucpnDQvSPnnfxK854yYWOBkw88w/QL+v56NAr9OQw
+A/MzNb8j/ImnjRDu7gA00iqRjZoE+juI4GUoTx3NBlNu9v45Uyzd7vub7hcwKc5U
+zuaihH5AgDB6vnDKbrqftlZ5bUj6VJpn6bLzpTzfpq6y0gTd1PObros3YEZdJA3h
+Tu0EH34Gp5koJOuHwl6fy3E9H0MqD8jESV9T1Sg=
+-----END CERTIFICATE-----
+"""
