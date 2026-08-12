@@ -2,8 +2,9 @@
 
 import { useSyncExternalStore } from 'react';
 
+import { DENSITY_CHANGED_EVENT, readStoredDensity } from '@/design/density';
 import { readStoredTheme, THEME_CHANGED_EVENT } from '@/design/theme';
-import type { Theme } from '@/design/tokens';
+import type { Density, Theme } from '@/design/tokens';
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/messages';
 import { LOCALE_COOKIE } from '@/session/cookies';
 
@@ -70,6 +71,33 @@ function themeServerSnapshot(): Theme | null {
 /** The theme this viewer chose, or `null` when they are following the system. */
 export function useChosenTheme(): Theme | null {
   return useSyncExternalStore(subscribeToTheme, readStoredTheme, themeServerSnapshot);
+}
+
+function subscribeToDensity(onChange: () => void): () => void {
+  window.addEventListener(DENSITY_CHANGED_EVENT, onChange);
+  return () => {
+    window.removeEventListener(DENSITY_CHANGED_EVENT, onChange);
+  };
+}
+
+function densityServerSnapshot(): Density {
+  // The server cannot know the choice, and comfortable is what the stylesheet
+  // produces without an attribute — so this is the markup the pre-paint
+  // statement then corrects, rather than a guess it has to undo.
+  return 'comfortable';
+}
+
+function densitySnapshot(): Density {
+  return readStoredDensity() ?? 'comfortable';
+}
+
+/** The density this viewer reads long lists at. */
+export function useDensity(): Density {
+  return useSyncExternalStore(
+    subscribeToDensity,
+    densitySnapshot,
+    densityServerSnapshot,
+  );
 }
 
 function subscribeToNothing(): () => void {

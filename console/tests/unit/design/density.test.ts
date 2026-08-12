@@ -77,16 +77,24 @@ describe('the density a viewer chose', () => {
   });
 });
 
+/** Run the pre-paint script the way a browser does: as a script in the document. */
+function runNoFlashScript(): void {
+  const element = document.createElement('script');
+  element.text = NO_FLASH_DENSITY_SCRIPT;
+  document.head.append(element);
+  element.remove();
+}
+
 describe('the statement that runs before the first paint', () => {
   it('applies a stored density with no reference to anything', () => {
     window.localStorage.setItem('ninjasre.density', 'compact');
     // Evaluated the way the document evaluates it: no imports, no bundler.
-    new Function(NO_FLASH_DENSITY_SCRIPT)();
+    runNoFlashScript();
     expect(document.documentElement.getAttribute(DENSITY_ATTRIBUTE)).toBe('compact');
   });
 
   it('writes nothing when there is no choice to apply', () => {
-    new Function(NO_FLASH_DENSITY_SCRIPT)();
+    runNoFlashScript();
     expect(document.documentElement.hasAttribute(DENSITY_ATTRIBUTE)).toBe(false);
   });
 });

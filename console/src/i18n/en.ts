@@ -146,6 +146,8 @@ export const EN = {
   'shell.search': 'Search resources, runs, incidents',
   'shell.search.shortcut': 'Ctrl K',
   'shell.theme': 'Theme',
+  'shell.density.comfortable': 'Comfortable rows',
+  'shell.density.compact': 'Compact rows',
   'shell.theme.light': 'Light',
   'shell.theme.dark': 'Dark',
   'shell.theme.system': 'Follow the system',

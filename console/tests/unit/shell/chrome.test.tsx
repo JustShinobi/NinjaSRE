@@ -253,6 +253,25 @@ describe('the utility bar', () => {
     expect(control).toHaveAttribute('data-theme-choice', 'system');
   });
 
+  it('switches the density between the two steps, and reaches the document', async () => {
+    // The defect this covers is not a wrong value: it is that every piece of
+    // the density existed and nothing called any of it, so the compact step
+    // was unreachable from the console it was built for.
+    window.localStorage.clear();
+    document.documentElement.removeAttribute('data-density');
+    renderTopbar();
+    const control = screen.getByTestId('density-switch');
+
+    expect(control).toHaveAttribute('data-density-choice', 'comfortable');
+    await userEvent.click(control);
+    expect(control).toHaveAttribute('data-density-choice', 'compact');
+    expect(document.documentElement).toHaveAttribute('data-density', 'compact');
+
+    await userEvent.click(control);
+    expect(control).toHaveAttribute('data-density-choice', 'comfortable');
+    expect(document.documentElement).toHaveAttribute('data-density', 'comfortable');
+  });
+
   it('opens the palette and the drawer through the controls that say so', async () => {
     const { palette, drawer } = renderTopbar();
 

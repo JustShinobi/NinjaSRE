@@ -4,13 +4,21 @@ import type { ReactNode } from 'react';
 
 import { Button, IconButton } from '@/components/action';
 import { Avatar } from '@/components/navigation';
-import { BellIcon, ContrastIcon, MenuIcon, PlusIcon, SearchIcon } from '@/design/icons';
+import {
+  BellIcon,
+  ContrastIcon,
+  ListIcon,
+  MenuIcon,
+  PlusIcon,
+  SearchIcon,
+} from '@/design/icons';
+import { storeDensity } from '@/design/density';
 import { applyTheme, storeTheme } from '@/design/theme';
 import type { Theme } from '@/design/tokens';
 import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
 import type { AttentionItem } from './attention';
-import { useChosenTheme } from './browser';
+import { useChosenTheme, useDensity } from './browser';
 import type { Deployment } from './deployment';
 import { KillSwitchControl } from './stop';
 
@@ -67,6 +75,14 @@ export function Topbar({
     applyTheme(next);
   }
 
+  const density = useDensity();
+
+  function toggleDensity(): void {
+    // Two steps and no third, so this is a toggle rather than a cycle: there is
+    // no system preference about row height to hand back to.
+    storeDensity(density === 'compact' ? 'comfortable' : 'compact');
+  }
+
   const waiting = attention.length;
 
   return (
@@ -110,6 +126,25 @@ export function Topbar({
           onClick={cycleTheme}
           data-testid="theme-switch"
           data-theme-choice={chosen ?? 'system'}
+        />
+      </span>
+
+      {/* Beside the theme, because they are the same kind of thing: how this
+          viewer reads, kept for them, changing nothing anybody else sees.
+          Hidden on a phone with the theme, where the tables it governs are
+          already stacked. */}
+      <span className="hidden sm:inline-flex">
+        <IconButton
+          label={message(
+            locale,
+            density === 'compact'
+              ? 'shell.density.comfortable'
+              : 'shell.density.compact',
+          )}
+          icon={<ListIcon />}
+          onClick={toggleDensity}
+          data-testid="density-switch"
+          data-density-choice={density}
         />
       </span>
 

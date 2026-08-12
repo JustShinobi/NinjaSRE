@@ -251,6 +251,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'shell.search': 'Procurar recursos, execuções, incidentes',
   'shell.search.shortcut': 'Ctrl K',
   'shell.theme': 'Tema',
+  'shell.density.comfortable': 'Linhas confortáveis',
+  'shell.density.compact': 'Linhas compactas',
   'shell.theme.light': 'Claro',
   'shell.theme.dark': 'Escuro',
   'shell.theme.system': 'Seguir o sistema',
