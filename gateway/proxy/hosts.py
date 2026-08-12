@@ -52,6 +52,31 @@ def _host_of(base_url: str) -> str:
     return authority.split(":", 1)[0]
 
 
+def bridge_hosts(bridge: Any) -> dict[str, tuple[str, ...]]:
+    """Return the hosts the observability bridge's sources are pointed at.
+
+    The bridge names its metrics and log systems in the policy tree rather than
+    in the active-integration list, so reading only that list left an operator
+    who had configured their own Loki refused for reaching a host the
+    integration had not declared. An endpoint is an integration endpoint
+    wherever it is written down.
+
+    A source switched off contributes nothing, and one naming no integration
+    contributes nothing: registering a rule for either would open egress that
+    no integration asked for.
+    """
+    found: dict[str, tuple[str, ...]] = {}
+    for attribute in ("metrics", "logs"):
+        source = getattr(bridge, attribute, None)
+        if source is None or not bool(getattr(source, "enabled", False)):
+            continue
+        name = str(getattr(source, "name", "") or "").strip()
+        host = _host_of(str(getattr(source, "endpoint", "") or ""))
+        if name and host:
+            found[name] = (*found.get(name, ()), host)
+    return found
+
+
 def hosts_from_configuration(
     entries: Iterable[Mapping[str, Any]],
 ) -> dict[str, tuple[str, ...]]:
