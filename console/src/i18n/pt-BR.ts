@@ -51,6 +51,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'credential.saved': 'Guardada. Nada do que você digitou fica aqui.',
 
   'firstRun.steps.title': 'O que falta',
+  'firstRun.steps.done': 'Tudo pronto',
   'firstRun.progress': '{done} de {total} concluídos',
   'firstRun.steps.empty.heading': 'Este deployment não disse o que falta',
   'firstRun.steps.empty.body':

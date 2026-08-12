@@ -319,6 +319,7 @@ export const EN = {
 
   // --- The guided first run -----------------------------------------------------------
   'firstRun.steps.title': 'What is left',
+  'firstRun.steps.done': 'Every step is done',
   'firstRun.progress': '{done} of {total} done',
   'firstRun.steps.empty.heading': 'This deployment did not say what is left',
   'firstRun.steps.empty.body':

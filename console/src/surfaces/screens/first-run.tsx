@@ -6,6 +6,7 @@ import { message } from '@/i18n/messages';
 import { formatNumber } from '@/i18n/format';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
+import { checklistTitle } from './first-run-heading';
 import { credentialLabels, panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { CredentialField, type CredentialFieldSpec } from '../credential';
@@ -251,6 +252,13 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   const stepTitle = (step: WizardStep): string =>
     message(locale, `firstRun.step.${step}`);
 
+  // A heading is a claim about the list under it, so it changes when the list
+  // does: "What is left" over "7 of 7 done" is two claims disagreeing.
+  const checklistHeading = message(
+    locale,
+    checklistTitle(plan.filter((entry) => entry.done).length, WIZARD_STEPS.length),
+  );
+
   return (
     <>
       <AreaHeader area={areaFor('first-run')} locale={locale} />
@@ -258,10 +266,10 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="flex flex-col gap-5 min-w-0">
           <Panel
-            title={message(locale, 'firstRun.steps.title')}
+            title={checklistHeading}
             state={stateOf(checklist, false)}
             dependency={dependencyOf(checklist)}
-            labels={panelLabels(locale, message(locale, 'firstRun.steps.title'))}
+            labels={panelLabels(locale, checklistHeading)}
             empty={{
               heading: message(locale, 'firstRun.steps.empty.heading'),
               body: message(locale, 'firstRun.steps.empty.body'),
