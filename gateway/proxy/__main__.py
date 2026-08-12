@@ -12,20 +12,40 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import uvicorn
 
 from config.constants.surfaces import DEFAULT_API_HOST, DEFAULT_CREDENTIAL_PROXY_PORT
 from gateway.proxy.composition import build_proxy_app
+from gateway.proxy.hosts import hosts_from_configuration, with_configured_hosts
+from platform.config_service.service import ConfigService
 from platform.credentials.errors import VaultKeyMismatch
 from platform.observability.logging import get_logger
+from platform.persistence.ports import TenantScope
+from platform.startup.bootstrap import organisation_id
 from platform.startup.errors import StartupError
 
 _LOGGER = get_logger(__name__)
 
 #: Distinct from a crash, so a supervisor does not restart a typo forever.
 CONFIGURATION_EXIT = 3
+
+
+async def _configured_integrations(store: Any) -> tuple[Mapping[str, Any], ...]:
+    """Return the active integration entries the configuration tree holds."""
+    scope = TenantScope(org_id=organisation_id())
+    config = ConfigService(gateway=store, scope=scope)
+    effective = await config.resolve(scope.org_id)
+    return tuple(
+        {
+            "name": getattr(entry, "name", ""),
+            "enabled": getattr(entry, "enabled", True),
+            "base_url": getattr(entry, "base_url", ""),
+        }
+        for entry in effective.config.integrations.active
+    )
 
 
 async def _serve(host: str, port: int) -> None:
@@ -35,6 +55,17 @@ async def _serve(host: str, port: int) -> None:
     health = await store.health()
     if health.undecryptable_credentials:
         raise VaultKeyMismatch(health.undecryptable_credentials)
+
+    # The operator's own addresses join the shipped allow-list, read from the
+    # configuration tree where they were declared. Without this the proxy
+    # refuses the very cluster the deployment was pointed at, because an
+    # integration ships a placeholder host and nothing widened it.
+    try:
+        entries = await _configured_integrations(store)
+    except Exception as unreadable:  # noqa: BLE001 — the proxy must still serve
+        _LOGGER.warning("proxy.configuration_unreadable", error=str(unreadable))
+    else:
+        with_configured_hosts(app.engine.rules, hosts_from_configuration(entries))
 
     _LOGGER.info(
         "proxy.startup",
