@@ -11,13 +11,16 @@ down by the process exiting under it.
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from config.constants import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
+from gateway.http.discovery_sources import compose_discovery_sources
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
 from platform.startup.bootstrap import organisation_id
@@ -43,6 +46,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # never renders "nothing was consulted" for a deployment that had.
     if health.is_ready:
         await compose_change_sources(state, org_id=organisation_id())
+        # The same moment and the same reasoning: a deployment whose cluster is
+        # configured should have a source before anybody opens the estate,
+        # rather than after somebody notices it is empty.
+        await compose_discovery_sources(
+            state,
+            org_id=organisation_id(),
+            proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
+        )
 
     try:
         yield
