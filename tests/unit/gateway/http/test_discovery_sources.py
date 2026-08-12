@@ -60,6 +60,21 @@ async def test_an_active_integration_with_an_endpoint_is_composed(
     assert context.team_id == CREDENTIAL_ORG_WIDE_TEAM
 
 
+def test_the_endpoint_is_a_bare_host_because_the_client_adds_the_port() -> None:
+    """A Proxmox base URL is built as https://{host}:{port}/api2/json.
+
+    Handing it a host that already carries a port produced
+    https://192.168.68.159:8006:8006/... — a name no resolver has, reported as
+    "Name does not resolve" rather than as the configuration mistake it is.
+    """
+    from gateway.http.discovery_sources import _endpoints
+
+    assert _endpoints("https://192.168.68.159:8006/") == ("192.168.68.159",)
+    assert _endpoints("https://pve.lan.example:8006") == ("pve.lan.example",)
+    assert _endpoints("http://pve.lan.example") == ("pve.lan.example",)
+    assert _endpoints("") == ()
+
+
 async def test_an_integration_that_is_switched_off_is_not_composed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

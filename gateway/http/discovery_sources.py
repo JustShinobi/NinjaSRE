@@ -74,12 +74,21 @@ def _as_mapping(entry: Any) -> Mapping[str, Any]:
 
 
 def _endpoints(base_url: str) -> Sequence[str]:
-    """Return the host a base URL names, as the client's endpoint ring wants it."""
+    """Return the bare host a base URL names, as the client's endpoint ring wants it.
+
+    Without the port: a vendor client builds its own base URL from the host and
+    the port it knows, so a host that arrives carrying one produces an address
+    with two — and a name no resolver has.
+    """
     trimmed = base_url.strip()
     if not trimmed:
         return ()
-    without_scheme = trimmed.split("://", 1)[-1]
-    return (without_scheme.strip("/"),)
+    authority = trimmed.split("://", 1)[-1].split("/", 1)[0]
+    if authority.startswith("["):
+        # An IPv6 literal is bracketed, and its colons are not a port separator.
+        return (authority.partition("]")[0].lstrip("["),)
+    host = authority.split(":", 1)[0]
+    return (host,) if host else ()
 
 
 async def compose_discovery_sources(
