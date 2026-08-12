@@ -122,3 +122,11 @@ def test_the_boot_composes_the_node_access() -> None:
     from gateway.http import lifespan
 
     assert "compose_node_access" in inspect.getsource(lifespan)
+
+
+def test_the_state_declares_the_field_this_composition_writes() -> None:
+    """Same shape as the integration-access defect: a slotted dataclass refuses
+    an undeclared attribute, and a fake with a __dict__ accepts anything."""
+    from gateway.http.state import GatewayState
+
+    assert "node_executor" in GatewayState.__dataclass_fields__

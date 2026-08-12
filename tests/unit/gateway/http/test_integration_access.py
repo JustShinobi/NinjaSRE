@@ -106,3 +106,19 @@ def test_the_boot_composes_the_vendor_access() -> None:
     from gateway.http import lifespan
 
     assert "compose_integration_access" in inspect.getsource(lifespan)
+
+
+def test_the_state_declares_the_field_this_composition_writes() -> None:
+    """The canary caught this and a unit test did not.
+
+    ``GatewayState`` is a slotted dataclass, so an attribute it does not declare
+    cannot be set at all — and the fake used above is an ordinary class with a
+    ``__dict__``, which accepts anything. A composition that wrote to an
+    undeclared field passed every test and failed at boot.
+
+    Asserting on the real type is the only version of this test that could have
+    caught it.
+    """
+    from gateway.http.state import GatewayState
+
+    assert "integration_access" in GatewayState.__dataclass_fields__

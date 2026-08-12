@@ -111,6 +111,17 @@ class GatewayState:
     #: client needs the credential proxy, which the gateway does not build for
     #: itself. An observation tick over none of them stores nothing and says so.
     signal_sources: tuple[Any, ...] = ()
+    #: The transport and tenant every vendor tool in the catalogue makes its
+    #: calls with. One per process, set at composition: a tool that built its own
+    #: would be one lookup away from acting on somebody else's estate. ``None``
+    #: until it is composed, and then every vendor tool reports itself
+    #: unavailable by name — which is what a deployment with no credential proxy
+    #: should hear.
+    integration_access: Any = None
+    #: How this deployment reaches the process that holds an SSH identity, if it
+    #: runs one. ``None`` for a deployment with no executor, and then the node
+    #: capability says so rather than reporting a node as quiet.
+    node_executor: Any = None
     #: What the operator declared about the estate, by integration name —
     #: criticality, tier, domain, owner, and the zones. Empty until
     #: composition reads a declared inventory, and then a sweep annotates
