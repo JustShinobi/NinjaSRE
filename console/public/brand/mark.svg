@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NinjaSRE">
+  <!--
+    The mark: a shuriken, eight equal points and a central hole. Above 24px.
+
+    Eight rather than four, for a reason that only appeared with both drawn side
+    by side: four points on the diagonal is the shape that became the house
+    style for "product with AI", and reducing it to 16px gives back exactly that
+    sparkle. Eight points with a hole does not read as a sparkle at any size —
+    it is an object, and the hole is what makes it an object rather than an
+    ornament.
+
+    Geometry: outer radius 30, inner 14.5 (a ratio of 0.48), a point every 45
+    degrees. The ratio was calibrated by rendering 0.36, 0.44 and 0.52 together:
+    a deep notch becomes the sparkle, a shallow one becomes a lozenge.
+
+    currentColor on purpose. The mark inherits the theme it is drawn in and
+    never carries a colour of its own into a page.
+  -->
+  <path fill="currentColor" fill-rule="evenodd"
+        d="M32 2 L37.55 18.6 L53.21 10.79 L45.4 26.45 L62 32 L45.4 37.55
+           L53.21 53.21 L37.55 45.4 L32 62 L26.45 45.4 L10.79 53.21 L18.6 37.55
+           L2 32 L18.6 26.45 L10.79 10.79 L26.45 18.6 Z
+           M32 26.5 A5.5 5.5 0 1 0 32 37.5 A5.5 5.5 0 1 0 32 26.5 Z"/>
+</svg>

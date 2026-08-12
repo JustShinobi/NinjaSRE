@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NinjaSRE">
+  <!--
+    The browser tab, drawn from the small cut because a favicon is 16px.
+
+    This is the one place the mark states a colour instead of inheriting one.
+    A favicon renders in the browser's chrome, where there is no page to take
+    currentColor from — an inheriting mark would come out as whatever the
+    browser's default text colour is, which is black on a dark tab strip.
+
+    So the two accent values are named here, switched by the same preference
+    the token stylesheet uses for everything else. They are the accent, not a
+    third colour: keeping them in step with the token table is the reason this
+    comment says which token they are.
+  -->
+  <style>
+    path { fill: #0f6f5c; }
+    @media (prefers-color-scheme: dark) {
+      path { fill: #4fd6b0; }
+    }
+  </style>
+  <path fill-rule="evenodd"
+        d="M32 3 L37.93 17.68 L52.51 11.49 L46.32 26.07 L61 32 L46.32 37.93
+           L52.51 52.51 L37.93 46.32 L32 61 L26.07 46.32 L11.49 52.51 L17.68 37.93
+           L3 32 L17.68 26.07 L11.49 11.49 L26.07 17.68 Z
+           M32 25.5 A6.5 6.5 0 1 0 32 38.5 A6.5 6.5 0 1 0 32 25.5 Z"/>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NinjaSRE">
+  <!--
+    The seal: the same mark inside a ring. Above 32px.
+
+    Not a second mark. It is the Japanese heraldic form, in which a figure lives
+    inside a circle and becomes a crest. It serves where the mark has to read as
+    an emblem rather than as an interface icon: a document cover, a sticker, a
+    large avatar, a title page.
+
+    Never below 32px. The ring and the points meet before that and the drawing
+    closes into a smudge; mark-small.svg is the one to use there.
+  -->
+  <path fill="currentColor" fill-rule="evenodd"
+        d="M32 1 A31 31 0 1 1 32 63 A31 31 0 1 1 32 1 Z
+           M32 6.5 A25.5 25.5 0 1 0 32 57.5 A25.5 25.5 0 1 0 32 6.5 Z"/>
+  <path fill="currentColor" fill-rule="evenodd"
+        d="M32 12 L35.71 23.04 L46.14 17.86 L40.96 28.29 L52 32 L40.96 35.71
+           L46.14 46.14 L35.71 40.96 L32 52 L28.29 40.96 L17.86 46.14 L23.04 35.71
+           L12 32 L23.04 28.29 L17.86 17.86 L28.29 23.04 Z
+           M32 28.5 A3.5 3.5 0 1 0 32 35.5 A3.5 3.5 0 1 0 32 28.5 Z"/>
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 48" role="img" aria-label="NinjaSRE">
+  <!--
+    The horizontal lockup: the mark at the left, the name at the right,
+    separated by half the mark's height — the same clear space that separates
+    the mark from anything else, on every side.
+
+    "Ninja" at the text weight, "SRE" at the accent. The colour does not
+    decorate: it says where the proper noun ends and what the thing is begins.
+    Where only one colour is available the distinction disappears, which is an
+    accepted loss — hence currentColor as the fallback rather than a hex, so a
+    context that cannot reach the token degrades to one colour instead of to
+    one theme's colour.
+
+    The name is set in the system family, like everything else in the product.
+    No font is fetched: a closed deployment cannot depend on a font server to
+    render its own mark.
+
+    The name is never redrawn, respaced, or stacked into a column. Where it will
+    not fit horizontally, the mark is used on its own.
+  -->
+  <g transform="translate(6 6) scale(0.5625)">
+    <path fill="currentColor" fill-rule="evenodd"
+          d="M32 2 L37.55 18.6 L53.21 10.79 L45.4 26.45 L62 32 L45.4 37.55
+             L53.21 53.21 L37.55 45.4 L32 62 L26.45 45.4 L10.79 53.21 L18.6 37.55
+             L2 32 L18.6 26.45 L10.79 10.79 L26.45 18.6 Z
+             M32 26.5 A5.5 5.5 0 1 0 32 37.5 A5.5 5.5 0 1 0 32 26.5 Z"/>
+  </g>
+  <text x="66" y="33"
+        font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="26" font-weight="600" letter-spacing="-0.5"
+        fill="currentColor">Ninja<tspan fill="var(--accent, currentColor)">SRE</tspan></text>
+</svg>
