@@ -29,6 +29,10 @@ from integrations.prometheus.schema import base_url as _region_url
 
 PING_PATH: Final = "/api/v1/status/buildinfo"
 QUERY_METRIC_PATH: Final = "/api/v1/query_range"
+#: The instant query. A signal is one number at one moment, and asking the range
+#: endpoint for it means inventing a window — which is a different question with
+#: a different answer, and a 400 when the window is left out.
+INSTANT_QUERY_PATH: Final = "/api/v1/query"
 LIST_ALERTS_PATH: Final = "/api/v1/alerts"
 
 #: How many records one call reads before it stops. Small on purpose: the model
@@ -111,6 +115,16 @@ class PrometheusClient(IntegrationClient):
 
         return await walk(_pagination("query_metric"), fetch, max_pages=max_pages, max_items=limit)
 
+    async def query_instant(self, expression: str) -> tuple[dict[str, Any], ...]:
+        """Return the series ``expression`` evaluates to, now.
+
+        One request and no paging: an instant query answers with a vector whose
+        length is the number of series that matched, and Prometheus does not
+        page it.
+        """
+        answer = (await self.get(INSTANT_QUERY_PATH, params={"query": expression})).json()
+        return records(answer, "data", "result")
+
     async def list_alerts(
         self,
         state: str = "",
@@ -150,6 +164,7 @@ __all__ = [
     "DEFAULT_LIMIT",
     "PAGINATION",
     "PING_PATH",
+    "INSTANT_QUERY_PATH",
     "QUERY_METRIC_PATH",
     "LIST_ALERTS_PATH",
     "PrometheusClient",

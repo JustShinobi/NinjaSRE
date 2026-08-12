@@ -6,9 +6,9 @@ object rather than a method on the client for the reason the client's own
 docstring gives about reads: the client is what talks to the vendor, and what a
 particular consumer wants out of the answer is that consumer's business.
 
-**Truncation is reported, never hidden.** A page walk that stopped early would
-otherwise reach a detector as "these are the guests", and a guest missing from a
-result reads exactly like a guest with nothing to say.
+**An instant, not a range.** A signal is one number at one moment. Asking the
+range endpoint for it means inventing a window, which is a different question
+with a different answer — and a 400 when the window is left out.
 """
 
 from __future__ import annotations
@@ -31,10 +31,7 @@ class PrometheusMetrics:
 
     async def evaluate(self, expression: str) -> Sequence[Mapping[str, Any]]:
         """Return the ``result`` list for ``expression``."""
-        pages = await self.client.query_metric(expression)
-        if pages.truncated:
-            logger.warning("prometheus.query_truncated", expression=expression)
-        return pages.items
+        return await self.client.query_instant(expression)
 
 
 __all__ = ["PrometheusMetrics"]
