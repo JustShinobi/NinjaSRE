@@ -73,9 +73,11 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 0.0,
+            "criticality": "high",
             "memory_percent": 18.0,
             "volume_id": "vm-100-disk-0",
-            "volume_percent": 99.6
+            "volume_percent": 99.6,
+            "zone": "apps"
           },
           "display_name": "plateau",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -246,7 +248,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 1.7,
-            "memory_percent": 20.9
+            "criticality": "medium",
+            "memory_percent": 20.9,
+            "zone": "dmz"
           },
           "display_name": "amber",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -399,7 +403,9 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 3.4,
-            "memory_percent": 23.8
+            "criticality": "medium",
+            "memory_percent": 23.8,
+            "zone": "infra"
           },
           "display_name": "anchor",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -559,7 +565,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 5.1,
-            "memory_percent": 26.7
+            "criticality": "low",
+            "memory_percent": 26.7,
+            "zone": "ci"
           },
           "display_name": "arbour",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -712,7 +720,9 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 6.8,
-            "memory_percent": 29.6
+            "criticality": "high",
+            "memory_percent": 29.6,
+            "zone": "apps"
           },
           "display_name": "aspen",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -872,7 +882,8 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 8.5,
-            "memory_percent": 32.5
+            "memory_percent": 32.5,
+            "zone": "dmz"
           },
           "display_name": "basalt",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -1025,7 +1036,9 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 10.2,
-            "memory_percent": 35.4
+            "criticality": "medium",
+            "memory_percent": 35.4,
+            "zone": "infra"
           },
           "display_name": "beacon",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -1185,7 +1198,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 11.9,
-            "memory_percent": 38.3
+            "criticality": "low",
+            "memory_percent": 38.3,
+            "zone": "ci"
           },
           "display_name": "beryl",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -1338,7 +1353,9 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 13.6,
-            "memory_percent": 41.2
+            "criticality": "high",
+            "memory_percent": 41.2,
+            "zone": "apps"
           },
           "display_name": "birch",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -1498,7 +1515,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 15.3,
-            "memory_percent": 44.1
+            "criticality": "medium",
+            "memory_percent": 44.1,
+            "zone": "dmz"
           },
           "display_name": "bramble",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -1651,7 +1670,9 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 17.0,
-            "memory_percent": 47.0
+            "criticality": "medium",
+            "memory_percent": 47.0,
+            "zone": "infra"
           },
           "display_name": "brook",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -1811,7 +1832,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 18.7,
-            "memory_percent": 49.9
+            "criticality": "low",
+            "memory_percent": 49.9,
+            "zone": "ci"
           },
           "display_name": "cairn",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -1964,7 +1987,8 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 20.4,
-            "memory_percent": 52.8
+            "memory_percent": 52.8,
+            "zone": "apps"
           },
           "display_name": "cedar",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -2124,7 +2148,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 22.1,
-            "memory_percent": 55.7
+            "criticality": "medium",
+            "memory_percent": 55.7,
+            "zone": "dmz"
           },
           "display_name": "cinder",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -2277,7 +2303,9 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 23.8,
-            "memory_percent": 58.6
+            "criticality": "medium",
+            "memory_percent": 58.6,
+            "zone": "infra"
           },
           "display_name": "cobalt",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -2449,9 +2477,11 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 25.5,
+            "criticality": "low",
             "memory_percent": 61.5,
             "volume_id": "vm-115-disk-0",
-            "volume_percent": 94.96
+            "volume_percent": 94.96,
+            "zone": "ci"
           },
           "display_name": "quartz",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -2615,7 +2645,9 @@
           "attributes": {
             "backed_up": true,
             "cpu_percent": 27.2,
-            "memory_percent": 64.4
+            "criticality": "high",
+            "memory_percent": 64.4,
+            "zone": "apps"
           },
           "display_name": "coral",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -2775,7 +2807,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 0.0,
-            "memory_percent": 67.3
+            "criticality": "medium",
+            "memory_percent": 67.3,
+            "zone": "dmz"
           },
           "display_name": "cove",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -2926,7 +2960,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": true
+            "backed_up": true,
+            "criticality": "medium",
+            "zone": "infra"
           },
           "display_name": "crag",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -3084,7 +3120,8 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "zone": "ci"
           },
           "display_name": "cypress",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -3242,7 +3279,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "high",
+            "zone": "apps"
           },
           "display_name": "delta",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -3400,7 +3439,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "medium",
+            "zone": "dmz"
           },
           "display_name": "dune",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -3558,7 +3599,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "medium",
+            "zone": "infra"
           },
           "display_name": "ember",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -3716,7 +3759,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "low",
+            "zone": "ci"
           },
           "display_name": "fathom",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -3874,7 +3919,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "high",
+            "zone": "apps"
           },
           "display_name": "fennel",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -4032,7 +4079,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "medium",
+            "zone": "dmz"
           },
           "display_name": "fjord",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -4190,7 +4239,8 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "zone": "infra"
           },
           "display_name": "flint",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -4348,7 +4398,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "low",
+            "zone": "ci"
           },
           "display_name": "gable",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -4506,7 +4558,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "high",
+            "zone": "apps"
           },
           "display_name": "garnet",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -4666,7 +4720,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 20.4,
-            "memory_percent": 35.4
+            "criticality": "medium",
+            "memory_percent": 35.4,
+            "zone": "dmz"
           },
           "display_name": "granite",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -4826,7 +4882,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 22.1,
-            "memory_percent": 38.3
+            "criticality": "medium",
+            "memory_percent": 38.3,
+            "zone": "infra"
           },
           "display_name": "harbour",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -4986,7 +5044,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 23.8,
-            "memory_percent": 41.2
+            "criticality": "low",
+            "memory_percent": 41.2,
+            "zone": "ci"
           },
           "display_name": "hazel",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -5146,7 +5206,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 25.5,
-            "memory_percent": 44.1
+            "criticality": "high",
+            "memory_percent": 44.1,
+            "zone": "apps"
           },
           "display_name": "heather",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -5306,7 +5368,8 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 27.2,
-            "memory_percent": 47.0
+            "memory_percent": 47.0,
+            "zone": "dmz"
           },
           "display_name": "hollow",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -5466,7 +5529,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 0.0,
-            "memory_percent": 49.9
+            "criticality": "medium",
+            "memory_percent": 49.9,
+            "zone": "infra"
           },
           "display_name": "indigo",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -5626,7 +5691,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 1.7,
-            "memory_percent": 52.8
+            "criticality": "low",
+            "memory_percent": 52.8,
+            "zone": "ci"
           },
           "display_name": "ivory",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -5786,7 +5853,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 3.4,
-            "memory_percent": 55.7
+            "criticality": "high",
+            "memory_percent": 55.7,
+            "zone": "apps"
           },
           "display_name": "jasper",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -5946,7 +6015,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 5.1,
-            "memory_percent": 58.6
+            "criticality": "medium",
+            "memory_percent": 58.6,
+            "zone": "dmz"
           },
           "display_name": "juniper",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -6106,7 +6177,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 6.8,
-            "memory_percent": 61.5
+            "criticality": "medium",
+            "memory_percent": 61.5,
+            "zone": "infra"
           },
           "display_name": "kelp",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -6266,7 +6339,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 8.5,
-            "memory_percent": 64.4
+            "criticality": "low",
+            "memory_percent": 64.4,
+            "zone": "ci"
           },
           "display_name": "lagoon",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -6440,7 +6515,8 @@
             "cpu_percent": 10.2,
             "memory_percent": 67.3,
             "volume_id": "vm-140-disk-0",
-            "volume_percent": 93.0
+            "volume_percent": 93.0,
+            "zone": "apps"
           },
           "display_name": "sorrel",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -6611,7 +6687,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 11.9,
-            "memory_percent": 70.2
+            "criticality": "medium",
+            "memory_percent": 70.2,
+            "zone": "dmz"
           },
           "display_name": "laurel",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -6771,9 +6849,11 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 13.6,
+            "criticality": "medium",
             "memory_percent": 73.1,
             "volume_id": "vm-142-disk-0",
-            "volume_percent": 74.21
+            "volume_percent": 74.21,
+            "zone": "infra"
           },
           "display_name": "harbour",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -6944,7 +7024,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 15.3,
-            "memory_percent": 76.0
+            "criticality": "low",
+            "memory_percent": 76.0,
+            "zone": "ci"
           },
           "display_name": "linen",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -7104,7 +7186,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 17.0,
-            "memory_percent": 78.9
+            "criticality": "high",
+            "memory_percent": 78.9,
+            "zone": "apps"
           },
           "display_name": "lumen",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -7264,7 +7348,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 18.7,
-            "memory_percent": 81.8
+            "criticality": "medium",
+            "memory_percent": 81.8,
+            "zone": "dmz"
           },
           "display_name": "maple",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -7424,7 +7510,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 20.4,
-            "memory_percent": 18.0
+            "criticality": "medium",
+            "memory_percent": 18.0,
+            "zone": "infra"
           },
           "display_name": "marble",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -7584,7 +7672,8 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 22.1,
-            "memory_percent": 20.9
+            "memory_percent": 20.9,
+            "zone": "ci"
           },
           "display_name": "meadow",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -7744,7 +7833,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 23.8,
-            "memory_percent": 23.8
+            "criticality": "high",
+            "memory_percent": 23.8,
+            "zone": "apps"
           },
           "display_name": "mesa",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -7904,7 +7995,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 25.5,
-            "memory_percent": 26.7
+            "criticality": "medium",
+            "memory_percent": 26.7,
+            "zone": "dmz"
           },
           "display_name": "mica",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -8064,7 +8157,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 27.2,
-            "memory_percent": 29.6
+            "criticality": "medium",
+            "memory_percent": 29.6,
+            "zone": "infra"
           },
           "display_name": "mint",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -8224,7 +8319,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 0.0,
-            "memory_percent": 32.5
+            "criticality": "low",
+            "memory_percent": 32.5,
+            "zone": "ci"
           },
           "display_name": "moss",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -8384,7 +8481,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 1.7,
-            "memory_percent": 35.4
+            "criticality": "high",
+            "memory_percent": 35.4,
+            "zone": "apps"
           },
           "display_name": "nickel",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -8544,7 +8643,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 3.4,
-            "memory_percent": 38.3
+            "criticality": "medium",
+            "memory_percent": 38.3,
+            "zone": "dmz"
           },
           "display_name": "nimbus",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -8704,7 +8805,8 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 5.1,
-            "memory_percent": 41.2
+            "memory_percent": 41.2,
+            "zone": "infra"
           },
           "display_name": "oakum",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -8864,7 +8966,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 6.8,
-            "memory_percent": 44.1
+            "criticality": "low",
+            "memory_percent": 44.1,
+            "zone": "ci"
           },
           "display_name": "obsidian",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -9024,7 +9128,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 8.5,
-            "memory_percent": 47.0
+            "criticality": "high",
+            "memory_percent": 47.0,
+            "zone": "apps"
           },
           "display_name": "onyx",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -9184,7 +9290,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 10.2,
-            "memory_percent": 49.9
+            "criticality": "medium",
+            "memory_percent": 49.9,
+            "zone": "dmz"
           },
           "display_name": "opal",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -9344,7 +9452,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 11.9,
-            "memory_percent": 52.8
+            "criticality": "medium",
+            "memory_percent": 52.8,
+            "zone": "infra"
           },
           "display_name": "orchard",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -9504,7 +9614,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 13.6,
-            "memory_percent": 55.7
+            "criticality": "low",
+            "memory_percent": 55.7,
+            "zone": "ci"
           },
           "display_name": "osprey",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -9664,7 +9776,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 15.3,
-            "memory_percent": 58.6
+            "criticality": "high",
+            "memory_percent": 58.6,
+            "zone": "apps"
           },
           "display_name": "pebble",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -9826,7 +9940,8 @@
             "cpu_percent": 17.0,
             "memory_percent": 61.5,
             "volume_id": "vm-161-disk-0",
-            "volume_percent": 76.88
+            "volume_percent": 76.88,
+            "zone": "dmz"
           },
           "display_name": "lumen",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -9997,7 +10112,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 18.7,
-            "memory_percent": 64.4
+            "criticality": "medium",
+            "memory_percent": 64.4,
+            "zone": "infra"
           },
           "display_name": "pine",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -10157,7 +10274,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 20.4,
-            "memory_percent": 67.3
+            "criticality": "low",
+            "memory_percent": 67.3,
+            "zone": "ci"
           },
           "display_name": "plateau",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -10317,7 +10436,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 22.1,
-            "memory_percent": 70.2
+            "criticality": "high",
+            "memory_percent": 70.2,
+            "zone": "apps"
           },
           "display_name": "poplar",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -10477,7 +10598,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 23.8,
-            "memory_percent": 73.1
+            "criticality": "medium",
+            "memory_percent": 73.1,
+            "zone": "dmz"
           },
           "display_name": "quarry",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -10637,7 +10760,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 25.5,
-            "memory_percent": 76.0
+            "criticality": "medium",
+            "memory_percent": 76.0,
+            "zone": "infra"
           },
           "display_name": "quartz",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -10797,7 +10922,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 27.2,
-            "memory_percent": 78.9
+            "criticality": "low",
+            "memory_percent": 78.9,
+            "zone": "ci"
           },
           "display_name": "quill",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -10957,7 +11084,8 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 0.0,
-            "memory_percent": 81.8
+            "memory_percent": 81.8,
+            "zone": "apps"
           },
           "display_name": "ridge",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -11117,7 +11245,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 1.7,
-            "memory_percent": 18.0
+            "criticality": "medium",
+            "memory_percent": 18.0,
+            "zone": "dmz"
           },
           "display_name": "rowan",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -11277,7 +11407,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 3.4,
-            "memory_percent": 20.9
+            "criticality": "medium",
+            "memory_percent": 20.9,
+            "zone": "infra"
           },
           "display_name": "rushes",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -11437,7 +11569,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 5.1,
-            "memory_percent": 23.8
+            "criticality": "low",
+            "memory_percent": 23.8,
+            "zone": "ci"
           },
           "display_name": "sable",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -11597,7 +11731,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 6.8,
-            "memory_percent": 26.7
+            "criticality": "high",
+            "memory_percent": 26.7,
+            "zone": "apps"
           },
           "display_name": "saffron",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -11757,7 +11893,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 8.5,
-            "memory_percent": 29.6
+            "criticality": "medium",
+            "memory_percent": 29.6,
+            "zone": "dmz"
           },
           "display_name": "sandstone",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -11917,7 +12055,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 10.2,
-            "memory_percent": 32.5
+            "criticality": "medium",
+            "memory_percent": 32.5,
+            "zone": "infra"
           },
           "display_name": "sequoia",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -12077,7 +12217,8 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 11.9,
-            "memory_percent": 35.4
+            "memory_percent": 35.4,
+            "zone": "ci"
           },
           "display_name": "shale",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -12237,7 +12378,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 13.6,
-            "memory_percent": 38.3
+            "criticality": "high",
+            "memory_percent": 38.3,
+            "zone": "apps"
           },
           "display_name": "shingle",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -12397,7 +12540,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 15.3,
-            "memory_percent": 41.2
+            "criticality": "medium",
+            "memory_percent": 41.2,
+            "zone": "dmz"
           },
           "display_name": "silver",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -12557,7 +12702,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 17.0,
-            "memory_percent": 44.1
+            "criticality": "medium",
+            "memory_percent": 44.1,
+            "zone": "infra"
           },
           "display_name": "slate",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -12717,7 +12864,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 18.7,
-            "memory_percent": 47.0
+            "criticality": "low",
+            "memory_percent": 47.0,
+            "zone": "ci"
           },
           "display_name": "sorrel",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -12877,7 +13026,9 @@
           "attributes": {
             "backed_up": false,
             "cpu_percent": 20.4,
-            "memory_percent": 49.9
+            "criticality": "high",
+            "memory_percent": 49.9,
+            "zone": "apps"
           },
           "display_name": "spruce",
           "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13035,7 +13186,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "medium",
+            "zone": "dmz"
           },
           "display_name": "stone",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -13133,7 +13286,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 20.4,
-              "memory_percent": 35.4
+              "criticality": "medium",
+              "memory_percent": 35.4,
+              "zone": "dmz"
             },
             "display_name": "granite",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13161,7 +13316,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 22.1,
-              "memory_percent": 38.3
+              "criticality": "medium",
+              "memory_percent": 38.3,
+              "zone": "infra"
             },
             "display_name": "harbour",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13189,7 +13346,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 23.8,
-              "memory_percent": 41.2
+              "criticality": "low",
+              "memory_percent": 41.2,
+              "zone": "ci"
             },
             "display_name": "hazel",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13217,7 +13376,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 25.5,
-              "memory_percent": 44.1
+              "criticality": "high",
+              "memory_percent": 44.1,
+              "zone": "apps"
             },
             "display_name": "heather",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13245,7 +13406,8 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 27.2,
-              "memory_percent": 47.0
+              "memory_percent": 47.0,
+              "zone": "dmz"
             },
             "display_name": "hollow",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13273,7 +13435,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 0.0,
-              "memory_percent": 49.9
+              "criticality": "medium",
+              "memory_percent": 49.9,
+              "zone": "infra"
             },
             "display_name": "indigo",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13301,7 +13465,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 1.7,
-              "memory_percent": 52.8
+              "criticality": "low",
+              "memory_percent": 52.8,
+              "zone": "ci"
             },
             "display_name": "ivory",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13329,7 +13495,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 3.4,
-              "memory_percent": 55.7
+              "criticality": "high",
+              "memory_percent": 55.7,
+              "zone": "apps"
             },
             "display_name": "jasper",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13357,7 +13525,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 5.1,
-              "memory_percent": 58.6
+              "criticality": "medium",
+              "memory_percent": 58.6,
+              "zone": "dmz"
             },
             "display_name": "juniper",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13385,7 +13555,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 6.8,
-              "memory_percent": 61.5
+              "criticality": "medium",
+              "memory_percent": 61.5,
+              "zone": "infra"
             },
             "display_name": "kelp",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13413,7 +13585,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 8.5,
-              "memory_percent": 64.4
+              "criticality": "low",
+              "memory_percent": 64.4,
+              "zone": "ci"
             },
             "display_name": "lagoon",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13441,7 +13615,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 11.9,
-              "memory_percent": 70.2
+              "criticality": "medium",
+              "memory_percent": 70.2,
+              "zone": "dmz"
             },
             "display_name": "laurel",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13469,7 +13645,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 15.3,
-              "memory_percent": 76.0
+              "criticality": "low",
+              "memory_percent": 76.0,
+              "zone": "ci"
             },
             "display_name": "linen",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13497,7 +13675,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 17.0,
-              "memory_percent": 78.9
+              "criticality": "high",
+              "memory_percent": 78.9,
+              "zone": "apps"
             },
             "display_name": "lumen",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13525,7 +13705,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 18.7,
-              "memory_percent": 81.8
+              "criticality": "medium",
+              "memory_percent": 81.8,
+              "zone": "dmz"
             },
             "display_name": "maple",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13553,7 +13735,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 20.4,
-              "memory_percent": 18.0
+              "criticality": "medium",
+              "memory_percent": 18.0,
+              "zone": "infra"
             },
             "display_name": "marble",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13581,7 +13765,8 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 22.1,
-              "memory_percent": 20.9
+              "memory_percent": 20.9,
+              "zone": "ci"
             },
             "display_name": "meadow",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13609,7 +13794,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 23.8,
-              "memory_percent": 23.8
+              "criticality": "high",
+              "memory_percent": 23.8,
+              "zone": "apps"
             },
             "display_name": "mesa",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13637,7 +13824,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 25.5,
-              "memory_percent": 26.7
+              "criticality": "medium",
+              "memory_percent": 26.7,
+              "zone": "dmz"
             },
             "display_name": "mica",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13665,7 +13854,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 27.2,
-              "memory_percent": 29.6
+              "criticality": "medium",
+              "memory_percent": 29.6,
+              "zone": "infra"
             },
             "display_name": "mint",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13693,7 +13884,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 0.0,
-              "memory_percent": 32.5
+              "criticality": "low",
+              "memory_percent": 32.5,
+              "zone": "ci"
             },
             "display_name": "moss",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13721,7 +13914,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 1.7,
-              "memory_percent": 35.4
+              "criticality": "high",
+              "memory_percent": 35.4,
+              "zone": "apps"
             },
             "display_name": "nickel",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13749,7 +13944,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 3.4,
-              "memory_percent": 38.3
+              "criticality": "medium",
+              "memory_percent": 38.3,
+              "zone": "dmz"
             },
             "display_name": "nimbus",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13777,7 +13974,8 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 5.1,
-              "memory_percent": 41.2
+              "memory_percent": 41.2,
+              "zone": "infra"
             },
             "display_name": "oakum",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13805,7 +14003,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 6.8,
-              "memory_percent": 44.1
+              "criticality": "low",
+              "memory_percent": 44.1,
+              "zone": "ci"
             },
             "display_name": "obsidian",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13833,7 +14033,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 8.5,
-              "memory_percent": 47.0
+              "criticality": "high",
+              "memory_percent": 47.0,
+              "zone": "apps"
             },
             "display_name": "onyx",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13861,7 +14063,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 10.2,
-              "memory_percent": 49.9
+              "criticality": "medium",
+              "memory_percent": 49.9,
+              "zone": "dmz"
             },
             "display_name": "opal",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13889,7 +14093,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 11.9,
-              "memory_percent": 52.8
+              "criticality": "medium",
+              "memory_percent": 52.8,
+              "zone": "infra"
             },
             "display_name": "orchard",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13917,7 +14123,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 13.6,
-              "memory_percent": 55.7
+              "criticality": "low",
+              "memory_percent": 55.7,
+              "zone": "ci"
             },
             "display_name": "osprey",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13945,7 +14153,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 15.3,
-              "memory_percent": 58.6
+              "criticality": "high",
+              "memory_percent": 58.6,
+              "zone": "apps"
             },
             "display_name": "pebble",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -13973,7 +14183,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 18.7,
-              "memory_percent": 64.4
+              "criticality": "medium",
+              "memory_percent": 64.4,
+              "zone": "infra"
             },
             "display_name": "pine",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14001,7 +14213,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 20.4,
-              "memory_percent": 67.3
+              "criticality": "low",
+              "memory_percent": 67.3,
+              "zone": "ci"
             },
             "display_name": "plateau",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14029,7 +14243,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 22.1,
-              "memory_percent": 70.2
+              "criticality": "high",
+              "memory_percent": 70.2,
+              "zone": "apps"
             },
             "display_name": "poplar",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14057,7 +14273,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 23.8,
-              "memory_percent": 73.1
+              "criticality": "medium",
+              "memory_percent": 73.1,
+              "zone": "dmz"
             },
             "display_name": "quarry",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14085,7 +14303,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 25.5,
-              "memory_percent": 76.0
+              "criticality": "medium",
+              "memory_percent": 76.0,
+              "zone": "infra"
             },
             "display_name": "quartz",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14113,7 +14333,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 27.2,
-              "memory_percent": 78.9
+              "criticality": "low",
+              "memory_percent": 78.9,
+              "zone": "ci"
             },
             "display_name": "quill",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14141,7 +14363,8 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 0.0,
-              "memory_percent": 81.8
+              "memory_percent": 81.8,
+              "zone": "apps"
             },
             "display_name": "ridge",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14169,7 +14392,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 1.7,
-              "memory_percent": 18.0
+              "criticality": "medium",
+              "memory_percent": 18.0,
+              "zone": "dmz"
             },
             "display_name": "rowan",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14197,7 +14422,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 3.4,
-              "memory_percent": 20.9
+              "criticality": "medium",
+              "memory_percent": 20.9,
+              "zone": "infra"
             },
             "display_name": "rushes",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14225,7 +14452,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 5.1,
-              "memory_percent": 23.8
+              "criticality": "low",
+              "memory_percent": 23.8,
+              "zone": "ci"
             },
             "display_name": "sable",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14253,7 +14482,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 6.8,
-              "memory_percent": 26.7
+              "criticality": "high",
+              "memory_percent": 26.7,
+              "zone": "apps"
             },
             "display_name": "saffron",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14281,7 +14512,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 8.5,
-              "memory_percent": 29.6
+              "criticality": "medium",
+              "memory_percent": 29.6,
+              "zone": "dmz"
             },
             "display_name": "sandstone",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14309,7 +14542,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 10.2,
-              "memory_percent": 32.5
+              "criticality": "medium",
+              "memory_percent": 32.5,
+              "zone": "infra"
             },
             "display_name": "sequoia",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14337,7 +14572,8 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 11.9,
-              "memory_percent": 35.4
+              "memory_percent": 35.4,
+              "zone": "ci"
             },
             "display_name": "shale",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14365,7 +14601,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 13.6,
-              "memory_percent": 38.3
+              "criticality": "high",
+              "memory_percent": 38.3,
+              "zone": "apps"
             },
             "display_name": "shingle",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14393,7 +14631,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 15.3,
-              "memory_percent": 41.2
+              "criticality": "medium",
+              "memory_percent": 41.2,
+              "zone": "dmz"
             },
             "display_name": "silver",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14421,7 +14661,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 17.0,
-              "memory_percent": 44.1
+              "criticality": "medium",
+              "memory_percent": 44.1,
+              "zone": "infra"
             },
             "display_name": "slate",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14449,7 +14691,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 18.7,
-              "memory_percent": 47.0
+              "criticality": "low",
+              "memory_percent": 47.0,
+              "zone": "ci"
             },
             "display_name": "sorrel",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14477,7 +14721,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 20.4,
-              "memory_percent": 49.9
+              "criticality": "high",
+              "memory_percent": 49.9,
+              "zone": "apps"
             },
             "display_name": "spruce",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14503,7 +14749,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "medium",
+              "zone": "dmz"
             },
             "display_name": "stone",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -14529,7 +14777,8 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "zone": "infra"
             },
             "display_name": "sumac",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -14555,7 +14804,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "low",
+              "zone": "ci"
             },
             "display_name": "tamarisk",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -14729,9 +14980,11 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 0.0,
+              "criticality": "high",
               "memory_percent": 18.0,
               "volume_id": "vm-100-disk-0",
-              "volume_percent": 99.6
+              "volume_percent": 99.6,
+              "zone": "apps"
             },
             "display_name": "plateau",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14761,7 +15014,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 1.7,
-              "memory_percent": 20.9
+              "criticality": "medium",
+              "memory_percent": 20.9,
+              "zone": "dmz"
             },
             "display_name": "amber",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14789,7 +15044,9 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 3.4,
-              "memory_percent": 23.8
+              "criticality": "medium",
+              "memory_percent": 23.8,
+              "zone": "infra"
             },
             "display_name": "anchor",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14817,7 +15074,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 5.1,
-              "memory_percent": 26.7
+              "criticality": "low",
+              "memory_percent": 26.7,
+              "zone": "ci"
             },
             "display_name": "arbour",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14845,7 +15104,9 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 6.8,
-              "memory_percent": 29.6
+              "criticality": "high",
+              "memory_percent": 29.6,
+              "zone": "apps"
             },
             "display_name": "aspen",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14873,7 +15134,8 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 8.5,
-              "memory_percent": 32.5
+              "memory_percent": 32.5,
+              "zone": "dmz"
             },
             "display_name": "basalt",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14901,7 +15163,9 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 10.2,
-              "memory_percent": 35.4
+              "criticality": "medium",
+              "memory_percent": 35.4,
+              "zone": "infra"
             },
             "display_name": "beacon",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14929,7 +15193,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 11.9,
-              "memory_percent": 38.3
+              "criticality": "low",
+              "memory_percent": 38.3,
+              "zone": "ci"
             },
             "display_name": "beryl",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14957,7 +15223,9 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 13.6,
-              "memory_percent": 41.2
+              "criticality": "high",
+              "memory_percent": 41.2,
+              "zone": "apps"
             },
             "display_name": "birch",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -14985,7 +15253,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 15.3,
-              "memory_percent": 44.1
+              "criticality": "medium",
+              "memory_percent": 44.1,
+              "zone": "dmz"
             },
             "display_name": "bramble",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15013,7 +15283,9 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 17.0,
-              "memory_percent": 47.0
+              "criticality": "medium",
+              "memory_percent": 47.0,
+              "zone": "infra"
             },
             "display_name": "brook",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15041,7 +15313,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 18.7,
-              "memory_percent": 49.9
+              "criticality": "low",
+              "memory_percent": 49.9,
+              "zone": "ci"
             },
             "display_name": "cairn",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15069,7 +15343,8 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 20.4,
-              "memory_percent": 52.8
+              "memory_percent": 52.8,
+              "zone": "apps"
             },
             "display_name": "cedar",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15097,7 +15372,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 22.1,
-              "memory_percent": 55.7
+              "criticality": "medium",
+              "memory_percent": 55.7,
+              "zone": "dmz"
             },
             "display_name": "cinder",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15125,7 +15402,9 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 23.8,
-              "memory_percent": 58.6
+              "criticality": "medium",
+              "memory_percent": 58.6,
+              "zone": "infra"
             },
             "display_name": "cobalt",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15153,9 +15432,11 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 25.5,
+              "criticality": "low",
               "memory_percent": 61.5,
               "volume_id": "vm-115-disk-0",
-              "volume_percent": 94.96
+              "volume_percent": 94.96,
+              "zone": "ci"
             },
             "display_name": "quartz",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15185,7 +15466,9 @@
             "attributes": {
               "backed_up": true,
               "cpu_percent": 27.2,
-              "memory_percent": 64.4
+              "criticality": "high",
+              "memory_percent": 64.4,
+              "zone": "apps"
             },
             "display_name": "coral",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15213,7 +15496,9 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 0.0,
-              "memory_percent": 67.3
+              "criticality": "medium",
+              "memory_percent": 67.3,
+              "zone": "dmz"
             },
             "display_name": "cove",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15239,7 +15524,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": true
+              "backed_up": true,
+              "criticality": "medium",
+              "zone": "infra"
             },
             "display_name": "crag",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15265,7 +15552,8 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "zone": "ci"
             },
             "display_name": "cypress",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15291,7 +15579,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "high",
+              "zone": "apps"
             },
             "display_name": "delta",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15317,7 +15607,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "medium",
+              "zone": "dmz"
             },
             "display_name": "dune",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15343,7 +15635,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "medium",
+              "zone": "infra"
             },
             "display_name": "ember",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15369,7 +15663,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "low",
+              "zone": "ci"
             },
             "display_name": "fathom",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15395,7 +15691,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "high",
+              "zone": "apps"
             },
             "display_name": "fennel",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15421,7 +15719,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "medium",
+              "zone": "dmz"
             },
             "display_name": "fjord",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15447,7 +15747,8 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "zone": "infra"
             },
             "display_name": "flint",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15473,7 +15774,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "low",
+              "zone": "ci"
             },
             "display_name": "gable",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15499,7 +15802,9 @@
           {
             "absent_since": null,
             "attributes": {
-              "backed_up": false
+              "backed_up": false,
+              "criticality": "high",
+              "zone": "apps"
             },
             "display_name": "garnet",
             "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15529,7 +15834,8 @@
               "cpu_percent": 10.2,
               "memory_percent": 67.3,
               "volume_id": "vm-140-disk-0",
-              "volume_percent": 93.0
+              "volume_percent": 93.0,
+              "zone": "apps"
             },
             "display_name": "sorrel",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15559,9 +15865,11 @@
             "attributes": {
               "backed_up": false,
               "cpu_percent": 13.6,
+              "criticality": "medium",
               "memory_percent": 73.1,
               "volume_id": "vm-142-disk-0",
-              "volume_percent": 74.21
+              "volume_percent": 74.21,
+              "zone": "infra"
             },
             "display_name": "harbour",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15593,7 +15901,8 @@
               "cpu_percent": 17.0,
               "memory_percent": 61.5,
               "volume_id": "vm-161-disk-0",
-              "volume_percent": 76.88
+              "volume_percent": 76.88,
+              "zone": "dmz"
             },
             "display_name": "lumen",
             "explanation": "the provider reported 'running', which maps to healthy.",
@@ -15829,7 +16138,8 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "zone": "infra"
           },
           "display_name": "sumac",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",
@@ -15985,7 +16295,9 @@
         "resource": {
           "absent_since": null,
           "attributes": {
-            "backed_up": false
+            "backed_up": false,
+            "criticality": "low",
+            "zone": "ci"
           },
           "display_name": "tamarisk",
           "explanation": "the provider reported 'stopped', which maps to unhealthy.",

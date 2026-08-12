@@ -277,6 +277,32 @@ def node_resource_id(name: str) -> str:
     return f"node-{name}"
 
 
+#: The zones the fixture cluster is divided into, and the criticalities its
+#: owner grades guests with. Deliberately uneven: a screen that groups and
+#: filters is only exercised by a distribution somebody would actually see, and
+#: a few guests are left ungraded because a real inventory always has some.
+_DECLARED_ZONES = ("apps", "dmz", "infra", "ci")
+_DECLARED_CRITICALITY = ("high", "medium", "medium", "low")
+
+
+def _declared(guest: GuestReading) -> dict[str, str]:
+    """Return the annotations a read inventory would have put on ``guest``.
+
+    Derived from the vmid so the fixture is the same every time it is built —
+    a dataset that shuffled would make every baseline a diff.
+    """
+    try:
+        number = int(guest.vmid)
+    except ValueError:
+        return {}
+    declared = {"zone": _DECLARED_ZONES[number % len(_DECLARED_ZONES)]}
+    if number % 7:
+        # Every seventh guest is ungraded, because a real inventory always has
+        # some nobody has got round to.
+        declared["criticality"] = _DECLARED_CRITICALITY[number % len(_DECLARED_CRITICALITY)]
+    return declared
+
+
 def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     """Return the endpoints the *gateway* serves, from one cluster reading.
 
@@ -563,6 +589,12 @@ def _resources(reading: ClusterReading) -> list[dict[str, Any]]:
         parent = node_resource_id(guest.node)
         state = _reported_health(guest.state)
         attributes: dict[str, Any] = {"backed_up": covered and identifier in covered}
+        # What an estate whose declared inventory has been read looks like. Both
+        # are annotations rather than anything the hypervisor reports: the zone
+        # is derived from the guest's address against the declared networks, the
+        # criticality is written down by whoever owns the estate. A fixture
+        # without them exercises only the column that says nobody knows.
+        attributes.update(_declared(guest))
         if guest.state == "running":
             attributes["cpu_percent"] = guest.cpu_percent
             attributes["memory_percent"] = guest.memory_percent
