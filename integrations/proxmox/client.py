@@ -65,6 +65,7 @@ from integrations.proxmox.models import (
     parse_upid,
 )
 from integrations.proxmox.schema import DEFAULT_HOST, INTEGRATION, base_url
+from platform.observability.logging import get_logger
 
 #: The two guest kinds, spelled the way Proxmox spells them in its own paths.
 #: A tuple rather than an enum because these strings *are* path segments, and a
@@ -107,6 +108,9 @@ PAGINATION: Final[tuple[EndpointPagination, ...]] = (
         page_size=MAX_TASKS,
     ),
 )
+
+
+logger = get_logger(__name__)
 
 
 class ProxmoxClient(IntegrationClient):
@@ -304,14 +308,47 @@ class ProxmoxClient(IntegrationClient):
             links=_declared_links(nodes),
         )
 
+    async def _placement_rules(self) -> tuple[tuple[Mapping[str, Any], ...], int]:
+        """Return HA placement rules and what asking for them cost.
+
+        The cost is returned rather than assumed because it varies: a cluster
+        that serves the newer endpoint costs one call, and one part-way through
+        the upgrade costs two. A sweep works to a declared budget, so it needs
+        the number rather than an estimate.
+        """
+        spent = 0
+        for path in ("/cluster/ha/rules", "/cluster/ha/groups"):
+            spent += 1
+            try:
+                found = _records(await self._read(path))
+            except IntegrationError as retired:
+                logger.info(
+                    "proxmox.ha_endpoint_unavailable",
+                    path=path,
+                    reason=str(retired.reason),
+                )
+                continue
+            if found:
+                return found, spent
+        return (), spent
+
     async def cluster_log(self, *, limit: int = 100) -> tuple[Mapping[str, Any], ...]:
         """Return the most recent cluster log entries."""
         return _records(await self._read("/cluster/log", params={"max": str(limit)}))
 
     async def high_availability(self) -> HighAvailabilityState:
-        """Return HA resources, groups, manager status and fencing state."""
+        """Return HA resources, groups or rules, manager status and fencing state.
+
+        Proxmox VE 9 migrated HA groups to HA rules and soft-disabled the old
+        endpoint rather than removing it — a cluster part-way through the
+        upgrade still has groups, so the old path answers 500 with "ha groups
+        have been migrated to rules". Both are asked for, newest first, and
+        neither answering is an HA read with no placement rules rather than a
+        failed one: this is one call in a sweep, and a retired endpoint must not
+        take the estate down with it.
+        """
         resources = _records(await self._read("/cluster/ha/resources"))
-        groups = _records(await self._read("/cluster/ha/groups"))
+        groups, placement_calls = await self._placement_rules()
         current = _records(await self._read("/cluster/ha/status/current"))
 
         manager = next((row for row in current if row.get("type") == "master"), {})
@@ -327,6 +364,7 @@ class ProxmoxClient(IntegrationClient):
                 for row in current
                 if row.get("type") == "lrm"
             },
+            provider_calls=2 + placement_calls,
         )
 
     async def backup_jobs(self) -> tuple[BackupJob, ...]:

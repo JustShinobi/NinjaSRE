@@ -297,8 +297,8 @@ class ProxmoxDiscovery:
         if spend.exhausted:
             return emitted, True
 
-        await client.high_availability()
-        spend.spend(3)
+        availability = await client.high_availability()
+        spend.spend(availability.provider_calls)
         if spend.exhausted:
             return emitted, True
 
