@@ -139,7 +139,7 @@ export function OrgTree({ nodes, selected, hrefFor, label }: OrgTreeProps): Reac
               className={
                 node.id === selected
                   ? 'flex items-center gap-2 px-2 py-1 rounded-2 bg-accent-bg text-accent text-small'
-                  : 'flex items-center gap-2 px-2 py-1 rounded-2 text-small motion-hover hover:bg-sunken'
+                  : 'flex items-center gap-2 px-2 py-1 rounded-2 text-small motion-hover hover:bg-hover'
               }
               // Indentation is a drawing measurement rather than a spacing step:
               // it multiplies with depth, and a scale step that multiplied would

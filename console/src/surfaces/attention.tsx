@@ -68,7 +68,7 @@ export function AttentionBlock({
           <li key={row.id} data-testid="attention-row" data-kind={row.kind}>
             <a
               href={row.href}
-              className="flex items-center gap-3 px-4 py-3 bg-raised edge border-border border-x-0 border-b-0 motion-hover hover:bg-sunken"
+              className="flex items-center gap-3 px-4 py-3 bg-raised edge border-border border-x-0 border-b-0 motion-hover hover:bg-hover"
             >
               <Badge status={row.kind} />
               <span className="min-w-0 flex flex-col">

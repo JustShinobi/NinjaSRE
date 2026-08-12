@@ -106,7 +106,7 @@ export function SidebarNav({
                       'flex items-center gap-2 mx-1 px-2 py-1 rounded-2 text-body motion-hover',
                       current_
                         ? 'bg-accent-bg text-accent font-semibold'
-                        : 'text-text hover:bg-sunken',
+                        : 'text-text hover:bg-hover',
                     )}
                   >
                     <Icon size="nav" />

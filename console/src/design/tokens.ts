@@ -41,6 +41,7 @@ export const COLOUR_ROLES = [
   'surface',
   'sunken',
   'raised',
+  'hover',
   'text',
   'muted',
   'accent',
@@ -79,6 +80,7 @@ const LIGHT: Readonly<Record<ColourRole, string>> = {
   surface: '#ffffff',
   sunken: '#f5f7f8',
   raised: '#ffffff',
+  hover: '#eef1f3',
   text: '#11161c',
   muted: '#59626d',
   accent: '#0f6f5c',
@@ -108,6 +110,7 @@ const DARK: Readonly<Record<ColourRole, string>> = {
   surface: '#0d1117',
   sunken: '#0a0e13',
   raised: '#161c24',
+  hover: '#1c2530',
   text: '#e9eef4',
   muted: '#9aa5b1',
   accent: '#4fd6b0',
@@ -149,8 +152,14 @@ export interface Pair {
   readonly background: string;
 }
 
-/** The grounds a viewer reads text on. */
-const GROUNDS = ['surface', 'sunken', 'raised'] as const;
+/**
+ * The grounds a viewer reads text on.
+ *
+ * `hover` is one of them. A hovered row still carries its own text, its state
+ * colours and its focus ring, so a hover ground that was only checked for being
+ * *visible* could still be one nobody can read once the pointer is on it.
+ */
+const GROUNDS = ['surface', 'sunken', 'raised', 'hover'] as const;
 
 /** Every pair carrying text, which has to reach 4.5:1. */
 export function bodyPairs(theme: Theme): readonly Pair[] {
@@ -203,6 +212,31 @@ export function bodyPairs(theme: Theme): readonly Pair[] {
     });
   }
   return pairs;
+}
+
+/**
+ * Every hover against the ground it covers, which has to reach `HOVER_MINIMUM`.
+ *
+ * Two grounds rather than three: a hoverable surface in this console sits on
+ * `surface` (navigation entries, table rows, the tree, secondary buttons) or on
+ * `raised` (the attention list, the notification centre). Nothing hoverable
+ * sits on `sunken` — that is the page ground, behind the panels — so a pair for
+ * it would be a number nobody could act on.
+ */
+export function hoverPairs(theme: Theme): readonly Pair[] {
+  const at = (role: ColourRole): string => colour(theme, role);
+  return [
+    {
+      what: 'hover over surface',
+      foreground: at('hover'),
+      background: at('surface'),
+    },
+    {
+      what: 'hover over raised',
+      foreground: at('hover'),
+      background: at('raised'),
+    },
+  ];
 }
 
 /**

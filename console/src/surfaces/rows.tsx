@@ -209,7 +209,7 @@ export function RowList({
               key={row.id}
               data-testid="row"
               data-row={row.id}
-              className="motion-hover hover:bg-sunken"
+              className="motion-hover hover:bg-hover"
               style={{ blockSize: `${String(ROW_HEIGHT)}px` }}
             >
               {row.cells.map((cell, index) => {
