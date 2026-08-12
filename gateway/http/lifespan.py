@@ -25,6 +25,7 @@ from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
 from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
 from gateway.http.enrichment_plans import compose_enrichment_plans_for
+from gateway.http.integration_access import compose_integration_access
 from gateway.http.log_sources import compose_log_sources
 from gateway.http.node_access import compose_node_access
 from gateway.http.scheduled_work import run_scheduler, worker_for
@@ -52,6 +53,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # configuration tree — and before the first request, so a resource page
     # never renders "nothing was consulted" for a deployment that had.
     if health.is_ready:
+        # First, because every vendor tool in the catalogue reads this one
+        # binding to make a call, and without it each reports itself
+        # unavailable by name — which is a hundred and ninety-three
+        # capabilities a deployment has and cannot use.
+        await compose_integration_access(
+            state,
+            org_id=organisation_id(),
+            proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
+        )
         await compose_change_sources(state, org_id=organisation_id())
         # The same moment and the same reasoning: a deployment whose cluster is
         # configured should have a source before anybody opens the estate,
