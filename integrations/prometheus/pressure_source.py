@@ -193,7 +193,9 @@ def _reading(
     resource_id = wanted.get(guest)
     if resource_id is None:
         return None
-    value = series.get("value") or ()
+    # Annotated rather than inferred: an empty literal narrows to a fixed-length
+    # tuple, and the length check below cannot widen it back.
+    value: Sequence[Any] = series.get("value") or ()
     if len(value) < 2:
         return None
     try:

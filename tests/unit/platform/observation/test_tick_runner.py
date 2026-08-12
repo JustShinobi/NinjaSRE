@@ -71,6 +71,24 @@ class _Store:
         return tuple(signals)
 
 
+def test_the_store_a_deployment_actually_has_satisfies_what_a_tick_asks_for() -> None:
+    """The narrow port has to be a protocol, not a concrete class.
+
+    Declared as a dataclass, ``SignalWriter`` described the right shape and
+    nothing could satisfy it: the real store does not inherit from it, so the
+    only thing that could ever be passed was a subclass nobody writes. The
+    runner typechecked against a port with no implementations.
+    """
+    from platform.observation.tick import SignalWriter
+    from platform.persistence.postgres.repositories.signal_store import PostgresSignalStore
+
+    # Checked by mypy as well as at runtime: this is the assignment the job
+    # runner makes, and the one the gate rejected.
+    writer: type[SignalWriter] = PostgresSignalStore
+
+    assert issubclass(writer, SignalWriter)
+
+
 async def test_a_tick_polls_the_sources_and_stores_what_they_returned() -> None:
     source = _Source(readings=(_reading("res-a", 0.5),))
     store = _Store()

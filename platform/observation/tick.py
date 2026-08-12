@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Protocol, runtime_checkable
 
 from platform.observability.logging import get_logger
 from platform.observation.sources.poller import Poller
@@ -31,13 +32,17 @@ from platform.persistence.ports.signal_store import Signal
 logger = get_logger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
-class SignalWriter:
-    """What a tick needs of a signal store, and nothing else."""
+@runtime_checkable
+class SignalWriter(Protocol):
+    """What a tick needs of a signal store, and nothing else.
+
+    A protocol rather than a base class, because the store a deployment holds
+    is built in ``platform/persistence`` and knows nothing about this module.
+    Anything else describes the right shape and admits no implementation.
+    """
 
     async def append(self, signals: Sequence[Signal]) -> tuple[Signal, ...]:
         """Store ``signals`` and return them as stored."""
-        raise NotImplementedError
 
 
 @dataclass(frozen=True, slots=True)
