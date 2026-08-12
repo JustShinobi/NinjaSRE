@@ -111,6 +111,12 @@ class GatewayState:
     #: client needs the credential proxy, which the gateway does not build for
     #: itself. An observation tick over none of them stores nothing and says so.
     signal_sources: tuple[Any, ...] = ()
+    #: What the operator declared about the estate, by integration name —
+    #: criticality, tier, domain, owner, and the zones. Empty until
+    #: composition reads a declared inventory, and then a sweep annotates
+    #: nothing, which is the correct behaviour for a deployment whose
+    #: operator keeps no such file.
+    enrichment_plans: Mapping[str, Any] = field(default_factory=dict)
     #: The log systems this deployment has been pointed at. Empty until
     #: composition wires one, and then the log capability reports that nothing is
     #: configured rather than that the resource was quiet — an absence from a

@@ -3,23 +3,45 @@
   "title": "declared virtual machines",
   "description": "The same declaration as the containers file, for full guests.",
   "type": "object",
-  "required": ["virtual_machines"],
-  "additionalProperties": false,
+  "required": [
+    "virtual_machines"
+  ],
+  "additionalProperties": true,
   "properties": {
     "virtual_machines": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["vmid"],
-        "additionalProperties": false,
+        "required": [
+          "vmid"
+        ],
+        "additionalProperties": true,
         "properties": {
-          "vmid": {"type": "integer", "minimum": 100},
-          "name": {"type": "string"},
-          "node": {"type": "string"},
-          "criticality": {"type": "string"},
-          "tier": {"type": "string"},
-          "owner": {"type": "string"},
-          "description": {"type": "string"}
+          "vmid": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "name": {
+            "type": "string"
+          },
+          "node": {
+            "type": "string"
+          },
+          "criticality": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "zone": {
+            "type": "string"
+          }
         }
       }
     }

@@ -3,23 +3,45 @@
   "title": "declared containers",
   "description": "What the operator says each container is for. VMID is the only field the hypervisor API and this file both chose, so it is the only one identity is matched on.",
   "type": "object",
-  "required": ["containers"],
-  "additionalProperties": false,
+  "required": [
+    "containers"
+  ],
+  "additionalProperties": true,
   "properties": {
     "containers": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["vmid"],
-        "additionalProperties": false,
+        "required": [
+          "vmid"
+        ],
+        "additionalProperties": true,
         "properties": {
-          "vmid": {"type": "integer", "minimum": 100},
-          "name": {"type": "string"},
-          "node": {"type": "string"},
-          "criticality": {"type": "string"},
-          "tier": {"type": "string"},
-          "owner": {"type": "string"},
-          "description": {"type": "string"}
+          "vmid": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "name": {
+            "type": "string"
+          },
+          "node": {
+            "type": "string"
+          },
+          "criticality": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "zone": {
+            "type": "string"
+          }
         }
       }
     }

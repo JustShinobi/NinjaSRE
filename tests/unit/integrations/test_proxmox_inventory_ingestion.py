@@ -202,12 +202,18 @@ def test_a_document_the_schema_rejects_names_every_problem_at_once(tmp_path: Pat
         ingest(_tree(tmp_path, documents), cluster=CLUSTER)
 
     problems = refused.value.problems
-    assert len(problems) == 3
+    assert len(problems) == 2
     joined = "; ".join(problems)
     assert "cts.yaml" in joined
     assert "containers[0].vmid" in joined
     assert "containers[1]" in joined
-    assert "hair_colour" in joined
+    # `hair_colour` is deliberately not a problem. The documents belong to the
+    # operator and carry their own operational fields — addresses, status, tags,
+    # a schema version — and refusing the whole inventory over a field the
+    # ingestion never reads means a real inventory is never ingested at all.
+    # What is still refused is what the ingestion cannot work without: an entry
+    # whose identity is missing or is not a number.
+    assert "hair_colour" not in joined
 
 
 def test_an_overlapping_pair_of_zones_is_refused_naming_both(tmp_path: Path) -> None:

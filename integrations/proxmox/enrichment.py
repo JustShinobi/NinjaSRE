@@ -282,6 +282,13 @@ def _entries(
             f"{name}.yaml", measured=len(rows), limit=MAX_ENRICHMENT_ENTRIES, unit="entries"
         )
 
+    # Normalised before validation, so the schema can keep identity required
+    # without dictating how an operator spells it. An inventory generated from
+    # the API writes 'vmid'; one written by hand or by somebody's own tooling
+    # tends to write 'id' and 'hostname', and both name the same guest.
+    rows = [_normalised(row) if isinstance(row, dict) else row for row in rows]
+    document = {**document, key: rows}
+
     before = len(problems)
     problems.extend(
         f"{name}.yaml: {problem}"
@@ -292,6 +299,26 @@ def _entries(
         return []
 
     return [row for row in rows if isinstance(row, dict)]
+
+
+#: How one entry may spell a field the ingestion reads. The API's own name is
+#: the one the schema declares; these are the spellings an operator's own
+#: inventory uses for the same thing.
+_ALIASES: Final[Mapping[str, str]] = {"id": "vmid", "hostname": "name"}
+
+
+def _normalised(entry: Mapping[str, Any]) -> dict[str, Any]:
+    """Return ``entry`` with aliased fields under the name the schema declares.
+
+    An entry that carries both keeps the declared one: a file saying ``vmid: 100``
+    and ``id: 101`` is describing two guests badly, and the declared spelling is
+    the one whose meaning is not in question.
+    """
+    normalised = dict(entry)
+    for alias, declared in _ALIASES.items():
+        if alias in normalised and declared not in normalised:
+            normalised[declared] = normalised.pop(alias)
+    return normalised
 
 
 def _validate(value: Any, schema: Mapping[str, Any], *, where: str) -> list[str]:

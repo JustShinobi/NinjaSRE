@@ -3,21 +3,35 @@
   "title": "declared nodes",
   "description": "What the operator says each hypervisor node is for. Matched on the node's own name, which is what the cluster reports.",
   "type": "object",
-  "required": ["nodes"],
-  "additionalProperties": false,
+  "required": [
+    "nodes"
+  ],
+  "additionalProperties": true,
   "properties": {
     "nodes": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name"],
-        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "additionalProperties": true,
         "properties": {
-          "name": {"type": "string"},
-          "criticality": {"type": "string"},
-          "tier": {"type": "string"},
-          "owner": {"type": "string"},
-          "description": {"type": "string"}
+          "name": {
+            "type": "string"
+          },
+          "criticality": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
         }
       }
     }

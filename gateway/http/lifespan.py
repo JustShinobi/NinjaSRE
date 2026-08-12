@@ -23,6 +23,7 @@ from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
 from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
+from gateway.http.enrichment_plans import compose_enrichment_plans_for
 from gateway.http.log_sources import compose_log_sources
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
@@ -66,6 +67,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             org_id=organisation_id(),
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
         )
+        # What the operator declared about the estate. Read before the
+        # scheduler starts, so the first sweep annotates rather than the
+        # second.
+        await compose_enrichment_plans_for(state, org_id=organisation_id())
         # The log system, on the same terms. Composed here rather than at the
         # first investigation that wants a line, so a deployment pointed at a
         # Loki has one before anybody asks — and one that is not says so, rather

@@ -108,6 +108,7 @@ def test_every_job_kind_a_route_can_register_has_a_runner() -> None:
         knowledge_sources: dict[str, object] = {}
         corpus_sources: dict[str, object] = {}
         discovery_sources: dict[str, object] = {}
+        enrichment_plans: dict[str, object] = {}
         guardrails = None
 
     dispatcher = dispatcher_for(_State())  # type: ignore[arg-type]

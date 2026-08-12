@@ -83,6 +83,11 @@ def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
     # ever without a line saying so.
     sweep = TopologyDiscoveryRunner(
         readers=dict(state.discovery_sources),
+        # What the operator declared about the estate. Composed at boot and
+        # held here, because a plan nobody hands the runner leaves every
+        # resource without a criticality, a tier, a domain or an owner — the
+        # four annotations the whole ingestion exists to produce.
+        plans=dict(state.enrichment_plans),
         sweeper=EnrichingSweeper(
             sweeper=EstateSweeper(gateway=state.gateway, kinds=state.estate_kinds)
         ),

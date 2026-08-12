@@ -71,6 +71,7 @@ def test_the_observation_tick_kind_is_dispatched() -> None:
         knowledge_sources: dict[str, object] = {}
         corpus_sources: dict[str, object] = {}
         discovery_sources: dict[str, object] = {}
+        enrichment_plans: dict[str, object] = {}
         signal_sources: tuple[object, ...] = ()
         guardrails = None
 
