@@ -206,7 +206,8 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
     const zone = state.filters.zone;
     const criticality = state.filters.criticality;
     if (zone !== undefined && zoneOf(record) !== zone) return false;
-    if (criticality !== undefined && criticalityOf(record) !== criticality) return false;
+    if (criticality !== undefined && criticalityOf(record) !== criticality)
+      return false;
     return true;
   });
 
@@ -295,7 +296,8 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             label: message(locale, 'resources.filter.zone'),
             options: zones.map((value) => ({
               value,
-              label: value === UNPLACED ? message(locale, 'resources.zone.unplaced') : value,
+              label:
+                value === UNPLACED ? message(locale, 'resources.zone.unplaced') : value,
             })),
           },
           {
@@ -339,7 +341,11 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               header: message(locale, 'resources.column.kind'),
               sortable: true,
             },
-            { key: 'zone', header: message(locale, 'resources.column.zone'), sortable: true },
+            {
+              key: 'zone',
+              header: message(locale, 'resources.column.zone'),
+              sortable: true,
+            },
             {
               key: 'criticality',
               header: message(locale, 'resources.column.criticality'),
