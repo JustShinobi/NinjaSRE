@@ -75,24 +75,44 @@ def _parts(message: Message) -> list[dict[str, Any]]:
     return parts
 
 
-def _parse_usage(document: Mapping[str, Any]) -> TokenCounts:
-    """Return the token counts from a ``usageMetadata`` block.
+def _usage_count(usage: Mapping[str, Any], camel: str, snake: str) -> int:
+    """Return one count under whichever spelling the response used.
 
-    ``promptTokenCount`` includes the cached tokens, as on the OpenAI wire, so
-    the cached count is subtracted to keep the neutral fields disjoint.
+    ``or 0`` rather than a default, because the SDK sends ``null`` for a count
+    it has no value for rather than omitting the key, and ``int(None)`` raises.
+    """
+    value = usage.get(camel)
+    if value is None:
+        value = usage.get(snake)
+    return int(value or 0)
+
+
+def _parse_usage(document: Mapping[str, Any]) -> TokenCounts:
+    """Return the token counts from a usage block, in either spelling.
+
+    Two spellings because there are two paths to this parser and they disagree:
+    a direct HTTP call returns the REST wire format, in camelCase, and the SDK
+    returns the same numbers in snake_case. Reading only the first meant every
+    count came back zero on the path a deployment actually runs — and carried a
+    degradation saying the provider had omitted what it had in fact sent.
+
+    The prompt count includes the cached tokens, as on the OpenAI wire, so the
+    cached count is subtracted to keep the neutral fields disjoint.
     """
     usage = document.get("usageMetadata")
+    if usage is None:
+        usage = document.get("usage_metadata")
     if not isinstance(usage, Mapping):
         return TokenCounts(estimated=True)
 
-    prompt = int(usage.get("promptTokenCount") or 0)
-    cached = int(usage.get("cachedContentTokenCount") or 0)
+    prompt = _usage_count(usage, "promptTokenCount", "prompt_token_count")
+    cached = _usage_count(usage, "cachedContentTokenCount", "cached_content_token_count")
 
     return TokenCounts(
         input_tokens=max(prompt - cached, 0),
-        output_tokens=int(usage.get("candidatesTokenCount") or 0),
+        output_tokens=_usage_count(usage, "candidatesTokenCount", "candidates_token_count"),
         cached_input_tokens=cached,
-        reasoning_tokens=int(usage.get("thoughtsTokenCount") or 0),
+        reasoning_tokens=_usage_count(usage, "thoughtsTokenCount", "thoughts_token_count"),
     )
 
 
