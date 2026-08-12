@@ -249,6 +249,16 @@ class PostgresPersistence:
         """
         return migrations.AlembicSchemaMigrator(self._engine)
 
+    def install_encryption_key(self) -> bool:
+        """Load the operator's key into this process, and say whether there was one.
+
+        The startup sequence's own step, taken as a port so the sequence does
+        not have to name this backend. Synchronous because it reads an
+        environment variable: making it a coroutine would suggest it talks to
+        something.
+        """
+        return KEY_RING.configure_from_environment()
+
     async def start(self) -> StoreHealth:
         """Bring the schema to head, load the encryption key, and report health.
 
@@ -257,7 +267,7 @@ class PostgresPersistence:
         instead of raised — a deployment missing Apache AGE should come up
         degraded and say so, not fail to construct its gateway.
         """
-        KEY_RING.configure_from_environment()
+        self.install_encryption_key()
         await migrations.upgrade_to_head(self._engine)
         await self._graph_readiness()
         return await self.health()
