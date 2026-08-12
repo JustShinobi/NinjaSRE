@@ -44,3 +44,28 @@ async def test_a_truncated_walk_is_said_out_loud(caplog: pytest.LogCaptureFixtur
         await PrometheusMetrics(client=client).evaluate("pve_up")  # type: ignore[arg-type]
 
     assert "truncated" in caplog.text
+
+
+def test_the_client_can_be_pointed_at_the_operators_own_endpoint() -> None:
+    """The shipped region is a placeholder — nobody packaging this knows where
+    your Prometheus is. A client that could only be permitted to reach the
+    operator's host, never pointed at it, asks example.com for ever.
+    """
+    from integrations._base.transport import RequestContext
+    from integrations.prometheus.client import PrometheusClient
+
+    context = RequestContext(org_id="acme", team_id="-", capability="observation.tick")
+
+    class _Transport:
+        async def forward(self, request: object) -> object:
+            raise AssertionError("not called")
+
+    shipped = PrometheusClient(transport=_Transport(), context=context)  # type: ignore[arg-type]
+    pointed = PrometheusClient(
+        transport=_Transport(),  # type: ignore[arg-type]
+        context=context,
+        base_url="http://10.20.20.37:9090",
+    )
+
+    assert "example.com" in shipped.base_url
+    assert pointed.base_url.startswith("http://10.20.20.37:9090")
