@@ -149,7 +149,15 @@ export function RowList({
       data-testid="row-list"
       data-total={rows.length}
       className="w-full overflow-auto"
-      style={{ blockSize: `${String(height)}px` }}
+      // Capped rather than fixed. A fixed viewport reserved fifteen rows' worth
+      // of page whatever the list held, so three documents sat above twelve rows
+      // of nothing — dead space that reads as a screen which failed to finish
+      // loading, when what it is saying is that the estate is small.
+      //
+      // A cap also spares this element an opinion about how tall its own header
+      // is, which is the number an arithmetic height would have to guess and
+      // would get wrong the next time the header changed.
+      style={{ maxBlockSize: `${String(height)}px` }}
       onScroll={(event) => {
         setScrollTop(event.currentTarget.scrollTop);
       }}
