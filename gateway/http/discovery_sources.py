@@ -198,8 +198,14 @@ async def compose_signal_sources(
     for entry in entries:
         if str(entry.get("name", "")) != PROMETHEUS or not bool(entry.get("enabled", True)):
             continue
+        endpoint = str(entry.get("base_url", "")).strip()
+        if not endpoint:
+            logger.warning("observation.source_unaddressed", integration=PROMETHEUS)
+            continue
         composed.append(
-            PrometheusMetrics(client=PrometheusClient(transport=transport, context=context))
+            PrometheusMetrics(
+                client=PrometheusClient(transport=transport, context=context, base_url=endpoint)
+            )
         )
 
     state.signal_sources = tuple(composed)
