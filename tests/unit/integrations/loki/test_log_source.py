@@ -100,14 +100,18 @@ async def test_reading_a_window_asks_loki_for_exactly_that_window() -> None:
 
 async def test_a_source_that_did_not_answer_is_unreachable_not_empty() -> None:
     """An empty answer means "nothing matched", which leads a responder to the
-    opposite conclusion from "we could not ask"."""
-    from platform.observation.bridge.errors import LogSourceUnreachable
+    opposite conclusion from "we could not ask".
+
+    Raised as this package's own error, never the observability bridge's: an
+    integration that imported the bridge would make an optional feature
+    mandatory. The gateway translates at the seam."""
+    from integrations._base.errors import IntegrationError
 
     class _Broken:
         async def search_logs(self, query: str = "", **parameters: object) -> object:
             raise RuntimeError("connection refused")
 
-    with pytest.raises(LogSourceUnreachable):
+    with pytest.raises(IntegrationError):
         await LokiLogSource(client=_Broken()).lines(  # type: ignore[arg-type]
             selector="{}", start=START, end=END, limit=10
         )

@@ -114,12 +114,12 @@ async def test_a_truncated_answer_says_so_rather_than_reading_as_the_whole_story
 
 async def test_a_source_that_did_not_answer_is_reported_as_unreachable() -> None:
     """Not as an empty result: one is "we could not look", the other is a finding."""
+    from capabilities.tools.logs.binding import LogSourceUnavailable
     from core.capability.result import CapabilityErrorClass
-    from platform.observation.bridge.errors import LogSourceUnreachable
 
     class _Broken:
         async def logs_for(self, resource: str, *, at: datetime) -> object:
-            raise LogSourceUnreachable("loki", reason="connection refused")
+            raise LogSourceUnavailable("connection refused")
 
     binding.bind(_Broken())
 

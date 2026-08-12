@@ -17,25 +17,45 @@ which guest each line is about — which is the only thing making the line usefu
 **A line that cannot be dated is dropped, not stamped with now.** Dating it now
 makes a stale line look live, and that is the one misreading that changes what an
 operator concludes.
+
+**Nothing here imports the observability bridge.** The bridge is an optional
+feature and an integration that imported it would make it mandatory — which is
+what ``test_no_feature_beside_this_one_depends_on_the_bridge`` exists to prevent.
+So this returns its own plain lines and raises the integration error every other
+vendor client raises; the gateway's composition, which may depend on the bridge,
+is where the two vocabularies meet.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
+from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations.loki.schema import INTEGRATION
 from platform.observability.logging import get_logger
-from platform.observation.bridge.errors import LogSourceUnreachable
-from platform.observation.bridge.ports import LogLine
 
 logger = get_logger(__name__)
 
 #: Loki speaks nanoseconds since the epoch on the range endpoint, in both
 #: directions.
 NANOSECONDS_PER_SECOND = 1_000_000_000
+
+
+@dataclass(frozen=True, slots=True)
+class LogLine:
+    """One line Loki returned, with the stream's labels carried onto it.
+
+    This package's own type rather than the bridge's, so an optional feature
+    stays optional. It is deliberately the same shape, and the composition that
+    holds both converts one to the other in a single expression.
+    """
+
+    observed_at: datetime
+    line: str
+    labels: Mapping[str, str] = field(default_factory=dict)
 
 
 @runtime_checkable
@@ -115,7 +135,11 @@ class LokiLogSource:
             # Unreachable rather than empty: "nothing matched" and "we could not
             # ask" lead a responder to opposite conclusions.
             logger.warning("logs.source_unreachable", error=str(failed))
-            raise LogSourceUnreachable(INTEGRATION, reason=str(failed)) from failed
+            raise IntegrationError(
+                f"the log source did not answer: {failed}",
+                integration=INTEGRATION,
+                reason=IntegrationErrorReason.PROXY_UNAVAILABLE,
+            ) from failed
 
         return lines_of(tuple(getattr(pages, "items", ()) or ()))
 

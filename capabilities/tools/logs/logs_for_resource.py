@@ -29,11 +29,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from capabilities.tools.logs import binding, results
+from capabilities.tools.logs.binding import LogSourceUnavailable
 from config.constants.observability_bridge import LOGS_TOOL_NAME
 from core.capability.decorator import tool
 from core.capability.metadata import EvidenceType, SideEffectLevel
 from core.capability.result import CapabilityErrorClass, CapabilityResult
-from platform.observation.bridge.errors import LogSourceUnreachable
 
 TOOL_NAME = LOGS_TOOL_NAME
 
@@ -92,13 +92,13 @@ async def logs_for_resource(resource: str) -> CapabilityResult:
 
     try:
         answer = await access.logs_for(resource, at=datetime.now(UTC))
-    except LogSourceUnreachable as unreachable:
+    except LogSourceUnavailable as unreachable:
         # Unavailable rather than empty: "we could not look" and "there was
         # nothing there" lead an investigation in opposite directions.
         return CapabilityResult.failed(
             TOOL_NAME,
             CapabilityErrorClass.UNAVAILABLE,
-            f"the log source did not answer: {unreachable.reason}. Nothing can be "
+            f"the log source did not answer: {unreachable}. Nothing can be "
             f"concluded about what {resource!r} logged.",
             detail=f"asked about {resource!r}",
         )

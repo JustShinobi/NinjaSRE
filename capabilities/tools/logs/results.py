@@ -21,14 +21,13 @@ from typing import Any
 from config.constants.observability_bridge import LOG_REFERENCE_PREFIX, LOGS_TOOL_NAME
 from core.capability.metadata import EvidenceType
 from core.capability.result import Evidence
-from platform.observation.bridge.logs import LogAnswer
 
 #: What the evidence entries name as their source. Not a vendor: the claim is
 #: made from the deployment's log system, whichever one answered.
 LOG_EVIDENCE_SOURCE = "logs"
 
 
-def render(answer: LogAnswer) -> str:
+def render(answer: Any) -> str:
     """Return the whole answer as one block of text, the bound included."""
     lines = [answer.summary]
     lines.extend(f"{line.observed_at.isoformat()} {line.line}" for line in answer.lines)
@@ -40,7 +39,7 @@ def render(answer: LogAnswer) -> str:
     return "\n".join(lines)
 
 
-def evidence_for(answer: LogAnswer) -> tuple[Evidence, ...]:
+def evidence_for(answer: Any) -> tuple[Evidence, ...]:
     """Return one entry for the query, carrying its own bound.
 
     One rather than one per line: the finding is what the window held, and a
@@ -57,7 +56,7 @@ def evidence_for(answer: LogAnswer) -> tuple[Evidence, ...]:
     )
 
 
-def shape(answer: LogAnswer) -> dict[str, Any]:
+def shape(answer: Any) -> dict[str, Any]:
     """Return the structured value the tool hands back.
 
     Both a rendered block and the structured answer: the text is what the model

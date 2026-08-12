@@ -25,8 +25,10 @@ from datetime import datetime
 from typing import Any
 
 from capabilities.tools.logs import binding
+from capabilities.tools.logs.binding import LogSourceUnavailable
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from gateway.http.state import GatewayState
+from integrations._base.errors import IntegrationError
 from integrations._base.transport import HttpProxyTransport, RequestContext
 from integrations.loki.client import LokiClient
 from integrations.loki.log_source import LokiLogSource
@@ -99,7 +101,13 @@ class ComposedLogAccess:
             # everything or nothing, and neither is about this resource.
             logger.info("logs.no_selector", resource=resource)
             return None
-        return await self.reader.read(selector, at=at)
+        try:
+            return await self.reader.read(selector, at=at)
+        except IntegrationError as unreachable:
+            # The seam. The vendor package may not know the bridge and the
+            # capability may not know the vendor; this is the one place that
+            # holds both, so it is where the translation belongs.
+            raise LogSourceUnavailable(str(unreachable)) from unreachable
 
 
 async def compose_log_sources(

@@ -4,7 +4,7 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-221 tools and 94 skills, 36 of them approval-gated.
+222 tools and 94 skills, 36 of them approval-gated.
 
 ## Skills
 
@@ -4582,6 +4582,28 @@ Evaluate a metric query over a window and return the series grouped by one label
 
 - reading an individual log line, which a metric never contains
 - a question about a single request, where a metric has no resolution
+
+### observability
+
+#### `logs_for_resource`
+
+Return what a specific resource's log stream held in a recent window, with the bound that shaped the answer. Every result says how much of the window was actually read: a source keeping less than the window asked for, or an answer stopped at the line limit, is reported rather than left to look like a quiet guest. An empty answer from a source that responded is a finding — it means the resource logged nothing, not that nobody could look. Call this once you know which resource is affected, not on the alert text.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from logs
+- **Parallel safe:** yes
+
+**Use when:**
+
+- reading what a guest was logging around the time a symptom started
+- confirming a service inside a container restarted, rather than inferring it from metrics
+- establishing that a guest logged nothing unusual, so the cause is elsewhere
+
+**Not for:**
+
+- asking on the alert text before an affected resource has been identified
+- searching the whole cluster's logs for a string, which this deliberately cannot do
+- reading a log stream to build a dashboard, which is a report rather than an investigation
 
 ### remediation
 
