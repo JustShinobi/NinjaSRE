@@ -69,3 +69,20 @@ def test_the_client_can_be_pointed_at_the_operators_own_endpoint() -> None:
 
     assert "example.com" in shipped.base_url
     assert pointed.base_url.startswith("http://10.20.20.37:9090")
+
+
+async def test_a_pressure_reading_asks_for_an_instant_not_a_range() -> None:
+    """A range query without a window is a 400, and a pressure signal is one
+    number now rather than a series: /api/v1/query, not /api/v1/query_range."""
+    from integrations.prometheus.client import INSTANT_QUERY_PATH
+
+    asked: list[tuple[str, object]] = []
+
+    class _Client:
+        async def query_instant(self, expression: str) -> tuple[object, ...]:
+            asked.append((INSTANT_QUERY_PATH, expression))
+            return ()
+
+    await PrometheusMetrics(client=_Client()).evaluate("pve_up")  # type: ignore[arg-type]
+
+    assert asked == [("/api/v1/query", "pve_up")]
