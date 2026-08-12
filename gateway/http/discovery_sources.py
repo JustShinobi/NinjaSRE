@@ -30,6 +30,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from gateway.http.state import GatewayState
 from integrations._base.transport import HttpProxyTransport, RequestContext
 from integrations.proxmox.client import ProxmoxClient
@@ -105,7 +106,13 @@ async def compose_discovery_sources(
         return {}
 
     transport = HttpProxyTransport(base_url=proxy_url)
-    context = RequestContext(org_id=org_id, team_id="", capability=DISCOVERY_CAPABILITY)
+    # The organisation's own handle, not an empty team. A sweep is the
+    # deployment's, not one team's, and the credential a team-less token wrote
+    # went to the organisation-wide handle — asking for "" would build a handle
+    # the grammar refuses and be turned away at the proxy.
+    context = RequestContext(
+        org_id=org_id, team_id=CREDENTIAL_ORG_WIDE_TEAM, capability=DISCOVERY_CAPABILITY
+    )
 
     composed: dict[str, Any] = {}
     for entry in entries:

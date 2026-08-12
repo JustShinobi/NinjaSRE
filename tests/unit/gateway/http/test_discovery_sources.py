@@ -51,6 +51,14 @@ async def test_an_active_integration_with_an_endpoint_is_composed(
     assert set(composed) == {"proxmox"}
     assert set(state.discovery_sources) == {"proxmox"}
 
+    # The credential was stored under the organisation-wide handle, because the
+    # token that wrote it held no team. A sweep that asked for the empty team
+    # would build a handle the grammar refuses and be turned away by the proxy.
+    from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+
+    context = composed["proxmox"].client._context  # noqa: SLF001 — the point of the test
+    assert context.team_id == CREDENTIAL_ORG_WIDE_TEAM
+
 
 async def test_an_integration_that_is_switched_off_is_not_composed(
     monkeypatch: pytest.MonkeyPatch,
