@@ -23,6 +23,7 @@ from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
 from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
+from gateway.http.log_sources import compose_log_sources
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
@@ -61,6 +62,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # the source that uses it is built per tick, because it needs the
         # estate's guests and those change with every sweep.
         await compose_signal_sources(
+            state,
+            org_id=organisation_id(),
+            proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
+        )
+        # The log system, on the same terms. Composed here rather than at the
+        # first investigation that wants a line, so a deployment pointed at a
+        # Loki has one before anybody asks — and one that is not says so, rather
+        # than reporting a resource as quiet.
+        await compose_log_sources(
             state,
             org_id=organisation_id(),
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),

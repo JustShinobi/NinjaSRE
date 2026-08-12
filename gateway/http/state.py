@@ -111,6 +111,11 @@ class GatewayState:
     #: client needs the credential proxy, which the gateway does not build for
     #: itself. An observation tick over none of them stores nothing and says so.
     signal_sources: tuple[Any, ...] = ()
+    #: The log systems this deployment has been pointed at. Empty until
+    #: composition wires one, and then the log capability reports that nothing is
+    #: configured rather than that the resource was quiet — an absence from a
+    #: system nobody pointed at is not evidence of anything.
+    log_sources: tuple[Any, ...] = ()
     #: The document sources a nightly ``knowledge.sync`` job can name, by source
     #: name. Empty until composition wires one, for the same reason as above: a
     #: wiki adapter needs a client and the client needs the credential proxy. A
