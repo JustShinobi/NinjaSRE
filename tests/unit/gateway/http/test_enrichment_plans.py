@@ -134,3 +134,25 @@ def test_the_sweep_runner_is_handed_the_plans() -> None:
     from gateway.http import scheduled_work
 
     assert "plans=" in inspect.getsource(scheduled_work.dispatcher_for)
+
+
+def test_an_entrys_options_survive_the_normalisation_the_composer_reads_through() -> None:
+    """The joint underneath the joint.
+
+    ``_as_mapping`` turns a settings object into the mapping these composers
+    read, and it copied three fields. Every one of them was a field the
+    discovery source needed; ``options`` — where a vendor's own settings live,
+    and where the inventory path is declared — was dropped on the way through.
+
+    So the plan composed from a correctly configured deployment was empty, and
+    the log said so in a way that reads exactly like "nobody configured one".
+    """
+    from gateway.http.discovery_sources import _as_mapping
+
+    class _Entry:
+        name = "proxmox"
+        enabled = True
+        base_url = "https://cluster.example:8006/"
+        options = {"inventory_path": "/srv/infra", "cluster": "HAL9000"}
+
+    assert inventory_path_of(_as_mapping(_Entry())) == "/srv/infra"

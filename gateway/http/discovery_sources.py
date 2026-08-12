@@ -73,11 +73,18 @@ async def _active_integrations(state: GatewayState, org_id: str) -> tuple[Mappin
 
 
 def _as_mapping(entry: Any) -> Mapping[str, Any]:
-    """Return a settings object as the mapping this module reads."""
+    """Return a settings object as the mapping these composers read.
+
+    ``options`` is carried through with the rest. It is where a vendor's own
+    settings live — which cluster an inventory describes, where that inventory
+    is — and a normalisation that dropped it left every composer downstream
+    reading an entry that had been configured correctly and arrived empty.
+    """
     return {
         "name": getattr(entry, "name", ""),
         "enabled": getattr(entry, "enabled", True),
         "base_url": getattr(entry, "base_url", ""),
+        "options": getattr(entry, "options", {}) or {},
     }
 
 
