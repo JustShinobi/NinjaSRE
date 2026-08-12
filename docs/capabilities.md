@@ -4,7 +4,7 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-224 tools and 95 skills, 36 of them approval-gated.
+225 tools and 95 skills, 36 of them approval-gated.
 
 ## Skills
 
@@ -2234,6 +2234,27 @@ Return whether a Proxmox guest could move and, per candidate node, exactly what 
 - performing a migration — nothing here writes
 - which datastores exist where, which proxmox_datastore_availability reads
 - why the guest will not start where it is, which proxmox_guest_start_diagnosis answers
+
+#### `proxmox_node_health`
+
+Return a node's failed systemd units, whether its configured bridges are up, and its LVM thin-pool metadata usage — the three readings that explained the reference cluster's only total outage and that no Proxmox REST endpoint answers. Reported as unavailable, by name, for whichever of the three nothing is publishing, rather than as an absence that could be mistaken for health.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- checking whether a node's failed systemd units explain a guest that will not start
+- checking whether a configured bridge is down before blaming the guests on top of it
+- checking an LVM thin pool's metadata usage, which stops writes while data usage still looks comfortable
+
+**Not for:**
+
+- a guest's own CPU or memory pressure, which proxmox_guest_pressure reads
+- a physical disk's SMART attributes, which proxmox_disk_health reads
+- trend or history over these three readings — this asks for the node's state now
 
 #### `proxmox_orphaned_volumes`
 

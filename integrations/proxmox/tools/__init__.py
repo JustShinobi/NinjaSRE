@@ -14,6 +14,8 @@ answered before anybody looks at the guest.
   never come up.
 - ``proxmox_ha_state`` — what is managed, and whether fencing is imminent.
 - ``proxmox_clock_skew`` — measured against what corosync tolerates.
+- ``proxmox_node_health`` — failed systemd units, bridge state, and thin-pool
+  metadata, none of which the Proxmox API answers.
 
 **Then storage, at the level that is actually failing.**
 
@@ -55,6 +57,7 @@ from integrations.proxmox.tools.guest_start_diagnosis import proxmox_guest_start
 from integrations.proxmox.tools.guest_tasks import proxmox_guest_tasks
 from integrations.proxmox.tools.ha_state import proxmox_ha_state
 from integrations.proxmox.tools.migration_feasibility import proxmox_migration_feasibility
+from integrations.proxmox.tools.node_health import proxmox_node_health
 from integrations.proxmox.tools.orphaned_volumes import proxmox_orphaned_volumes
 from integrations.proxmox.tools.protection_gaps import proxmox_protection_gaps
 from integrations.proxmox.tools.quorum_status import proxmox_quorum_status
@@ -76,6 +79,7 @@ __all__ = [
     "proxmox_guest_tasks",
     "proxmox_ha_state",
     "proxmox_migration_feasibility",
+    "proxmox_node_health",
     "proxmox_orphaned_volumes",
     "proxmox_protection_gaps",
     "proxmox_quorum_status",

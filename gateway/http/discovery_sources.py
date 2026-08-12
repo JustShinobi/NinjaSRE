@@ -32,15 +32,19 @@ from datetime import UTC, datetime
 from typing import Any
 
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+from gateway.http.prometheus_metrics_source import PrometheusMetricsSource
 from gateway.http.state import GatewayState
 from integrations._base.transport import HttpProxyTransport, RequestContext
 from integrations.prometheus.client import PrometheusClient
 from integrations.prometheus.metrics_query import PrometheusMetrics
 from integrations.prometheus.schema import INTEGRATION as PROMETHEUS
+from integrations.proxmox import bridge_readings
 from integrations.proxmox.client import ProxmoxClient
 from integrations.proxmox.discovery import ProxmoxDiscovery
 from platform.config_service.service import ConfigService
 from platform.observability.logging import get_logger
+from platform.observation.bridge.errors import MetricsSourceUnreachable
+from platform.observation.bridge.supplementary import TEXTFILE_METRICS, published_for_series
 from platform.observation.schedule import tick_job
 from platform.persistence.ports import TenantScope
 
@@ -186,15 +190,23 @@ async def compose_signal_sources(
     What is composed is a *client*, not a source. The source needs the estate's
     guests, which change with every sweep, so it is built per tick by the job
     that polls — and this hands it the thing that can answer a query.
+
+    **A Proxmox node's bridge readings bind here too.** ``integrations/
+    proxmox/`` may not import ``platform.observation.bridge`` (NFR-004), so
+    the composition happens here — the one place allowed to hold both the
+    vendor client and the bridge's value types — and only the plain callable
+    crosses back into ``integrations.proxmox.bridge_readings``.
     """
     if not proxy_url:
         logger.info("observation.sources_skipped", reason="no credential proxy is configured")
+        bridge_readings.bind(None)
         return ()
 
     try:
         entries = await _active_integrations(state, org_id)
     except Exception as unreadable:  # noqa: BLE001 — an optional source must not stop a boot
         logger.warning("observation.sources_unreadable", error=str(unreadable))
+        bridge_readings.bind(None)
         return ()
 
     transport = HttpProxyTransport(base_url=proxy_url)
@@ -203,6 +215,7 @@ async def compose_signal_sources(
     )
 
     composed: list[Any] = []
+    metrics_source: PrometheusMetricsSource | None = None
     for entry in entries:
         if str(entry.get("name", "")) != PROMETHEUS or not bool(entry.get("enabled", True)):
             continue
@@ -210,13 +223,12 @@ async def compose_signal_sources(
         if not endpoint:
             logger.warning("observation.source_unaddressed", integration=PROMETHEUS)
             continue
-        composed.append(
-            PrometheusMetrics(
-                client=PrometheusClient(transport=transport, context=context, base_url=endpoint)
-            )
-        )
+        client = PrometheusClient(transport=transport, context=context, base_url=endpoint)
+        composed.append(PrometheusMetrics(client=client))
+        metrics_source = PrometheusMetricsSource(client=client)
 
     state.signal_sources = tuple(composed)
+    bridge_readings.bind(_node_reader(metrics_source) if metrics_source is not None else None)
     logger.info("observation.sources_composed", count=len(composed))
     if composed:
         # A deployment pointed at a metrics system is one that wants its
@@ -226,6 +238,28 @@ async def compose_signal_sources(
         except Exception as failed:  # noqa: BLE001 — a schedule must not stop a boot
             logger.warning("observation.tick_not_scheduled", error=str(failed))
     return tuple(composed)
+
+
+def _node_reader(metrics: PrometheusMetricsSource) -> bridge_readings.NodeReadings:
+    """Return the callable ``bridge_readings`` binds: one node's name to its readings.
+
+    The three textfile metrics are asked for by node rather than by rule: an
+    on-demand tool already knows which node it is about, so there is no
+    unlabelled corpus here for ``map_series`` to resolve — a matcher scoped to
+    the node's own scrape target is the whole join.
+    """
+
+    async def read(node: str) -> Mapping[str, Any]:
+        matchers = tuple(
+            f'{declared.metric}{{instance=~"^{node}:"}}' for declared in TEXTFILE_METRICS
+        )
+        try:
+            series = await metrics.series(matchers=matchers, at=datetime.now(UTC))
+        except MetricsSourceUnreachable as error:
+            raise bridge_readings.NodeReadingsUnavailable(str(error)) from error
+        return published_for_series(series)
+
+    return read
 
 
 __all__ = [

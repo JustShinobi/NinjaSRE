@@ -28,6 +28,7 @@ from platform.credentials.proxy.errors import (
     TenantRateLimited,
     UpstreamUnreachable,
 )
+from platform.credentials.proxy.injection import HeaderInjection, InjectionRule
 from platform.credentials.proxy.model import ProxyRequest
 from platform.credentials.proxy.rate_limit import TenantRateLimiter
 from platform.persistence.ports import AuditOutcome
@@ -361,6 +362,50 @@ async def test_every_refusal_is_audited(harness: Harness) -> None:
     events = await harness.audit_events()
     assert len(events) == 2
     assert all(event.outcome is AuditOutcome.DENIED for event in events)
+
+
+# -- an optional credential: self-hosted vendors with no auth to hold ---------
+
+OPTIONAL_RULE = InjectionRule(
+    integration=INTEGRATION,
+    hosts=(HOST,),
+    injections=(HeaderInjection(header="X-Api-Key", field="api_key"),),
+    credential_optional=True,
+)
+
+
+async def test_an_optional_credential_rule_forwards_bare_when_nothing_is_configured() -> None:
+    harness = await build_harness(rule=OPTIONAL_RULE)
+    harness.sender.responses.append(json_response({}))
+
+    response = await harness.engine.forward(request())
+
+    assert response.status_code == 200
+    assert harness.sender.sent[0].headers.get("X-Api-Key") is None
+
+
+async def test_an_optional_credential_rule_still_injects_one_that_is_configured() -> None:
+    """The flag only relaxes absence: a rule with injections still authenticates a call it can."""
+    harness = await build_harness(rule=OPTIONAL_RULE)
+    await harness.vault.store(harness.scope(), harness.handle(), {"api_key": FIRST_KEY})
+    harness.sender.responses.append(json_response({}))
+
+    await harness.engine.forward(request())
+
+    assert harness.sender.keys_seen() == (FIRST_KEY,)
+
+
+async def test_an_optional_credential_call_without_one_is_still_audited_allowed() -> None:
+    harness = await build_harness(rule=OPTIONAL_RULE)
+    harness.sender.responses.append(json_response({}))
+
+    await harness.engine.forward(request())
+
+    events = await harness.audit_events()
+    assert len(events) == 1
+    assert events[0].outcome is AuditOutcome.ALLOWED
+    assert events[0].detail["handle"]
+    assert "version" not in events[0].detail
 
 
 # -- health -------------------------------------------------------------------

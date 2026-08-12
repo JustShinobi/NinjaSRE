@@ -2,13 +2,13 @@
 
 # Capability reference
 
-224 tools and 95 skills, 36 of them approval-gated. A capability with no declared side-effect level is treated as a write and gated accordingly, so an omission is safe rather than silent.
+225 tools and 95 skills, 36 of them approval-gated. A capability with no declared side-effect level is treated as a write and gated accordingly, so an omission is safe rather than silent.
 
 | Domain | Tools | Skills |
 |---|---|---|
 | [changes](changes.md) | 1 | 1 |
 | [cicd](cicd.md) | 8 | 4 |
-| [cloud_control_plane](cloud-control-plane.md) | 48 | 21 |
+| [cloud_control_plane](cloud-control-plane.md) | 49 | 21 |
 | [communication](communication.md) | 16 | 8 |
 | [data_platform](data-platform.md) | 16 | 8 |
 | [database](database.md) | 14 | 7 |

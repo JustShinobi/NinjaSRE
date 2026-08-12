@@ -299,12 +299,20 @@ class InjectionRule:
     window and the single expiry retry (FR-013). It is declared rather than
     inferred from the presence of an expiry, because a long-lived key with a
     rotation reminder also has an expiry and refreshing it would be wrong.
+
+    ``credential_optional`` says a call may go out with none of these
+    injections applied when no credential is configured for it — a
+    self-hosted vendor run with auth turned off, most often. It relaxes only
+    *absence*: a credential that does resolve is still injected exactly as
+    declared, so a field the rule reads and the credential does not carry is
+    still a hard failure rather than a silent skip.
     """
 
     integration: str
     hosts: tuple[str, ...]
     injections: tuple[Injection, ...]
     refreshable: bool = False
+    credential_optional: bool = False
 
     def __post_init__(self) -> None:
         if not self.hosts:

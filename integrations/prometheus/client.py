@@ -125,6 +125,24 @@ class PrometheusClient(IntegrationClient):
         answer = (await self.get(INSTANT_QUERY_PATH, params={"query": expression})).json()
         return records(answer, "data", "result")
 
+    async def query_range(
+        self, expression: str, *, start: str, end: str, step: str
+    ) -> tuple[dict[str, Any], ...]:
+        """Return every series ``expression`` held between ``start`` and ``end``.
+
+        One request and no paging, unlike ``query_metric``: a caller that wants
+        history for a declared matcher wants the whole window in one range
+        query, not a page it has to ask for again — Prometheus does not page a
+        range query either, only this client's own browsing endpoint does.
+        """
+        answer = (
+            await self.get(
+                QUERY_METRIC_PATH,
+                params={"query": expression, "start": start, "end": end, "step": step},
+            )
+        ).json()
+        return records(answer, "data", "result")
+
     async def list_alerts(
         self,
         state: str = "",

@@ -14,11 +14,21 @@ edited where there is provenance, a preview and an audit row.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 
-from gateway.http.discovery_sources import compose_discovery_sources
+from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
+from integrations.proxmox import bridge_readings
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _clean_bridge_binding() -> Iterator[None]:
+    bridge_readings.clear()
+    yield
+    bridge_readings.clear()
 
 
 class _Config:
@@ -135,9 +145,56 @@ async def test_a_configuration_that_cannot_be_read_does_not_stop_the_boot(
     assert composed == {}
 
 
+async def test_composing_signal_sources_binds_the_node_reader_a_tool_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The defect this covers: a node-health tool needs a real reader bound,
+    and nothing bound one — every deployment's bridge reading was ``None``,
+    always."""
+    from gateway.http import discovery_sources as module
+
+    async def resolved(_state: object, _org: str) -> tuple[dict[str, object], ...]:
+        return ({"name": "prometheus", "enabled": True, "base_url": "http://10.20.20.37:9090"},)
+
+    async def no_schedule(_state: object, *, org_id: str) -> object:
+        return object()
+
+    monkeypatch.setattr(module, "_active_integrations", resolved)
+    monkeypatch.setattr(module, "schedule_observation_tick", no_schedule)
+
+    state = _State()
+    await compose_signal_sources(state, org_id="acme", proxy_url="http://127.0.0.1:1")
+
+    assert bridge_readings.current() is not None
+
+
+async def test_composing_signal_sources_with_nothing_configured_binds_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from gateway.http import discovery_sources as module
+
+    async def resolved(_state: object, _org: str) -> tuple[dict[str, object], ...]:
+        return ()
+
+    monkeypatch.setattr(module, "_active_integrations", resolved)
+
+    state = _State()
+    await compose_signal_sources(state, org_id="acme", proxy_url="http://127.0.0.1:1")
+
+    assert bridge_readings.current() is None
+
+
+async def test_composing_signal_sources_with_no_proxy_binds_nothing() -> None:
+    state = _State()
+    await compose_signal_sources(state, org_id="acme", proxy_url="")
+
+    assert bridge_readings.current() is None
+
+
 class _State:
     """Only what the composer touches."""
 
     def __init__(self) -> None:
         self.gateway = object()
         self.discovery_sources: dict[str, object] = {}
+        self.signal_sources: tuple[object, ...] = ()
