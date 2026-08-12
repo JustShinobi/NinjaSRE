@@ -11,6 +11,7 @@ down by the process exiting under it.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -18,9 +19,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from config.constants import NINJASRE_CREDENTIAL_PROXY_URL_ENV
+from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
 from gateway.http.discovery_sources import compose_discovery_sources
+from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
 from platform.startup.bootstrap import organisation_id
@@ -55,9 +58,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
         )
 
+    # Nothing else claims a due job, so a deployment that scheduled a sweep and
+    # served no scheduler is one whose estate never fills. Started after the
+    # sources it dispatches to are composed, and stopped before the store it
+    # writes through is closed.
+    stop = asyncio.Event()
+    scheduler: asyncio.Task[None] | None = None
+    if health.is_ready:
+        scheduler = asyncio.create_task(
+            run_scheduler(
+                worker_for(state),
+                interval_seconds=SCHEDULER_TICK_INTERVAL_SECONDS,
+                stop=stop,
+            )
+        )
+
     try:
         yield
     finally:
+        stop.set()
+        if scheduler is not None:
+            scheduler.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await scheduler
         await drain(state)
         await state.gateway.close()
 

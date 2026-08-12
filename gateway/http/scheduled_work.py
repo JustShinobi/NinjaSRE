@@ -17,6 +17,10 @@ which reads as a hole in the build rather than as configuration that has drifted
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+from typing import Any
+
 from config.constants.knowledge import (
     CORPUS_SYNC_JOB_KIND,
     KNOWLEDGE_SYNC_JOB_KIND,
@@ -30,6 +34,7 @@ from platform.knowledge.base.sync.corpus_run import CorpusSync
 from platform.knowledge.base.sync.port import KnowledgeSync
 from platform.knowledge.base.sync.runner import CorpusSyncRunner, KnowledgeSyncRunner
 from platform.knowledge.service import KnowledgeService
+from platform.observability.logging import get_logger
 from platform.persistence.ports.transaction import TenantScope
 from platform.scheduler.dispatch import JobKindDispatcher, ScheduledJobWorker
 
@@ -42,6 +47,9 @@ def _sync_for(state: GatewayState, scope: TenantScope) -> KnowledgeSync:
     """
     service = KnowledgeService(gateway=state.gateway, scope=scope, engine=state.guardrails)
     return KnowledgeSync(ingestor=service.ingestor, scope=scope)
+
+
+logger = get_logger(__name__)
 
 
 def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
@@ -75,6 +83,39 @@ def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
         ),
     )
     return dispatcher
+
+
+async def run_scheduler(worker: Any, *, interval_seconds: float, stop: asyncio.Event) -> None:
+    """Claim and run everything due, on an interval, until ``stop`` is set.
+
+    The piece that was missing. A job registered through a route is a row with
+    a due time, and a due time nobody comes round for is a job that never runs
+    — which is what left an estate empty on a deployment that had been pointed
+    at its own cluster.
+
+    **One bad tick does not end the loop.** A store that goes away for a moment
+    must not take every recurring job with it; the alternative is a deployment
+    that looks like one which scheduled nothing, with no line saying otherwise.
+
+    **Stopping is immediate.** The wait is on the event rather than on the
+    clock, so a restart does not pause for as long as the slowest schedule.
+    """
+    while not stop.is_set():
+        try:
+            results = await worker.tick()
+        except asyncio.CancelledError:
+            raise
+        except Exception as failed:  # noqa: BLE001 — one tick must not end the loop
+            logger.warning("scheduler.tick_failed", error=str(failed))
+        else:
+            if results:
+                logger.info("scheduler.tick", ran=len(results))
+        if interval_seconds <= 0:
+            # Yield, so a caller driving this in a test is not starved.
+            await asyncio.sleep(0)
+            continue
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=interval_seconds)
 
 
 def worker_for(state: GatewayState, *, worker_id: str = "gateway") -> ScheduledJobWorker:
