@@ -36,6 +36,43 @@ export const CONFIG_FILTERS: readonly FilterName[] = ['node'];
 /** The permission that decides whether the editor is on the page at all. */
 const WRITE = 'config.write';
 
+/** How much of a nested value's compact form shows before the reader has to expand it. */
+const VALUE_PREVIEW_LENGTH = 80;
+
+/** Return `value` pretty-printed, or null if it is not JSON worth reformatting. */
+function prettyNested(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One effective-configuration value, collapsed if it is a nested object or list.
+ *
+ * The API sends a policy or an integration list as one compact JSON string —
+ * correct on the wire, unreadable in a table cell. A leaf value (a string, a
+ * number) still renders exactly as before; only the shapes nobody could read
+ * at a glance gain a disclosure.
+ */
+function ConfigValue({ value }: { readonly value: string }): ReactNode {
+  const pretty = prettyNested(value);
+  if (pretty === null) return value;
+  const preview =
+    value.length > VALUE_PREVIEW_LENGTH
+      ? `${value.slice(0, VALUE_PREVIEW_LENGTH)}…`
+      : value;
+  return (
+    <details data-testid="config-value-nested">
+      <summary className="cursor-pointer text-muted">{preview}</summary>
+      <pre className="mt-2 whitespace-pre-wrap break-all text-meta">{pretty}</pre>
+    </details>
+  );
+}
+
 export async function ConfigurationScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search } = context;
   const state = readViewState(search, CONFIG_FILTERS);
@@ -150,7 +187,7 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
                       {name}
                     </td>
                     <td className="px-3 py-2 edge border-border border-t-0 border-x-0 break-all">
-                      {value}
+                      <ConfigValue value={value} />
                     </td>
                     <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
                       {/* Which level set it. Without this, a value changed at

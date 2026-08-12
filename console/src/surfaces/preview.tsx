@@ -247,6 +247,39 @@ function typed(field: EditableField, keyed: string): unknown {
 /** One entry of an ordered list, as the editor holds it while it is being edited. */
 type Entry = Record<string, unknown>;
 
+/** Every field belonging to one section, in the order the catalogue declared them. */
+interface Section {
+  readonly section: string;
+  readonly summary: string;
+  readonly fields: readonly EditableField[];
+}
+
+/**
+ * Group `fields` by `section`, first-seen order.
+ *
+ * The catalogue already tags every field with the section it belongs to; this
+ * editor used to ignore that and draw one flat column, which is how a dozen
+ * unrelated settings ended up looking like a single undifferentiated form.
+ * Grouping does not change what is editable — every field is still on the
+ * page — it changes whether the page can be scanned.
+ */
+function sectioned(fields: readonly EditableField[]): readonly Section[] {
+  const order: string[] = [];
+  const bySection = new Map<string, EditableField[]>();
+  for (const field of fields) {
+    if (!bySection.has(field.section)) {
+      order.push(field.section);
+      bySection.set(field.section, []);
+    }
+    bySection.get(field.section)?.push(field);
+  }
+  return order.map((section) => ({
+    section,
+    summary: bySection.get(section)?.[0]?.sectionSummary ?? '',
+    fields: bySection.get(section) ?? [],
+  }));
+}
+
 /** Return the entry a newly added row starts as, from the catalogue's defaults. */
 function blankEntry(items: readonly ItemField[]): Entry {
   const fresh: Entry = {};
@@ -409,16 +442,36 @@ export function ConfigEditor({ nodeId, fields, labels }: ConfigEditorProps): Rea
   return (
     <div data-testid="config-editor" className="flex flex-col gap-3">
       <div className="flex flex-col gap-3">
-        {fields.map((field) => (
-          <FieldRow
-            key={field.path}
-            field={field}
-            keyed={pending.edits[field.path]}
-            cleared={pending.cleared.includes(field.path)}
-            labels={labels}
-            onEdit={edit}
-            onToggleClear={toggleClear}
-          />
+        {sectioned(fields).map(({ section, summary, fields: sectionFields }) => (
+          <details
+            key={section === '' ? ' ' : section}
+            data-testid="config-section"
+            data-section={section}
+            open
+            className="edge border-border rounded-2 px-3 py-2"
+          >
+            {section === '' ? null : (
+              <summary className="cursor-pointer select-none">
+                <span className="font-mono text-meta text-strong">{section}</span>
+                {summary === '' ? null : (
+                  <span className="ml-2 text-meta text-muted">{summary}</span>
+                )}
+              </summary>
+            )}
+            <div className="flex flex-col gap-3 pt-3">
+              {sectionFields.map((field) => (
+                <FieldRow
+                  key={field.path}
+                  field={field}
+                  keyed={pending.edits[field.path]}
+                  cleared={pending.cleared.includes(field.path)}
+                  labels={labels}
+                  onEdit={edit}
+                  onToggleClear={toggleClear}
+                />
+              ))}
+            </div>
+          </details>
         ))}
       </div>
 

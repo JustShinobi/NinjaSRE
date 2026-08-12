@@ -53,6 +53,7 @@ const LABELS = {
   failed: 'The deployment refused this.',
   unreachable: 'The deployment could not be reached.',
   none: 'Not recorded',
+  revokedGroup: '{count} revoked',
 };
 
 const TOKENS: readonly IssuedToken[] = [
@@ -181,6 +182,52 @@ describe('revoking one', () => {
 
     expect(screen.queryByTestId('revoke-token')).toBeNull();
     expect(screen.getByText(LABELS.revoked)).toBeInTheDocument();
+  });
+});
+
+describe('a list that only ever grows', () => {
+  const LIVE: IssuedToken = {
+    tokenId: 'tok-live',
+    name: 'nightly-backup-checker',
+    scopes: ['investigation.read'],
+    revoked: false,
+    expires: 'in 300 days',
+  };
+
+  function revokedToken(tokenId: string): IssuedToken {
+    return {
+      tokenId,
+      name: 'Console sign-in',
+      scopes: [],
+      revoked: true,
+      expires: 'in 12 hours',
+    };
+  }
+
+  it('collapses revoked tokens behind a disclosure named by how many there are', () => {
+    panel([LIVE, revokedToken('tok-1'), revokedToken('tok-2')]);
+
+    expect(screen.getByTestId('revoked-tokens')).toHaveTextContent('2 revoked');
+    // Still in the document — a disclosure hides content visually, not from
+    // the tree — so both revoked rows and the live one are all present.
+    expect(screen.getAllByTestId('token')).toHaveLength(3);
+  });
+
+  it('draws no disclosure at all when nothing is revoked', () => {
+    panel([LIVE]);
+
+    expect(screen.queryByTestId('revoked-tokens')).toBeNull();
+  });
+
+  it('keeps a token just revoked in this session where it was, not inside the collapsed group', async () => {
+    panel([LIVE]);
+
+    await userEvent.click(screen.getByTestId('revoke-token'));
+    answerWith({ ok: true, reachable: true, reason: '' });
+    await userEvent.click(screen.getByTestId('confirm-revoke'));
+    await screen.findByText(LABELS.revoked);
+
+    expect(screen.queryByTestId('revoked-tokens')).toBeNull();
   });
 });
 

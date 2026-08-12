@@ -708,6 +708,57 @@ describe('verifying what is configured', () => {
   });
 });
 
+// --- What is established, once, however many places record it -------------------------------------
+
+describe('what is established', () => {
+  /**
+   * A provider that is also a generic integration — Gemini both drives
+   * investigations and appears in the integration catalogue — is one stored
+   * credential. The panel used to list it twice under the same name, because
+   * the chosen provider was prepended without excluding it from the
+   * integrations spread beside it.
+   */
+  it('lists a credential once even when it is both the chosen provider and a configured integration', async () => {
+    serveScenario('populated');
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/providers') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              providers: [
+                { provider_id: 'google_gemini', display_name: 'Gemini', configured: true },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: true,
+              provider: 'verified',
+              integrations: [{ name: 'google_gemini', readiness: 'configured' }],
+              steps: [],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+
+    render(await FirstRunScreen(await surfaceContext()));
+
+    const established = screen.getByTestId('established');
+    expect(within(established).getAllByText('google_gemini')).toHaveLength(1);
+  });
+});
+
 // --- The last two steps hand over -----------------------------------------------------------------
 
 describe('the steps this feature does not own', () => {

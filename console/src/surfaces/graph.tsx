@@ -176,6 +176,9 @@ export interface HierarchyGraphProps {
 /** How many boxes a rank draws before it stops drawing. */
 export const RANK_BOUND = 8;
 
+/** Minimum horizontal gap between two boxes drawn in the same rank. */
+const NODE_GAP = 16;
+
 /**
  * A hierarchy, top to bottom, in the same visual language as the neighbourhood.
  *
@@ -195,13 +198,20 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
     nodes: rank.nodes.slice(0, RANK_BOUND),
   }));
   const height = Math.max(VIEW_HEIGHT, drawn.length * RANK_HEIGHT);
+  // The widest rank decides how wide the picture is. A fixed canvas sized for
+  // a handful of boxes per row draws a wider rank overlapping instead of
+  // refusing to — which for an SVG box is one opaque rectangle sitting on
+  // top of its neighbour's label, not a visible layout bug so much as a
+  // vanished word.
+  const widestRank = Math.max(1, ...drawn.map((rank) => rank.nodes.length));
+  const width = Math.max(VIEW_WIDTH, widestRank * (NODE_WIDTH + NODE_GAP));
   const rowY = (index: number): number => index * RANK_HEIGHT + RANK_HEIGHT / 2;
 
   return (
     <svg
       role="img"
       aria-label={labels.title}
-      viewBox={`0 0 ${String(VIEW_WIDTH)} ${String(height)}`}
+      viewBox={`0 0 ${String(width)} ${String(height)}`}
       data-testid="hierarchy"
       className="w-full h-auto"
     >
@@ -213,10 +223,10 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
             rank.nodes.map((node) => (
               <line
                 key={`edge-${node.id}`}
-                x1={VIEW_WIDTH / 2}
+                x1={width / 2}
                 y1={rowY(index) + NODE_HEIGHT / 2}
                 x2={
-                  acrossFor(rank.nodes.indexOf(node), rank.nodes.length) +
+                  acrossFor(rank.nodes.indexOf(node), rank.nodes.length, width) +
                   NODE_WIDTH / 2
                 }
                 y2={rowY(index + 1) - NODE_HEIGHT / 2}
@@ -237,7 +247,7 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
           >
             <Box
               node={node}
-              x={acrossFor(position, rank.nodes.length)}
+              x={acrossFor(position, rank.nodes.length, width)}
               y={rowY(index) - NODE_HEIGHT / 2}
             />
           </g>
@@ -247,8 +257,8 @@ export function HierarchyGraph({ ranks, labels }: HierarchyGraphProps): ReactNod
   );
 }
 
-/** Where the `index`th of `count` boxes sits across the picture. */
-function acrossFor(index: number, count: number): number {
-  const step = VIEW_WIDTH / (count + 1);
+/** Where the `index`th of `count` boxes sits across a picture `width` wide. */
+function acrossFor(index: number, count: number, width: number): number {
+  const step = width / (count + 1);
   return step * (index + 1) - NODE_WIDTH / 2;
 }

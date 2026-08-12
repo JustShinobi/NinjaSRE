@@ -191,6 +191,7 @@ export async function AdministrationScreen(
                 revoke: message(locale, 'admin.tokens.revoke'),
                 revoking: message(locale, 'admin.tokens.revoking'),
                 revoked: message(locale, 'admin.tokens.revoked'),
+                revokedGroup: message(locale, 'admin.tokens.revokedGroup'),
                 revokeConsequence: message(locale, 'admin.tokens.revokeConsequence'),
                 revokeConfirm: message(locale, 'admin.tokens.revokeConfirm'),
                 revokeCancel: message(locale, 'admin.tokens.revokeCancel'),

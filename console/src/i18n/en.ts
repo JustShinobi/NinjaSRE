@@ -973,6 +973,7 @@ export const EN = {
   'admin.tokens.revokeCancel': 'Leave it working',
   'admin.tokens.failed': 'The deployment refused this.',
   'admin.tokens.unreachable': 'The deployment could not be reached.',
+  'admin.tokens.revokedGroup': '{count} revoked',
   'admin.column.token': 'Token',
   'admin.column.scopes': 'Scopes',
   'admin.column.expires': 'Expires',

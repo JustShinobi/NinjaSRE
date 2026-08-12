@@ -242,11 +242,17 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   // Everything this deployment actually holds a credential for, provider
   // included. "Ticked" and "established" are different claims and this is the
   // second one.
+  //
+  // The chosen provider is excluded from the integrations spread below rather
+  // than left to collide: a provider that is also a generic integration —
+  // Gemini both drives investigations and appears in the integration
+  // catalogue — is one stored credential, not two, and this list claims to
+  // show what is established, not how many places a fact is recorded.
   const established: readonly { name: string; readiness: string }[] = [
     ...(setup.provider === 'absent'
       ? []
       : [{ name: chosen === '' ? 'provider' : chosen, readiness: setup.provider }]),
-    ...configuredIntegrations(setup),
+    ...configuredIntegrations(setup).filter((entry) => entry.name !== chosen),
   ];
 
   const stepTitle = (step: WizardStep): string =>

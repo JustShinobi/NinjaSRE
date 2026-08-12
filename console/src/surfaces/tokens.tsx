@@ -48,6 +48,8 @@ export interface TokenLabels {
   readonly failed: string;
   readonly unreachable: string;
   readonly none: string;
+  /** Interpolates `{count}`, e.g. "12 revoked". Names the disclosure below the live list. */
+  readonly revokedGroup: string;
 }
 
 export interface TokenPanelProps {
@@ -119,6 +121,78 @@ export function TokenPanel({ tokens, labels }: TokenPanelProps): ReactNode {
     setGone((was) => [...was, tokenId]);
   }
 
+  // Grouped by the token's own recorded state, not by `gone`: a token just
+  // revoked in this session stays where the operator was looking at it,
+  // showing its new status in place, rather than jumping into the collapsed
+  // group the instant the confirmation is pressed.
+  const live = tokens.filter((token) => !token.revoked);
+  const revokedTokens = tokens.filter((token) => token.revoked);
+
+  function row(token: IssuedToken): ReactNode {
+    const revoked = token.revoked || gone.includes(token.tokenId);
+    return (
+      <li
+        key={token.tokenId}
+        data-testid="token"
+        data-token={token.tokenId}
+        className="flex flex-wrap items-center gap-3 min-w-0"
+      >
+        <span className="truncate">{token.name}</span>
+        <span className="text-meta text-muted truncate">{token.scopes.join(', ')}</span>
+        <span className="ml-auto flex flex-wrap items-center gap-2">
+          {/* Never the secret. It was shown once, at issue, by the
+              deployment — and never again by anything. */}
+          <Badge status={revoked ? 'revoked' : 'healthy'} />
+          <span className="text-meta text-muted">
+            {token.expires === '' ? labels.none : token.expires}
+          </span>
+          {revoked ? (
+            <span className="text-meta text-muted">{labels.revoked}</span>
+          ) : confirming === token.tokenId ? (
+            <span
+              data-testid="revoke-confirm"
+              role="alertdialog"
+              aria-label={labels.revoke}
+              className="flex flex-wrap items-center gap-2"
+            >
+              <span className="text-meta">{labels.revokeConsequence}</span>
+              <Button
+                variant="destructive"
+                data-testid="confirm-revoke"
+                state={busy === token.tokenId ? 'loading' : 'default'}
+                onClick={() => {
+                  void revoke(token.tokenId);
+                }}
+              >
+                {labels.revokeConfirm}
+              </Button>
+              <Button
+                data-testid="cancel-revoke"
+                onClick={() => {
+                  setConfirming('');
+                }}
+              >
+                {labels.revokeCancel}
+              </Button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              data-testid="revoke-token"
+              data-token={token.tokenId}
+              className="text-meta text-danger underline"
+              onClick={() => {
+                setConfirming(token.tokenId);
+              }}
+            >
+              {labels.revoke}
+            </button>
+          )}
+        </span>
+      </li>
+    );
+  }
+
   return (
     <div data-testid="token-panel" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
@@ -156,74 +230,23 @@ export function TokenPanel({ tokens, labels }: TokenPanelProps): ReactNode {
         </div>
       )}
 
-      <ul className="flex flex-col gap-2 text-small">
-        {tokens.map((token) => {
-          const revoked = token.revoked || gone.includes(token.tokenId);
-          return (
-            <li
-              key={token.tokenId}
-              data-testid="token"
-              data-token={token.tokenId}
-              className="flex flex-wrap items-center gap-3 min-w-0"
-            >
-              <span className="truncate">{token.name}</span>
-              <span className="text-meta text-muted truncate">
-                {token.scopes.join(', ')}
-              </span>
-              <span className="ml-auto flex flex-wrap items-center gap-2">
-                {/* Never the secret. It was shown once, at issue, by the
-                    deployment — and never again by anything. */}
-                <Badge status={revoked ? 'revoked' : 'healthy'} />
-                <span className="text-meta text-muted">
-                  {token.expires === '' ? labels.none : token.expires}
-                </span>
-                {revoked ? (
-                  <span className="text-meta text-muted">{labels.revoked}</span>
-                ) : confirming === token.tokenId ? (
-                  <span
-                    data-testid="revoke-confirm"
-                    role="alertdialog"
-                    aria-label={labels.revoke}
-                    className="flex flex-wrap items-center gap-2"
-                  >
-                    <span className="text-meta">{labels.revokeConsequence}</span>
-                    <Button
-                      variant="destructive"
-                      data-testid="confirm-revoke"
-                      state={busy === token.tokenId ? 'loading' : 'default'}
-                      onClick={() => {
-                        void revoke(token.tokenId);
-                      }}
-                    >
-                      {labels.revokeConfirm}
-                    </Button>
-                    <Button
-                      data-testid="cancel-revoke"
-                      onClick={() => {
-                        setConfirming('');
-                      }}
-                    >
-                      {labels.revokeCancel}
-                    </Button>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    data-testid="revoke-token"
-                    data-token={token.tokenId}
-                    className="text-meta text-danger underline"
-                    onClick={() => {
-                      setConfirming(token.tokenId);
-                    }}
-                  >
-                    {labels.revoke}
-                  </button>
-                )}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+      <ul className="flex flex-col gap-2 text-small">{live.map(row)}</ul>
+
+      {/* Revoked tokens accumulate — every sign-in issues one — and a flat
+          list that only ever grows is the same wall this console removed from
+          Configuration and Catalogue. Collapsed by default because a revoked
+          token is history, not something an operator triaging live access
+          needs in front of them; the count says whether it is worth opening. */}
+      {revokedTokens.length === 0 ? null : (
+        <details data-testid="revoked-tokens">
+          <summary className="cursor-pointer text-meta text-muted">
+            {labels.revokedGroup.replace('{count}', String(revokedTokens.length))}
+          </summary>
+          <ul className="flex flex-col gap-2 text-small pt-2">
+            {revokedTokens.map(row)}
+          </ul>
+        </details>
+      )}
 
       {failure === '' ? null : (
         <span data-testid="token-failure" className="text-meta text-danger">

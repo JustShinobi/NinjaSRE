@@ -103,7 +103,15 @@ export function SidebarNav({
                     // segment fetch rather than a document load: the frame the
                     // viewer is looking at is not rebuilt, and the scroll
                     // position of the list they came from survives the trip.
-                    prefetch
+                    //
+                    // Prefetch is off rather than defaulted on: every area
+                    // here is a dynamic Server Component that reads live,
+                    // authenticated data on render, so a default prefetch
+                    // would mean every one of the eighteen areas re-runs its
+                    // API reads on every single navigation, not just the one
+                    // the viewer opened — a stampede the gateway's session
+                    // handling was not built to absorb.
+                    prefetch={false}
                     data-testid="nav-entry"
                     data-area={area.id}
                     aria-current={current_ ? 'page' : undefined}

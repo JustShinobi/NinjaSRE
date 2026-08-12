@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
 import { Badge } from '@/components/status';
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
-import { capabilityRows } from '../capability-rows';
+import { capabilityRows, type CapabilityRow } from '../capability-rows';
 import type { SurfaceContext } from '../context';
 import { CredentialField } from '../credential';
 import { credentialLabels, panelLabels } from '../labels';
@@ -43,6 +43,34 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
 const MANAGE = 'integration.manage';
 
 export const CATALOGUE_FILTERS: readonly FilterName[] = ['node'];
+
+/** One domain's tools, in the order the domain was first seen. */
+interface DomainGroup {
+  readonly domain: string;
+  readonly tools: readonly CapabilityRow[];
+}
+
+/**
+ * Group `tools` by domain, first-seen order.
+ *
+ * A deployment declares its whole tool surface here — hundreds of rows for a
+ * platform with several vendor integrations — and a flat table that long is
+ * read by scrolling rather than by looking. The domain a tool already carries
+ * is what an operator orients by ("what can it do against Kubernetes"), so it
+ * becomes a heading instead of just a column value.
+ */
+function groupedByDomain(tools: readonly CapabilityRow[]): readonly DomainGroup[] {
+  const order: string[] = [];
+  const byDomain = new Map<string, CapabilityRow[]>();
+  for (const tool of tools) {
+    if (!byDomain.has(tool.domain)) {
+      order.push(tool.domain);
+      byDomain.set(tool.domain, []);
+    }
+    byDomain.get(tool.domain)?.push(tool);
+  }
+  return order.map((domain) => ({ domain, tools: byDomain.get(domain) ?? [] }));
+}
 
 export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search } = context;
@@ -132,35 +160,53 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
                 </tr>
               </thead>
               <tbody>
-                {tools.map((tool) => (
-                  <tr
-                    key={tool.name}
-                    data-testid="capability"
-                    data-capability={tool.name}
-                  >
-                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
-                      {tool.name}
-                    </td>
-                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                      {tool.domain === '' ? none : tool.domain}
-                    </td>
-                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                      <Badge status={tool.sideEffect} />
-                    </td>
-                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                      {!tool.known ? (
-                        <span className="text-muted text-meta">{none}</span>
-                      ) : tool.available ? (
-                        <Badge status="healthy" />
-                      ) : (
-                        <span className="text-meta text-muted">
-                          {message(locale, 'catalogue.blocked', {
-                            integration: tool.reason === '' ? none : tool.reason,
-                          })}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
+                {groupedByDomain(tools).map(({ domain, tools: domainTools }) => (
+                  <Fragment key={domain === '' ? ' ' : domain}>
+                    {domain === '' ? null : (
+                      <tr data-testid="capability-domain" data-domain={domain}>
+                        <th
+                          scope="rowgroup"
+                          colSpan={4}
+                          className="text-left text-meta font-semibold text-strong bg-hover px-3 py-2 edge border-border border-t-0 border-x-0"
+                        >
+                          {domain}{' '}
+                          <span className="text-muted font-normal">
+                            ({domainTools.length})
+                          </span>
+                        </th>
+                      </tr>
+                    )}
+                    {domainTools.map((tool) => (
+                      <tr
+                        key={tool.name}
+                        data-testid="capability"
+                        data-capability={tool.name}
+                      >
+                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
+                          {tool.name}
+                        </td>
+                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                          {tool.domain === '' ? none : tool.domain}
+                        </td>
+                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                          <Badge status={tool.sideEffect} />
+                        </td>
+                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                          {!tool.known ? (
+                            <span className="text-muted text-meta">{none}</span>
+                          ) : tool.available ? (
+                            <Badge status="healthy" />
+                          ) : (
+                            <span className="text-meta text-muted">
+                              {message(locale, 'catalogue.blocked', {
+                                integration: tool.reason === '' ? none : tool.reason,
+                              })}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
                 {skills.map((skill) => (
                   <tr key={skill.name} data-testid="capability">

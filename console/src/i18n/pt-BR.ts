@@ -910,6 +910,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.tokens.revokeCancel': 'Deixar a funcionar',
   'admin.tokens.failed': 'O deployment recusou isto.',
   'admin.tokens.unreachable': 'Não foi possível alcançar o deployment.',
+  'admin.tokens.revokedGroup': '{count} revogados',
   'admin.column.token': 'Token',
   'admin.column.scopes': 'Âmbitos',
   'admin.column.expires': 'Expira',
