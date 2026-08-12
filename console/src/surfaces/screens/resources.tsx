@@ -26,6 +26,7 @@ import {
 } from '../read';
 import { RowList, type ListRow } from '../rows';
 import { readViewState, type FilterName } from '../url-state';
+import { UNPLACED, criticalityOf, criticalityRank, zoneOf } from './resources-view';
 
 /**
  * What am I responsible for, and what state is it in?
@@ -62,7 +63,18 @@ import { readViewState, type FilterName } from '../url-state';
  * were only rendered on the resource it lacks.
  */
 
-export const RESOURCE_FILTERS: readonly FilterName[] = ['kind', 'state'];
+/**
+ * Zone and criticality, not kind and state.
+ *
+ * Kind and state are what the hypervisor knows. An operator triaging an
+ * estate asks "what is in the DMZ" and "what is critical" — and until the
+ * declared inventory was read, neither question had an answer to filter on,
+ * so the screen offered the two facts it happened to have.
+ *
+ * State has not gone anywhere: the default sort is still worst-first, and the
+ * state column is still there. It is simply not what somebody narrows by.
+ */
+export const RESOURCE_FILTERS: readonly FilterName[] = ['zone', 'criticality'];
 
 /**
  * Worst first. The order is the triage order, not the alphabet.
@@ -185,14 +197,16 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   // shape of answer, same reason for a panel — there is no row to mark.
   const unresolvedTargets = list(dataOf(unresolved), 'targets');
 
-  const kinds = [...new Set(records.map((record) => text(record, 'kind')))].sort();
-  const states = [...new Set(records.map((record) => text(record, 'health')))].sort();
+  // The vocabulary this estate actually uses, not one this console invents:
+  // an operator whose tiers are gold/silver/bronze filters by those words.
+  const zones = [...new Set(records.map(zoneOf))].sort();
+  const criticalities = [...new Set(records.map(criticalityOf))].filter(Boolean).sort();
 
   const filtered = records.filter((record) => {
-    const kind = state.filters.kind;
-    const reported = state.filters.state;
-    if (kind !== undefined && text(record, 'kind') !== kind) return false;
-    if (reported !== undefined && text(record, 'health') !== reported) return false;
+    const zone = state.filters.zone;
+    const criticality = state.filters.criticality;
+    if (zone !== undefined && zoneOf(record) !== zone) return false;
+    if (criticality !== undefined && criticalityOf(record) !== criticality) return false;
     return true;
   });
 
@@ -201,7 +215,10 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
       const order = text(left, state.sort).localeCompare(text(right, state.sort));
       return state.descending ? -order : order;
     }
-    return stateRank(left) - stateRank(right);
+    // Worst first, and among equally unwell things the ones somebody said
+    // matter most. A degraded critical guest outranks a degraded scratch one.
+    const byState = stateRank(left) - stateRank(right);
+    return byState !== 0 ? byState : criticalityRank(left) - criticalityRank(right);
   });
 
   const none = message(locale, 'surface.none');
@@ -222,7 +239,18 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         { kind: 'muted', text: text(record, 'kind') },
         {
           kind: 'muted',
-          text: text(record, 'parent_name') === '' ? none : text(record, 'parent_name'),
+          text:
+            zoneOf(record) === UNPLACED
+              ? message(locale, 'resources.zone.unplaced')
+              : zoneOf(record),
+        },
+        {
+          // The word the operator wrote, never one this console chose for them.
+          kind: criticalityOf(record) === '' ? 'muted' : 'status',
+          text:
+            criticalityOf(record) === ''
+              ? message(locale, 'resources.criticality.ungraded')
+              : criticalityOf(record),
         },
         { kind: 'status', text: text(record, 'health') },
         used > 0
@@ -263,14 +291,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         anyLabel={message(locale, 'surface.filter.any')}
         choices={[
           {
-            name: 'kind',
-            label: message(locale, 'resources.filter.kind'),
-            options: kinds.map((value) => ({ value, label: value })),
+            name: 'zone',
+            label: message(locale, 'resources.filter.zone'),
+            options: zones.map((value) => ({
+              value,
+              label: value === UNPLACED ? message(locale, 'resources.zone.unplaced') : value,
+            })),
           },
           {
-            name: 'state',
-            label: message(locale, 'resources.filter.state'),
-            options: states.map((value) => ({ value, label: value })),
+            name: 'criticality',
+            label: message(locale, 'resources.filter.criticality'),
+            options: criticalities.map((value) => ({ value, label: value })),
           },
         ]}
       />
@@ -308,7 +339,12 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               header: message(locale, 'resources.column.kind'),
               sortable: true,
             },
-            { key: 'parent_name', header: message(locale, 'resources.column.parent') },
+            { key: 'zone', header: message(locale, 'resources.column.zone'), sortable: true },
+            {
+              key: 'criticality',
+              header: message(locale, 'resources.column.criticality'),
+              sortable: true,
+            },
             {
               key: 'health',
               header: message(locale, 'resources.column.state'),
