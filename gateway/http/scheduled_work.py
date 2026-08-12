@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 from typing import Any
 
+from config.constants.estate import ESTATE_DISCOVERY_JOB_KIND
 from config.constants.knowledge import (
     CORPUS_SYNC_JOB_KIND,
     KNOWLEDGE_SYNC_JOB_KIND,
@@ -73,15 +74,19 @@ def dispatcher_for(state: GatewayState) -> JobKindDispatcher:
             ),
         ),
     )
-    dispatcher.register(
-        TOPOLOGY_DISCOVERY_JOB_KIND,
-        TopologyDiscoveryRunner(
-            readers=dict(state.discovery_sources),
-            sweeper=EnrichingSweeper(
-                sweeper=EstateSweeper(gateway=state.gateway, kinds=state.estate_kinds)
-            ),
+    # One runner, two kinds, because two schedulers write them: the estate's own
+    # registration writes estate.discovery and the knowledge graph's writes
+    # topology.discovery. Both mean "sweep this source", and a kind nothing
+    # dispatches is a job that is claimed, found unrunnable and rescheduled for
+    # ever without a line saying so.
+    sweep = TopologyDiscoveryRunner(
+        readers=dict(state.discovery_sources),
+        sweeper=EnrichingSweeper(
+            sweeper=EstateSweeper(gateway=state.gateway, kinds=state.estate_kinds)
         ),
     )
+    dispatcher.register(TOPOLOGY_DISCOVERY_JOB_KIND, sweep)
+    dispatcher.register(ESTATE_DISCOVERY_JOB_KIND, sweep)
     return dispatcher
 
 
