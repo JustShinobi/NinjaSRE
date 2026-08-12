@@ -54,6 +54,23 @@ async def operator_token(deployment: Deployment) -> str:
 
 
 @pytest.fixture
+async def organisation_token(deployment: Deployment) -> str:
+    """A token held at the organisation rather than at any one team.
+
+    The state a deployment starts in: the first administrator exists before
+    any team node does, so the first principal to open the console has no team
+    for a credential handle to name.
+    """
+    return await issue_token(
+        deployment.gateway,
+        deployment.tokens,
+        user_id="grace",
+        role=Role.OPERATOR,
+        node_id=None,
+    )
+
+
+@pytest.fixture
 async def viewer_token(deployment: Deployment) -> str:
     """A token holding none of the write permissions."""
     return await issue_token(
@@ -276,6 +293,33 @@ async def test_the_listing_says_which_providers_this_deployment_has_a_credential
     }
     assert configured == {"anthropic"}
     assert SENTINEL_API_KEY not in after.text
+
+
+async def test_a_caller_with_no_team_reads_the_organisation_wide_credential(
+    client: AsyncClient, organisation_token: str
+) -> None:
+    """A team-less principal falls back to the organisation's own handle.
+
+    ``-`` is what the handle grammar spells for a credential the organisation
+    owns and every team without one of its own uses, and a caller holding no
+    team is exactly that case. Passing the empty team through instead asks for
+    a handle the grammar refuses, and the refusal reaches the client as a
+    sanitised 500 — on the listing a deployment opens before it has teams.
+    """
+    written = await client.put(
+        "/v1/integrations/anthropic/credential",
+        headers=_headers(organisation_token),
+        json={"values": {"ANTHROPIC_API_KEY": f"sk-ant-{SENTINEL_API_KEY}"}},
+    )
+    response = await client.get("/v1/providers", headers=_headers(organisation_token))
+
+    assert written.status_code == 200
+    assert response.status_code == 200
+    configured = {
+        entry["provider_id"] for entry in response.json()["providers"] if entry["configured"]
+    }
+    assert configured == {"anthropic"}
+    assert SENTINEL_API_KEY not in response.text
 
 
 async def test_nothing_in_the_listing_claims_a_verification_nobody_ran(
