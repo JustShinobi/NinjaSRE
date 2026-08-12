@@ -99,3 +99,28 @@ def test_a_descriptor_is_a_value_with_no_behaviour_to_configure() -> None:
     assert isinstance(anthropic, ProviderOnboarding)
     with pytest.raises(AttributeError):
         anthropic.default_model = "something-else"  # type: ignore[misc]
+
+
+def test_every_provider_asks_for_the_credential_its_adapter_will_look_for() -> None:
+    """The vocabulary a form writes and the vocabulary an adapter reads are one.
+
+    There are two names for one thing: the canonical credential name an adapter
+    resolves (``api_key``) and the environment variable an operator may set
+    instead (``GOOGLE_API_KEY``). Declaring the variable as the *field* name
+    stored a credential under a name nothing reads — so a key pasted into the
+    console was accepted, encrypted, and then reported missing by the very
+    provider it was pasted for.
+    """
+    from core.llm.credentials import credential_names_for
+    from core.llm.onboarding import credential_schema_for, provider_names
+
+    for provider_id in provider_names():
+        readable = set(credential_names_for(provider_id))
+        if not readable:
+            continue
+        declared = {field.name for field in credential_schema_for(provider_id).fields}
+        unreadable = declared - readable
+        assert not unreadable, (
+            f"{provider_id} stores {sorted(unreadable)}, which nothing resolves. "
+            f"Its adapter reads {sorted(readable)}."
+        )
