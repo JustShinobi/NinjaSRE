@@ -75,3 +75,45 @@ def test_the_observation_tick_kind_is_dispatched() -> None:
         guardrails = None
 
     assert OBSERVATION_TICK_JOB_KIND in dispatcher_for(_State()).kinds  # type: ignore[arg-type]
+
+
+async def test_composing_a_metrics_client_also_schedules_the_tick_that_uses_it() -> None:
+    """tick_job builds the recurring job and had no caller, so a deployment that
+    composed a metrics client still polled nothing.
+
+    Registered where the client is composed, because those are one decision: a
+    deployment pointed at a metrics system is one that wants its numbers.
+    """
+    from config.constants.observation import OBSERVATION_TICK_JOB_KIND
+    from gateway.http.discovery_sources import schedule_observation_tick
+
+    class _Schedules:
+        def __init__(self) -> None:
+            self.upserted: list[object] = []
+
+        async def upsert_job(self, job: object) -> object:
+            self.upserted.append(job)
+            return job
+
+    schedules = _Schedules()
+
+    class _Uow:
+        def __init__(self) -> None:
+            self.schedules = schedules
+
+        async def __aenter__(self) -> object:
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            return None
+
+    class _Gateway:
+        def begin(self, _scope: object) -> object:
+            return _Uow()
+
+    class _State:
+        gateway = _Gateway()
+
+    await schedule_observation_tick(_State(), org_id="acme")  # type: ignore[arg-type]
+
+    assert [job.kind for job in schedules.upserted] == [OBSERVATION_TICK_JOB_KIND]
