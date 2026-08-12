@@ -1,235 +1,15 @@
 {
-  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against \u2014 that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five.",
+  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five.",
   "screens": [
     {
-      "id": "shell-1440-light",
-      "route": "/",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "03-screen-dashboard.png",
-        "reason": "The application shell, reviewed side by side against the reference's chrome: the 236px sidebar, the three nav zones in the order Now \u00b7 The environment \u00b7 Settings with an icon and a label each and the current one marked \u2014 regrouped by how often a screen is opened rather than by subject, and carrying the first-steps entry that is present only while the setup checklist has something outstanding, the 52px topbar carrying the palette, the theme switch, the notification centre and the account menu, the page header's icon-title-context anatomy, and the sidebar footer stating guardian liveness and posture. The panels inside the frame are the data surfaces and arrive with them; what is compared here is the frame."
-      }
-    },
-    {
-      "id": "shell-1440-dark",
-      "route": "/",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "dark",
-      "accepted": {
-        "against": null,
-        "reason": "The same frame under the dark token set. The design draws one picture of the shell and one picture of the dark theme rather than a picture of both, so this baseline exists to catch a regression rather than to record a review."
-      }
-    },
-    {
-      "id": "shell-768-light",
-      "route": "/",
-      "status": "baselined",
-      "viewport": 768,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The frame at the declared breakpoint, which is the last width the sidebar is a rail at. There is no reference drawn at this width; the baseline is what makes the boundary between rail and drawer a thing a change has to move deliberately."
-      }
-    },
-    {
-      "id": "shell-320-light",
-      "route": "/",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "Below the breakpoint, where the sidebar is a drawer and the utility bar carries the handle that opens it. No reference is drawn at this width; the browser suite asserts the stronger claim that nothing is lost and nothing overflows, and this records what it looks like."
-      }
-    },
-    {
-      "id": "sign-in-1440-light",
-      "route": "/sign-in",
+      "id": "administration-1440-light",
+      "route": "/administration",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The only page an unauthenticated visitor sees. No reference is drawn for it, and the property worth a baseline is what it does *not* show: no deployment name, no counts, no navigation. A change that added any of those would show up here. Re-accepted when the sign-in became a username and a password rather than a pasted API token \u2014 a first run has nowhere to have got a token from, so the form now has two fields and the page can carry a refusal."
-      }
-    },
-    {
-      "id": "gallery-1440-light",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "01-tokens-colour.png",
-        "reason": "The colour section renders every role pair with the ratio computed from the token table, and every status with its documented shape. Reviewed side by side against the reference: the values match to the byte and the shapes match the seven documented states."
-      }
-    },
-    {
-      "id": "gallery-1440-dark",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "dark",
-      "accepted": {
-        "against": "08-theme-dark.png",
-        "reason": "The same geometry under the dark token set. The browser suite asserts the stronger form of this claim \u2014 every box, to the pixel, identical between the two themes \u2014 and this baseline is the picture of it."
-      }
-    },
-    {
-      "id": "gallery-768-light",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 768,
-      "theme": "light",
-      "accepted": {
-        "against": "02-tokens-scales.png",
-        "reason": "The scale section renders the type, spacing, radius, border and duration scales as the closed sets the reference documents. Reviewed against it: eight type steps, seven spacing steps, four radii, and no additional step in any of them."
-      }
-    },
-    {
-      "id": "gallery-768-dark",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 768,
-      "theme": "dark",
-      "accepted": {
-        "against": null,
-        "reason": "The middle breakpoint in the dark token set. There is no reference for this combination \u2014 the design documents three widths and two themes but draws one picture of each \u2014 so this baseline exists to catch a regression rather than to record a review."
-      }
-    },
-    {
-      "id": "gallery-320-light",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "light",
-      "accepted": {
-        "against": "07-states-empty-error.png",
-        "reason": "The empty and error states, at the narrowest width the console declares. Reviewed against the reference: icon, one-line heading, one sentence saying what would be here, and an action, in that order, with the error state naming its dependency in monospace."
-      }
-    },
-    {
-      "id": "gallery-320-dark",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "dark",
-      "accepted": {
-        "against": null,
-        "reason": "The narrowest width in the dark token set. As with the 768 dark capture there is no reference for the combination, so this baseline catches a regression rather than recording a review."
-      }
-    },
-    {
-      "id": "runs-1440-light",
-      "route": "/runs",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. No reference is drawn for it \u2014 the design documents the list in prose \u2014 so this baseline is what makes a change to the columns or their order deliberate."
-      }
-    },
-    {
-      "id": "run-detail-1440-light",
-      "route": "/runs/run-0001",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page \u2014 the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it \u2014 which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch."
-      }
-    },
-    {
-      "id": "run-detail-1440-dark",
-      "route": "/runs/run-0001",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "dark",
-      "accepted": {
-        "against": "08-theme-dark.png",
-        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has."
-      }
-    },
-    {
-      "id": "incident-1440-light",
-      "route": "/incidents/INC-2026-0814",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "Incident detail at the reference's two-thirds/one-third split: the primary column carrying the transcript and the timeline, the context rail carrying the subject and the 'why degraded' derivation \u2014 named signals with their values rather than a provider string, and the note that the raw status is retained. The proposal card is reviewed on the approvals capture, where a pending proposal actually exists in this dataset."
-      }
-    },
-    {
-      "id": "approvals-1440-light",
-      "route": "/approvals",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "The proposal card, reviewed against the reference's: all eight fields \u2014 target, current state, proposed change, what each protects, blast radius, rollback plan, verification, autonomy \u2014 in that order, with a danger border, a risk chip, and the decision controls in the card's own footer. A field the dataset has nothing for says so rather than being dropped, so the card's shape does not depend on the data."
-      }
-    },
-    {
-      "id": "resources-1440-light",
-      "route": "/resources",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "05-screen-estate.png",
-        "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
-      }
-    },
-    {
-      "id": "autonomy-1440-light",
-      "route": "/autonomy",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "06-screen-autonomy.png",
-        "reason": "The autonomy screen at the reference's two-thirds/one-third split: the rules table in resolution order, the permanent footer stating that the absence of a rule resolves to propose-only, and the bounds no level overrides in the context rail. Re-accepted when the policy engine landed and the rules table stopped being empty; the frame, the split and the footer are unchanged from the first acceptance."
-      }
-    },
-    {
-      "id": "configuration-1440-light",
-      "route": "/configuration",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The organisation tree beside the effective configuration, with a provenance chip on every value naming the level that set it. No reference is drawn for it; the baseline exists because 'where is this set' is the question this screen answers and a change that dropped the chip would otherwise be invisible."
-      }
-    },
-    {
-      "id": "team-context-1440-light",
-      "route": "/team-context",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The team's operating context beside the organisation tree: a section per named fact with the level that supplied it beside each, the token meter against the budget the deployment enforces, and the statement that this field takes facts rather than instructions with links to the two places an instruction belongs. No reference is drawn for it. The baseline exists because the one thing this screen must never lose is the per-section provenance — an operator editing at the wrong level otherwise sees nothing happen — and because the fact-not-instruction line is the whole of what keeps this field from becoming an unreviewed runbook."
-      }
-    },
-    {
-      "id": "resources-320-light",
-      "route": "/resources",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways \u2014 the failure a table screen has and a card screen does not."
+        "reason": "Who may do what. A screen where a change of emphasis is a change of meaning."
       }
     },
     {
@@ -240,18 +20,7 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The topology section: the hierarchy from the orchestrator down to the specialists, the six stages with what each consults, the model roles with their provenance, and the same topology as a document beside the picture. No reference is drawn for this screen. What the baseline exists to catch is the one thing a reviewer cannot see by reading the code \u2014 a vendor's model identifier appearing beside a stage. The unit suite asserts that as a rule; this is what it looks like when the rule holds."
-      }
-    },
-    {
-      "id": "agent-tools-1440-light",
-      "route": "/agent?tab=tools",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The tools section, split by the one distinction that changes the risk: what reads and what writes, with a blocked tool dimmed and the integration that blocks it named. The dimming is the part worth a picture \u2014 it is the only place on this screen where state rides on anything visual, and it is paired with words in the row rather than left to the shade."
+        "reason": "The topology section: the hierarchy from the orchestrator down to the specialists, the six stages with what each consults, the model roles with their provenance, and the same topology as a document beside the picture. No reference is drawn for this screen. What the baseline exists to catch is the one thing a reviewer cannot see by reading the code — a vendor's model identifier appearing beside a stage. The unit suite asserts that as a rule; this is what it looks like when the rule holds."
       }
     },
     {
@@ -266,6 +35,72 @@
       }
     },
     {
+      "id": "agent-tools-1440-light",
+      "route": "/agent?tab=tools",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The tools section, split by the one distinction that changes the risk: what reads and what writes, with a blocked tool dimmed and the integration that blocks it named. The dimming is the part worth a picture — it is the only place on this screen where state rides on anything visual, and it is paired with words in the row rather than left to the shade."
+      }
+    },
+    {
+      "id": "approvals-1440-light",
+      "route": "/approvals",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "04-screen-incident.png",
+        "reason": "The proposal card, reviewed against the reference's: all eight fields — target, current state, proposed change, what each protects, blast radius, rollback plan, verification, autonomy — in that order, with a danger border, a risk chip, and the decision controls in the card's own footer. A field the dataset has nothing for says so rather than being dropped, so the card's shape does not depend on the data."
+      }
+    },
+    {
+      "id": "audit-1440-light",
+      "route": "/audit",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "What was done and by whom. The record somebody reaches for when the question is already serious."
+      }
+    },
+    {
+      "id": "autonomy-1440-light",
+      "route": "/autonomy",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "06-screen-autonomy.png",
+        "reason": "The autonomy screen at the reference's two-thirds/one-third split: the rules table in resolution order, the permanent footer stating that the absence of a rule resolves to propose-only, and the bounds no level overrides in the context rail. Re-accepted when the policy engine landed and the rules table stopped being empty; the frame, the split and the footer are unchanged from the first acceptance."
+      }
+    },
+    {
+      "id": "catalogue-1440-light",
+      "route": "/catalogue",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "Everything this deployment can bring to an incident. A capability that stops being listed is a capability nobody will ask for."
+      }
+    },
+    {
+      "id": "configuration-1440-light",
+      "route": "/configuration",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The organisation tree beside the effective configuration, with a provenance chip on every value naming the level that set it. No reference is drawn for it; the baseline exists because 'where is this set' is the question this screen answers and a change that dropped the chip would otherwise be invisible."
+      }
+    },
+    {
       "id": "data-1440-light",
       "route": "/data",
       "status": "baselined",
@@ -273,7 +108,7 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The three columns of transit, in the order data moves through them: what arrives, what happens to it, and where the result goes. No reference is drawn for it; the baseline exists because the one thing this screen has to get right is *emphasis* \u2014 a receiver that has never delivered is drawn first and in the danger tone, and a change that quietened it would be invisible to every other check while removing the whole reason the screen is here."
+        "reason": "The three columns of transit, in the order data moves through them: what arrives, what happens to it, and where the result goes. No reference is drawn for it; the baseline exists because the one thing this screen has to get right is *emphasis* — a receiver that has never delivered is drawn first and in the danger tone, and a change that quietened it would be invisible to every other check while removing the whole reason the screen is here."
       }
     },
     {
@@ -284,7 +119,271 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "Three columns at the narrowest width the console declares, where they are one column stacked. What this catches is the masked payload sample \u2014 a long unbroken string \u2014 scrolling the page sideways."
+        "reason": "Three columns at the narrowest width the console declares, where they are one column stacked. What this catches is the masked payload sample — a long unbroken string — scrolling the page sideways."
+      }
+    },
+    {
+      "id": "detectors-1440-light",
+      "route": "/detectors",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "What this deployment watches for, and the threshold each check reads. An operator deciding whether to change one has to see the measurement beside it."
+      }
+    },
+    {
+      "id": "first-run-1440-light",
+      "route": "/first-run",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The path somebody walks once, on the day nothing works yet. It is the least exercised screen in the product and the one whose breakage is discovered by a stranger."
+      }
+    },
+    {
+      "id": "gallery-1440-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": "08-theme-dark.png",
+        "reason": "The same geometry under the dark token set. The browser suite asserts the stronger form of this claim — every box, to the pixel, identical between the two themes — and this baseline is the picture of it."
+      }
+    },
+    {
+      "id": "gallery-1440-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "01-tokens-colour.png",
+        "reason": "The colour section renders every role pair with the ratio computed from the token table, and every status with its documented shape. Reviewed side by side against the reference: the values match to the byte and the shapes match the seven documented states."
+      }
+    },
+    {
+      "id": "gallery-320-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The narrowest width in the dark token set. As with the 768 dark capture there is no reference for the combination, so this baseline catches a regression rather than recording a review."
+      }
+    },
+    {
+      "id": "gallery-320-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "light",
+      "accepted": {
+        "against": "07-states-empty-error.png",
+        "reason": "The empty and error states, at the narrowest width the console declares. Reviewed against the reference: icon, one-line heading, one sentence saying what would be here, and an action, in that order, with the error state naming its dependency in monospace."
+      }
+    },
+    {
+      "id": "gallery-768-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The middle breakpoint in the dark token set. There is no reference for this combination — the design documents three widths and two themes but draws one picture of each — so this baseline exists to catch a regression rather than to record a review."
+      }
+    },
+    {
+      "id": "gallery-768-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "light",
+      "accepted": {
+        "against": "02-tokens-scales.png",
+        "reason": "The scale section renders the type, spacing, radius, border and duration scales as the closed sets the reference documents. Reviewed against it: eight type steps, seven spacing steps, four radii, and no additional step in any of them."
+      }
+    },
+    {
+      "id": "incident-1440-light",
+      "route": "/incidents/INC-2026-0814",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "04-screen-incident.png",
+        "reason": "Incident detail at the reference's two-thirds/one-third split: the primary column carrying the transcript and the timeline, the context rail carrying the subject and the 'why degraded' derivation — named signals with their values rather than a provider string, and the note that the raw status is retained. The proposal card is reviewed on the approvals capture, where a pending proposal actually exists in this dataset."
+      }
+    },
+    {
+      "id": "knowledge-1440-light",
+      "route": "/knowledge",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The corpus this deployment can cite. Its failure mode is looking populated while citing nothing, so the baseline covers the shape rather than the count."
+      }
+    },
+    {
+      "id": "memory-1440-light",
+      "route": "/memory",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "What previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything."
+      }
+    },
+    {
+      "id": "proposals-1440-light",
+      "route": "/proposals",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "What the deployment wants to change and has not. The emphasis is the point: a proposal awaiting a human must not read like a completed one."
+      }
+    },
+    {
+      "id": "resources-1440-light",
+      "route": "/resources",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "05-screen-estate.png",
+        "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
+      }
+    },
+    {
+      "id": "resources-320-light",
+      "route": "/resources",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways — the failure a table screen has and a card screen does not."
+      }
+    },
+    {
+      "id": "run-detail-1440-dark",
+      "route": "/runs/run-0001",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": "08-theme-dark.png",
+        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has."
+      }
+    },
+    {
+      "id": "run-detail-1440-light",
+      "route": "/runs/run-0001",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "04-screen-incident.png",
+        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page — the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it — which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch."
+      }
+    },
+    {
+      "id": "runs-1440-light",
+      "route": "/runs",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. No reference is drawn for it — the design documents the list in prose — so this baseline is what makes a change to the columns or their order deliberate."
+      }
+    },
+    {
+      "id": "shell-1440-dark",
+      "route": "/",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The same frame under the dark token set. The design draws one picture of the shell and one picture of the dark theme rather than a picture of both, so this baseline exists to catch a regression rather than to record a review."
+      }
+    },
+    {
+      "id": "shell-1440-light",
+      "route": "/",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "03-screen-dashboard.png",
+        "reason": "The application shell, reviewed side by side against the reference's chrome: the 236px sidebar, the three nav zones in the order Now · The environment · Settings with an icon and a label each and the current one marked — regrouped by how often a screen is opened rather than by subject, and carrying the first-steps entry that is present only while the setup checklist has something outstanding, the 52px topbar carrying the palette, the theme switch, the notification centre and the account menu, the page header's icon-title-context anatomy, and the sidebar footer stating guardian liveness and posture. The panels inside the frame are the data surfaces and arrive with them; what is compared here is the frame."
+      }
+    },
+    {
+      "id": "shell-320-light",
+      "route": "/",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "Below the breakpoint, where the sidebar is a drawer and the utility bar carries the handle that opens it. No reference is drawn at this width; the browser suite asserts the stronger claim that nothing is lost and nothing overflows, and this records what it looks like."
+      }
+    },
+    {
+      "id": "shell-768-light",
+      "route": "/",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The frame at the declared breakpoint, which is the last width the sidebar is a rail at. There is no reference drawn at this width; the baseline is what makes the boundary between rail and drawer a thing a change has to move deliberately."
+      }
+    },
+    {
+      "id": "sign-in-1440-light",
+      "route": "/sign-in",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The only page an unauthenticated visitor sees. No reference is drawn for it, and the property worth a baseline is what it does *not* show: no deployment name, no counts, no navigation. A change that added any of those would show up here. Re-accepted when the sign-in became a username and a password rather than a pasted API token — a first run has nowhere to have got a token from, so the form now has two fields and the page can carry a refusal."
+      }
+    },
+    {
+      "id": "team-context-1440-light",
+      "route": "/team-context",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The team's operating context beside the organisation tree: a section per named fact with the level that supplied it beside each, the token meter against the budget the deployment enforces, and the statement that this field takes facts rather than instructions with links to the two places an instruction belongs. No reference is drawn for it. The baseline exists because the one thing this screen must never lose is the per-section provenance — an operator editing at the wrong level otherwise sees nothing happen — and because the fact-not-instruction line is the whole of what keeps this field from becoming an unreviewed runbook."
+      }
+    },
+    {
+      "id": "topology-1440-light",
+      "route": "/topology",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The service graph, which is the one screen whose whole content is a drawing: a change that collapsed the layout or lost an edge would pass every other check."
       }
     }
   ],
@@ -305,13 +404,13 @@
       "file": "03-screen-dashboard.png",
       "status": "baselined",
       "surface": "the console data surfaces",
-      "note": "The deployment overview. Its chrome was baselined by the application shell; the panels inside that frame \u2014 the attention block above the statistics, four figures each with a comparison and a drill-down, the activity feed, the estate summary and the guardian card \u2014 are the data surfaces and are reviewed against this reference by the shell captures, which now render them."
+      "note": "The deployment overview. Its chrome was baselined by the application shell; the panels inside that frame — the attention block above the statistics, four figures each with a comparison and a drill-down, the activity feed, the estate summary and the guardian card — are the data surfaces and are reviewed against this reference by the shell captures, which now render them."
     },
     {
       "file": "04-screen-incident.png",
       "status": "baselined",
       "surface": "the console data surfaces",
-      "note": "One investigation: the transcript, the derivation behind the verdict, and the proposal card. Reviewed across three captures \u2014 the run detail for the transcript, the incident detail for the rail, and the approvals queue for the card \u2014 because the reference draws one page and this dataset carries the three things it draws on three of them."
+      "note": "One investigation: the transcript, the derivation behind the verdict, and the proposal card. Reviewed across three captures — the run detail for the transcript, the incident detail for the rail, and the approvals queue for the card — because the reference draws one page and this dataset carries the three things it draws on three of them."
     },
     {
       "file": "05-screen-estate.png",
