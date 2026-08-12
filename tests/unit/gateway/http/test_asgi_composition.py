@@ -174,3 +174,50 @@ def test_a_deployment_that_cannot_decrypt_its_credentials_is_degraded_and_says_s
 
     assert readiness.ready, "a wrong key is not a reason to stop serving history"
     assert any("stored credentials" in reason for reason in readiness.reasons())
+
+
+async def test_the_boot_installs_the_encryption_key_the_operator_configured() -> None:
+    """The defect this covers made every credential write a 500, on every deployment.
+
+    The sequence's "verify the key" step only proved that stored credentials
+    open. On a deployment that has stored none — which is every deployment on
+    its first day — that passed without loading anything, and the key ring was
+    still empty when somebody pasted their first provider key. The gateway
+    carried the only call that loads it, in a method nothing called.
+    """
+    import os
+    from unittest.mock import patch
+
+    from gateway.http.serve import boot
+    from platform.persistence.ports.health import HealthState, StoreHealth
+    from platform.persistence.postgres.crypto import KEY_RING
+
+    key = "0" * 43 + "="
+    KEY_RING.clear()
+    assert not KEY_RING.is_configured
+
+    class Store:
+        def migrator(self) -> None:
+            return None
+
+        def install_encryption_key(self) -> bool:
+            return KEY_RING.configure_from_environment()
+
+        async def health(self) -> StoreHealth:
+            return StoreHealth(state=HealthState.HEALTHY, connected=True)
+
+    class Deployment:
+        store = Store()
+
+    try:
+        environment = {
+            "NINJASRE_DATABASE_ENCRYPTION_KEY": key,
+            "NINJASRE_DATABASE_URL": "postgresql://localhost/ninjasre",
+            "NINJASRE_LLM_PROVIDER": "ollama",
+        }
+        with patch.dict(os.environ, environment, clear=False):
+            result = await boot(Deployment())  # type: ignore[arg-type]
+        assert KEY_RING.is_configured, "the boot left the key ring empty"
+        assert result.key_installed
+    finally:
+        KEY_RING.clear()
