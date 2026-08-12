@@ -84,3 +84,38 @@ async def test_stopping_is_immediate_rather_than_one_interval_away() -> None:
     await asyncio.wait_for(run_scheduler(worker, interval_seconds=3600, stop=stop), timeout=1)
 
     assert worker.ticks == 0
+
+
+def test_every_job_kind_a_route_can_register_has_a_runner() -> None:
+    """A route that writes a job kind nothing dispatches produces a job that is
+    claimed, found unrunnable, and rescheduled — for ever, silently.
+
+    That is what happened to the estate sweep: the discovery route writes
+    ``estate.discovery`` and the dispatcher knew three kinds, none of them that
+    one. The row's next_run_at kept advancing and the estate stayed empty.
+    """
+    from config.constants.estate import ESTATE_DISCOVERY_JOB_KIND
+    from config.constants.knowledge import (
+        CORPUS_SYNC_JOB_KIND,
+        KNOWLEDGE_SYNC_JOB_KIND,
+        TOPOLOGY_DISCOVERY_JOB_KIND,
+    )
+    from gateway.http.scheduled_work import dispatcher_for
+
+    class _State:
+        gateway = object()
+        estate_kinds = ()
+        knowledge_sources: dict[str, object] = {}
+        corpus_sources: dict[str, object] = {}
+        discovery_sources: dict[str, object] = {}
+        guardrails = None
+
+    dispatcher = dispatcher_for(_State())  # type: ignore[arg-type]
+
+    for kind in (
+        ESTATE_DISCOVERY_JOB_KIND,
+        TOPOLOGY_DISCOVERY_JOB_KIND,
+        KNOWLEDGE_SYNC_JOB_KIND,
+        CORPUS_SYNC_JOB_KIND,
+    ):
+        assert kind in dispatcher.kinds, f"nothing runs {kind!r}"
