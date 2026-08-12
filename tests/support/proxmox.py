@@ -1126,6 +1126,11 @@ class RecordedProxmox:
                 payload = self.cluster.payload(candidate)
             except KeyError:
                 continue
+            # A recording may be a whole response rather than a body, which is
+            # how a test says "this endpoint answers 500 with this prose" — the
+            # shape a vendor uses to retire an endpoint without removing it.
+            if isinstance(payload, OutboundResponse):
+                return payload
             return _json(payload)
         return OutboundResponse(NODE_UNREACHABLE, {}, b"595 no route to host")
 
