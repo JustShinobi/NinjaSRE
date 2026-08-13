@@ -1451,6 +1451,10 @@ export interface paths {
          *     two as the write beside it — the guided first run stores a provider key and
          *     then verifies it, and a verify that only knew about vendor packages would
          *     refuse the second half of its own flow.
+         *
+         *     The answer is written down. A check whose result lived only in the response
+         *     left the first run's "check that each of them works" step uncompletable:
+         *     green while the tab was open, "nobody has checked this one" on reload.
          */
         post: operations["verify_integration_v1_integrations__name__verify_post"];
         delete?: never;
@@ -2035,6 +2039,12 @@ export interface paths {
          *     "a call went out, called a tool, and returned structure", and the difference
          *     is discovered at 03:00 by whoever was told the first one.
          *
+         *     The model exercised is the one this deployment is configured to run, when
+         *     the configuration names one for this provider. An operator told "choose a
+         *     model that supports tool calling" changes the configuration and presses the
+         *     button again — a check that kept testing the registry's default would
+         *     return the same refusal forever.
+         *
          *     Raises:
          *         ApiProblem: no supported provider answers to ``provider_id`` (404).
          */
@@ -2355,8 +2365,9 @@ export interface paths {
          *     The integration catalogue and its health ledger are read here rather than in
          *     ``build_checklist``: that module is tier 3 and reaching up for ``integrations``
          *     would be the boundary ``make check-imports`` exists to hold. Health is what
-         *     the scheduled live runs recorded, so "verified" means something answered
-         *     rather than that a credential is present.
+         *     the recorded checks found, so "verified" means something answered rather than
+         *     that a credential is present — and it means that on the next request too,
+         *     which is the whole reason the answer is written down.
          */
         get: operations["checklist_v1_setup_checklist_get"];
         put?: never;
