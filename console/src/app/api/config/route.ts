@@ -69,7 +69,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         ok: false,
         reachable: true,
-        reason: nodeId === '' ? 'the request named no node' : 'the request carried no patch',
+        reason:
+          nodeId === '' ? 'the request named no node' : 'the request carried no patch',
       },
       { status: 400 },
     );

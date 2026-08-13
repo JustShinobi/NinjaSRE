@@ -185,7 +185,12 @@ describe('writing a configuration change', () => {
       Promise.resolve(
         new Response(
           JSON.stringify({
-            detail: [{ path: 'models.investigator.model', msg: 'is not a configuration field' }],
+            detail: [
+              {
+                path: 'models.investigator.model',
+                msg: 'is not a configuration field',
+              },
+            ],
           }),
           { status: 400, headers: { 'content-type': 'application/json' } },
         ),

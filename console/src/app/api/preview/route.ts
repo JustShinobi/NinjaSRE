@@ -32,7 +32,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Named, not just numbered: the screen prints this after "refused:", and
     // a 400 whose body carried no words rendered as a colon and nothing.
     return NextResponse.json(
-      { reason: nodeId === '' ? 'the request named no node' : 'the request carried no patch' },
+      {
+        reason:
+          nodeId === '' ? 'the request named no node' : 'the request carried no patch',
+      },
       { status: 400 },
     );
   }
