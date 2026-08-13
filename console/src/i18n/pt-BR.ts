@@ -238,7 +238,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Factos sobre este ambiente de que toda investigação devia partir.',
   'page.catalogue.title': 'Catálogo',
   'page.catalogue.context':
-    'Todas as ferramentas e competências que esta instalação declara, e quais delas a sua equipa pode usar.',
+    'Todas as ferramentas e competências que esta instalação declara, e quais delas a sua equipe pode usar.',
   'page.administration.title': 'Administração',
   'page.administration.context':
     'Identidades, os papéis que detêm, os tokens de máquina emitidos e como as pessoas iniciam sessão.',
@@ -949,12 +949,17 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.title': 'Capacidades',
   'catalogue.tools': 'Ferramentas',
   'catalogue.skills': 'Competências',
+  'catalogue.search': 'Encontrar uma ferramenta ou competência pelo nome ou domínio',
+  'catalogue.search.empty': 'Nada aqui corresponde a essa busca.',
+  'catalogue.domains.nav': 'Ir para um domínio',
+  'catalogue.count': '{enabled} de {total} habilitadas',
   'catalogue.column.name': 'Capacidade',
   'catalogue.column.domain': 'Domínio',
   'catalogue.column.effect': 'Efeito',
   'catalogue.column.integrations': 'Precisa de',
-  'catalogue.column.enabled': 'Activa aqui',
-  'catalogue.blocked': 'Bloqueada por {integration}',
+  'catalogue.column.enabled': 'Ativa aqui',
+  'catalogue.blocked': 'Requer a integração {integration}',
+  'catalogue.blocked.action': 'Conectar',
   'catalogue.empty.heading': 'Nenhuma capacidade declarada',
   'catalogue.empty.body':
     'Uma capacidade é declarada pela instalação e não configurada aqui. Esta não declara nenhuma.',
@@ -979,6 +984,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.state': 'Ligação',
   'catalogue.integrations.verified': 'Última verificação',
   'catalogue.integrations.verify': 'Verificar agora',
+  'catalogue.integrations.expand': 'Mostrar o formulário de credencial',
+  'catalogue.integrations.collapse': 'Ocultar o formulário de credencial',
   'catalogue.integrations.empty.heading': 'Nada está ligado',
   'catalogue.integrations.empty.body':
     'Uma integração é o que permite a uma investigação ler ou mudar algo fora desta instalação. Nenhuma está instalada.',
@@ -988,6 +995,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.credential.stored':
     'Existe uma credencial guardada. Nunca voltará a ser mostrada.',
   'catalogue.credential.absent': 'Não há credencial guardada.',
+  'catalogue.credential.state.unconfigured':
+    'Nenhuma credencial está guardada para esta integração ainda.',
+  'catalogue.credential.state.unknown':
+    'Uma credencial está guardada, mas nada verificou ainda.',
+  'catalogue.credential.state.healthy': 'Verificada — a última verificação passou.',
+  'catalogue.credential.state.degraded':
+    'Falhando — a última verificação encontrou um problema.',
 
   'admin.principals.title': 'Pessoas e máquinas',
   'admin.column.principal': 'Identidade',

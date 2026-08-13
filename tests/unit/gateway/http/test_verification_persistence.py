@@ -138,14 +138,32 @@ async def test_the_catalogue_reports_an_integration_a_check_reached(
     assert entries["prometheus"]["health"] == "healthy"
 
 
-async def test_an_integration_nobody_checked_stays_unknown(
+async def test_a_configured_integration_nobody_checked_stays_unknown(
     client: AsyncClient, operator_token: str
 ) -> None:
-    """A ledger that answered for everything would report a guess as a measurement."""
+    """A ledger that answered for everything would report a guess as a measurement.
+
+    Configured first, so this is genuinely the "connected but unchecked" case
+    the ledger is being asked not to guess about — not the "nothing is
+    connected here" case, which is a different, more basic fact and reads as
+    ``unconfigured`` rather than ``unknown``.
+    """
+    await _store_credential(client, operator_token, integration="prometheus")
+
     response = await client.get("/v1/integrations", headers=_headers(operator_token))
 
     entries = {entry["name"]: entry for entry in response.json()["integrations"]}
     assert entries["prometheus"]["health"] == "unknown"
+
+
+async def test_an_integration_nobody_has_connected_reads_unconfigured_not_unknown(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """The other half of the same distinction: nothing stored is not "unknown"."""
+    response = await client.get("/v1/integrations", headers=_headers(operator_token))
+
+    entries = {entry["name"]: entry for entry in response.json()["integrations"]}
+    assert entries["prometheus"]["health"] == "unconfigured"
 
 
 # --- Replacing the credential ------------------------------------------------------

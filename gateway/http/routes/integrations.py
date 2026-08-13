@@ -40,6 +40,7 @@ from pydantic import BaseModel, Field
 
 from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+from gateway.http.configured import configured_integrations
 from gateway.http.credential_schemas import schema_for
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
@@ -229,7 +230,10 @@ async def list_integrations(
     deriving relevance separately is how one of them offers Prometheus first
     while the other buries it, with nobody able to say which is right.
     """
-    entries = catalogue(health=await integration_health(state.gateway, auth.scope))
+    entries = catalogue(
+        health=await integration_health(state.gateway, auth.scope),
+        configured=frozenset(await configured_integrations(state, auth)),
+    )
     suggested = await _suggestions(state, auth, entries)
     ordered = sorted(entries, key=lambda entry: (entry.name not in suggested, entry.name))
     return IntegrationList(

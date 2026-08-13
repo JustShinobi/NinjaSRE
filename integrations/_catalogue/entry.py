@@ -69,6 +69,11 @@ class HealthStatus(StrEnum):
     #: reporting it as healthy is the same failure as reporting a truncated
     #: answer as a complete one.
     UNKNOWN = "unknown"
+    #: No credential is stored for this integration at all. Distinct from
+    #: ``UNKNOWN``, which means a credential exists and nothing has checked it
+    #: yet — collapsing the two would show the same word for "nothing to do
+    #: here" and "this is the one you still have to connect".
+    UNCONFIGURED = "unconfigured"
 
 
 @dataclass(frozen=True, slots=True)

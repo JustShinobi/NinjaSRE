@@ -1054,12 +1054,17 @@ export const EN = {
   'catalogue.title': 'Capabilities',
   'catalogue.tools': 'Tools',
   'catalogue.skills': 'Skills',
+  'catalogue.search': 'Find a tool or skill by name or domain',
+  'catalogue.search.empty': 'Nothing here matches that search.',
+  'catalogue.domains.nav': 'Jump to a domain',
+  'catalogue.count': '{enabled} of {total} enabled',
   'catalogue.column.name': 'Capability',
   'catalogue.column.domain': 'Domain',
   'catalogue.column.effect': 'Side effect',
   'catalogue.column.integrations': 'Needs',
   'catalogue.column.enabled': 'Enabled here',
-  'catalogue.blocked': 'Blocked by {integration}',
+  'catalogue.blocked': 'Requires the {integration} integration',
+  'catalogue.blocked.action': 'Connect it',
   'catalogue.empty.heading': 'No capabilities declared',
   'catalogue.empty.body':
     'A capability is declared by the deployment rather than configured here. This one declares none.',
@@ -1083,6 +1088,8 @@ export const EN = {
   'catalogue.integrations.state': 'Connection',
   'catalogue.integrations.verified': 'Last verified',
   'catalogue.integrations.verify': 'Verify now',
+  'catalogue.integrations.expand': 'Show the credential form',
+  'catalogue.integrations.collapse': 'Hide the credential form',
   'catalogue.integrations.empty.heading': 'Nothing is connected',
   'catalogue.integrations.empty.body':
     'An integration is what lets an investigation read or change anything outside this deployment. None is installed.',
@@ -1091,6 +1098,12 @@ export const EN = {
   'catalogue.credential.replace': 'Replace this credential',
   'catalogue.credential.stored': 'A credential is stored. It is never shown again.',
   'catalogue.credential.absent': 'No credential is stored.',
+  'catalogue.credential.state.unconfigured':
+    'No credential is stored for this integration yet.',
+  'catalogue.credential.state.unknown':
+    'A credential is stored, but nothing has checked it yet.',
+  'catalogue.credential.state.healthy': 'Verified — the last check passed.',
+  'catalogue.credential.state.degraded': 'Failing — the last check found a problem.',
 
   // --- Administration ----------------------------------------------------------------------------
   'admin.principals.title': 'People and machines',

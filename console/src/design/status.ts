@@ -141,6 +141,11 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   stale: { role: 'neutral', shape: 'dimmed-circle' },
   maintenance: { role: 'info', shape: 'rotated-square' },
   absent: { role: 'neutral', shape: 'dash' },
+  // A credential's own state, ahead of anything a live check could say about
+  // it. Its own shape — not `absent`'s, so a reader who has learned "dash
+  // means nothing is stored" is not asked to know that this is the same
+  // dash on a different word.
+  unconfigured: { role: 'neutral', shape: 'dash' },
   // Severity. `critical` and `high` are both danger and are told apart by their
   // shape, which is the whole reason a shape is carried at all.
   critical: { role: 'danger', shape: 'square' },

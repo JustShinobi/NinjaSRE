@@ -1,14 +1,18 @@
-import { Fragment, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
-import { Badge } from '@/components/status';
-import { message } from '@/i18n/messages';
+import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
+import {
+  type BrowsableSkill,
+  type BrowsableTool,
+  CapabilityBrowser,
+} from '../capability-browser';
 import { capabilityRows, type CapabilityRow } from '../capability-rows';
 import type { SurfaceContext } from '../context';
-import { CredentialField } from '../credential';
-import { credentialLabels, panelLabels } from '../labels';
+import { IntegrationCard } from '../integration-card';
+import { credentialLabels, panelLabels, verifyLabels } from '../labels';
 import { Panel } from '../panel';
 import {
   authorised,
@@ -37,39 +41,66 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
  * node, and then the availability column is simply not asked for — asking would
  * mean building `/v1/config/{node_id}/catalogue` with nothing to put in it,
  * which is a broken request rather than an empty answer.
+ *
+ * Read-only browsing (233 tools, ~100 skills) and the write surface (85
+ * credential forms) share this one route rather than a route each, for now —
+ * splitting the write surface into its own screen under Settings is a bigger
+ * change than this pass makes. What this pass does is stop the write surface
+ * from *reading* like the browsing surface: every credential form is collapsed
+ * behind a card that already says what state that integration is in, and
+ * opening one is a decision rather than the default.
  */
 
 /** The permission the gateway requires to manage an integration. */
 const MANAGE = 'integration.manage';
 
+/** The four words `health` can carry, and what each one means without expanding a card. */
+const CREDENTIAL_STATES = ['unconfigured', 'unknown', 'healthy', 'degraded'] as const;
+
 export const CATALOGUE_FILTERS: readonly FilterName[] = ['node'];
 
-/** One domain's tools, in the order the domain was first seen. */
-interface DomainGroup {
-  readonly domain: string;
-  readonly tools: readonly CapabilityRow[];
-}
-
-/**
- * Group `tools` by domain, first-seen order.
- *
- * A deployment declares its whole tool surface here — hundreds of rows for a
- * platform with several vendor integrations — and a flat table that long is
- * read by scrolling rather than by looking. The domain a tool already carries
- * is what an operator orients by ("what can it do against Kubernetes"), so it
- * becomes a heading instead of just a column value.
- */
-function groupedByDomain(tools: readonly CapabilityRow[]): readonly DomainGroup[] {
-  const order: string[] = [];
-  const byDomain = new Map<string, CapabilityRow[]>();
-  for (const tool of tools) {
-    if (!byDomain.has(tool.domain)) {
-      order.push(tool.domain);
-      byDomain.set(tool.domain, []);
-    }
-    byDomain.get(tool.domain)?.push(tool);
-  }
-  return order.map((domain) => ({ domain, tools: byDomain.get(domain) ?? [] }));
+/** `rows`, restricted to the tools this node has an opinion about and blocking, rendered once. */
+function browsableTools(
+  rows: readonly CapabilityRow[],
+  locale: Locale,
+  none: string,
+): readonly BrowsableTool[] {
+  return rows
+    .filter((row) => row.kind === 'tool')
+    .map((row) => {
+      if (!row.known || row.available) {
+        return {
+          name: row.name,
+          domain: row.domain,
+          sideEffect: row.sideEffect,
+          known: row.known,
+          available: row.available,
+          blockedText: '',
+          blockedLinked: false,
+        };
+      }
+      // Structured data leads: what the node actually declares this tool
+      // needs, not a parse of the deployment's own free-text reason — the
+      // defect this replaces was exactly that free text ("needs the X
+      // integration") concatenated after a second phrase ("Blocked by ").
+      const linked = row.requiredIntegrations.length > 0;
+      const blockedText = linked
+        ? message(locale, 'catalogue.blocked', {
+            integration: row.requiredIntegrations.join(', '),
+          })
+        : row.reason === ''
+          ? none
+          : row.reason;
+      return {
+        name: row.name,
+        domain: row.domain,
+        sideEffect: row.sideEffect,
+        known: row.known,
+        available: row.available,
+        blockedText,
+        blockedLinked: linked,
+      };
+    });
 }
 
 export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNode> {
@@ -86,6 +117,12 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
   ]);
 
   const node = resolveNode(state, viewer, placedTree(dataOf(tree)));
+  // Where a blocked tool's "connect it" link and a card's own credential form
+  // both lead: this node's own Configuration, never a field-level anchor —
+  // the idiom `autonomy.tsx` and `agent.tsx` already use for "go to where
+  // this is controlled" (022 Detectors' confrontation names this pattern).
+  const configurationHref =
+    node === '' ? '/configuration' : `/configuration?node=${encodeURIComponent(node)}`;
 
   const entries =
     node === ''
@@ -102,7 +139,9 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
   // blocked is two answers an operator has to choose between.
   const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
   const tools = rows.filter((row) => row.kind === 'tool');
-  const skills = rows.filter((row) => row.kind === 'skill');
+  const skills: readonly BrowsableSkill[] = rows
+    .filter((row) => row.kind === 'skill')
+    .map((row) => ({ name: row.name, summary: row.summary }));
   const installed = list(dataOf(integrations), 'integrations');
   // What this catalogue does not cover, and why. Rendered greyed rather than
   // omitted: an operator evaluating the platform against their own stack finds
@@ -112,6 +151,19 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
   // beside the deliveries it produces and the rules that decide what happens to
   // them — which is where somebody asking "why did nothing arrive" is standing.
   const none = message(locale, 'surface.none');
+
+  const enabledCount = tools.filter((row) => row.known && row.available).length;
+  const count = message(locale, 'catalogue.count', {
+    enabled: enabledCount,
+    total: tools.length,
+  });
+
+  const explanation = Object.fromEntries(
+    CREDENTIAL_STATES.map((value) => [
+      value,
+      message(locale, `catalogue.credential.state.${value}`),
+    ]),
+  );
 
   // One panel, two reads. Without this the availability column renders "—" for
   // every entry when the catalogue read failed, which is the same thing it
@@ -136,94 +188,25 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
             href: '/configuration',
           }}
         >
-          <div className="w-full overflow-x-auto">
-            <table className="w-full text-small">
-              <caption className="sr-only">
-                {message(locale, 'catalogue.title')}
-              </caption>
-              <thead>
-                <tr>
-                  {[
-                    message(locale, 'catalogue.column.name'),
-                    message(locale, 'catalogue.column.domain'),
-                    message(locale, 'catalogue.column.effect'),
-                    message(locale, 'catalogue.column.enabled'),
-                  ].map((header) => (
-                    <th
-                      key={header}
-                      scope="col"
-                      className="text-left text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
-                    >
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {groupedByDomain(tools).map(({ domain, tools: domainTools }) => (
-                  <Fragment key={domain === '' ? ' ' : domain}>
-                    {domain === '' ? null : (
-                      <tr data-testid="capability-domain" data-domain={domain}>
-                        <th
-                          scope="rowgroup"
-                          colSpan={4}
-                          className="text-left text-meta font-semibold text-strong bg-hover px-3 py-2 edge border-border border-t-0 border-x-0"
-                        >
-                          {domain}{' '}
-                          <span className="text-muted font-normal">
-                            ({domainTools.length})
-                          </span>
-                        </th>
-                      </tr>
-                    )}
-                    {domainTools.map((tool) => (
-                      <tr
-                        key={tool.name}
-                        data-testid="capability"
-                        data-capability={tool.name}
-                      >
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
-                          {tool.name}
-                        </td>
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                          {tool.domain === '' ? none : tool.domain}
-                        </td>
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                          <Badge status={tool.sideEffect} />
-                        </td>
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                          {!tool.known ? (
-                            <span className="text-muted text-meta">{none}</span>
-                          ) : tool.available ? (
-                            <Badge status="healthy" />
-                          ) : (
-                            <span className="text-meta text-muted">
-                              {message(locale, 'catalogue.blocked', {
-                                integration: tool.reason === '' ? none : tool.reason,
-                              })}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </Fragment>
-                ))}
-                {skills.map((skill) => (
-                  <tr key={skill.name} data-testid="capability">
-                    <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
-                      {skill.name}
-                    </td>
-                    <td
-                      className="px-3 py-2 edge border-border border-t-0 border-x-0 text-muted"
-                      colSpan={3}
-                    >
-                      {message(locale, 'catalogue.skills')} — {skill.summary}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <CapabilityBrowser
+            tools={browsableTools(rows, locale, none)}
+            skills={skills}
+            count={count}
+            configurationHref={configurationHref}
+            labels={{
+              tableCaption: message(locale, 'catalogue.title'),
+              search: message(locale, 'catalogue.search'),
+              searchEmpty: message(locale, 'catalogue.search.empty'),
+              domainsNav: message(locale, 'catalogue.domains.nav'),
+              skillsHeading: message(locale, 'catalogue.skills'),
+              columnName: message(locale, 'catalogue.column.name'),
+              columnDomain: message(locale, 'catalogue.column.domain'),
+              columnEffect: message(locale, 'catalogue.column.effect'),
+              columnEnabled: message(locale, 'catalogue.column.enabled'),
+              none,
+              blockedAction: message(locale, 'catalogue.blocked.action'),
+            }}
+          />
         </Panel>
 
         {/* Absent, not disabled, for a viewer who may not manage integrations. */}
@@ -247,38 +230,31 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
               {installed.map((integration) => {
                 const name = text(integration, 'name');
                 return (
-                  <li
+                  <IntegrationCard
                     key={name}
-                    data-testid="integration"
-                    data-integration={name}
-                    className="flex flex-col gap-2"
-                  >
-                    <span className="flex items-center gap-2 flex-wrap">
-                      <span className="text-strong">{name}</span>
-                      <Badge status={text(integration, 'health')} />
-                      <span className="text-meta text-muted">
-                        {text(integration, 'health_detail')}
-                      </span>
-                    </span>
-                    <CredentialField
-                      integration={name}
-                      // The catalogue knows the field *names* a vendor
-                      // requires and nothing else about them; the guided
-                      // first run reads the declared schema and has the
-                      // labels and the help. Both are secret and required,
-                      // which is what `required_credentials` means.
-                      fields={list(integration, 'required_credentials').map(
-                        (field) => ({
-                          name: String(field),
-                          label: String(field),
-                          help: '',
-                          secret: true,
-                          required: true,
-                        }),
-                      )}
-                      labels={credentialLabels(locale)}
-                    />
-                  </li>
+                    name={name}
+                    health={text(integration, 'health')}
+                    healthDetail={text(integration, 'health_detail')}
+                    // The catalogue knows the field *names* a vendor requires
+                    // and nothing else about them; the guided first run reads
+                    // the declared schema and has the labels and the help.
+                    // Both are secret and required, which is what
+                    // `required_credentials` means.
+                    fields={list(integration, 'required_credentials').map((field) => ({
+                      name: String(field),
+                      label: String(field),
+                      help: '',
+                      secret: true,
+                      required: true,
+                    }))}
+                    labels={{
+                      expand: message(locale, 'catalogue.integrations.expand'),
+                      collapse: message(locale, 'catalogue.integrations.collapse'),
+                      explanation,
+                      credential: credentialLabels(locale),
+                      verify: verifyLabels(locale),
+                    }}
+                  />
                 );
               })}
             </ul>

@@ -7,7 +7,7 @@ import { formatNumber } from '@/i18n/format';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import { checklistTitle } from './first-run-heading';
-import { credentialLabels, panelLabels } from '../labels';
+import { credentialLabels, panelLabels, verifyLabels } from '../labels';
 import { Panel } from '../panel';
 import { CredentialField, type CredentialFieldSpec } from '../credential';
 import { EstateStep } from '../first-run/estate';
@@ -525,21 +525,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
               ) : null}
 
               {here === 'verify' ? (
-                <VerifyStep
-                  things={verifiable}
-                  labels={{
-                    check: message(locale, 'firstRun.verify.check'),
-                    checking: message(locale, 'firstRun.verify.checking'),
-                    retry: message(locale, 'firstRun.verify.retry'),
-                    passed: message(locale, 'firstRun.verify.passed'),
-                    failed: message(locale, 'firstRun.verify.failed'),
-                    unchecked: message(locale, 'firstRun.verify.unchecked'),
-                    unreachable: message(locale, 'firstRun.unreachable'),
-                    nothing: message(locale, 'firstRun.verify.nothing'),
-                    remedy: message(locale, 'firstRun.verify.remedy'),
-                    findings: message(locale, 'firstRun.verify.findings'),
-                  }}
-                />
+                <VerifyStep things={verifiable} labels={verifyLabels(locale)} />
               ) : null}
 
               {here === 'estate' && estateSource !== '' ? (

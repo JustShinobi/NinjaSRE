@@ -1,6 +1,7 @@
 import { message, type Locale } from '@/i18n/messages';
 import { formatNumber, timestamp } from '@/i18n/format';
 import type { CredentialLabels } from './credential';
+import type { VerifyStepLabels } from './first-run/verify';
 import type { PanelLabels } from './panel';
 import type { PayloadLabels, Bound } from './payload';
 import type { RowListLabels } from './rows';
@@ -50,6 +51,30 @@ export function credentialLabels(locale: Locale): CredentialLabels {
     saved: message(locale, 'credential.saved'),
     refused: message(locale, 'firstRun.refused'),
     unreachable: message(locale, 'firstRun.unreachable'),
+  };
+}
+
+/**
+ * Every sentence a per-row "check it for real" control renders.
+ *
+ * One builder for both call sites — the guided first run's verify step and
+ * the catalogue's per-integration card — for the same reason
+ * `credentialLabels` is: it is the same live check against the same vendor,
+ * and two sets of words for one operation is how one of them ends up
+ * promising something the other does not.
+ */
+export function verifyLabels(locale: Locale): VerifyStepLabels {
+  return {
+    check: message(locale, 'firstRun.verify.check'),
+    checking: message(locale, 'firstRun.verify.checking'),
+    retry: message(locale, 'firstRun.verify.retry'),
+    passed: message(locale, 'firstRun.verify.passed'),
+    failed: message(locale, 'firstRun.verify.failed'),
+    unchecked: message(locale, 'firstRun.verify.unchecked'),
+    unreachable: message(locale, 'firstRun.unreachable'),
+    nothing: message(locale, 'firstRun.verify.nothing'),
+    remedy: message(locale, 'firstRun.verify.remedy'),
+    findings: message(locale, 'firstRun.verify.findings'),
   };
 }
 
