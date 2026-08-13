@@ -145,3 +145,72 @@ describe('ErrorState', () => {
     );
   });
 });
+
+describe('the empty state as one control rather than two', () => {
+  /**
+   * Three specs report the same defect independently — Incidents, Approvals and
+   * Memory each say their call to action appears twice in the accessibility
+   * tree. None of them is wrong and none of them can fix it: the duplication is
+   * here, and it was well meant. The action rendered as a `<button>` firing a
+   * navigation, and the panel added a visually-hidden `<a>` beside it carrying
+   * the identical label, so that anything reading edges rather than pressing
+   * buttons still had a real link to follow.
+   *
+   * The result is that a screen reader announces the same action twice, once as
+   * a button and once as a link. The fix is not to drop either one: it is to
+   * notice that the action was always a navigation — `PanelEmpty.href` says so
+   * outright — and let one anchor be both.
+   */
+
+  it('renders the action as a link when it has somewhere to go', () => {
+    render(
+      <EmptyState
+        heading="No open incidents"
+        body="A detector opens one when what it watches crosses its threshold."
+        action={{ label: 'See what is being watched for', href: '/detectors' }}
+      />,
+    );
+
+    const action = screen.getByRole('link', { name: 'See what is being watched for' });
+    expect(action.getAttribute('href')).toBe('/detectors');
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('announces that action exactly once', () => {
+    render(
+      <EmptyState
+        heading="No open incidents"
+        body="A detector opens one when what it watches crosses its threshold."
+        action={{ label: 'See what is being watched for', href: '/detectors' }}
+      />,
+    );
+
+    expect(screen.getAllByText('See what is being watched for')).toHaveLength(1);
+  });
+
+  it('keeps a handler action a button, because it goes nowhere to be linked to', () => {
+    const chosen = vi.fn();
+    render(
+      <EmptyState
+        heading="Nothing yet"
+        body="Something would be here."
+        action={{ label: 'Do the thing', onSelect: chosen }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Do the thing' })).toBeInTheDocument();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('still refuses an action with nothing written on it', () => {
+    expect(() =>
+      render(
+        <EmptyState
+          heading="No open incidents"
+          body="Something would be here."
+          action={{ label: '   ', href: '/detectors' }}
+        />,
+      ),
+    ).toThrow(/no action/i);
+  });
+});

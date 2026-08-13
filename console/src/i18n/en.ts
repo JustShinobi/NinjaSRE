@@ -559,6 +559,18 @@ export const EN = {
   'incidents.filter.severity': 'Severity',
   'incidents.list.title': 'Incidents',
   'incidents.list.caption': 'Open and recently closed incidents',
+  // --- Why this deployment is empty, as opposed to what the feature is for ----
+  // Shared by every screen downstream of the setup: incidents, approvals, the
+  // graph, the episodes, the documents. See `surfaces/emptiness.ts` — the point
+  // is that "nothing is wrong" and "nothing is watching" must stop rendering
+  // identically, because they are opposite situations.
+  'empty.cause.setup':
+    'Nothing has happened here yet because this deployment is still being set up — {count} step(s) are outstanding, and investigations cannot run until they are done.',
+  'empty.cause.setup.action': 'Finish setting up',
+  'empty.cause.watching':
+    'No detector is switched on, so nothing is being watched and nothing will open by itself.',
+  'empty.cause.watching.action': 'Turn on continuous observation',
+
   'incidents.empty.heading': 'No open incidents',
   'incidents.empty.body':
     'A detector opens an incident when what it watches crosses its threshold. None has.',
@@ -751,9 +763,13 @@ export const EN = {
   'knowledge.column.updated': 'Updated',
   'knowledge.search': 'Search the knowledge base',
   'knowledge.documents.empty.heading': 'Nothing has been ingested',
+  // "Configure ingestion" named a control that does not exist. The gateway
+  // serves two knowledge routes and both are reads; there is no upload, no
+  // paste, and no connect-a-source anywhere in this console. A document arrives
+  // one of two ways, and both are named here rather than implied.
   'knowledge.documents.empty.body':
-    'A document reaches an investigation only after it is ingested here. None has been.',
-  'knowledge.documents.empty.action': 'Configure ingestion',
+    'Nothing here yet, and this console has no upload or connect-a-source control to offer. A document reaches this corpus when the sync your deployment was set up with brings it in, or when an investigation proposes one and a reviewer approves it.',
+  'knowledge.documents.empty.action': 'Review what has been proposed',
   'knowledge.proposals.title': 'Proposed by an agent',
   'knowledge.proposals.lead': 'Changes an investigation proposed, awaiting review.',
   'knowledge.proposals.empty.heading': 'Nothing is awaiting review',

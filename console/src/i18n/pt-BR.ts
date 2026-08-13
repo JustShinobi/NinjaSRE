@@ -491,6 +491,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.filter.severity': 'Gravidade',
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
+  'empty.cause.setup':
+    'Ainda não aconteceu nada aqui porque este deployment continua a ser configurado — faltam {count} passo(s), e não há investigações enquanto isso.',
+  'empty.cause.setup.action': 'Terminar a configuração',
+  'empty.cause.watching':
+    'Nenhum detector está ligado, portanto nada está a ser observado e nada se abrirá sozinho.',
+  'empty.cause.watching.action': 'Ligar a observação contínua',
+
   'incidents.empty.heading': 'Nenhum incidente aberto',
   'incidents.empty.body':
     'Um detector abre um incidente quando o que vigia ultrapassa o seu limiar. Nenhum o fez.',
@@ -683,8 +690,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'knowledge.search': 'Procurar na base de conhecimento',
   'knowledge.documents.empty.heading': 'Nada foi ingerido',
   'knowledge.documents.empty.body':
-    'Um documento só chega a uma investigação depois de ser ingerido aqui. Nenhum o foi.',
-  'knowledge.documents.empty.action': 'Configurar a ingestão',
+    'Ainda nada, e este console não tem nenhum controlo de upload nem de ligar uma fonte para oferecer. Um documento chega a este corpus quando a sincronização com que o deployment foi configurado o traz, ou quando uma investigação propõe um e alguém o aprova.',
+  'knowledge.documents.empty.action': 'Ver o que foi proposto',
   'knowledge.proposals.title': 'Proposto por um agente',
   'knowledge.proposals.lead':
     'Mudanças que uma investigação propôs, à espera de revisão.',

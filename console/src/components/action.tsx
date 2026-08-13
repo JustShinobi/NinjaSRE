@@ -43,10 +43,10 @@ export type ButtonVariant = (typeof BUTTON_VARIANTS)[number];
  * states" a property of the code rather than a thing somebody checks. A state
  * may only add colour.
  */
-const CONTROL_SHAPE =
+export const CONTROL_SHAPE =
   'inline-flex items-center justify-center gap-2 h-control px-3 rounded-2 edge text-body font-sans';
 
-const VARIANT_SKIN: Readonly<Record<ButtonVariant, string>> = {
+export const VARIANT_SKIN: Readonly<Record<ButtonVariant, string>> = {
   primary: 'bg-accent text-on-accent border-accent hover:opacity-90 motion-hover',
   secondary: 'bg-surface text-text border-border-strong hover:bg-hover motion-hover',
   quiet: 'bg-transparent text-muted border-transparent hover:bg-hover motion-hover',
@@ -54,7 +54,7 @@ const VARIANT_SKIN: Readonly<Record<ButtonVariant, string>> = {
 };
 
 /** What a forced state looks like, for the gallery. Colour only, never a box. */
-const STATE_SKIN: Readonly<Record<ControlState, string>> = {
+export const STATE_SKIN: Readonly<Record<ControlState, string>> = {
   default: '',
   hover: 'opacity-90',
   active: 'opacity-80',
