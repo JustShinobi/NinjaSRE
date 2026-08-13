@@ -42,7 +42,7 @@
           },
           {
             "configured": false,
-            "default_model": "gemini-3-pro",
+            "default_model": "gemini-pro-latest",
             "detail": "no credential is stored for this provider",
             "display_name": "Google Gemini",
             "local": false,
