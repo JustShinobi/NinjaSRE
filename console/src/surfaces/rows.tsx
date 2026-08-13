@@ -63,6 +63,23 @@ export interface RowColumn {
   readonly numeric?: boolean;
 }
 
+/**
+ * The sort control's accessible name, with the column it is about in it.
+ *
+ * A reader hears the heading and this together, and "Started sort, smallest
+ * first" is neither a sentence nor a statement about any particular column —
+ * the defect three screens reported independently. The label carries a
+ * `{column}` placeholder and it is filled here rather than in the catalogue
+ * lookup, because the lookup happens once per screen and there is one of these
+ * per column.
+ *
+ * A label with no placeholder is returned unchanged, which is what keeps a test
+ * double that passes "ascending" working.
+ */
+export function sortAction(label: string, column: string): string {
+  return label.replace('{column}', column);
+}
+
 export interface RowListLabels {
   readonly caption: string;
   /** Names the sort control, e.g. "Sort by {column}". Interpolated by the caller. */
@@ -201,10 +218,22 @@ export function RowList({
                       )}
                     >
                       {column.header}
+                      {/* Which way this column is sorted, for a reader who has
+                          the colour and not the announcement. `aria-sort` on
+                          the header above carries the same fact for a reader
+                          who has the announcement and not the glyph. */}
+                      {sorted ? (
+                        <span aria-hidden="true" className="text-accent">
+                          {state.descending ? '↓' : '↑'}
+                        </span>
+                      ) : null}
                       <span className="sr-only">
-                        {next.descending
-                          ? labels.sortedDescending
-                          : labels.sortedAscending}
+                        {sortAction(
+                          next.descending
+                            ? labels.sortedDescending
+                            : labels.sortedAscending,
+                          column.header,
+                        )}
                       </span>
                     </a>
                   ) : (

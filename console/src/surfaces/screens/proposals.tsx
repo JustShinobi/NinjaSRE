@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react';
 
+import { Link } from '@/components/action';
+import { CompassIcon } from '@/design/icons';
 import { message } from '@/i18n/messages';
 import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { ProposalReview } from '../proposal-review';
@@ -38,6 +41,21 @@ import {
  * **The acceptance figure carries both numbers.** Sixty per cent of five and
  * sixty per cent of two hundred are different facts about a team, and a screen
  * showing only the percentage lets the first pass for the second.
+ *
+ * **This is not the only inbox.** Approvals asks "can the agent do this now";
+ * this asks "should the deployment be different from tomorrow on" — a change
+ * to what it knows or how it is configured, rather than a single action it
+ * wants to take. The line above the panel says so and points at Approvals, the
+ * way Approvals now points back here — absent for a viewer who may not open
+ * that queue, because a link to a screen somebody cannot see is a dead end
+ * dressed as a courtesy.
+ *
+ * **The empty state names where a proposal comes from, not only that there are
+ * none.** An investigation that learns something worth writing down proposes
+ * the change here rather than making it — and on a deployment that has never
+ * investigated, nothing has ever had the chance to. That local cause, when it
+ * applies, replaces the mechanism sentence outright rather than sitting beside
+ * it.
  */
 
 /** The permission the gateway requires to decide a proposal. */
@@ -65,21 +83,50 @@ export async function ProposalsScreen(context: SurfaceContext): Promise<ReactNod
           decided: String(decided),
         });
 
+  // The setup cause is the more useful thing to say when it applies: a
+  // deployment that has never investigated has never had anything propose a
+  // change either, and that is the reason this queue is empty — not that
+  // nothing needed writing down. Once the setup is done, the mechanism
+  // ("an investigation that learns something worth writing down proposes the
+  // change here") is the true and useful sentence, and it is the one
+  // `knowledge.proposals.empty.body` already carries.
+  const setup = await readSetupState(credential);
+  const cause = setupCause(locale, setup);
+  const empty = emptyBecause(
+    {
+      heading: message(locale, 'proposals.empty.heading'),
+      body: message(locale, 'knowledge.proposals.empty.body'),
+      actionLabel: message(locale, 'proposals.empty.action'),
+      href: '/runs',
+    },
+    cause,
+  );
+
+  const approvals = areaFor('approvals');
+
   return (
     <>
       <AreaHeader area={areaFor('proposals')} locale={locale} />
+
+      {/* Absent for a viewer who may not open the other queue at all — a link
+          to a screen somebody cannot see is not a courtesy, it is a dead end
+          dressed as one. */}
+      {may(viewer, approvals.permission) ? (
+        <p className="text-meta text-muted mb-3 flex items-center gap-1">
+          <CompassIcon size="empty" />
+          {message(locale, 'page.approvals.context')}
+          <Link href={approvals.path} data-testid="proposals-elsewhere">
+            {message(locale, 'surface.open')} {message(locale, approvals.title)}
+          </Link>
+        </p>
+      ) : null}
 
       <Panel
         title={message(locale, 'proposals.title')}
         state={stateOf(queue, proposals.length === 0)}
         dependency={dependencyOf(queue)}
         labels={panelLabels(locale, message(locale, 'proposals.title'))}
-        empty={{
-          heading: message(locale, 'proposals.empty.heading'),
-          body: message(locale, 'proposals.empty.body'),
-          actionLabel: message(locale, 'proposals.empty.action'),
-          href: '/runs',
-        }}
+        empty={empty}
         bare
       >
         <p className="text-meta text-muted mb-3" data-testid="acceptance">

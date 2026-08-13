@@ -2,10 +2,17 @@ import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/status';
 import { Link } from '@/components/action';
-import { formatCount, formatCurrency, formatNumber, timestamp } from '@/i18n/format';
+import { Breadcrumb } from '@/components/navigation';
+import { PageHeader } from '@/components/layout';
+import {
+  formatCount,
+  formatCurrency,
+  formatDuration,
+  formatNumber,
+  timestamp,
+} from '@/i18n/format';
 import { message } from '@/i18n/messages';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
+import { areaFor, trailFor } from '@/shell/routes';
 import { rulerFromReplay } from '../changes';
 import type { SurfaceContext } from '../context';
 import { readFailure } from '../failures';
@@ -43,6 +50,14 @@ import { Transcript } from '../transcript-view';
 /** The currency the deployment reports cost in. */
 const CURRENCY = 'USD';
 
+/** How long a run took, in seconds, or nought while it is still going. */
+function durationOf(record: unknown): number {
+  const started = Date.parse(text(record, 'started_at'));
+  const finished = Date.parse(text(record, 'finished_at'));
+  if (Number.isNaN(started) || Number.isNaN(finished)) return 0;
+  return Math.max(0, (finished - started) / 1000);
+}
+
 export async function RunDetailScreen(
   context: SurfaceContext,
   runId: string,
@@ -72,9 +87,16 @@ export async function RunDetailScreen(
   const open = list(dataOf(interactions), 'interactions').filter(
     (record) => field(record, 'is_open') !== false,
   );
+
+  // What this screen says about the run's summary — computed once, and read by
+  // the title, the summary panel and the transcript's own report entry, so the
+  // deployment's raw exception is translated in exactly one place rather than
+  // reappearing untranslated everywhere the summary is quoted.
+  const said = readFailure(text(run, 'summary'), locale);
+
   const events = eventsFromReplay({
     ...Object(replayed),
-    summary: text(run, 'summary'),
+    summary: said.title,
   });
   const usage = usageFrom(replayed);
 
@@ -83,11 +105,30 @@ export async function RunDetailScreen(
   );
 
   const started = timestamp(locale, text(run, 'started_at'), now, zone);
+  const seconds = durationOf(run);
 
-  // What the summary panel says. A run that failed before it began carries the
-  // deployment's own exception here, and this screen is where that text belongs
-  // — behind a disclosure, under a sentence somebody can act on.
-  const said = readFailure(text(run, 'summary'), locale);
+  // Whether this run has nothing to show but the reason it never started. A run
+  // in that state fills its cost and its links panels with an empty state whose
+  // action is a navigation somewhere else, twice, which reads as more to do
+  // than there is — the honest sentence is one line, not a call to action.
+  const failedBeforeStart = !running && said.technical !== '' && events.length === 0;
+
+  // The page's own name and its own metadata. Reused from the area only for the
+  // breadcrumb's first crumb — a detail page's title is the thing it is showing,
+  // never the list it was opened from, and its subtitle is what happened rather
+  // than what the whole area is for.
+  const area = areaFor('runs');
+  const Icon = area.icon;
+  const title = said.title === '' ? runId : said.title;
+  const trail = trailFor(area, [{ label: title }]);
+  const subtitle = [
+    started.relative,
+    text(run, 'trigger'),
+    seconds === 0 ? '' : formatDuration(locale, seconds),
+    usage.cost === 0 ? '' : formatCurrency(locale, usage.cost, CURRENCY),
+  ]
+    .filter((part) => part !== '')
+    .join(' · ');
 
   // The footer, and it is drawn from the transcript rather than from a query of
   // its own. A run that never asked what changed has no ruler: an empty axis on
@@ -97,12 +138,28 @@ export async function RunDetailScreen(
 
   return (
     <>
-      <AreaHeader
-        area={areaFor('runs')}
-        locale={locale}
-        nested={[{ label: runId }]}
-        actions={<Badge status={text(run, 'status')} />}
-      />
+      {/* Not `AreaHeader`: that component always names the area itself —
+          "Investigations" and its list subtitle — which is true of the list and
+          not of one run inside it. The composition below is the same one
+          `AreaHeader` uses, with this run's own subject and metadata in the two
+          slots the area's fixed title and context would otherwise fill. */}
+      <div data-testid="page-header" data-area={area.id}>
+        {trail.length > 1 ? (
+          <Breadcrumb
+            label={message(locale, 'breadcrumb.label')}
+            trail={trail.map((crumb) => ({
+              label: crumb.translate ? message(locale, crumb.label) : crumb.label,
+              ...(crumb.href === undefined ? {} : { href: crumb.href }),
+            }))}
+          />
+        ) : null}
+        <PageHeader
+          title={title}
+          context={subtitle}
+          icon={<Icon size="head" />}
+          actions={<Badge status={text(run, 'status')} />}
+        />
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 min-w-0 flex flex-col gap-5">
@@ -243,7 +300,13 @@ export async function RunDetailScreen(
 
           <Panel
             title={message(locale, 'run.usage.title')}
-            state={stateOf(replay, usage.byTurn.length === 0)}
+            // A run that failed before it began has nothing to break down, and
+            // that is not this panel's error to report — the empty state below
+            // is for a read that came back empty, not for a run that never spent
+            // anything. Collapsing it here keeps the CTA for the read failure
+            // this panel actually depends on, and drops it for the one it does
+            // not.
+            state={stateOf(replay, usage.byTurn.length === 0 && !failedBeforeStart)}
             dependency={dependencyOf(replay)}
             labels={panelLabels(locale, message(locale, 'run.usage.title'))}
             empty={{
@@ -253,118 +316,131 @@ export async function RunDetailScreen(
               href: '/runs',
             }}
           >
-            <div className="flex flex-col gap-4 text-small">
-              <div className="flex items-center gap-3">
-                <span className="text-muted">
-                  {message(locale, 'run.usage.tokens')}
-                </span>
-                <span className="ml-auto tabular-nums">
-                  {formatNumber(locale, usage.tokens)}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-muted">{message(locale, 'run.usage.cost')}</span>
-                <span className="ml-auto tabular-nums">
-                  {formatCurrency(locale, usage.cost, CURRENCY)}
-                </span>
-              </div>
+            {failedBeforeStart && usage.byTurn.length === 0 ? (
+              // One line, not a call to action pointing back at the list this
+              // run was already opened from.
+              <p className="text-small text-muted">
+                {message(locale, 'run.usage.empty.heading')}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-4 text-small">
+                <div className="flex items-center gap-3">
+                  <span className="text-muted">
+                    {message(locale, 'run.usage.tokens')}
+                  </span>
+                  <span className="ml-auto tabular-nums">
+                    {formatNumber(locale, usage.tokens)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-muted">
+                    {message(locale, 'run.usage.cost')}
+                  </span>
+                  <span className="ml-auto tabular-nums">
+                    {formatCurrency(locale, usage.cost, CURRENCY)}
+                  </span>
+                </div>
 
-              <table className="w-full text-meta">
-                <caption className="sr-only">
-                  {message(locale, 'run.usage.model')}
-                </caption>
-                <thead>
-                  <tr>
-                    <th
-                      scope="col"
-                      className="text-left text-micro uppercase text-muted pb-1"
-                    >
-                      {message(locale, 'run.usage.model')}
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-right text-micro uppercase text-muted pb-1"
-                    >
-                      {message(locale, 'run.usage.turns')}
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-right text-micro uppercase text-muted pb-1"
-                    >
-                      {message(locale, 'run.usage.tokens')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody data-testid="usage-by-model">
-                  {usage.byModel.map((model) => (
-                    <tr key={model.model}>
-                      <td className="py-1 break-all">{model.model}</td>
-                      <td className="py-1 text-right tabular-nums">
-                        {formatNumber(locale, model.turns)}
-                      </td>
-                      <td className="py-1 text-right tabular-nums">
-                        {formatNumber(locale, Math.round(model.tokens))}
-                      </td>
+                <table className="w-full text-meta">
+                  <caption className="sr-only">
+                    {message(locale, 'run.usage.model')}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th
+                        scope="col"
+                        className="text-left text-micro uppercase text-muted pb-1"
+                      >
+                        {message(locale, 'run.usage.model')}
+                      </th>
+                      <th
+                        scope="col"
+                        className="text-right text-micro uppercase text-muted pb-1"
+                      >
+                        {message(locale, 'run.usage.turns')}
+                      </th>
+                      <th
+                        scope="col"
+                        className="text-right text-micro uppercase text-muted pb-1"
+                      >
+                        {message(locale, 'run.usage.tokens')}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody data-testid="usage-by-model">
+                    {usage.byModel.map((model) => (
+                      <tr key={model.model}>
+                        <td className="py-1 break-all">{model.model}</td>
+                        <td className="py-1 text-right tabular-nums">
+                          {formatNumber(locale, model.turns)}
+                        </td>
+                        <td className="py-1 text-right tabular-nums">
+                          {formatNumber(locale, Math.round(model.tokens))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
-              <table className="w-full text-meta">
-                <caption className="sr-only">
-                  {message(locale, 'run.usage.turn')}
-                </caption>
-                <thead>
-                  <tr>
-                    <th
-                      scope="col"
-                      className="text-left text-micro uppercase text-muted pb-1"
-                    >
-                      {message(locale, 'run.usage.turn')}
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-right text-micro uppercase text-muted pb-1"
-                    >
-                      {message(locale, 'run.usage.calls')}
-                    </th>
-                    <th
-                      scope="col"
-                      className="text-right text-micro uppercase text-muted pb-1"
-                    >
-                      {message(locale, 'run.usage.cost')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody data-testid="usage-by-turn">
-                  {usage.byTurn.map((turn) => (
-                    <tr key={turn.turn}>
-                      <td className="py-1 tabular-nums">
-                        {formatNumber(locale, turn.turn)}
-                      </td>
-                      <td className="py-1 text-right tabular-nums">
-                        {formatNumber(locale, turn.calls)}
-                      </td>
-                      <td className="py-1 text-right tabular-nums">
-                        {formatCurrency(locale, turn.cost, CURRENCY)}
-                      </td>
+                <table className="w-full text-meta">
+                  <caption className="sr-only">
+                    {message(locale, 'run.usage.turn')}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th
+                        scope="col"
+                        className="text-left text-micro uppercase text-muted pb-1"
+                      >
+                        {message(locale, 'run.usage.turn')}
+                      </th>
+                      <th
+                        scope="col"
+                        className="text-right text-micro uppercase text-muted pb-1"
+                      >
+                        {message(locale, 'run.usage.calls')}
+                      </th>
+                      <th
+                        scope="col"
+                        className="text-right text-micro uppercase text-muted pb-1"
+                      >
+                        {message(locale, 'run.usage.cost')}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody data-testid="usage-by-turn">
+                    {usage.byTurn.map((turn) => (
+                      <tr key={turn.turn}>
+                        <td className="py-1 tabular-nums">
+                          {formatNumber(locale, turn.turn)}
+                        </td>
+                        <td className="py-1 text-right tabular-nums">
+                          {formatNumber(locale, turn.calls)}
+                        </td>
+                        <td className="py-1 text-right tabular-nums">
+                          {formatCurrency(locale, turn.cost, CURRENCY)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
 
-              {/* Said rather than implied: the run reports one total and this is
+                {/* Said rather than implied: the run reports one total and this is
                   that total divided, so nobody spends an afternoon reconciling a
                   per-turn figure against a meter. */}
-              <p className="text-meta text-muted">
-                {message(locale, 'run.usage.apportioned')}
-              </p>
-            </div>
+                <p className="text-meta text-muted">
+                  {message(locale, 'run.usage.apportioned')}
+                </p>
+              </div>
+            )}
           </Panel>
 
           <Panel
             title={message(locale, 'run.links.title')}
-            state={stateOf(detail, incident === undefined)}
+            // Same reasoning as the cost panel above: a run with nothing linked
+            // because it failed before it began is not a read that came back
+            // empty, and it does not need that read's call to action.
+            state={stateOf(detail, incident === undefined && !failedBeforeStart)}
             dependency={dependencyOf(detail)}
             labels={panelLabels(locale, message(locale, 'run.links.title'))}
             empty={{
@@ -374,26 +450,36 @@ export async function RunDetailScreen(
               href: '/resources',
             }}
           >
-            <dl className="flex flex-col gap-2 text-small">
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">{message(locale, 'run.links.incident')}</dt>
-                <dd className="ml-auto min-w-0 truncate">
-                  <Link href={`/incidents/${text(incident, 'incident_id')}`}>
-                    {text(incident, 'title')}
-                  </Link>
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="text-muted">{message(locale, 'run.links.resources')}</dt>
-                {list(incident, 'subjects').map((subject) => (
-                  <dd key={String(subject)} className="min-w-0 truncate">
-                    <Link href={`/resources?selected=${String(subject)}`}>
-                      {String(subject)}
+            {failedBeforeStart && incident === undefined ? (
+              <p className="text-small text-muted">
+                {message(locale, 'run.links.empty.heading')}
+              </p>
+            ) : (
+              <dl className="flex flex-col gap-2 text-small">
+                <div className="flex items-center gap-3">
+                  <dt className="text-muted">
+                    {message(locale, 'run.links.incident')}
+                  </dt>
+                  <dd className="ml-auto min-w-0 truncate">
+                    <Link href={`/incidents/${text(incident, 'incident_id')}`}>
+                      {text(incident, 'title')}
                     </Link>
                   </dd>
-                ))}
-              </div>
-            </dl>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <dt className="text-muted">
+                    {message(locale, 'run.links.resources')}
+                  </dt>
+                  {list(incident, 'subjects').map((subject) => (
+                    <dd key={String(subject)} className="min-w-0 truncate">
+                      <Link href={`/resources?selected=${String(subject)}`}>
+                        {String(subject)}
+                      </Link>
+                    </dd>
+                  ))}
+                </div>
+              </dl>
+            )}
           </Panel>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { Breadcrumb } from '@/components/navigation';
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
@@ -100,12 +101,26 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
               href: '/team-context',
             }}
           >
-            <OrgTree
-              nodes={placed}
-              selected={selected}
-              label={message(locale, 'configuration.tree.title')}
-              hrefFor={(id) => `/team-context?node=${encodeURIComponent(id)}`}
-            />
+            {/* A tree earns the space it takes. One node — the common case for a
+                deployment with a single team — has nothing to navigate, and a
+                nav-and-list rendering of it is a whole column spent on a name
+                already in the panel's own title. That case collapses to a
+                breadcrumb; the tree itself is drawn only where there is one. */}
+            {placed.length > 1 ? (
+              <OrgTree
+                nodes={placed}
+                selected={selected}
+                label={message(locale, 'configuration.tree.title')}
+                hrefFor={(id) => `/team-context?node=${encodeURIComponent(id)}`}
+              />
+            ) : (
+              <div data-testid="org-breadcrumb">
+                <Breadcrumb
+                  label={message(locale, 'configuration.tree.title')}
+                  trail={placed.map((node) => ({ label: node.name }))}
+                />
+              </div>
+            )}
           </Panel>
         </div>
 
@@ -117,7 +132,14 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
             labels={panelLabels(locale, message(locale, 'teamContext.sections.title'))}
             empty={{
               heading: message(locale, 'teamContext.empty.heading'),
-              body: message(locale, 'teamContext.empty.body'),
+              // Composed rather than a body of its own: an empty editor with
+              // nothing but "nothing written here yet" gives no sense of what a
+              // section actually is. `factNotInstruction` already carries the
+              // concrete example the rest of this screen shows once something
+              // is written — "Container metrics come from the host, by vmid" —
+              // so the same sentence appears here, before there is anything to
+              // point at.
+              body: `${message(locale, 'teamContext.empty.body')} ${message(locale, 'teamContext.factNotInstruction')}`,
               actionLabel: message(locale, 'teamContext.empty.action'),
               href: '/configuration',
             }}

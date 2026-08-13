@@ -24,7 +24,7 @@ export const EN = {
   'nav.firstRun': 'First steps',
   'nav.dashboard': 'Dashboard',
   'nav.incidents': 'Incidents',
-  'nav.runs': 'Runs',
+  'nav.runs': 'Investigations',
   'nav.approvals': 'Approvals',
   'nav.proposals': 'Proposed changes',
   'nav.resources': 'Resources',
@@ -54,7 +54,8 @@ export const EN = {
   'page.incidents.title': 'Incidents',
   'page.incidents.context': 'What a detector opened, and what happened to it since.',
   'page.runs.title': 'Investigations',
-  'page.runs.context': 'Every run this deployment has recorded, newest first.',
+  'page.runs.context':
+    'Every investigation this deployment has recorded, newest first.',
   'page.approvals.title': 'Approvals',
   'page.approvals.context':
     'Changes waiting on a decision, and the rollback behind each.',
@@ -138,7 +139,7 @@ export const EN = {
   'data.provenance.source': 'Arrived by',
   'data.provenance.rule': 'Rule',
   'data.provenance.team': 'Team',
-  'data.provenance.run': 'Run',
+  'data.provenance.run': 'Investigation',
   'data.provenance.resource': 'Resource',
   'data.provenance.none': 'Nothing has arrived here to trace.',
 
@@ -264,8 +265,13 @@ export const EN = {
     'did not answer. The rest of this page is unaffected and this panel alone will be retried.',
   'surface.error.retry': 'Retry this panel',
   'surface.open': 'Open',
-  'surface.sort.ascending': 'sort, smallest first',
-  'surface.sort.descending': 'sort, largest first',
+  // Named, because these are appended to a column heading and a reader hears
+  // the two together. "Started sort, smallest first" is not a sentence and does
+  // not say which column it is about — three specs reported it independently,
+  // from Investigations, Resources and Audit. The current direction is carried
+  // by `aria-sort` on the header; what this says is what pressing it will do.
+  'surface.sort.ascending': 'sort by {column}, smallest first',
+  'surface.sort.descending': 'sort by {column}, largest first',
   'surface.filter.any': 'Any',
   'surface.showing': 'Showing {shown} of {total}.',
   'surface.none': 'Not recorded',
@@ -292,7 +298,7 @@ export const EN = {
   'transcript.position': 'Showing events {first} to {last} of {total}.',
   'transcript.earlier': 'Earlier events',
   'transcript.later': 'Later events',
-  'transcript.empty': 'This run recorded no events.',
+  'transcript.empty': 'This investigation recorded no events.',
   'transcript.arguments': 'Arguments',
   'transcript.result': 'Result',
   'transcript.duration': '{ms} ms',
@@ -300,8 +306,8 @@ export const EN = {
   'transcript.events.one': '{count} event',
   'transcript.empty.heading': 'No transcript yet',
   'transcript.empty.body':
-    'A transcript appears as soon as the run takes its first turn. Nothing has been recorded for this one.',
-  'transcript.empty.action': 'Back to the run list',
+    'A transcript appears as soon as the investigation takes its first turn. Nothing has been recorded for this one.',
+  'transcript.empty.action': 'Back to the investigations',
 
   // --- The overview --------------------------------------------------------------
   'dashboard.attention.title': 'Needs you',
@@ -318,13 +324,13 @@ export const EN = {
   'dashboard.stat.healthy.context': '{count} of {total} at the last sweep',
   'dashboard.stat.degraded': 'Degraded and unhealthy',
   'dashboard.stat.degraded.context': '{count} open findings behind them',
-  'dashboard.stat.runs': 'Runs in the last day',
+  'dashboard.stat.runs': 'Investigations in the last day',
   'dashboard.stat.runs.context': '{failed} of them failed',
   'dashboard.stat.drill': 'See the list behind this figure',
   'dashboard.activity.title': 'Recent activity',
   'dashboard.activity.empty.heading': 'Nothing has happened yet',
   'dashboard.activity.empty.body':
-    'Runs, incidents and sweeps appear here as they happen. Connect an infrastructure source and the first sweep starts within a minute.',
+    'Investigations, incidents and sweeps appear here as they happen. Connect an infrastructure source and the first sweep starts within a minute.',
   'dashboard.activity.empty.action': 'Connect a source',
   'dashboard.estate.title': 'Estate health',
   'dashboard.estate.empty.heading': 'No resources yet',
@@ -502,7 +508,7 @@ export const EN = {
     'Describe an incident and watch a real investigation run. With nothing connected it reasons and consults nothing, which is honest rather than impressive.',
 
   // --- Runs ------------------------------------------------------------------------
-  'runs.column.run': 'Run',
+  'runs.column.run': 'Investigation',
   'runs.column.status': 'Status',
   'runs.column.trigger': 'Trigger',
   'runs.column.subject': 'Subject',
@@ -511,13 +517,13 @@ export const EN = {
   'runs.column.cost': 'Cost',
   'runs.filter.status': 'Status',
   'runs.filter.trigger': 'Trigger',
-  'runs.list.title': 'Runs',
+  'runs.list.title': 'Investigations',
   'runs.list.caption': 'Every run this deployment has recorded',
   'runs.empty.heading': 'No runs yet',
   'runs.empty.body':
-    'A run is recorded whenever an alert, a schedule or a person starts an investigation. None has been.',
+    'An investigation is recorded whenever an alert, a schedule or a person starts one. None has been.',
   'runs.empty.action': 'Start an investigation',
-  'runs.filtered.heading': 'No run matches those filters',
+  'runs.filtered.heading': 'No investigation matches those filters',
   'runs.filtered.body':
     'Every filter is in the address, so clearing them is one navigation and the view you had is still shareable.',
   'runs.filtered.action': 'Clear the filters',
@@ -530,10 +536,10 @@ export const EN = {
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Cost',
   'run.usage.apportioned':
-    'The run reports one total; the split below is that total apportioned across its turns.',
+    'The investigation reports one total; the split below is that total apportioned across its turns.',
   'run.usage.empty.heading': 'No cost recorded',
   'run.usage.empty.body':
-    'Cost and tokens are recorded per turn. This run has taken no turns yet.',
+    'Cost and tokens are recorded per turn. This investigation has taken no turns yet.',
   'run.usage.empty.action': 'Back to the run list',
   'run.changes.title': 'What changed, on the same ruler',
   'run.changes.body':
@@ -545,7 +551,7 @@ export const EN = {
   'run.links.incident': 'Incident',
   'run.links.empty.heading': 'Nothing linked yet',
   'run.links.empty.body':
-    'Resources and incidents are linked as the run names them. This one has named none.',
+    'Resources and incidents are linked as the investigation names them. This one has named none.',
   'run.links.empty.action': 'See the estate',
 
   // --- Incidents -------------------------------------------------------------------

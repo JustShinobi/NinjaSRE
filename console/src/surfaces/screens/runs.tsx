@@ -86,17 +86,21 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
       id,
       href: `/runs/${id}`,
       cells: [
-        { kind: 'identifier', text: id },
-        { kind: 'status', text: text(record, 'status') },
-        { kind: 'text', text: text(record, 'trigger') },
-        // The subject column, not a place for a stack trace. A run that failed
-        // because nothing is configured used to fill this cell with the
-        // deployment's own exception, repeated on every row it happened to.
-        // The deployment's words are still on the run itself.
+        // The identity of an investigation is its subject, not the 32-character
+        // hex the deployment happened to assign it. A run that failed because
+        // nothing is configured used to fill this cell with the deployment's own
+        // exception, repeated on every row it happened to; the deployment's
+        // words are still on the run itself, behind the translation.
         {
-          kind: 'muted',
+          kind: 'text',
           text: orNone(readFailure(text(record, 'summary'), locale).title, none),
         },
+        { kind: 'status', text: text(record, 'status') },
+        { kind: 'text', text: text(record, 'trigger') },
+        // The id, demoted to metadata. Short enough to be a label rather than a
+        // block of hex nobody can hold in their head, and it is still what
+        // somebody pastes into a support channel.
+        { kind: 'identifier', text: id.slice(0, 8) },
         {
           kind: 'muted',
           text: timestamp(locale, text(record, 'started_at'), now, zone).relative,
@@ -169,11 +173,10 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
           filters={RUN_FILTERS}
           labels={rowLabels(locale, message(locale, 'runs.list.caption'))}
           columns={[
-            {
-              key: 'run_id',
-              header: message(locale, 'runs.column.run'),
-              sortable: true,
-            },
+            // Not sortable: the underlying field is the deployment's raw
+            // summary, and sorting by it would order rows by exception text
+            // rather than by the translated subject this column actually shows.
+            { key: 'summary', header: message(locale, 'runs.column.subject') },
             {
               key: 'status',
               header: message(locale, 'runs.column.status'),
@@ -184,7 +187,11 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
               header: message(locale, 'runs.column.trigger'),
               sortable: true,
             },
-            { key: 'summary', header: message(locale, 'runs.column.subject') },
+            {
+              key: 'run_id',
+              header: message(locale, 'runs.column.run'),
+              sortable: true,
+            },
             {
               key: 'started_at',
               header: message(locale, 'runs.column.started'),
