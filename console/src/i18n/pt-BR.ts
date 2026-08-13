@@ -290,6 +290,26 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'notifications.empty': 'Nada está à espera de uma pessoa.',
   'notifications.resolved': 'Resolvido noutro lugar',
 
+  'failure.technical': 'Detalhe técnico',
+  'failure.investigator.title': 'As investigações ainda não estão ligadas',
+  'failure.investigator.action':
+    'Termine a escolha do modelo. Até lá, iniciar uma investigação vai falhar.',
+  'failure.credential.title': 'Falta uma chave para algo que isto precisava',
+  'failure.credential.action':
+    'Guarde a credencial do sistema que isto tentava alcançar.',
+  'failure.vaultKey.title': 'Uma chave guardada não pode ser lida de volta',
+  'failure.vaultKey.action':
+    'A chave de encriptação deste deployment mudou desde que a credencial foi guardada. Guarde-a de novo.',
+  'failure.store.title': 'Este deployment não alcança a própria base de dados',
+  'failure.store.action':
+    'Nada neste console resolve isto — quem opera o deployment precisa de olhar.',
+  'failure.migrations.title': 'Este deployment está a correr um esquema antigo',
+  'failure.migrations.action':
+    'A base de dados está atrás do código. Quem opera o deployment precisa de aplicar as migrações.',
+  'failure.unknown.title': 'Algo correu mal que este console não sabe explicar',
+  'failure.unknown.action':
+    'As palavras do próprio deployment estão no detalhe técnico abaixo.',
+
   'palette.title': 'Paleta de comandos',
   'palette.placeholder': 'Ir para uma página, uma execução ou uma acção',
   'palette.empty': 'Nada corresponde a isso.',

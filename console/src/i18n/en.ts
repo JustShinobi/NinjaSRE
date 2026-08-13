@@ -186,6 +186,30 @@ export const EN = {
   'notifications.empty': 'Nothing is waiting on a person.',
   'notifications.resolved': 'Resolved elsewhere',
 
+  // --- What a failure is called, when the deployment names an exception --------
+  // Every one of these replaces a sentence written for whoever deploys this,
+  // shown to whoever opened the console. The raw text is still available under
+  // "technical detail" — see `surfaces/failures.ts`.
+  'failure.technical': 'Technical detail',
+  'failure.investigator.title': 'Investigations are not switched on yet',
+  'failure.investigator.action':
+    'Finish choosing a model. Until then, starting an investigation will fail.',
+  'failure.credential.title': 'A key is missing for something this needed',
+  'failure.credential.action':
+    'Store the credential for the system this was trying to reach.',
+  'failure.vaultKey.title': 'A stored key cannot be read back',
+  'failure.vaultKey.action':
+    'This deployment’s encryption key has changed since the credential was stored. Store it again.',
+  'failure.store.title': 'This deployment cannot reach its own database',
+  'failure.store.action':
+    'Nothing in this console fixes it — whoever runs the deployment needs to look.',
+  'failure.migrations.title': 'This deployment is running an older schema',
+  'failure.migrations.action':
+    'The database is behind the code. Whoever runs the deployment needs to apply the migrations.',
+  'failure.unknown.title': 'Something went wrong that this console cannot explain',
+  'failure.unknown.action':
+    'The deployment’s own words are under the technical detail below.',
+
   // --- The command palette -----------------------------------------------------
   'palette.title': 'Command palette',
   'palette.placeholder': 'Go to a page, a run, or an action',

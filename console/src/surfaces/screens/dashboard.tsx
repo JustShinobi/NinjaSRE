@@ -6,6 +6,7 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import { ActivityFeed, type ActivityEntry } from '../activity';
 import { AttentionBlock, type AttentionRow } from '../attention';
+import { readFailure } from '../failures';
 import { Figure } from '../figure';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
@@ -142,12 +143,19 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   for (const record of runRecords) {
     if (!FAILED.has(text(record, 'status'))) continue;
     const id = text(record, 'run_id');
+    // A failed run's summary is whatever the deployment put there, and for the
+    // failure that matters most that is a raised exception naming an
+    // environment variable. It was the first thing on this page: a sentence
+    // written for whoever deploys the product, shown to whoever opened the
+    // console, on a screen that has a button leading to the fix.
+    const said = readFailure(text(record, 'summary'), locale);
+    const raised = said.technical !== '';
     attention.push({
       id,
       kind: 'failure',
-      title: text(record, 'summary'),
-      detail: text(record, 'status'),
-      href: `/runs/${id}`,
+      title: raised ? said.title : text(record, 'summary'),
+      detail: raised ? said.action : text(record, 'status'),
+      href: raised && said.href !== '' ? said.href : `/runs/${id}`,
       since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
     });
   }
@@ -172,6 +180,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   for (const record of runRecords) {
     const id = text(record, 'run_id');
     const status = text(record, 'status');
+    // Same translation as the band above, for the same reason: this was the
+    // fourth surface repeating the identical stack trace, and a narrative of
+    // what happened here reads worst of all as an exception message.
+    const said = readFailure(text(record, 'summary'), locale);
     feed.push({
       id: `run-${id}`,
       kind: 'run',
@@ -181,8 +193,8 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         : status === 'succeeded'
           ? 'success'
           : 'info',
-      title: text(record, 'summary') === '' ? id : text(record, 'summary'),
-      detail: status,
+      title: said.title === '' ? id : said.title,
+      detail: said.technical === '' ? status : said.action,
       href: `/runs/${id}`,
       ...timestamp(locale, text(record, 'started_at'), now, zone),
     });

@@ -8,6 +8,7 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import { rulerFromReplay } from '../changes';
 import type { SurfaceContext } from '../context';
+import { readFailure } from '../failures';
 import { eventTimes, panelLabels, transcriptLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -83,6 +84,11 @@ export async function RunDetailScreen(
 
   const started = timestamp(locale, text(run, 'started_at'), now, zone);
 
+  // What the summary panel says. A run that failed before it began carries the
+  // deployment's own exception here, and this screen is where that text belongs
+  // — behind a disclosure, under a sentence somebody can act on.
+  const said = readFailure(text(run, 'summary'), locale);
+
   // The footer, and it is drawn from the transcript rather than from a query of
   // its own. A run that never asked what changed has no ruler: an empty axis on
   // every investigation would read as "nothing changed", which is a claim only a
@@ -112,7 +118,24 @@ export async function RunDetailScreen(
               href: '/runs',
             }}
           >
-            <p className="text-small">{text(run, 'summary')}</p>
+            {/* The one screen that keeps the deployment's own words, because
+                it is the one somebody lands on to find out what happened. The
+                headline is the translation; the raw text is a disclosure below
+                it, closed, for whoever runs the deployment. */}
+            <p className="text-small">{said.title}</p>
+            {said.action === '' ? null : (
+              <p className="text-small text-muted mt-1">{said.action}</p>
+            )}
+            {said.technical === '' ? null : (
+              <details className="mt-2" data-testid="run-technical-detail">
+                <summary className="text-meta text-muted cursor-pointer">
+                  {message(locale, 'failure.technical')}
+                </summary>
+                <p className="text-meta text-muted mt-1 whitespace-pre-wrap break-words">
+                  {said.technical}
+                </p>
+              </details>
+            )}
             <p className="text-meta text-muted mt-2">
               <time dateTime={started.iso} title={started.absolute}>
                 {started.relative}

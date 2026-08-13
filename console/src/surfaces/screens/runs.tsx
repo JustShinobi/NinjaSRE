@@ -5,6 +5,7 @@ import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { readFailure } from '../failures';
 import { FilterBar } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
@@ -88,7 +89,14 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
         { kind: 'identifier', text: id },
         { kind: 'status', text: text(record, 'status') },
         { kind: 'text', text: text(record, 'trigger') },
-        { kind: 'muted', text: orNone(text(record, 'summary'), none) },
+        // The subject column, not a place for a stack trace. A run that failed
+        // because nothing is configured used to fill this cell with the
+        // deployment's own exception, repeated on every row it happened to.
+        // The deployment's words are still on the run itself.
+        {
+          kind: 'muted',
+          text: orNone(readFailure(text(record, 'summary'), locale).title, none),
+        },
         {
           kind: 'muted',
           text: timestamp(locale, text(record, 'started_at'), now, zone).relative,
