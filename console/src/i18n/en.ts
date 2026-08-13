@@ -861,7 +861,8 @@ export const EN = {
     'Nothing here yet, and this console has no upload or connect-a-source control to offer. A document reaches this corpus when the sync your deployment was set up with brings it in, or when an investigation proposes one and a reviewer approves it.',
   'knowledge.documents.empty.action': 'Review what has been proposed',
   'knowledge.proposals.title': 'Proposed by an agent',
-  'knowledge.proposals.lead': 'Changes an investigation proposed, awaiting review.',
+  'knowledge.proposals.lead':
+    'Changes an investigation proposed, awaiting review in the same queue as every other proposed change.',
   'knowledge.proposals.empty.heading': 'Nothing is awaiting review',
   'knowledge.proposals.empty.body':
     'When an investigation learns something worth writing down it proposes the change here rather than making it.',

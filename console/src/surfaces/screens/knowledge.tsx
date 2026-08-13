@@ -6,7 +6,7 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
-import { FilterBar } from '../filters';
+import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -83,6 +83,18 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
     return kind === undefined || kindOf(record) === kind;
   });
 
+  // A filter with nothing behind it but "Any" is not a filter, it is a
+  // dropdown that teaches nothing. Computed from the whole corpus rather than
+  // the current selection, and dropped from the bar entirely once it has
+  // nothing behind it — the same rule the Memory screen's filters follow.
+  const choices: readonly FilterChoice[] = [
+    {
+      name: 'kind',
+      label: message(locale, 'knowledge.column.kind'),
+      options: kinds.map((value) => ({ value, label: value })),
+    },
+  ].filter((choice) => choice.options.length > 0);
+
   const none = message(locale, 'surface.none');
   const rows: readonly ListRow[] = filtered.map((record) => ({
     id: text(record, 'document_id'),
@@ -106,13 +118,7 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
         state={state}
         filters={KNOWLEDGE_FILTERS}
         anyLabel={message(locale, 'surface.filter.any')}
-        choices={[
-          {
-            name: 'kind',
-            label: message(locale, 'knowledge.column.kind'),
-            options: kinds.map((value) => ({ value, label: value })),
-          },
-        ]}
+        choices={choices}
       />
 
       <div className="flex flex-col gap-5">

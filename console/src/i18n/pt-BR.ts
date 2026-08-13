@@ -752,15 +752,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'knowledge.documents.caption': 'Os documentos que uma investigação pode ler',
   'knowledge.column.title': 'Documento',
   'knowledge.column.kind': 'Tipo',
-  'knowledge.column.updated': 'Actualizado',
+  'knowledge.column.updated': 'Atualizado',
   'knowledge.search': 'Procurar na base de conhecimento',
   'knowledge.documents.empty.heading': 'Nada foi ingerido',
   'knowledge.documents.empty.body':
-    'Ainda nada, e este console não tem nenhum controlo de upload nem de ligar uma fonte para oferecer. Um documento chega a este corpus quando a sincronização com que o deployment foi configurado o traz, ou quando uma investigação propõe um e alguém o aprova.',
+    'Ainda nada, e este console não tem nenhum controle de upload nem de ligar uma fonte para oferecer. Um documento chega a este corpus quando a sincronização com que o deployment foi configurado o traz, ou quando uma investigação propõe um e alguém o aprova.',
   'knowledge.documents.empty.action': 'Ver o que foi proposto',
   'knowledge.proposals.title': 'Proposto por um agente',
   'knowledge.proposals.lead':
-    'Mudanças que uma investigação propôs, à espera de revisão.',
+    'Mudanças que uma investigação propôs, à espera de revisão na mesma fila de qualquer outra mudança proposta.',
   'knowledge.proposals.empty.heading': 'Nada está à espera de revisão',
   'knowledge.proposals.empty.body':
     'Quando uma investigação aprende algo que vale a pena escrever, propõe a mudança aqui em vez de a fazer.',

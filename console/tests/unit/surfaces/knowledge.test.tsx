@@ -78,6 +78,15 @@ describe('a deployment still being set up', () => {
     expect(screen.getAllByText('Finish setting up').length).toBeGreaterThan(0);
     expect(screen.queryByText('Configure ingestion')).not.toBeInTheDocument();
     expect(screen.getByTestId('way-back')).toHaveAttribute('href', '/first-run');
+
+    // "Proposed by an agent" is a pointer to the proposal queue, never a
+    // second list, so it never has emptiness of its own to report — an
+    // empty corpus must produce exactly one empty panel, not the same
+    // sentence twice.
+    const empties = screen
+      .getAllByTestId('panel')
+      .filter((panel) => panel.getAttribute('data-state') === 'empty');
+    expect(empties).toHaveLength(1);
   });
 });
 
@@ -105,11 +114,61 @@ describe('what an investigation proposed to the knowledge base', () => {
     const link = screen.getByTestId('proposals-link');
     expect(link).toHaveAttribute('href', '/proposals');
     expect(
-      screen.getByText('Changes an investigation proposed, awaiting review.'),
+      screen.getByText(/Changes an investigation proposed, awaiting review/),
     ).toBeInTheDocument();
 
     // One row list on the page — the documents themselves. A second one under
     // "Proposed by an agent" would be the duplicate this screen must not carry.
     expect(screen.getAllByTestId('row-list')).toHaveLength(1);
+  });
+
+  it('says in words that this is the same queue Proposed changes shows, not a separate one', async () => {
+    serveScenario('populated');
+
+    await renderKnowledge();
+
+    // The problem this pins: pointing at the queue and never rendering a
+    // second copy of it proves there is no duplicate, but it does not by
+    // itself tell a reader whether "Proposed by an agent" is a distinct,
+    // smaller queue or the very same one filtered to knowledge. The text has
+    // to say which, in words, on this screen.
+    expect(
+      screen.getByText(/same queue as every other proposed change/),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('a filter with nothing behind it but "Any"', () => {
+  it('is hidden when no document in the corpus has a kind', async () => {
+    serveScenario('empty');
+
+    await renderKnowledge();
+
+    const filters = screen.queryAllByTestId('filter');
+    expect(
+      filters.some((filter) => filter.getAttribute('data-filter') === 'kind'),
+    ).toBe(false);
+  });
+
+  it('is hidden on a finished deployment that has ingested nothing yet, too', async () => {
+    serveFinishedButEmpty();
+
+    await renderKnowledge();
+
+    const filters = screen.queryAllByTestId('filter');
+    expect(
+      filters.some((filter) => filter.getAttribute('data-filter') === 'kind'),
+    ).toBe(false);
+  });
+
+  it('stays once the corpus has more than one kind to choose between', async () => {
+    serveScenario('populated');
+
+    await renderKnowledge();
+
+    const filters = screen.getAllByTestId('filter');
+    expect(
+      filters.some((filter) => filter.getAttribute('data-filter') === 'kind'),
+    ).toBe(true);
   });
 });
