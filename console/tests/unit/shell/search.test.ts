@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { searchCommands } from '@/shell/commands';
 import {
   SEARCH_SHOWN,
   contains,
@@ -59,8 +60,8 @@ describe('finding a resource by what it is called', () => {
 
   it('shows a bounded number, so one kind cannot fill the palette', () => {
     const many = Array.from({ length: 40 }, (_, at) => ({
-      resource_id: `r${at}`,
-      name: `worker-${at}`,
+      resource_id: `r${String(at)}`,
+      name: `worker-${String(at)}`,
       kind: 'container',
     }));
 
@@ -116,5 +117,98 @@ describe('what is worth asking the deployment', () => {
 
   it('sends two', () => {
     expect(worthSearching('pv')).toBe(true);
+  });
+});
+
+describe('what a found thing becomes in the palette', () => {
+  it('carries the permission its destination demands', () => {
+    // The same presence rule the navigation follows. A search must not be the
+    // way somebody reaches a screen the sidebar would not have offered them.
+    const commands = searchCommands([
+      {
+        id: 'resource:r1',
+        group: 'resources',
+        label: 'a',
+        hint: '',
+        href: '/resources/r1',
+      },
+      {
+        id: 'incident:i1',
+        group: 'incidents',
+        label: 'b',
+        hint: 'high',
+        href: '/incidents/i1',
+      },
+      {
+        id: 'found-run:run-1',
+        group: 'runs',
+        label: 'c',
+        hint: '',
+        href: '/runs/run-1',
+      },
+    ]);
+
+    expect(commands.map((command) => command.permission)).toEqual([
+      'estate.read',
+      'incident.read',
+      'investigation.read',
+    ]);
+  });
+
+  it('puts each kind in its own palette group', () => {
+    const commands = searchCommands([
+      {
+        id: 'resource:r1',
+        group: 'resources',
+        label: 'a',
+        hint: '',
+        href: '/resources/r1',
+      },
+      {
+        id: 'incident:i1',
+        group: 'incidents',
+        label: 'b',
+        hint: '',
+        href: '/incidents/i1',
+      },
+      {
+        id: 'found-run:run-1',
+        group: 'runs',
+        label: 'c',
+        hint: '',
+        href: '/runs/run-1',
+      },
+    ]);
+
+    expect(commands.map((command) => command.group)).toEqual([
+      'resources',
+      'incidents',
+      'found-runs',
+    ]);
+  });
+
+  it('leaves the hint off entirely rather than rendering an empty one', () => {
+    const [without, with_] = searchCommands([
+      { id: 'a', group: 'resources', label: 'a', hint: '', href: '/a' },
+      { id: 'b', group: 'resources', label: 'b', hint: 'container', href: '/b' },
+    ]);
+
+    expect(without).not.toHaveProperty('hint');
+    expect(with_?.hint).toBe('container');
+  });
+
+  it('falls back to the identifier when an incident has no title', () => {
+    const found = incidentsMatching(
+      [{ incident_id: 'inc-9', summary: 'a volume filled' }],
+      'volume',
+    );
+
+    expect(found[0]?.label).toBe('inc-9');
+  });
+
+  it('falls back to the status when a run has no summary', () => {
+    const found = runsMatching([{ run_id: 'run-9', status: 'failed' }], 'run-9');
+
+    expect(found[0]?.hint).toBe('failed');
   });
 });

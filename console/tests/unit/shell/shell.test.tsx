@@ -7,9 +7,10 @@ import { EN } from '@/i18n/en';
 import { sessionController } from '@/session/controller';
 import { SESSION_WARNING_SECONDS } from '@/session/cookies';
 import { publishResolved, type AttentionItem } from '@/shell/attention';
+import type { SearchResults } from '@/shell/search';
 import { Shell } from '@/shell/shell';
 
-import { owner, viewerAt } from './support';
+import { owner, ROLE_ORDER, viewerAt } from './support';
 
 /**
  * The frame, and the four behaviours that have to be identical on every page.
@@ -338,5 +339,84 @@ describe('what the shell renders in Portuguese', () => {
   it('takes the chrome from the catalogue rather than from the source language', () => {
     renderShell({ locale: 'pt-BR' });
     expect(screen.queryByText(EN['nav.audit'])).toBeNull();
+  });
+});
+
+describe('what a search may show the person doing it', () => {
+  /**
+   * The frame is where the viewer is, so the frame is where a search result is
+   * judged. Otherwise the palette becomes a way of reaching a screen the
+   * sidebar would not have offered — the presence rule inverted by a text box.
+   */
+
+  function searchAnswering(): (
+    query: string,
+    signal: AbortSignal,
+  ) => Promise<SearchResults> {
+    return vi.fn(() =>
+      Promise.resolve({
+        found: [
+          {
+            id: 'resource:r1',
+            group: 'resources' as const,
+            label: 'signoz-collector',
+            hint: 'container',
+            href: '/resources/r1',
+          },
+          {
+            id: 'incident:i1',
+            group: 'incidents' as const,
+            label: 'checkout is out of memory',
+            hint: 'high',
+            href: '/incidents/i1',
+          },
+        ],
+        partial: false,
+      }),
+    );
+  }
+
+  async function openPaletteAndType(
+    viewer: ReturnType<typeof owner>,
+    askSearch: (query: string, signal: AbortSignal) => Promise<SearchResults>,
+  ): Promise<void> {
+    const person = userEvent.setup();
+    render(
+      <Shell
+        viewer={viewer}
+        locale="en"
+        deployment={{ name: 'HAL9000', timezone: 'UTC' }}
+        guardian={GUARDIAN}
+        attention={[]}
+        recentRuns={[]}
+        navigate={vi.fn()}
+        askSearch={askSearch}
+      >
+        <p data-testid="page">the page</p>
+      </Shell>,
+    );
+    await person.keyboard('{Control>}k{/Control}');
+    await person.type(screen.getByTestId('palette-query'), 'signoz');
+  }
+
+  it('shows an owner what the deployment found', async () => {
+    await openPaletteAndType(owner(), searchAnswering());
+
+    expect(await screen.findByText('signoz-collector')).toBeInTheDocument();
+  });
+
+  it('drops a result the viewer may not reach', async () => {
+    // The least-privileged role holds neither estate.read nor incident.read, so
+    // a search must not be how they arrive at either screen.
+    const least = ROLE_ORDER[0];
+    if (least === undefined) throw new Error('the role catalogue is empty');
+
+    await openPaletteAndType(viewerAt(least), searchAnswering());
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('palette-query')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('signoz-collector')).toBeNull();
+    expect(screen.queryByText('checkout is out of memory')).toBeNull();
   });
 });

@@ -218,8 +218,8 @@ describe('searching the deployment from the palette', () => {
         locale="en"
         commands={commands()}
         search={search}
-        onClose={() => {}}
-        onRun={() => {}}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
       />,
     );
 
@@ -241,8 +241,8 @@ describe('searching the deployment from the palette', () => {
         locale="en"
         commands={commands()}
         search={search}
-        onClose={() => {}}
-        onRun={() => {}}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
       />,
     );
 
@@ -266,8 +266,8 @@ describe('searching the deployment from the palette', () => {
         locale="en"
         commands={commands()}
         search={search}
-        onClose={() => {}}
-        onRun={() => {}}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
       />,
     );
 
@@ -288,8 +288,8 @@ describe('searching the deployment from the palette', () => {
         locale="en"
         commands={commands()}
         search={search}
-        onClose={() => {}}
-        onRun={() => {}}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
       />,
     );
 
@@ -314,8 +314,8 @@ describe('searching the deployment from the palette', () => {
         locale="en"
         commands={commands()}
         search={search}
-        onClose={() => {}}
-        onRun={() => {}}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
       />,
     );
 
@@ -335,13 +335,61 @@ describe('searching the deployment from the palette', () => {
         locale="en"
         commands={[]}
         search={search}
-        onClose={() => {}}
-        onRun={() => {}}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
       />,
     );
 
     await person.type(screen.getByTestId('palette-query'), 'nothing-like-this');
 
     expect(await screen.findByText(/more than one page/)).toBeTruthy();
+  });
+});
+
+describe('the palette with a pointer, which people also use', () => {
+  // Keyboard-only *operable* is the requirement; pointer-usable is what
+  // everybody actually does half the time, and clicking a row has to run the
+  // same command Enter would have.
+  it('runs the command that was clicked', async () => {
+    const onRun = vi.fn();
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        onClose={vi.fn()}
+        onRun={onRun}
+      />,
+    );
+
+    const audit = screen
+      .getAllByTestId('palette-command')
+      .find((node) => node.getAttribute('data-command') === 'go:audit');
+    if (audit === undefined) throw new Error('the palette did not offer the audit row');
+    await person.click(audit);
+
+    expect(onRun).toHaveBeenCalledOnce();
+    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/audit' });
+  });
+
+  it('follows the pointer with the highlight, so Enter runs what is under it', async () => {
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('palette-command');
+    const second = rows[1];
+    if (second === undefined) throw new Error('the palette offered one row');
+    await person.hover(second);
+
+    expect(second.getAttribute('aria-selected')).toBe('true');
   });
 });
