@@ -2,7 +2,13 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TokenPanel, type IssuedToken } from '@/surfaces/tokens';
+import {
+  isConsoleSession,
+  SessionPanel,
+  TokenPanel,
+  type IssuedToken,
+  type SessionEntry,
+} from '@/surfaces/tokens';
 
 /**
  * A machine token: shown once, and revoked with the consequence named.
@@ -15,6 +21,20 @@ import { TokenPanel, type IssuedToken } from '@/surfaces/tokens';
  */
 
 const SENTINEL = 'nsre-token-0000-sentinel';
+
+/**
+ * `element`, or a failure naming the absence.
+ *
+ * A test that indexes into an array and asserts on `undefined` reports "cannot
+ * read property of undefined", which says nothing about what the console did.
+ * This says the element was not there.
+ */
+function one(elements: readonly HTMLElement[]): HTMLElement {
+  const found = elements[0];
+  if (found === undefined)
+    throw new Error('the element this test is about is not there');
+  return found;
+}
 
 let sent: { url: string; method: string }[] = [];
 
@@ -54,6 +74,9 @@ const LABELS = {
   unreachable: 'The deployment could not be reached.',
   none: 'Not recorded',
   revokedGroup: '{count} revoked',
+  columnToken: 'Token',
+  columnScopes: 'Scopes',
+  columnExpires: 'Expires',
 };
 
 const TOKENS: readonly IssuedToken[] = [
@@ -66,8 +89,11 @@ const TOKENS: readonly IssuedToken[] = [
   },
 ];
 
-function panel(tokens: readonly IssuedToken[] = TOKENS): void {
-  render(<TokenPanel tokens={tokens} labels={LABELS} />);
+function panel(
+  tokens: readonly IssuedToken[] = TOKENS,
+  issuedScopes: readonly string[] = [],
+): void {
+  render(<TokenPanel tokens={tokens} issuedScopes={issuedScopes} labels={LABELS} />);
 }
 
 describe('issuing one', () => {
@@ -291,5 +317,151 @@ describe('when the deployment cannot be reached', () => {
     await userEvent.click(screen.getByTestId('issue-token'));
 
     expect(screen.queryByTestId('token-secret')).toBeNull();
+  });
+});
+
+describe('what a token issued here actually holds', () => {
+  it('names the fixed scope, since the form does not ask for one', () => {
+    panel(TOKENS, ['investigation.read', 'token.manage']);
+
+    expect(screen.getByTestId('token-issued-scopes')).toHaveTextContent(
+      'investigation.read, token.manage',
+    );
+  });
+
+  it('says nothing about a scope when this viewer holds none', () => {
+    panel(TOKENS, []);
+
+    expect(screen.queryByTestId('token-issued-scopes')).toBeNull();
+  });
+});
+
+describe('columns a value alone cannot explain', () => {
+  it('names what each column is, above the live list', () => {
+    panel();
+
+    const columns = screen.getByTestId('token-columns');
+    expect(columns).toHaveTextContent(LABELS.columnToken);
+    expect(columns).toHaveTextContent(LABELS.columnScopes);
+    expect(columns).toHaveTextContent(LABELS.columnExpires);
+  });
+
+  it('draws no header at all over an empty list', () => {
+    panel([]);
+
+    expect(screen.queryByTestId('token-columns')).toBeNull();
+  });
+});
+
+describe('telling a session from a machine token', () => {
+  it('recognises the exact name a local sign-in issues its token under', () => {
+    expect(isConsoleSession({ name: 'Console sign-in' })).toBe(true);
+  });
+
+  it('treats anything else as a credential somebody minted', () => {
+    expect(isConsoleSession({ name: 'nightly-backup-checker' })).toBe(false);
+    expect(isConsoleSession({ name: '' })).toBe(false);
+  });
+});
+
+describe('active sessions, grouped by who holds them', () => {
+  const SESSION_LABELS = {
+    person: 'Principal',
+    expires: 'Expires',
+    endAll: 'Revoke',
+    ending: 'Revoking…',
+    endConfirm: 'Revoke it',
+    endCancel: 'Leave it working',
+    endConsequence: 'Clients using this token stop authenticating now.',
+    failed: 'The deployment refused this.',
+    unreachable: 'The deployment could not be reached.',
+  };
+
+  const SESSIONS: readonly SessionEntry[] = [
+    {
+      tokenId: 'sess-1',
+      principalId: 'ana',
+      principalLabel: 'Ana',
+      expires: 'in 4 hours',
+    },
+    {
+      tokenId: 'sess-2',
+      principalId: 'ana',
+      principalLabel: 'Ana',
+      expires: 'in 11 hours',
+    },
+    {
+      tokenId: 'sess-3',
+      principalId: 'ben',
+      principalLabel: 'Ben',
+      expires: 'in 2 hours',
+    },
+  ];
+
+  function sessions(list: readonly SessionEntry[] = SESSIONS): void {
+    render(<SessionPanel sessions={list} labels={SESSION_LABELS} />);
+  }
+
+  it('collapses three logins by the same person into one row', () => {
+    sessions();
+
+    const groups = screen.getAllByTestId('session-group');
+    expect(groups).toHaveLength(2);
+    expect(screen.getByText('Ana')).toBeInTheDocument();
+    expect(screen.getByText('Ben')).toBeInTheDocument();
+  });
+
+  it('names what stops before it stops it, for the whole group', async () => {
+    sessions();
+
+    await userEvent.click(one(screen.getAllByTestId('end-sessions')));
+
+    expect(screen.getByTestId('end-sessions-confirm')).toHaveTextContent(
+      'stop authenticating now',
+    );
+    expect(sent).toHaveLength(0);
+  });
+
+  it('ends every session a person holds in one confirmation', async () => {
+    sessions();
+    answerWith({ ok: true, reachable: true, reason: '' });
+
+    await userEvent.click(one(screen.getAllByTestId('end-sessions')));
+    await userEvent.click(screen.getByTestId('confirm-end-sessions'));
+
+    await screen.findByText('Ben');
+    expect(screen.queryByText('Ana')).toBeNull();
+    expect(sent.map((call) => call.method)).toEqual(['DELETE', 'DELETE']);
+    expect(sent.some((call) => call.url.includes('token_id=sess-1'))).toBe(true);
+    expect(sent.some((call) => call.url.includes('token_id=sess-2'))).toBe(true);
+  });
+
+  it('ends nothing when the confirmation is dismissed', async () => {
+    sessions();
+
+    await userEvent.click(one(screen.getAllByTestId('end-sessions')));
+    await userEvent.click(screen.getByTestId('cancel-end-sessions'));
+
+    expect(screen.queryByTestId('end-sessions-confirm')).toBeNull();
+    expect(sent).toHaveLength(0);
+  });
+
+  it('says the deployment could not be reached, and leaves the group alone', async () => {
+    sessions();
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')));
+
+    await userEvent.click(one(screen.getAllByTestId('end-sessions')));
+    await userEvent.click(screen.getByTestId('confirm-end-sessions'));
+
+    expect(await screen.findByTestId('session-failure')).toHaveTextContent(
+      SESSION_LABELS.unreachable,
+    );
+    expect(screen.getByText('Ana')).toBeInTheDocument();
+  });
+
+  it('draws no column header at all over an empty list', () => {
+    sessions([]);
+
+    expect(screen.queryByTestId('session-columns')).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
@@ -10,6 +11,50 @@ import {
   serveScenario,
   serveScenarioExcept,
 } from '../support/dataset';
+
+/** A base for parsing a path-only address. Never contacted, and built rather
+ * than written — the same convention `support/dataset.ts` uses. */
+const FIXTURE_BASE = ['http:', '//fixtures.invalid'].join('');
+
+/**
+ * The address a deployment's own network path produced for `pagerduty` in one
+ * observed case: the scheme and host this test's fetch stub swaps in, never a
+ * literal origin (built from parts for the same reason `FIXTURE_BASE` is).
+ */
+const UNSAFE_PAGERDUTY_URL = ['http:', '//192.168.68.74:8420/webhooks/pagerduty'].join(
+  '',
+);
+
+/** What `/v1/ingress/sources` answers with, loosely — enough to rewrite one row. */
+interface IngressSourcesBody {
+  readonly sources: readonly { readonly source: string; readonly url: string }[];
+}
+
+/**
+ * `serveScenario('populated')`, with one receiver's paste-ready address
+ * swapped for the shape a real deployment produced: an http:// address
+ * carrying an internal IP, echoed back by a request the console's own server
+ * made to the gateway rather than one an outside alert router could reach.
+ */
+function serveWithUnsafeIngressUrl(): void {
+  serveScenario('populated');
+  const base = globalThis.fetch;
+  vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURE_BASE).pathname;
+    const response = await base(input as string, init);
+    if (path !== '/v1/ingress/sources') return response;
+    const body = (await response.json()) as IngressSourcesBody;
+    return new Response(
+      JSON.stringify({
+        ...body,
+        sources: body.sources.map((row) =>
+          row.source === 'pagerduty' ? { ...row, url: UNSAFE_PAGERDUTY_URL } : row,
+        ),
+      }),
+      { status: response.status, headers: { 'content-type': 'application/json' } },
+    );
+  });
+}
 
 /**
  * Where it came from, and where it goes — on one screen, in the order it moves.
@@ -44,6 +89,15 @@ function sourceRow(name: string): HTMLElement | undefined {
   return screen
     .getAllByTestId('ingress-source')
     .find((row) => row.getAttribute('data-source') === name);
+}
+
+/** `sourceRow`, narrowed by failing the test rather than by asserting. */
+function requireSourceRow(name: string): HTMLElement {
+  const row = sourceRow(name);
+  if (row === undefined) {
+    throw new Error(`no ingress source row for ${name}`);
+  }
+  return row;
 }
 
 describe('the transit screen', () => {
@@ -84,6 +138,18 @@ describe('a source that has never delivered', () => {
     expect(
       rows.every((row) => row.getAttribute('data-never-delivered') === 'true'),
     ).toBe(true);
+  });
+
+  it('is neutral rather than styled as an error', async () => {
+    // A freshly configured deployment where nothing has arrived yet is the
+    // ordinary first day, not seven faults — and colour is the one thing a
+    // reader takes in before reading a word of the sentence beside it.
+    await data('empty');
+
+    for (const marker of screen.getAllByTestId('never-delivered')) {
+      expect(marker.className).not.toContain('text-danger');
+      expect(marker.className).toContain('text-muted');
+    }
   });
 });
 
@@ -137,6 +203,46 @@ describe('the rules', () => {
 
     expect(screen.getByTestId('catch-all-rule')).toHaveTextContent('catch-all');
   });
+
+  it('is drawn as a ranked list only once there is more than the implicit default', async () => {
+    await data();
+
+    expect(screen.getByTestId('catch-all-note')).toBeInTheDocument();
+  });
+
+  it('is not drawn as a ranked list when the only rule is the implicit default', async () => {
+    // "Everything no rule above matched ends here" presupposes a list above
+    // it. With nothing an operator declared, there is no "above" — so neither
+    // the ordinal nor that sentence should appear.
+    await data('empty');
+
+    const only = screen.getByTestId('catch-all-rule');
+    expect(only.textContent).not.toMatch(/^1\./);
+    expect(screen.queryByTestId('catch-all-note')).toBeNull();
+    expect(screen.queryByTestId('routing-rule')).toBeNull();
+  });
+});
+
+describe('the delivery tester', () => {
+  it('names itself, rather than presenting as an unlabelled form', async () => {
+    await data();
+
+    const tester = screen.getByTestId('delivery-tester');
+    expect(
+      within(tester).getByRole('heading', { name: 'Simulate' }),
+    ).toBeInTheDocument();
+    expect(within(tester).getByTestId('rule-simulator')).toBeInTheDocument();
+  });
+
+  it('is entirely absent for a reader who cannot change routing', async () => {
+    // Absent, not disabled: a control a person cannot use, sitting under a
+    // heading naming a feature they cannot reach, teaches them the console is
+    // broken rather than that they lack a permission.
+    serveScenario('populated', principalHolding(['config.read']));
+    render(await DataScreen(await surfaceContext({})));
+
+    expect(screen.queryByTestId('delivery-tester')).toBeNull();
+  });
 });
 
 describe('the destinations', () => {
@@ -171,6 +277,55 @@ describe('a delivery that did not arrive', () => {
   });
 });
 
+describe('a webhook address safe to announce', () => {
+  it('is copyable in one click', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+
+    await data();
+    const row = requireSourceRow('alertmanager');
+    await userEvent.click(within(row).getByTestId('ingress-url-copy'));
+
+    expect(writeText).toHaveBeenCalledWith(
+      ['https:', '//ninjasre.example.invalid/webhooks/alertmanager'].join(''),
+    );
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('a webhook address that is not safe to announce', () => {
+  it('never prints an http:// address on this page', async () => {
+    serveWithUnsafeIngressUrl();
+    render(await DataScreen(await surfaceContext({})));
+
+    const row = sourceRow('pagerduty');
+    expect(row?.textContent).not.toContain(['http', '://'].join(''));
+  });
+
+  it('falls back to the path, which is still copyable in one click', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+
+    serveWithUnsafeIngressUrl();
+    render(await DataScreen(await surfaceContext({})));
+    const row = requireSourceRow('pagerduty');
+    await userEvent.click(within(row).getByTestId('ingress-url-copy'));
+
+    expect(writeText).toHaveBeenCalledWith('/webhooks/pagerduty');
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('the delivery token control', () => {
+  it('sits beside what it is scoped to, rather than orphaned below the cards', async () => {
+    await data();
+
+    const group = screen.getByTestId('delivery-token-group');
+    expect(group).toHaveTextContent('webhook.deliver');
+    expect(within(group).getByTestId('delivery-token')).toBeInTheDocument();
+  });
+});
+
 describe('provenance', () => {
   it('answers which rule caught an arrival, which team it went to, and which run', async () => {
     await data();
@@ -195,6 +350,23 @@ describe('provenance', () => {
     await data('empty');
 
     expect(screen.getAllByTestId('provenance-none').length).toBe(7);
+  });
+
+  it('names how many deliveries the disclosure holds, before it is opened', async () => {
+    // Seven identical "Where did this go?" links with nothing to tell them
+    // apart is seven links an operator opens one at a time to find the one
+    // worth reading.
+    await data();
+
+    const live = sourceRow('alertmanager')?.querySelector(
+      '[data-testid="provenance"] summary',
+    );
+    expect(live).toHaveTextContent('Where did this go? (1)');
+
+    const silent = sourceRow('datadog')?.querySelector(
+      '[data-testid="provenance"] summary',
+    );
+    expect(silent).toHaveTextContent('Where did this go? (0)');
   });
 });
 

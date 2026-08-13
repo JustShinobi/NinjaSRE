@@ -11,7 +11,13 @@ import { GrantPanel, type Grant } from '../grants';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { SsoForm, type SsoField } from '../sso';
-import { TokenPanel, type IssuedToken } from '../tokens';
+import {
+  isConsoleSession,
+  SessionPanel,
+  TokenPanel,
+  type IssuedToken,
+  type SessionEntry,
+} from '../tokens';
 import {
   authorised,
   dataOf,
@@ -27,10 +33,20 @@ import {
 /**
  * Who exists, what they hold, and what has been issued on their behalf.
  *
- * Three panels with three permissions between them: a viewer who may read
- * principals but not manage tokens sees the first two and not the third. Absent,
- * not disabled — the panel is not in the document at all, so there is nothing to
- * tell them a capability exists that somebody else has.
+ * Four panels with three permissions between them: a viewer who may read
+ * principals but not manage tokens sees the first two and not the last two.
+ * Absent, not disabled — the panel is not in the document at all, so there is
+ * nothing to tell them a capability exists that somebody else has.
+ *
+ * **Sessions and machine tokens are the same store, read as two lists.**
+ * `/identity/tokens` answers with both under one shape — a browser sign-in and a
+ * credential somebody minted are both, structurally, an `ApiToken` — but nobody
+ * reading this screen thinks of their own browser tab as a "machine token", and
+ * a token list that is mostly sign-ins is a token list nobody can audit. Every
+ * record named exactly `platform/identity/local_accounts.py`'s
+ * `CREDENTIAL_NAME` is a session; the panel groups those by the person they
+ * belong to and ends them as a group. Everything else is a machine token, shown
+ * as before.
  *
  * The token panel is never empty for somebody who may manage tokens: a
  * deployment with no machine tokens is exactly the deployment that needs the
@@ -67,9 +83,51 @@ export async function AdministrationScreen(
 
   const people = list(dataOf(principals), 'users');
   const held = list(dataOf(grants), 'grants');
-  const catalogue = list(dataOf(roles), 'roles').map((role) => text(role, 'name'));
+  const roleCatalogue = list(dataOf(roles), 'roles');
+  const catalogue = roleCatalogue.map((role) => text(role, 'name'));
+  // What each role in `catalogue` permits, keyed by its own name — composed
+  // from the deployment's own permission list rather than words this console
+  // maintains, for the reason `admin.grants.title`'s panel doc gives about the
+  // role list itself: a second copy would be the copy that goes stale. Shown at
+  // the point of choice by `GrantPanel`'s role select.
+  const roleDescriptions = Object.fromEntries(
+    roleCatalogue.map((role) => [
+      text(role, 'name'),
+      list(role, 'permissions').map(String).join(', '),
+    ]),
+  );
   const issued = list(dataOf(tokens), 'tokens');
   const none = message(locale, 'surface.none');
+
+  // A person's own name where one is recorded for them, their id otherwise —
+  // used to label both a grant and a browser session by who holds it.
+  const principalLabel = (userId: string): string => {
+    const found = people.find((person) => text(person, 'user_id') === userId);
+    return found === undefined || text(found, 'display_name') === ''
+      ? userId
+      : text(found, 'display_name');
+  };
+
+  // A browser sign-in and a machine credential are the same record, structurally
+  // — see the panel doc above — split here so each list only ever holds what it
+  // says it holds.
+  const sessionTokens = issued.filter((token) =>
+    isConsoleSession({ name: text(token, 'name') }),
+  );
+  const machineTokens = issued.filter(
+    (token) => !isConsoleSession({ name: text(token, 'name') }),
+  );
+  // Ended sessions are not shown here at all: this panel is for deciding who is
+  // currently signed in, and a session's history belongs to the audit trail
+  // rather than to a list an operator is triaging live access from.
+  const liveSessions: readonly SessionEntry[] = sessionTokens
+    .filter((token) => !flag(token, 'revoked'))
+    .map((token) => ({
+      tokenId: text(token, 'token_id'),
+      principalId: text(token, 'user_id'),
+      principalLabel: principalLabel(text(token, 'user_id')),
+      expires: timestamp(locale, text(token, 'expires_at'), now, zone).relative,
+    }));
 
   // Field by field rather than by spreading the body: the form is driven by the
   // closed list the module declares, and a body carrying an extra key must not
@@ -113,7 +171,14 @@ export async function AdministrationScreen(
               >
                 <span className="truncate">{text(person, 'display_name')}</span>
                 <span className="text-meta text-muted truncate">
-                  {text(person, 'email') === '' ? none : text(person, 'email')}
+                  {/* A service account has no email by design — it is not a
+                      person — so "Not recorded" here reads as a bug rather
+                      than as what it is. Its own id says what it actually is:
+                      an account this deployment created, not one anybody typed
+                      in. */}
+                  {text(person, 'email') === ''
+                    ? text(person, 'user_id')
+                    : text(person, 'email')}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
                   <Badge status={text(person, 'kind')} />
@@ -143,6 +208,7 @@ export async function AdministrationScreen(
               label: text(person, 'display_name'),
             }))}
             roles={catalogue}
+            roleDescriptions={roleDescriptions}
             canWrite={may(viewer, GRANTS)}
             labels={{
               principal: message(locale, 'admin.column.principal'),
@@ -165,6 +231,39 @@ export async function AdministrationScreen(
         </Panel>
 
         {may(viewer, TOKENS) ? (
+          // Titled "Active" rather than "Sessions": this console has a column
+          // header (`admin.column.active`) for exactly this idea and no panel
+          // title for it yet. A dedicated `admin.sessions.title` — "Active
+          // sessions" — is the better word and is reported as wanted; this is
+          // the composition available without inventing a catalogue entry.
+          <Panel
+            title={message(locale, 'admin.column.active')}
+            state={stateOf(tokens, liveSessions.length === 0)}
+            dependency={dependencyOf(tokens)}
+            labels={panelLabels(locale, message(locale, 'admin.column.active'))}
+            empty={emptyState}
+          >
+            <SessionPanel
+              sessions={liveSessions}
+              labels={{
+                person: message(locale, 'admin.column.principal'),
+                expires: message(locale, 'admin.column.expires'),
+                // No dedicated "end all sessions" vocabulary exists yet (see
+                // the report), so the same revoke verbs the token list already
+                // uses are reused for the bulk action underneath these too.
+                endAll: message(locale, 'admin.tokens.revoke'),
+                ending: message(locale, 'admin.tokens.revoking'),
+                endConfirm: message(locale, 'admin.tokens.revokeConfirm'),
+                endCancel: message(locale, 'admin.tokens.revokeCancel'),
+                endConsequence: message(locale, 'admin.tokens.revokeConsequence'),
+                failed: message(locale, 'admin.tokens.failed'),
+                unreachable: message(locale, 'admin.tokens.unreachable'),
+              }}
+            />
+          </Panel>
+        ) : null}
+
+        {may(viewer, TOKENS) ? (
           <Panel
             title={message(locale, 'admin.tokens.title')}
             state={stateOf(tokens, false)}
@@ -173,7 +272,7 @@ export async function AdministrationScreen(
             empty={emptyState}
           >
             <TokenPanel
-              tokens={issued.map((token): IssuedToken => {
+              tokens={machineTokens.map((token): IssuedToken => {
                 const expires = timestamp(locale, text(token, 'expires_at'), now, zone);
                 return {
                   tokenId: text(token, 'token_id'),
@@ -183,6 +282,11 @@ export async function AdministrationScreen(
                   expires: expires.relative,
                 };
               })}
+              // The form asks only what a token is for (see `tokens.tsx`'s own
+              // doc); the scope it actually gets is fixed to this viewer's own
+              // permissions, shown here rather than left to be discovered on
+              // the list afterwards.
+              issuedScopes={viewer.permissions}
               labels={{
                 name: message(locale, 'admin.tokens.name'),
                 issue: message(locale, 'admin.tokens.issue'),
@@ -198,6 +302,9 @@ export async function AdministrationScreen(
                 failed: message(locale, 'admin.tokens.failed'),
                 unreachable: message(locale, 'admin.tokens.unreachable'),
                 none: none,
+                columnToken: message(locale, 'admin.column.token'),
+                columnScopes: message(locale, 'admin.column.scopes'),
+                columnExpires: message(locale, 'admin.column.expires'),
               }}
             />
           </Panel>
@@ -215,7 +322,14 @@ export async function AdministrationScreen(
               settings={ssoSettings}
               isActive={flag(dataOf(sso), 'is_active')}
               verified={flag(dataOf(sso), 'verified')}
-              problems={list(dataOf(sso), 'problems').map(String)}
+              // Never the deployment's declarative validation of the document
+              // as it stands on load — `SsoForm` renders this list unconditionally
+              // from mount, and the deployment always answers with "issuer is
+              // required" and seven siblings for a form nobody has touched yet.
+              // Validation belongs to save and test, which `adopt()` already
+              // renders from their own live responses; an untouched load has
+              // nothing to confess.
+              problems={[]}
               labels={{
                 field: {
                   provider: message(locale, 'admin.sso.provider'),

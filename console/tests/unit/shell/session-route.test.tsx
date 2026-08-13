@@ -272,3 +272,41 @@ describe('the way back from a page that does not exist', () => {
     expect(assign).toHaveBeenCalledWith('/');
   });
 });
+
+describe('the session cookie behind a TLS-terminating proxy', () => {
+  /**
+   * The deployment shape this product actually ships in: a proxy terminates TLS
+   * and forwards plain HTTP to the console. Next then sees `http:` on its own
+   * URL, and a `Secure` flag decided from that alone leaves the session cookie
+   * served over https **without** it — which is precisely the downgrade that
+   * flag exists to prevent, because the browser will afterwards send the same
+   * cookie over a plain http request to the same host.
+   *
+   * `X-Forwarded-Proto` is what the proxy says about the scheme the browser
+   * actually used, and it is the only thing that knows.
+   */
+
+  async function signIn(proto?: string): Promise<string> {
+    vi.stubGlobal('fetch', accepting(200));
+    const { POST } = await import('@/app/api/session/route');
+    const request = signInRequest(TYPED);
+    if (proto !== undefined) request.headers.set('x-forwarded-proto', proto);
+    const answer = await POST(request);
+    return answer.headers.get('set-cookie') ?? '';
+  }
+
+  it('marks the cookie secure when the proxy says the browser used https', async () => {
+    expect(await signIn('https')).toMatch(/Secure/i);
+  });
+
+  it('honours the first entry when a proxy chain appends its own', async () => {
+    // A second proxy appends rather than replaces: "https, http".
+    expect(await signIn('https, http')).toMatch(/Secure/i);
+  });
+
+  it('leaves it off for a genuinely plain-http deployment', async () => {
+    // A Secure cookie is simply never sent over http, so setting it there would
+    // be a console nobody can sign in to rather than a safer one.
+    expect(await signIn()).not.toMatch(/Secure/i);
+  });
+});

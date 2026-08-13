@@ -117,6 +117,7 @@ function panel(
     canWrite: boolean;
     principals: readonly GrantPrincipalOption[];
     roles: readonly string[];
+    roleDescriptions: Readonly<Record<string, string>>;
   }> = {},
 ): void {
   render(
@@ -124,6 +125,9 @@ function panel(
       grants={overrides.grants ?? GRANTS}
       principals={overrides.principals ?? PRINCIPALS}
       roles={overrides.roles ?? ROLE_OPTIONS}
+      {...(overrides.roleDescriptions === undefined
+        ? {}
+        : { roleDescriptions: overrides.roleDescriptions })}
       canWrite={overrides.canWrite ?? true}
       labels={LABELS}
     />,
@@ -391,5 +395,34 @@ describe('removing a grant', () => {
     panel();
 
     expect(screen.getByText(LABELS.organisation)).toBeInTheDocument();
+  });
+});
+
+describe('what a role means, at the point it is chosen', () => {
+  const DESCRIPTIONS = {
+    viewer: 'investigation.read, report.read',
+    operator: 'config.write, credential.write',
+    owner: 'org.delete, owner.assign',
+  };
+
+  it('describes the role currently selected, not just its name', () => {
+    panel({ roleDescriptions: DESCRIPTIONS });
+
+    expect(screen.getByText(DESCRIPTIONS.viewer)).toBeInTheDocument();
+  });
+
+  it('updates the description when a different role is chosen', async () => {
+    panel({ roleDescriptions: DESCRIPTIONS });
+
+    await userEvent.selectOptions(screen.getByLabelText(LABELS.role), 'owner');
+
+    expect(screen.getByText(DESCRIPTIONS.owner)).toBeInTheDocument();
+    expect(screen.queryByText(DESCRIPTIONS.viewer)).toBeNull();
+  });
+
+  it('describes nothing for a role this console was given no catalogue for', () => {
+    panel();
+
+    expect(screen.queryByText(/investigation\.read/)).toBeNull();
   });
 });

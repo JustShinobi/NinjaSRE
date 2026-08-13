@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Badge, Link, TabLinks } from '@/components';
-import { message, type Locale } from '@/i18n/messages';
+import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -42,8 +42,10 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
  * roles exist and a deployment binds each one; a screen printing a vendor's
  * model next to "diagnose" would be presenting one deployment's choice as the
  * shape of the software. What a stage shows is its *role*. What a role resolves
- * to is a configuration value, on the panel that carries provenance, where an
- * unset role reads "deployment default" rather than a vendor's name.
+ * to is a configuration value, on the panel that carries provenance — a role a
+ * node bound names the node, and a role nobody bound names the deployment
+ * default and says so, but a provider is never named without saying which of
+ * the two it is (`roleBinding`, below).
  *
  * **The tools are grouped by the one distinction that changes the risk.** Reads
  * and writes, from the deployment's own side-effect level — not by domain, not
@@ -421,14 +423,47 @@ function fieldAt(declared: readonly unknown[], path: string): unknown {
   return declared.find((entry) => text(entry, 'path') === path);
 }
 
+/** What a role resolves to, apart from anybody's choice. */
+export interface RoleBinding {
+  /** Whether some node actually chose this, as opposed to it falling through. */
+  readonly bound: boolean;
+  /** The provider running this role — bound, or the schema's own default. */
+  readonly provider: string;
+  readonly model: string;
+  /** The node that bound it, empty when nothing did. */
+  readonly provenance: string;
+}
+
 /**
- * What each role resolves to, and whether anybody chose it.
+ * What role `role` resolves to, and whether anybody chose it.
  *
- * The only place on this screen a provider or a model may be named, and it is
- * allowed here for exactly one reason: every row says where its value came from.
- * A role nobody bound reads "deployment default" and names nothing, which is the
- * honest answer and is also the common one.
+ * A bound role reads its provider and model from the value a node set. An
+ * unbound one used to read only "deployment default" and name nothing — but
+ * the schema declares a real default for every role (`ModelSelection`'s own
+ * `provider`/`model`, in `platform/config_service/schema/agents.py`), served on
+ * the exact same field the value and the provenance are
+ * (`ConfigField.default`, in `platform/config_service/fields.py`). The
+ * first-run wizard already reads a deployment's running provider from this
+ * kind of data (`console/src/surfaces/screens/first-run.tsx`); this reads the
+ * schema's own default the same way, from the fields this screen already
+ * fetched.
+ *
+ * Still the only place on this screen a provider or a model may be named, and
+ * still for the same reason: every row says where its value came from — a
+ * node, or the deployment default, never a guess.
  */
+export function roleBinding(declared: readonly unknown[], role: string): RoleBinding {
+  const providerField = fieldAt(declared, `models.${role}.provider`);
+  const modelField = fieldAt(declared, `models.${role}.model`);
+  const bound = providerField !== undefined && text(providerField, 'provenance') !== '';
+  return {
+    bound,
+    provider: text(providerField, bound ? 'value' : 'default'),
+    model: text(modelField, bound ? 'value' : 'default'),
+    provenance: bound ? text(providerField, 'provenance') : '',
+  };
+}
+
 function ModelRolePanel({
   locale,
   roles,
@@ -458,32 +493,28 @@ function ModelRolePanel({
       </p>
       <ul className="flex flex-col gap-2">
         {roles.map((role) => {
-          const provider = fieldAt(declared, `models.${role}.provider`);
-          const model = fieldAt(declared, `models.${role}.model`);
-          const bound = provider !== undefined && text(provider, 'provenance') !== '';
+          const binding = roleBinding(declared, role);
           return (
             <li
               key={role}
               data-testid="model-role"
               data-role={role}
-              data-bound={bound ? 'true' : 'false'}
+              data-bound={binding.bound ? 'true' : 'false'}
               className="flex flex-wrap items-center gap-3 text-small"
             >
               <span className="font-mono min-w-0 truncate">{role}</span>
-              {bound ? (
-                <>
-                  <span className="text-meta" data-testid="model-role-binding">
-                    {text(provider, 'value')} / {text(model, 'value')}
-                  </span>
-                  <span
-                    className="text-meta text-muted"
-                    data-testid="model-role-provenance"
-                  >
-                    {message(locale, 'agent.models.from', {
-                      node: text(provider, 'provenance'),
-                    })}
-                  </span>
-                </>
+              {binding.provider === '' ? null : (
+                <span className="text-meta" data-testid="model-role-binding">
+                  {binding.provider} / {binding.model}
+                </span>
+              )}
+              {binding.bound ? (
+                <span
+                  className="text-meta text-muted"
+                  data-testid="model-role-provenance"
+                >
+                  {message(locale, 'agent.models.from', { node: binding.provenance })}
+                </span>
               ) : (
                 <span className="text-meta text-muted" data-testid="model-role-default">
                   {message(locale, 'agent.models.default')}
@@ -504,6 +535,71 @@ const BUDGET_PATHS = [
   'agents.max_subagent_depth',
   'agents.tool_budget',
 ] as const;
+
+/**
+ * `record.name` as a finite number, or absent when it is not one.
+ *
+ * Distinct from `number()` in `../read`, which reads absence as zero — right
+ * for a count, wrong here. A budget nobody customised carries `null` for its
+ * value, a budget the schema does not bound carries `null` for its ceiling,
+ * and `max_subagent_depth` may be customised *to* zero on purpose. Collapsing
+ * all three into the digit `0` is exactly the defect this file exists to fix.
+ */
+function numeric(record: unknown, name: string): number | undefined {
+  const found = field(record, name);
+  return typeof found === 'number' && Number.isFinite(found) ? found : undefined;
+}
+
+/** What one budget is actually worth right now, apart from anybody's choice. */
+export interface EffectiveBudget {
+  /** Whether some node actually set this, as opposed to the default applying. */
+  readonly customised: boolean;
+  /** What a run may spend: the value a node set, or the schema's own default. */
+  readonly value: number;
+  /** The schema's ceiling, absent when the schema does not declare one. */
+  readonly ceiling?: number;
+}
+
+/**
+ * `budget` as it actually stands, never the placeholder zero.
+ *
+ * A field nobody customised carries `value: null`, and reading that as zero is
+ * "zero iterations permitted" where the truth is "the shipped default applies,
+ * whatever it is". The default is on the same field
+ * (`ConfigField.default`, `platform/config_service/fields.py`), so the
+ * effective number is always real: the value where a node bound one, the
+ * default otherwise — the same `provenance` test `roleBinding` above uses for
+ * a model role, because it is the same question asked of a different field.
+ *
+ * The ceiling is separate and may genuinely be absent: `agents.tool_budget`
+ * declares a floor (`ge=1`) and no roof, so `ceiling` here is `undefined`
+ * rather than `0` — a schema fact, not a missing one.
+ */
+export function effectiveBudget(budget: unknown): EffectiveBudget {
+  const customised = text(budget, 'provenance') !== '';
+  const value = customised ? number(budget, 'value') : number(budget, 'default');
+  const ceiling = numeric(budget, 'maximum');
+  return ceiling === undefined ? { customised, value } : { customised, value, ceiling };
+}
+
+/**
+ * A budget path's own words, when this console has them yet.
+ *
+ * The shape `postures.ts` uses for a posture level this console may not have a
+ * word for: a closed set of paths, filled in as the words arrive, falling back
+ * to data rather than to the raw key in the meantime. The fallback here is the
+ * schema's own label (`ConfigField.label`, served with the field already) —
+ * "Max iterations" rather than "agents.max_iterations" — because that is real
+ * data this screen already has, and a better fallback than the dotted path a
+ * config author typed.
+ */
+const BUDGET_LABELS: Readonly<Record<string, MessageKey>> = {};
+
+function budgetLabel(locale: Locale, path: string, schemaLabel: string): string {
+  const key = BUDGET_LABELS[path];
+  if (key !== undefined) return message(locale, key);
+  return schemaLabel === '' ? path : schemaLabel;
+}
 
 function BudgetPanel({
   locale,
@@ -531,22 +627,55 @@ function BudgetPanel({
       }}
     >
       <ul className="flex flex-col gap-2">
-        {budgets.map((budget) => (
-          <li
-            key={text(budget, 'path')}
-            data-testid="agent-budget"
-            data-path={text(budget, 'path')}
-            className="flex flex-wrap items-center gap-3 text-small"
-          >
-            <span className="font-mono min-w-0 truncate">{text(budget, 'path')}</span>
-            <span className="tabular-nums">{number(budget, 'value')}</span>
-            <span className="text-meta text-muted" data-testid="agent-budget-ceiling">
-              {message(locale, 'agent.budgets.ceiling', {
-                ceiling: String(number(budget, 'maximum')),
-              })}
-            </span>
-          </li>
-        ))}
+        {budgets.map((budget) => {
+          const path = text(budget, 'path');
+          const { customised, value, ceiling } = effectiveBudget(budget);
+          return (
+            <li
+              key={path}
+              data-testid="agent-budget"
+              data-path={path}
+              data-customised={customised ? 'true' : 'false'}
+              className="flex flex-wrap items-center gap-3 text-small"
+            >
+              <span className="min-w-0 truncate">
+                {budgetLabel(locale, path, text(budget, 'label'))}
+              </span>
+              <span
+                className="font-mono text-meta text-muted"
+                data-testid="agent-budget-path"
+              >
+                {path}
+              </span>
+              <span className="tabular-nums" data-testid="agent-budget-value">
+                {value}
+              </span>
+              {/* Absent, not zero: the schema genuinely does not bound every
+                  budget, and a row with no ceiling states nothing rather than
+                  a digit that would read as one. */}
+              {ceiling === undefined ? null : (
+                <span
+                  className="text-meta text-muted"
+                  data-testid="agent-budget-ceiling"
+                >
+                  {message(locale, 'agent.budgets.ceiling', {
+                    ceiling: String(ceiling),
+                  })}
+                </span>
+              )}
+              {customised ? (
+                <span
+                  className="text-meta text-muted"
+                  data-testid="agent-budget-provenance"
+                >
+                  {message(locale, 'agent.models.from', {
+                    node: text(budget, 'provenance'),
+                  })}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
       <p className="text-meta text-muted pt-3">
         {message(locale, 'agent.budgets.body')}
@@ -563,6 +692,15 @@ function BudgetPanel({
  * two cannot show different things. It is the only place on this screen where
  * a document is shown at all — everything else is rendered — and it is here
  * because some operators read a tree faster than they read a picture.
+ *
+ * **Never its own empty state.** A node with no `agents` section of its own is
+ * the same condition the specialists panel above already explained, heading,
+ * body and a way out included — showing that whole explanation a second time
+ * in the same tab is the duplication a second view must not repeat. So this
+ * panel is only ever `ready` or `error`: with nothing to show it renders the
+ * document truthfully empty (`{"agents": {}}`), which is real content rather
+ * than a claim about why there is none. The `empty` prop below is required by
+ * `Panel`'s own type and is never reached.
  */
 function DocumentPanel({
   locale,
@@ -574,12 +712,11 @@ function DocumentPanel({
   readonly values: unknown;
 }): ReactNode {
   const section = field(values, 'agents');
-  const document =
-    section === undefined ? '' : JSON.stringify({ agents: section }, null, 2);
+  const document = JSON.stringify({ agents: section ?? {} }, null, 2);
   return (
     <Panel
       title={message(locale, 'agent.document.title')}
-      state={stateOf(effective, document === '')}
+      state={stateOf(effective, false)}
       dependency={dependencyOf(effective)}
       labels={panelLabels(locale, message(locale, 'agent.document.title'))}
       empty={{

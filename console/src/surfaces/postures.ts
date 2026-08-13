@@ -32,20 +32,6 @@ export function postureLabel(locale: Locale, level: string): string {
 }
 
 /**
- * `levels` as options for a control, each carrying what it permits.
- *
- * The order is the deployment's, unchanged: it declares them from least to most
- * autonomous, and re-sorting them here would put "act silently" somewhere an
- * operator does not expect to find it.
- */
-export function postureOptions(
-  locale: Locale,
-  levels: readonly string[],
-): readonly { value: string; label: string }[] {
-  return levels.map((level) => ({ value: level, label: postureLabel(locale, level) }));
-}
-
-/**
  * `levels` as a lookup a client editor can hold, keyed by the deployment's slug.
  *
  * The editors are client components with no locale of their own, so the screen

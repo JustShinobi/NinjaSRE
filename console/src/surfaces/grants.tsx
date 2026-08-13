@@ -24,6 +24,16 @@ import { Badge } from '@/components/status';
  * confirmation names the principal and the role, not "this grant" — the same
  * reason `ConfirmDestructive` takes a `target` rather than assuming one.
  *
+ * **A role is a slug until something says what it does.** `viewer`,
+ * `responder`, `operator`, `admin`, `owner` name nothing on their own, and the
+ * point somebody needs to know what granting one does is the point they are
+ * choosing it — not after, on a page they have to go and find. `/identity/roles`
+ * already answers that, permission by permission, for the same reason
+ * `tools/console_roles` gives about the role list itself: a description of a
+ * role kept here, separately, would be the copy that goes stale the day a
+ * permission is added. `roleDescriptions` is that catalogue, composed by the
+ * caller from live data rather than from words this component invents.
+ *
  * **Absence, not disablement, is the caller's job.** `canWrite` decides
  * whether the form and the remove control exist at all; the list itself is
  * shown to anyone who can see this panel, because reading who holds what needs
@@ -68,6 +78,15 @@ export interface GrantPanelProps {
   readonly grants: readonly Grant[];
   readonly principals: readonly GrantPrincipalOption[];
   readonly roles: readonly string[];
+  /**
+   * What each role in `roles` permits, keyed by that same name.
+   *
+   * Optional so a caller that has not resolved it yet still renders a working
+   * select — a role with no entry shows no description, which is what every
+   * select here did before this existed, rather than an empty option or a
+   * crash.
+   */
+  readonly roleDescriptions?: Readonly<Record<string, string>>;
   readonly canWrite: boolean;
   readonly labels: GrantLabels;
 }
@@ -113,6 +132,7 @@ export function GrantPanel({
   grants,
   principals,
   roles,
+  roleDescriptions,
   canWrite,
   labels,
 }: GrantPanelProps): ReactNode {
@@ -244,6 +264,12 @@ export function GrantPanel({
             options={roles.map((name) => ({ value: name, label: name }))}
             value={role}
             onValueChange={setRole}
+            // The description names what *this* option — the one selected right
+            // now — permits, so it changes as the choice does rather than
+            // sitting fixed under the control.
+            {...(roleDescriptions?.[role] === undefined
+              ? {}
+              : { description: roleDescriptions[role] })}
           />
           <Input
             label={labels.node}

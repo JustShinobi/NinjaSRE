@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { bridgedServers, capabilityRows } from '@/surfaces/capability-rows';
-import { AGENT_TABS, tabFrom } from '@/surfaces/screens/agent';
+import {
+  AGENT_TABS,
+  effectiveBudget,
+  roleBinding,
+  tabFrom,
+} from '@/surfaces/screens/agent';
 
 import { AREA_SCREENS } from '../support/screens';
 import { principalHolding, serveScenario } from '../support/dataset';
@@ -156,6 +161,22 @@ describe('what it is: the stages and the specialists', () => {
     ]);
   });
 
+  it('does not repeat the specialists empty state in the document panel', async () => {
+    // A deployment with nothing configured: the specialists panel says so, with
+    // its own heading and a way out. The document beside it is a second view of
+    // the same data, and repeating that whole explanation a second time in a
+    // row is the defect — the document may simply show that there is nothing.
+    serveScenario('empty', principalHolding(EVERYTHING, ''));
+    await renderAgent({ tab: 'topology' });
+
+    const document = screen
+      .getByTestId('agent-document')
+      .closest('[data-testid="panel"]');
+    expect(document?.getAttribute('data-state')).not.toBe('empty');
+    // The JSON itself still says truthfully that there is nothing here.
+    expect(screen.getByTestId('agent-document').textContent).toContain('agents');
+  });
+
   it('shows the same specialists in the document as in the list, from one source', async () => {
     await renderAgent({ node: NODE, tab: 'topology' });
 
@@ -173,12 +194,142 @@ describe('what it is: the stages and the specialists', () => {
   it('renders every budget with the ceiling the schema sets', async () => {
     await renderAgent({ node: NODE, tab: 'topology' });
 
-    // The dataset describes the four the schema bounds; each row states the
-    // ceiling, because a team may lower a budget and may not raise one.
+    // The dataset describes the four the schema bounds; each row that has one
+    // states the ceiling, because a team may lower a budget and may not raise
+    // one past it.
     const ceilings = screen.queryAllByTestId('agent-budget-ceiling');
+    expect(ceilings.length).toBeGreaterThan(0);
     for (const ceiling of ceilings) {
       expect(ceiling.textContent).toMatch(/\d/);
     }
+  });
+
+  it('never renders a ceiling for a budget the schema does not bound', async () => {
+    await renderAgent({ node: NODE, tab: 'topology' });
+
+    // agents.tool_budget declares a floor (ge=1) and no ceiling — the schema
+    // genuinely does not bound it, which is a fact and not the digit 0.
+    const budget = screen
+      .getAllByTestId('agent-budget')
+      .find((row) => row.getAttribute('data-path') === 'agents.tool_budget');
+    expect(budget).toBeDefined();
+    expect(budget?.querySelector('[data-testid="agent-budget-ceiling"]')).toBeNull();
+  });
+
+  it('shows the dotted path as metadata beside a human label', async () => {
+    await renderAgent({ node: NODE, tab: 'topology' });
+
+    const budget = screen
+      .getAllByTestId('agent-budget')
+      .find((row) => row.getAttribute('data-path') === 'agents.max_iterations');
+    expect(budget).toBeDefined();
+    // The raw key is still on the row somewhere — as metadata — and the row's
+    // own label is not simply the dotted path repeated.
+    expect(budget?.textContent).toContain('agents.max_iterations');
+    const value = budget?.querySelector('[data-testid="agent-budget-value"]');
+    expect(value).not.toBeNull();
+    expect(value?.textContent).not.toBe('0');
+  });
+});
+
+describe('what one budget is actually worth, apart from the fixture', () => {
+  it('shows the schema default rather than zero when nobody customised it', () => {
+    // agents.max_iterations, never touched at any node: the deployment still
+    // runs on a real number, and the console must say which one.
+    const budget = effectiveBudget({
+      path: 'agents.max_iterations',
+      value: null,
+      provenance: '',
+      default: 20,
+      maximum: 20,
+    });
+
+    expect(budget.customised).toBe(false);
+    expect(budget.value).toBe(20);
+  });
+
+  it('trusts an explicit zero exactly as it trusts any other customised value', () => {
+    // agents.max_subagent_depth may be set to zero on purpose (no recursion at
+    // all), and that is a customisation, not an absent one that coincides with
+    // the default.
+    const budget = effectiveBudget({
+      path: 'agents.max_subagent_depth',
+      value: 0,
+      provenance: 'team-storage',
+      default: 2,
+      maximum: 2,
+    });
+
+    expect(budget.customised).toBe(true);
+    expect(budget.value).toBe(0);
+  });
+
+  it('carries no ceiling when the schema declares a floor and no roof', () => {
+    const budget = effectiveBudget({
+      path: 'agents.tool_budget',
+      value: 40,
+      provenance: 'org-northwind',
+      default: 8,
+      maximum: null,
+    });
+
+    expect(budget.ceiling).toBeUndefined();
+  });
+});
+
+describe('what a role resolves to when nobody bound it', () => {
+  it('says what the deployment default actually is, once the schema knows', () => {
+    const declared = [
+      {
+        path: 'models.diagnose.provider',
+        value: null,
+        provenance: '',
+        default: 'anthropic',
+      },
+      {
+        path: 'models.diagnose.model',
+        value: null,
+        provenance: '',
+        default: 'claude-sonnet-5',
+      },
+    ];
+
+    const binding = roleBinding(declared, 'diagnose');
+
+    expect(binding.bound).toBe(false);
+    expect(binding.provider).toBe('anthropic');
+    expect(binding.model).toBe('claude-sonnet-5');
+  });
+
+  it('still reads as unbound-with-nothing-known when the schema says nothing either', () => {
+    const binding = roleBinding([], 'diagnose');
+
+    expect(binding.bound).toBe(false);
+    expect(binding.provider).toBe('');
+    expect(binding.model).toBe('');
+  });
+
+  it('prefers what a node actually bound over the deployment default', () => {
+    const declared = [
+      {
+        path: 'models.diagnose.provider',
+        value: 'openai',
+        provenance: 'team-platform',
+        default: 'anthropic',
+      },
+      {
+        path: 'models.diagnose.model',
+        value: 'gpt-5',
+        provenance: 'team-platform',
+        default: 'claude-sonnet-5',
+      },
+    ];
+
+    const binding = roleBinding(declared, 'diagnose');
+
+    expect(binding.bound).toBe(true);
+    expect(binding.provider).toBe('openai');
+    expect(binding.provenance).toBe('team-platform');
   });
 });
 
@@ -202,10 +353,11 @@ describe('Article VI: the model is a role here, never a vendor', () => {
     const everything = container.textContent;
     const named = PROVIDERS.filter((provider) => everything.includes(provider));
 
-    // And every provider name inside a model-role row that carries provenance.
+    // And every provider name inside a model-role row — bound to a node, or
+    // named as the deployment default, either of which says where it came
+    // from. A row that is neither still names nothing.
     const attributed = screen
       .getAllByTestId('model-role')
-      .filter((row) => row.getAttribute('data-bound') === 'true')
       .map((row) => row.textContent)
       .join(' ');
 

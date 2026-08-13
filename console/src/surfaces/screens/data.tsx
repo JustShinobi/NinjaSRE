@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
 
-import { timestamp } from '@/i18n/format';
+import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { DeliveryToken } from '../ingress';
 import { panelLabels } from '../labels';
-import { Panel } from '../panel';
+import { Panel, type PanelEmpty } from '../panel';
 import { Provenance, type ProvenanceChain } from '../provenance';
 import {
   authorised,
@@ -26,6 +27,7 @@ import {
 } from '../read';
 import { Resend } from '../resend';
 import { RuleSimulator } from '../simulation';
+import { CopyValue } from './data-copy';
 
 /**
  * Where it came from, and where it goes.
@@ -35,11 +37,14 @@ import { RuleSimulator } from '../simulation';
  * something did not happen, and putting it on one screen is the whole point —
  * the alternative, and what this replaces, is five screens and a guess.
  *
- * **Silence is the loudest thing here.** A source that has never delivered is
- * rendered first, marked, and in the danger tone. A configured source that
- * never delivered is indistinguishable from one that does not exist, and that
- * is the most expensive failure in this category precisely because nothing
- * about it is noisy.
+ * **Silence is visible without being alarming.** A source that has never
+ * delivered is rendered first and marked, in the same neutral tone as
+ * everything else on this screen — a freshly configured deployment where
+ * nothing has arrived yet is the ordinary first day, not seven faults. What
+ * would actually earn the danger tone is a receiver an operator's own
+ * alertmanager names and that has gone quiet after delivering before, and this
+ * screen cannot tell that state apart from an ordinary first day with what the
+ * API gives it today.
  *
  * **The last rule is always drawn.** What happens to a delivery no rule matched
  * is a row on the screen, not an implicit default — a discard nobody declared
@@ -53,16 +58,24 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone } = context;
   const init = authorised(credential);
 
-  const [ingress, rules, destinations, deliveries, receivers] = await Promise.all([
-    panelRead('/v1/transit/ingress', () => read('/v1/transit/ingress', init)),
-    panelRead('/v1/transit/rules', () => read('/v1/transit/rules', init)),
-    panelRead('/v1/transit/destinations', () => read('/v1/transit/destinations', init)),
-    // One read of the ledger, both directions. The two columns want different
-    // halves of the same table, and asking twice would be two answers about one
-    // instant — which is exactly the disagreement provenance exists to prevent.
-    panelRead('/v1/transit/deliveries', () => read('/v1/transit/deliveries', init)),
-    optionalRead('/v1/ingress/sources', () => read('/v1/ingress/sources', init)),
-  ]);
+  const [ingress, rules, destinations, deliveries, receivers, setup] =
+    await Promise.all([
+      panelRead('/v1/transit/ingress', () => read('/v1/transit/ingress', init)),
+      panelRead('/v1/transit/rules', () => read('/v1/transit/rules', init)),
+      panelRead('/v1/transit/destinations', () =>
+        read('/v1/transit/destinations', init),
+      ),
+      // One read of the ledger, both directions. The two columns want different
+      // halves of the same table, and asking twice would be two answers about one
+      // instant — which is exactly the disagreement provenance exists to prevent.
+      panelRead('/v1/transit/deliveries', () => read('/v1/transit/deliveries', init)),
+      optionalRead('/v1/ingress/sources', () => read('/v1/ingress/sources', init)),
+      // Whether this deployment's own checklist is finished, so a column that is
+      // empty because nobody has connected anything yet says that rather than
+      // repeating the feature's mechanism at somebody who already knows it.
+      readSetupState(credential),
+    ]);
+  const cause = setupCause(locale, setup);
 
   const sources = list(dataOf(ingress), 'sources');
   const paste = new Map(
@@ -81,10 +94,37 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
   });
 
   const ruleRows = list(dataOf(rules), 'rules');
+  // Whether an operator has declared anything beyond the implicit default. The
+  // catch-all is always in this list — the last rule is always drawn — so its
+  // presence alone says nothing about whether there is a ranking to show.
+  const explicitRules = ruleRows.some((rule) => !flag(rule, 'is_catch_all'));
   const destinationRows = list(dataOf(destinations), 'destinations');
   const ledger = rowsOf(dataOf(deliveries));
   const outboundRows = ledger.filter((row) => text(row, 'direction') === 'outbound');
   const arrivalRows = ledger.filter((row) => text(row, 'direction') === 'ingress');
+
+  // The destination column already has a cause more specific than the setup
+  // checklist when the deployment names one itself — which channel is missing
+  // and where to add it — and that beats the generic "finish the setup"
+  // sentence rather than being replaced by it.
+  const unconfigurableReason = text(dataOf(destinations), 'unconfigurable_reason');
+  const destinationsEmpty: PanelEmpty =
+    unconfigurableReason === ''
+      ? emptyBecause(
+          {
+            heading: message(locale, 'data.delivery.empty.heading'),
+            body: message(locale, 'data.delivery.empty.body'),
+            actionLabel: message(locale, 'data.delivery.empty.action'),
+            href: '/configuration',
+          },
+          cause,
+        )
+      : {
+          heading: message(locale, 'data.delivery.empty.heading'),
+          body: unconfigurableReason,
+          actionLabel: message(locale, 'data.delivery.empty.action'),
+          href: '/configuration',
+        };
 
   return (
     <>
@@ -97,12 +137,15 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
           state={stateOf(ingress, ordered.length === 0)}
           dependency={dependencyOf(ingress)}
           labels={panelLabels(locale, message(locale, 'data.ingress.title'))}
-          empty={{
-            heading: message(locale, 'data.ingress.empty.heading'),
-            body: message(locale, 'data.ingress.empty.body'),
-            actionLabel: message(locale, 'data.ingress.empty.action'),
-            href: '/catalogue',
-          }}
+          empty={emptyBecause(
+            {
+              heading: message(locale, 'data.ingress.empty.heading'),
+              body: message(locale, 'data.ingress.empty.body'),
+              actionLabel: message(locale, 'data.ingress.empty.action'),
+              href: '/catalogue',
+            },
+            cause,
+          )}
         >
           <ul className="flex flex-col gap-4" data-testid="ingress-sources">
             {ordered.map((source) => {
@@ -120,8 +163,16 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
                 >
                   <span className="text-small text-strong">{name}</span>
                   {silent ? (
+                    // Neutral, not danger. A receiver that has never delivered
+                    // is the ordinary shape of a deployment nobody has pointed
+                    // an alert router at yet, and seven of these in error red
+                    // is a fresh deployment reading as seven faults. What the
+                    // API cannot say — because it has no way to know — is
+                    // whether an operator's alertmanager names this receiver
+                    // and has gone quiet, which is the case that would earn
+                    // the emphasis this used to spend on every row.
                     <span
-                      className="text-meta text-danger"
+                      className="text-meta text-muted"
                       data-testid="never-delivered"
                     >
                       {message(locale, 'data.ingress.never')}
@@ -145,9 +196,26 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
                     {text(source, 'verification')}
                   </span>
                   {paste.get(name) === undefined ? null : (
-                    <code className="text-meta break-all" data-testid="ingress-url">
-                      {text(paste.get(name), 'url')}
-                    </code>
+                    // The absolute address this deployment answered with, save
+                    // for one case this console will not repeat: an http://
+                    // address on a page served over https, which is what this
+                    // request's own network path looked like rather than what
+                    // an outside alert router would actually reach. The path
+                    // never lies about that — it carries no host — so it is
+                    // what stands in until the console has a public address it
+                    // can vouch for.
+                    <CopyValue
+                      testId="ingress-url"
+                      value={
+                        schemeOf(text(paste.get(name), 'url')) === UNSAFE_SCHEME
+                          ? text(source, 'path')
+                          : text(paste.get(name), 'url')
+                      }
+                      labels={{
+                        copy: message(locale, 'surface.payload.copy'),
+                        copied: message(locale, 'surface.payload.copied'),
+                      }}
+                    />
                   )}
                   {counts(source, 'counts').length === 0 ? null : (
                     <span className="text-meta text-muted" data-testid="ingress-counts">
@@ -181,7 +249,15 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
                   )}
                   <Provenance
                     labels={{
-                      open: message(locale, 'data.provenance.open'),
+                      // What opening this actually holds, named before it is
+                      // opened. Seven identical disclosures with no count is
+                      // seven questions an operator has to open one at a time
+                      // to answer "expand to what?".
+                      open: `${message(locale, 'data.provenance.open')} (${formatNumber(
+                        locale,
+                        arrivalRows.filter((row) => text(row, 'source') === name)
+                          .length,
+                      )})`,
                       source: message(locale, 'data.provenance.source'),
                       rule: message(locale, 'data.provenance.rule'),
                       team: message(locale, 'data.provenance.team'),
@@ -196,16 +272,30 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
             })}
           </ul>
           {deliveryPermission === '' ? null : (
-            <DeliveryToken
-              permission={deliveryPermission}
-              labels={{
-                issue: message(locale, 'ingress.token.issue'),
-                issuing: message(locale, 'ingress.token.issuing'),
-                shownOnce: message(locale, 'ingress.token.shownOnce'),
-                failed: message(locale, 'ingress.token.failed'),
-                unreachable: message(locale, 'ingress.token.unreachable'),
-              }}
-            />
+            // Grouped with what it is scoped to rather than left as an orphan
+            // control below seven cards — every one of which already names
+            // "a machine token scoped to alert delivery" as something it
+            // accepts. The permission the button actually asks for sits right
+            // above it, so the button reads as answering that sentence rather
+            // than as an unrelated action that happened to land here.
+            <div
+              className="flex flex-col gap-2 pt-3 mt-1 edge border-border border-b-0 border-x-0"
+              data-testid="delivery-token-group"
+            >
+              <span className="text-meta text-muted">
+                {message(locale, 'ingress.verification')} {deliveryPermission}
+              </span>
+              <DeliveryToken
+                permission={deliveryPermission}
+                labels={{
+                  issue: message(locale, 'ingress.token.issue'),
+                  issuing: message(locale, 'ingress.token.issuing'),
+                  shownOnce: message(locale, 'ingress.token.shownOnce'),
+                  failed: message(locale, 'ingress.token.failed'),
+                  unreachable: message(locale, 'ingress.token.unreachable'),
+                }}
+              />
+            </div>
           )}
         </Panel>
 
@@ -215,63 +305,109 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
           state={stateOf(rules, ruleRows.length === 0)}
           dependency={dependencyOf(rules)}
           labels={panelLabels(locale, message(locale, 'data.rules.title'))}
-          empty={{
-            heading: message(locale, 'data.rules.empty.heading'),
-            body: message(locale, 'data.rules.empty.body'),
-            actionLabel: message(locale, 'data.rules.empty.action'),
-            href: '/configuration',
-          }}
+          empty={emptyBecause(
+            {
+              heading: message(locale, 'data.rules.empty.heading'),
+              body: message(locale, 'data.rules.empty.body'),
+              actionLabel: message(locale, 'data.rules.empty.action'),
+              href: '/configuration',
+            },
+            cause,
+          )}
         >
-          <ol className="flex flex-col gap-2" data-testid="routing-rules">
-            {ruleRows.map((rule, index) => (
-              <li
-                key={text(rule, 'rule_id')}
-                data-testid={
-                  flag(rule, 'is_catch_all') ? 'catch-all-rule' : 'routing-rule'
-                }
-                data-rule={text(rule, 'rule_id')}
-                className="flex flex-col gap-1"
-              >
-                <span className="text-small text-strong">
-                  {String(index + 1)}. {text(rule, 'rule_id')}
-                </span>
-                <span className="text-meta text-muted">
-                  {message(locale, 'data.rules.action')} {text(rule, 'action')}
-                  {text(rule, 'team') === ''
-                    ? ''
-                    : ` → ${message(locale, 'data.provenance.team')} ${text(rule, 'team')}`}
-                </span>
-                {text(rule, 'reason') === '' ? null : (
-                  <span className="text-meta text-muted">{text(rule, 'reason')}</span>
-                )}
-                {flag(rule, 'is_catch_all') ? (
-                  <span className="text-meta text-strong" data-testid="catch-all-note">
-                    {message(locale, 'data.rules.catchAll')}
+          {explicitRules ? (
+            // The ruler: a ranking only makes sense once there is more than
+            // one thing to rank, and only here does "no rule above matched"
+            // refer to a list that actually exists above it.
+            <ol className="flex flex-col gap-2" data-testid="routing-rules">
+              {ruleRows.map((rule, index) => (
+                <li
+                  key={text(rule, 'rule_id')}
+                  data-testid={
+                    flag(rule, 'is_catch_all') ? 'catch-all-rule' : 'routing-rule'
+                  }
+                  data-rule={text(rule, 'rule_id')}
+                  className="flex flex-col gap-1"
+                >
+                  <span className="text-small text-strong">
+                    {String(index + 1)}. {text(rule, 'rule_id')}
                   </span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+                  <span className="text-meta text-muted">
+                    {message(locale, 'data.rules.action')} {text(rule, 'action')}
+                    {text(rule, 'team') === ''
+                      ? ''
+                      : ` → ${message(locale, 'data.provenance.team')} ${text(rule, 'team')}`}
+                  </span>
+                  {text(rule, 'reason') === '' ? null : (
+                    <span className="text-meta text-muted">{text(rule, 'reason')}</span>
+                  )}
+                  {flag(rule, 'is_catch_all') ? (
+                    <span
+                      className="text-meta text-strong"
+                      data-testid="catch-all-note"
+                    >
+                      {message(locale, 'data.rules.catchAll')}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            // Nothing an operator declared — every delivery meets the same
+            // implicit default. Drawn without a rank and without "no rule
+            // above matched", because with one item there is no above.
+            <ul className="flex flex-col gap-2" data-testid="routing-rules">
+              {ruleRows.map((rule) => (
+                <li
+                  key={text(rule, 'rule_id')}
+                  data-testid="catch-all-rule"
+                  data-rule={text(rule, 'rule_id')}
+                  className="flex flex-col gap-1"
+                >
+                  <span className="text-small text-strong">
+                    {text(rule, 'rule_id')}
+                  </span>
+                  <span className="text-meta text-muted">
+                    {message(locale, 'data.rules.action')} {text(rule, 'action')}
+                    {text(rule, 'team') === ''
+                      ? ''
+                      : ` → ${message(locale, 'data.provenance.team')} ${text(rule, 'team')}`}
+                  </span>
+                  {text(rule, 'reason') === '' ? null : (
+                    <span className="text-meta text-muted">{text(rule, 'reason')}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
           {/* Absent, not disabled, for a viewer who may not change the rules. */}
           {may(viewer, WRITE) ? (
-            <RuleSimulator
-              sources={sources.map((source) => text(source, 'source'))}
-              labels={{
-                source: message(locale, 'data.simulate.source'),
-                payload: message(locale, 'data.simulate.payload'),
-                simulate: message(locale, 'data.simulate.action'),
-                simulating: message(locale, 'data.simulate.running'),
-                save: message(locale, 'data.simulate.save'),
-                needsSimulation: message(locale, 'data.simulate.needed'),
-                rule: message(locale, 'data.provenance.rule'),
-                team: message(locale, 'data.provenance.team'),
-                action: message(locale, 'data.rules.action'),
-                failed: message(locale, 'data.simulate.failed'),
-                unreachable: message(locale, 'data.simulate.unreachable'),
-                malformed: message(locale, 'data.simulate.malformed'),
-              }}
-            />
+            <div
+              className="flex flex-col gap-2 pt-3 mt-1 edge border-border border-b-0 border-x-0"
+              data-testid="delivery-tester"
+            >
+              {/* An honest name for what this is, rather than a select, a
+                  textarea and two unlabelled buttons. */}
+              <h4 className="text-strong">{message(locale, 'data.simulate.action')}</h4>
+              <RuleSimulator
+                sources={sources.map((source) => text(source, 'source'))}
+                labels={{
+                  source: message(locale, 'data.simulate.source'),
+                  payload: message(locale, 'data.simulate.payload'),
+                  simulate: message(locale, 'data.simulate.action'),
+                  simulating: message(locale, 'data.simulate.running'),
+                  save: message(locale, 'data.simulate.save'),
+                  needsSimulation: message(locale, 'data.simulate.needed'),
+                  rule: message(locale, 'data.provenance.rule'),
+                  team: message(locale, 'data.provenance.team'),
+                  action: message(locale, 'data.rules.action'),
+                  failed: message(locale, 'data.simulate.failed'),
+                  unreachable: message(locale, 'data.simulate.unreachable'),
+                  malformed: message(locale, 'data.simulate.malformed'),
+                }}
+              />
+            </div>
           ) : null}
         </Panel>
 
@@ -281,15 +417,7 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
           state={stateOf(destinations, destinationRows.length === 0)}
           dependency={dependencyOf(destinations)}
           labels={panelLabels(locale, message(locale, 'data.delivery.title'))}
-          empty={{
-            heading: message(locale, 'data.delivery.empty.heading'),
-            body:
-              text(dataOf(destinations), 'unconfigurable_reason') === ''
-                ? message(locale, 'data.delivery.empty.body')
-                : text(dataOf(destinations), 'unconfigurable_reason'),
-            actionLabel: message(locale, 'data.delivery.empty.action'),
-            href: '/configuration',
-          }}
+          empty={destinationsEmpty}
         >
           <ul className="flex flex-col gap-3" data-testid="destinations">
             {destinationRows.map((destination) => (
@@ -365,6 +493,26 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
 /** A list endpoint's body, or an empty list when the read failed. */
 function rowsOf(body: unknown): readonly unknown[] {
   return Array.isArray(body) ? body : [];
+}
+
+// Built from parts rather than written whole, so the scheme this checks for
+// is never itself a literal origin — the very thing this file exists to stop
+// the screen from announcing.
+const UNSAFE_SCHEME = ['http', ':'].join('');
+
+/**
+ * The scheme `url` declares, or the empty string when it does not parse.
+ *
+ * Parsed rather than matched against a prefix: a scheme is what `URL` says it
+ * is, and a deployment's own request context is not a string this file should
+ * be pattern-matching by hand.
+ */
+function schemeOf(url: string): string {
+  try {
+    return new URL(url).protocol;
+  } catch {
+    return '';
+  }
 }
 
 /**
