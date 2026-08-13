@@ -30,6 +30,7 @@ from config.constants.first_run import (
     SETUP_STEP_DURABLE_CREDENTIAL,
     SETUP_STEP_FIRST_INVESTIGATION,
     SETUP_STEP_INFRASTRUCTURE_SOURCE,
+    SETUP_STEP_INVESTIGATION_RUNTIME,
     SETUP_STEP_MODEL_PROVIDER,
 )
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
@@ -1536,14 +1537,22 @@ def checklist_record(
     *,
     provider: str = SETUP_READINESS_ABSENT,
     source: bool = False,
+    runtime: bool = False,
     investigated: bool = False,
     integrations: Sequence[tuple[str, str]] = (),
 ) -> CapturedRecord:
     """Return what this deployment has left to set up.
 
-    The four steps and their vocabulary are the platform's, not this module's —
-    a fixture that invented a fifth step or a fourth state would be a console
+    The five steps and their vocabulary are the platform's, not this module's —
+    a fixture that invented a sixth step or a fifth state would be a console
     tested against a document nothing serves.
+
+    ``runtime`` is whether this deployment says something can actually drive an
+    investigation — the one dependency that leaves no trace on any other screen,
+    composed by whoever operates the deployment rather than by a configuration
+    field. It sits between ``source`` and ``investigated`` in both the step order
+    and the blocking chain, the same as the platform's own checklist: the last
+    step cannot go ready without it, whatever ``investigated`` says on its own.
     """
     provider_done = provider == SETUP_READINESS_VERIFIED
     steps = [
@@ -1586,13 +1595,42 @@ def checklist_record(
             "readiness": SETUP_READINESS_ABSENT,
         },
         {
+            "name": SETUP_STEP_INVESTIGATION_RUNTIME,
+            "title": "Give it something to investigate with",
+            "state": (
+                SETUP_STATE_DONE
+                if runtime
+                else SETUP_STATE_READY
+                if source
+                else SETUP_STATE_BLOCKED
+            ),
+            "detail": (
+                "this deployment holds a runtime, so an investigation has something to run in"
+                if runtime
+                else (
+                    "nothing here can drive an investigation yet — a model provider and an "
+                    "integration are both configured, and the part that puts them together "
+                    "has not been supplied to this process"
+                )
+            ),
+            "action": (
+                "nothing further"
+                if runtime
+                else (
+                    "whoever operates this deployment supplies the investigation runtime; "
+                    "until they do, starting an investigation will fail immediately"
+                )
+            ),
+            "readiness": SETUP_READINESS_ABSENT,
+        },
+        {
             "name": SETUP_STEP_FIRST_INVESTIGATION,
             "title": "Watch it look",
             "state": (
                 SETUP_STATE_DONE
                 if investigated
                 else SETUP_STATE_READY
-                if source
+                if runtime
                 else SETUP_STATE_BLOCKED
             ),
             "detail": (
@@ -1916,6 +1954,12 @@ def setup_records() -> tuple[CapturedRecord, ...]:
         checklist_record(
             provider=SETUP_READINESS_VERIFIED,
             source=True,
+            # An investigation cannot have finished on this deployment without
+            # something that could run it — a checklist reporting both
+            # `investigated=True` and no runtime would be internally
+            # inconsistent, the same contradiction F6 fixed on the platform's
+            # own checklist.
+            runtime=True,
             investigated=True,
             integrations=_INTEGRATION_READINESS,
         ),

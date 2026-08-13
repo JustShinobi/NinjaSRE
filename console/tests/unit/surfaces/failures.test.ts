@@ -27,8 +27,14 @@ describe('a failure the console recognises', () => {
 
     expect(read.known).toBe(true);
     expect(read.title).toBe('Investigations are not switched on yet');
-    expect(read.href).toBe('/first-run?step=model');
+    // Not the model step: this failure fires whether or not a model has been
+    // chosen — it is the deployment's own runtime that is missing, not
+    // anything a configuration field controls — so the address lands on the
+    // guided setup wherever it actually is, rather than repeating a step that
+    // may already be finished.
+    expect(read.href).toBe('/first-run');
     expect(read.action).not.toBe('');
+    expect(read.action).not.toContain('choosing a model');
   });
 
   it('keeps the raw text, exactly, behind the technical detail', () => {

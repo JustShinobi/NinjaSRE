@@ -5,6 +5,8 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { Input } from '@/components/form';
+import { cx } from '@/design/cx';
+import { AlertTriangleIcon } from '@/design/icons';
 
 /**
  * Replacing a credential — and the four things this field does not do.
@@ -189,15 +191,25 @@ export function CredentialField({
       </div>
 
       {result === null ? null : (
+        // Boxed and iconed rather than a bare coloured line, and `alert`
+        // rather than `status` for a refusal — the same fix the model step's
+        // own outcome needed, for the same reason: colour was the only
+        // carrier telling a refusal apart from a write that worked.
         <p
-          role="status"
+          role={result.role === 'success' ? 'status' : 'alert'}
           data-testid="credential-result"
-          className={
+          className={cx(
+            'flex items-center gap-2 rounded-2 edge px-3 py-2 text-meta',
             result.role === 'success'
-              ? 'text-meta text-success'
-              : 'text-meta text-danger'
-          }
+              ? 'bg-success-bg text-success border-success'
+              : 'bg-danger-bg text-danger border-danger',
+          )}
         >
+          {result.role === 'success' ? null : (
+            <span aria-hidden="true">
+              <AlertTriangleIcon />
+            </span>
+          )}
           {result.message}
         </p>
       )}

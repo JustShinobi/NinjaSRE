@@ -77,6 +77,19 @@ export const SOURCE_STEP = 'infrastructure-source';
 /** The checklist step that says an investigation has finished here. */
 export const INVESTIGATION_STEP = 'first-investigation';
 
+/**
+ * The checklist step that says something here can actually drive an
+ * investigation, distinct from the seven wizard steps above.
+ *
+ * There is no wizard step of its own for it: the dependency it names — a
+ * runtime composed by whoever deployed this — is not a configuration field,
+ * so it has no page in this wizard to be "done" on. It is still read, on the
+ * last step, so a deployment stuck here is told what is actually stopping it
+ * rather than left to discover it by pressing Investigate and reading an
+ * exception.
+ */
+export const RUNTIME_STEP = 'investigation-runtime';
+
 /** Where the wizard writes and reads the model it was told to use. */
 export const MODEL_PROVIDER_SETTING = 'models.investigator.provider';
 export const MODEL_SETTING = 'models.investigator.model';

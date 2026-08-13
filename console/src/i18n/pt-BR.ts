@@ -64,7 +64,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'firstRun.steps.title': 'O que falta',
   'firstRun.steps.done': 'Tudo pronto',
-  'firstRun.progress': '{done} de {total} concluídos',
+  'firstRun.progress': '{left} de {total} passos faltando',
   'firstRun.steps.empty.heading': 'Este deployment não disse o que falta',
   'firstRun.steps.empty.body':
     'Esta tela é desenhada a partir da checklist de configuração do próprio deployment, e ela não respondeu. O resto do console não é afetado.',
@@ -79,6 +79,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.step.verify': 'Verificar que cada coisa funciona',
   'firstRun.step.estate': 'Dar a ele um parque para observar',
   'firstRun.step.alerts': 'Apontar seus alertas para ele',
+  'firstRun.step.here': 'Você está aqui',
+  'firstRun.step.onScreen': 'Continua em {screen}',
 
   'firstRun.why.provider':
     'Nada pode ser verificado sem um, e a plataforma se recusa a iniciar sem um configurado. Os nove são oferecidos nos mesmos termos, incluindo o que roda no seu próprio hardware.',
@@ -168,6 +170,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Veja primeiro. Confirmar sem ter lido as contagens é um formulário, não uma decisão.',
   'firstRun.handover.estate': 'Ir para o parque',
   'firstRun.handover.alerts': 'Ir para os detectores',
+  'firstRun.runtimeGap.heading': 'O que está realmente impedindo isso',
+  'firstRun.complete.heading': 'Está tudo pronto.',
+  'firstRun.complete.body':
+    'Todos os passos acima estão concluídos, e este deployment já consegue conduzir uma investigação de verdade. Aperte Investigar, no topo de qualquer tela, para rodar a primeira.',
+  'firstRun.complete.body.noPermission':
+    'Todos os passos acima estão concluídos, e este deployment já consegue conduzir uma investigação de verdade. Peça a alguém que possa iniciar uma para rodar a primeira.',
 
   'setup.noProvider.heading': 'Nenhum provider de modelo está configurado',
   'setup.noProvider.body':
@@ -302,7 +310,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'failure.technical': 'Detalhe técnico',
   'failure.investigator.title': 'As investigações ainda não estão ligadas',
   'failure.investigator.action':
-    'Termine a escolha do modelo. Até lá, iniciar uma investigação vai falhar.',
+    'Este deployment não tem um runtime para investigar — o modelo escolhido aqui não tem nada a ver com isso. Quem o opera precisa fornecer um runtime; a configuração guiada nomeia essa dependência assim que tudo o resto aqui estiver pronto.',
   'failure.credential.title': 'Falta uma chave para algo que isto precisava',
   'failure.credential.action':
     'Guarde a credencial do sistema que isto tentava alcançar.',

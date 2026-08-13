@@ -5,6 +5,8 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { StatusDot } from '@/components/status';
+import { cx } from '@/design/cx';
+import { AlertTriangleIcon } from '@/design/icons';
 
 /**
  * Turning a hypervisor into an estate, in the order somebody would do it by hand.
@@ -300,13 +302,37 @@ export function EstateStep({ integration, zones, labels }: EstateStepProps): Rea
         )}
       </div>
 
+      {/* Boxed, iconed, and `alert` rather than `status` — this used to be a
+          bare, uncoloured line, which is a smaller version of the same
+          defect the model step and the credential form had: a refusal that
+          reads exactly like the rest of the page's quiet text. */}
       {phase === 'refused' ? (
-        <p className="text-small" data-testid="estate-refused">
+        <p
+          role="alert"
+          data-testid="estate-refused"
+          className={cx(
+            'flex items-center gap-2 rounded-2 edge px-3 py-2 text-small',
+            'bg-danger-bg text-danger border-danger',
+          )}
+        >
+          <span aria-hidden="true">
+            <AlertTriangleIcon />
+          </span>
           {labels.refused} {reason}
         </p>
       ) : null}
       {phase === 'unreachable' ? (
-        <p className="text-small" data-testid="estate-unreachable">
+        <p
+          role="alert"
+          data-testid="estate-unreachable"
+          className={cx(
+            'flex items-center gap-2 rounded-2 edge px-3 py-2 text-small',
+            'bg-danger-bg text-danger border-danger',
+          )}
+        >
+          <span aria-hidden="true">
+            <AlertTriangleIcon />
+          </span>
           {labels.unreachable}
         </p>
       ) : null}

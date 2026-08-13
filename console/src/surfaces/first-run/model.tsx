@@ -5,6 +5,8 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { Input, Select } from '@/components/form';
+import { cx } from '@/design/cx';
+import { AlertTriangleIcon } from '@/design/icons';
 import { MODEL_PROVIDER_SETTING, MODEL_SETTING } from './plan';
 
 /**
@@ -247,15 +249,25 @@ export function ModelStep({
       )}
 
       {outcome === null ? null : (
+        // Boxed and iconed rather than a bare coloured line, and `alert`
+        // rather than `status` for a refusal: colour was the only thing
+        // telling a refusal apart from a save that worked, which is nothing
+        // to somebody who cannot see it and easy to miss for somebody who can.
         <p
-          role="status"
+          role={outcome.role === 'danger' ? 'alert' : 'status'}
           data-testid="model-result"
-          className={
+          className={cx(
+            'flex items-center gap-2 rounded-2 edge px-3 py-2 text-meta',
             outcome.role === 'danger'
-              ? 'text-meta text-danger'
-              : 'text-meta text-success'
-          }
+              ? 'bg-danger-bg text-danger border-danger'
+              : 'bg-success-bg text-success border-success',
+          )}
         >
+          {outcome.role === 'danger' ? (
+            <span aria-hidden="true">
+              <AlertTriangleIcon />
+            </span>
+          ) : null}
           {outcome.message}
         </p>
       )}

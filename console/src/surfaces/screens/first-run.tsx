@@ -2,10 +2,12 @@ import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
 import { StatusDot } from '@/components/status';
-import { message } from '@/i18n/messages';
+import { cx } from '@/design/cx';
+import { message, type Locale } from '@/i18n/messages';
 import { formatNumber } from '@/i18n/format';
 import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
+import { areaByPath, areaFor } from '@/shell/routes';
+import { may } from '@/session/viewer';
 import { checklistTitle } from './first-run-heading';
 import { credentialLabels, panelLabels, verifyLabels } from '../labels';
 import { Panel } from '../panel';
@@ -16,10 +18,12 @@ import { ModelStep } from '../first-run/model';
 import { VerifyStep, type VerifiableThing } from '../first-run/verify';
 import {
   INVESTIGATION_STEP,
+  RUNTIME_STEP,
   SOURCE_STEP,
   WIZARD_STEPS,
   configuredIntegrations,
   currentStep,
+  outstanding,
   planFor,
   readSetup,
   type DeploymentSetup,
@@ -74,6 +78,22 @@ const HANDOVER: Readonly<Record<'estate' | 'alerts', string>> = {
   estate: '/resources',
   alerts: '/detectors',
 };
+
+/**
+ * The screen `step` hands over to, in the sidebar's own words for it — or
+ * `''` for a step that has none.
+ *
+ * Five of the seven steps have no screen to name: they are sub-steps of this
+ * one wizard, and a "continues on" label on them would invent a destination
+ * that does not exist. Read from `HANDOVER`, the same address the link at
+ * the bottom of the step already navigates to, so the map and the link can
+ * never name two different screens for the same step.
+ */
+function handoverScreen(locale: Locale, step: WizardStep): string {
+  if (step !== 'estate' && step !== 'alerts') return '';
+  const area = areaByPath(HANDOVER[step]);
+  return area === undefined ? '' : message(locale, area.label);
+}
 
 /**
  * Where the deployment says this vendor is already running, if it says so.
@@ -291,6 +311,26 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
     checklistTitle(plan.filter((entry) => entry.done).length, WIZARD_STEPS.length),
   );
 
+  // What the seven steps above have no page of their own for: whether this
+  // process actually holds a runtime to drive an investigation with. `undefined`
+  // once it does, or on a deployment whose checklist has not been asked — the
+  // honest default, since a step this screen cannot find is not a blocker this
+  // screen can name.
+  const runtimeStep = setup.steps.find((step) => step.name === RUNTIME_STEP);
+  const runtimeGap =
+    runtimeStep !== undefined && runtimeStep.state !== 'done' ? runtimeStep : undefined;
+
+  // The final state: every step but the last is done, the runtime is not
+  // what is blocking it, and no investigation has finished yet. Distinct
+  // from `setup.complete`, which cannot be true until an investigation
+  // *has* finished — this is the moment right before that, and the only one
+  // where "you are ready to run your first one" is actually true rather
+  // than stale.
+  const alertsStepDone = plan.find((entry) => entry.step === 'alerts')?.done ?? false;
+  const readyForFirstInvestigation =
+    here === 'alerts' && runtimeGap === undefined && !alertsStepDone;
+  const mayInvestigate = may(viewer, 'investigation.run');
+
   return (
     <>
       <AreaHeader area={areaFor('first-run')} locale={locale} />
@@ -311,13 +351,23 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
           >
             <p className="mb-3 text-meta text-muted" data-testid="first-run-progress">
               {message(locale, 'firstRun.progress', {
-                done: formatNumber(locale, plan.filter((entry) => entry.done).length),
+                left: formatNumber(locale, outstanding(setup)),
                 total: formatNumber(locale, WIZARD_STEPS.length),
               })}
             </p>
             <ol className="flex flex-col gap-1">
               {plan.map((entry) => (
-                <li key={entry.step}>
+                <li
+                  key={entry.step}
+                  // The current step is the one carrier of "you are here" this
+                  // panel has: a done/pending status dot says what has happened,
+                  // never where somebody is now, and without this every entry
+                  // that is not yet done looked the same as every other one.
+                  className={cx(
+                    'flex items-center gap-2 rounded-2 px-2 py-1',
+                    entry.current ? 'bg-sunken edge border-border-strong' : '',
+                  )}
+                >
                   {/* Every step is a link, including the ones already done:
                       reopening a completed step is a navigation rather than a
                       mode, so it survives a reload and can be sent to a
@@ -332,6 +382,29 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                     <StatusDot status={entry.done ? 'healthy' : 'unknown'} />
                     {stepTitle(entry.step)}
                   </Link>
+                  {/* The map spec.md asks for: which screen a step that hands
+                      over actually leads to, named beside the step rather
+                      than discovered by finishing it. Absent for the five
+                      steps that stay on this one wizard. */}
+                  {handoverScreen(locale, entry.step) === '' ? null : (
+                    <span
+                      className="text-meta text-muted"
+                      data-testid="wizard-step-screen"
+                      data-step={entry.step}
+                    >
+                      {message(locale, 'firstRun.step.onScreen', {
+                        screen: handoverScreen(locale, entry.step),
+                      })}
+                    </span>
+                  )}
+                  {entry.current ? (
+                    <span
+                      data-testid="wizard-step-here"
+                      className="ml-auto text-micro text-accent"
+                    >
+                      {message(locale, 'firstRun.step.here')}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -557,7 +630,62 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                 />
               ) : null}
 
-              {(here === 'estate' && estateSource === '') || here === 'alerts' ? (
+              {/* The dependency none of the seven steps above names: a runtime
+                  composed by whoever operates this deployment, which is not a
+                  configuration field and so has no step of its own to be
+                  "done" on. Read from the checklist's own fifth step and shown
+                  once nothing else is left, so a deployment stuck here is told
+                  what is actually stopping it rather than left to discover it
+                  by pressing Investigate and reading an exception. Absent once
+                  this process actually holds one. */}
+              {here === 'alerts' && runtimeGap !== undefined ? (
+                <div
+                  data-testid="runtime-gap"
+                  className="flex flex-col gap-2 rounded-3 edge border-border-strong p-3"
+                >
+                  <p className="text-strong" data-testid="runtime-gap-heading">
+                    {message(locale, 'firstRun.runtimeGap.heading')}
+                  </p>
+                  <p className="text-small text-muted" data-testid="runtime-gap-detail">
+                    {runtimeGap.detail ?? ''}
+                  </p>
+                  <p className="text-small text-muted" data-testid="runtime-gap-action">
+                    {runtimeGap.action ?? ''}
+                  </p>
+                </div>
+              ) : null}
+
+              {/* The final state spec.md asks for: nothing left but pressing
+                  Investigate. Superseding the generic handover below rather
+                  than sitting beside it — both would say "start an
+                  investigation" in two different voices, and this is also
+                  the one place a viewer who may not start one is told to ask
+                  somebody who can, rather than pointed at a control that is
+                  not in the DOM for them. */}
+              {readyForFirstInvestigation ? (
+                <div
+                  data-testid="setup-complete"
+                  className="flex flex-col gap-2 rounded-3 edge border-success p-3"
+                >
+                  <p className="text-strong" data-testid="setup-complete-heading">
+                    {message(locale, 'firstRun.complete.heading')}
+                  </p>
+                  <p
+                    className="text-small text-muted"
+                    data-testid="setup-complete-body"
+                  >
+                    {message(
+                      locale,
+                      mayInvestigate
+                        ? 'firstRun.complete.body'
+                        : 'firstRun.complete.body.noPermission',
+                    )}
+                  </p>
+                </div>
+              ) : null}
+
+              {(here === 'estate' && estateSource === '') ||
+              (here === 'alerts' && !readyForFirstInvestigation) ? (
                 <div
                   data-testid="handover"
                   data-step={here}

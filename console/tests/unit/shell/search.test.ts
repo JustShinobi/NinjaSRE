@@ -242,7 +242,12 @@ describe('what a found thing becomes in the palette', () => {
     );
 
     expect(command?.hint).not.toContain('NINJASRE_INVESTIGATOR');
-    expect(command?.hint).toContain('Finish choosing a model');
+    expect(command?.hint).not.toContain('InvestigatorNotConfigured');
+    // Not "finish choosing a model": this failure is the deployment's own
+    // runtime, missing whether or not a model has been chosen, so the
+    // translated hint names the runtime instead of pointing at a
+    // configuration field.
+    expect(command?.hint).toContain('no runtime to investigate with');
   });
 
   it('does not expose an exception summary from recent runs either', () => {

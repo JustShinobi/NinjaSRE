@@ -10,6 +10,7 @@ import {
   loadAttention,
   loadGuardian,
   loadRecentRuns,
+  loadSetup,
   loadStopped,
   loadViewer,
   stoppageFrom,
@@ -149,6 +150,87 @@ describe('resolving what the shell needs', () => {
       'proposals',
       'runs',
     ]);
+  });
+});
+
+describe('what the frame knows about setup', () => {
+  it('reads runtimeComposed true from the checklist a finished deployment reports', async () => {
+    vi.stubGlobal('fetch', servingFixtures());
+    // 'populated' is a fully finished deployment; its own fifth checklist step
+    // has to say a runtime exists, or every other screen that reads "this
+    // deployment is fully set up" from the same fixture would be reading a
+    // document that contradicts itself — the exact inconsistency fixed in
+    // tools/mockplane/dataset/served.py earlier in this spec.
+    expect((await loadSetup('opaque')).runtimeComposed).toBe(true);
+  });
+
+  it('reads runtimeComposed false when the checklist says the runtime step is not done', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: false,
+              provider: 'verified',
+              integrations: [],
+              steps: [
+                {
+                  name: 'investigation-runtime',
+                  title: 'Give it something to investigate with',
+                  state: 'ready',
+                  detail: 'nothing here can drive an investigation yet',
+                  action:
+                    'whoever operates this deployment supplies the investigation runtime',
+                  readiness: 'absent',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+      ),
+    );
+
+    expect((await loadSetup('opaque')).runtimeComposed).toBe(false);
+  });
+
+  it('assumes composed when the checklist declares no such step at all', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: true,
+              provider: 'verified',
+              integrations: [],
+              steps: [],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        ),
+      ),
+    );
+
+    // Absent from what the deployment reports — an older backend, before this
+    // step existed — reads the same as composed: this fact exists to state a
+    // dependency the deployment can prove is missing, not to invent one it
+    // has never declared.
+    expect((await loadSetup('opaque')).runtimeComposed).toBe(true);
+  });
+
+  it('assumes composed when the read fails, so a working deployment carries no false caveat', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('network'))),
+    );
+
+    expect(await loadSetup('opaque')).toEqual({
+      checklistComplete: false,
+      integrationsConfigured: true,
+      runtimeComposed: true,
+    });
   });
 });
 

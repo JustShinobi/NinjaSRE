@@ -38,6 +38,18 @@ export interface InvestigateDrawerProps {
    * unconnected.
    */
   readonly integrationsConfigured?: boolean;
+  /**
+   * Whether this process holds a runtime to drive an investigation with.
+   *
+   * Read here rather than discovered by pressing Start: the request would
+   * refuse with `InvestigatorNotConfigured` regardless of what was typed,
+   * and this is the one place this console can say so *before* that happens
+   * instead of after. The sentence shown is `failure.investigator.action` —
+   * the same one the reactive failure translation shows once a run has
+   * actually failed — read from the one catalogue entry both share, so the
+   * two can never disagree about what is missing.
+   */
+  readonly runtimeComposed?: boolean;
   /** Where the new run's page is. Injected so the suite can watch it. */
   readonly navigate?: (href: string) => void;
 }
@@ -47,6 +59,7 @@ export function InvestigateDrawer({
   locale,
   onClose,
   integrationsConfigured = true,
+  runtimeComposed = true,
   navigate,
 }: InvestigateDrawerProps): ReactNode {
   const router = useRouter();
@@ -54,7 +67,11 @@ export function InvestigateDrawer({
   const [sending, setSending] = useState(false);
   const [outcomes, setOutcomes] = useState<readonly Outcome[]>([]);
 
-  const startable = objective.trim() !== '';
+  const objectiveGiven = objective.trim() !== '';
+  // An objective alone does not make this startable: without a runtime the
+  // request refuses no matter what was typed, and offering a button that is
+  // guaranteed to fail is worse than disabling it with the reason attached.
+  const startable = objectiveGiven && runtimeComposed;
 
   async function start(): Promise<void> {
     setSending(true);
@@ -103,6 +120,14 @@ export function InvestigateDrawer({
         onClose={onClose}
       >
         <div data-testid="investigate-drawer" className="flex flex-col gap-3">
+          {/* The harder blocker first: a deployment with no runtime cannot
+              start a real investigation at all, which is a different claim
+              from "quality is lower than it could be" below it. */}
+          {runtimeComposed ? null : (
+            <p className="text-meta text-warning" data-testid="investigate-runtime-gap">
+              {message(locale, 'failure.investigator.action')}
+            </p>
+          )}
           {/* Beside the field rather than after the disappointment. This is
               what resolves "I want to see it work" against "I have not
               connected anything yet": the run is real either way, and the
@@ -130,7 +155,12 @@ export function InvestigateDrawer({
             >
               {message(locale, 'live.investigate.start')}
             </Button>
-            {startable ? null : (
+            {/* Gated on the objective alone, not on `startable`: the runtime
+                caveat above already names its own blocker, and repeating it
+                here as "an objective is required" would misname the reason
+                for somebody who typed one and is blocked by the runtime
+                instead. */}
+            {objectiveGiven ? null : (
               <span className="text-meta text-muted">
                 {message(locale, 'live.investigate.required')}
               </span>

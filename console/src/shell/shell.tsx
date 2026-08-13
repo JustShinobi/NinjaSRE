@@ -58,9 +58,11 @@ export interface ShellProps {
   /**
    * What the deployment says about its own setup.
    *
-   * The frame reads it because two things in the frame depend on it: the
-   * navigation entry that exists only while there is something left to do, and
-   * the caveat the investigation drawer carries when nothing is connected.
+   * The frame reads it because three things in the frame depend on it: the
+   * navigation entry that exists only while there is something left to do,
+   * the caveat the investigation drawer carries when nothing is connected,
+   * and the harder caveat — which disables starting one at all — when this
+   * process has no runtime to run it in.
    */
   readonly setup?: SetupState;
   /**
@@ -98,7 +100,11 @@ export function Shell({
   attention,
   recentRuns,
   counts,
-  setup = { checklistComplete: false, integrationsConfigured: true },
+  setup = {
+    checklistComplete: false,
+    integrationsConfigured: true,
+    runtimeComposed: true,
+  },
   stopped = { engaged: false, by: null, since: null },
   expiresAt = null,
   children,
@@ -279,6 +285,7 @@ export function Shell({
         open={investigateOpen}
         locale={locale}
         integrationsConfigured={setup.integrationsConfigured}
+        runtimeComposed={setup.runtimeComposed}
         onClose={() => {
           setInvestigateOpen(false);
         }}

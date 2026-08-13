@@ -221,8 +221,16 @@ export const EN = {
   // "technical detail" — see `surfaces/failures.ts`.
   'failure.technical': 'Technical detail',
   'failure.investigator.title': 'Investigations are not switched on yet',
+  // Not "finish choosing a model": this fires whether or not one has been
+  // chosen. It is the deployment's own runtime, composed by whoever operates
+  // it, and telling somebody to redo a configuration step that is already
+  // done sends them back to a screen with nothing left for them to change.
+  // Also read verbatim by `InvestigateDrawer` (`src/live/investigate.tsx`) as
+  // its own before-the-click caveat — one sentence, so the two surfaces
+  // cannot drift onto two different explanations for the same missing
+  // runtime.
   'failure.investigator.action':
-    'Finish choosing a model. Until then, starting an investigation will fail.',
+    'This deployment has no runtime to investigate with — the model chosen here has nothing to do with that. Whoever operates it needs to supply a runtime; the guided setup names the dependency once everything else here is done.',
   'failure.credential.title': 'A key is missing for something this needed',
   'failure.credential.action':
     'Store the credential for the system this was trying to reach.',
@@ -402,7 +410,11 @@ export const EN = {
   // --- The guided first run -----------------------------------------------------------
   'firstRun.steps.title': 'What is left',
   'firstRun.steps.done': 'Every step is done',
-  'firstRun.progress': '{done} of {total} done',
+  // The dashboard's own hero says "{count} of {total} steps left" for this
+  // same fact; this line used to say "done" instead, which made the two
+  // screens state one number in two framings a reader had to reconcile by
+  // hand.
+  'firstRun.progress': '{left} of {total} steps left',
   'firstRun.steps.empty.heading': 'This deployment did not say what is left',
   'firstRun.steps.empty.body':
     'The setup checklist is what this screen is drawn from, and it could not be read. The rest of the console is unaffected.',
@@ -417,6 +429,12 @@ export const EN = {
   'firstRun.step.verify': 'Check that each of them works',
   'firstRun.step.estate': 'Give it an estate to watch',
   'firstRun.step.alerts': 'Point your alerts at it',
+  'firstRun.step.here': 'You are here',
+  // The map from a poetic step name to the screen it actually leads to. Only
+  // the two steps this feature hands over to a real screen carry one — the
+  // other five are sub-steps of this same wizard, with no screen of their
+  // own to name.
+  'firstRun.step.onScreen': 'Continues on {screen}',
 
   'firstRun.why.provider':
     'Nothing can be verified without one, and the platform refuses to start without one configured. All nine are offered on the same terms, including the one that runs on your own hardware.',
@@ -505,6 +523,19 @@ export const EN = {
     'Look first. Confirming without having read the counts is a form, not a decision.',
   'firstRun.handover.estate': 'Go to the estate',
   'firstRun.handover.alerts': 'Go to the detectors',
+  // What names the dependency the seven steps above have no page for: a
+  // runtime composed by whoever deployed this, not a configuration field.
+  // Read from the checklist's own fifth step, so this and the self-check
+  // cannot drift onto two different sentences for the same fact.
+  'firstRun.runtimeGap.heading': 'What is actually stopping this',
+  // The final state: six of seven wizard steps done, a runtime composed, and
+  // no investigation has finished yet — the one moment this is genuinely
+  // "you are ready" rather than "you already ran one".
+  'firstRun.complete.heading': 'Everything here is ready.',
+  'firstRun.complete.body':
+    'Every step above is done, and this deployment can drive a real investigation. Press Investigate, at the top of any screen, to run the first one.',
+  'firstRun.complete.body.noPermission':
+    'Every step above is done, and this deployment can drive a real investigation. Ask somebody who may start one to run the first.',
 
   // --- Setup and the tutorial, where an operator is already working ---------------------
   // The checklist panel and the quick-action list that used to live here went

@@ -119,10 +119,10 @@ describe('what a failed run reads as', () => {
     if (row === undefined) {
       throw new Error('no attention row was drawn for the failed run');
     }
-    expect(within(row).getByRole('link')).toHaveAttribute(
-      'href',
-      '/first-run?step=model',
-    );
+    // Not the model step by name: this failure is the deployment's own runtime,
+    // never a configuration field, so the band sends somebody to the guided
+    // setup itself rather than to a step that may already be finished.
+    expect(within(row).getByRole('link')).toHaveAttribute('href', '/first-run');
   });
 });
 

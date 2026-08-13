@@ -69,7 +69,13 @@ const KNOWN: readonly KnownFailure[] = [
     marker: 'InvestigatorNotConfigured',
     title: 'failure.investigator.title',
     action: 'failure.investigator.action',
-    href: '/first-run?step=model',
+    // Not a step of the wizard by name: this is the deployment's own runtime,
+    // composed by whoever operates it, and it can be missing whether or not a
+    // model has been chosen. Naming `step=model` sent an operator who had
+    // already finished that step back to it with nothing left to change there
+    // — the guided setup itself resolves to wherever the deployment actually
+    // is, which is what an unqualified address does.
+    href: '/first-run',
   },
   {
     marker: 'CredentialNotConfigured',

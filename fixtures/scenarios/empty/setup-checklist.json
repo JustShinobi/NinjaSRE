@@ -33,6 +33,14 @@
             "title": "Give it something to look at"
           },
           {
+            "action": "whoever operates this deployment supplies the investigation runtime; until they do, starting an investigation will fail immediately",
+            "detail": "nothing here can drive an investigation yet — a model provider and an integration are both configured, and the part that puts them together has not been supplied to this process",
+            "name": "investigation-runtime",
+            "readiness": "absent",
+            "state": "blocked",
+            "title": "Give it something to investigate with"
+          },
+          {
             "action": "start an investigation and watch it run",
             "detail": "no investigation has finished here",
             "name": "first-investigation",

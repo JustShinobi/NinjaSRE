@@ -46,6 +46,14 @@
             "title": "Give it something to look at"
           },
           {
+            "action": "nothing further",
+            "detail": "this deployment holds a runtime, so an investigation has something to run in",
+            "name": "investigation-runtime",
+            "readiness": "absent",
+            "state": "done",
+            "title": "Give it something to investigate with"
+          },
+          {
             "action": "start an investigation and watch it run",
             "detail": "an investigation has finished here",
             "name": "first-investigation",

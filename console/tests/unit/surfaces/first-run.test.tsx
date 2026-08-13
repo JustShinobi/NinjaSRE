@@ -179,6 +179,21 @@ describe('the wizard screen', () => {
       expect(EN[`firstRun.why.${step}`], step).toBeDefined();
     }
   });
+
+  it('marks the current step "you are here", and only that one', async () => {
+    await firstRun();
+
+    expect(screen.getAllByTestId('wizard-step-here')).toHaveLength(1);
+  });
+
+  it('says how many steps are left, in the same words the dashboard uses', async () => {
+    await firstRun();
+
+    // The dashboard's own hero says "N of 7 steps left". This line used to say
+    // "N of 7 done" instead — the same fact in a different framing, so a reader
+    // comparing the two had to do arithmetic to tell they agreed.
+    expect(screen.getByTestId('first-run-progress')).toHaveTextContent('left');
+  });
 });
 
 // --- The provider step ----------------------------------------------------------------
@@ -406,6 +421,48 @@ describe('choosing a model', () => {
     await userEvent.click(screen.getByTestId('preview-model'));
 
     expect(screen.getByTestId('model-result')).toHaveTextContent('unreachable');
+  });
+
+  it('marks a refusal urgent for assistive technology, not routine status', async () => {
+    // A refusal announced with the same politeness as a save that worked is
+    // the accessibility half of "erros sempre em uma linha vermelha crua":
+    // colour was the only thing distinguishing them, and colour is not a
+    // channel a screen reader carries.
+    vi.stubGlobal(
+      'fetch',
+      answerWith({ reason: 'that value is locked above this node' }, 400),
+    );
+    render(
+      <ModelStep
+        provider="ollama"
+        models={[]}
+        defaultModel="llama4:70b"
+        nodeId="team-a"
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('preview-model'));
+
+    expect(screen.getByTestId('model-result')).toHaveAttribute('role', 'alert');
+  });
+
+  it('marks a save that worked as routine status, not as urgent', async () => {
+    vi.stubGlobal('fetch', answerWith({ changes: [] }));
+    render(
+      <ModelStep
+        provider="ollama"
+        models={[]}
+        defaultModel="llama4:70b"
+        nodeId="team-a"
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('preview-model'));
+    await userEvent.click(screen.getByTestId('save-model'));
+
+    expect(screen.getByTestId('model-result')).toHaveAttribute('role', 'status');
   });
 
   it('sends the patch in the shape the schema declares, nested and not dotted', async () => {
@@ -676,6 +733,12 @@ describe('connecting integrations', () => {
     expect(within(one(first)).getByTestId('credential-result')).toHaveTextContent(
       'refused',
     );
+    // Urgent for assistive technology, not routine status — the same fix as
+    // the model step's, for the same reason: colour was the only carrier.
+    expect(within(one(first)).getByTestId('credential-result')).toHaveAttribute(
+      'role',
+      'alert',
+    );
     expect(screen.getByTestId('integrations-summary')).toHaveTextContent(
       'Connected: chat.',
     );
@@ -909,6 +972,291 @@ describe('the steps this feature does not own', () => {
       expect(areaByPath(href), `${href} is not an area of this console`).toBeDefined();
     },
   );
+});
+
+// --- The step list names which screen a poetic step name actually leads to --------------------------
+
+describe('the map from a step name to the screen it leads to', () => {
+  it('names the real screen for the two steps that hand over to one', async () => {
+    await firstRun();
+
+    // "Give it an estate to watch" and "Point your alerts at it" do not say,
+    // by themselves, that finishing them means arriving at Resources and
+    // Detectors — this is the map spec.md asks for, read from the same
+    // HANDOVER address the link at the bottom of each step already uses.
+    const mapped = screen.getAllByTestId('wizard-step-screen');
+    expect(mapped.map((entry) => entry.getAttribute('data-step'))).toEqual([
+      'estate',
+      'alerts',
+    ]);
+    expect(mapped[0]).toHaveTextContent('Resources');
+    expect(mapped[1]).toHaveTextContent('Detectors');
+  });
+
+  it('names no destination for the five steps that stay on this screen', async () => {
+    await firstRun();
+
+    // provider/credential/model/integrations/verify are sub-steps of this
+    // one wizard, not a handover to somewhere else — a "leads to" label on
+    // them would be inventing a screen that does not exist.
+    const withoutAScreen = [
+      'provider',
+      'credential',
+      'model',
+      'integrations',
+      'verify',
+    ];
+    const mappedSteps = screen
+      .getAllByTestId('wizard-step-screen')
+      .map((entry) => entry.getAttribute('data-step'));
+    for (const step of withoutAScreen) {
+      expect(mappedSteps).not.toContain(step);
+    }
+  });
+});
+
+// --- The final state: everything is ready, and there is nothing left but pressing Investigate --------
+
+describe('a checklist with nothing left but the first investigation', () => {
+  /**
+   * Six of the seven wizard steps done, a composed runtime, and no
+   * investigation has finished yet — the one state that is genuinely "you
+   * are ready", as distinct from "you already ran one" (the checklist
+   * cannot report `complete` until an investigation has finished, which is
+   * this state's own outcome, not its precondition).
+   */
+  function serveReadyForFirstInvestigation(
+    options: {
+      runtime?: 'done' | 'ready';
+      permissions?: readonly string[];
+      investigated?: boolean;
+    } = {},
+  ): void {
+    const {
+      runtime = 'done',
+      permissions = ['config.read', 'investigation.run'],
+      investigated = false,
+    } = options;
+    serveScenario('first-run', principalHolding(permissions));
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/providers') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              providers: [
+                {
+                  provider_id: 'anthropic',
+                  display_name: 'Anthropic',
+                  configured: true,
+                },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      if (path === '/v1/config/org-northwind') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              node_id: 'org-northwind',
+              values: {
+                models: {
+                  investigator: { provider: 'anthropic', model: 'claude-sonnet-5' },
+                },
+              },
+              provenance: {},
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: investigated && runtime === 'done',
+              provider: 'verified',
+              integrations: [{ name: 'anthropic', readiness: 'verified' }],
+              steps: [
+                {
+                  name: 'infrastructure-source',
+                  title: 'Give it something to look at',
+                  state: 'done',
+                  detail: 'the last sweep found resources',
+                  action: 'nothing further',
+                  readiness: 'absent',
+                },
+                {
+                  name: 'investigation-runtime',
+                  title: 'Give it something to investigate with',
+                  state: runtime,
+                  detail:
+                    runtime === 'done'
+                      ? 'this deployment holds a runtime, so an investigation has something to run in'
+                      : 'nothing here can drive an investigation yet',
+                  action: runtime === 'done' ? 'nothing further' : 'supply a runtime',
+                  readiness: 'absent',
+                },
+                {
+                  name: 'first-investigation',
+                  title: 'Watch it look',
+                  state: investigated
+                    ? 'done'
+                    : runtime === 'done'
+                      ? 'ready'
+                      : 'blocked',
+                  detail: investigated
+                    ? 'an investigation has finished here'
+                    : 'no investigation has finished here',
+                  action: investigated
+                    ? 'nothing further'
+                    : 'start an investigation and watch it run',
+                  readiness: 'absent',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+  }
+
+  it('says the setup is ready and points at the one control that starts an investigation', async () => {
+    serveReadyForFirstInvestigation();
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    expect(screen.getByTestId('setup-complete')).toBeInTheDocument();
+    expect(screen.getByTestId('setup-complete-body')).toHaveTextContent('Investigate');
+    // Superseded, not duplicated: the generic handover already said "start
+    // the guided investigation" in duller words, and showing both repeats
+    // the one thing this state has to say.
+    expect(screen.queryByTestId('handover')).toBeNull();
+  });
+
+  it('does not point at a control this viewer may not use', async () => {
+    serveReadyForFirstInvestigation({ permissions: ['config.read'] });
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    expect(screen.getByTestId('setup-complete-body')).not.toHaveTextContent(
+      'Investigate',
+    );
+  });
+
+  it('does not celebrate while the runtime is still what is missing', async () => {
+    serveReadyForFirstInvestigation({ runtime: 'ready' });
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    // The runtime gap is the more specific, more blocking fact; showing a
+    // "you are ready" banner beside it would be the console disagreeing with
+    // itself in the same panel.
+    expect(screen.queryByTestId('setup-complete')).toBeNull();
+    expect(screen.getByTestId('runtime-gap')).toBeInTheDocument();
+  });
+
+  it('does not celebrate once an investigation has already run', async () => {
+    // The genuinely fully-done state: every wizard step, including the last
+    // one, is done — which can only be true once an investigation has
+    // actually finished. "You are ready" is the wrong sentence for a
+    // deployment that already ran one; the generic handover's own "an
+    // investigation has finished here" already says the true thing.
+    serveReadyForFirstInvestigation({ investigated: true });
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    expect(screen.queryByTestId('setup-complete')).toBeNull();
+    expect(screen.getByTestId('handover-detail')).toHaveTextContent(
+      'an investigation has finished here',
+    );
+  });
+
+  it('does not celebrate before this stage: a deployment still missing earlier steps', async () => {
+    await firstRun({ step: 'alerts' });
+
+    // The default first-run fixture has nothing done at all — provider,
+    // integrations, and the estate are all still outstanding — so this is
+    // simply "not yet ready", the ordinary in-progress case, and not the
+    // one this state is for.
+    expect(screen.queryByTestId('setup-complete')).toBeNull();
+  });
+});
+
+// --- The runtime nobody composed, once the wizard itself has nothing left to say ---------------------
+
+describe('the runtime nobody composed', () => {
+  /**
+   * The seven-step wizard has no step of its own for this — the dependency
+   * lives one layer down, in what the process was actually started with — so
+   * this is asserted against a checklist this test controls directly rather
+   * than against the committed fixture's own steady state.
+   */
+  function serveRuntimeStep(state: 'ready' | 'blocked' | 'done'): void {
+    serveScenario('first-run');
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: false,
+              provider: 'verified',
+              integrations: [],
+              steps: [
+                {
+                  name: 'investigation-runtime',
+                  title: 'Give it something to investigate with',
+                  state,
+                  detail:
+                    state === 'done'
+                      ? 'this deployment holds a runtime, so an investigation has something to run in'
+                      : 'nothing here can drive an investigation yet — a model provider and an integration are both configured, and the part that puts them together has not been supplied to this process',
+                  action:
+                    state === 'done'
+                      ? 'nothing further'
+                      : 'whoever operates this deployment supplies the investigation runtime; until they do, starting an investigation will fail immediately',
+                  readiness: state === 'done' ? 'verified' : 'absent',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+  }
+
+  it('names the runtime as what is actually blocking the last step', async () => {
+    serveRuntimeStep('ready');
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    expect(screen.getByTestId('runtime-gap')).toHaveTextContent(
+      'the part that puts them together has not been supplied to this process',
+    );
+    expect(screen.getByTestId('runtime-gap')).toHaveTextContent(
+      'whoever operates this deployment supplies the investigation runtime',
+    );
+  });
+
+  it('says nothing about the runtime once this process actually holds one', async () => {
+    serveRuntimeStep('done');
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    expect(screen.queryByTestId('runtime-gap')).toBeNull();
+  });
+
+  it('never names the setting a deployer would set, on either side of it', async () => {
+    serveRuntimeStep('ready');
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    expect(document.body.innerHTML).not.toContain('NINJASRE_INVESTIGATOR');
+  });
 });
 
 // --- What the dashboard gains -------------------------------------------------------------------

@@ -420,3 +420,33 @@ describe('what a search may show the person doing it', () => {
     expect(screen.queryByText('checkout is out of memory')).toBeNull();
   });
 });
+
+describe('the investigation drawer this frame owns', () => {
+  it('passes the runtime fact through, so the drawer can warn before the click', async () => {
+    renderShell({
+      setup: {
+        checklistComplete: true,
+        integrationsConfigured: true,
+        runtimeComposed: false,
+      },
+    });
+
+    await userEvent.click(screen.getByTestId('investigate'));
+
+    expect(screen.getByTestId('investigate-runtime-gap')).toBeInTheDocument();
+  });
+
+  it('says nothing about the runtime once this process actually holds one', async () => {
+    renderShell({
+      setup: {
+        checklistComplete: true,
+        integrationsConfigured: true,
+        runtimeComposed: true,
+      },
+    });
+
+    await userEvent.click(screen.getByTestId('investigate'));
+
+    expect(screen.queryByTestId('investigate-runtime-gap')).toBeNull();
+  });
+});

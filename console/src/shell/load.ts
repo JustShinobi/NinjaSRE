@@ -1,5 +1,6 @@
 import { ApiError, read } from '@/lib/api';
 import { parseViewer, type Viewer } from '@/session/viewer';
+import { RUNTIME_STEP } from '@/surfaces/first-run/plan';
 import type { AttentionItem } from './attention';
 import type { RecentRun } from './commands';
 import type { Guardian } from './sidebar';
@@ -237,24 +238,38 @@ async function readStopped(credential: string): Promise<Stoppage> {
 /**
  * What the frame needs to know about the deployment's own setup.
  *
- * Two facts, and each degrades in the direction that is safe to be wrong in.
- * A checklist that could not be read is **not complete**, so the one route that
- * finishes configuring a half-up deployment stays in the navigation of exactly
- * that deployment. And integrations are assumed **configured**, so a read that
- * failed does not put a warning about an unconnected estate in front of
- * somebody whose estate is connected.
+ * Three facts, and each degrades in the direction that is safe to be wrong
+ * in. A checklist that could not be read is **not complete**, so the one
+ * route that finishes configuring a half-up deployment stays in the
+ * navigation of exactly that deployment. Integrations are assumed
+ * **configured**, and the runtime is assumed **composed**, for the same
+ * reason as each other: both feed an advisory caveat in the investigation
+ * drawer rather than the navigation, and a read that failed must not put a
+ * warning in front of somebody whose deployment works fine.
  */
 export interface SetupState {
   readonly checklistComplete: boolean;
   readonly integrationsConfigured: boolean;
+  /**
+   * Whether this process holds something that can actually drive an
+   * investigation, read from the checklist's own fifth step.
+   *
+   * This is what lets the investigation drawer say what is missing *before*
+   * the click rather than after: starting one would refuse with
+   * `InvestigatorNotConfigured` regardless of anything the operator types,
+   * and this is the one fact that can be read ahead of that request instead
+   * of parsed out of its failure.
+   */
+  readonly runtimeComposed: boolean;
 }
 
 const ASSUMED_SETUP: SetupState = {
   checklistComplete: false,
   integrationsConfigured: true,
+  runtimeComposed: true,
 };
 
-/** Whether setup is finished, and whether anything is connected. */
+/** Whether setup is finished, whether anything is connected, and whether a run could actually start. */
 export async function loadSetup(credential: string): Promise<SetupState> {
   return withDeadline(readSetupState(credential), ASSUMED_SETUP);
 }
@@ -263,6 +278,9 @@ async function readSetupState(credential: string): Promise<SetupState> {
   try {
     const body = await read('/v1/setup/checklist', authorised(credential));
     const declared = records(body, 'integrations');
+    const runtimeStep = records(body, 'steps').find(
+      (entry) => text(entry, 'name') === RUNTIME_STEP,
+    );
     return {
       checklistComplete: Reflect.get(Object(body), 'complete') === true,
       // Declared and holding nothing is what `absent` means, so a deployment
@@ -270,6 +288,12 @@ async function readSetupState(credential: string): Promise<SetupState> {
       integrationsConfigured: declared.some(
         (entry) => text(entry, 'readiness') !== 'absent',
       ),
+      // Absent from the steps this deployment reports — an older backend,
+      // before this step existed — reads the same as composed: this fact
+      // exists to state a dependency the deployment can prove is missing,
+      // not to invent one it has never declared.
+      runtimeComposed:
+        runtimeStep === undefined || text(runtimeStep, 'state') === 'done',
     };
   } catch (error) {
     if (error instanceof ApiError || error instanceof TypeError) {

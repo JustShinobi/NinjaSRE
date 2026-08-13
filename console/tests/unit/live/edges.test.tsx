@@ -2,6 +2,7 @@ import { act as reactAct, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { EN } from '@/i18n/en';
 import { act } from '@/live/act';
 import { attentionFrom } from '@/live/attention';
 import { Announcer } from '@/live/announcer';
@@ -392,6 +393,76 @@ describe('the investigation drawer when the deployment refuses', () => {
     // announced, which is the shape only a start that worked produces.
     expect(closed).toBe(true);
     expect(screen.queryByTestId('outcomes')).toBeNull();
+  });
+});
+
+describe('the investigation drawer when nothing here can run one', () => {
+  it('says so before the click, and disables starting rather than letting it fail', async () => {
+    render(
+      <InvestigateDrawer
+        open
+        locale="en"
+        runtimeComposed={false}
+        onClose={() => undefined}
+      />,
+    );
+
+    await userEvent.type(
+      screen.getByLabelText(/looked into/i),
+      'the primary is unreachable',
+    );
+
+    // An objective alone does not make this startable: the request would
+    // refuse with InvestigatorNotConfigured either way, and disabling here is
+    // the difference between a caveat and a guaranteed round trip that fails.
+    expect(screen.getByTestId('start-investigation')).toBeDisabled();
+    expect(screen.getByTestId('investigate-runtime-gap')).toBeInTheDocument();
+  });
+
+  it('shows the identical sentence the reactive failure translation shows after a failed attempt', () => {
+    // The one property this confrontation was warned not to reintroduce: two
+    // different sentences for the same missing runtime. Both surfaces read
+    // the one catalogue entry, so there is exactly one sentence to disagree
+    // with itself.
+    render(
+      <InvestigateDrawer
+        open
+        locale="en"
+        runtimeComposed={false}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(screen.getByTestId('investigate-runtime-gap')).toHaveTextContent(
+      EN['failure.investigator.action'],
+    );
+  });
+
+  it('never names the setting a deployer would set', () => {
+    render(
+      <InvestigateDrawer
+        open
+        locale="en"
+        runtimeComposed={false}
+        onClose={() => undefined}
+      />,
+    );
+
+    expect(document.body.innerHTML).not.toContain('NINJASRE_INVESTIGATOR');
+  });
+
+  it('starts normally, with nothing said, once this process actually holds a runtime', async () => {
+    render(
+      <InvestigateDrawer open locale="en" runtimeComposed onClose={() => undefined} />,
+    );
+
+    await userEvent.type(
+      screen.getByLabelText(/looked into/i),
+      'the primary is unreachable',
+    );
+
+    expect(screen.queryByTestId('investigate-runtime-gap')).toBeNull();
+    expect(screen.getByTestId('start-investigation')).toBeEnabled();
   });
 });
 

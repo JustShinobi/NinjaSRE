@@ -253,6 +253,10 @@ it('forwards the deployment’s own words when it refuses', async () => {
     'No discovery source for',
   );
   expect(screen.queryByTestId('estate-counts')).toBeNull();
+  // Urgent for assistive technology, not routine status, and boxed rather
+  // than a bare line — the same fix the model step and the credential form
+  // both needed for the same reason: a refusal was carried by colour alone.
+  expect(screen.getByTestId('estate-refused')).toHaveAttribute('role', 'alert');
 });
 
 it('says the deployment did not answer rather than blaming the cluster', async () => {
@@ -263,4 +267,5 @@ it('says the deployment did not answer rather than blaming the cluster', async (
 
   expect(screen.getByTestId('estate-unreachable')).toBeInTheDocument();
   expect(screen.queryByTestId('privilege-report')).toBeNull();
+  expect(screen.getByTestId('estate-unreachable')).toHaveAttribute('role', 'alert');
 });
