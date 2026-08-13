@@ -2461,6 +2461,11 @@ export interface paths {
         /**
          * Run Self Check
          * @description Run every check in one pass and return the findings, most blocking first.
+         *
+         *     The runtime check is handed what this process actually composed, because
+         *     that is a fact only the running process holds — no store can be asked
+         *     whether anything here can drive an investigation, and it is the one
+         *     dependency that leaves no trace on any screen.
          */
         get: operations["run_self_check_v1_setup_self_check_get"];
         put?: never;

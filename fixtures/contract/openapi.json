@@ -14644,7 +14644,7 @@
     },
     "/v1/setup/self-check": {
       "get": {
-        "description": "Run every check in one pass and return the findings, most blocking first.",
+        "description": "Run every check in one pass and return the findings, most blocking first.\n\nThe runtime check is handed what this process actually composed, because\nthat is a fact only the running process holds — no store can be asked\nwhether anything here can drive an investigation, and it is the one\ndependency that leaves no trace on any screen.",
         "operationId": "run_self_check_v1_setup_self_check_get",
         "parameters": [
           {

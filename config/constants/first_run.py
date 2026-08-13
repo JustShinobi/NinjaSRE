@@ -86,6 +86,11 @@ CHECK_DATABASE: Final = "database"
 CHECK_SCHEMA: Final = "schema"
 CHECK_CREDENTIAL_PROXY: Final = "credential-proxy"
 CHECK_MODEL_PROVIDER: Final = "model-provider"
+#: Whether this process holds something that can actually drive an
+#: investigation. Its own check because it is the one dependency that leaves no
+#: trace on any screen: a deployment with nothing composed looks exactly like
+#: one that has, until somebody presses Investigate.
+CHECK_INVESTIGATION_RUNTIME: Final = "investigation-runtime"
 CHECK_INTEGRATIONS: Final = "integrations"
 CHECK_SCHEDULER: Final = "scheduler"
 CHECK_OBSERVER: Final = "observer"
@@ -97,6 +102,7 @@ SELF_CHECK_NAMES: Final[tuple[str, ...]] = (
     CHECK_SCHEMA,
     CHECK_CREDENTIAL_PROXY,
     CHECK_MODEL_PROVIDER,
+    CHECK_INVESTIGATION_RUNTIME,
     CHECK_INTEGRATIONS,
     CHECK_SCHEDULER,
     CHECK_OBSERVER,

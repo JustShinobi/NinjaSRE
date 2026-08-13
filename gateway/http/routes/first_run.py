@@ -154,8 +154,17 @@ async def checklist(
 
 @router.get("/self-check", response_model=SelfCheckView, dependencies=[Depends(authorized)])
 async def run_self_check(state: GatewayState = Depends(get_state)) -> SelfCheckView:
-    """Run every check in one pass and return the findings, most blocking first."""
-    report = await self_check(state.gateway)
+    """Run every check in one pass and return the findings, most blocking first.
+
+    The runtime check is handed what this process actually composed, because
+    that is a fact only the running process holds — no store can be asked
+    whether anything here can drive an investigation, and it is the one
+    dependency that leaves no trace on any screen.
+    """
+    report = await self_check(
+        state.gateway,
+        investigation_runtime=lambda: runtime_composed(state),
+    )
     return SelfCheckView(
         ok=report.ok,
         findings=[
