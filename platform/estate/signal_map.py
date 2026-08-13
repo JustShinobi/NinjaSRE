@@ -300,7 +300,15 @@ def _resolve_up(
                 question=SIGNAL_QUESTION_UP,
                 integration=owner,
                 keyed_by=SIGNAL_KEY_NAME,
-                key=resource.native_id or resource.resource_id,
+                # Resolved the same way every other name-keyed entry is —
+                # never the source's own internal identity string.
+                # ``native_id`` exists so a discovery source can reconcile a
+                # resource across sweeps, and a guest with no recorded
+                # creation time carries a placeholder discriminator inside
+                # it (``integrations.proxmox.identity.NO_DISCRIMINATOR``).
+                # That placeholder has no business reaching a surface as
+                # part of what reads like the resource's own name.
+                key=_key_for(SIGNAL_KEY_NAME, resource),
                 detail=(
                     f"{owner} discovered this resource and reports its state, which is the "
                     f"provider's own answer rather than a synthetic check of it"

@@ -690,10 +690,16 @@ export const EN = {
   'resources.filter.health': 'Health',
   'resources.filter.problem': 'Degraded or unhealthy',
   'resources.zone.unplaced': 'Unplaced',
+  'resources.zone.unplaced.hint':
+    'No declared network covers this resource’s address. Declare its zone in configuration.',
   'resources.criticality.ungraded': 'Ungraded',
+  'resources.criticality.ungraded.hint':
+    'Nobody has declared how critical this resource is. Declare it in configuration.',
   'resources.list.title': 'Resources',
   'resources.list.caption': 'Everything this deployment watches',
   'resources.sorted': 'Worst first',
+  'resources.sorted.hint':
+    'The default order — click a column heading below to sort a different way.',
   // Every health state the badges below use gets a number here, including
   // unhealthy — which had none anywhere on the screen while `problems` folded
   // it into degraded. A header that cannot be added up against the table under
@@ -702,6 +708,8 @@ export const EN = {
     '{watched} watched · {healthy} healthy · {degraded} degraded · {unhealthy} unhealthy',
   'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
+  'resources.divergent.hint':
+    'The declared inventory is the file that says what should exist here, and this resource is not in it. Add it to the inventory, or ignore it if it should not be tracked.',
   'resources.detail.back': 'Back to the list',
   'resources.signals.title': 'Where its signals come from',
   'resources.signals.body':

@@ -232,6 +232,65 @@ describe('resources: the divergence mark is its own column', () => {
   });
 });
 
+describe('resources: unexplained jargon gets a tooltip and a way to fix it', () => {
+  it('explains the divergence mark and what to do about it', async () => {
+    serve({
+      resources: [ALPHA, BRAVO],
+      divergences: [{ kind: 'only_in_provider', subject: 'ck-alpha' }],
+    });
+    await resources();
+
+    const column = columnIndex('inventory');
+    const cell = cellAt(resourceRow('r-alpha'), column);
+    expect(within(cell).getByTitle(/inventory/i)).toHaveTextContent(/inventory/i);
+  });
+
+  it('explains "Unplaced" and links to where a zone is declared', async () => {
+    serve({ resources: [{ ...ALPHA, attributes: { criticality: 'critical' } }] });
+    await resources();
+
+    const column = columnIndex('Zone');
+    const link = within(cellAt(resourceRow('r-alpha'), column)).getByRole('link');
+    expect(link).toHaveTextContent(/unplaced/i);
+    expect(link).toHaveAttribute('href', '/configuration');
+    expect(link).toHaveAttribute('title');
+  });
+
+  it('explains "Ungraded" and links to where a criticality is declared', async () => {
+    serve({ resources: [{ ...ALPHA, attributes: { zone: 'dmz' } }] });
+    await resources();
+
+    const column = columnIndex('Criticality');
+    const link = within(cellAt(resourceRow('r-alpha'), column)).getByRole('link');
+    expect(link).toHaveTextContent(/ungraded/i);
+    expect(link).toHaveAttribute('href', '/configuration');
+  });
+
+  it('leaves a declared zone and criticality as plain values, with no link', async () => {
+    serve({ resources: [ALPHA] });
+    await resources();
+
+    const zoneColumn = columnIndex('Zone');
+    expect(
+      within(cellAt(resourceRow('r-alpha'), zoneColumn)).queryByRole('link'),
+    ).toBeNull();
+    const criticalityColumn = columnIndex('Criticality');
+    expect(
+      within(cellAt(resourceRow('r-alpha'), criticalityColumn)).queryByRole('link'),
+    ).toBeNull();
+  });
+
+  it('tells the reader the default sort has an alternative', async () => {
+    serve({ resources: [ALPHA, BRAVO] });
+    await resources();
+
+    expect(screen.getByText(/worst first/i)).toHaveAttribute(
+      'title',
+      expect.stringMatching(/column heading/i),
+    );
+  });
+});
+
 describe('resources: a filter by name', () => {
   it('narrows the table to resources whose name matches, case-insensitively', async () => {
     serve({ resources: [ALPHA, BRAVO] });

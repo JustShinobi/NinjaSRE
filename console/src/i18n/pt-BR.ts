@@ -601,14 +601,22 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.filter.health': 'Saúde',
   'resources.filter.problem': 'Degradados ou não saudáveis',
   'resources.zone.unplaced': 'Sem zona',
+  'resources.zone.unplaced.hint':
+    'Nenhuma rede declarada cobre o endereço deste recurso. Declare a zona dele na configuração.',
   'resources.criticality.ungraded': 'Sem classificação',
+  'resources.criticality.ungraded.hint':
+    'Ninguém declarou a criticidade deste recurso. Declare-a na configuração.',
   'resources.list.title': 'Recursos',
   'resources.list.caption': 'Tudo o que esta instalação vigia',
   'resources.sorted': 'Pior primeiro',
+  'resources.sorted.hint':
+    'A ordem padrão — clique no cabeçalho de uma coluna abaixo para ordenar de outro jeito.',
   'resources.summary':
     '{watched} observados · {healthy} saudáveis · {degraded} degradados · {unhealthy} com falha',
   'resources.filter.name': 'Nome do recurso',
   'resources.divergent.mark': '(fora do inventário)',
+  'resources.divergent.hint':
+    'O inventário declarado é o arquivo que diz o que deveria existir aqui, e este recurso não está nele. Adicione-o ao inventário, ou ignore se ele não deveria ser rastreado.',
   'resources.detail.back': 'Voltar à lista',
   'resources.signals.title': 'De onde vêm os sinais dele',
   'resources.signals.body':

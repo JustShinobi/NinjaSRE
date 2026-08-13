@@ -47,6 +47,20 @@ export interface Cell {
   readonly title?: string;
   /** Per cent, for a meter. Ignored by every other kind. */
   readonly value?: number;
+  /**
+   * An explanation of a jargon word or a placeholder value, on hover and on
+   * focus. Absent for an ordinary cell — a hint on every cell would teach a
+   * reader to stop reading them, which is the same lesson a column that never
+   * has a value teaches.
+   */
+  readonly hint?: string | undefined;
+  /**
+   * Where this cell's own value is declared, when that is a place. Distinct
+   * from the row's own link on the first cell: a placeholder value like
+   * "unplaced" is not an invitation to open the resource, it is an invitation
+   * to go and declare the fact that is missing.
+   */
+  readonly href?: string | undefined;
 }
 
 export interface ListRow {
@@ -112,7 +126,7 @@ function cellClass(kind: CellKind): string {
   );
 }
 
-function CellBody({ cell }: { readonly cell: Cell }): ReactNode {
+function CellValue({ cell }: { readonly cell: Cell }): ReactNode {
   if (cell.kind === 'status') {
     return <Badge status={cell.text} />;
   }
@@ -120,6 +134,28 @@ function CellBody({ cell }: { readonly cell: Cell }): ReactNode {
     return <ProgressBar label={cell.text} value={cell.value ?? 0} />;
   }
   return <>{cell.text}</>;
+}
+
+function CellBody({ cell }: { readonly cell: Cell }): ReactNode {
+  if (cell.href !== undefined) {
+    return (
+      <a
+        href={cell.href}
+        title={cell.hint}
+        className="underline-offset-2 hover:underline"
+      >
+        <CellValue cell={cell} />
+      </a>
+    );
+  }
+  if (cell.hint !== undefined) {
+    return (
+      <span title={cell.hint}>
+        <CellValue cell={cell} />
+      </span>
+    );
+  }
+  return <CellValue cell={cell} />;
 }
 
 /** A long list, windowed, sortable by address, with every row a link. */

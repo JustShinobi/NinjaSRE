@@ -185,6 +185,30 @@ def test_up_is_answered_by_whatever_declares_the_resource_exists() -> None:
     assert up.integration == "proxmox"
 
 
+def test_up_is_keyed_by_the_resource_s_own_name_not_its_internal_identity() -> None:
+    """``keyed_by`` says "name", so the value has to be one — not the internal
+    identity a discovery source uses for reconciliation. A guest with no
+    recorded creation time carries a placeholder discriminator in that identity
+    (see ``integrations.proxmox.identity.NO_DISCRIMINATOR``), and that
+    placeholder must never reach a surface as part of what looks like the
+    resource's own key."""
+    guest = Resource(
+        resource_id="prox-ct-111",
+        kind=KIND_CONTAINER,
+        source="proxmox",
+        native_id="lxc/HAL9000/unknown/111",
+        display_name="signoz",
+        attributes={"vmid": 111, "address": "10.20.20.5"},
+        last_seen_at=SEEN,
+    )
+
+    up = signal_map_for(guest, configured=EVERYTHING).source_for(SIGNAL_QUESTION_UP)
+
+    assert up is not None
+    assert up.key == "signoz"
+    assert "unknown" not in up.key
+
+
 class TestTheRestOfTheMap:
     def test_logs_prefer_loki_and_fall_back_to_the_next_configured_store(self) -> None:
         both = signal_map_for(container(), configured=EVERYTHING)

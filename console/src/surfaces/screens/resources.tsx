@@ -297,6 +297,12 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               {
                 kind: 'muted' as const,
                 text: diverges ? message(locale, 'resources.divergent.mark') : none,
+                // What the declared inventory is, and what to do about a
+                // resource it does not name — said once, on hover, rather
+                // than guessed from a parenthetical stuck onto the name.
+                hint: diverges
+                  ? message(locale, 'resources.divergent.hint')
+                  : undefined,
               },
             ]
           : []),
@@ -307,6 +313,14 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             zoneOf(record) === UNPLACED
               ? message(locale, 'resources.zone.unplaced')
               : zoneOf(record),
+          hint:
+            zoneOf(record) === UNPLACED
+              ? message(locale, 'resources.zone.unplaced.hint')
+              : undefined,
+          // Unplaced is not blank, but it is not an answer either — the link
+          // goes to where a zone actually gets declared, not to the resource
+          // that is missing one.
+          href: zoneOf(record) === UNPLACED ? '/configuration' : undefined,
         },
         {
           // The word the operator wrote, never one this console chose for them.
@@ -315,6 +329,11 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             criticalityOf(record) === ''
               ? message(locale, 'resources.criticality.ungraded')
               : criticalityOf(record),
+          hint:
+            criticalityOf(record) === ''
+              ? message(locale, 'resources.criticality.ungraded.hint')
+              : undefined,
+          href: criticalityOf(record) === '' ? '/configuration' : undefined,
         },
         { kind: 'status', text: text(record, 'health') },
         ...(hasUtilisation
@@ -621,7 +640,16 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           href: '/configuration',
         }}
         action={
-          <span className="text-meta text-muted">
+          // Named as what it is — the default order — rather than left to
+          // sit in the corner unexplained. The hint says how to leave it: the
+          // columns beside it are already sortable links, and this is the one
+          // sentence connecting the label to them.
+          <span
+            className="text-meta text-muted"
+            title={
+              state.sort === '' ? message(locale, 'resources.sorted.hint') : undefined
+            }
+          >
             {state.sort === '' ? message(locale, 'resources.sorted') : ''}
           </span>
         }
