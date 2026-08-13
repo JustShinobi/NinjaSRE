@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/action';
 import { ProgressBar } from '@/components/feedback';
@@ -34,21 +35,54 @@ import { CONFIG_ENDPOINT } from './model';
 /** Where the dismissal is recorded, at the viewer's own node. */
 export const TUTORIAL_SETTING = 'surfaces.console.tutorial_dismissed';
 
+/** Where the final slide's invitation actually goes. */
+const SETUP_PATH = '/first-run';
+
 /** The five slides, by the number their catalogue keys carry. */
 export const SLIDES: readonly number[] = [1, 2, 3, 4, 5];
+
+/**
+ * Whether `values` — a node's effective configuration — records the dismissal.
+ *
+ * The effective document is nested the way the schema is, so the dotted
+ * setting is walked one segment at a time. Read as one flat key it would
+ * answer false forever, which is exactly the overlay that never stops coming
+ * back.
+ */
+export function tutorialDismissed(values: unknown): boolean {
+  let cursor: unknown = values;
+  for (const segment of TUTORIAL_SETTING.split('.')) {
+    cursor = Reflect.get(Object(cursor), segment);
+  }
+  return cursor === true;
+}
+
+/**
+ * The dismissal as the nested document the deployment validates.
+ *
+ * Built from the same dotted setting the read walks, so the two halves of the
+ * persistence cannot name different fields. A flat dotted key would be a field
+ * the closed schema has never heard of, and the write would be refused.
+ */
+function dismissalPatch(): Record<string, unknown> {
+  let patch: unknown = true;
+  for (const segment of [...TUTORIAL_SETTING.split('.')].reverse()) {
+    patch = { [segment]: patch };
+  }
+  return patch as Record<string, unknown>;
+}
 
 export interface TutorialProps {
   readonly locale: Locale;
   /** The node the dismissal is written at. Empty when the viewer resolves to none. */
   readonly nodeId: string;
-  /** Whether this deployment has already been shown it. */
-  readonly dismissed: boolean;
 }
 
 /** The dismissable tutorial, over a dashboard that is rendered behind it. */
-export function Tutorial({ locale, nodeId, dismissed }: TutorialProps): ReactNode {
+export function Tutorial({ locale, nodeId }: TutorialProps): ReactNode {
+  const router = useRouter();
   const [slide, setSlide] = useState(0);
-  const [closed, setClosed] = useState(dismissed);
+  const [closed, setClosed] = useState(false);
 
   function close(): void {
     // Closed here and now. The write below is what stops it coming back
@@ -59,7 +93,7 @@ export function Tutorial({ locale, nodeId, dismissed }: TutorialProps): ReactNod
     void fetch(CONFIG_ENDPOINT, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ nodeId, patch: { [TUTORIAL_SETTING]: true } }),
+      body: JSON.stringify({ nodeId, patch: dismissalPatch() }),
     }).catch(() => undefined);
   }
 
@@ -127,8 +161,13 @@ export function Tutorial({ locale, nodeId, dismissed }: TutorialProps): ReactNod
             variant="primary"
             data-testid="tutorial-next"
             onClick={() => {
-              if (last) close();
-              else setSlide((was) => Math.min(SLIDES.length - 1, was + 1));
+              if (last) {
+                // The final slide promises a beginning, so pressing it is two
+                // things: the dismissal every other exit records, and the
+                // navigation the wording offers.
+                close();
+                router.push(SETUP_PATH);
+              } else setSlide((was) => Math.min(SLIDES.length - 1, was + 1));
             }}
           >
             {message(locale, last ? 'tutorial.done' : 'tutorial.next')}

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { POST as decide } from '@/app/api/decision/route';
 import { POST as preview } from '@/app/api/preview/route';
+import { POST as write } from '@/app/api/config/route';
 import { SESSION_COOKIE } from '@/session/cookies';
 
 /**
@@ -144,6 +145,18 @@ describe('previewing a configuration change', () => {
     expect(sent).toBeNull();
   });
 
+  it('names what was missing when it refuses, so the screen has words to show', async () => {
+    // "The deployment refused:" with nothing after the colon was this body:
+    // a 400 whose JSON carried no reason at all.
+    const answer = await preview(request('/api/preview', { nodeId: '', patch: {} }));
+
+    expect(answer.status).toBe(400);
+    const body: unknown = await answer.json();
+    const reason: unknown = Reflect.get(Object(body), 'reason');
+    expect(typeof reason).toBe('string');
+    expect(String(reason)).not.toBe('');
+  });
+
   it('refuses a request carrying no session', async () => {
     const answer = await preview(
       request('/api/preview', { nodeId: 'n', patch: {} }, ''),
@@ -160,5 +173,40 @@ describe('previewing a configuration change', () => {
     );
 
     expect(answer.status).toBe(502);
+  });
+});
+
+describe('writing a configuration change', () => {
+  it('carries a refusal whose detail is not a string, as readable text', async () => {
+    // The gateway's validation errors arrive as structures. A courier that
+    // only forwarded a string `detail` turned every one of them into
+    // "refused:" with nothing after the colon.
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            detail: [{ path: 'models.investigator.model', msg: 'is not a configuration field' }],
+          }),
+          { status: 400, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+
+    const answer = await write(
+      request('/api/config', { nodeId: 'org-northwind', patch: { a: '1' } }),
+    );
+
+    expect(answer.status).toBe(400);
+    const body: unknown = await answer.json();
+    const reason = String(Reflect.get(Object(body), 'reason') ?? '');
+    expect(reason).toContain('is not a configuration field');
+  });
+
+  it('names what was missing when it refuses a nodeless request', async () => {
+    const answer = await write(request('/api/config', { nodeId: '', patch: {} }));
+
+    expect(answer.status).toBe(400);
+    const body: unknown = await answer.json();
+    expect(String(Reflect.get(Object(body), 'reason') ?? '')).not.toBe('');
   });
 });

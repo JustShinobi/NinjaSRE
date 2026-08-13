@@ -5,14 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EN } from '@/i18n/en';
 import { AREAS, areaByPath } from '@/shell/routes';
 import { WIZARD_STEPS } from '@/surfaces/first-run/plan';
-import { SLIDES, TUTORIAL_SETTING, Tutorial } from '@/surfaces/first-run/tutorial';
+import { SLIDES, Tutorial } from '@/surfaces/first-run/tutorial';
 import { IntegrationsStep } from '@/surfaces/first-run/integrations';
 import { VerifyStep } from '@/surfaces/first-run/verify';
 import { ModelStep } from '@/surfaces/first-run/model';
 import { DashboardScreen } from '@/surfaces/screens/dashboard';
 import { FirstRunScreen } from '@/surfaces/screens/first-run';
 import { ALL_SCREENS } from '../support/screens';
-import { serveScenario } from '../support/dataset';
+import { principalHolding, serveScenario } from '../support/dataset';
 import { surfaceContext } from '@/surfaces/context';
 
 /**
@@ -36,6 +36,32 @@ vi.mock('next/headers', () => ({
 }));
 
 let sent: readonly { url: string; body: string }[] = [];
+
+// Where the tutorial's final slide navigates. The suite-wide router mock
+// swallows navigation entirely; this file is partly *about* one, so its own
+// mock records where the router was sent.
+const pushed = vi.hoisted(() => [] as string[]);
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: (href: string) => {
+      pushed.push(href);
+    },
+    replace: () => undefined,
+  }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+  notFound: () => {
+    throw new Error('not found');
+  },
+  redirect: (href: string) => {
+    throw new Error(`redirected to ${href}`);
+  },
+}));
+
+/** What every exit of the tutorial must send: the nested document, not a dotted key. */
+const DISMISSAL = { surfaces: { console: { tutorial_dismissed: true } } };
 
 /**
  * `element`, or a failure naming the absence.
@@ -70,6 +96,7 @@ function answerWith(
 
 beforeEach(() => {
   sent = [];
+  pushed.length = 0;
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
 });
 
@@ -85,6 +112,30 @@ async function firstRun(query: Record<string, string> = {}): Promise<void> {
 // --- The screen, and where it thinks you are ----------------------------------------
 
 describe('the wizard screen', () => {
+  it('resolves the node from the tree root when the session names no team', async () => {
+    // A local administrator's session carries no team, and the model step it
+    // renders must still write somewhere: the root of the organisation tree,
+    // exactly as /configuration resolves it. A step that sent the empty
+    // string would be refused by the courier with nothing after the colon.
+    serveScenario(
+      'first-run',
+      principalHolding(['config.read', 'config.write', 'investigation.read'], ''),
+    );
+    render(
+      await FirstRunScreen(
+        await surfaceContext({ step: 'model', provider: 'anthropic' }),
+      ),
+    );
+
+    vi.stubGlobal('fetch', answerWith({ changes: [] }));
+    await userEvent.click(screen.getByTestId('preview-model'));
+
+    const previewed = sent.find((request) => request.url === '/api/preview');
+    expect(JSON.parse(previewed?.body ?? '{}')).toMatchObject({
+      nodeId: 'org-northwind',
+    });
+  });
+
   it('keeps every step visible, marking exactly one as where you are', async () => {
     await firstRun();
 
@@ -292,6 +343,23 @@ describe('choosing a model', () => {
     // another is the failure the preview exists to prevent.
     expect(sent[1]?.body).toBe(sent[0]?.body);
   });
+  it('reads a refusal the gateway spelled as detail, since the courier is verbatim', async () => {
+    vi.stubGlobal('fetch', answerWith({ detail: 'outside this session’s scope' }, 403));
+    render(
+      <ModelStep
+        provider="ollama"
+        models={[]}
+        defaultModel="llama4:70b"
+        nodeId="team-a"
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('preview-model'));
+
+    expect(screen.getByTestId('model-result')).toHaveTextContent('scope');
+  });
+
   it('says the deployment refused, in its words, and does not claim a save', async () => {
     vi.stubGlobal(
       'fetch',
@@ -334,6 +402,64 @@ describe('choosing a model', () => {
     await userEvent.click(screen.getByTestId('preview-model'));
 
     expect(screen.getByTestId('model-result')).toHaveTextContent('unreachable');
+  });
+
+  it('sends the patch in the shape the schema declares, nested and not dotted', async () => {
+    // The config service refuses `models.investigator.model` as a literal
+    // key — "is not a configuration field" — so a step that flattened the
+    // path would preview one document and fail to save any.
+    vi.stubGlobal('fetch', answerWith({ changes: [] }));
+    render(
+      <ModelStep
+        provider="ollama"
+        models={[]}
+        defaultModel="llama4:70b"
+        nodeId="team-a"
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('preview-model'));
+
+    expect(JSON.parse(sent[0]?.body ?? '{}')).toEqual({
+      nodeId: 'team-a',
+      patch: {
+        models: { investigator: { provider: 'ollama', model: 'llama4:70b' } },
+      },
+    });
+  });
+
+  it('shows what the write would refuse, and keeps the save shut', async () => {
+    // The preview answers 200 with the refusals in `errors`. Ignoring them
+    // showed "would change X" beside a save that was going to fail.
+    vi.stubGlobal(
+      'fetch',
+      answerWith({
+        changes: [{ path: 'models.investigator.model', after: 'llama4:70b' }],
+        errors: [
+          {
+            path: 'models.investigator.model',
+            message: 'is not a configuration field',
+          },
+        ],
+      }),
+    );
+    render(
+      <ModelStep
+        provider="ollama"
+        models={[]}
+        defaultModel="llama4:70b"
+        nodeId="team-a"
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('preview-model'));
+
+    expect(screen.getByTestId('model-result')).toHaveTextContent(
+      'is not a configuration field',
+    );
+    expect(screen.getByTestId('save-model')).toBeDisabled();
   });
 
   it('says nothing would change when the deployment says nothing would', async () => {
@@ -729,7 +855,11 @@ describe('what is established', () => {
           new Response(
             JSON.stringify({
               providers: [
-                { provider_id: 'google_gemini', display_name: 'Gemini', configured: true },
+                {
+                  provider_id: 'google_gemini',
+                  display_name: 'Gemini',
+                  configured: true,
+                },
               ],
             }),
             { status: 200, headers: { 'content-type': 'application/json' } },
@@ -835,7 +965,53 @@ describe('the dashboard of a deployment that is not set up', () => {
 // --- The tutorial ---------------------------------------------------------------------------------
 
 describe('the tutorial overlay', () => {
-  const LABELS = { locale: 'en' as const, nodeId: 'team-a', dismissed: false };
+  const LABELS = { locale: 'en' as const, nodeId: 'team-a' };
+
+  /**
+   * The first-run scenario, with this file listening in.
+   *
+   * The dataset answers the reads; what it cannot do is record a write or say
+   * that a dismissal already happened, and those are the two facts these tests
+   * are about. Writes land in `sent`, and `dismissed` answers the viewer's
+   * effective configuration with the dismissal already recorded — nested, the
+   * way the deployment actually serves it.
+   */
+  function serveTour(options: { dismissed?: boolean; principal?: unknown } = {}): void {
+    serveScenario('first-run', options.principal);
+    const scenario = globalThis.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        sent = [
+          ...sent,
+          {
+            url: String(input),
+            body: typeof init.body === 'string' ? init.body : '',
+          },
+        ];
+        return Promise.resolve(
+          new Response('{}', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }
+      const path = new URL(String(input), base).pathname;
+      if (options.dismissed === true && path === '/v1/config/org-northwind') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              node_id: 'org-northwind',
+              values: DISMISSAL,
+              provenance: {},
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(String(input));
+    });
+  }
 
   it('shows a progress indicator and a visible skip from the first slide', () => {
     render(<Tutorial {...LABELS} />);
@@ -866,10 +1042,36 @@ describe('the tutorial overlay', () => {
     await userEvent.click(screen.getByTestId('tutorial-skip'));
 
     expect(sent[0]?.url).toBe('/api/config');
-    expect(sent[0]?.body).toContain(TUTORIAL_SETTING);
+    // The patch is the nested document the deployment's schema validates. A
+    // flat dotted key is a field the closed schema has never heard of, and a
+    // write it refuses is a dismissal that comes back tomorrow.
+    expect(JSON.parse(sent[0]?.body ?? '{}')).toEqual({
+      nodeId: 'team-a',
+      patch: DISMISSAL,
+    });
     // Nothing in the browser's own storage: a flag there would show the whole
     // thing again on the second machine, to the same person.
     expect(window.localStorage.length).toBe(0);
+  });
+
+  it('finishes into the first-run wizard, recording the dismissal on the way', async () => {
+    vi.stubGlobal('fetch', answerWith({}));
+    render(<Tutorial {...LABELS} />);
+
+    for (let index = 1; index < SLIDES.length; index += 1) {
+      await userEvent.click(screen.getByTestId('tutorial-next'));
+    }
+    await userEvent.click(screen.getByTestId('tutorial-next'));
+
+    // The final button promises a beginning, so it has to deliver one: the
+    // overlay is gone, the dismissal is on its way, and the wizard is where
+    // the reader lands.
+    expect(screen.queryByTestId('tutorial')).toBeNull();
+    expect(pushed).toEqual(['/first-run']);
+    expect(JSON.parse(sent[0]?.body ?? '{}')).toEqual({
+      nodeId: 'team-a',
+      patch: DISMISSAL,
+    });
   });
 
   it('closes without writing anything when the viewer resolves to no node', async () => {
@@ -877,7 +1079,7 @@ describe('the tutorial overlay', () => {
     // nowhere to record the dismissal, and the overlay still has to close —
     // trapping somebody behind it would be the worse of the two failures.
     vi.stubGlobal('fetch', answerWith({}));
-    render(<Tutorial locale="en" nodeId="" dismissed={false} />);
+    render(<Tutorial locale="en" nodeId="" />);
 
     await userEvent.click(screen.getByTestId('tutorial-skip'));
 
@@ -895,10 +1097,31 @@ describe('the tutorial overlay', () => {
     expect(screen.getByTestId('tutorial')).toHaveAttribute('data-slide', '1');
   });
 
-  it('is not drawn at all for a deployment that has already dismissed it', () => {
-    render(<Tutorial locale="en" nodeId="team-a" dismissed />);
+  it('is not drawn at all for a deployment that has already dismissed it', async () => {
+    // The read half of the persistence: the effective configuration says the
+    // dismissal happened, and the dashboard never mounts the overlay at all.
+    serveTour({ dismissed: true });
+    render(await DashboardScreen(await surfaceContext({})));
 
     expect(screen.queryByTestId('tutorial')).toBeNull();
+  });
+
+  it('writes the dismissal at the root of the tree when the viewer has no team', async () => {
+    // A token that names no team still has to record the dismissal somewhere,
+    // and the configuration screen's answer — the root of the tree the viewer
+    // may see — is the answer here too.
+    serveTour({
+      principal: principalHolding(['config.read', 'config.write'], ''),
+    });
+    render(await DashboardScreen(await surfaceContext({})));
+
+    await userEvent.click(screen.getByTestId('tutorial-skip'));
+
+    expect(sent[0]?.url).toBe('/api/config');
+    expect(JSON.parse(sent[0]?.body ?? '{}')).toEqual({
+      nodeId: 'org-northwind',
+      patch: DISMISSAL,
+    });
   });
 
   it('declares no animation, so reduced motion changes nothing about it', async () => {

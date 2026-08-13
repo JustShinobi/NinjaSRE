@@ -227,7 +227,8 @@ export function OperatingContextEditor({
       {/* Said before the first field, because it is the rule that decides what
           belongs here at all, and after the fact it is only a correction. */}
       <p data-testid="fact-not-instruction" className="text-meta text-muted">
-        {labels.factNotInstruction} <Link href="/knowledge">{labels.runbooks}</Link>{' '}
+        {labels.factNotInstruction} <Link href="/knowledge">{labels.runbooks}</Link>
+        {' · '}
         <Link href="/autonomy">{labels.policy}</Link>
       </p>
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { formatNumber, timestamp } from '@/i18n/format';
+import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -31,7 +31,8 @@ import {
   QuickActions,
 } from '../first-run/checklist-panel';
 import { outstanding, readSetup } from '../first-run/plan';
-import { TUTORIAL_SETTING, Tutorial } from '../first-run/tutorial';
+import { Tutorial, tutorialDismissed } from '../first-run/tutorial';
+import { viewerNode } from '../tree';
 import type { SurfaceContext } from '../context';
 
 /**
@@ -59,7 +60,9 @@ const FEED_LENGTH = 8;
 export async function DashboardScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, viewer, zone } = context;
   const init = authorised(credential);
-  const node = viewer.teamNodeId;
+  // The tutorial's dismissal is written at this node and read back from it, so
+  // it has to resolve to a node that exists rather than to the empty string.
+  const node = await viewerNode(viewer, init);
 
   const [
     approvals,
@@ -210,15 +213,13 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
 
   return (
     <>
-      {/* Only while something is outstanding. A dismissal that never reached
-          the deployment therefore cannot leave a configured one behind an
-          overlay: the worst it can do is show this a second time. */}
-      {outstanding(setup) === 0 ? null : (
-        <Tutorial
-          locale={locale}
-          nodeId={node}
-          dismissed={flag(field(dataOf(effective), 'values'), TUTORIAL_SETTING)}
-        />
+      {/* Only while something is outstanding, and never once the effective
+          configuration records a dismissal. A dismissal that never reached the
+          deployment therefore cannot leave a configured one behind an overlay:
+          the worst it can do is show this a second time. */}
+      {outstanding(setup) === 0 ||
+      tutorialDismissed(field(dataOf(effective), 'values')) ? null : (
+        <Tutorial locale={locale} nodeId={node} />
       )}
 
       <AreaHeader area={areaFor('dashboard')} locale={locale} />
@@ -230,9 +231,12 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       <NoProviderNotice locale={locale} setup={setup} />
 
       <AttentionBlock
-        heading={message(locale, 'dashboard.attention.count', {
-          count: formatNumber(locale, attention.length),
-        })}
+        heading={formatCount(
+          locale,
+          attention.length,
+          'dashboard.attention.count.one',
+          'dashboard.attention.count',
+        )}
         oldest={message(locale, 'dashboard.attention.oldest', {
           age: oldest === undefined ? '' : oldest.since,
         })}

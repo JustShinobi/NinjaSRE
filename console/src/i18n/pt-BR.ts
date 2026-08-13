@@ -365,6 +365,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.result': 'Resultado',
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} eventos',
+  'transcript.events.one': '{count} evento',
   'transcript.empty.heading': 'Ainda não há transcrição',
   'transcript.empty.body':
     'A transcrição aparece assim que a execução dá o primeiro passo. Nada foi registado nesta.',
@@ -372,6 +373,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'dashboard.attention.title': 'Precisa de si',
   'dashboard.attention.count': '{count} itens precisam de si',
+  'dashboard.attention.count.one': '{count} item precisa de si',
   'dashboard.attention.oldest': 'Mais antigo {age}',
   'dashboard.attention.empty.heading': 'Nada está à espera de uma pessoa',
   'dashboard.attention.empty.body':
@@ -529,6 +531,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.summary':
     '{watched} vigiados · {healthy} saudáveis · {degraded} degradados',
   'resources.divergent.mark': '(fora do inventário)',
+  'resources.detail.back': 'Voltar à lista',
   'resources.signals.title': 'De onde vêm os sinais dele',
   'resources.signals.body':
     'Qual fonte responde cada pergunta sobre este recurso, e por qual chave. Um container compartilha o kernel do host, então o uso de recursos dele é lido da série do próprio host e não de dentro do guest.',
@@ -733,7 +736,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.footer': 'A ausência de uma regra resolve para apenas-propor.',
   'autonomy.dry_run': 'Tudo aqui é simulado: o modo de simulação está ligado neste nó.',
   'autonomy.bound.stopped': 'Escritas automáticas paradas',
-  'autonomy.bounds.title': 'Limites que nenhum nível ultrapassa',
+  'autonomy.bounds.title': 'Limites e exceções de nível',
   'autonomy.preview.title': 'Pré-visualizar antes de aplicar',
   'autonomy.preview.lead':
     'O que a mudança pendente teria feito contra o histórico registado.',

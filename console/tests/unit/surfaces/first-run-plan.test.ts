@@ -196,7 +196,9 @@ describe('reading the deployment out of what the API answered', () => {
         ],
         integrations: [{ name: 'metrics-store', readiness: 'absent' }],
       },
-      { 'models.investigator.model': 'claude-sonnet-5' },
+      // Values as the deployment actually answers them: a nested document,
+      // because the schema refuses a dotted path as a literal key.
+      { models: { investigator: { model: 'claude-sonnet-5' } } },
     );
 
     expect(read.provider).toBe('configured');

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { list, text } from './read';
+import { dataOf, list, optionalRead, read, text } from './read';
 
 /**
  * The organisation, as a tree, in one pass over a flat list.
@@ -115,6 +115,25 @@ export function placedTree(payload: unknown): readonly PlacedNode[] {
       parentId: text(record, 'parent_id') === '' ? null : text(record, 'parent_id'),
     })),
   );
+}
+
+/**
+ * The node a viewer's configuration writes land at: their own team, or — when
+ * the session names none — the root of the tree they may see.
+ *
+ * The second half is the same fallback the configuration screen applies when
+ * nothing has chosen a node yet, made reachable for screens that have no tree
+ * of their own on the page. It costs a read only on the sessions that need it.
+ * A viewer with no team and no visible tree resolves to the empty string, and
+ * a caller holding that writes nothing.
+ */
+export async function viewerNode(
+  viewer: { readonly teamNodeId: string },
+  init: RequestInit,
+): Promise<string> {
+  if (viewer.teamNodeId !== '') return viewer.teamNodeId;
+  const tree = await optionalRead('/v1/config', () => read('/v1/config', init));
+  return placedTree(dataOf(tree))[0]?.id ?? '';
 }
 
 export interface OrgTreeProps {

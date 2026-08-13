@@ -68,6 +68,46 @@ function changesOf(previewed: unknown): readonly string[] {
   });
 }
 
+/** Every reason the preview says the write would be refused. */
+function refusalsOf(previewed: unknown): readonly string[] {
+  const errors: unknown = Reflect.get(Object(previewed), 'errors');
+  if (!Array.isArray(errors)) return [];
+  return errors.map((error) => String(Reflect.get(Object(error), 'message')));
+}
+
+/**
+ * The chosen provider and model as the nested document the deployment
+ * validates.
+ *
+ * Grown from the same dotted settings the checklist reads, so the write and
+ * the read cannot name different fields. Sent as flat dotted keys instead,
+ * each would be a field the closed schema has never heard of, and the write
+ * would be refused.
+ */
+function patchOf(provider: string, model: string): Record<string, unknown> {
+  const document: Record<string, unknown> = {};
+  for (const [path, value] of [
+    [MODEL_PROVIDER_SETTING, provider],
+    [MODEL_SETTING, model],
+  ] as const) {
+    const segments = path.split('.');
+    const leaf = segments.pop() ?? path;
+    let cursor = document;
+    for (const segment of segments) {
+      const held = cursor[segment];
+      if (typeof held === 'object' && held !== null) {
+        cursor = held as Record<string, unknown>;
+      } else {
+        const grown: Record<string, unknown> = {};
+        cursor[segment] = grown;
+        cursor = grown;
+      }
+    }
+    cursor[leaf] = value;
+  }
+  return document;
+}
+
 /** Choose a model, see what saving it would resolve to, then save it. */
 export function ModelStep({
   provider,
@@ -81,10 +121,7 @@ export function ModelStep({
   const [previewed, setPreviewed] = useState<readonly string[] | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
 
-  const patch = {
-    [MODEL_PROVIDER_SETTING]: provider,
-    [MODEL_SETTING]: model,
-  };
+  const patch = patchOf(provider, model);
 
   async function send(address: string): Promise<unknown> {
     try {
@@ -95,7 +132,12 @@ export function ModelStep({
       });
       const body: unknown = await answer.json().catch(() => ({}));
       if (!answer.ok) {
-        const reason: unknown = Reflect.get(Object(body), 'reason');
+        // `reason` is the courier's own word; `detail` is the gateway's,
+        // forwarded verbatim by the preview. Either is a sentence somebody
+        // wrote for a person, and dropping both left "refused:" with
+        // nothing after the colon.
+        const reason: unknown =
+          Reflect.get(Object(body), 'reason') ?? Reflect.get(Object(body), 'detail');
         setOutcome({
           role: 'danger',
           message:
@@ -116,6 +158,18 @@ export function ModelStep({
     const body = await send(PREVIEW_ENDPOINT);
     setBusy('');
     if (body === null) return;
+    const refusals = refusalsOf(body);
+    if (refusals.length > 0) {
+      // The preview answered 200 and predicted a refusal. Showing "would
+      // change" beside a save that is going to fail would make the preview
+      // decoration, so the refusal is the outcome and the save stays shut.
+      setPreviewed(null);
+      setOutcome({
+        role: 'danger',
+        message: `${labels.refused} ${refusals.join('; ')}`.trim(),
+      });
+      return;
+    }
     setPreviewed(changesOf(body));
   }
 

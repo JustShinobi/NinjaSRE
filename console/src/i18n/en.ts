@@ -265,6 +265,7 @@ export const EN = {
   'transcript.result': 'Result',
   'transcript.duration': '{ms} ms',
   'transcript.events': '{count} events',
+  'transcript.events.one': '{count} event',
   'transcript.empty.heading': 'No transcript yet',
   'transcript.empty.body':
     'A transcript appears as soon as the run takes its first turn. Nothing has been recorded for this one.',
@@ -273,6 +274,7 @@ export const EN = {
   // --- The overview --------------------------------------------------------------
   'dashboard.attention.title': 'Needs you',
   'dashboard.attention.count': '{count} items need you',
+  'dashboard.attention.count.one': '{count} item needs you',
   'dashboard.attention.oldest': 'Oldest {age}',
   'dashboard.attention.empty.heading': 'Nothing is waiting on a person',
   'dashboard.attention.empty.body':
@@ -591,6 +593,7 @@ export const EN = {
   'resources.sorted': 'Worst first',
   'resources.summary': '{watched} watched · {healthy} healthy · {degraded} degraded',
   'resources.divergent.mark': '(not in the inventory)',
+  'resources.detail.back': 'Back to the list',
   'resources.signals.title': 'Where its signals come from',
   'resources.signals.body':
     'Which source answers each question about this resource, and by what key. A container shares its host\u2019s kernel, so its resource usage is read from the host\u2019s own series rather than from inside the guest.',
@@ -796,7 +799,7 @@ export const EN = {
   'autonomy.footer': 'Absence of a rule resolves to propose-only.',
   'autonomy.dry_run': 'Everything here is simulated: dry-run is on for this node.',
   'autonomy.bound.stopped': 'Automated writes stopped',
-  'autonomy.bounds.title': 'Bounds no level overrides',
+  'autonomy.bounds.title': 'Bounds and level overrides',
   'autonomy.preview.title': 'Preview before applying',
   'autonomy.preview.lead':
     'What the pending change would have done against recorded history.',

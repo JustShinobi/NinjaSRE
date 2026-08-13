@@ -181,6 +181,13 @@ it('states that this field is for facts and points at where instructions go', ()
     'href',
     '/autonomy',
   );
+
+  // Two link sentences in a row read as one broken sentence without a
+  // separator between them: "Runbooks live in Knowledge Procedures live in
+  // Autonomy" is what shipped once.
+  expect(screen.getByTestId('fact-not-instruction').textContent).toContain(
+    `${LABELS.runbooks} · ${LABELS.policy}`,
+  );
 });
 
 it('says which roles this text is sent to', () => {

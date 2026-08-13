@@ -38,6 +38,7 @@ import {
   stateOf,
   text,
 } from '../read';
+import { viewerNode } from '../tree';
 import type { SurfaceContext } from '../context';
 
 /**
@@ -113,7 +114,10 @@ function detailOf(
 export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, search, viewer } = context;
   const init = authorised(credential);
-  const node = viewer.teamNodeId;
+  // The steps below write configuration at this node, so it has to resolve to
+  // a node that exists — the viewer's team, or the root of the visible tree
+  // for a session that names none.
+  const node = await viewerNode(viewer, init);
 
   const [checklist, providers, integrations, schemas, effective] = await Promise.all([
     panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),

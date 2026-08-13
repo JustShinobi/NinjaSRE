@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { Link } from '@/components/action';
 import { timestamp } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
@@ -25,7 +26,7 @@ import {
   text,
 } from '../read';
 import { RowList, type ListRow } from '../rows';
-import { readViewState, type FilterName } from '../url-state';
+import { hrefFor, readViewState, withSelection, type FilterName } from '../url-state';
 import { UNPLACED, criticalityOf, criticalityRank, zoneOf } from './resources-view';
 
 /**
@@ -48,7 +49,12 @@ import { UNPLACED, criticalityOf, criticalityRank, zoneOf } from './resources-vi
  * where there is not. A bar alone is a shape somebody has to estimate, and "about
  * ninety per cent" is not a figure anybody acts on.
  *
- * **Selecting a row shows where its signals come from.** Six questions, and for
+ * **Selecting a row shows where its signals come from, above the table.** The
+ * detail used to be appended after a hundred-odd rows, outside the viewport, so
+ * a click that worked looked exactly like one that did nothing. It now opens at
+ * the top, named, with the way back to the list beside it.
+ *
+ * Six questions, and for
  * each one either the source that answers it or the integration that would. The
  * one that earns the panel is *pressure*: a container's resource usage is the
  * host's to report, so the row reads "Prometheus, keyed by vmid 100" rather than
@@ -172,6 +178,14 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   // all, which is a gateway older than the feature rather than a quiet resource.
   const changes =
     selected === undefined ? undefined : field(dataOf(selected), 'changes');
+  // What the detail heading calls the selection. The detail read can be refused
+  // by an older gateway; the identifier then stands in for the name, because a
+  // selection must still visibly change the screen either way.
+  const selectedName =
+    (selected === undefined
+      ? ''
+      : text(field(dataOf(selected), 'resource'), 'display_name')) ||
+    (selection ?? '');
   const records = list(dataOf(resources), 'resources');
 
   // Divergence is content, not an error. Two facts come out of the last sweep
@@ -308,66 +322,23 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         ]}
       />
 
-      <Panel
-        title={message(locale, 'resources.list.title')}
-        state={stateOf(resources, rows.length === 0)}
-        dependency={dependencyOf(resources)}
-        labels={panelLabels(locale, message(locale, 'resources.list.title'))}
-        empty={{
-          heading: message(locale, 'resources.empty.heading'),
-          body: message(locale, 'resources.empty.body'),
-          actionLabel: message(locale, 'resources.empty.action'),
-          href: '/configuration',
-        }}
-        action={
-          <span className="text-meta text-muted">
-            {state.sort === '' ? message(locale, 'resources.sorted') : ''}
-          </span>
-        }
-      >
-        <RowList
-          path="/resources"
-          state={state}
-          filters={RESOURCE_FILTERS}
-          labels={rowLabels(locale, message(locale, 'resources.list.caption'))}
-          columns={[
-            {
-              key: 'display_name',
-              header: message(locale, 'resources.column.name'),
-              sortable: true,
-            },
-            {
-              key: 'kind',
-              header: message(locale, 'resources.column.kind'),
-              sortable: true,
-            },
-            {
-              key: 'zone',
-              header: message(locale, 'resources.column.zone'),
-              sortable: true,
-            },
-            {
-              key: 'criticality',
-              header: message(locale, 'resources.column.criticality'),
-              sortable: true,
-            },
-            {
-              key: 'health',
-              header: message(locale, 'resources.column.state'),
-              sortable: true,
-            },
-            {
-              key: 'utilisation',
-              header: message(locale, 'resources.column.utilisation'),
-            },
-            {
-              key: 'last_seen_at',
-              header: message(locale, 'resources.column.lastSeen'),
-            },
-          ]}
-          rows={rows}
-        />
-      </Panel>
+      {/* The detail sits above the table, not appended after it. Below a
+          hundred-odd rows it renders outside the viewport, and a click that
+          worked is indistinguishable from one that did nothing. The heading
+          names what was opened, and the link beside it is the way back —
+          carrying the rest of the view, so closing the detail does not also
+          discard the filters. */}
+      {selection === null ? null : (
+        <div className="flex items-baseline gap-3" data-testid="resource-detail-header">
+          <h2 className="text-section">{selectedName}</h2>
+          <Link
+            href={hrefFor('/resources', withSelection(state, null), RESOURCE_FILTERS)}
+            data-testid="resource-detail-back"
+          >
+            {message(locale, 'resources.detail.back')}
+          </Link>
+        </div>
+      )}
 
       {signals === undefined ? null : (
         <Panel
@@ -526,6 +497,67 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           </ul>
         </Panel>
       )}
+
+      <Panel
+        title={message(locale, 'resources.list.title')}
+        state={stateOf(resources, rows.length === 0)}
+        dependency={dependencyOf(resources)}
+        labels={panelLabels(locale, message(locale, 'resources.list.title'))}
+        empty={{
+          heading: message(locale, 'resources.empty.heading'),
+          body: message(locale, 'resources.empty.body'),
+          actionLabel: message(locale, 'resources.empty.action'),
+          href: '/configuration',
+        }}
+        action={
+          <span className="text-meta text-muted">
+            {state.sort === '' ? message(locale, 'resources.sorted') : ''}
+          </span>
+        }
+      >
+        <RowList
+          path="/resources"
+          state={state}
+          filters={RESOURCE_FILTERS}
+          labels={rowLabels(locale, message(locale, 'resources.list.caption'))}
+          columns={[
+            {
+              key: 'display_name',
+              header: message(locale, 'resources.column.name'),
+              sortable: true,
+            },
+            {
+              key: 'kind',
+              header: message(locale, 'resources.column.kind'),
+              sortable: true,
+            },
+            {
+              key: 'zone',
+              header: message(locale, 'resources.column.zone'),
+              sortable: true,
+            },
+            {
+              key: 'criticality',
+              header: message(locale, 'resources.column.criticality'),
+              sortable: true,
+            },
+            {
+              key: 'health',
+              header: message(locale, 'resources.column.state'),
+              sortable: true,
+            },
+            {
+              key: 'utilisation',
+              header: message(locale, 'resources.column.utilisation'),
+            },
+            {
+              key: 'last_seen_at',
+              header: message(locale, 'resources.column.lastSeen'),
+            },
+          ]}
+          rows={rows}
+        />
+      </Panel>
 
       {unresolvedTargets.length === 0 ? null : (
         <Panel

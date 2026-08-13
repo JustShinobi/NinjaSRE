@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/status';
 import { Link } from '@/components/action';
-import { formatCurrency, formatNumber, timestamp } from '@/i18n/format';
+import { formatCount, formatCurrency, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -134,9 +134,12 @@ export async function RunDetailScreen(
             }}
             action={
               <span className="text-meta text-muted">
-                {message(locale, 'transcript.events', {
-                  count: formatNumber(locale, events.length),
-                })}
+                {formatCount(
+                  locale,
+                  events.length,
+                  'transcript.events.one',
+                  'transcript.events',
+                )}
               </span>
             }
           >

@@ -71,6 +71,19 @@ export const INVESTIGATION_STEP = 'first-investigation';
 export const MODEL_PROVIDER_SETTING = 'models.investigator.provider';
 export const MODEL_SETTING = 'models.investigator.model';
 
+/**
+ * The value at a dotted `path` in an effective document, walked segment by
+ * segment. The document is nested the way the schema is; read as one flat key,
+ * every setting would answer undefined forever.
+ */
+function valueAt(values: unknown, path: string): unknown {
+  let cursor: unknown = values;
+  for (const segment of path.split('.')) {
+    cursor = field(cursor, segment);
+  }
+  return cursor;
+}
+
 /** `name` when it is a step of this wizard, and nothing when it is not. */
 export function stepAt(name: string | null | undefined): WizardStep | undefined {
   return WIZARD_STEPS.find((step) => step === name);
@@ -200,6 +213,6 @@ export function readSetup(checklist: unknown, values: unknown): DeploymentSetup 
       detail: text(entry, 'detail'),
       action: text(entry, 'action'),
     })),
-    modelChosen: typeof field(values, MODEL_SETTING) === 'string',
+    modelChosen: typeof valueAt(values, MODEL_SETTING) === 'string',
   };
 }
