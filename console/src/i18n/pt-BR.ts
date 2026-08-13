@@ -518,10 +518,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.list.title': 'Incidentes',
   'incidents.list.caption': 'Incidentes abertos e recentemente fechados',
   'empty.cause.setup':
-    'Ainda não aconteceu nada aqui porque este deployment continua a ser configurado — faltam {count} passo(s), e não há investigações enquanto isso.',
+    'Ainda não aconteceu nada aqui porque este deployment continua sendo configurado — faltam {count} passo(s), e não há investigações enquanto isso.',
   'empty.cause.setup.action': 'Terminar a configuração',
   'empty.cause.watching':
-    'Nenhum detector está ligado, portanto nada está a ser observado e nada se abrirá sozinho.',
+    'Nenhum detector está ligado, portanto nada está sendo observado e nada se abrirá sozinho.',
   'empty.cause.watching.action': 'Ligar a observação contínua',
 
   'incidents.empty.heading': 'Nenhum incidente aberto',
@@ -736,7 +736,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'memory.episodes.empty.heading': 'Ainda não há episódios',
   'memory.episodes.empty.body':
     'Um episódio é escrito quando uma investigação termina. Nenhuma terminou, por isso não há nada a recuperar.',
-  'memory.episodes.empty.action': 'Ver o que está a correr',
+  'memory.episodes.empty.action': 'Ver o que está em execução',
   'memory.strategies.title': 'Estratégias',
   'memory.strategies.lead':
     'Uma estratégia é sintetizada a partir dos episódios abaixo, juntamente com os anti-padrões que esses episódios produziram.',
