@@ -410,7 +410,7 @@ async def test_verifying_a_provider_reports_what_came_back(
     """End to end against the model endpoint, not a check that a key is present."""
     asked: list[str] = []
 
-    async def verifier(provider_id: str) -> ModelVerdict:
+    async def verifier(provider_id: str, model_id: str | None = None) -> ModelVerdict:
         asked.append(provider_id)
         return ModelVerdict(
             provider_id=provider_id,
@@ -440,7 +440,7 @@ async def test_a_verification_that_failed_says_what_could_not_be_done(
 ) -> None:
     """A refusal names the limitation, never 'verification failed'."""
 
-    async def verifier(provider_id: str) -> ModelVerdict:
+    async def verifier(provider_id: str, model_id: str | None = None) -> ModelVerdict:
         return ModelVerdict(
             provider_id=provider_id,
             model_id="llama4:70b",
@@ -463,6 +463,96 @@ async def test_a_verification_that_failed_says_what_could_not_be_done(
     assert body["alternatives"] == ["llama4:405b"]
 
 
+async def test_verifying_tests_the_model_the_deployment_is_configured_to_run(
+    deployment: Deployment, operator_token: str
+) -> None:
+    """The check exercises the configured model, never the registry's default.
+
+    An operator told "choose a model that supports tool calling" changes the
+    configuration and presses the button again. A check that kept testing the
+    shipped default would return the same refusal forever, and the remedy it
+    prints would be one the operator has already applied.
+    """
+    asked: list[tuple[str, str | None]] = []
+
+    async def verifier(provider_id: str, model_id: str | None = None) -> ModelVerdict:
+        asked.append((provider_id, model_id))
+        return ModelVerdict(
+            provider_id=provider_id,
+            model_id=model_id or "",
+            satisfied=True,
+            summary_line="it calls tools and returns structure",
+        )
+
+    deployment.state.model_verifier = verifier
+    admin = await issue_token(
+        deployment.gateway,
+        deployment.tokens,
+        user_id="root-admin",
+        role=Role.ADMIN,
+        node_id=None,
+    )
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as http:
+        written = await http.put(
+            f"/v1/config/{ORG}",
+            headers=_headers(admin),
+            json={
+                "patch": {
+                    "models": {"investigator": {"provider": "ollama", "model": "llama4:405b"}}
+                }
+            },
+        )
+        assert written.status_code == 200, written.text
+        response = await http.post("/v1/providers/ollama/verify", headers=_headers(operator_token))
+
+    assert response.status_code == 200
+    assert asked == [("ollama", "llama4:405b")]
+
+
+async def test_verifying_another_provider_does_not_borrow_the_configured_model(
+    deployment: Deployment, operator_token: str
+) -> None:
+    """A model name only travels to the provider it was configured for."""
+    asked: list[tuple[str, str | None]] = []
+
+    async def verifier(provider_id: str, model_id: str | None = None) -> ModelVerdict:
+        asked.append((provider_id, model_id))
+        return ModelVerdict(
+            provider_id=provider_id,
+            model_id=model_id or "claude-sonnet-5",
+            satisfied=True,
+            summary_line="it calls tools and returns structure",
+        )
+
+    deployment.state.model_verifier = verifier
+    admin = await issue_token(
+        deployment.gateway,
+        deployment.tokens,
+        user_id="root-admin-2",
+        role=Role.ADMIN,
+        node_id=None,
+    )
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as http:
+        written = await http.put(
+            f"/v1/config/{ORG}",
+            headers=_headers(admin),
+            json={
+                "patch": {
+                    "models": {"investigator": {"provider": "ollama", "model": "llama4:405b"}}
+                }
+            },
+        )
+        assert written.status_code == 200, written.text
+        response = await http.post(
+            "/v1/providers/anthropic/verify", headers=_headers(operator_token)
+        )
+
+    assert response.status_code == 200
+    assert asked == [("anthropic", None)]
+
+
 async def test_verifying_a_provider_nobody_supports_is_not_found(
     client: AsyncClient, operator_token: str
 ) -> None:
@@ -477,7 +567,7 @@ async def test_reading_the_provider_listing_never_verifies_anything(
     """Rendering a page must not be able to spend an operator's tokens by accident."""
     calls: list[str] = []
 
-    async def verifier(provider_id: str) -> ModelVerdict:
+    async def verifier(provider_id: str, model_id: str | None = None) -> ModelVerdict:
         calls.append(provider_id)
         return ModelVerdict(provider_id=provider_id, model_id="m", satisfied=True)
 

@@ -27,6 +27,8 @@ and comes back out through nothing at all.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
@@ -44,6 +46,7 @@ from core.llm.verification import ModelVerdict, verify_model
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
 from gateway.http.state import GatewayState
+from platform.config_service.service import ConfigService
 from platform.credentials.health import CredentialHealth
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
@@ -225,11 +228,11 @@ async def show_provider(
 @router.post(
     "/{provider_id}/verify",
     response_model=ProviderVerificationView,
-    dependencies=[Depends(authorized)],
 )
 async def verify_provider(
     provider_id: str,
     state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
 ) -> ProviderVerificationView:
     """Check ``provider_id`` end to end and report what came back.
 
@@ -238,12 +241,23 @@ async def verify_provider(
     "a call went out, called a tool, and returned structure", and the difference
     is discovered at 03:00 by whoever was told the first one.
 
+    The model exercised is the one this deployment is configured to run, when
+    the configuration names one for this provider. An operator told "choose a
+    model that supports tool calling" changes the configuration and presses the
+    button again — a check that kept testing the registry's default would
+    return the same refusal forever.
+
     Raises:
         ApiProblem: no supported provider answers to ``provider_id`` (404).
     """
     _onboarding(provider_id)
+    configured = await _configured_model(state, auth, provider_id)
     verify = state.model_verifier
-    verdict = await (verify(provider_id) if verify is not None else _preflight(provider_id))
+    verdict = await (
+        verify(provider_id, configured)
+        if verify is not None
+        else _preflight(provider_id, configured)
+    )
     return ProviderVerificationView(
         provider_id=verdict.provider_id or provider_id,
         verified=verdict.satisfied,
@@ -254,7 +268,40 @@ async def verify_provider(
     )
 
 
-async def _preflight(provider_id: str) -> ModelVerdict:
+async def _configured_model(
+    state: GatewayState, auth: AuthenticatedRequest, provider_id: str
+) -> str | None:
+    """Return the investigator model configured for ``provider_id``, if any.
+
+    Resolved at the root of the caller's tree — the node the first run writes
+    at — and only handed over when the configured provider is the one being
+    verified: a model name only means something to the provider it was chosen
+    for. Any failure to read resolves to ``None``, which is the registry's
+    default; a verification that cannot read configuration is still worth
+    running.
+    """
+    try:
+        async with state.gateway.begin(auth.scope) as uow:
+            root = await uow.config.root()
+        service = ConfigService(
+            gateway=state.gateway, scope=auth.scope, guardrails=state.guardrails
+        )
+        effective = await service.resolve(root.node_id)
+        models = effective.values.get("models")
+        if not isinstance(models, Mapping):
+            return None
+        investigator = models.get("investigator")
+        if not isinstance(investigator, Mapping):
+            return None
+        if investigator.get("provider") != provider_id:
+            return None
+        model = investigator.get("model")
+        return model if isinstance(model, str) and model != "" else None
+    except Exception:  # noqa: BLE001 — configuration is advisory to a live check
+        return None
+
+
+async def _preflight(provider_id: str, model_id: str | None = None) -> ModelVerdict:
     """Return the verdict a default composition produces for ``provider_id``.
 
     The same end-to-end check ``make preflight`` runs, against however this
@@ -262,7 +309,7 @@ async def _preflight(provider_id: str) -> ModelVerdict:
     through the credential proxy supplies its own verifier on ``GatewayState``
     instead, because only the composition root knows which of the two it is.
     """
-    return await verify_model(provider_id=provider_id)
+    return await verify_model(provider_id=provider_id, model_id=model_id)
 
 
 __all__ = ["router"]

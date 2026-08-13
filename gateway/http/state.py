@@ -67,10 +67,12 @@ APPLICATION_ROUTE_TABLE: RouteTable = (
 
 
 #: How this deployment checks that a provider can actually run an investigation.
-#: Takes a provider identifier and returns the verdict — tool calling and
+#: Takes a provider identifier and the model the deployment is configured to
+#: run — ``None`` when the configuration names none, in which case the
+#: verifier's own default stands — and returns the verdict: tool calling and
 #: structured output exercised against the operator's own endpoint, not a check
 #: that a key is present.
-ProviderVerifier = Callable[[str], Awaitable[ModelVerdict]]
+ProviderVerifier = Callable[[str, str | None], Awaitable[ModelVerdict]]
 
 #: How this deployment runs an integration's *own* verifier — the one that makes
 #: live vendor calls and answers with a document rather than a boolean. Takes an
