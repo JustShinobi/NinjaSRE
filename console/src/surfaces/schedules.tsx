@@ -7,7 +7,8 @@ import { Button } from '@/components/action';
 import { Input } from '@/components/form';
 import { Badge } from '@/components/status';
 import { ConfirmDestructive } from '@/components/overlay';
-import type { Timestamp } from '@/i18n/format';
+import { timestamp, type Timestamp } from '@/i18n/format';
+import type { Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
 
 /**
@@ -82,6 +83,18 @@ export interface ScheduleLabels {
     };
     readonly submit: string;
     readonly submitting: string;
+    /**
+     * Confirms what was just created and carries `{name}`.
+     *
+     * Shown beside the next run rather than folded into it: the two are
+     * different facts an operator checks separately — "did the form take
+     * my identifier" and "did I get the cron field right" — and the second
+     * is the one a preview exists for at all.
+     */
+    readonly created: string;
+    readonly previewing: string;
+    /** Precedes the firings a valid cron expression would produce. */
+    readonly previewLabel: string;
   };
   readonly failed: string;
   readonly unreachable: string;
@@ -101,6 +114,11 @@ export interface SchedulesProps {
   readonly schedules: readonly ScheduleRecord[];
   readonly viewer: Viewer;
   readonly labels: ScheduleLabels;
+  readonly locale: Locale;
+  /** The deployment's own timezone, for the same reason every other timestamp on the page reads it. */
+  readonly zone: string;
+  /** The instant a written response is read against, once. */
+  readonly now: Date;
 }
 
 function text(record: unknown, name: string): string {
@@ -108,32 +126,117 @@ function text(record: unknown, name: string): string {
   return typeof found === 'string' ? found : '';
 }
 
-function scheduleFrom(body: unknown): ScheduleRecord {
-  const nextRunAt = text(body, 'next_run_at');
-  return {
-    jobId: text(body, 'job_id'),
-    name: text(body, 'name'),
-    cron: text(body, 'cron'),
-    objective: text(body, 'objective'),
-    timezone: text(body, 'timezone'),
-    enabled: Reflect.get(Object(body), 'enabled') === true,
-    nextRun:
-      nextRunAt === ''
-        ? null
-        : { relative: nextRunAt, absolute: nextRunAt, iso: nextRunAt },
-  };
-}
-
 const BLANK_CREATE = { jobId: '', name: '', cron: '', objective: '', timezone: 'UTC' };
 
+/**
+ * What a preview answered for one `(cron, timezone)` pair.
+ *
+ * Tagged by outcome rather than nullable fields on one shape: a preview
+ * either has firings or it has a refusal, never both and never neither, and
+ * a caller reading `.status` cannot reach for the field the other branch
+ * would have populated.
+ */
+type CronPreview =
+  | {
+      readonly cron: string;
+      readonly timezone: string;
+      readonly status: 'ready';
+      readonly firings: readonly Timestamp[];
+    }
+  | {
+      readonly cron: string;
+      readonly timezone: string;
+      readonly status: 'refused';
+      readonly reason: string;
+    };
+
 /** Every scheduled investigation this team holds, with the four writes on it. */
-export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactNode {
+export function Schedules({
+  schedules,
+  viewer,
+  labels,
+  locale,
+  zone,
+  now,
+}: SchedulesProps): ReactNode {
   const [records, setRecords] = useState<readonly ScheduleRecord[]>(schedules);
   const [cronDraft, setCronDraft] = useState<Readonly<Record<string, string>>>({});
   const [deleting, setDeleting] = useState<string | null>(null);
   const [create, setCreate] = useState(BLANK_CREATE);
+  const [created, setCreated] = useState<ScheduleRecord | null>(null);
   const [busy, setBusy] = useState('');
   const [failure, setFailure] = useState('');
+  const [cronPreview, setCronPreview] = useState<CronPreview | null>(null);
+  const [previewingCron, setPreviewingCron] = useState(false);
+
+  /**
+   * `body`, as the deployment answers a write — formatted the same way the
+   * server-rendered table already formats its own `nextRun`, so a schedule
+   * created, toggled or re-cronned in this session reads no differently to
+   * one that was already here when the page loaded.
+   */
+  function scheduleFrom(body: unknown): ScheduleRecord {
+    const nextRunAt = text(body, 'next_run_at');
+    return {
+      jobId: text(body, 'job_id'),
+      name: text(body, 'name'),
+      cron: text(body, 'cron'),
+      objective: text(body, 'objective'),
+      timezone: text(body, 'timezone'),
+      enabled: Reflect.get(Object(body), 'enabled') === true,
+      nextRun: nextRunAt === '' ? null : timestamp(locale, nextRunAt, now, zone),
+    };
+  }
+
+  /**
+   * Ask what `cron` would fire, storing nothing — kept apart from `ask` and
+   * `failure` above on purpose. A refused preview names what is wrong with
+   * the field the operator has not left yet; folding it into the same
+   * banner every write shares would either clear a write's own refusal the
+   * moment a preview runs, or leave a preview's refusal sitting under a
+   * button it has nothing to do with.
+   */
+  async function requestCronPreview(): Promise<void> {
+    const cron = create.cron;
+    const timezone = create.timezone;
+    if (cron.trim() === '') return;
+    setPreviewingCron(true);
+    let response: Response;
+    try {
+      response = await fetch(SCHEDULE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jobId: '',
+          operation: 'preview',
+          payload: { cron, timezone },
+        }),
+      });
+    } catch {
+      setPreviewingCron(false);
+      setCronPreview({ cron, timezone, status: 'refused', reason: labels.unreachable });
+      return;
+    }
+    const body: unknown = await response.json().catch(() => ({}));
+    setPreviewingCron(false);
+    if (!response.ok) {
+      const reason: unknown = Reflect.get(Object(body), 'reason');
+      setCronPreview({
+        cron,
+        timezone,
+        status: 'refused',
+        reason: typeof reason === 'string' && reason !== '' ? reason : labels.failed,
+      });
+      return;
+    }
+    const answer: unknown = Reflect.get(Object(body), 'answer');
+    const rawFirings: unknown = Reflect.get(Object(answer), 'firings');
+    const firings = (Array.isArray(rawFirings) ? rawFirings : [])
+      .map((entry) => text(entry, 'at'))
+      .filter((at) => at !== '')
+      .map((at) => timestamp(locale, at, now, zone));
+    setCronPreview({ cron, timezone, status: 'ready', firings });
+  }
 
   async function ask(
     jobId: string,
@@ -206,6 +309,7 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
 
   async function submitCreate(): Promise<void> {
     setBusy('create');
+    setCreated(null);
     const found = await ask('', 'create', {
       job_id: create.jobId,
       name: create.name,
@@ -215,8 +319,10 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
     });
     setBusy('');
     if (found === null) return;
-    setRecords((was) => [...was, scheduleFrom(found)]);
+    const record = scheduleFrom(found);
+    setRecords((was) => [...was, record]);
     setCreate(BLANK_CREATE);
+    setCreated(record);
   }
 
   if (!may(viewer, MANAGE)) return null;
@@ -227,6 +333,15 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
     create.name.trim() !== '' &&
     create.cron.trim() !== '' &&
     create.objective.trim() !== '';
+  // Only while it still answers the field as it now reads — the moment
+  // either input changes again, the preview it was taken of is a different
+  // question and showing the old answer would be showing the wrong one.
+  const currentPreview =
+    cronPreview !== null &&
+    cronPreview.cron === create.cron &&
+    cronPreview.timezone === create.timezone
+      ? cronPreview
+      : null;
 
   return (
     <div data-testid="schedules" className="flex flex-col gap-5">
@@ -397,6 +512,9 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
             onValueChange={(value) => {
               setCreate((was) => ({ ...was, cron: value }));
             }}
+            onBlur={() => {
+              void requestCronPreview();
+            }}
           />
           <Input
             label={labels.create.objective}
@@ -415,6 +533,12 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
             onValueChange={(value) => {
               setCreate((was) => ({ ...was, timezone: value }));
             }}
+            onBlur={() => {
+              // The preview is of the pair, not of the cron field alone —
+              // a zone changed after the cron already settled makes the
+              // firings shown wrong for the pair now on the form.
+              void requestCronPreview();
+            }}
           />
           <Button
             variant="primary"
@@ -427,7 +551,54 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
             {busy === 'create' ? labels.create.submitting : labels.create.submit}
           </Button>
         </div>
+
+        {/* What "0 8 * * 1" actually means, before it is ever saved. Beside
+            the field it describes rather than after the submit button,
+            because the question it answers — did I get the field positions
+            right — is one the cron helper text alone cannot answer. */}
+        {previewingCron ? (
+          <p data-testid="cron-preview-loading" className="text-meta text-muted">
+            {labels.create.previewing}
+          </p>
+        ) : null}
+        {currentPreview?.status === 'refused' ? (
+          <p data-testid="cron-preview-refused" className="text-meta text-danger">
+            {currentPreview.reason}
+          </p>
+        ) : null}
+        {currentPreview?.status === 'ready' ? (
+          <p data-testid="cron-preview" className="text-meta text-muted">
+            {labels.create.previewLabel}{' '}
+            {currentPreview.firings.map((firing, index) => (
+              <span key={firing.iso}>
+                {index > 0 ? ', ' : ''}
+                <time dateTime={firing.iso} title={firing.absolute}>
+                  {firing.relative}
+                </time>
+              </span>
+            ))}
+          </p>
+        ) : null}
       </div>
+
+      {/* The one thing a bare submit button never told anybody: whether the
+          cron they typed produced the firing they meant. Named and dated
+          rather than folded into the row it just added to the table above,
+          because a table an operator has to go and find a row in is not a
+          form telling them anything. */}
+      {created === null ? null : (
+        <p data-testid="schedule-created" className="text-meta text-success">
+          {labels.create.created.replace('{name}', created.name)}{' '}
+          {`${labels.column.nextRun}:`}{' '}
+          {created.nextRun === null ? (
+            labels.never
+          ) : (
+            <time dateTime={created.nextRun.iso} title={created.nextRun.absolute}>
+              {created.nextRun.relative}
+            </time>
+          )}
+        </p>
+      )}
 
       {failure === '' ? null : (
         <span data-testid="schedule-failure" className="text-meta text-danger">

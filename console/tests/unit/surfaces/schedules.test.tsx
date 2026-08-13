@@ -2,8 +2,12 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { timestamp } from '@/i18n/format';
 import { Schedules, type ScheduleRecord } from '@/surfaces/schedules';
 import type { Viewer } from '@/session/viewer';
+
+/** What every render in this file computes relative times against. */
+const NOW = new Date('2026-08-11T00:00:00Z');
 
 /**
  * Scheduled investigations: created, changed, turned off, or removed — never
@@ -116,8 +120,11 @@ const LABELS = {
       objective: 'the instruction',
       timezone: 'the zone it is read in',
     },
+    created: 'Schedule created: {name}.',
     submit: 'Create schedule',
     submitting: 'Creating…',
+    previewing: 'Checking the cron expression…',
+    previewLabel: 'Would next fire:',
   },
   failed: 'The deployment refused this.',
   unreachable: 'The deployment could not be reached.',
@@ -141,7 +148,14 @@ function schedules(
   permissions: readonly string[] = ['schedule.manage'],
 ): void {
   render(
-    <Schedules schedules={records} viewer={viewer(permissions)} labels={LABELS} />,
+    <Schedules
+      schedules={records}
+      viewer={viewer(permissions)}
+      labels={LABELS}
+      locale="en"
+      zone="UTC"
+      now={NOW}
+    />,
   );
 }
 
@@ -160,6 +174,9 @@ describe('a viewer without schedule.manage', () => {
         schedules={[WEEKLY]}
         viewer={viewer(['incident.read'])}
         labels={LABELS}
+        locale="en"
+        zone="UTC"
+        now={NOW}
       />,
     );
 
@@ -324,6 +341,103 @@ describe('creating a schedule', () => {
 
     expect(await screen.findAllByTestId('schedule')).toHaveLength(1);
     expect(screen.getByLabelText(LABELS.create.jobId)).toHaveValue('');
+  });
+
+  it('confirms creation by naming it and stating when it will next run', async () => {
+    schedules([]);
+    answerWith({
+      job_id: 'new-check',
+      name: 'New check',
+      cron: '0 9 * * *',
+      objective: 'Watch something new.',
+      timezone: 'UTC',
+      enabled: true,
+      next_run_at: '2026-08-19T09:00:00+00:00',
+    });
+
+    await userEvent.type(screen.getByLabelText(LABELS.create.jobId), 'new-check');
+    await userEvent.type(screen.getByLabelText(LABELS.create.name), 'New check');
+    await userEvent.type(screen.getByLabelText(LABELS.create.cron), '0 9 * * *');
+    await userEvent.type(
+      screen.getByLabelText(LABELS.create.objective),
+      'Watch something new.',
+    );
+    await userEvent.click(screen.getByTestId('submit-create-schedule'));
+
+    const confirmation = await screen.findByTestId('schedule-created');
+    expect(confirmation).toHaveTextContent('New check');
+    const expected = timestamp('en', '2026-08-19T09:00:00+00:00', NOW, 'UTC');
+    expect(confirmation).toHaveTextContent(expected.relative);
+  });
+
+  it('says nothing was created while the form is untouched', () => {
+    schedules([]);
+
+    expect(screen.queryByTestId('schedule-created')).toBeNull();
+  });
+});
+
+describe('previewing a cron expression before creating it', () => {
+  it('shows the next firings once the cron field settles, beside it', async () => {
+    schedules([]);
+    answerWith({
+      firings: [
+        { at: '2026-08-17T08:00:00+00:00', shifted: false },
+        { at: '2026-08-24T08:00:00+00:00', shifted: false },
+      ],
+    });
+
+    await userEvent.type(screen.getByLabelText(LABELS.create.cron), '0 8 * * 1');
+    await userEvent.tab();
+
+    expect(sent).toContainEqual({
+      jobId: '',
+      operation: 'preview',
+      payload: { cron: '0 8 * * 1', timezone: 'UTC' },
+    });
+    const preview = await screen.findByTestId('cron-preview');
+    const first = timestamp('en', '2026-08-17T08:00:00+00:00', NOW, 'UTC');
+    const second = timestamp('en', '2026-08-24T08:00:00+00:00', NOW, 'UTC');
+    expect(preview).toHaveTextContent(first.relative);
+    expect(preview).toHaveTextContent(second.relative);
+  });
+
+  it('shows the refusal beside the field rather than a blank preview', async () => {
+    schedules([]);
+    const refusal = "'99 7 * * 1' is outside 0–59 in the minute field of '99 7 * * 1'.";
+    refusedWith(refusal);
+
+    await userEvent.type(screen.getByLabelText(LABELS.create.cron), '99 7 * * 1');
+    await userEvent.tab();
+
+    expect(await screen.findByTestId('cron-preview-refused')).toHaveTextContent(
+      refusal,
+    );
+    expect(screen.queryByTestId('cron-preview')).toBeNull();
+  });
+
+  it('hides a stale preview once the cron field changes again', async () => {
+    schedules([]);
+    answerWith({ firings: [{ at: '2026-08-17T08:00:00+00:00', shifted: false }] });
+    const cronField = screen.getByLabelText(LABELS.create.cron);
+
+    await userEvent.type(cronField, '0 8 * * 1');
+    await userEvent.tab();
+    await screen.findByTestId('cron-preview');
+
+    await userEvent.type(cronField, '9');
+
+    expect(screen.queryByTestId('cron-preview')).toBeNull();
+  });
+
+  it('never previews an empty field', async () => {
+    schedules([]);
+    answerWith({ firings: [{ at: '2026-08-17T08:00:00+00:00', shifted: false }] });
+
+    await userEvent.click(screen.getByLabelText(LABELS.create.cron));
+    await userEvent.tab();
+
+    expect(sent).toHaveLength(0);
   });
 });
 

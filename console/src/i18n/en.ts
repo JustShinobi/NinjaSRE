@@ -812,6 +812,9 @@ export const EN = {
     'The zone the cron expression is read in. An IANA name, such as Europe/Lisbon.',
   'schedules.create.submit': 'Create schedule',
   'schedules.create.submitting': 'Creating…',
+  'schedules.create.created': 'Schedule created: {name}.',
+  'schedules.create.previewing': 'Checking the cron expression…',
+  'schedules.create.previewLabel': 'Would next fire:',
   'schedules.failed': 'The deployment refused this.',
   'schedules.unreachable': 'The deployment could not be reached.',
 

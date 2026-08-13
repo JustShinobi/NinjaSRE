@@ -123,6 +123,15 @@ export interface InputProps extends FieldProps {
   readonly value?: string;
   readonly defaultValue?: string;
   readonly onValueChange?: (value: string) => void;
+  /**
+   * The value settled — focus left the control, whatever it now holds.
+   *
+   * Distinct from every keystroke `onValueChange` already reports: a cron
+   * preview or a lookup that ran on every keystroke would be a request per
+   * character, and the moment a person is actually done editing is the
+   * moment focus moves on, not the moment a character landed.
+   */
+  readonly onBlur?: () => void;
 }
 
 /** One line of text. */
@@ -139,6 +148,7 @@ export function Input({
   value,
   defaultValue,
   onValueChange,
+  onBlur,
 }: InputProps): ReactNode {
   const id = useId();
   return (
@@ -158,6 +168,7 @@ export function Input({
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           onValueChange?.(event.target.value);
         }}
+        onBlur={onBlur}
         className={cx(CONTROL, error === undefined ? '' : INVALID)}
       />
     </Field>

@@ -310,6 +310,9 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
               <Schedules
                 schedules={scheduleRecords}
                 viewer={viewer}
+                locale={locale}
+                zone={zone}
+                now={now}
                 labels={{
                   column: {
                     name: message(locale, 'schedules.column.name'),
@@ -346,6 +349,9 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
                     timezone: message(locale, 'schedules.create.timezone'),
                     submit: message(locale, 'schedules.create.submit'),
                     submitting: message(locale, 'schedules.create.submitting'),
+                    created: message(locale, 'schedules.create.created'),
+                    previewing: message(locale, 'schedules.create.previewing'),
+                    previewLabel: message(locale, 'schedules.create.previewLabel'),
                   },
                   failed: message(locale, 'schedules.failed'),
                   unreachable: message(locale, 'schedules.unreachable'),

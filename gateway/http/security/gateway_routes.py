@@ -112,6 +112,11 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
     # --- Schedules -------------------------------------------------------------
     Route(method="GET", path="/v1/schedules", permission=Permission.SCHEDULE_MANAGE),
     Route(method="POST", path="/v1/schedules", permission=Permission.SCHEDULE_MANAGE),
+    Route(
+        method="POST",
+        path="/v1/schedules/preview",
+        permission=Permission.SCHEDULE_MANAGE,
+    ),
     Route(method="GET", path="/v1/schedules/{job_id}", permission=Permission.SCHEDULE_MANAGE),
     Route(method="PUT", path="/v1/schedules/{job_id}", permission=Permission.SCHEDULE_MANAGE),
     Route(method="DELETE", path="/v1/schedules/{job_id}", permission=Permission.SCHEDULE_MANAGE),

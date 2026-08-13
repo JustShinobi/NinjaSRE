@@ -2283,6 +2283,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Schedule
+         * @description Return what ``cron`` would fire, storing nothing.
+         *
+         *     Parsed through the same ``CronExpression`` the write path validates
+         *     with — a form calling this and a form calling ``create`` can never
+         *     disagree about what an expression means, because there is one
+         *     implementation of cron in this deployment rather than a console-side
+         *     second opinion beside a server-side first one. A refused expression is
+         *     refused here exactly as ``create`` would refuse it, before anything
+         *     would have been stored.
+         */
+        post: operations["preview_schedule_v1_schedules_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/schedules/{job_id}": {
         parameters: {
             query?: never;
@@ -5787,6 +5815,34 @@ export interface components {
              * @default false
              */
             truncated: boolean;
+        };
+        /**
+         * ScheduleFiringView
+         * @description One instant a cron expression would fire at, resolved and nothing else.
+         */
+        ScheduleFiringView: {
+            /** At */
+            at: string;
+            /**
+             * Shifted
+             * @default false
+             */
+            shifted: boolean;
+        };
+        /** SchedulePreviewRequest */
+        SchedulePreviewRequest: {
+            /** Cron */
+            cron: string;
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /** SchedulePreviewView */
+        SchedulePreviewView: {
+            /** Firings */
+            firings: components["schemas"]["ScheduleFiringView"][];
         };
         /** ScheduleView */
         ScheduleView: {
@@ -10157,6 +10213,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScheduleView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_schedule_v1_schedules_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchedulePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulePreviewView"];
                 };
             };
             /** @description Validation Error */

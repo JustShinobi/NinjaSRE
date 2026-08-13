@@ -95,6 +95,24 @@ it('sends each named operation to its own address and method', async () => {
   sent = [];
   await post({ jobId: 'j1', operation: 'disable' });
   expect(sent[0]?.url).toBe(`${API}/v1/schedules/j1/disable`);
+
+  sent = [];
+  await post({ operation: 'preview', payload: { cron: '0 8 * * 1', timezone: 'UTC' } });
+  expect(sent[0]?.url).toBe(`${API}/v1/schedules/preview`);
+  expect(sent[0]?.init.method).toBe('POST');
+  expect(bodyOf(sent[0])).toEqual({ cron: '0 8 * * 1', timezone: 'UTC' });
+});
+
+it('needs no id to preview, since nothing named by an id exists yet', async () => {
+  vi.stubGlobal('fetch', answering(200, { firings: [] }));
+
+  const answer = await post({
+    operation: 'preview',
+    payload: { cron: '0 8 * * 1', timezone: 'UTC' },
+  });
+
+  expect(answer.status).toBe(200);
+  expect(sent).toHaveLength(1);
 });
 
 it('encodes the job id into the path', async () => {

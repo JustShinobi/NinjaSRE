@@ -5908,6 +5908,60 @@
         "title": "SampleView",
         "type": "object"
       },
+      "ScheduleFiringView": {
+        "description": "One instant a cron expression would fire at, resolved and nothing else.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "shifted": {
+            "default": false,
+            "title": "Shifted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "title": "ScheduleFiringView",
+        "type": "object"
+      },
+      "SchedulePreviewRequest": {
+        "properties": {
+          "cron": {
+            "minLength": 1,
+            "title": "Cron",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "UTC",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cron"
+        ],
+        "title": "SchedulePreviewRequest",
+        "type": "object"
+      },
+      "SchedulePreviewView": {
+        "properties": {
+          "firings": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleFiringView"
+            },
+            "title": "Firings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "firings"
+        ],
+        "title": "SchedulePreviewView",
+        "type": "object"
+      },
       "ScheduleView": {
         "properties": {
           "cron": {
@@ -14090,6 +14144,66 @@
           }
         },
         "summary": "Create Schedule",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
+    "/v1/schedules/preview": {
+      "post": {
+        "description": "Return what ``cron`` would fire, storing nothing.\n\nParsed through the same ``CronExpression`` the write path validates\nwith — a form calling this and a form calling ``create`` can never\ndisagree about what an expression means, because there is one\nimplementation of cron in this deployment rather than a console-side\nsecond opinion beside a server-side first one. A refused expression is\nrefused here exactly as ``create`` would refuse it, before anything\nwould have been stored.",
+        "operationId": "preview_schedule_v1_schedules_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Schedule",
         "tags": [
           "schedules"
         ]

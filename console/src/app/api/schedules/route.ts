@@ -4,21 +4,25 @@ import { apiOrigin } from '@/lib/api';
 import { SESSION_COOKIE } from '@/session/cookies';
 
 /**
- * A scheduled investigation's five writes, forwarded and never decided here.
+ * A scheduled investigation's five writes and its one preview, forwarded and
+ * never decided here.
  *
- * One courier for five operations rather than five files, and the closed
+ * One courier for six operations rather than six files, and the closed
  * table below is what keeps that from becoming an open proxy: an operation
  * this handler does not name cannot be reached through it, and neither can a
  * path this handler does not build.
  *
- * `create` needs no identifier — the job id is in the body, because it is the
- * caller who names a schedule, not the deployment. Every other operation acts
- * on one that already exists, and is refused without an identifier to act on.
+ * `create` and `preview` need no identifier — the job id is in the body for
+ * `create`, because it is the caller who names a schedule, not the
+ * deployment; `preview` has no identifier because there is nothing saved yet
+ * to name. Every other operation acts on a schedule that already exists, and
+ * is refused without an identifier to act on.
  *
  * The list itself is read straight from the screen, server-side, with the
  * same credential this handler carries at the network edge — it needs no
- * courier of its own. Only a write, triggered by something a person presses,
- * has to cross from a client component that cannot read an HTTP-only cookie.
+ * courier of its own. Only an action triggered by something a person
+ * presses, write or preview alike, has to cross from a client component that
+ * cannot read an HTTP-only cookie.
  */
 
 /** One field of an answer that crossed a process, or a stated fallback. */
@@ -41,6 +45,9 @@ const OPERATIONS: Readonly<Record<string, Forwarded>> = {
   delete: { method: 'DELETE', needsId: true, path: (jobId) => `/${jobId}` },
   enable: { method: 'POST', needsId: true, path: (jobId) => `/${jobId}/enable` },
   disable: { method: 'POST', needsId: true, path: (jobId) => `/${jobId}/disable` },
+  // Needs no id, the same way `create` does not: a preview is of a cron
+  // expression nobody has saved yet, so there is nothing for an id to name.
+  preview: { method: 'POST', needsId: false, path: () => '/preview' },
 };
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
