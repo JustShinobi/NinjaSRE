@@ -32,7 +32,11 @@ import {
   QuickActions,
 } from '../first-run/checklist-panel';
 import { outstanding, readSetup } from '../first-run/plan';
-import { Tutorial, tutorialDismissed } from '../first-run/tutorial';
+import { Tutorial } from '../first-run/tutorial';
+// From the plain module rather than from the overlay: this screen renders on
+// the server, and reading the flag out of a `'use client'` file made the whole
+// dashboard throw before it painted anything.
+import { tutorialDismissed } from '../first-run/tutorial-setting';
 import { viewerNode } from '../tree';
 import type { SurfaceContext } from '../context';
 

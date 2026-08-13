@@ -8,6 +8,7 @@ import { Button } from '@/components/action';
 import { ProgressBar } from '@/components/feedback';
 import { message, type Locale } from '@/i18n/messages';
 import { CONFIG_ENDPOINT } from './model';
+import { dismissalPatch } from './tutorial-setting';
 
 /**
  * Five screens over the top of the product, and a `Skip` that is never further
@@ -32,45 +33,11 @@ import { CONFIG_ENDPOINT } from './model';
  * nothing here declares a duration at all.
  */
 
-/** Where the dismissal is recorded, at the viewer's own node. */
-export const TUTORIAL_SETTING = 'surfaces.console.tutorial_dismissed';
-
 /** Where the final slide's invitation actually goes. */
 const SETUP_PATH = '/first-run';
 
 /** The five slides, by the number their catalogue keys carry. */
 export const SLIDES: readonly number[] = [1, 2, 3, 4, 5];
-
-/**
- * Whether `values` — a node's effective configuration — records the dismissal.
- *
- * The effective document is nested the way the schema is, so the dotted
- * setting is walked one segment at a time. Read as one flat key it would
- * answer false forever, which is exactly the overlay that never stops coming
- * back.
- */
-export function tutorialDismissed(values: unknown): boolean {
-  let cursor: unknown = values;
-  for (const segment of TUTORIAL_SETTING.split('.')) {
-    cursor = Reflect.get(Object(cursor), segment);
-  }
-  return cursor === true;
-}
-
-/**
- * The dismissal as the nested document the deployment validates.
- *
- * Built from the same dotted setting the read walks, so the two halves of the
- * persistence cannot name different fields. A flat dotted key would be a field
- * the closed schema has never heard of, and the write would be refused.
- */
-function dismissalPatch(): Record<string, unknown> {
-  let patch: unknown = true;
-  for (const segment of [...TUTORIAL_SETTING.split('.')].reverse()) {
-    patch = { [segment]: patch };
-  }
-  return patch as Record<string, unknown>;
-}
 
 export interface TutorialProps {
   readonly locale: Locale;
