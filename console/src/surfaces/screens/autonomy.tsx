@@ -7,11 +7,13 @@ import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
+import { KillSwitchControl } from '@/shell/stop';
 import type { SurfaceContext } from '../context';
 import { AutonomyEditor, type EditableRule } from '../autonomy-editor';
 import { panelLabels } from '../labels';
 import { OverrideEditor } from '../override-editor';
 import { Panel } from '../panel';
+import { postureLabels } from '../postures';
 import {
   authorised,
   dataOf,
@@ -52,6 +54,27 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
  * none, and then nothing is asked at all: a policy request with no subject is a
  * path with a brace still in it, which the client refuses and which used to take
  * this route down before an operator had any way to choose a node.
+ *
+ * **One empty state, not three.** Reading no rules and reading no bounds used to
+ * be reported by three panels in the same words, and a reader could not tell
+ * from that repetition whether the deployment held nothing or the console had
+ * asked three times and heard the same "nothing" three times. Now the rules
+ * table's own panel is the one place that says so, in the panel's ordinary
+ * empty state — and directly beneath it, for a viewer who may write, sits the
+ * same editor a real rule would use, seeded with one deployment-wide row at the
+ * safest level. Creating the first rule is choosing that row's level and
+ * saving it, not a trip to Configuration to work out how. The bounds panel,
+ * which would otherwise say the identical "nothing recorded" a second time,
+ * is left out of the page entirely when both it and the rules table are
+ * genuinely empty — it still appears, as it always did, the moment either one
+ * holds something, including a failure of its own read.
+ *
+ * **The same stop, in the place that governs it.** The topbar's emergency stop
+ * and this screen's bounds are one axis, not two: what the switch does *is* a
+ * bound, reported here from the same `bounds.stopped` the switch sets. Rather
+ * than restate that in the screen's own words, the stopped row renders the
+ * shell's own kill-switch control, so resuming automation is available exactly
+ * where an operator is already looking at what automation may do.
  */
 
 export const AUTONOMY_FILTERS: readonly FilterName[] = ['node'];
@@ -75,6 +98,32 @@ const SCOPE_ORDER = [
   'resource',
   'capability_resource',
 ];
+
+/**
+ * Where `act_on_low_risk` draws its line when nobody has said otherwise.
+ * Mirrors the deployment's own default (`config/constants/autonomy.py`,
+ * `DEFAULT_RISK_BOUND`) rather than inventing a console-side opinion about it.
+ */
+const DEFAULT_RISK_BOUND = 'low';
+
+/**
+ * What an operator edits when there is no rule yet: one row, scoped to the
+ * whole deployment, at the safest level. Saving it *is* creating the first
+ * rule — there is no separate "add a rule" affordance to reach for, because
+ * this row already is the form.
+ */
+const FIRST_RULE: EditableRule = {
+  ruleId: 'deployment',
+  scope: 'deployment',
+  matcher: '—',
+  level: LEVELS[0] ?? 'propose_only',
+  riskBound: DEFAULT_RISK_BOUND,
+  record: {
+    scope: { kind: 'deployment' },
+    level: LEVELS[0] ?? 'propose_only',
+    risk_bound: DEFAULT_RISK_BOUND,
+  },
+};
 
 /** The phrase a scope reads as, assembled from the fields the API sends. */
 function matcherOf(scope: unknown): string {
@@ -108,7 +157,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const tree = await panelRead('/v1/config', () => read('/v1/config', init));
   const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
 
-  // Nothing empty, ready: the panels below then render their own empty state,
+  // Nothing empty, ready: the rules panel then renders its own empty state,
   // which says there is no policy here and offers the way to make one.
   const nothing = { status: 'ready' as const, data: {} as unknown };
 
@@ -141,20 +190,43 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const overrides = list(dataOf(bounds), 'overrides');
   const writable = may(viewer, WRITE);
 
+  const rulesEmpty = rules.length === 0;
+  const boundsEmpty =
+    !stopped && freezes.length === 0 && budgets.length === 0 && overrides.length === 0;
+  // The bounds panel drops out of the page only when it would otherwise repeat
+  // the rules panel's own "nothing recorded" — never when it is reporting a
+  // failure of its own, which is worth a reader's attention on its own terms.
+  const showBounds =
+    nodeId !== '' &&
+    (policy.status === 'error' ||
+      bounds.status === 'error' ||
+      !(rulesEmpty && boundsEmpty));
+
   // Every rule carried back as the deployment sent it, so a save changes the
   // level and nothing else. A console that rebuilt the record from the columns
-  // it renders would drop whatever it does not render.
-  const editable: readonly EditableRule[] = rules.map((rule, position) => {
-    const scope = field(rule, 'scope');
-    return {
-      ruleId: text(rule, 'rule_id') || `${text(scope, 'kind')}-${String(position)}`,
-      scope: text(scope, 'kind'),
-      matcher: matcherOf(scope),
-      level: text(rule, 'level'),
-      riskBound: text(rule, 'risk_bound'),
-      record: rule as Readonly<Record<string, unknown>>,
-    };
-  });
+  // it renders would drop whatever it does not render. With no rule recorded
+  // yet, the editor is seeded with one deployment-wide row instead of an empty
+  // list, so there is something to choose a level for and save.
+  const editable: readonly EditableRule[] =
+    rules.length > 0
+      ? rules.map((rule, position) => {
+          const scope = field(rule, 'scope');
+          return {
+            ruleId:
+              text(rule, 'rule_id') || `${text(scope, 'kind')}-${String(position)}`,
+            scope: text(scope, 'kind'),
+            matcher: matcherOf(scope),
+            level: text(rule, 'level'),
+            riskBound: text(rule, 'risk_bound'),
+            record: rule as Readonly<Record<string, unknown>>,
+          };
+        })
+      : [FIRST_RULE];
+
+  const configurationHref =
+    nodeId === ''
+      ? '/configuration'
+      : `/configuration?node=${encodeURIComponent(nodeId)}`;
 
   return (
     <>
@@ -170,14 +242,14 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
         <div className="lg:col-span-2 min-w-0">
           <Panel
             title={message(locale, 'autonomy.rules.title')}
-            state={stateOf(policy, rules.length === 0)}
+            state={stateOf(policy, rulesEmpty)}
             dependency={dependencyOf(policy)}
             labels={panelLabels(locale, message(locale, 'autonomy.rules.title'))}
             empty={{
               heading: message(locale, 'autonomy.empty.heading'),
               body: message(locale, 'autonomy.empty.body'),
               actionLabel: message(locale, 'autonomy.empty.action'),
-              href: '/configuration',
+              href: configurationHref,
             }}
           >
             <div className="w-full overflow-x-auto">
@@ -232,9 +304,11 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               </table>
             </div>
           </Panel>
-          <p data-testid="autonomy-footer" className="text-meta text-muted mt-3">
-            {message(locale, 'autonomy.footer')}
-          </p>
+          {rules.length > 0 ? (
+            <p data-testid="autonomy-footer" className="text-meta text-muted mt-3">
+              {message(locale, 'autonomy.footer')}
+            </p>
+          ) : null}
           {simulated ? (
             <p data-testid="autonomy-dry-run" className="text-meta text-muted mt-2">
               {message(locale, 'autonomy.dry_run')}
@@ -246,20 +320,21 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
             <div className="mt-5">
               <Panel
                 title={message(locale, 'autonomy.editor.save')}
-                state={stateOf(policy, rules.length === 0)}
+                state={stateOf(policy, false)}
                 dependency={dependencyOf(policy)}
                 labels={panelLabels(locale, message(locale, 'autonomy.editor.save'))}
                 empty={{
                   heading: message(locale, 'autonomy.empty.heading'),
                   body: message(locale, 'autonomy.empty.body'),
                   actionLabel: message(locale, 'autonomy.empty.action'),
-                  href: '/configuration',
+                  href: configurationHref,
                 }}
               >
                 <AutonomyEditor
                   nodeId={nodeId}
                   rules={editable}
                   levels={LEVELS}
+                  levelLabels={postureLabels(locale, LEVELS)}
                   dryRun={simulated}
                   labels={{
                     level: message(locale, 'autonomy.editor.level'),
@@ -292,108 +367,123 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
         </div>
 
         <div className="min-w-0 flex flex-col gap-5">
-          <Panel
-            title={message(locale, 'autonomy.bounds.title')}
-            state={stateOf(
-              bounds,
-              !stopped &&
-                freezes.length === 0 &&
-                budgets.length === 0 &&
-                overrides.length === 0,
-            )}
-            dependency={dependencyOf(bounds)}
-            labels={panelLabels(locale, message(locale, 'autonomy.bounds.title'))}
-            empty={{
-              heading: message(locale, 'autonomy.empty.heading'),
-              body: message(locale, 'autonomy.empty.body'),
-              actionLabel: message(locale, 'autonomy.empty.action'),
-              href: '/configuration',
-            }}
-          >
-            <dl className="flex flex-col gap-2 text-small">
-              {stopped ? (
-                <div className="flex items-center gap-3" data-testid="autonomy-stopped">
-                  <dt className="font-mono min-w-0 truncate">
-                    {message(locale, 'autonomy.bound.stopped')}
-                  </dt>
-                  <dd className="ml-auto min-w-0 truncate">
-                    {text(dataOf(bounds), 'stop_reason')}
-                  </dd>
-                </div>
-              ) : null}
-              {freezes.map((freeze) => (
-                <div
-                  key={text(freeze, 'name')}
-                  className="flex items-center gap-3"
-                  data-testid="bound"
-                  data-bound="freeze"
-                >
-                  <dt className="font-mono min-w-0 truncate">{text(freeze, 'name')}</dt>
-                  <dd className="ml-auto flex items-center gap-2 tabular-nums">
-                    {text(freeze, 'start')}–{text(freeze, 'end')}{' '}
-                    {text(freeze, 'timezone')}
-                  </dd>
-                </div>
-              ))}
-              {budgets.map((budget) => (
-                <div
-                  key={text(budget, 'name')}
-                  className="flex items-center gap-3"
-                  data-testid="bound"
-                  data-bound="budget"
-                >
-                  <dt className="font-mono min-w-0 truncate">{text(budget, 'name')}</dt>
-                  <dd className="ml-auto flex items-center gap-2 tabular-nums">
-                    {formatNumber(locale, number(budget, 'limit'))} /{' '}
-                    {text(budget, 'counted_by')}
-                  </dd>
-                </div>
-              ))}
-              {overrides.map((override) => {
-                // Duration and reason in the row itself. An override is a
-                // deliberate, temporary widening of what may happen without a
-                // person, and a list that showed only its name would make
-                // "until when, and who said so" a second lookup nobody makes.
-                const expires = timestamp(
-                  locale,
-                  text(override, 'expires_at'),
-                  now,
-                  zone,
-                );
-                return (
+          {showBounds ? (
+            <Panel
+              title={message(locale, 'autonomy.bounds.title')}
+              state={stateOf(bounds, boundsEmpty)}
+              dependency={dependencyOf(bounds)}
+              labels={panelLabels(locale, message(locale, 'autonomy.bounds.title'))}
+              empty={{
+                heading: message(locale, 'autonomy.empty.heading'),
+                body: message(locale, 'autonomy.empty.body'),
+                actionLabel: message(locale, 'autonomy.empty.action'),
+                href: configurationHref,
+              }}
+            >
+              <dl className="flex flex-col gap-2 text-small">
+                {stopped ? (
                   <div
-                    key={text(override, 'name')}
                     className="flex flex-wrap items-center gap-3"
-                    data-testid="bound"
-                    data-bound="override"
+                    data-testid="autonomy-stopped"
                   >
                     <dt className="font-mono min-w-0 truncate">
-                      {text(override, 'name')}
+                      {message(locale, 'autonomy.bound.stopped')}
                     </dt>
-                    <dd className="flex flex-wrap items-center gap-2">
-                      <Badge status={text(override, 'level')} />
-                      <span
-                        className="text-meta text-muted"
-                        data-testid="override-duration"
-                      >
-                        {message(locale, 'autonomy.override.duration')}{' '}
-                        <time dateTime={expires.iso} title={expires.absolute}>
-                          {expires.relative}
-                        </time>
+                    <dd className="ml-auto flex flex-wrap items-center gap-3 min-w-0">
+                      <span className="min-w-0 truncate">
+                        {text(dataOf(bounds), 'stop_reason')}
                       </span>
-                      <span
-                        className="text-meta text-muted"
-                        data-testid="override-reason"
-                      >
-                        {message(locale, 'autonomy.override.reason')}{' '}
-                        {text(override, 'reason')}
-                      </span>
+                      {/* The same control the topbar carries, not a second one
+                          this screen invented: what stops automation and what
+                          this screen bounds are one axis, and resuming it
+                          belongs where an operator is already looking at what
+                          automation may do. */}
+                      <KillSwitchControl
+                        viewer={viewer}
+                        locale={locale}
+                        engaged={stopped}
+                      />
                     </dd>
                   </div>
-                );
-              })}
-            </dl>
-          </Panel>
+                ) : null}
+                {freezes.map((freeze) => (
+                  <div
+                    key={text(freeze, 'name')}
+                    className="flex items-center gap-3"
+                    data-testid="bound"
+                    data-bound="freeze"
+                  >
+                    <dt className="font-mono min-w-0 truncate">
+                      {text(freeze, 'name')}
+                    </dt>
+                    <dd className="ml-auto flex items-center gap-2 tabular-nums">
+                      {text(freeze, 'start')}–{text(freeze, 'end')}{' '}
+                      {text(freeze, 'timezone')}
+                    </dd>
+                  </div>
+                ))}
+                {budgets.map((budget) => (
+                  <div
+                    key={text(budget, 'name')}
+                    className="flex items-center gap-3"
+                    data-testid="bound"
+                    data-bound="budget"
+                  >
+                    <dt className="font-mono min-w-0 truncate">
+                      {text(budget, 'name')}
+                    </dt>
+                    <dd className="ml-auto flex items-center gap-2 tabular-nums">
+                      {formatNumber(locale, number(budget, 'limit'))} /{' '}
+                      {text(budget, 'counted_by')}
+                    </dd>
+                  </div>
+                ))}
+                {overrides.map((override) => {
+                  // Duration and reason in the row itself. An override is a
+                  // deliberate, temporary widening of what may happen without a
+                  // person, and a list that showed only its name would make
+                  // "until when, and who said so" a second lookup nobody makes.
+                  const expires = timestamp(
+                    locale,
+                    text(override, 'expires_at'),
+                    now,
+                    zone,
+                  );
+                  return (
+                    <div
+                      key={text(override, 'name')}
+                      className="flex flex-wrap items-center gap-3"
+                      data-testid="bound"
+                      data-bound="override"
+                    >
+                      <dt className="font-mono min-w-0 truncate">
+                        {text(override, 'name')}
+                      </dt>
+                      <dd className="flex flex-wrap items-center gap-2">
+                        <Badge status={text(override, 'level')} />
+                        <span
+                          className="text-meta text-muted"
+                          data-testid="override-duration"
+                        >
+                          {message(locale, 'autonomy.override.duration')}{' '}
+                          <time dateTime={expires.iso} title={expires.absolute}>
+                            {expires.relative}
+                          </time>
+                        </span>
+                        <span
+                          className="text-meta text-muted"
+                          data-testid="override-reason"
+                        >
+                          {message(locale, 'autonomy.override.reason')}{' '}
+                          {text(override, 'reason')}
+                        </span>
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </Panel>
+          ) : null}
 
           {/* Absent, not disabled, for a viewer who may not write. */}
           {writable && nodeId !== '' ? (
@@ -409,12 +499,13 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 heading: message(locale, 'autonomy.empty.heading'),
                 body: message(locale, 'autonomy.empty.body'),
                 actionLabel: message(locale, 'autonomy.empty.action'),
-                href: '/configuration',
+                href: configurationHref,
               }}
             >
               <OverrideEditor
                 nodeId={nodeId}
                 levels={OVERRIDE_LEVELS}
+                levelLabels={postureLabels(locale, OVERRIDE_LEVELS)}
                 labels={{
                   grantTitle: message(locale, 'autonomy.override.grant.title'),
                   grantName: message(locale, 'autonomy.override.grant.name'),

@@ -32,6 +32,19 @@ export const EN = {
   'nav.detectors': 'Detectors',
   'nav.memory': 'Memory',
   'nav.knowledge': 'Knowledge',
+  // What each autonomy posture actually permits, at the point somebody chooses
+  // it. The deployment sends these as slugs — `propose_only`, `act_on_low_risk`
+  // — and a `<Select>` offering four slugs is a control whose most consequential
+  // option is indistinguishable from its least. A posture an operator misreads
+  // is a posture they did not choose.
+  'autonomy.level.propose_only':
+    'Propose only — every action is written up for a person to approve. Nothing runs without one.',
+  'autonomy.level.act_on_low_risk':
+    'Act on low risk — runs on its own up to the risk bound chosen; anything riskier still waits for a person.',
+  'autonomy.level.act_and_report':
+    'Act and report — runs on its own and tells somebody afterwards, whatever the risk.',
+  'autonomy.level.act_silently':
+    'Act silently — runs on its own and reports nothing. Choose this one deliberately.',
   'nav.autonomy': 'Autonomy',
   'nav.configuration': 'Configuration',
   'nav.teamContext': 'Team context',
@@ -641,7 +654,13 @@ export const EN = {
   'resources.list.title': 'Resources',
   'resources.list.caption': 'Everything this deployment watches',
   'resources.sorted': 'Worst first',
-  'resources.summary': '{watched} watched · {healthy} healthy · {degraded} degraded',
+  // Every health state the badges below use gets a number here, including
+  // unhealthy — which had none anywhere on the screen while `problems` folded
+  // it into degraded. A header that cannot be added up against the table under
+  // it is a header nobody trusts twice.
+  'resources.summary':
+    '{watched} watched · {healthy} healthy · {degraded} degraded · {unhealthy} unhealthy',
+  'resources.filter.name': 'Resource name',
   'resources.divergent.mark': '(not in the inventory)',
   'resources.detail.back': 'Back to the list',
   'resources.signals.title': 'Where its signals come from',
@@ -729,6 +748,20 @@ export const EN = {
   'schedules.create.cron': 'Cron',
   'schedules.create.objective': 'Objective',
   'schedules.create.timezone': 'Timezone',
+  // Help beside the fields rather than in documentation nobody has open. The
+  // identifier/name distinction and the cron layout are the two things an
+  // operator gets wrong, and the deployment's refusal does not say which of
+  // five positions was at fault.
+  'schedules.create.jobIdHelp':
+    'A stable identifier this schedule keeps even if its name changes later.',
+  'schedules.create.nameHelp':
+    'What operators see in this list. Safe to rename; the identifier does not move.',
+  'schedules.create.cronHelp':
+    'Five fields — minute, hour, day of month, month, day of week. `0 8 * * 1` runs every Monday at 08:00.',
+  'schedules.create.objectiveHelp':
+    'The instruction the investigation runs with, exactly as if somebody had typed it to start one by hand.',
+  'schedules.create.timezoneHelp':
+    'The zone the cron expression is read in. An IANA name, such as Europe/Lisbon.',
   'schedules.create.submit': 'Create schedule',
   'schedules.create.submitting': 'Creating…',
   'schedules.failed': 'The deployment refused this.',

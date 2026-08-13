@@ -49,6 +49,14 @@ export interface OverrideEditorProps {
   readonly nodeId: string;
   /** The levels the deployment declares, in the order it declares them. */
   readonly levels: readonly string[];
+  /**
+   * What each level permits, in words, keyed by the deployment's own slug.
+   *
+   * Optional because the deployment declares the levels and this console only
+   * has words for the ones it knows: a level with no entry renders as its slug,
+   * which is what every control here did before and is still usable.
+   */
+  readonly levelLabels?: Readonly<Record<string, string>>;
   readonly labels: OverrideLabels;
 }
 
@@ -86,6 +94,7 @@ async function ask(
 export function OverrideEditor({
   nodeId,
   levels,
+  levelLabels,
   labels,
 }: OverrideEditorProps): ReactNode {
   const [grantName, setGrantName] = useState('');
@@ -172,7 +181,12 @@ export function OverrideEditor({
             label={labels.grantLevel}
             name="override-level"
             value={grantLevel}
-            options={levels.map((level) => ({ value: level, label: level }))}
+            // Labelled where the words are, falling back to the slug for a level
+            // this console has no words for — see `surfaces/postures.ts`.
+            options={levels.map((level) => ({
+              value: level,
+              label: levelLabels?.[level] ?? level,
+            }))}
             onValueChange={setGrantLevel}
           />
           <Input

@@ -64,6 +64,22 @@ export interface ScheduleLabels {
     readonly cron: string;
     readonly objective: string;
     readonly timezone: string;
+    /**
+     * What each field is, beside the field.
+     *
+     * A cron box with no example is a box somebody guesses at, and the
+     * deployment's refusal does not say which of the five positions was wrong.
+     * The identifier-versus-name distinction has the same shape: both are
+     * strings, only one of them is safe to change later, and nothing on the
+     * form said which.
+     */
+    readonly help: {
+      readonly jobId: string;
+      readonly name: string;
+      readonly cron: string;
+      readonly objective: string;
+      readonly timezone: string;
+    };
     readonly submit: string;
     readonly submitting: string;
   };
@@ -357,6 +373,7 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
         <div className="flex flex-wrap items-end gap-3">
           <Input
             label={labels.create.jobId}
+            description={labels.create.help.jobId}
             name="create-job-id"
             value={create.jobId}
             onValueChange={(value) => {
@@ -365,6 +382,7 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
           />
           <Input
             label={labels.create.name}
+            description={labels.create.help.name}
             name="create-name"
             value={create.name}
             onValueChange={(value) => {
@@ -373,6 +391,7 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
           />
           <Input
             label={labels.create.cron}
+            description={labels.create.help.cron}
             name="create-cron"
             value={create.cron}
             onValueChange={(value) => {
@@ -381,6 +400,7 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
           />
           <Input
             label={labels.create.objective}
+            description={labels.create.help.objective}
             name="create-objective"
             value={create.objective}
             onValueChange={(value) => {
@@ -389,6 +409,7 @@ export function Schedules({ schedules, viewer, labels }: SchedulesProps): ReactN
           />
           <Input
             label={labels.create.timezone}
+            description={labels.create.help.timezone}
             name="create-timezone"
             value={create.timezone}
             onValueChange={(value) => {

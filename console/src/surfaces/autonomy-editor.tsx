@@ -76,6 +76,14 @@ export interface AutonomyEditorProps {
   readonly rules: readonly EditableRule[];
   /** The levels the deployment declares, in the order it declares them. */
   readonly levels: readonly string[];
+  /**
+   * What each level permits, in words, keyed by the deployment's own slug.
+   *
+   * Optional because the deployment declares the levels and this console only
+   * has words for the ones it knows: a level with no entry renders as its slug,
+   * which is what every control here did before and is still usable.
+   */
+  readonly levelLabels?: Readonly<Record<string, string>>;
   readonly dryRun: boolean;
   readonly labels: AutonomyLabels;
 }
@@ -146,6 +154,7 @@ export function AutonomyEditor({
   nodeId,
   rules,
   levels,
+  levelLabels,
   dryRun,
   labels,
 }: AutonomyEditorProps): ReactNode {
@@ -261,7 +270,12 @@ export function AutonomyEditor({
               label={labels.level}
               name={`level-${rule.ruleId}`}
               value={levelFor[rule.ruleId] ?? rule.level}
-              options={levels.map((each) => ({ value: each, label: each }))}
+              // Labelled where the words are, falling back to the slug for a level
+              // this console has no words for — see `surfaces/postures.ts`.
+              options={levels.map((each) => ({
+                value: each,
+                label: levelLabels?.[each] ?? each,
+              }))}
               onValueChange={(next) => {
                 setSaved(false);
                 setLevelFor((was) => ({ ...was, [rule.ruleId]: next }));

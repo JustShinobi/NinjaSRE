@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { Link } from '@/components/action';
 import { Badge } from '@/components/status';
 import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
@@ -8,6 +9,13 @@ import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { DetectorControls } from '../detector-controls';
+import {
+  emptyBecause,
+  firstCause,
+  readSetupState,
+  setupCause,
+  watchingCause,
+} from '../emptiness';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -45,6 +53,20 @@ import { Schedules, type ScheduleRecord } from '../schedules';
  * `GET /v1/schedules` itself takes `schedule.manage` — there is no read-only
  * view of a schedule — so the whole panel, not only its writes, is fetched and
  * shown only for a viewer who holds it. Absent, not disabled.
+ *
+ * **An empty table here is not "no source connected".** Sources answer before
+ * a single detector ever appears — what is missing when this panel is empty
+ * is the shipped detector set being switched on
+ * (`policies.observation.guardian.enabled`), which is a single flag set in
+ * Configuration. `watchingCause` already names that fact for screens
+ * *downstream* of detection, such as Incidents, and sends them here to fix
+ * it; reused verbatim on this screen it would send an operator back to the
+ * page they are already reading, so its destination is rewritten to
+ * Configuration, at the node this viewer holds. Checked after the setup
+ * cause rather than before, unlike downstream screens: a deployment with an
+ * unfinished checklist also reads as zero live detectors, and "turn on
+ * continuous observation" is not the next step for somebody who has not
+ * finished the wizard yet.
  */
 
 /** Who may see or change this team's scheduled investigations. */
@@ -59,8 +81,25 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
   const { credential, locale, now, viewer, zone } = context;
   const init = authorised(credential);
 
-  const detectors = await panelRead('/v1/detectors', () => read('/v1/detectors', init));
+  const [detectors, setup] = await Promise.all([
+    panelRead('/v1/detectors', () => read('/v1/detectors', init)),
+    readSetupState(credential),
+  ]);
   const records = list(dataOf(detectors), 'detectors');
+  const liveDetectors = records.filter((record) => flag(record, 'enabled')).length;
+
+  // Where the guardian toggle actually lives: the viewer's own node when the
+  // session names one, the tree's root otherwise — the same fallback
+  // Configuration itself applies when nothing has chosen a node yet.
+  const configurationHref =
+    viewer.teamNodeId === ''
+      ? '/configuration'
+      : `/configuration?node=${encodeURIComponent(viewer.teamNodeId)}`;
+  const watching = watchingCause(locale, liveDetectors);
+  const cause = firstCause(
+    setupCause(locale, setup),
+    watching === null ? null : { ...watching, href: configurationHref },
+  );
 
   const canManageSchedules = may(viewer, SCHEDULE_MANAGE);
   const schedules: PanelData<unknown> = canManageSchedules
@@ -91,12 +130,15 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
         state={stateOf(detectors, records.length === 0)}
         dependency={dependencyOf(detectors)}
         labels={panelLabels(locale, message(locale, 'detectors.list.title'))}
-        empty={{
-          heading: message(locale, 'detectors.empty.heading'),
-          body: message(locale, 'detectors.empty.body'),
-          actionLabel: message(locale, 'detectors.empty.action'),
-          href: '/configuration',
-        }}
+        empty={emptyBecause(
+          {
+            heading: message(locale, 'detectors.empty.heading'),
+            body: message(locale, 'detectors.empty.body'),
+            actionLabel: message(locale, 'detectors.empty.action'),
+            href: '/configuration',
+          },
+          cause,
+        )}
       >
         <div className="w-full overflow-x-auto">
           <table className="w-full text-small">
@@ -236,46 +278,80 @@ export async function DetectorsScreen(context: SurfaceContext): Promise<ReactNod
               heading: message(locale, 'schedules.empty.heading'),
               body: message(locale, 'schedules.empty.body'),
               actionLabel: message(locale, 'schedules.empty.action'),
-              href: '/detectors',
+              href: '#schedule-create',
             }}
           >
-            <Schedules
-              schedules={scheduleRecords}
-              viewer={viewer}
-              labels={{
-                column: {
-                  name: message(locale, 'schedules.column.name'),
-                  cron: message(locale, 'schedules.column.cron'),
-                  objective: message(locale, 'schedules.column.objective'),
-                  timezone: message(locale, 'schedules.column.timezone'),
-                  nextRun: message(locale, 'schedules.column.nextRun'),
-                  enabled: message(locale, 'schedules.column.enabled'),
-                },
-                never: message(locale, 'schedules.never'),
-                enable: message(locale, 'schedules.enable'),
-                enabling: message(locale, 'schedules.enabling'),
-                disable: message(locale, 'schedules.disable'),
-                disabling: message(locale, 'schedules.disabling'),
-                save: message(locale, 'schedules.save'),
-                saving: message(locale, 'schedules.saving'),
-                delete: message(locale, 'schedules.delete'),
-                deleteConsequence: message(locale, 'schedules.deleteConsequence'),
-                deleteCancel: message(locale, 'schedules.deleteCancel'),
-                deleteClose: message(locale, 'schedules.deleteClose'),
-                create: {
-                  title: message(locale, 'schedules.create.title'),
-                  jobId: message(locale, 'schedules.create.jobId'),
-                  name: message(locale, 'schedules.create.name'),
-                  cron: message(locale, 'schedules.create.cron'),
-                  objective: message(locale, 'schedules.create.objective'),
-                  timezone: message(locale, 'schedules.create.timezone'),
-                  submit: message(locale, 'schedules.create.submit'),
-                  submitting: message(locale, 'schedules.create.submitting'),
-                },
-                failed: message(locale, 'schedules.failed'),
-                unreachable: message(locale, 'schedules.unreachable'),
-              }}
-            />
+            <p className="text-meta text-muted mb-3">
+              {message(locale, 'schedules.caption')}
+            </p>
+
+            {scheduleRecords.length === 0 ? (
+              // The table this wraps renders only its header for zero rows —
+              // it has no empty row of its own to draw, and is not a file
+              // this screen owns. This notice is the empty state the table
+              // itself is missing: what is missing, why, and a link to the
+              // create form, which stays on the page beneath it rather than
+              // replacing it the way a panel-level empty state would.
+              <div
+                data-testid="schedules-empty"
+                className="mb-4 flex flex-col items-start gap-1 rounded-2 edge border-border bg-sunken px-3 py-2 text-small"
+              >
+                <p className="text-strong">
+                  {message(locale, 'schedules.empty.heading')}
+                </p>
+                <p className="text-muted">{message(locale, 'schedules.empty.body')}</p>
+                <Link href="#schedule-create">
+                  {message(locale, 'schedules.empty.action')}
+                </Link>
+              </div>
+            ) : null}
+
+            <div id="schedule-create">
+              <Schedules
+                schedules={scheduleRecords}
+                viewer={viewer}
+                labels={{
+                  column: {
+                    name: message(locale, 'schedules.column.name'),
+                    cron: message(locale, 'schedules.column.cron'),
+                    objective: message(locale, 'schedules.column.objective'),
+                    timezone: message(locale, 'schedules.column.timezone'),
+                    nextRun: message(locale, 'schedules.column.nextRun'),
+                    enabled: message(locale, 'schedules.column.enabled'),
+                  },
+                  never: message(locale, 'schedules.never'),
+                  enable: message(locale, 'schedules.enable'),
+                  enabling: message(locale, 'schedules.enabling'),
+                  disable: message(locale, 'schedules.disable'),
+                  disabling: message(locale, 'schedules.disabling'),
+                  save: message(locale, 'schedules.save'),
+                  saving: message(locale, 'schedules.saving'),
+                  delete: message(locale, 'schedules.delete'),
+                  deleteConsequence: message(locale, 'schedules.deleteConsequence'),
+                  deleteCancel: message(locale, 'schedules.deleteCancel'),
+                  deleteClose: message(locale, 'schedules.deleteClose'),
+                  create: {
+                    title: message(locale, 'schedules.create.title'),
+                    jobId: message(locale, 'schedules.create.jobId'),
+                    help: {
+                      jobId: message(locale, 'schedules.create.jobIdHelp'),
+                      name: message(locale, 'schedules.create.nameHelp'),
+                      cron: message(locale, 'schedules.create.cronHelp'),
+                      objective: message(locale, 'schedules.create.objectiveHelp'),
+                      timezone: message(locale, 'schedules.create.timezoneHelp'),
+                    },
+                    name: message(locale, 'schedules.create.name'),
+                    cron: message(locale, 'schedules.create.cron'),
+                    objective: message(locale, 'schedules.create.objective'),
+                    timezone: message(locale, 'schedules.create.timezone'),
+                    submit: message(locale, 'schedules.create.submit'),
+                    submitting: message(locale, 'schedules.create.submitting'),
+                  },
+                  failed: message(locale, 'schedules.failed'),
+                  unreachable: message(locale, 'schedules.unreachable'),
+                }}
+              />
+            </div>
           </Panel>
         </div>
       ) : null}

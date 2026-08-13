@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
+import { Input } from '@/components/form';
 import { timestamp } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
@@ -79,8 +80,12 @@ import { UNPLACED, criticalityOf, criticalityRank, zoneOf } from './resources-vi
  *
  * State has not gone anywhere: the default sort is still worst-first, and the
  * state column is still there. It is simply not what somebody narrows by.
+ *
+ * `q` is the fourth: a name search, round-tripped through the address like
+ * every other filter here rather than held in component state, so a search
+ * survives a reload and a link to it finds the same rows for whoever opens it.
  */
-export const RESOURCE_FILTERS: readonly FilterName[] = ['zone', 'criticality'];
+export const RESOURCE_FILTERS: readonly FilterName[] = ['zone', 'criticality', 'q'];
 
 /**
  * Worst first. The order is the triage order, not the alphabet.
@@ -216,11 +221,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   const zones = [...new Set(records.map(zoneOf))].sort();
   const criticalities = [...new Set(records.map(criticalityOf))].filter(Boolean).sort();
 
+  // A name typed into the address, folded for a case that should not matter to
+  // the person who typed it.
+  const query = (state.filters.q ?? '').trim().toLowerCase();
+
   const filtered = records.filter((record) => {
     const zone = state.filters.zone;
     const criticality = state.filters.criticality;
     if (zone !== undefined && zoneOf(record) !== zone) return false;
     if (criticality !== undefined && criticalityOf(record) !== criticality)
+      return false;
+    if (query !== '' && !text(record, 'display_name').toLowerCase().includes(query))
       return false;
     return true;
   });
@@ -237,6 +248,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   });
 
   const none = message(locale, 'surface.none');
+
+  // A column that is never once populated teaches a reader to stop looking at
+  // it — the utilisation meter when nothing has ever reported one, and equally
+  // the divergence mark on a deployment whose last sweep found none. Both are
+  // decided over what is actually on screen, so filtering to a quiet zone can
+  // make either column disappear even when the whole estate has readings.
+  const hasUtilisation = sorted.some((record) => utilisation(record) > 0);
+  const hasDivergence = sorted.some((record) =>
+    undeclared.has(text(record, 'correlation_key')),
+  );
+
   const rows: readonly ListRow[] = sorted.map((record) => {
     const id = text(record, 'resource_id');
     const used = utilisation(record);
@@ -245,12 +267,18 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
       id,
       href: `/resources?selected=${id}`,
       cells: [
-        {
-          kind: 'text',
-          text: diverges
-            ? `${text(record, 'display_name')} ${message(locale, 'resources.divergent.mark')}`
-            : text(record, 'display_name'),
-        },
+        // The name, and only the name — a sentence appended to an identifier
+        // reads as part of it, which is exactly what the divergence mark
+        // stopped being once it moved to a column of its own below.
+        { kind: 'text', text: text(record, 'display_name') },
+        ...(hasDivergence
+          ? [
+              {
+                kind: 'muted' as const,
+                text: diverges ? message(locale, 'resources.divergent.mark') : none,
+              },
+            ]
+          : []),
         { kind: 'muted', text: text(record, 'kind') },
         {
           kind: 'muted',
@@ -268,13 +296,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               : criticalityOf(record),
         },
         { kind: 'status', text: text(record, 'health') },
-        used > 0
-          ? {
-              kind: 'meter',
-              text: text(record, 'display_name'),
-              value: Math.round(used),
-            }
-          : { kind: 'muted', text: none },
+        ...(hasUtilisation
+          ? [
+              used > 0
+                ? {
+                    kind: 'meter' as const,
+                    text: text(record, 'display_name'),
+                    value: Math.round(used),
+                  }
+                : { kind: 'muted' as const, text: none },
+            ]
+          : []),
         {
           kind: 'muted',
           text: timestamp(locale, text(record, 'last_seen_at'), now, zone).relative,
@@ -293,11 +325,55 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             {message(locale, 'resources.summary', {
               watched: String(number(dataOf(summary), 'total')),
               healthy: String(countOf(dataOf(summary), 'by_health', 'healthy')),
-              degraded: String(number(dataOf(summary), 'problems')),
+              // The word in the sentence is "degraded", so the number beside it
+              // is the count of resources actually in that state — not
+              // `problems`, which is degraded *and* unhealthy folded together.
+              // That folding is exactly what left this header unable to add up
+              // against the badges below it or the dashboard's own count.
+              degraded: String(countOf(dataOf(summary), 'by_health', 'degraded')),
+              // Its own number rather than folded into degraded. Broken and
+              // degrading are different states with different next actions, and
+              // one of them had no count anywhere on this screen.
+              unhealthy: String(countOf(dataOf(summary), 'by_health', 'unhealthy')),
             })}
           </span>
         }
       />
+
+      {/* A plain GET form rather than a client filter: the address is still
+          the whole of what a view is, so a search survives a reload and a
+          link to it finds the same rows for whoever opens it. The other
+          filters ride along as hidden fields so typing a name does not drop
+          a zone or criticality already chosen. */}
+      <form
+        method="get"
+        action="/resources"
+        className="mb-4"
+        data-testid="resource-search"
+      >
+        <Input
+          label={message(locale, 'resources.filter.name')}
+          name="q"
+          type="search"
+          defaultValue={state.filters.q ?? ''}
+        />
+        {state.filters.zone === undefined ? null : (
+          <input type="hidden" name="zone" value={state.filters.zone} />
+        )}
+        {state.filters.criticality === undefined ? null : (
+          <input type="hidden" name="criticality" value={state.filters.criticality} />
+        )}
+        {state.sort === '' ? null : (
+          <input
+            type="hidden"
+            name="sort"
+            value={state.descending ? `-${state.sort}` : state.sort}
+          />
+        )}
+        {state.selection === null ? null : (
+          <input type="hidden" name="selected" value={state.selection} />
+        )}
+      </form>
 
       <FilterBar
         path="/resources"
@@ -526,6 +602,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               header: message(locale, 'resources.column.name'),
               sortable: true,
             },
+            // Its own column, drawn only when the current view actually holds
+            // a divergence — the same "not a column nobody ever fills"
+            // discipline the utilisation column below follows.
+            ...(hasDivergence
+              ? [
+                  {
+                    key: 'divergent',
+                    header: message(locale, 'resources.divergent.mark'),
+                  },
+                ]
+              : []),
             {
               key: 'kind',
               header: message(locale, 'resources.column.kind'),
@@ -546,10 +633,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
               header: message(locale, 'resources.column.state'),
               sortable: true,
             },
-            {
-              key: 'utilisation',
-              header: message(locale, 'resources.column.utilisation'),
-            },
+            // Drawn only when something in the current view has a reading.
+            // Every row saying "Not recorded" is not a column, it is a lesson
+            // that this table's columns are not worth reading.
+            ...(hasUtilisation
+              ? [
+                  {
+                    key: 'utilisation',
+                    header: message(locale, 'resources.column.utilisation'),
+                  },
+                ]
+              : []),
             {
               key: 'last_seen_at',
               header: message(locale, 'resources.column.lastSeen'),

@@ -28,6 +28,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.detectors': 'Detectores',
   'nav.memory': 'Memória',
   'nav.knowledge': 'Conhecimento',
+  'autonomy.level.propose_only':
+    'Apenas propor — toda ação é registrada para uma pessoa aprovar. Nada roda sem isso.',
+  'autonomy.level.act_on_low_risk':
+    'Agir em baixo risco — roda sozinho até o limite de risco escolhido; o que for mais arriscado continua esperando uma pessoa.',
+  'autonomy.level.act_and_report':
+    'Agir e reportar — roda sozinho e avisa alguém depois, seja qual for o risco.',
+  'autonomy.level.act_silently':
+    'Agir em silêncio — roda sozinho e não reporta nada. Escolha este nível de propósito.',
   'nav.autonomy': 'Autonomia',
   'nav.catalogue': 'Catálogo',
   'nav.administration': 'Administração',
@@ -562,7 +570,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.list.caption': 'Tudo o que esta instalação vigia',
   'resources.sorted': 'Pior primeiro',
   'resources.summary':
-    '{watched} vigiados · {healthy} saudáveis · {degraded} degradados',
+    '{watched} observados · {healthy} saudáveis · {degraded} degradados · {unhealthy} com falha',
+  'resources.filter.name': 'Nome do recurso',
   'resources.divergent.mark': '(fora do inventário)',
   'resources.detail.back': 'Voltar à lista',
   'resources.signals.title': 'De onde vêm os sinais dele',
@@ -651,6 +660,16 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'schedules.create.cron': 'Cron',
   'schedules.create.objective': 'Objectivo',
   'schedules.create.timezone': 'Fuso horário',
+  'schedules.create.jobIdHelp':
+    'Um identificador estável que este agendamento mantém mesmo se o nome mudar depois.',
+  'schedules.create.nameHelp':
+    'O que os operadores veem nesta lista. Pode renomear à vontade; o identificador não muda.',
+  'schedules.create.cronHelp':
+    'Cinco campos — minuto, hora, dia do mês, mês, dia da semana. `0 8 * * 1` roda toda segunda às 08:00.',
+  'schedules.create.objectiveHelp':
+    'A instrução com que a investigação roda, exatamente como se alguém a tivesse digitado para começar uma à mão.',
+  'schedules.create.timezoneHelp':
+    'O fuso em que a expressão cron é lida. Um nome IANA, como America/Sao_Paulo.',
   'schedules.create.submit': 'Criar agendamento',
   'schedules.create.submitting': 'A criar…',
   'schedules.failed': 'A instalação recusou isto.',

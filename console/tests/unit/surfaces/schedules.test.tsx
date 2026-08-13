@@ -109,6 +109,13 @@ const LABELS = {
     cron: 'Cron',
     objective: 'Objective',
     timezone: 'Timezone',
+    help: {
+      jobId: 'a stable identifier',
+      name: 'what operators see',
+      cron: 'five fields',
+      objective: 'the instruction',
+      timezone: 'the zone it is read in',
+    },
     submit: 'Create schedule',
     submitting: 'Creating…',
   },
