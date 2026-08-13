@@ -184,6 +184,36 @@ SETUP_READINESS: Final[tuple[str, ...]] = (
     SETUP_READINESS_VERIFIED,
 )
 
+# --- What a check concluded, and about what ------------------------------------
+
+#: What one verification concluded. Two words and no third: a check that could
+#: not be run at all is a check nobody recorded, and writing "unknown" down would
+#: make the absence of a record and the presence of an inconclusive one two
+#: spellings of the same screen.
+SETUP_CHECK_PASSED: Final = "passed"
+SETUP_CHECK_FAILED: Final = "failed"
+
+SETUP_CHECK_OUTCOMES: Final[tuple[str, ...]] = (SETUP_CHECK_PASSED, SETUP_CHECK_FAILED)
+
+#: What a check was run against. The two the verify routes accept, and the reason
+#: they are separate rather than one namespace of names: a vendor integration and
+#: a model provider are checked by different code, answer with different
+#: evidence, and an operator reading "prometheus is verified" is not being told
+#: anything about their model.
+SETUP_CHECK_SUBJECT_INTEGRATION: Final = "integration"
+SETUP_CHECK_SUBJECT_PROVIDER: Final = "model-provider"
+
+SETUP_CHECK_SUBJECTS: Final[tuple[str, ...]] = (
+    SETUP_CHECK_SUBJECT_INTEGRATION,
+    SETUP_CHECK_SUBJECT_PROVIDER,
+)
+
+#: How many recorded checks one read returns. A deployment has one row per thing
+#: it can check, so this bounds a listing that is already bounded by how many
+#: integrations exist — it is here so a corrupted table cannot page a console to
+#: death, not because anybody expects to reach it.
+MAX_VERIFICATION_PAGE_SIZE: Final[int] = 500
+
 #: What the guided first investigation is called in the run trace, so a
 #: deployment can tell the one it was shown from the ones it went on to run.
 GUIDED_INVESTIGATION_TRIGGER: Final = "guided-first-investigation"

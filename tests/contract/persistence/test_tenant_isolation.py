@@ -67,6 +67,9 @@ from platform.persistence.ports import (
     TransitQuery,
     UnitOfWork,
     User,
+    VerificationOutcome,
+    VerificationRecord,
+    VerificationSubject,
 )
 from platform.persistence.ports.signal_store import signal_key
 
@@ -93,12 +96,13 @@ TENANT_SCOPED_PORTS = frozenset(
         "incidents",
         "remediation",
         "transit",
+        "verifications",
     }
 )
 
 
 async def write_one_of_everything(uow: UnitOfWork) -> None:
-    """Write a record through all seventeen tenant-scoped ports."""
+    """Write a record through all eighteen tenant-scoped ports."""
     await uow.config.upsert(
         ConfigNode(
             node_id="payments",
@@ -268,6 +272,15 @@ async def write_one_of_everything(uow: UnitOfWork) -> None:
             masking_policy="standard",
         )
     )
+    await uow.verifications.record(
+        VerificationRecord(
+            subject="prometheus",
+            kind=VerificationSubject.INTEGRATION,
+            outcome=VerificationOutcome.PASSED,
+            checked_at=at(),
+            detail="It answered.",
+        )
+    )
     await uow.remediation.upsert_problem(
         RecurringProblem(
             problem_id="problem-1",
@@ -319,6 +332,17 @@ async def test_the_other_tenant_sees_none_of_it(populated: PersistenceGateway) -
         assert await uow.transit.sample("alertmanager") is None
         assert await uow.transit.activity(direction=TransitDirection.INGRESS, since=at()) == ()
         assert await uow.transit.prune(before=at(10)) == 0
+        assert (
+            await uow.verifications.latest(
+                kind=VerificationSubject.INTEGRATION, subject="prometheus"
+            )
+        ) is None
+        assert await uow.verifications.records() == ()
+        assert (
+            await uow.verifications.forget(
+                kind=VerificationSubject.INTEGRATION, subject="prometheus"
+            )
+        ) is False
         assert (
             await uow.estate.mark_absent(source="proxmox", seen_ids=frozenset(), at=at(10))
         ) == ()

@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
+from gateway.http.verifications import integration_health
 from integrations._catalogue.discovery import catalogue
 from integrations._catalogue.entry import HealthStatus
 from platform.startup.bootstrap import establish_durable_credential, read_credential
@@ -125,14 +126,14 @@ async def checklist(
     The integration catalogue and its health ledger are read here rather than in
     ``build_checklist``: that module is tier 3 and reaching up for ``integrations``
     would be the boundary ``make check-imports`` exists to hold. Health is what
-    the scheduled live runs recorded, so "verified" means something answered
-    rather than that a credential is present.
+    the recorded checks found, so "verified" means something answered rather than
+    that a credential is present — and it means that on the next request too,
+    which is the whole reason the answer is written down.
     """
-    ledger = getattr(state, "integration_health", None)
-    declared = tuple(entry.name for entry in catalogue(health=ledger))
-    reached = tuple(
-        entry.name for entry in catalogue(health=ledger) if entry.health is HealthStatus.HEALTHY
-    )
+    ledger = await integration_health(state.gateway, auth.scope)
+    entries = catalogue(health=ledger)
+    declared = tuple(entry.name for entry in entries)
+    reached = tuple(entry.name for entry in entries if entry.health is HealthStatus.HEALTHY)
     built = await build_checklist(
         state.gateway,
         organisation_id=auth.scope.org_id,

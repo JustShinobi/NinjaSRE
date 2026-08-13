@@ -864,6 +864,37 @@ class TransitSampleRow(Base):
     truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
+class VerificationRow(Base):
+    """The last check run against one thing, and what it found.
+
+    The primary key is ``(org_id, kind, subject)``, which is the whole design:
+    checking the same integration twice upserts its own row, so there is exactly
+    one answer to "does this work" by construction rather than because every
+    writer remembered to delete the previous one. There is no timestamp in the
+    key and no history table beside it — a check is current state, and the port's
+    docstring says why keeping every one would be a different feature.
+
+    ``kind`` is in the key because a vendor and a model provider can share a
+    name, and one row for both would put a green tick on a model nobody
+    exercised.
+    """
+
+    __tablename__ = "verifications"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    subject: Mapped[str] = mapped_column(String(NAME_LENGTH), primary_key=True)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    checked_by: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    model_id: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+
+
 class IncidentRow(Base):
     """One thing that is wrong, whatever noticed it.
 
@@ -1076,4 +1107,5 @@ __all__ = [
     "User",
     "VectorGenerationRow",
     "VectorIndexRow",
+    "VerificationRow",
 ]

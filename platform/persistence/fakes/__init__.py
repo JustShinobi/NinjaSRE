@@ -1,4 +1,4 @@
-"""In-memory implementations of all seventeen ports, and the gateway over them.
+"""In-memory implementations of all eighteen ports, and the gateway over them.
 
 Not a test double. These are what let features 007–017 be built and unit-tested
 before a database exists, which means they are load-bearing: a fake that

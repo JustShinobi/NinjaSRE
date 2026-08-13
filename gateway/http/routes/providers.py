@@ -46,10 +46,15 @@ from core.llm.verification import ModelVerdict, verify_model
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
 from gateway.http.state import GatewayState
+from gateway.http.verifications import record_check, recorded_checks
 from platform.config_service.service import ConfigService
 from platform.credentials.health import CredentialHealth
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
+from platform.persistence.ports.verification_ledger import (
+    VerificationRecord,
+    VerificationSubject,
+)
 
 router = APIRouter(prefix="/v1/providers", tags=["providers"])
 
@@ -167,23 +172,45 @@ async def _configured(state: GatewayState, auth: AuthenticatedRequest) -> frozen
     return frozenset(entry.integration for entry in report.entries if entry.state.usable)
 
 
-def _view(onboarding: ProviderOnboarding, *, configured: bool) -> ProviderView:
+def _view(
+    onboarding: ProviderOnboarding,
+    *,
+    configured: bool,
+    checked: VerificationRecord | None = None,
+) -> ProviderView:
     """Return the listing row for one provider.
 
-    ``verified`` is always false here. Verifying makes a live call, and a
-    listing that made nine of them would spend an operator's money to render a
-    page — so what this reports is that nobody has checked, which is a different
-    claim from "it does not work" and is worded as one.
+    This listing still makes no live call — verifying costs an operator tokens,
+    and a page that spent them to render nine rows is a page nobody opens twice.
+    What it now reports is what the last check *found*, read from where that
+    check was written down. Absent a record it reports that nobody has checked,
+    which is a different claim from "it does not work" and is worded as one.
     """
     return ProviderView(
         provider_id=onboarding.provider_id,
         display_name=onboarding.display_name,
         local=onboarding.local,
         configured=configured,
-        verified=False,
+        verified=checked is not None and checked.verified,
         default_model=onboarding.default_model,
-        detail=_NOT_VERIFIED if configured else _NOT_CONFIGURED,
+        detail=_detail(configured=configured, checked=checked),
     )
+
+
+def _detail(*, configured: bool, checked: VerificationRecord | None) -> str:
+    """Return the sentence under one provider's row.
+
+    Four states rather than two, and each of them is a different next action:
+    nothing stored, stored and unchecked, checked and working, checked and
+    broken. The one that used to be missing is the last — a deployment whose key
+    stopped working read exactly like one nobody had got round to checking.
+    """
+    if checked is None:
+        return _NOT_VERIFIED if configured else _NOT_CONFIGURED
+    exercised = f" ({checked.model_id})" if checked.model_id else ""
+    if checked.verified:
+        return f"a check reached this provider and it answered{exercised}"
+    return f"the last check of this provider{exercised} did not pass: {checked.detail}"
 
 
 @router.get("", response_model=ProviderList)
@@ -193,9 +220,16 @@ async def list_providers(
 ) -> ProviderList:
     """Return every supported provider, in the order the platform documents them."""
     configured = await _configured(state, auth)
+    checked = await recorded_checks(
+        state.gateway, auth.scope, kind=VerificationSubject.MODEL_PROVIDER
+    )
     return ProviderList(
         providers=[
-            _view(onboarding, configured=onboarding.provider_id in configured)
+            _view(
+                onboarding,
+                configured=onboarding.provider_id in configured,
+                checked=checked.get(onboarding.provider_id),
+            )
             for onboarding in all_onboardings()
         ]
     )
@@ -214,7 +248,12 @@ async def show_provider(
     """
     onboarding = _onboarding(provider_id)
     configured = await _configured(state, auth)
-    listing = _view(onboarding, configured=provider_id in configured)
+    checked = await recorded_checks(
+        state.gateway, auth.scope, kind=VerificationSubject.MODEL_PROVIDER
+    )
+    listing = _view(
+        onboarding, configured=provider_id in configured, checked=checked.get(provider_id)
+    )
     return ProviderDetailView(
         **listing.model_dump(),
         fields=[CredentialFieldView(**declared.to_record()) for declared in onboarding.fields],
@@ -257,6 +296,17 @@ async def verify_provider(
         verify(provider_id, configured)
         if verify is not None
         else _preflight(provider_id, configured)
+    )
+    await record_check(
+        state.gateway,
+        auth.scope,
+        kind=VerificationSubject.MODEL_PROVIDER,
+        subject=provider_id,
+        passed=verdict.satisfied,
+        detail=verdict.summary_line if verdict.satisfied else verdict.limitation,
+        checked_by=auth.principal_id,
+        team_node_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
+        model_id=verdict.model_id,
     )
     return ProviderVerificationView(
         provider_id=verdict.provider_id or provider_id,

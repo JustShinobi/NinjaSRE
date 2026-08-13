@@ -38,16 +38,22 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from gateway.http.credential_schemas import schema_for
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
+from gateway.http.verifications import forget_check, integration_health, record_check
 from integrations._catalogue.discovery import catalogue
 from integrations._catalogue.gaps import gaps
 from platform.credentials.errors import CredentialSchemaViolation
 from platform.credentials.handles import CredentialHandle
-from platform.credentials.health import CredentialHealth
+from platform.credentials.health import (
+    CredentialHealth,
+    CredentialHealthState,
+    IntegrationCredentialHealth,
+)
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
 from platform.estate.service import EstateService
@@ -60,6 +66,7 @@ from platform.identity.audit.recorder import (
 from platform.observability.logging import get_logger
 from platform.persistence.ports.audit_repository import ActorKind
 from platform.persistence.ports.estate_repository import EstateQuery
+from platform.persistence.ports.verification_ledger import VerificationSubject
 
 logger = get_logger(__name__)
 
@@ -222,8 +229,7 @@ async def list_integrations(
     deriving relevance separately is how one of them offers Prometheus first
     while the other buries it, with nobody able to say which is right.
     """
-    ledger = getattr(state, "integration_health", None)
-    entries = catalogue(health=ledger)
+    entries = catalogue(health=await integration_health(state.gateway, auth.scope))
     suggested = await _suggestions(state, auth, entries)
     ordered = sorted(entries, key=lambda entry: (entry.name not in suggested, entry.name))
     return IntegrationList(
@@ -278,6 +284,36 @@ def _team_of(auth: AuthenticatedRequest) -> str:
     return auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM
 
 
+def _affected_kinds(name: str) -> tuple[VerificationSubject, ...]:
+    """Return every kind of recorded check a credential write for ``name`` invalidates.
+
+    Both, for a name that is a vendor *and* a supported provider — Gemini is one
+    stored credential that two different checks are run against. Replacing the
+    key falsifies both verdicts, and forgetting only one of them would leave the
+    other as a green tick earned by a credential that no longer exists.
+    """
+    if name in SUPPORTED_PROVIDERS:
+        return (VerificationSubject.INTEGRATION, VerificationSubject.MODEL_PROVIDER)
+    return (VerificationSubject.INTEGRATION,)
+
+
+def _check_detail(entry: IntegrationCredentialHealth) -> str:
+    """Return the sentence a recorded check carries, for each credential state.
+
+    Written here rather than taken from the enum because the record is read by a
+    person: "undecryptable" is a state name, and "the stored credential cannot be
+    decrypted with this deployment's key" is something somebody can act on.
+    """
+    return {
+        CredentialHealthState.CONFIGURED: "the stored credential is present and current",
+        CredentialHealthState.MISSING: "no credential is stored for this integration",
+        CredentialHealthState.EXPIRED: "the stored credential has expired",
+        CredentialHealthState.UNDECRYPTABLE: (
+            "the stored credential cannot be decrypted with this deployment's key"
+        ),
+    }[entry.state]
+
+
 @router.post("/{name}/verify", response_model=IntegrationVerification)
 async def verify_integration(
     name: str,
@@ -290,12 +326,31 @@ async def verify_integration(
     two as the write beside it — the guided first run stores a provider key and
     then verifies it, and a verify that only knew about vendor packages would
     refuse the second half of its own flow.
+
+    The answer is written down. A check whose result lived only in the response
+    left the first run's "check that each of them works" step uncompletable:
+    green while the tab was open, "nobody has checked this one" on reload.
     """
     schemas = CredentialSchemaRegistry.from_schemas(schema_for(name))
     vault = Vault(gateway=state.gateway, schemas=schemas)
     health = CredentialHealth(vault=vault)
     report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
+    # Always as an integration, even where ``name`` is also a model provider.
+    # What this route establishes is that a stored credential is present and
+    # decryptable; the provider's own check exercises tool calling against the
+    # endpoint. Writing this cheap answer into the provider's row would
+    # overwrite a real verdict with a weaker claim wearing its name.
+    await record_check(
+        state.gateway,
+        auth.scope,
+        kind=VerificationSubject.INTEGRATION,
+        subject=name,
+        passed=entry.state.usable,
+        detail=_check_detail(entry),
+        checked_by=auth.principal_id,
+        team_node_id=_team_of(auth),
+    )
     return IntegrationVerification(
         integration=name, state=entry.state.value, usable=entry.state.usable
     )
@@ -390,6 +445,13 @@ async def store_credential(
     # The field names, never their values. This is the line that gets pasted
     # into a support thread.
     logger.info("gateway.integration_credential_stored", integration=name, fields=names)
+
+    # A verdict belongs to the credential it was reached with. Keeping the last
+    # one across a rotation would leave a green tick on a key nothing has
+    # tested, which is worse than never having checked — it is a wrong answer
+    # with the authority of a measurement.
+    for kind in _affected_kinds(name):
+        await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
 
     health = CredentialHealth(vault=vault)
     report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))

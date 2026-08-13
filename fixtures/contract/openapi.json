@@ -11550,7 +11550,7 @@
     },
     "/v1/integrations/{name}/verify": {
       "post": {
-        "description": "Check this team's credential for ``name``: configured, current, decryptable.\n\n``name`` is an installed integration or a supported model provider, the same\ntwo as the write beside it — the guided first run stores a provider key and\nthen verifies it, and a verify that only knew about vendor packages would\nrefuse the second half of its own flow.",
+        "description": "Check this team's credential for ``name``: configured, current, decryptable.\n\n``name`` is an installed integration or a supported model provider, the same\ntwo as the write beside it — the guided first run stores a provider key and\nthen verifies it, and a verify that only knew about vendor packages would\nrefuse the second half of its own flow.\n\nThe answer is written down. A check whose result lived only in the response\nleft the first run's \"check that each of them works\" step uncompletable:\ngreen while the tab was open, \"nobody has checked this one\" on reload.",
         "operationId": "verify_integration_v1_integrations__name__verify_post",
         "parameters": [
           {
@@ -14376,7 +14376,7 @@
     },
     "/v1/setup/checklist": {
       "get": {
-        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe scheduled live runs recorded, so \"verified\" means something answered\nrather than that a credential is present.",
+        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present — and it means that on the next request too,\nwhich is the whole reason the answer is written down.",
         "operationId": "checklist_v1_setup_checklist_get",
         "parameters": [
           {
