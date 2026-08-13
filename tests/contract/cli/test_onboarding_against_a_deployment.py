@@ -127,13 +127,21 @@ class _Deployment:
         self.thread.join(timeout=10)
 
 
-async def _verifier(provider_id: str) -> ModelVerdict:
-    """Stand in for the one call that would leave the host."""
+async def _verifier(provider_id: str, model_id: str | None = None) -> ModelVerdict:
+    """Stand in for the one call that would leave the host.
+
+    ``model_id`` is what the deployment is configured to run, and ``None`` when
+    the configuration names none — in which case the verifier's own default
+    stands. Taking it is not optional for a double: a verifier of one argument
+    is a verifier the application cannot call, and the deployment answered every
+    verification with a 500 for exactly as long as this signature disagreed.
+    """
+    model = model_id or DEFAULT_MODEL_ID
     return ModelVerdict(
         provider_id=provider_id,
-        model_id=DEFAULT_MODEL_ID,
+        model_id=model,
         satisfied=True,
-        summary_line=f"{DEFAULT_MODEL_ID} on {provider_id} calls tools and returns structure",
+        summary_line=f"{model} on {provider_id} calls tools and returns structure",
     )
 
 

@@ -225,7 +225,7 @@ async def _seed_estate(gateway: FakePersistence, now: datetime) -> None:
         )
 
 
-async def _answers_from_the_endpoint(provider_id: str) -> ModelVerdict:
+async def _answers_from_the_endpoint(provider_id: str, model_id: str | None = None) -> ModelVerdict:
     """Stand in for the one thing this suite cannot do: call a model endpoint.
 
     Everything else here is the real application. Verification is the single
@@ -235,7 +235,7 @@ async def _answers_from_the_endpoint(provider_id: str) -> ModelVerdict:
     """
     return ModelVerdict(
         provider_id=provider_id,
-        model_id=DEFAULT_MODEL_ID,
+        model_id=model_id or DEFAULT_MODEL_ID,
         satisfied=True,
         summary_line=f"{DEFAULT_MODEL_ID} on {provider_id} calls tools and returns structure",
     )
