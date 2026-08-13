@@ -62,7 +62,7 @@ PLAN: Final = console_root() / "src" / "surfaces" / "first-run" / "plan.ts"
 SCREEN: Final = console_root() / "src" / "surfaces" / "screens" / "first-run.tsx"
 DASHBOARD: Final = console_root() / "src" / "surfaces" / "screens" / "dashboard.tsx"
 SHELL_LOAD: Final = console_root() / "src" / "shell" / "load.ts"
-TUTORIAL: Final = console_root() / "src" / "surfaces" / "first-run" / "tutorial.tsx"
+TUTORIAL: Final = console_root() / "src" / "surfaces" / "first-run" / "tutorial-setting.ts"
 MODEL_STEP: Final = console_root() / "src" / "surfaces" / "first-run" / "model.tsx"
 
 
@@ -233,10 +233,17 @@ def test_the_model_step_writes_the_provider_alongside_the_model() -> None:
     """
     source = _source(PLAN)
     assert "MODEL_PROVIDER_SETTING" in source and "MODEL_SETTING" in source
-    written = re.search(r"const patch = \{(.*?)\};", _source(MODEL_STEP), re.DOTALL)
-    assert written is not None, "the model step sends no patch"
-    assert "MODEL_PROVIDER_SETTING" in written.group(1)
-    assert "MODEL_SETTING" in written.group(1)
+
+    # The function that grows the patch, whatever it is called and however the
+    # document is built. Matching a literal `const patch = {...}` made this
+    # test a statement about one spelling: it went quiet the moment the patch
+    # moved into a builder, and the setting it exists to protect could have
+    # been dropped without a word.
+    built = re.search(r"function patchOf\((.*?)\n\}", _source(MODEL_STEP), re.DOTALL)
+    assert built is not None, "the model step has no patch builder to inspect"
+    assert "MODEL_PROVIDER_SETTING" in built.group(1)
+    assert "MODEL_SETTING" in built.group(1)
+    assert "patchOf(" in _source(MODEL_STEP), "the builder is never called"
 
 
 # --- The outcome the guided run is for, through the routes the console calls ----------
