@@ -146,7 +146,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-100",
+              "key": "plateau",
               "keyed_by": "name",
               "question": "up"
             }
@@ -317,7 +317,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-101",
+              "key": "amber",
               "keyed_by": "name",
               "question": "up"
             }
@@ -472,7 +472,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-102",
+              "key": "anchor",
               "keyed_by": "name",
               "question": "up"
             }
@@ -634,7 +634,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-103",
+              "key": "arbour",
               "keyed_by": "name",
               "question": "up"
             }
@@ -789,7 +789,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-104",
+              "key": "aspen",
               "keyed_by": "name",
               "question": "up"
             }
@@ -950,7 +950,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-105",
+              "key": "basalt",
               "keyed_by": "name",
               "question": "up"
             }
@@ -1105,7 +1105,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-106",
+              "key": "beacon",
               "keyed_by": "name",
               "question": "up"
             }
@@ -1267,7 +1267,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-107",
+              "key": "beryl",
               "keyed_by": "name",
               "question": "up"
             }
@@ -1422,7 +1422,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-108",
+              "key": "birch",
               "keyed_by": "name",
               "question": "up"
             }
@@ -1584,7 +1584,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-109",
+              "key": "bramble",
               "keyed_by": "name",
               "question": "up"
             }
@@ -1739,7 +1739,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-110",
+              "key": "brook",
               "keyed_by": "name",
               "question": "up"
             }
@@ -1901,7 +1901,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-111",
+              "key": "cairn",
               "keyed_by": "name",
               "question": "up"
             }
@@ -2055,7 +2055,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-112",
+              "key": "cedar",
               "keyed_by": "name",
               "question": "up"
             }
@@ -2217,7 +2217,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-113",
+              "key": "cinder",
               "keyed_by": "name",
               "question": "up"
             }
@@ -2372,7 +2372,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-114",
+              "key": "cobalt",
               "keyed_by": "name",
               "question": "up"
             }
@@ -2550,7 +2550,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-115",
+              "key": "quartz",
               "keyed_by": "name",
               "question": "up"
             }
@@ -2714,7 +2714,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-116",
+              "key": "coral",
               "keyed_by": "name",
               "question": "up"
             }
@@ -2876,7 +2876,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-117",
+              "key": "cove",
               "keyed_by": "name",
               "question": "up"
             }
@@ -3029,7 +3029,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-118",
+              "key": "crag",
               "keyed_by": "name",
               "question": "up"
             }
@@ -3188,7 +3188,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-119",
+              "key": "cypress",
               "keyed_by": "name",
               "question": "up"
             }
@@ -3348,7 +3348,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-120",
+              "key": "delta",
               "keyed_by": "name",
               "question": "up"
             }
@@ -3508,7 +3508,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-121",
+              "key": "dune",
               "keyed_by": "name",
               "question": "up"
             }
@@ -3668,7 +3668,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-122",
+              "key": "ember",
               "keyed_by": "name",
               "question": "up"
             }
@@ -3828,7 +3828,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-123",
+              "key": "fathom",
               "keyed_by": "name",
               "question": "up"
             }
@@ -3988,7 +3988,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-124",
+              "key": "fennel",
               "keyed_by": "name",
               "question": "up"
             }
@@ -4148,7 +4148,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-125",
+              "key": "fjord",
               "keyed_by": "name",
               "question": "up"
             }
@@ -4307,7 +4307,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-126",
+              "key": "flint",
               "keyed_by": "name",
               "question": "up"
             }
@@ -4467,7 +4467,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-127",
+              "key": "gable",
               "keyed_by": "name",
               "question": "up"
             }
@@ -4627,7 +4627,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-128",
+              "key": "garnet",
               "keyed_by": "name",
               "question": "up"
             }
@@ -4789,7 +4789,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-129",
+              "key": "granite",
               "keyed_by": "name",
               "question": "up"
             }
@@ -4951,7 +4951,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-130",
+              "key": "harbour",
               "keyed_by": "name",
               "question": "up"
             }
@@ -5113,7 +5113,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-131",
+              "key": "hazel",
               "keyed_by": "name",
               "question": "up"
             }
@@ -5275,7 +5275,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-132",
+              "key": "heather",
               "keyed_by": "name",
               "question": "up"
             }
@@ -5436,7 +5436,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-133",
+              "key": "hollow",
               "keyed_by": "name",
               "question": "up"
             }
@@ -5598,7 +5598,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-134",
+              "key": "indigo",
               "keyed_by": "name",
               "question": "up"
             }
@@ -5760,7 +5760,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-135",
+              "key": "ivory",
               "keyed_by": "name",
               "question": "up"
             }
@@ -5922,7 +5922,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-136",
+              "key": "jasper",
               "keyed_by": "name",
               "question": "up"
             }
@@ -6084,7 +6084,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-137",
+              "key": "juniper",
               "keyed_by": "name",
               "question": "up"
             }
@@ -6246,7 +6246,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-138",
+              "key": "kelp",
               "keyed_by": "name",
               "question": "up"
             }
@@ -6408,7 +6408,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-139",
+              "key": "lagoon",
               "keyed_by": "name",
               "question": "up"
             }
@@ -6585,7 +6585,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-140",
+              "key": "sorrel",
               "keyed_by": "name",
               "question": "up"
             }
@@ -6756,7 +6756,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-141",
+              "key": "laurel",
               "keyed_by": "name",
               "question": "up"
             }
@@ -6922,7 +6922,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-142",
+              "key": "harbour",
               "keyed_by": "name",
               "question": "up"
             }
@@ -7093,7 +7093,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-143",
+              "key": "linen",
               "keyed_by": "name",
               "question": "up"
             }
@@ -7255,7 +7255,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-144",
+              "key": "lumen",
               "keyed_by": "name",
               "question": "up"
             }
@@ -7417,7 +7417,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-145",
+              "key": "maple",
               "keyed_by": "name",
               "question": "up"
             }
@@ -7579,7 +7579,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-146",
+              "key": "marble",
               "keyed_by": "name",
               "question": "up"
             }
@@ -7740,7 +7740,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-147",
+              "key": "meadow",
               "keyed_by": "name",
               "question": "up"
             }
@@ -7902,7 +7902,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-148",
+              "key": "mesa",
               "keyed_by": "name",
               "question": "up"
             }
@@ -8064,7 +8064,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-149",
+              "key": "mica",
               "keyed_by": "name",
               "question": "up"
             }
@@ -8226,7 +8226,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-150",
+              "key": "mint",
               "keyed_by": "name",
               "question": "up"
             }
@@ -8388,7 +8388,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-151",
+              "key": "moss",
               "keyed_by": "name",
               "question": "up"
             }
@@ -8550,7 +8550,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-152",
+              "key": "nickel",
               "keyed_by": "name",
               "question": "up"
             }
@@ -8712,7 +8712,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-153",
+              "key": "nimbus",
               "keyed_by": "name",
               "question": "up"
             }
@@ -8873,7 +8873,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-154",
+              "key": "oakum",
               "keyed_by": "name",
               "question": "up"
             }
@@ -9035,7 +9035,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-155",
+              "key": "obsidian",
               "keyed_by": "name",
               "question": "up"
             }
@@ -9197,7 +9197,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-156",
+              "key": "onyx",
               "keyed_by": "name",
               "question": "up"
             }
@@ -9359,7 +9359,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-157",
+              "key": "opal",
               "keyed_by": "name",
               "question": "up"
             }
@@ -9521,7 +9521,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-158",
+              "key": "orchard",
               "keyed_by": "name",
               "question": "up"
             }
@@ -9683,7 +9683,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-159",
+              "key": "osprey",
               "keyed_by": "name",
               "question": "up"
             }
@@ -9845,7 +9845,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-160",
+              "key": "pebble",
               "keyed_by": "name",
               "question": "up"
             }
@@ -10010,7 +10010,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-161",
+              "key": "lumen",
               "keyed_by": "name",
               "question": "up"
             }
@@ -10181,7 +10181,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-162",
+              "key": "pine",
               "keyed_by": "name",
               "question": "up"
             }
@@ -10343,7 +10343,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-163",
+              "key": "plateau",
               "keyed_by": "name",
               "question": "up"
             }
@@ -10505,7 +10505,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-164",
+              "key": "poplar",
               "keyed_by": "name",
               "question": "up"
             }
@@ -10667,7 +10667,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-165",
+              "key": "quarry",
               "keyed_by": "name",
               "question": "up"
             }
@@ -10829,7 +10829,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-166",
+              "key": "quartz",
               "keyed_by": "name",
               "question": "up"
             }
@@ -10991,7 +10991,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-167",
+              "key": "quill",
               "keyed_by": "name",
               "question": "up"
             }
@@ -11152,7 +11152,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-168",
+              "key": "ridge",
               "keyed_by": "name",
               "question": "up"
             }
@@ -11314,7 +11314,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-169",
+              "key": "rowan",
               "keyed_by": "name",
               "question": "up"
             }
@@ -11476,7 +11476,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-170",
+              "key": "rushes",
               "keyed_by": "name",
               "question": "up"
             }
@@ -11638,7 +11638,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-171",
+              "key": "sable",
               "keyed_by": "name",
               "question": "up"
             }
@@ -11800,7 +11800,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-172",
+              "key": "saffron",
               "keyed_by": "name",
               "question": "up"
             }
@@ -11962,7 +11962,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-173",
+              "key": "sandstone",
               "keyed_by": "name",
               "question": "up"
             }
@@ -12124,7 +12124,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-174",
+              "key": "sequoia",
               "keyed_by": "name",
               "question": "up"
             }
@@ -12285,7 +12285,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-175",
+              "key": "shale",
               "keyed_by": "name",
               "question": "up"
             }
@@ -12447,7 +12447,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-176",
+              "key": "shingle",
               "keyed_by": "name",
               "question": "up"
             }
@@ -12609,7 +12609,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-177",
+              "key": "silver",
               "keyed_by": "name",
               "question": "up"
             }
@@ -12771,7 +12771,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-178",
+              "key": "slate",
               "keyed_by": "name",
               "question": "up"
             }
@@ -12933,7 +12933,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-179",
+              "key": "sorrel",
               "keyed_by": "name",
               "question": "up"
             }
@@ -13095,7 +13095,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-180",
+              "key": "spruce",
               "keyed_by": "name",
               "question": "up"
             }
@@ -13255,7 +13255,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "ct-181",
+              "key": "stone",
               "keyed_by": "name",
               "question": "up"
             }
@@ -14949,7 +14949,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "node-node01",
+              "key": "node01",
               "keyed_by": "name",
               "question": "up"
             }
@@ -16047,7 +16047,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "node-node02",
+              "key": "node02",
               "keyed_by": "name",
               "question": "up"
             }
@@ -16204,7 +16204,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "vm-182",
+              "key": "sumac",
               "keyed_by": "name",
               "question": "up"
             }
@@ -16362,7 +16362,7 @@
             {
               "detail": "proxmox discovered this resource and reports its state, which is the provider's own answer rather than a synthetic check of it",
               "integration": "proxmox",
-              "key": "vm-183",
+              "key": "tamarisk",
               "keyed_by": "name",
               "question": "up"
             }
