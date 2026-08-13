@@ -28,6 +28,7 @@ function setup(over: Partial<DeploymentSetup> = {}): DeploymentSetup {
     integrations: [],
     steps: [],
     modelChosen: false,
+    providerName: '',
     ...over,
   };
 }
@@ -87,6 +88,43 @@ describe('where a deployment is', () => {
           provider: 'configured',
           modelChosen: true,
           integrations: [{ name: 'metrics-store', readiness: 'configured' }],
+        }),
+      ),
+    ).toBe('verify');
+  });
+
+  it('does not ask for the provider to be checked twice under its two names', () => {
+    // A provider that is also a catalogue integration — the Gemini case — is
+    // one stored credential and one thing to check. Counting it a second time
+    // as an integration made the verification step uncompletable: the row that
+    // would have satisfied it is the row the screen deliberately does not show.
+    expect(
+      currentStep(
+        setup({
+          provider: 'verified',
+          providerName: 'google_gemini',
+          modelChosen: true,
+          integrations: [
+            { name: 'google_gemini', readiness: 'configured' },
+            { name: 'metrics-store', readiness: 'verified' },
+          ],
+          steps: [{ name: 'infrastructure-source', state: 'ready' }],
+        }),
+      ),
+    ).toBe('estate');
+  });
+
+  it('still needs an integration that is not the provider to answer', () => {
+    expect(
+      currentStep(
+        setup({
+          provider: 'verified',
+          providerName: 'google_gemini',
+          modelChosen: true,
+          integrations: [
+            { name: 'google_gemini', readiness: 'verified' },
+            { name: 'metrics-store', readiness: 'configured' },
+          ],
         }),
       ),
     ).toBe('verify');

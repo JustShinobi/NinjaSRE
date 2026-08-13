@@ -59,6 +59,16 @@ export interface DeploymentSetup {
   readonly steps: readonly ChecklistStep[];
   /** Whether the configuration this viewer's node resolves to names a model. */
   readonly modelChosen: boolean;
+  /**
+   * The provider this deployment is configured to run, or `''`.
+   *
+   * Carried because some providers are also catalogue integrations — Gemini
+   * both drives investigations and appears in the vendor catalogue — and the
+   * checklist therefore lists one stored credential under two headings. Without
+   * the name there is no way to tell which of the listed integrations *is* the
+   * provider, and the verification step asks for one thing to be checked twice.
+   */
+  readonly providerName: string;
 }
 
 /** The checklist step that says an estate exists. */
@@ -101,6 +111,24 @@ export function configuredIntegrations(
 }
 
 /**
+ * The integrations the verification step actually asks about.
+ *
+ * The configured ones, minus the model provider where it is also a catalogue
+ * vendor. That subtraction is the whole function: the provider is checked by
+ * the provider row — against the model, which is the check that means
+ * something — and counting it again as an integration made the step
+ * uncompletable, because the second row is the one the screen deliberately does
+ * not show.
+ */
+export function verifiableIntegrations(
+  setup: DeploymentSetup,
+): readonly IntegrationReadiness[] {
+  return configuredIntegrations(setup).filter(
+    (entry) => setup.providerName === '' || entry.name !== setup.providerName,
+  );
+}
+
+/**
  * Whether `step` needs nothing further.
  *
  * Each answer is a fact the deployment records, and where no such fact exists
@@ -127,12 +155,14 @@ export function stepDone(step: WizardStep, setup: DeploymentSetup): boolean {
       return setup.provider !== 'absent' && setup.modelChosen;
     case 'integrations':
       return configured.length > 0;
-    case 'verify':
+    case 'verify': {
+      const checkable = verifiableIntegrations(setup);
       return (
         setup.provider === 'verified' &&
         configured.length > 0 &&
-        configured.every((entry) => entry.readiness === 'verified')
+        checkable.every((entry) => entry.readiness === 'verified')
       );
+    }
     case 'estate':
       return stateOfStep(setup, SOURCE_STEP) === 'done';
     case 'alerts':
@@ -214,5 +244,12 @@ export function readSetup(checklist: unknown, values: unknown): DeploymentSetup 
       action: text(entry, 'action'),
     })),
     modelChosen: typeof valueAt(values, MODEL_SETTING) === 'string',
+    providerName: providerNameOf(values),
   };
+}
+
+/** The configured provider's name, or `''` when the configuration names none. */
+function providerNameOf(values: unknown): string {
+  const named = valueAt(values, MODEL_PROVIDER_SETTING);
+  return typeof named === 'string' ? named : '';
 }

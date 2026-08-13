@@ -156,6 +156,20 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
       providerRecords.find((record) => flag(record, 'configured')),
       'provider_id',
     );
+  // The provider this deployment actually runs, which is not always the one the
+  // address names: `?provider=` is what somebody is *looking at* on the choice
+  // step. The two lists below subtract this one, because a provider that is
+  // also a catalogue vendor is one stored credential rather than two — and
+  // subtracting whatever the address happened to name would hide a different
+  // vendor from the list of things to check.
+  const runningProvider =
+    setup.providerName === ''
+      ? text(
+          providerRecords.find((record) => flag(record, 'configured')),
+          'provider_id',
+        )
+      : setup.providerName;
+
   const detail =
     chosen === ''
       ? undefined
@@ -234,13 +248,21 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
             readiness: setup.provider,
           },
         ]),
-    ...configuredIntegrations(setup).map((entry) => ({
-      kind: 'integration' as const,
-      name: entry.name,
-      displayName:
-        offers.find((offer) => offer.name === entry.name)?.displayName ?? entry.name,
-      readiness: entry.readiness,
-    })),
+    // The chosen provider is excluded here for the reason it is excluded from
+    // `established` below: a provider that is also a catalogue integration —
+    // Gemini both drives investigations and appears in the catalogue — is one
+    // stored credential and one thing to check. Listed twice it read as
+    // "Google Gemini" and "google_gemini", two rows an operator has to check
+    // separately, one of which is the same key under its internal name.
+    ...configuredIntegrations(setup)
+      .filter((entry) => entry.name !== runningProvider)
+      .map((entry) => ({
+        kind: 'integration' as const,
+        name: entry.name,
+        displayName:
+          offers.find((offer) => offer.name === entry.name)?.displayName ?? entry.name,
+        readiness: entry.readiness,
+      })),
   ];
 
   // Everything this deployment actually holds a credential for, provider
@@ -256,7 +278,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
     ...(setup.provider === 'absent'
       ? []
       : [{ name: chosen === '' ? 'provider' : chosen, readiness: setup.provider }]),
-    ...configuredIntegrations(setup).filter((entry) => entry.name !== chosen),
+    ...configuredIntegrations(setup).filter((entry) => entry.name !== runningProvider),
   ];
 
   const stepTitle = (step: WizardStep): string =>
