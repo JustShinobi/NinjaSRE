@@ -5,7 +5,11 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { cx } from '@/design/cx';
 import { message, type Locale } from '@/i18n/messages';
-import { COMMAND_GROUPS, matching, type Command } from './commands';
+import { COMMAND_GROUPS, matching, type Command, type SearchAnswer } from './commands';
+import { worthSearching } from './search';
+
+/** What the palette holds before anything has been asked. */
+const UNASKED: SearchAnswer = { commands: [], partial: false };
 
 /**
  * The palette: everywhere, keyboard-only, and without a side effect when it is
@@ -21,7 +25,25 @@ import { COMMAND_GROUPS, matching, type Command } from './commands';
  * easily lost: a palette that committed the highlighted entry on blur would run
  * a command every time somebody pressed the shortcut by accident, and the
  * command they would run is the first one in the list.
+ *
+ * **It also asks the deployment.** The placeholder promised "Search resources,
+ * runs, incidents" while the list held the navigation, the recent runs and one
+ * action — so typing the name of a resource on the Resources screen answered
+ * "Nothing matches that". The lookup is debounced, and every keystroke aborts
+ * the request the last one started: a slow answer that arrives after somebody
+ * has typed three more letters is an answer to a question they are no longer
+ * asking, and rendering it would move the row out from under the Enter key.
  */
+
+/**
+ * How long a keystroke waits before the deployment is asked.
+ *
+ * Long enough that typing a resource name is one request rather than twelve,
+ * short enough that it feels like the list is keeping up. Every request is
+ * aborted by the next one regardless, so this is about the deployment's load
+ * and not about correctness.
+ */
+export const SEARCH_DEBOUNCE_MS = 180;
 
 export interface PaletteProps {
   readonly open: boolean;
@@ -30,6 +52,17 @@ export interface PaletteProps {
   readonly onClose: () => void;
   /** What running one does. Given in, so the palette itself navigates nothing. */
   readonly onRun: (command: Command) => void;
+  /**
+   * How the deployment is asked what answers to a query.
+   *
+   * Returns commands rather than records, because deciding which results this
+   * viewer may see is a permission question and the palette is not where
+   * permission is decided — the shell holds the viewer and does the same
+   * filtering it does for the local commands. Injected so the suite can drive
+   * it without a network. Absent, the palette is exactly what it used to be:
+   * the navigation, the recent runs and the actions, matched locally.
+   */
+  readonly search?: (query: string, signal: AbortSignal) => Promise<SearchAnswer>;
 }
 
 /** Whether this keystroke is the palette's shortcut, on either kind of keyboard. */
@@ -62,14 +95,58 @@ function PaletteBody({
   commands,
   onClose,
   onRun,
+  search,
 }: Omit<PaletteProps, 'open'>): ReactNode {
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
+  // Kept with the question it answers, and read back only when the two still
+  // agree. That is what makes a stale answer unrenderable rather than merely
+  // unlikely: an answer to "sig" cannot appear under "signoz-col" even if it
+  // arrives late, and clearing the results when somebody deletes back to one
+  // character needs no second state write.
+  const [answered, setAnswered] = useState<{
+    readonly query: string;
+    readonly answer: SearchAnswer;
+  }>({ query: '', answer: UNASKED });
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
   const titleId = useId();
 
-  const shown = useMemo(() => matching(commands, query), [commands, query]);
+  const results = answered.query === query.trim() ? answered.answer : UNASKED;
+
+  // Ask the deployment once the typing settles, and abandon the answer to the
+  // previous question. Both halves matter: without the delay this is a request
+  // per keystroke, and without the abort a slow answer lands under somebody's
+  // Enter key after they have moved on.
+  useEffect(() => {
+    if (search === undefined || !worthSearching(query)) return;
+    const asked = query.trim();
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      void search(asked, controller.signal)
+        .then((answer) => {
+          if (!controller.signal.aborted) setAnswered({ query: asked, answer });
+        })
+        .catch(() => {
+          // A search that could not be run finds nothing, and says so by
+          // showing the local commands alone. It is not an error state: the
+          // palette's other half still works, and a dialog about it would be
+          // in the way of the navigation somebody can still use.
+          if (!controller.signal.aborted) {
+            setAnswered({ query: asked, answer: UNASKED });
+          }
+        });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, search]);
+
+  const shown = useMemo(
+    () => [...results.commands, ...matching(commands, query)],
+    [commands, query, results],
+  );
 
   // Focus goes into the palette the moment it exists. A palette a keyboard has
   // to be tabbed into is a palette a keyboard shortcut did not actually open.
@@ -138,7 +215,10 @@ function PaletteBody({
         />
         {shown.length === 0 ? (
           <p data-testid="palette-empty" className="px-4 py-3 text-small text-muted">
-            {message(locale, 'palette.empty')}
+            {message(
+              locale,
+              results.partial ? 'palette.empty.partial' : 'palette.empty',
+            )}
           </p>
         ) : (
           <ul id={listId} role="listbox" className="max-h-screen overflow-y-auto pb-2">

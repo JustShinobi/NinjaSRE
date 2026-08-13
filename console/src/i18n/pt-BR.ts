@@ -311,8 +311,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'As palavras do próprio deployment estão no detalhe técnico abaixo.',
 
   'palette.title': 'Paleta de comandos',
-  'palette.placeholder': 'Ir para uma página, uma execução ou uma acção',
+  'palette.placeholder':
+    'Procure recursos, incidentes e execuções, ou vá para uma página',
   'palette.empty': 'Nada corresponde a isso.',
+  'palette.empty.partial':
+    'Nada do que foi procurado corresponde a isso — há mais de uma página de resultados por percorrer.',
+  'palette.group.resources': 'Recursos',
+  'palette.group.incidents': 'Incidentes',
+  'palette.group.found-runs': 'Execuções correspondentes',
   'palette.group.navigate': 'Ir para',
   'palette.group.runs': 'Execuções recentes',
   'palette.group.actions': 'Acções',

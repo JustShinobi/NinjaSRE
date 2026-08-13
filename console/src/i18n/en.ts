@@ -212,8 +212,16 @@ export const EN = {
 
   // --- The command palette -----------------------------------------------------
   'palette.title': 'Command palette',
-  'palette.placeholder': 'Go to a page, a run, or an action',
+  'palette.placeholder': 'Search resources, incidents and runs, or go to a page',
   'palette.empty': 'Nothing matches that.',
+  // A page was read and nothing in it matched, which is not the same claim as
+  // the thing not existing. Saying so is the difference between a search
+  // somebody trusts and one they learn to check by hand afterwards.
+  'palette.empty.partial':
+    'Nothing in what was searched matches that — there is more than one page of results to look through.',
+  'palette.group.resources': 'Resources',
+  'palette.group.incidents': 'Incidents',
+  'palette.group.found-runs': 'Matching runs',
   'palette.group.navigate': 'Go to',
   'palette.group.runs': 'Recent runs',
   'palette.group.actions': 'Actions',

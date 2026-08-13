@@ -15,9 +15,23 @@
 import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
 import { visibleAreas, type AreaContext } from './routes';
+import type { Found } from './search';
 
-/** The sections the palette groups by, in the order it shows them. */
-export const COMMAND_GROUPS = ['navigate', 'runs', 'actions'] as const;
+/** The sections the palette groups by, in the order it shows them.
+ *
+ * What the deployment was asked about comes first — resources, then incidents,
+ * then the runs a search turned up. Somebody who typed a name is looking for a
+ * thing, and putting the navigation above it would mean the first `Enter` goes
+ * to a page rather than to what they asked for.
+ */
+export const COMMAND_GROUPS = [
+  'resources',
+  'incidents',
+  'found-runs',
+  'navigate',
+  'runs',
+  'actions',
+] as const;
 
 export type CommandGroup = (typeof COMMAND_GROUPS)[number];
 
@@ -66,6 +80,48 @@ export function runCommands(runs: readonly RecentRun[]): readonly Command[] {
     ...(run.summary === null ? {} : { hint: run.summary }),
     href: `/runs/${run.id}`,
     permission: 'investigation.read',
+  }));
+}
+
+/** What one search of the deployment produced, as the palette takes it. */
+export interface SearchAnswer {
+  readonly commands: readonly Command[];
+  /**
+   * Whether some source held more than the search read.
+   *
+   * Carried rather than dropped: "nothing matches" and "nothing matches in the
+   * first two hundred" are different answers, and only one of them means the
+   * thing is not there.
+   */
+  readonly partial: boolean;
+}
+
+/**
+ * What the deployment found, as commands.
+ *
+ * The permission each carries is the one its destination demands, so a viewer
+ * who may not read the estate does not get estate rows in their palette — the
+ * same presence rule the navigation follows, and the reason the filter in
+ * `commandsFor` is the only place permission is decided.
+ */
+export function searchCommands(found: readonly Found[]): readonly Command[] {
+  const permissions: Readonly<Record<Found['group'], string>> = {
+    resources: 'estate.read',
+    incidents: 'incident.read',
+    runs: 'investigation.read',
+  };
+  const groups: Readonly<Record<Found['group'], CommandGroup>> = {
+    resources: 'resources',
+    incidents: 'incidents',
+    runs: 'found-runs',
+  };
+  return found.map((entry) => ({
+    id: entry.id,
+    group: groups[entry.group],
+    label: entry.label,
+    ...(entry.hint === '' ? {} : { hint: entry.hint }),
+    href: entry.href,
+    permission: permissions[entry.group],
   }));
 }
 

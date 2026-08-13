@@ -2,7 +2,12 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { commandsFor, matching, navigationCommands } from '@/shell/commands';
+import {
+  commandsFor,
+  matching,
+  navigationCommands,
+  type SearchAnswer,
+} from '@/shell/commands';
 import { isPaletteShortcut, Palette } from '@/shell/palette';
 import { visibleAreas } from '@/shell/routes';
 
@@ -178,5 +183,165 @@ describe('the palette, from the keyboard alone', () => {
     expect(
       screen.getByRole('dialog', { name: /command palette/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('searching the deployment from the palette', () => {
+  /**
+   * The placeholder promised "Search resources, runs, incidents" while the list
+   * held the navigation, the recent runs and one action — so typing the name of
+   * a resource sitting on the Resources screen answered "Nothing matches that".
+   * In an operations tool that is the shortest path there is.
+   */
+
+  function found(label: string): SearchAnswer {
+    return {
+      commands: [
+        {
+          id: 'resource:r1',
+          group: 'resources' as const,
+          label,
+          href: '/resources/r1',
+          permission: 'estate.read',
+        },
+      ],
+      partial: false,
+    };
+  }
+
+  it('asks the deployment and shows what it found', async () => {
+    const search = vi.fn().mockResolvedValue(found('signoz-collector'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={() => {}}
+        onRun={() => {}}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'signoz');
+
+    expect(await screen.findByText('signoz-collector')).toBeTruthy();
+    expect(search).toHaveBeenCalled();
+    expect(search.mock.calls[0]?.[0]).toBe('signoz');
+  });
+
+  it('puts what was found above the navigation', async () => {
+    // Somebody who typed a name is looking for a thing. Putting the navigation
+    // first would send the first Enter to a page instead.
+    const search = vi.fn().mockResolvedValue(found('signoz-collector'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={() => {}}
+        onRun={() => {}}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'signoz');
+    await screen.findByText('signoz-collector');
+
+    const shown = screen
+      .getAllByTestId('palette-command')
+      .map((node) => node.getAttribute('data-command'));
+    expect(shown[0]).toBe('resource:r1');
+  });
+
+  it('does not ask about a single character', async () => {
+    // One character matches most of an estate: three reads to hand back what
+    // the operator is already looking at.
+    const search = vi.fn().mockResolvedValue(found('anything'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={() => {}}
+        onRun={() => {}}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 's');
+
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('never shows an answer to a question that is no longer being asked', async () => {
+    // The property that keeps a slow answer from landing under somebody's Enter
+    // key: results are held with the query they answer, and read back only when
+    // the two still agree.
+    const search = vi.fn().mockResolvedValue(found('stale-result'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={() => {}}
+        onRun={() => {}}
+      />,
+    );
+
+    const box = screen.getByTestId('palette-query');
+    await person.type(box, 'signoz');
+    await screen.findByText('stale-result');
+    await person.clear(box);
+    await person.type(box, 'audit');
+
+    expect(screen.queryByText('stale-result')).toBeNull();
+  });
+
+  it('still works as a palette when the deployment cannot be asked', async () => {
+    // The half that does not need the network keeps working, and there is no
+    // dialog in the way of it: the person typing is usually the one whose
+    // deployment is already having a bad day.
+    const search = vi.fn().mockRejectedValue(new Error('unreachable'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={() => {}}
+        onRun={() => {}}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'audit');
+
+    expect(screen.getAllByTestId('palette-command').length).toBeGreaterThan(0);
+  });
+
+  it('says when it only searched part of what there is', async () => {
+    // "Nothing matches" and "nothing matches in the first two hundred" are
+    // different answers, and only one of them means the thing is not there.
+    const search = vi.fn().mockResolvedValue({ commands: [], partial: true });
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={[]}
+        search={search}
+        onClose={() => {}}
+        onRun={() => {}}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'nothing-like-this');
+
+    expect(await screen.findByText(/more than one page/)).toBeTruthy();
   });
 });

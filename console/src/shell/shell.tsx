@@ -11,11 +11,18 @@ import { sessionController, type SessionEnding } from '@/session/controller';
 import { signInHref } from '@/session/cookies';
 import { endSession } from '@/session/end';
 import { sessionLife } from '@/session/expiry';
-import type { Viewer } from '@/session/viewer';
+import { may, type Viewer } from '@/session/viewer';
 import { InvestigateDrawer } from '@/live/investigate';
 import { onResolved, withoutItem, type AttentionItem } from './attention';
 import { useNow } from './browser';
-import { commandsFor, type Command, type RecentRun } from './commands';
+import {
+  commandsFor,
+  searchCommands,
+  type Command,
+  type RecentRun,
+  type SearchAnswer,
+} from './commands';
+import { askDeployment } from './search-client';
 import type { Deployment } from './deployment';
 import { ImpersonationBanner } from './impersonation';
 import type { SetupState } from './load';
@@ -69,6 +76,14 @@ export interface ShellProps {
   readonly children: ReactNode;
   /** Where a command sends the browser. Injected so the suite can watch it. */
   readonly navigate?: (href: string) => void;
+  /**
+   * How the deployment is asked what answers to a palette query.
+   *
+   * Injected so the suite can drive the palette without a network. The default
+   * is the courier, because the session credential is an HTTP-only cookie the
+   * browser cannot read and a `fetch` from here could not carry it.
+   */
+  readonly askSearch?: typeof askDeployment;
 }
 
 function defaultNavigate(href: string): void {
@@ -88,6 +103,7 @@ export function Shell({
   expiresAt = null,
   children,
   navigate = defaultNavigate,
+  askSearch = askDeployment,
 }: ShellProps): ReactNode {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -152,6 +168,23 @@ export function Shell({
       navigate(command.href);
     },
     [navigate],
+  );
+
+  // The permission filter is here rather than in the palette because this is
+  // where the viewer is. It is the same rule the local commands go through, and
+  // one place deciding it is what keeps a search from being the way somebody
+  // reaches a screen the navigation would not have offered them.
+  const search = useCallback(
+    async (query: string, signal: AbortSignal): Promise<SearchAnswer> => {
+      const answer = await askSearch(query, signal);
+      return {
+        commands: searchCommands(answer.found).filter(
+          (command) => command.permission === null || may(viewer, command.permission),
+        ),
+        partial: answer.partial,
+      };
+    },
+    [askSearch, viewer],
   );
 
   const life = sessionLife(expiresAt, now ?? new Date(0));
@@ -250,6 +283,7 @@ export function Shell({
         open={paletteOpen}
         locale={locale}
         commands={commands}
+        search={search}
         onClose={() => {
           setPaletteOpen(false);
         }}
