@@ -22,7 +22,7 @@ rather than the whole report into a channel.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, field_validator, model_validator
 
@@ -41,6 +41,8 @@ from platform.config_service.schema.types import (
     ConfigSection,
     ConfiguredStr,
     ConfiguredStrList,
+    field_help,
+    section_help,
 )
 from platform.ingress.rules import RoutingRule, RuleSet, RuleSetInvalid, default_rule_set
 
@@ -48,20 +50,62 @@ from platform.ingress.rules import RoutingRule, RuleSet, RuleSetInvalid, default
 class RoutingRuleSettings(ConfigSection):
     """One ordered rule: what it matches, where it sends, and what it does."""
 
-    rule_id: ConfiguredStr
+    model_config = section_help(
+        "One rule about arriving alerts: what it matches, which team it hands them to, "
+        "and whether they are investigated, only recorded, or dropped. Rules are tried "
+        "in order and the first match wins."
+    )
+
+    rule_id: Annotated[
+        ConfiguredStr,
+        field_help(
+            "What this rule is called. It is what a decision names when it explains "
+            "why an alert went where it went."
+        ),
+    ]
     #: Empty means "no filter on this dimension" rather than "match nothing",
     #: which is what makes a rule with no matchers the catch-all.
-    sources: ConfiguredStrList = ()
-    zones: ConfiguredStrList = ()
-    criticalities: ConfiguredStrList = ()
-    resources: ConfiguredStrList = ()
+    sources: Annotated[
+        ConfiguredStrList,
+        field_help("Only alerts from these sources match. Leave empty to match any source."),
+    ] = ()
+    zones: Annotated[
+        ConfiguredStrList,
+        field_help("Only alerts from these zones match. Leave empty to match any zone."),
+    ] = ()
+    criticalities: Annotated[
+        ConfiguredStrList,
+        field_help("Only alerts at these criticalities match. Leave empty to match any."),
+    ] = ()
+    resources: Annotated[
+        ConfiguredStrList,
+        field_help("Only alerts about these resources match. Leave empty to match any."),
+    ] = ()
     #: Where matched deliveries go. Empty keeps the team the verifier
     #: established, which is what today's behaviour is.
-    team: ConfiguredStr = ""
-    action: Literal["investigate", "record_only", "discard"] = RULE_ACTION_INVESTIGATE
+    team: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Which team a matched alert is handed to. Empty keeps whichever team the "
+            "arriving alert already resolved to."
+        ),
+    ] = ""
+    action: Annotated[
+        Literal["investigate", "record_only", "discard"],
+        field_help(
+            "What happens to a matched alert: investigate it, record it without "
+            "investigating, or drop it."
+        ),
+    ] = RULE_ACTION_INVESTIGATE
     #: Required for a discard, refused as noise on anything else — a reason
     #: attached to an action that has none is a sentence nobody will ever read.
-    reason: ConfiguredStr = ""
+    reason: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Why alerts matching this rule are dropped. Required when the action is "
+            "discard, so a disappearance always has an explanation beside it."
+        ),
+    ] = ""
 
     @field_validator("action")
     @classmethod
@@ -108,15 +152,43 @@ class RoutingRuleSettings(ConfigSection):
 class DeliveryDestinationSettings(ConfigSection):
     """One place results go: which events, over which channel, in how much detail."""
 
-    destination_id: ConfiguredStr
+    model_config = section_help(
+        "One place results are delivered to, and which events it is told about. Every "
+        "destination subscribed to an event is told, so there is no order to get wrong."
+    )
+
+    destination_id: Annotated[
+        ConfiguredStr,
+        field_help("What this destination is called. Two destinations may not share a name."),
+    ]
     #: The catalogue integration that carries the message. Named rather than a
     #: URL, because a URL here would be a second place a credential could appear.
-    channel: ConfiguredStr
+    channel: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Which connected integration carries the message. Named rather than an "
+            "address, so no credential is ever written here."
+        ),
+    ]
     #: A closed set. A destination subscribed to a typo is one that is silently
     #: never notified, which is the same failure as a source that never delivers.
-    events: ConfiguredStrList = ()
-    detail: Literal["summary_with_link", "full_report"] = DELIVERY_DETAIL_SUMMARY_WITH_LINK
-    enabled: bool = True
+    events: Annotated[
+        ConfiguredStrList,
+        field_help(
+            "Which events this destination is told about. An enabled destination "
+            "subscribed to nothing is refused: it would look configured and stay silent."
+        ),
+    ] = ()
+    detail: Annotated[
+        Literal["summary_with_link", "full_report"],
+        field_help(
+            "How much is sent: a summary and a link, or the whole report. Send the whole "
+            "report only where its readership may see everything in it."
+        ),
+    ] = DELIVERY_DETAIL_SUMMARY_WITH_LINK
+    enabled: Annotated[
+        bool, field_help("Off keeps the destination and stops delivering to it.")
+    ] = True
 
     @field_validator("events")
     @classmethod
@@ -157,8 +229,23 @@ class DeliveryDestinationSettings(ConfigSection):
 class TransitConfig(ConfigSection):
     """The ordered rules, and the destinations results are delivered to."""
 
-    rules: list[RoutingRuleSettings] = Field(default_factory=list)
-    destinations: list[DeliveryDestinationSettings] = Field(default_factory=list)
+    model_config = section_help(
+        "What happens to alerts as they arrive, and who is told about results as they "
+        'leave. The two halves of the question "where did this come from and where did '
+        'it go".'
+    )
+
+    rules: Annotated[
+        list[RoutingRuleSettings],
+        field_help(
+            "Rules for arriving alerts, tried in order. Configure none and everything is "
+            "investigated for the team it arrived for."
+        ),
+    ] = Field(default_factory=list)
+    destinations: Annotated[
+        list[DeliveryDestinationSettings],
+        field_help("Where finished results are delivered. Every subscribed destination is told."),
+    ] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _bounded_and_terminated(self) -> TransitConfig:

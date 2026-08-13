@@ -59,7 +59,10 @@ export function AttentionBlock({
           <AlertTriangleIcon />
         </span>
         <h2 className="text-section text-danger">{heading}</h2>
-        <span className="ml-auto text-micro uppercase text-muted edge border-border-strong rounded-1 px-2">
+        {/* Not shouted in capitals: this says which of the rows below has
+            been waiting longest, which is the reason to look at this row
+            first rather than decoration on top of the count. */}
+        <span className="ml-auto text-micro text-muted edge border-border-strong rounded-1 px-2">
           {oldest}
         </span>
       </header>

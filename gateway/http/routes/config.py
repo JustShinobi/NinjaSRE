@@ -221,6 +221,8 @@ class ItemFieldView(BaseModel):
     label: str
     type: str
     description: str = ""
+    #: The short, operator-facing text a form puts under the control.
+    help: str = ""
     default: Any = None
     minimum: float | None = None
     maximum: float | None = None
@@ -241,9 +243,14 @@ class ConfigFieldView(BaseModel):
     path: str
     label: str
     type: str
+    #: The schema's own text, written for whoever reads the schema. ``help`` and
+    #: ``section_help`` are the short forms of the same two things, written for
+    #: whoever fills the form in, and they are the ones a form renders.
     description: str = ""
+    help: str = ""
     section: str = ""
     section_summary: str = ""
+    section_help: str = ""
     default: Any = None
     minimum: float | None = None
     maximum: float | None = None
@@ -374,6 +381,7 @@ def _item_view(item: ConfigField) -> ItemFieldView:
         label=item.label,
         type=item.type,
         description=item.description,
+        help=item.help,
         default=item.default,
         minimum=item.minimum,
         maximum=item.maximum,
@@ -566,8 +574,10 @@ async def node_fields(
                 label=each.field.label,
                 type=each.field.type,
                 description=each.field.description,
+                help=each.field.help,
                 section=each.field.section,
                 section_summary=each.field.section_summary,
+                section_help=each.field.section_help,
                 default=each.field.default,
                 minimum=each.field.minimum,
                 maximum=each.maximum,

@@ -2,13 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  isConsoleSession,
-  SessionPanel,
-  TokenPanel,
-  type IssuedToken,
-  type SessionEntry,
-} from '@/surfaces/tokens';
+import { SessionPanel, TokenPanel, type SessionEntry } from '@/surfaces/tokens';
+import { isConsoleSession, type IssuedToken } from '@/surfaces/token-identity';
 
 /**
  * A machine token: shown once, and revoked with the consequence named.

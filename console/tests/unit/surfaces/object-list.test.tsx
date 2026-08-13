@@ -112,6 +112,12 @@ const LABELS = {
   gated: 'Approval-gated',
   gatedDetail: 'Saving this queues a change rather than applying it.',
   provenance: 'Set at',
+  setAt: 'Set at:',
+  usingDefault: 'Using the deployment default:',
+  toc: 'Jump to a section',
+  search: 'Find a field',
+  searchEmpty: 'No field matches this search.',
+  generalSection: 'General',
   empty: 'Nothing would change',
   previewFirst: 'Preview the change before saving it.',
   clear: 'Remove this override',
@@ -134,7 +140,7 @@ function item(over: Partial<ItemField> = {}): ItemField {
     path: 'team',
     label: 'Team',
     type: 'string',
-    description: '',
+    help: '',
     allowedValues: null,
     minimum: null,
     maximum: null,
@@ -159,13 +165,14 @@ function rules(over: Partial<EditableField> = {}): EditableField {
     path: 'transit.rules',
     label: 'Routing rules',
     type: 'array',
-    description: 'Evaluated in order; the last one decides what matched nothing.',
+    help: 'Evaluated in order; the last one decides what matched nothing.',
     section: 'transit',
-    sectionSummary: 'What comes in, where it goes.',
+    sectionHelp: 'What comes in, where it goes.',
     value: [
       { rule_id: 'payments', team: 'payments', action: 'investigate' },
       { rule_id: 'rest', team: 'platform', action: 'record' },
     ],
+    default: null,
     provenance: 'org-northwind',
     setHere: true,
     lockedBy: '',
@@ -480,7 +487,7 @@ describe('a list the deployment stored in a shape the editor did not expect', ()
   });
 
   it('draws no explanation where the deployment declared none, rather than an empty one', () => {
-    editor([rules({ description: '' })]);
+    editor([rules({ help: '' })]);
 
     expect(screen.getByTestId('object-list')).toBeInTheDocument();
     expect(

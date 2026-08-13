@@ -924,11 +924,15 @@ describe('the dashboard of a deployment that is not set up', () => {
     expect(screen.getByTestId('main-figures')).toHaveTextContent('0');
   });
 
-  it('shows the checklist with the outstanding step one click away', async () => {
+  it('shows the remaining plan with the outstanding step one click away', async () => {
     await dashboard('first-run');
 
-    expect(screen.getByTestId('setup-checklist')).toBeInTheDocument();
-    expect(screen.getByTestId('checklist-next').getAttribute('href')).toBe(
+    // The hero, and only the hero: the same plan used to be rendered twice on
+    // this page, once in the centre and once as a side card, and a page that
+    // says the same thing in two places is a page with no first reading.
+    expect(screen.getByTestId('setup-hero')).toBeInTheDocument();
+    expect(screen.queryByTestId('setup-checklist')).toBeNull();
+    expect(screen.getByTestId('setup-hero-cta').getAttribute('href')).toBe(
       '/first-run?step=provider',
     );
   });
@@ -954,9 +958,12 @@ describe('the dashboard of a deployment that is not set up', () => {
     }
   });
 
-  it('drops the checklist and the warning once the deployment is set up', async () => {
+  it('drops the plan and the warning once the deployment is set up', async () => {
     await dashboard('populated');
 
+    // Absent, not shrunk. A deployment that finished setting up months ago
+    // should not carry a permanent reminder that it once had not.
+    expect(screen.queryByTestId('setup-hero')).toBeNull();
     expect(screen.queryByTestId('setup-checklist')).toBeNull();
     expect(screen.queryByTestId('no-provider')).toBeNull();
   });
@@ -1085,6 +1092,30 @@ describe('the tutorial overlay', () => {
 
     expect(screen.queryByTestId('tutorial')).toBeNull();
     expect(sent).toHaveLength(0);
+  });
+
+  it('keeps the same geometry on every slide, so Back and Next never move', () => {
+    // The defect: the card had no width of its own (`w-prose` names no class
+    // this stylesheet declares) and the title-and-body block had no fixed
+    // height, so both dimensions followed whichever slide's text was
+    // longest — and a click that landed on Next on one slide missed it on
+    // the next. Asserted structurally, across every slide, rather than only
+    // on the first: a class list that is fixed changes for no slide.
+    render(<Tutorial {...LABELS} />);
+    const card = () => screen.getByTestId('tutorial-body').parentElement;
+
+    for (let index = 0; index < SLIDES.length; index += 1) {
+      expect(card()?.className).toContain('w-full');
+      expect(card()?.className).toContain('max-w-prose');
+      expect(screen.getByTestId('tutorial-body').className).toContain('h-44');
+      expect(screen.getByTestId('tutorial-body').className).toContain(
+        'overflow-y-auto',
+      );
+      const next = screen.getByTestId('tutorial-next');
+      if (index < SLIDES.length - 1) {
+        next.click();
+      }
+    }
   });
 
   it('goes back a slide, and will not go back from the first', async () => {

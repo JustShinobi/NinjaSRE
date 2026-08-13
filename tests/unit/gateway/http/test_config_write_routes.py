@@ -77,6 +77,23 @@ async def test_the_node_catalogue_describes_every_editable_field(
     assert budget["section"] == "agents"
 
 
+async def test_the_catalogue_serves_the_short_help_a_form_puts_under_a_control(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    # The schema's docstrings are written for whoever reviews the schema. The
+    # form needs a sentence written for whoever is filling it in, and the only
+    # place that can come from without drifting is the schema itself.
+    answer = await client.get(
+        f"/v1/config/{TEAM_PAYMENTS}/fields", headers=await _owner(deployment)
+    )
+
+    fields = {entry["path"]: entry for entry in answer.json()["fields"]}
+    budget = fields["agents.tool_budget"]
+    assert budget["help"].strip() != ""
+    assert budget["section_help"].strip() != ""
+    assert all(entry["section_help"].strip() != "" for entry in fields.values())
+
+
 async def test_a_field_says_which_node_supplies_its_value_and_whether_this_one_set_it(
     client: AsyncClient, deployment: Deployment
 ) -> None:

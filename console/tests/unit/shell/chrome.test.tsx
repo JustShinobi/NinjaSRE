@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SHELL, SIDEBAR_BREAKPOINT } from '@/design/tokens';
 import { EN } from '@/i18n/en';
@@ -143,6 +143,15 @@ describe('the sidebar', () => {
     expect(footer.textContent).toContain(EN['shell.guardian.posture.propose']);
   });
 
+  it('is a link to the screen that explains and controls the posture, with a tooltip', () => {
+    renderSidebar();
+    const footer = screen.getByTestId('guardian');
+
+    expect(footer.tagName).toBe('A');
+    expect(footer).toHaveAttribute('href', '/autonomy');
+    expect(footer).toHaveAttribute('title', EN['shell.guardian.tooltip']);
+  });
+
   it('says so when the guardian is not alive, rather than saying nothing', () => {
     render(
       <Sidebar
@@ -280,6 +289,54 @@ describe('the utility bar', () => {
 
     expect(palette).toHaveBeenCalledOnce();
     expect(drawer).toHaveBeenCalledOnce();
+  });
+
+  it('names the theme and the density switch in a tooltip, not only to a screen reader', () => {
+    renderTopbar();
+
+    expect(screen.getByTestId('theme-switch')).toHaveAttribute(
+      'title',
+      EN['shell.theme'],
+    );
+    expect(screen.getByTestId('density-switch')).toHaveAttribute(
+      'title',
+      EN['shell.density.compact'],
+    );
+  });
+
+  it('names the organisation switcher and the avatar, so neither reads as an unnamed button', () => {
+    renderTopbar();
+
+    // The account control is the summary of a disclosure — its own accessible
+    // name, and the avatar inside it names the person it stands for.
+    expect(screen.getByLabelText(EN['shell.account'])).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Avery Lockhart' })).toBeInTheDocument();
+  });
+
+  describe('the language selector in the account menu', () => {
+    afterEach(() => {
+      document.cookie = 'ninjasre_locale=; max-age=0';
+    });
+
+    it('offers every locale the console carries, marking the current one', () => {
+      renderTopbar();
+
+      const english = screen.getByTestId('language-en');
+      const portuguese = screen.getByTestId('language-pt-BR');
+      expect(english).toHaveAttribute('aria-pressed', 'true');
+      expect(portuguese).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('persists the choice and reloads so the server renders it', async () => {
+      const reload = vi.fn();
+      vi.stubGlobal('location', { reload });
+      renderTopbar();
+
+      await userEvent.click(screen.getByTestId('language-pt-BR'));
+
+      expect(document.cookie).toContain('ninjasre_locale=pt-BR');
+      expect(reload).toHaveBeenCalledOnce();
+    });
   });
 });
 

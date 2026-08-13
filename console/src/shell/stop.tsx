@@ -4,8 +4,10 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { Button } from '@/components/action';
+import { formatDateTime } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
+import { stoppageFrom } from './stoppage';
 
 /**
  * The emergency stop, in the frame rather than on a screen.
@@ -40,6 +42,34 @@ export interface KillSwitchProps {
   readonly locale: Locale;
   /** What the deployment said when the frame was rendered. */
   readonly engaged: boolean;
+  /** Who engaged it, as the deployment reported at render — `null` when it did not say. */
+  readonly by?: string | null;
+  /** When it was engaged, as an instant the deployment reported — `null` when it did not say. */
+  readonly since?: string | null;
+  /** The zone an instant is shown in, matching the deployment's own clock. */
+  readonly zone?: string;
+}
+
+/**
+ * `who / when` for the reader who may release it, or `null` when neither is known.
+ *
+ * Reported rather than guessed: an unreachable read already resolves to
+ * "not stopped", so reaching this component `engaged` at all means the
+ * deployment said so, and it either named who and when or it did not.
+ */
+function attribution(
+  locale: Locale,
+  by: string | null,
+  since: string | null,
+  zone: string,
+): string | null {
+  if (by === null || since === null) return null;
+  const parsed = new Date(since);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return message(locale, 'stop.engaged.by', {
+    by,
+    since: formatDateTime(locale, parsed, zone),
+  });
 }
 
 /** The control, for a viewer who may use it. */
@@ -47,8 +77,13 @@ export function KillSwitchControl({
   viewer,
   locale,
   engaged,
+  by = null,
+  since = null,
+  zone = 'UTC',
 }: KillSwitchProps): ReactNode {
   const [stopped, setStopped] = useState(engaged);
+  const [attributedTo, setAttributedTo] = useState(by);
+  const [attributedAt, setAttributedAt] = useState(since);
   const [confirming, setConfirming] = useState(false);
   const [working, setWorking] = useState(false);
   const [failure, setFailure] = useState('');
@@ -79,20 +114,36 @@ export function KillSwitchControl({
       setFailure(message(locale, 'stop.refused'));
       return;
     }
-    setStopped(Reflect.get(Object(body), 'engaged') === true);
+    // The deployment's own answer, read by the same function the server-side
+    // frame reads it with. A deployment that reports no scope still leaves this
+    // `null` rather than naming whoever pressed the button: the shell says "it
+    // could not say who" and means it, instead of asserting a fact from the
+    // browser that the next page load would quietly replace.
+    const reported = stoppageFrom(body);
+    setStopped(reported.engaged);
+    setAttributedTo(reported.by);
+    setAttributedAt(reported.since);
   }
 
   if (stopped) {
+    const detail = attribution(locale, attributedTo, attributedAt, zone);
     return (
-      <Button
-        data-testid="release-stop"
-        state={working ? 'loading' : 'default'}
-        onClick={() => {
-          void decide('DELETE');
-        }}
-      >
-        {message(locale, 'stop.release')}
-      </Button>
+      <span className="flex items-center gap-2">
+        {detail === null ? null : (
+          <span data-testid="stop-attribution" className="text-meta text-muted">
+            {detail}
+          </span>
+        )}
+        <Button
+          data-testid="release-stop"
+          state={working ? 'loading' : 'default'}
+          onClick={() => {
+            void decide('DELETE');
+          }}
+        >
+          {message(locale, 'stop.release')}
+        </Button>
+      </span>
     );
   }
 
@@ -153,21 +204,40 @@ export function KillSwitchControl({
 export interface KillSwitchBannerProps {
   readonly locale: Locale;
   readonly engaged: boolean;
+  /** Who engaged it, as the deployment reported — `null` when it did not say. */
+  readonly by?: string | null;
+  /** When it was engaged, as the deployment reported — `null` when it did not say. */
+  readonly since?: string | null;
+  /** The zone an instant is shown in, matching the deployment's own clock. */
+  readonly zone?: string;
 }
 
-/** The banner, for every viewer, on every screen. */
+/**
+ * The banner, for every viewer, on every screen.
+ *
+ * Says three things: that writes are stopped, who did it and since when when
+ * the deployment said so, and how it comes back — the release control this
+ * banner does not carry itself, because engaging and releasing belong to
+ * whoever may act on the estate and this is read by everybody.
+ */
 export function KillSwitchBanner({
   locale,
   engaged,
+  by = null,
+  since = null,
+  zone = 'UTC',
 }: KillSwitchBannerProps): ReactNode {
   if (!engaged) return null;
+  const detail = attribution(locale, by, since, zone);
   return (
     <p
       data-testid="stop-banner"
       role="status"
       className="flex items-center gap-3 bg-danger-bg px-5 py-1 text-small text-danger"
     >
-      {message(locale, 'stop.engaged')}
+      {message(locale, 'stop.engaged')}{' '}
+      {detail ?? message(locale, 'stop.engaged.unknown')}{' '}
+      {message(locale, 'stop.engaged.howToRelease')}
     </p>
   );
 }

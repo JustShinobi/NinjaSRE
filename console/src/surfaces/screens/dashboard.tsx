@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { isSettled } from '@/design/status';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -10,6 +11,8 @@ import { readFailure } from '../failures';
 import { Figure } from '../figure';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
+import { DashboardQuickActions } from '../quick-actions';
+import { SetupHero } from '../setup-hero';
 import {
   authorised,
   countOf,
@@ -26,11 +29,7 @@ import {
   stateOf,
   text,
 } from '../read';
-import {
-  ChecklistPanel,
-  NoProviderNotice,
-  QuickActions,
-} from '../first-run/checklist-panel';
+import { NoProviderNotice } from '../first-run/no-provider';
 import { outstanding, readSetup } from '../first-run/plan';
 import { Tutorial } from '../first-run/tutorial';
 // From the plain module rather than from the overlay: this screen renders on
@@ -49,11 +48,16 @@ import type { SurfaceContext } from '../context';
  * a console teaches people that the top of the page is where the decoration
  * lives.
  *
- * Six panels, six reads, six boundaries. The detector and incident counts come
- * from endpoints the deployment does not serve yet; each of those panels says so
- * as an empty state naming the next action rather than as an error, because a
- * deployment nobody has connected anything to is new rather than broken. The
- * estate is served, so an empty one there means an estate with nothing in it.
+ * Each panel has its own read and its own boundary. The detector and incident
+ * counts come from endpoints the deployment does not serve yet; each of those
+ * panels says so as an empty state naming the next action rather than as an
+ * error, because a deployment nobody has connected anything to is new rather
+ * than broken. The estate is served, so an empty one there means an estate
+ * with nothing in it.
+ *
+ * While setup is incomplete, finishing it is the page: a hero dominates the
+ * centre, above the figures, and gives way to nothing but its own absence the
+ * moment there is nothing left to do (`setup-hero.tsx`).
  */
 
 /** The statuses that mean a run needs somebody rather than that it is working. */
@@ -227,6 +231,19 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     FAILED.has(text(record, 'status')),
   ).length;
 
+  // --- The agent, rather than the estate --------------------------------------
+  // Every other figure on this page is about what is being watched. This one is
+  // about whether the product itself is doing its job — the fact the reference
+  // design leads with and this page, until now, never asked.
+  const settledRuns = runRecords.filter((record) => isSettled(text(record, 'status')));
+  const succeededRuns = settledRuns.filter(
+    (record) => text(record, 'status') === 'succeeded',
+  );
+  const successRate =
+    settledRuns.length === 0
+      ? null
+      : Math.round((succeededRuns.length / settledRuns.length) * 100);
+
   return (
     <>
       {/* Only while something is outstanding, and never once the effective
@@ -277,11 +294,16 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         </div>
       ) : null}
 
+      {/* While anything remains, finishing setup dominates the page rather
+          than sitting in a small side card beside an empty centre. It is
+          absent, not shrunk, the moment nothing is left. */}
+      <SetupHero locale={locale} setup={setup} source={checklist} />
+
       {/* Every figure has a period, a comparison and a list behind it. A figure
           that had none of those would not compile — see `figure.tsx`. */}
       <div
         data-testid="main-figures"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-5"
       >
         <Figure
           label={message(locale, 'dashboard.stat.watched')}
@@ -306,8 +328,14 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         <Figure
           label={message(locale, 'dashboard.stat.degraded')}
           value={formatNumber(locale, degraded)}
+          // A degraded count with nothing beside it is where "24 unhealthy"
+          // and "Incidents: none" stopped making sense together. Naming how
+          // many detectors are actually switched on is the bridge: a finding
+          // is not an incident until one of these turns it into one.
           context={message(locale, 'dashboard.stat.degraded.context', {
             count: formatNumber(locale, number(summary, 'problems')),
+            live: formatNumber(locale, liveDetectors),
+            total: formatNumber(locale, detectorRecords.length),
           })}
           href="/resources?health=degraded"
           drillLabel={message(locale, 'dashboard.stat.drill')}
@@ -322,6 +350,25 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           href="/runs"
           drillLabel={message(locale, 'dashboard.stat.drill')}
           trend={failedRuns > 0 ? 'down' : 'flat'}
+        />
+        {/* The one figure on this page about the agent rather than the
+            estate: whether the product itself is doing its job. */}
+        <Figure
+          label={message(locale, 'dashboard.stat.successRate')}
+          value={successRate === null ? '—' : `${formatNumber(locale, successRate)}%`}
+          context={
+            successRate === null
+              ? message(locale, 'dashboard.stat.successRate.context.none')
+              : message(locale, 'dashboard.stat.successRate.context', {
+                  succeeded: formatNumber(locale, succeededRuns.length),
+                  settled: formatNumber(locale, settledRuns.length),
+                })
+          }
+          href={
+            successRate !== null && successRate < 100 ? '/runs?status=failed' : '/runs'
+          }
+          drillLabel={message(locale, 'dashboard.stat.drill')}
+          trend={successRate === null ? 'flat' : successRate === 100 ? 'up' : 'down'}
         />
       </div>
 
@@ -343,34 +390,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           </Panel>
         </div>
         <div className="flex flex-col gap-5 min-w-0">
-          {/* First in the right-hand column while anything is outstanding, and
-              gone entirely once nothing is. */}
-          <ChecklistPanel locale={locale} setup={setup} source={checklist} />
-          <QuickActions locale={locale} />
-
-          <Panel
-            title={message(locale, 'dashboard.estate.title')}
-            state={stateOf(estate, watched === 0)}
-            dependency={dependencyOf(estate)}
-            labels={panelLabels(locale, message(locale, 'dashboard.estate.title'))}
-            empty={{
-              heading: message(locale, 'dashboard.estate.empty.heading'),
-              body: message(locale, 'dashboard.estate.empty.body'),
-              actionLabel: message(locale, 'dashboard.estate.empty.action'),
-              href: '/configuration',
-            }}
-          >
-            <dl className="flex flex-col gap-2 text-small">
-              {counts(summary, 'by_kind').map(([kind, count]) => (
-                <div key={kind} className="flex items-center gap-3">
-                  <dt className="min-w-0 truncate">{kind}</dt>
-                  <dd className="ml-auto tabular-nums">
-                    {formatNumber(locale, count)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
+          {/* The remaining plan is the hero above, not a second copy of itself
+              down here. Two checklists on one page is the page disagreeing with
+              itself about where the operator should look. */}
+          <DashboardQuickActions locale={locale} />
 
           <Panel
             title={message(locale, 'dashboard.guardian.title')}

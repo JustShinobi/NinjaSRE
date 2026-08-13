@@ -797,6 +797,11 @@
             "title": "Description",
             "type": "string"
           },
+          "help": {
+            "default": "",
+            "title": "Help",
+            "type": "string"
+          },
           "item_fields": {
             "items": {
               "$ref": "#/components/schemas/ItemFieldView"
@@ -874,6 +879,11 @@
           "section": {
             "default": "",
             "title": "Section",
+            "type": "string"
+          },
+          "section_help": {
+            "default": "",
+            "title": "Section Help",
             "type": "string"
           },
           "section_summary": {
@@ -3531,6 +3541,11 @@
           "description": {
             "default": "",
             "title": "Description",
+            "type": "string"
+          },
+          "help": {
+            "default": "",
+            "title": "Help",
             "type": "string"
           },
           "label": {

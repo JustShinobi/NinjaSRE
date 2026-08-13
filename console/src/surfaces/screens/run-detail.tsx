@@ -94,9 +94,15 @@ export async function RunDetailScreen(
   // reappearing untranslated everywhere the summary is quoted.
   const said = readFailure(text(run, 'summary'), locale);
 
+  // A translated headline does not also become the transcript's own "report"
+  // entry: the summary panel above already carries it, next to the raw text
+  // behind its disclosure, and a second, undisclosed copy styled as the run's
+  // own concluding word is the third repetition this screen used to make. A
+  // sentence somebody wrote for a person is not an exception — it still closes
+  // the transcript the way it always has.
   const events = eventsFromReplay({
     ...Object(replayed),
-    summary: said.title,
+    summary: said.technical === '' ? said.title : '',
   });
   const usage = usageFrom(replayed);
 

@@ -78,9 +78,9 @@ test('a fresh deployment renders the product, not a form in front of it', async 
   await page.getByTestId('tutorial-skip').click();
   await expect(page.getByTestId('tutorial')).toBeHidden();
 
-  const checklist = page.getByTestId('setup-checklist');
-  await expect(checklist).toBeVisible();
-  await page.getByTestId('checklist-next').click();
+  const plan = page.getByTestId('setup-hero');
+  await expect(plan).toBeVisible();
+  await page.getByTestId('setup-hero-cta').click();
   await expect(page).toHaveURL(/\/first-run\?step=/);
   await expect(page.getByTestId('page-header')).toHaveAttribute(
     'data-area',

@@ -1,11 +1,12 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 
 import { Button } from '@/components/action';
 import { Input, Select, Switch } from '@/components/form';
 import { Badge } from '@/components/status';
+import { cx } from '@/design/cx';
 
 /**
  * Editing configuration at a node, previewed against the deployment first.
@@ -58,7 +59,7 @@ export interface ItemField {
   readonly path: string;
   readonly label: string;
   readonly type: string;
-  readonly description: string;
+  readonly help: string;
   readonly allowedValues: readonly string[] | null;
   readonly minimum: number | null;
   readonly maximum: number | null;
@@ -71,10 +72,30 @@ export interface EditableField {
   readonly label: string;
   /** As the deployment's schema declares it: string, integer, number, boolean, array, object. */
   readonly type: string;
-  readonly description: string;
+  /**
+   * One to three lines, written for whoever is filling this form in.
+   *
+   * Deliberately not the schema's own `description`, which this form used to
+   * render and which is written for whoever reviews the schema: it cited
+   * requirement identifiers and source paths, ran to eight lines a section, and
+   * arrived with reStructuredText markup nothing here renders. The long text
+   * still exists for the code; the deployment now declares a short one beside
+   * it and this is that one.
+   */
+  readonly help: string;
   readonly section: string;
-  readonly sectionSummary: string;
+  readonly sectionHelp: string;
   readonly value: unknown;
+  /**
+   * What this field resolves to when no node in the chain overrides it.
+   *
+   * Distinct from `value`, which the deployment reports as `null` for a field
+   * nothing sets — the merge does not fabricate a value there, and neither
+   * does this console. The default is what an unset field is actually
+   * running with, and it comes from the same schema the write path validates
+   * against.
+   */
+  readonly default: unknown;
   /** The node supplying the effective value, or empty when nothing sets it. */
   readonly provenance: string;
   /** Whether *this* node overrides it, which is when a clear is an operation at all. */
@@ -119,6 +140,15 @@ export interface EditorLabels {
   readonly gated: string;
   readonly gatedDetail: string;
   readonly provenance: string;
+  /** Prefixes an override's node, unambiguously — never "the default". */
+  readonly setAt: string;
+  /** Prefixes the value a field runs with when nothing overrides it. */
+  readonly usingDefault: string;
+  readonly toc: string;
+  readonly search: string;
+  readonly searchEmpty: string;
+  /** What a field with no declared section is grouped under. */
+  readonly generalSection: string;
   readonly empty: string;
   readonly previewFirst: string;
   readonly clear: string;
@@ -275,9 +305,127 @@ function sectioned(fields: readonly EditableField[]): readonly Section[] {
   }
   return order.map((section) => ({
     section,
-    summary: bySection.get(section)?.[0]?.sectionSummary ?? '',
+    summary: bySection.get(section)?.[0]?.sectionHelp ?? '',
     fields: bySection.get(section) ?? [],
   }));
+}
+
+/** Whether `field` matches a search typed against its label or its path. */
+function matchesQuery(field: EditableField, query: string): boolean {
+  if (query === '') return true;
+  return (
+    field.label.toLowerCase().includes(query) ||
+    field.path.toLowerCase().includes(query)
+  );
+}
+
+/** An id an anchor can jump to, stable for one section across renders. */
+function sectionId(section: string): string {
+  return section === ''
+    ? 'config-section-general'
+    : `config-section-${section.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+}
+
+/** Where a section's open state is remembered, across visits and across nodes. */
+const OPEN_SECTIONS_KEY = 'ninjasre.configuration.openSections';
+
+/**
+ * Published when the remembered layout changes.
+ *
+ * Storage events do not fire in the tab that wrote the value, so a form that
+ * only listened to those would not re-render in the very window somebody just
+ * opened a section in. The same reason `DENSITY_CHANGED_EVENT` exists.
+ */
+const OPEN_SECTIONS_CHANGED_EVENT = 'ninjasre:config-sections-changed';
+
+/** Nothing open — what the server renders, and what a browser with no memory has. */
+const NOTHING_OPEN: Readonly<Record<string, boolean>> = {};
+
+/**
+ * The sections the operator has previously opened, read from this browser.
+ *
+ * Never the deployment. A collapsed-by-default form is friendlier the first
+ * time and only stays friendly if it does not forget what somebody already
+ * decided they cared about — and that decision belongs to the browser they
+ * are sitting at, not to configuration this console would then have to write
+ * back and diff against.
+ *
+ * The snapshot is cached because `useSyncExternalStore` compares by identity:
+ * parsing the JSON afresh on every render would hand React a new object each
+ * time and spin.
+ */
+let openSectionsSnapshot: Readonly<Record<string, boolean>> = NOTHING_OPEN;
+let openSectionsRaw: string | null = null;
+
+function readOpenSections(): Readonly<Record<string, boolean>> {
+  let raw: string | null;
+  try {
+    raw = window.localStorage.getItem(OPEN_SECTIONS_KEY);
+  } catch {
+    return NOTHING_OPEN;
+  }
+  if (raw === openSectionsRaw) return openSectionsSnapshot;
+  openSectionsRaw = raw;
+  try {
+    const parsed: unknown = raw === null ? null : JSON.parse(raw);
+    openSectionsSnapshot =
+      typeof parsed === 'object' && parsed !== null
+        ? (parsed as Record<string, boolean>)
+        : NOTHING_OPEN;
+  } catch {
+    openSectionsSnapshot = NOTHING_OPEN;
+  }
+  return openSectionsSnapshot;
+}
+
+/**
+ * What the server renders: every section closed.
+ *
+ * Not the remembered layout, which the server cannot know. Reading storage into
+ * state during the first client render instead would produce markup that
+ * disagrees with the HTML the server sent — a hydration mismatch, and a visible
+ * correction on every load for the returning operator this memory exists for.
+ * `browser.ts` argues the same case for the theme and the density; a form is no
+ * different from a stylesheet in this respect.
+ */
+function openSectionsServerSnapshot(): Readonly<Record<string, boolean>> {
+  return NOTHING_OPEN;
+}
+
+function subscribeToOpenSections(onChange: () => void): () => void {
+  window.addEventListener(OPEN_SECTIONS_CHANGED_EVENT, onChange);
+  return () => {
+    window.removeEventListener(OPEN_SECTIONS_CHANGED_EVENT, onChange);
+  };
+}
+
+function saveOpenSections(state: Readonly<Record<string, boolean>>): void {
+  try {
+    window.localStorage.setItem(OPEN_SECTIONS_KEY, JSON.stringify(state));
+  } catch {
+    // Private browsing or a full quota. Losing the remembered layout is not
+    // losing configuration, so there is nothing here worth surfacing — but the
+    // section still opens for the life of this page, because the event below
+    // is what the form actually re-renders from.
+    openSectionsRaw = null;
+    openSectionsSnapshot = state;
+  }
+  window.dispatchEvent(new Event(OPEN_SECTIONS_CHANGED_EVENT));
+}
+
+/**
+ * What one item field of an entry holds, read as the title for that entry.
+ *
+ * Only ever the entry's own `name` field, and only when it is a non-empty
+ * string. Falling back to anything derived — the first field, the path — would
+ * put a guess where "proxmox" belongs, and the guess is exactly what made
+ * every entry read as "Evaluated 1" in the first place.
+ */
+function entryTitle(entry: Entry, items: readonly ItemField[]): string {
+  const named = items.find((item) => item.path === 'name');
+  if (named === undefined) return '';
+  const value = entry[named.path];
+  return typeof value === 'string' ? value : '';
 }
 
 /** Return the entry a newly added row starts as, from the catalogue's defaults. */
@@ -365,11 +513,38 @@ export function ConfigEditor({ nodeId, fields, labels }: ConfigEditorProps): Rea
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [failure, setFailure] = useState('');
+  // Every section starts closed and stays that way until the operator opens
+  // one — reaching a field the operator already knows the name of should not
+  // cost a scroll past a hundred others. The remembered layout is an external
+  // store with a server snapshot rather than component state, so the first
+  // paint matches the HTML the server sent and React, not an effect, is what
+  // brings the browser's own answer in.
+  const openSections = useSyncExternalStore(
+    subscribeToOpenSections,
+    readOpenSections,
+    openSectionsServerSnapshot,
+  );
+  const [query, setQuery] = useState('');
+
+  function toggleSection(section: string, open: boolean): void {
+    saveOpenSections({ ...openSections, [section]: open });
+  }
 
   const body = bodyOf(nodeId, fields, pending);
   const serialised = JSON.stringify(body);
   const empty = isEmpty(body);
   const current = answer !== null && serialised === previewedBody;
+  const trimmedQuery = query.trim().toLowerCase();
+  const searching = trimmedQuery !== '';
+  const everySection = sectioned(fields);
+  const visibleSections = searching
+    ? everySection
+        .map((entry) => ({
+          ...entry,
+          fields: entry.fields.filter((field) => matchesQuery(field, trimmedQuery)),
+        }))
+        .filter((entry) => entry.fields.length > 0)
+    : everySection;
 
   function edit(path: string, keyed: string): void {
     setSaved(false);
@@ -441,41 +616,94 @@ export function ConfigEditor({ nodeId, fields, labels }: ConfigEditorProps): Rea
 
   return (
     <div data-testid="config-editor" className="flex flex-col gap-3">
+      {/* Fixed above the sections, so reaching a field by name or by section
+          never costs a scroll past the ones before it. */}
+      <div className="sticky top-0 z-10 flex flex-col gap-2 bg-surface py-2 edge border-border border-t-0 border-x-0">
+        <Input
+          label={labels.search}
+          name="config-field-search"
+          type="search"
+          value={query}
+          onValueChange={setQuery}
+        />
+        <nav
+          aria-label={labels.toc}
+          data-testid="section-toc"
+          className="flex flex-wrap gap-3"
+        >
+          {everySection.map(({ section, fields: sectionFields }) => (
+            <a
+              key={section === '' ? ' ' : section}
+              href={`#${sectionId(section)}`}
+              data-testid="section-link"
+              data-section={section}
+              className="text-meta text-strong underline"
+              onClick={() => {
+                toggleSection(section, true);
+              }}
+            >
+              {section === '' ? labels.generalSection : section} ({sectionFields.length}
+              )
+            </a>
+          ))}
+        </nav>
+      </div>
+
       <div className="flex flex-col gap-3">
-        {sectioned(fields).map(({ section, summary, fields: sectionFields }) => (
-          <details
-            key={section === '' ? ' ' : section}
-            data-testid="config-section"
-            data-section={section}
-            open
-            className="edge border-border rounded-2 px-3 py-2"
-          >
-            {section === '' ? null : (
+        {visibleSections.length === 0 ? (
+          <p data-testid="search-empty" className="text-meta text-muted">
+            {labels.searchEmpty}
+          </p>
+        ) : (
+          visibleSections.map(({ section, summary, fields: sectionFields }) => (
+            <details
+              key={section === '' ? ' ' : section}
+              id={sectionId(section)}
+              data-testid="config-section"
+              data-section={section}
+              open={searching || (openSections[section] ?? false)}
+              onToggle={(event) => {
+                if (searching) return;
+                toggleSection(section, (event.target as HTMLDetailsElement).open);
+              }}
+              className="edge border-border rounded-2 px-3 py-2"
+            >
               <summary className="cursor-pointer select-none">
-                <span className="font-mono text-meta text-strong">{section}</span>
+                <span className="font-mono text-meta text-strong">
+                  {section === '' ? labels.generalSection : section}
+                </span>
                 {summary === '' ? null : (
                   <span className="ml-2 text-meta text-muted">{summary}</span>
                 )}
               </summary>
-            )}
-            <div className="flex flex-col gap-3 pt-3">
-              {sectionFields.map((field) => (
-                <FieldRow
-                  key={field.path}
-                  field={field}
-                  keyed={pending.edits[field.path]}
-                  cleared={pending.cleared.includes(field.path)}
-                  labels={labels}
-                  onEdit={edit}
-                  onToggleClear={toggleClear}
-                />
-              ))}
-            </div>
-          </details>
-        ))}
+              <div className="flex flex-col gap-3 pt-3">
+                {sectionFields.map((field) => (
+                  <FieldRow
+                    key={field.path}
+                    field={field}
+                    keyed={pending.edits[field.path]}
+                    cleared={pending.cleared.includes(field.path)}
+                    labels={labels}
+                    onEdit={edit}
+                    onToggleClear={toggleClear}
+                  />
+                ))}
+              </div>
+            </details>
+          ))
+        )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Sticky the moment there is something pending, so previewing and
+          saving never cost a scroll back to wherever the button row started
+          out. Ordinary flow otherwise — nothing here needs to follow the
+          viewport when there is nothing to act on. */}
+      <div
+        className={cx(
+          'flex flex-wrap items-center gap-3 px-3 py-2',
+          empty ? '' : 'sticky bottom-0 z-10 bg-surface rounded-2 edge border-border',
+        )}
+      >
         <Button
           variant="primary"
           data-testid="ask-preview"
@@ -538,7 +766,17 @@ function FieldRow({
   onEdit,
   onToggleClear,
 }: FieldRowProps): ReactNode {
-  const current = keyed ?? stringify(field.value);
+  // The deployment reports `null` for a field nothing overrides — it does not
+  // fabricate a value, and neither does this console — but `null` is not what
+  // is actually running. Once there is a schema default worth showing, the
+  // control opens on it rather than on a blank the operator has to already
+  // know to distrust.
+  const defaultKnown = field.provenance === '' && stringify(field.default) !== '';
+  const current =
+    keyed ??
+    (defaultKnown && !isObjectList(field)
+      ? stringify(field.default)
+      : stringify(field.value));
   return (
     <div
       data-testid="config-field"
@@ -575,8 +813,14 @@ function FieldRow({
           data-path={field.path}
           className="text-meta text-muted"
         >
-          {labels.provenance}{' '}
-          {field.provenance === '' ? labels.inherited : field.provenance}
+          {field.provenance !== ''
+            ? // An override, recorded at a node — never called "the default",
+              // even where the node itself happens to be named that. The two
+              // phrases below never share a word for exactly that reason.
+              `${labels.setAt} ${field.provenance}`
+            : defaultKnown
+              ? `${labels.usingDefault} ${stringify(field.default)}`
+              : `${labels.provenance} ${labels.inherited}`}
         </span>
         {field.approvalGated ? (
           <span data-testid="field-gated" className="text-meta text-muted">
@@ -639,7 +883,7 @@ function Control({ field, value, disabled, onEdit }: ControlProps): ReactNode {
       <Select
         label={field.label}
         name={field.path}
-        description={field.description}
+        description={field.help}
         disabled={disabled}
         value={value}
         options={field.allowedValues.map((each) => ({ value: each, label: each }))}
@@ -655,7 +899,7 @@ function Control({ field, value, disabled, onEdit }: ControlProps): ReactNode {
       <Switch
         label={field.label}
         name={field.path}
-        description={field.description}
+        description={field.help}
         disabled={disabled}
         checked={value === 'true'}
         onCheckedChange={(next) => {
@@ -670,7 +914,7 @@ function Control({ field, value, disabled, onEdit }: ControlProps): ReactNode {
     <Input
       label={field.label}
       name={field.path}
-      description={field.description}
+      description={field.help}
       disabled={disabled}
       type={numeric ? 'number' : 'text'}
       min={field.minimum ?? undefined}
@@ -743,83 +987,100 @@ function ObjectList({
       className="flex flex-col gap-3 border-l border-subtle pl-3"
     >
       <legend className="text-meta text-strong">{field.label}</legend>
-      {field.description === '' ? null : (
-        <p className="text-meta text-muted">{field.description}</p>
-      )}
+      {field.help === '' ? null : <p className="text-meta text-muted">{field.help}</p>}
 
       {entries.length === 0 ? (
         <p className="text-meta text-muted">{labels.emptyList}</p>
       ) : (
-        entries.map((entry, index) => (
-          <div
-            // The index is the identity here, and deliberately: an entry has no
-            // stable key of its own until somebody names one, and keying on a
-            // field the operator is in the middle of typing would remount the
-            // control under their cursor.
-            key={index}
-            data-testid="list-entry"
-            data-index={String(index)}
-            className="flex flex-col gap-2"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                data-testid="entry-position"
-                className="text-micro uppercase text-muted"
-              >
-                {labels.entryPosition} {index + 1}
-              </span>
-              <button
-                type="button"
-                data-testid="move-entry-up"
-                disabled={disabled || index === 0}
-                className="text-meta text-strong underline"
-                onClick={() => {
-                  move(index, -1);
-                }}
-              >
-                {labels.moveUp}
-              </button>
-              <button
-                type="button"
-                data-testid="move-entry-down"
-                disabled={disabled || index === entries.length - 1}
-                className="text-meta text-strong underline"
-                onClick={() => {
-                  move(index, 1);
-                }}
-              >
-                {labels.moveDown}
-              </button>
-              <button
-                type="button"
-                data-testid="remove-entry"
-                disabled={disabled}
-                className="text-meta text-danger underline"
-                onClick={() => {
-                  write(entries.filter((_, at) => at !== index));
-                }}
-              >
-                {labels.removeEntry}
-              </button>
-            </div>
+        entries.map((entry, index) => {
+          const title = entryTitle(entry, field.itemFields);
+          return (
+            <div
+              // The index is the identity here, and deliberately: an entry has no
+              // stable key of its own until somebody names one, and keying on a
+              // field the operator is in the middle of typing would remount the
+              // control under their cursor.
+              key={index}
+              data-testid="list-entry"
+              data-index={String(index)}
+              className="flex flex-col gap-2"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Titled by what the entry is, not by where it sits. "Evaluated
+                  1" read as the only heading is how an integration entry ends
+                  up named after its evaluation order instead of "proxmox". */}
+                {title === '' ? null : (
+                  <span data-testid="entry-title" className="text-meta text-strong">
+                    {title}
+                  </span>
+                )}
+                <span
+                  data-testid="entry-position"
+                  className="text-micro uppercase text-muted"
+                >
+                  {labels.entryPosition} {index + 1}
+                </span>
+                <button
+                  type="button"
+                  data-testid="move-entry-up"
+                  disabled={disabled || index === 0}
+                  className="text-meta text-strong underline"
+                  onClick={() => {
+                    move(index, -1);
+                  }}
+                >
+                  {labels.moveUp}
+                </button>
+                <button
+                  type="button"
+                  data-testid="move-entry-down"
+                  disabled={disabled || index === entries.length - 1}
+                  className="text-meta text-strong underline"
+                  onClick={() => {
+                    move(index, 1);
+                  }}
+                >
+                  {labels.moveDown}
+                </button>
+                <button
+                  type="button"
+                  data-testid="remove-entry"
+                  disabled={disabled}
+                  className="text-meta text-danger underline"
+                  onClick={() => {
+                    write(entries.filter((_, at) => at !== index));
+                  }}
+                >
+                  {labels.removeEntry}
+                </button>
+              </div>
 
-            <div className="flex flex-col gap-2">
-              {field.itemFields.map((item) => (
-                <div key={item.path} data-item-path={item.path}>
-                  <ItemControl
-                    item={item}
-                    name={`${field.path}.${String(index)}.${item.path}`}
-                    value={itemValue(entry, item)}
-                    disabled={disabled}
-                    onEdit={(keyed) => {
-                      change(index, item, keyed);
-                    }}
-                  />
-                </div>
-              ))}
+              <div className="flex flex-col gap-2">
+                {field.itemFields.map((item) => (
+                  <div key={item.path} data-item-path={item.path}>
+                    <ItemControl
+                      item={
+                        // A switch read on its own says only "Enabled" — of
+                        // what is not in the sentence. Every other control in
+                        // the entry sits under a title that answers that, but a
+                        // screen reader visits controls one at a time.
+                        item.type === 'boolean' && title !== ''
+                          ? { ...item, label: `${title} — ${item.label}` }
+                          : item
+                      }
+                      name={`${field.path}.${String(index)}.${item.path}`}
+                      value={itemValue(entry, item)}
+                      disabled={disabled}
+                      onEdit={(keyed) => {
+                        change(index, item, keyed);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
 
       <div>
@@ -860,7 +1121,7 @@ function ItemControl({
       <Select
         label={item.label}
         name={name}
-        description={item.description}
+        description={item.help}
         disabled={disabled}
         value={value}
         options={item.allowedValues.map((each) => ({ value: each, label: each }))}
@@ -874,7 +1135,7 @@ function ItemControl({
       <Switch
         label={item.label}
         name={name}
-        description={item.description}
+        description={item.help}
         disabled={disabled}
         checked={value === 'true'}
         onCheckedChange={(next) => {
@@ -889,7 +1150,7 @@ function ItemControl({
     <Input
       label={item.label}
       name={name}
-      description={item.description}
+      description={item.help}
       disabled={disabled}
       type={numeric ? 'number' : 'text'}
       min={item.minimum ?? undefined}

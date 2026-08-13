@@ -165,25 +165,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.handover.estate': 'Ir para o parque',
   'firstRun.handover.alerts': 'Ir para os detectores',
 
-  'setup.checklist.title': 'Terminar a configuração',
-  'setup.checklist.remaining': 'Faltam {count} de {total} passos',
-  'setup.checklist.open': 'Fazer isto agora',
-  'setup.checklist.empty.heading': 'Não foi possível ler o estado da configuração',
-  'setup.checklist.empty.body':
-    'Este painel é desenhado a partir da checklist do próprio deployment, e ela não respondeu. Todo o resto desta página não é afetado.',
-  'setup.checklist.empty.action': 'Abrir os primeiros passos',
   'setup.noProvider.heading': 'Nenhum provider de modelo está configurado',
   'setup.noProvider.body':
     'Nada pode ser investigado até que haja um. É uma credencial, e a plataforma oferece nove providers, incluindo um que roda no seu próprio hardware.',
   'setup.noProvider.action': 'Escolher um provider',
-  'setup.actions.title': 'Ações rápidas',
-  'setup.actions.knowledge': 'Carregar o que sua equipe já sabe',
-  'setup.actions.agent': 'Ajustar o que o agente pode fazer',
-  'setup.actions.memory': 'Ver o que ele aprendeu',
-  'setup.actions.empty.heading': 'Nada a fazer daqui',
-  'setup.actions.empty.body':
-    'As ações deste painel são as que a checklist está cobrando. Ela não está cobrando nenhuma.',
-  'setup.actions.empty.action': 'Ir para a visão geral',
 
   'tutorial.title': 'O que é isto, em cinco telas',
   'tutorial.skip': 'Pular',
@@ -269,6 +254,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'shell.account': 'Conta',
   'shell.account.signOut': 'Terminar sessão',
   'shell.account.impersonate': 'Agir como outra pessoa',
+  'shell.account.language': 'Idioma',
+  'shell.language.en': 'English',
+  'shell.language.pt-BR': 'Português (Brasil)',
   'shell.deployment': 'Instalação',
   'shell.close': 'Fechar',
 
@@ -281,6 +269,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'stop.release': 'Deixar a automação correr de novo',
   'stop.engaged':
     'As escritas automáticas estão paradas. As investigações continuam a correr e a propor; nada é aplicado.',
+  'stop.engaged.by': 'Parado por {by}, {since}.',
+  'stop.engaged.unknown': 'Parado antes de esta tela poder dizer quem ou quando.',
+  'stop.engaged.howToRelease':
+    'Quem puder parar este deployment também pode liberá-lo, no topo da tela.',
   'stop.reason': 'Parado a partir do console.',
   'stop.refused': 'O deployment recusou mudar a paragem.',
   'stop.unreachable': 'Não foi possível alcançar o deployment. Pare-o à mão.',
@@ -291,6 +283,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'shell.guardian.posture.propose': 'apenas propõe',
   'shell.guardian.posture.act': 'a agir',
   'shell.guardian.posture.frozen': 'congelado',
+  'shell.guardian.tooltip':
+    'O que a postura significa: "apenas propõe" mostra cada mudança e o seu raio de impacto, e não aplica nada até você aprovar. Abra Autonomia para ver ou mudar.',
 
   'notifications.title': 'Precisa de si',
   'notifications.open': 'Notificações',
@@ -408,7 +402,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.attention.title': 'Precisa de si',
   'dashboard.attention.count': '{count} itens precisam de si',
   'dashboard.attention.count.one': '{count} item precisa de si',
-  'dashboard.attention.oldest': 'Mais antigo {age}',
+  'dashboard.attention.oldest': 'À espera há mais tempo: {age}',
   'dashboard.attention.empty.heading': 'Nada está à espera de uma pessoa',
   'dashboard.attention.empty.body':
     'Aprovações, perguntas do agente e execuções falhadas aparecem aqui assim que existirem. Não existe nenhuma.',
@@ -418,20 +412,33 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.stat.healthy': 'Saudáveis',
   'dashboard.stat.healthy.context': '{count} de {total} na última varredura',
   'dashboard.stat.degraded': 'Degradados e não saudáveis',
-  'dashboard.stat.degraded.context': '{count} constatações abertas por trás deles',
+  'dashboard.stat.degraded.context':
+    '{count} constatações abertas por trás deles; {live} de {total} detectores estão ligados para transformar uma delas num incidente',
   'dashboard.stat.runs': 'Investigações no último dia',
   'dashboard.stat.runs.context': '{failed} delas falharam',
+  'dashboard.stat.successRate': 'Taxa de sucesso',
+  'dashboard.stat.successRate.context':
+    '{succeeded} de {settled} investigações concluídas tiveram sucesso',
+  'dashboard.stat.successRate.context.none': 'Ainda não terminou nenhuma investigação',
   'dashboard.stat.drill': 'Ver a lista por trás deste número',
   'dashboard.activity.title': 'Actividade recente',
   'dashboard.activity.empty.heading': 'Ainda não aconteceu nada',
   'dashboard.activity.empty.body':
     'Execuções, incidentes e varreduras aparecem aqui à medida que acontecem. Ligue uma fonte de infra-estrutura e a primeira varredura começa dentro de um minuto.',
   'dashboard.activity.empty.action': 'Ligar uma fonte',
-  'dashboard.estate.title': 'Saúde do parque',
-  'dashboard.estate.empty.heading': 'Ainda não há recursos',
-  'dashboard.estate.empty.body':
-    'Ligue uma fonte de infra-estrutura e o parque preenche-se sozinho dentro de um minuto. Nada aqui é introduzido à mão.',
-  'dashboard.estate.empty.action': 'Ligar uma fonte',
+  'dashboard.hero.title': 'Continuar a configuração',
+  'dashboard.hero.remaining': '{count} de {total} passos por fazer',
+  'dashboard.hero.next': 'Seguinte',
+  'dashboard.hero.action': 'Continuar a configuração',
+  'dashboard.hero.empty.heading': 'O estado da configuração não pôde ser lido',
+  'dashboard.hero.empty.body':
+    'Isto é lido a partir da checklist de configuração da própria instalação, e ela não respondeu. O resto desta página não é afectado.',
+  'dashboard.hero.empty.action': 'Abrir os primeiros passos',
+  'dashboard.quickActions.title': 'Acções rápidas',
+  'dashboard.quickActions.empty.heading': 'Nada a fazer a partir daqui',
+  'dashboard.quickActions.empty.body':
+    'Estes são os destinos que a checklist de configuração está a pedir. Não está a pedir nenhum.',
+  'dashboard.quickActions.empty.action': 'Ir para a visão geral',
   'dashboard.guardian.title': 'Guardião',
   'dashboard.guardian.posture': 'Postura',
   'dashboard.guardian.liveness': 'Vivacidade',
@@ -885,6 +892,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.editor.entryPosition': 'Avaliada',
   'configuration.editor.emptyList': 'Nada declarado aqui ainda.',
   'configuration.editor.useSuggested': 'Usar o endereço encontrado aqui:',
+  'configuration.editor.setAt': 'Definido em:',
+  'configuration.editor.usingDefault': 'Usando o padrão do deployment:',
+  'configuration.editor.toc': 'Ir para uma seção',
+  'configuration.editor.search': 'Buscar um campo',
+  'configuration.editor.searchEmpty': 'Nenhum campo corresponde a esta busca.',
+  'configuration.editor.generalSection': 'Geral',
+  'configuration.provenance.default': 'Padrão do deployment',
+  'configuration.provenance.setAt': 'Definido em: {node}',
+  'configuration.provenance.mixed': 'Definido em mais de um nó',
   'configuration.empty.heading': 'Nenhuma configuração aqui',
   'configuration.empty.body':
     'Cada nó herda do nó acima. Este não define nada de seu, por isso o que se aplica é o que o pai aplica.',

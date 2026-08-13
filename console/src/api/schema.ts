@@ -3196,6 +3196,11 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
             /** Item Fields */
             item_fields?: components["schemas"]["ItemFieldView"][];
             /** Label */
@@ -3230,6 +3235,11 @@ export interface components {
              * @default
              */
             section: string;
+            /**
+             * Section Help
+             * @default
+             */
+            section_help: string;
             /**
              * Section Summary
              * @default
@@ -4570,6 +4580,11 @@ export interface components {
              * @default
              */
             description: string;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
             /** Label */
             label: string;
             /** Max Length */

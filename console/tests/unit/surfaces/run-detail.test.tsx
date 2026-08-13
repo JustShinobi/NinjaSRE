@@ -1,0 +1,145 @@
+import { render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { SESSION_COOKIE } from '@/session/cookies';
+import { surfaceContext } from '@/surfaces/context';
+import { RunDetailScreen } from '@/surfaces/screens/run-detail';
+
+/**
+ * A run that failed before it began: no turns, a summary that is the
+ * deployment's own exception rather than a sentence somebody wrote.
+ *
+ * The console has one rule for text like this — no exception message from the
+ * gateway is ever a headline — and this screen is where it can go wrong twice
+ * over at once: the transcript's own "Report" entry used to carry the same
+ * translated headline the summary panel already shows, and that duplicate
+ * `events` entry is exactly what kept the cost and links panels from
+ * recognising the run had nothing to show but the reason it never started.
+ */
+
+vi.mock('next/headers', () => ({
+  cookies: () =>
+    Promise.resolve({
+      get: (name: string) =>
+        name === SESSION_COOKIE ? { value: 'a-token' } : undefined,
+    }),
+  headers: () => Promise.resolve({ get: () => null }),
+}));
+
+/** Built rather than written: a literal origin in console source is refused. */
+const BASE = ['http:', '//gateway.test'].join('');
+
+const RUN = 'run-failed-early';
+
+const RAW =
+  'InvestigatorNotConfigured: No investigation runtime is configured. Set ' +
+  "NINJASRE_INVESTIGATOR to 'module:factory' — a callable returning the runner.";
+
+beforeEach(() => {
+  vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function serveFailedBeforeStart(): void {
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const path = new URL(String(input), BASE).pathname;
+    const bodies: Record<string, unknown> = {
+      '/auth/me': {
+        principal_id: 'user-operator',
+        display_name: 'Avery Lockhart',
+        kind: 'person',
+        roles: ['owner'],
+        permissions: ['investigation.read'],
+        team_node_id: 'org-northwind',
+        impersonating: false,
+        impersonated_by: null,
+      },
+      [`/v1/runs/${RUN}`]: {
+        run_id: RUN,
+        status: 'failed',
+        summary: RAW,
+        trigger: 'manual',
+        started_at: '2026-08-07T13:52:00+00:00',
+        finished_at: '2026-08-07T13:52:03+00:00',
+      },
+      [`/v1/runs/${RUN}/replay`]: {
+        run_id: RUN,
+        is_interrupted: false,
+        total_cost: 0,
+        total_tokens: 0,
+        turns: [],
+      },
+      '/v1/incidents': { incidents: [] },
+      [`/v1/investigations/${RUN}/interactions`]: { interactions: [] },
+    };
+    const body = bodies[path];
+    return Promise.resolve(
+      new Response(JSON.stringify(body ?? {}), {
+        status: body === undefined ? 404 : 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+}
+
+async function runScreen(): Promise<void> {
+  render(await RunDetailScreen(await surfaceContext({}), RUN));
+}
+
+describe('a run that failed before it started', () => {
+  it('never prints the deployment’s raw text more than once on the screen', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    // Present exactly once: the disclosure on the summary panel.
+    expect(screen.getAllByText(RAW)).toHaveLength(1);
+  });
+
+  it('carries no duplicate "report" entry into the transcript', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    // A transcript built only from the translated headline of a run that
+    // never started is not a transcript entry — it is the same sentence
+    // shown a second time, styled as if the run had concluded successfully.
+    // With no turns and no report entry, the transcript panel has nothing to
+    // draw and falls to its own, unrelated empty state.
+    expect(screen.queryByTestId('transcript-event')).not.toBeInTheDocument();
+    const transcriptPanel = screen
+      .getAllByTestId('panel')
+      .find((panel) => within(panel).queryByText('Investigation transcript') !== null);
+    expect(transcriptPanel).toHaveAttribute('data-state', 'empty');
+  });
+
+  it('collapses the cost panel to one line rather than a full empty state', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    const cost = screen
+      .getAllByTestId('panel')
+      .find((panel) => within(panel).queryByText('Cost and tokens') !== null);
+    expect(cost).toBeDefined();
+    if (cost === undefined) return;
+    expect(cost).toHaveAttribute('data-state', 'ready');
+    expect(within(cost).getByText('No cost recorded')).toBeInTheDocument();
+    // The one-line collapse carries no call to action back to another screen.
+    expect(within(cost).queryByTestId('way-back')).toBeNull();
+  });
+
+  it('collapses the links panel to one line rather than a full empty state', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    const links = screen
+      .getAllByTestId('panel')
+      .find((panel) => within(panel).queryByText('What this run touched') !== null);
+    expect(links).toBeDefined();
+    if (links === undefined) return;
+    expect(links).toHaveAttribute('data-state', 'ready');
+    expect(within(links).getByText('Nothing linked yet')).toBeInTheDocument();
+    expect(within(links).queryByTestId('way-back')).toBeNull();
+  });
+});

@@ -88,9 +88,9 @@ export function editableFields(body: unknown): readonly EditableField[] {
     path: text(entry, 'path'),
     label: text(entry, 'label'),
     type: text(entry, 'type'),
-    description: text(entry, 'description'),
+    help: text(entry, 'help'),
     section: text(entry, 'section'),
-    sectionSummary: text(entry, 'section_summary'),
+    sectionHelp: text(entry, 'section_help'),
     value: field(entry, 'value'),
     provenance: text(entry, 'provenance'),
     setHere: flag(entry, 'set_here'),
@@ -99,6 +99,10 @@ export function editableFields(body: unknown): readonly EditableField[] {
     allowedValues: closedSet(entry, 'allowed_values'),
     minimum: bound(entry, 'minimum'),
     maximum: bound(entry, 'maximum'),
+    // What actually applies when no node overrides this field. Carried
+    // separately from `value`, which is `null` for an unset field rather than
+    // the default — the two are conflated nowhere in this module.
+    default: field(entry, 'default'),
     // Filled in by `withSuggestions`, from a different endpoint. The catalogue
     // describes the field; what the estate found is a separate question.
     suggestedValue: '',
@@ -121,7 +125,7 @@ function itemFields(entry: unknown): readonly ItemField[] {
     path: text(item, 'path'),
     label: text(item, 'label'),
     type: text(item, 'type'),
-    description: text(item, 'description'),
+    help: text(item, 'help'),
     allowedValues: closedSet(item, 'allowed_values'),
     minimum: bound(item, 'minimum'),
     maximum: bound(item, 'maximum'),

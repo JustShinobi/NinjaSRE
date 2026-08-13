@@ -90,6 +90,15 @@ test('the configuration preview is the deployment’s answer', async ({ page }) 
   // response has to say the change is gated, and that is the one field this
   // deployment gates.
   await expect(page.getByTestId('ask-preview')).toBeDisabled();
+
+  // Reached by name rather than by scrolling: the form is ~thirty sections of
+  // ~a hundred and twenty fields, every one collapsed until somebody asks for
+  // it, and searching is the path this screen now offers. Typing the path is
+  // also the acceptance criterion — any field, under five seconds — so the
+  // browser suite is where it is worth proving rather than asserting in prose.
+  await page
+    .locator('input[name="config-field-search"]')
+    .fill('approval.required_above');
   await page
     .locator('select[name="approval.required_above"]')
     .selectOption('write_irreversible');

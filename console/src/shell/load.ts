@@ -3,6 +3,9 @@ import { parseViewer, type Viewer } from '@/session/viewer';
 import type { AttentionItem } from './attention';
 import type { RecentRun } from './commands';
 import type { Guardian } from './sidebar';
+import { NOT_STOPPED, stoppageFrom, type Stoppage } from './stoppage';
+
+export { stoppageFrom, type Stoppage };
 
 /**
  * What the shell needs before it can draw itself, read once per request.
@@ -217,16 +220,16 @@ async function readGuardian(credential: string): Promise<Guardian> {
  * automation is stopped when the read merely failed would send an operator to
  * release a switch nobody engaged.
  */
-export async function loadStopped(credential: string): Promise<boolean> {
-  return withDeadline(readStopped(credential), false);
+export async function loadStopped(credential: string): Promise<Stoppage> {
+  return withDeadline(readStopped(credential), NOT_STOPPED);
 }
 
-async function readStopped(credential: string): Promise<boolean> {
+async function readStopped(credential: string): Promise<Stoppage> {
   try {
     const body = await read('/v1/autonomy/kill-switch', authorised(credential));
-    return Reflect.get(Object(body), 'engaged') === true;
+    return stoppageFrom(body);
   } catch (error) {
-    if (error instanceof ApiError || error instanceof TypeError) return false;
+    if (error instanceof ApiError || error instanceof TypeError) return NOT_STOPPED;
     throw error;
   }
 }

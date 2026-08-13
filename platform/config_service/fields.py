@@ -19,6 +19,15 @@ operation the write path does not have. ``leaves`` already takes this view and
 this module agrees with it, because a catalogue that disagreed with the merge
 would describe fields that cannot be addressed.
 
+**Two texts per field, and they have different readers.** ``description`` and
+``section_summary`` are the schema's own docstrings: they are written for
+somebody reading the schema, and they cite the reasoning behind a decision at
+whatever length the decision needs. ``help`` and ``section_help`` are the one to
+three sentences a form puts under a control, written for the operator filling it
+in. Both are declared in the schema — the short one through ``field_help`` and
+``section_help`` — because the moment the short one lives anywhere else it is
+the table this module exists not to be.
+
 **A node's policies narrow the control, never widen it.** A ceiling declared on
 a path tightens whatever the schema declares; a policy naming a higher one is
 ignored. The schema's bound is the deployment's, and a form that offered a
@@ -58,14 +67,25 @@ class ConfigField:
     from ``description`` deliberately: most leaves document themselves through
     the section they belong to, and presenting a section's sentence as a field's
     own would attribute a claim to the wrong thing.
+
+    ``help`` and ``section_help`` are the short, operator-facing forms of the
+    same two things, and they are what a form renders. ``description`` and
+    ``section_summary`` remain the schema's own text, for the code — a form that
+    showed them is a form quoting a document its reader has never seen.
+
+    ``help`` may be empty, for a field whose label already says everything a
+    padded sentence would. ``section_help`` may not: a heading with nothing
+    under it is the whole of what a section offers a reader.
     """
 
     path: str
     label: str
     type: str
     description: str = ""
+    help: str = ""
     section: str = ""
     section_summary: str = ""
+    section_help: str = ""
     default: Any = None
     minimum: float | None = None
     maximum: float | None = None
@@ -119,7 +139,7 @@ def declared_fields() -> tuple[ConfigField, ...]:
     document = RootConfig.model_json_schema()
     definitions = document.get("$defs", {})
     collected: list[ConfigField] = []
-    _walk(document, definitions, "", "", collected, 0)
+    _walk(document, definitions, "", _Section(), collected, 0)
     return tuple(collected)
 
 
@@ -181,11 +201,29 @@ def _intersected(
     return tuple(value for value in declared if value in policy)
 
 
+@dataclass(frozen=True, slots=True)
+class _Section:
+    """The two texts the section a leaf sits in contributes to that leaf.
+
+    Carried together rather than as two parameters because they are read off one
+    schema node and are only ever used as a pair; splitting them is how one of
+    them ends up passed from the wrong level.
+    """
+
+    summary: str = ""
+    help: str = ""
+
+
+def _section_of(spec: Mapping[str, Any]) -> _Section:
+    """Return the summary and the help the section ``spec`` declares."""
+    return _Section(summary=str(spec.get("description", "")), help=str(spec.get("help", "")))
+
+
 def _walk(
     schema: Mapping[str, Any],
     definitions: Mapping[str, Any],
     prefix: str,
-    summary: str,
+    section: _Section,
     collected: list[ConfigField],
     depth: int,
 ) -> None:
@@ -200,7 +238,7 @@ def _walk(
                 spec,
                 definitions,
                 path,
-                str(spec.get("description", "")),
+                _section_of(spec),
                 collected,
                 depth + 1,
             )
@@ -211,8 +249,10 @@ def _walk(
                 label=str(raw.get("title") or spec.get("title") or name),
                 type=_type_of(spec),
                 description=str(raw.get("description", spec.get("description", ""))),
+                help=str(raw.get("help", spec.get("help", ""))),
                 section=prefix,
-                section_summary=summary,
+                section_summary=section.summary,
+                section_help=section.help,
                 default=raw.get("default", spec.get("default")),
                 minimum=_bound(spec, _LOWER),
                 maximum=_bound(spec, _UPPER),
@@ -243,7 +283,7 @@ def _entry_fields(
     if not _descends(entry):
         return ()
     collected: list[ConfigField] = []
-    _walk(entry, definitions, "", str(entry.get("description", "")), collected, depth + 1)
+    _walk(entry, definitions, "", _section_of(entry), collected, depth + 1)
     return tuple(collected)
 
 

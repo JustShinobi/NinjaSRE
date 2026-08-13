@@ -145,7 +145,17 @@ export function SidebarNav({
   );
 }
 
-/** What the guardian is doing, in one line, always on screen. */
+/** Where the footer sends a reader who wants to know what the posture means. */
+const AUTONOMY_PATH = '/autonomy';
+
+/**
+ * What the guardian is doing, in one line, always on screen.
+ *
+ * A link rather than a paragraph, because "propose-only" is jargon nobody
+ * asked to learn — it is where this deployment's posture is explained *and*
+ * controlled, so a reader who wants to know what it means and a reader who
+ * wants to change it land in the same place.
+ */
 export function GuardianFooter({
   locale,
   guardian,
@@ -158,18 +168,20 @@ export function GuardianFooter({
     guardian.live ? 'shell.guardian.active' : 'shell.guardian.silent',
   );
   return (
-    <p
+    <NextLink
+      href={AUTONOMY_PATH}
       data-testid="guardian"
       data-live={guardian.live}
       data-posture={guardian.posture}
-      className="mt-auto flex items-center gap-2 p-3 edge border-x-0 border-b-0 border-border text-meta text-muted"
+      title={message(locale, 'shell.guardian.tooltip')}
+      className="mt-auto flex items-center gap-2 p-3 edge border-x-0 border-b-0 border-border text-meta text-muted hover:bg-hover motion-hover"
     >
       <StatusDot status={guardian.live ? 'healthy' : 'unknown'} />
       {message(locale, 'shell.guardian.state', {
         liveness,
         posture: message(locale, POSTURE_KEY[guardian.posture]),
       })}
-    </p>
+    </NextLink>
   );
 }
 

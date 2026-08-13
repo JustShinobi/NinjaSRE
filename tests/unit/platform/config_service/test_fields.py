@@ -15,6 +15,7 @@ deployment refuses.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pytest
@@ -94,6 +95,91 @@ def test_a_section_carries_the_summary_the_fields_under_it_are_read_with() -> No
 
     assert budget.section == "agents"
     assert budget.section_summary != ""
+
+
+# -- the text an operator actually reads ---------------------------------------
+#
+# ``description`` and ``section_summary`` are the schema's own docstrings, and
+# they are written for whoever is reviewing the schema: they cite the documents
+# a decision came from, name the module that implements it, and run to eight
+# lines. That is the right text to have next to the code and the wrong text to
+# put under a form control, so the schema declares a second, short one beside
+# it. ``help`` and ``section_help`` are what a form shows.
+
+
+def _all_declared() -> tuple[Any, ...]:
+    """Return every field in the catalogue, entry fields included."""
+    collected: list[Any] = []
+    for declared in declared_fields():
+        collected.append(declared)
+        collected.extend(declared.item_fields)
+    return tuple(collected)
+
+
+#: What must never reach an operator. Each one has been in the rendered form at
+#: least once, arriving from a docstring nobody wrote for a reader outside this
+#: repository.
+_LEAKS: tuple[tuple[str, str], ...] = (
+    (r"FR-\d+", "a requirement identifier"),
+    (r"\bArticle\s+[IVX]+\b", "a constitution article"),
+    (r"[\w/]+\.py\b", "a source path"),
+    (r"``", "unrendered reStructuredText markup"),
+)
+
+
+def test_every_section_carries_help_written_for_the_operator_filling_the_form() -> None:
+    missing = sorted(
+        {declared.section for declared in declared_fields() if not declared.section_help.strip()}
+    )
+
+    assert missing == []
+
+
+def test_every_entry_section_carries_help_too() -> None:
+    # An entry of a list of objects is a form of its own, and it is drawn from
+    # the same catalogue: a row of controls with no heading text is the same
+    # defect one level down.
+    missing = sorted(
+        {
+            declared.path
+            for declared in declared_fields()
+            for item in declared.item_fields
+            if not item.section_help.strip()
+        }
+    )
+
+    assert missing == []
+
+
+@pytest.mark.parametrize(("pattern", "what"), _LEAKS)
+def test_no_help_text_carries_what_only_this_repository_can_read(pattern: str, what: str) -> None:
+    offenders = [
+        f"{declared.path}: {text}"
+        for declared in _all_declared()
+        for text in (declared.help, declared.section_help)
+        if re.search(pattern, text)
+    ]
+
+    assert offenders == [], f"help text carrying {what}"
+
+
+def test_a_field_declares_its_own_help_beside_the_field_it_describes() -> None:
+    # Declared in the schema rather than in a table keyed by path: a table is
+    # the thing this module is built not to be, and it would drift the day a
+    # field is renamed.
+    budget = _by_path()["agents.tool_budget"]
+
+    assert budget.help.strip() != ""
+    assert budget.help != budget.section_help
+
+
+def test_the_long_docstring_stays_where_the_code_can_read_it() -> None:
+    # The short text is an addition, not a replacement: the rationale is still
+    # the section's summary, for whoever is reading the schema.
+    budget = _by_path()["agents.tool_budget"]
+
+    assert budget.section_summary != ""
+    assert budget.section_summary != budget.section_help
 
 
 def test_no_field_is_declared_twice() -> None:

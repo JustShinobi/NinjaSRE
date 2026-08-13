@@ -11,13 +11,11 @@ import { GrantPanel, type Grant } from '../grants';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { SsoForm, type SsoField } from '../sso';
-import {
-  isConsoleSession,
-  SessionPanel,
-  TokenPanel,
-  type IssuedToken,
-  type SessionEntry,
-} from '../tokens';
+import { SessionPanel, TokenPanel, type SessionEntry } from '../tokens';
+// From the directive-free module, never from `../tokens`: this screen is
+// resolved on the server, and a client export called from here throws the whole
+// route rather than the component that asked for it.
+import { isConsoleSession, type IssuedToken } from '../token-identity';
 import {
   authorised,
   dataOf,

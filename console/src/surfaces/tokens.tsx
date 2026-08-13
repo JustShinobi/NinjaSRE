@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Button } from '@/components/action';
 import { Input } from '@/components/form';
 import { Badge } from '@/components/status';
+import type { IssuedToken } from './token-identity';
 
 /**
  * Machine tokens: issued here, shown once, and revoked with the consequence named.
@@ -24,34 +25,21 @@ import { Badge } from '@/components/status';
  *
  * **A browser sign-in is not a machine token, in anybody's head but the
  * store's.** `/identity/tokens` carries both under one shape, because the
- * gateway resolves a bearer the same way whichever one it is. This module
- * still knows the difference — `isConsoleSession` and `SessionPanel` below —
- * because the list a person reads has to sort by what a row *is*, not by what
- * table it came from.
+ * gateway resolves a bearer the same way whichever one it is. The difference is
+ * still made — `isConsoleSession` in `token-identity.ts`, and `SessionPanel`
+ * below — because the list a person reads has to sort by what a row *is*, not
+ * by what table it came from. The screen splits the list before either panel is
+ * rendered, which is why the predicate is not in this file.
  */
 
 /** Where both writes go. The console's own process, forwarding once. */
 export const TOKEN_ENDPOINT = '/api/token';
 
-/**
- * The exact name `platform/identity/local_accounts.py` issues a sign-in token
- * under. Matched by value: the console has no import path to the platform's
- * own constant, and this is the one thing that has to stay a literal string.
- */
-export const CONSOLE_SESSION_NAME = 'Console sign-in';
-
-/** Whether `token` is a browser sign-in rather than a credential somebody minted. */
-export function isConsoleSession(token: Pick<IssuedToken, 'name'>): boolean {
-  return token.name === CONSOLE_SESSION_NAME;
-}
-
-export interface IssuedToken {
-  readonly tokenId: string;
-  readonly name: string;
-  readonly scopes: readonly string[];
-  readonly revoked: boolean;
-  readonly expires: string;
-}
+// `isConsoleSession`, `CONSOLE_SESSION_NAME` and `IssuedToken` used to be
+// declared here. The Administration screen is a server component and calls the
+// predicate to split the list before it renders anything, which a client
+// export cannot be called from — so they live in `token-identity.ts`, which
+// carries no directive and which both sides import.
 
 export interface TokenLabels {
   readonly name: string;

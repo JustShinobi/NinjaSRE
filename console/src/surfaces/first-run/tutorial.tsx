@@ -78,7 +78,12 @@ export function Tutorial({ locale, nodeId }: TutorialProps): ReactNode {
       data-slide={number}
       className="fixed inset-0 z-20 flex items-center justify-center bg-sunken/80 p-5"
     >
-      <div className="flex w-prose max-w-full flex-col gap-4 rounded-3 edge border-border bg-raised p-5 shadow-2">
+      {/* `w-full max-w-prose` rather than the `w-prose` this replaced: that
+          class named nothing this stylesheet declares, so the card had no
+          width of its own and sized itself to whichever slide's text was
+          longest — which is the width half of the defect this fixes. Fixed
+          here, the card is the same size on every slide. */}
+      <div className="flex w-full max-w-prose flex-col gap-4 rounded-3 edge border-border bg-raised p-5 shadow-2">
         <div className="flex items-center gap-3">
           <p className="text-meta text-muted" data-testid="tutorial-progress">
             {message(locale, 'tutorial.progress', {
@@ -104,15 +109,30 @@ export function Tutorial({ locale, nodeId }: TutorialProps): ReactNode {
           value={((slide + 1) / SLIDES.length) * 100}
         />
 
-        <h2 className="text-strong">
-          {message(
-            locale,
-            `tutorial.slide.${number}.title` as 'tutorial.slide.1.title',
-          )}
-        </h2>
-        <p className="text-small text-muted">
-          {message(locale, `tutorial.slide.${number}.body` as 'tutorial.slide.1.body')}
-        </p>
+        {/* The one region whose content differs by slide, at a height fixed
+            regardless of which slide is showing and scrollable on the rare
+            reader whose text still overflows it. Every sibling above and
+            below — the skip, the progress bar, Back and Next — is therefore
+            at the same pixel on slide one and on slide five, which is the
+            whole of what this overlay was missing: a click at the coordinate
+            Next was just at lands on Next again. */}
+        <div
+          className="flex h-44 flex-col gap-2 overflow-y-auto"
+          data-testid="tutorial-body"
+        >
+          <h2 className="text-strong">
+            {message(
+              locale,
+              `tutorial.slide.${number}.title` as 'tutorial.slide.1.title',
+            )}
+          </h2>
+          <p className="text-small text-muted">
+            {message(
+              locale,
+              `tutorial.slide.${number}.body` as 'tutorial.slide.1.body',
+            )}
+          </p>
+        </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <Button

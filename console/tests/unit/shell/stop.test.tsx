@@ -168,6 +168,118 @@ describe('the control, for whoever may use it', () => {
   });
 });
 
+describe('who stopped it, since when, and how it comes back', () => {
+  it('says nothing about who or when when the deployment did not say', () => {
+    render(<KillSwitchBanner locale="en" engaged />);
+
+    const banner = screen.getByTestId('stop-banner');
+    expect(banner).toHaveTextContent('before this page could say who or when');
+    // Always says how it comes back, whether or not it knows who stopped it.
+    expect(banner).toHaveTextContent('release it from the top of the screen');
+  });
+
+  it('names who stopped it and since when, in the deployment’s own zone', () => {
+    render(
+      <KillSwitchBanner
+        locale="en"
+        engaged
+        by="Avery Lockhart"
+        since="2026-08-07T09:00:00Z"
+        zone="UTC"
+      />,
+    );
+
+    const banner = screen.getByTestId('stop-banner');
+    expect(banner).toHaveTextContent('Stopped by Avery Lockhart');
+  });
+
+  it('attributes an engagement it just performed to whoever the deployment says', async () => {
+    // The courier forwards `scopes` alongside `engaged`, so the browser reads
+    // the deployment's answer rather than asserting its own. Named someone
+    // other than the acting viewer on purpose: attributing to `viewer` would
+    // pass either way, and this is the assertion that tells the two apart.
+    answerWith({
+      ok: true,
+      reachable: true,
+      engaged: true,
+      scopes: {
+        '*': { engaged_by: 'Reese Underhill', engaged_at: '2026-08-07T09:00:00Z' },
+      },
+    });
+    render(
+      <KillSwitchControl
+        viewer={viewer(['remediation.execute'])}
+        locale="en"
+        zone="UTC"
+        engaged={false}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('engage-stop'));
+    await userEvent.click(screen.getByTestId('confirm-stop'));
+
+    expect(await screen.findByTestId('release-stop')).toBeInTheDocument();
+    expect(screen.getByTestId('stop-attribution')).toHaveTextContent(
+      'Stopped by Reese Underhill',
+    );
+  });
+
+  it('invents no attribution when the deployment engaged the stop without saying who', async () => {
+    answerWith({ ok: true, reachable: true, engaged: true, scopes: {} });
+    render(
+      <KillSwitchControl
+        viewer={viewer(['remediation.execute'])}
+        locale="en"
+        engaged={false}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('engage-stop'));
+    await userEvent.click(screen.getByTestId('confirm-stop'));
+
+    expect(await screen.findByTestId('release-stop')).toBeInTheDocument();
+    // The estate is stopped and the console says so; who did it is a fact
+    // nobody gave it, and the viewer holding the button is not an answer.
+    expect(screen.queryByTestId('stop-attribution')).toBeNull();
+  });
+
+  it('carries who and when the frame already knew, from its first render', () => {
+    render(
+      <KillSwitchControl
+        viewer={viewer(['remediation.execute'])}
+        locale="en"
+        engaged
+        by="Reese Underhill"
+        since="2026-08-07T09:00:00Z"
+        zone="UTC"
+      />,
+    );
+
+    expect(screen.getByTestId('stop-attribution')).toHaveTextContent(
+      'Stopped by Reese Underhill',
+    );
+  });
+
+  it('drops the attribution once it is released', async () => {
+    answerWith({ ok: true, reachable: true, engaged: false });
+    render(
+      <KillSwitchControl
+        viewer={viewer(['remediation.execute'])}
+        locale="en"
+        engaged
+        by="Reese Underhill"
+        since="2026-08-07T09:00:00Z"
+        zone="UTC"
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('release-stop'));
+
+    expect(await screen.findByTestId('engage-stop')).toBeInTheDocument();
+    expect(screen.queryByTestId('stop-attribution')).toBeNull();
+  });
+});
+
 describe('when the deployment refuses', () => {
   it('says it refused rather than reporting a stop that did not happen', async () => {
     answerWith({ ok: false, reachable: true }, 403);

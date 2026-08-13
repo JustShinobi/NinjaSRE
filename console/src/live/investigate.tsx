@@ -91,8 +91,11 @@ export function InvestigateDrawer({
 
   if (!open) return null;
 
+  // `w-full max-w-prose`, never `w-prose`: the second names no utility this
+  // stylesheet declares, so the drawer had no width of its own and collapsed
+  // onto whatever the longest line inside it happened to be.
   return (
-    <div className="fixed inset-y-0 right-0 z-10 flex w-prose max-w-full flex-col overflow-y-auto">
+    <div className="fixed inset-y-0 right-0 z-10 flex w-full max-w-prose flex-col overflow-y-auto">
       <Drawer
         open
         title={message(locale, 'live.investigate.title')}

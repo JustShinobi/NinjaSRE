@@ -25,7 +25,7 @@ import {
 import { askDeployment } from './search-client';
 import type { Deployment } from './deployment';
 import { ImpersonationBanner } from './impersonation';
-import type { SetupState } from './load';
+import type { SetupState, Stoppage } from './load';
 import { NotificationCentre } from './notifications';
 import { isPaletteShortcut, Palette } from './palette';
 import { GuardianFooter, Sidebar, SidebarNav, type Guardian } from './sidebar';
@@ -64,13 +64,13 @@ export interface ShellProps {
    */
   readonly setup?: SetupState;
   /**
-   * Whether every automated write is currently stopped.
+   * Whether every automated write is currently stopped, and who did it.
    *
    * In the frame rather than on the autonomy screen, because a screen where
    * nothing is happening looks the same whether nothing needed doing or
    * everything is stopped — and that is true of every screen, not one of them.
    */
-  readonly stopped?: boolean;
+  readonly stopped?: Stoppage;
   /** When the session ends, as the server knows it. Absent means it does not say. */
   readonly expiresAt?: string | null;
   readonly children: ReactNode;
@@ -99,7 +99,7 @@ export function Shell({
   recentRuns,
   counts,
   setup = { checklistComplete: false, integrationsConfigured: true },
-  stopped = false,
+  stopped = { engaged: false, by: null, since: null },
   expiresAt = null,
   children,
   navigate = defaultNavigate,
@@ -194,7 +194,13 @@ export function Shell({
       <ImpersonationBanner viewer={viewer} locale={locale} />
       {/* Above everything, including the navigation. A stop nobody notices is a
           stop that gets engaged twice. */}
-      <KillSwitchBanner locale={locale} engaged={stopped} />
+      <KillSwitchBanner
+        locale={locale}
+        engaged={stopped.engaged}
+        by={stopped.by}
+        since={stopped.since}
+        zone={deployment.timezone}
+      />
       <div className="flex flex-1 min-h-0">
         <Sidebar
           viewer={viewer}

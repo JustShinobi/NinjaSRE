@@ -49,6 +49,9 @@ function answerWith(body: unknown, status = 200): void {
 beforeEach(() => {
   sent = [];
   answerWith(ANSWER);
+  // Which sections were open is remembered per browser. Left uncleared, one
+  // test's "opened" section would start the next test already open.
+  window.localStorage.clear();
 });
 
 afterEach(() => {
@@ -77,6 +80,12 @@ const LABELS = {
   gated: 'Approval-gated',
   gatedDetail: 'Saving this queues a change rather than applying it.',
   provenance: 'Set at',
+  setAt: 'Set at:',
+  usingDefault: 'Using the deployment default:',
+  toc: 'Jump to a section',
+  search: 'Find a field',
+  searchEmpty: 'No field matches this search.',
+  generalSection: 'General',
   empty: 'Nothing would change',
   previewFirst: 'Preview the change before saving it.',
   clear: 'Remove this override',
@@ -99,10 +108,11 @@ function field(over: Partial<EditableField> = {}): EditableField {
     path: 'agents.tool_budget',
     label: 'Tool budget',
     type: 'integer',
-    description: '',
+    help: '',
     section: 'agents',
-    sectionSummary: 'Prompts, topology, and the budgets one run may spend.',
+    sectionHelp: 'Prompts, topology, and the budgets one run may spend.',
     value: 8,
+    default: 5,
     provenance: 'org-northwind',
     setHere: false,
     lockedBy: '',
@@ -121,6 +131,17 @@ function field(over: Partial<EditableField> = {}): EditableField {
 
 function editor(fields: readonly EditableField[]): void {
   render(<ConfigEditor nodeId="payments" fields={fields} labels={LABELS} />);
+}
+
+/** The jump-to link for `section`, or a failure saying it was never drawn. */
+function sectionLink(section: string): HTMLElement {
+  const found = screen
+    .getAllByTestId('section-link')
+    .find((each) => each.getAttribute('data-section') === section);
+  if (found === undefined) {
+    throw new Error(`no section-link for ${section}`);
+  }
+  return found;
 }
 
 describe('the controls the catalogue produces', () => {
@@ -193,6 +214,7 @@ describe('an endpoint the deployment already found', () => {
     label: 'Endpoint',
     type: 'string',
     value: '',
+    default: '',
     provenance: '',
     minimum: null,
     maximum: null,
@@ -200,8 +222,14 @@ describe('an endpoint the deployment already found', () => {
     suggestedBecause: 'a guest labelled prometheus answers on the metrics port',
   });
 
-  it('offers the address the estate found, and says where it came from', () => {
+  /** Sections start collapsed; a field's own section has to be opened to reach it. */
+  async function openItsSection(): Promise<void> {
+    await userEvent.click(sectionLink(ENDPOINT.section));
+  }
+
+  it('offers the address the estate found, and says where it came from', async () => {
     editor([ENDPOINT]);
+    await openItsSection();
 
     const offer = screen.getByTestId('use-suggested');
     expect(offer).toHaveTextContent(FOUND);
@@ -212,6 +240,7 @@ describe('an endpoint the deployment already found', () => {
 
   it('fills the control rather than saving anything, so it is still previewed', async () => {
     editor([ENDPOINT]);
+    await openItsSection();
 
     await userEvent.click(screen.getByTestId('use-suggested'));
 
@@ -219,16 +248,18 @@ describe('an endpoint the deployment already found', () => {
     expect(screen.queryByTestId('save-config')).toBeNull();
   });
 
-  it('offers nothing where the field already has a value', () => {
+  it('offers nothing where the field already has a value', async () => {
     // An address somebody typed is a decision. Offering to replace it with a
     // derived one puts a guess above a choice.
     editor([field({ ...ENDPOINT, value: TYPED })]);
+    await openItsSection();
 
     expect(screen.queryByTestId('use-suggested')).toBeNull();
   });
 
-  it('offers nothing where the deployment found nothing', () => {
+  it('offers nothing where the deployment found nothing', async () => {
     editor([field({ ...ENDPOINT, suggestedValue: '', suggestedBecause: '' })]);
+    await openItsSection();
 
     expect(screen.queryByTestId('use-suggested')).toBeNull();
   });
@@ -324,6 +355,140 @@ describe('the diff the deployment answered with', () => {
       patch: { agents: { tool_budget: 12 } },
       remove: [],
     });
+  });
+});
+
+describe('the default an unset field is actually running with', () => {
+  it('shows the deployment default that applies, rather than leaving the field silent', () => {
+    editor([field({ provenance: '', value: null, default: 5 })]);
+
+    expect(screen.getByTestId('field-provenance')).toHaveTextContent(
+      'Using the deployment default: 5',
+    );
+  });
+
+  it('prefills the control with that default, so the operator sees what is running', () => {
+    editor([field({ provenance: '', value: null, default: 5 })]);
+
+    expect(screen.getByLabelText('Tool budget')).toHaveValue(5);
+  });
+
+  it('never says an override is "the default", even at a node literally named default', () => {
+    editor([field({ provenance: 'default', setHere: false })]);
+
+    expect(screen.getByTestId('field-provenance')).toHaveTextContent('Set at: default');
+    expect(screen.getByTestId('field-provenance')).not.toHaveTextContent(
+      LABELS.usingDefault,
+    );
+  });
+});
+
+describe('sections, collapsed by default and reachable two ways', () => {
+  function two(): EditableField[] {
+    return [
+      field({
+        path: 'agents.tool_budget',
+        label: 'Tool budget',
+        section: 'agents',
+        sectionHelp: 'Budgets',
+      }),
+      field({
+        path: 'policies.masking.level',
+        label: 'Masking level',
+        section: 'policies',
+        sectionHelp: 'Guardrails',
+        type: 'string',
+        value: 'standard',
+        default: 'standard',
+        minimum: null,
+        maximum: null,
+      }),
+    ];
+  }
+
+  it('opens no section until the operator asks for one', () => {
+    editor(two());
+
+    for (const details of screen.getAllByTestId('config-section')) {
+      expect(details).not.toHaveAttribute('open');
+    }
+  });
+
+  it('opens the section the jump-to list points at, and leaves the other closed', async () => {
+    editor(two());
+
+    await userEvent.click(sectionLink('agents'));
+
+    const opened = screen
+      .getAllByTestId('config-section')
+      .find((each) => each.getAttribute('data-section') === 'agents');
+    const other = screen
+      .getAllByTestId('config-section')
+      .find((each) => each.getAttribute('data-section') === 'policies');
+    expect(opened).toHaveAttribute('open');
+    expect(other).not.toHaveAttribute('open');
+  });
+
+  it('narrows the fields shown to the ones a search matches', async () => {
+    editor(two());
+
+    await userEvent.type(screen.getByLabelText(LABELS.search), 'masking');
+
+    expect(screen.queryByLabelText('Tool budget')).toBeNull();
+    expect(screen.getByLabelText('Masking level')).toBeInTheDocument();
+  });
+
+  it('says nothing matches, rather than showing an empty page, when the search finds nothing', async () => {
+    editor(two());
+
+    await userEvent.type(screen.getByLabelText(LABELS.search), 'nonexistent-setting');
+
+    expect(screen.getByTestId('search-empty')).toHaveTextContent(LABELS.searchEmpty);
+  });
+});
+
+describe('an ordered list entry, titled by what it is rather than by its position', () => {
+  function integrations(): EditableField {
+    return field({
+      path: 'capabilities.integrations',
+      label: 'Integrations',
+      type: 'array',
+      value: [{ name: 'proxmox', enabled: true }],
+      itemFields: [
+        {
+          path: 'name',
+          label: 'Name',
+          type: 'string',
+          help: '',
+          allowedValues: null,
+          minimum: null,
+          maximum: null,
+          default: '',
+        },
+        {
+          path: 'enabled',
+          label: 'Enabled',
+          type: 'boolean',
+          help: '',
+          allowedValues: null,
+          minimum: null,
+          maximum: null,
+          default: false,
+        },
+      ],
+    });
+  }
+
+  it('titles the entry by its own name field, not by the order it is evaluated in', () => {
+    editor([integrations()]);
+
+    expect(screen.getByTestId('entry-title')).toHaveTextContent('proxmox');
+  });
+
+  it('gives the enabled toggle an accessible name that says whose it is', () => {
+    editor([integrations()]);
+
+    expect(screen.getByLabelText('proxmox — Enabled')).toBeInTheDocument();
   });
 });
 
@@ -482,8 +647,8 @@ describe('the answers the deployment gives that are not diffs', () => {
     expect(await screen.findByTestId('save-failure')).toHaveTextContent(LABELS.failed);
   });
 
-  it('says which level a field with no value at all comes from', () => {
-    editor([field({ provenance: '', value: null })]);
+  it('says which level a field with no value at all comes from, when the schema names no default either', () => {
+    editor([field({ provenance: '', value: null, default: undefined })]);
 
     expect(screen.getByTestId('field-provenance')).toHaveTextContent(LABELS.inherited);
   });

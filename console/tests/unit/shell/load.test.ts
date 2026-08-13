@@ -10,7 +10,9 @@ import {
   loadAttention,
   loadGuardian,
   loadRecentRuns,
+  loadStopped,
   loadViewer,
+  stoppageFrom,
 } from '@/shell/load';
 
 /**
@@ -147,6 +149,65 @@ describe('resolving what the shell needs', () => {
       'proposals',
       'runs',
     ]);
+  });
+});
+
+describe('whether every automated write is stopped', () => {
+  it('reports who stopped it and since when, from the organisation scope', () => {
+    expect(
+      stoppageFrom({
+        engaged: true,
+        scopes: {
+          '*': {
+            scope: '*',
+            engaged_by: 'avery',
+            engaged_at: '2026-08-07T09:00:00Z',
+            reason: '',
+          },
+        },
+      }),
+    ).toEqual({ engaged: true, by: 'avery', since: '2026-08-07T09:00:00Z' });
+  });
+
+  it('prefers the organisation scope over a narrower one', () => {
+    expect(
+      stoppageFrom({
+        engaged: true,
+        scopes: {
+          'team-platform': { engaged_by: 'reese', engaged_at: '2026-08-07T09:00:00Z' },
+          '*': { engaged_by: 'avery', engaged_at: '2026-08-07T10:00:00Z' },
+        },
+      }),
+    ).toEqual({ engaged: true, by: 'avery', since: '2026-08-07T10:00:00Z' });
+  });
+
+  it('says nothing is stopped rather than guessing, when the deployment does not say', () => {
+    expect(stoppageFrom({ engaged: false })).toEqual({
+      engaged: false,
+      by: null,
+      since: null,
+    });
+    expect(stoppageFrom({})).toEqual({ engaged: false, by: null, since: null });
+  });
+
+  it('reports engaged with no who or since when the deployment could not say either', () => {
+    expect(stoppageFrom({ engaged: true, scopes: {} })).toEqual({
+      engaged: true,
+      by: null,
+      since: null,
+    });
+  });
+
+  it('degrades to not stopped rather than claiming a stop nobody engaged', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('network'))),
+    );
+    expect(await loadStopped('opaque')).toEqual({
+      engaged: false,
+      by: null,
+      since: null,
+    });
   });
 });
 

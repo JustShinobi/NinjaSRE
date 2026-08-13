@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { Badge } from '@/components/status';
-import { message } from '@/i18n/messages';
+import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -71,6 +70,51 @@ function ConfigValue({ value }: { readonly value: string }): ReactNode {
       <pre className="mt-2 whitespace-pre-wrap break-all text-meta">{pretty}</pre>
     </details>
   );
+}
+
+/**
+ * What a row of the effective-configuration table says about where its value
+ * came from — in a vocabulary where "no override" and "an override, recorded
+ * at a node" never share a word.
+ *
+ * The deployment's own root node is named `default`, so a provenance string
+ * built by printing the node name reads "Set at default" for an override
+ * exactly there — indistinguishable, to an operator, from "this is the
+ * default value", which is the opposite claim. The fix is not to rename the
+ * node; it is to never let the two cases share a sentence. An unset value
+ * says "Deployment default" and names no node at all; an overridden one
+ * always says "Set at:" before the node, whatever that node is called.
+ *
+ * `name` may be a leaf path the API attributed directly, or a compound one
+ * this table collapsed into a single row (a policy, an integration list). For
+ * a compound row with no direct entry, every leaf beneath it is consulted: one
+ * shared source is reported as that source, more than one is reported as
+ * mixed rather than guessing which one to show.
+ */
+export function provenanceLabel(
+  locale: Locale,
+  name: string,
+  provenance: ReadonlyMap<string, string>,
+): string {
+  const direct = provenance.get(name);
+  if (direct !== undefined && direct !== '') {
+    return message(locale, 'configuration.provenance.setAt', { node: direct });
+  }
+  const prefix = `${name}.`;
+  const children = new Set(
+    [...provenance.entries()]
+      .filter(([path]) => path.startsWith(prefix))
+      .map(([, node]) => node),
+  );
+  if (children.size === 1) {
+    return message(locale, 'configuration.provenance.setAt', {
+      node: [...children][0] ?? '',
+    });
+  }
+  if (children.size > 1) {
+    return message(locale, 'configuration.provenance.mixed');
+  }
+  return message(locale, 'configuration.provenance.default');
 }
 
 export async function ConfigurationScreen(context: SurfaceContext): Promise<ReactNode> {
@@ -190,11 +234,15 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
                       <ConfigValue value={value} />
                     </td>
                     <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                      {/* Which level set it. Without this, a value changed at
-                          the wrong level looks like a console that ignored the
-                          change. */}
-                      <span data-testid="provenance" data-setting={name}>
-                        <Badge status={provenance.get(name) ?? 'unknown'} />
+                      {/* Which level set it, or that nothing does. Without
+                          this, a value changed at the wrong level looks like a
+                          console that ignored the change. */}
+                      <span
+                        data-testid="provenance"
+                        data-setting={name}
+                        className="text-meta text-muted"
+                      >
+                        {provenanceLabel(locale, name, provenance)}
                       </span>
                     </td>
                   </tr>
@@ -242,6 +290,15 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
                   gated: message(locale, 'configuration.gated'),
                   gatedDetail: message(locale, 'configuration.gated.detail'),
                   provenance: message(locale, 'configuration.column.provenance'),
+                  setAt: message(locale, 'configuration.editor.setAt'),
+                  usingDefault: message(locale, 'configuration.editor.usingDefault'),
+                  toc: message(locale, 'configuration.editor.toc'),
+                  search: message(locale, 'configuration.editor.search'),
+                  searchEmpty: message(locale, 'configuration.editor.searchEmpty'),
+                  generalSection: message(
+                    locale,
+                    'configuration.editor.generalSection',
+                  ),
                   empty: message(locale, 'configuration.preview.empty.heading'),
                   previewFirst: message(locale, 'configuration.editor.previewFirst'),
                   clear: message(locale, 'configuration.editor.clear'),

@@ -15,11 +15,12 @@ import {
 import { storeDensity } from '@/design/density';
 import { applyTheme, storeTheme } from '@/design/theme';
 import type { Theme } from '@/design/tokens';
-import { message, type Locale } from '@/i18n/messages';
+import { LOCALES, message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
 import type { AttentionItem } from './attention';
-import { useChosenTheme, useDensity } from './browser';
+import { storeLocale, useChosenTheme, useDensity } from './browser';
 import type { Deployment } from './deployment';
+import type { Stoppage } from './load';
 import { KillSwitchControl } from './stop';
 
 /**
@@ -43,13 +44,21 @@ export interface TopbarProps {
   readonly onOpenDrawer: () => void;
   /** Open the drawer that starts an investigation, from wherever this is. */
   readonly onInvestigate: () => void;
-  /** Whether automated writes are currently stopped, as the deployment says. */
-  readonly stopped?: boolean;
+  /** Whether automated writes are currently stopped, and who did it, as the deployment says. */
+  readonly stopped?: Stoppage;
   readonly onSignOut: () => void;
 }
 
 /** The three theme choices, of which one is "stop overriding". */
 const THEME_ORDER: readonly (Theme | null)[] = ['light', 'dark', null];
+
+/** The catalogue key naming each locale, in the language it names. */
+const LOCALE_LABEL: Readonly<
+  Record<Locale, 'shell.language.en' | 'shell.language.pt-BR'>
+> = {
+  en: 'shell.language.en',
+  'pt-BR': 'shell.language.pt-BR',
+};
 
 export function Topbar({
   viewer,
@@ -60,7 +69,7 @@ export function Topbar({
   onOpenNotifications,
   onOpenDrawer,
   onInvestigate,
-  stopped = false,
+  stopped = { engaged: false, by: null, since: null },
   onSignOut,
 }: TopbarProps): ReactNode {
   // The stored choice lives in the browser, and the server has no answer for
@@ -122,6 +131,7 @@ export function Topbar({
       <span className="hidden sm:inline-flex">
         <IconButton
           label={message(locale, 'shell.theme')}
+          title={message(locale, 'shell.theme')}
           icon={<ContrastIcon />}
           onClick={cycleTheme}
           data-testid="theme-switch"
@@ -136,6 +146,12 @@ export function Topbar({
       <span className="hidden sm:inline-flex">
         <IconButton
           label={message(
+            locale,
+            density === 'compact'
+              ? 'shell.density.comfortable'
+              : 'shell.density.compact',
+          )}
+          title={message(
             locale,
             density === 'compact'
               ? 'shell.density.comfortable'
@@ -170,7 +186,14 @@ export function Topbar({
           somebody is looking at when they decide to stop everything is the
           reason they are stopping it, and a navigation loses both the reason
           and the seconds. */}
-      <KillSwitchControl viewer={viewer} locale={locale} engaged={stopped} />
+      <KillSwitchControl
+        viewer={viewer}
+        locale={locale}
+        engaged={stopped.engaged}
+        by={stopped.by}
+        since={stopped.since}
+        zone={deployment.timezone}
+      />
 
       {may(viewer, 'investigation.run') ? (
         <Button variant="primary" data-testid="investigate" onClick={onInvestigate}>
@@ -201,6 +224,30 @@ export function Topbar({
               {message(locale, 'shell.account.impersonate')}
             </Button>
           ) : null}
+          {/* Persisted the way the theme and the density are: kept on this
+              origin, applied, and the choice survives a reload. Unlike those
+              two this one has to reach the server — every string on the page
+              comes from `message()` called in a server component — so what is
+              kept is a cookie the next request already reads, and changing it
+              reloads rather than only updating what is on screen. */}
+          <span className="pt-2 text-micro uppercase text-muted" id="language-label">
+            {message(locale, 'shell.account.language')}
+          </span>
+          <span className="flex gap-1" role="group" aria-labelledby="language-label">
+            {LOCALES.map((option) => (
+              <Button
+                key={option}
+                data-testid={`language-${option}`}
+                variant={option === locale ? 'primary' : 'secondary'}
+                aria-pressed={option === locale}
+                onClick={() => {
+                  storeLocale(option);
+                }}
+              >
+                {message(locale, LOCALE_LABEL[option])}
+              </Button>
+            ))}
+          </span>
           <Button onClick={onSignOut} data-testid="sign-out">
             {message(locale, 'shell.account.signOut')}
           </Button>

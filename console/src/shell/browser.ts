@@ -128,3 +128,27 @@ function localeServerSnapshot(): Locale {
 export function useBrowserLocale(): Locale {
   return useSyncExternalStore(subscribeToNothing, localeSnapshot, localeServerSnapshot);
 }
+
+/** A year, in seconds — long enough that a language choice outlives the session that made it. */
+const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+/**
+ * Keep `locale` across sessions, and reload so the server renders it.
+ *
+ * A cookie rather than `localStorage`, unlike the theme and the density: every
+ * string on a page comes from `message()`, called from server components that
+ * cannot read `localStorage` at all, so the choice has to be somewhere a
+ * request carries automatically. `requestLocale` already reads this exact
+ * cookie — it has since before there was a way to write one — which is what
+ * makes this the console's existing mechanism for the preference rather than
+ * a fourth one: the read half was built first, and this is the write half it
+ * was always missing.
+ *
+ * The reload is not an effect this module tries to avoid: a locale changes
+ * what a server component rendered, and nothing short of a new request makes
+ * it render again.
+ */
+export function storeLocale(locale: Locale): void {
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${String(LOCALE_COOKIE_MAX_AGE)}; samesite=lax`;
+  window.location.reload();
+}

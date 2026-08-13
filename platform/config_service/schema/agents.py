@@ -59,6 +59,8 @@ from platform.config_service.schema.types import (
     ConfiguredInt,
     ConfiguredStr,
     ConfiguredStrList,
+    field_help,
+    section_help,
 )
 
 #: The character a section name may not contain, because a name is a path
@@ -74,9 +76,31 @@ class PromptOverrides(ConfigSection):
     override, the agent never receives it.
     """
 
-    investigator: ConfiguredStr = ""
-    intake: ConfiguredStr = ""
-    diagnose: ConfiguredStr = ""
+    model_config = section_help(
+        "Replace the instructions one agent role is given. Leave a role empty and it "
+        "runs on the prompt this deployment ships with."
+    )
+
+    investigator: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Instructions for the role that runs the investigation. Empty means the shipped prompt."
+        ),
+    ] = ""
+    intake: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Instructions for the role that reads an incoming alert and decides what it is. "
+            "Empty means the shipped prompt."
+        ),
+    ] = ""
+    diagnose: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Instructions for the role that turns evidence into a root cause. "
+            "Empty means the shipped prompt."
+        ),
+    ] = ""
 
     def for_role(self, role: str) -> str:
         """Return the override for ``role``, or empty if there is none."""
@@ -105,16 +129,34 @@ class OperatingContext(ConfigSection):
     which silent shrinking is not.
     """
 
+    model_config = section_help(
+        "Facts about your own environment, added to the end of the prompt for the roles "
+        "that investigate. Every word here is sent on every model call, so keep it to "
+        "what changes how an incident should be read."
+    )
+
     #: Section name to body. An empty body is how a child stops an inherited
     #: section from being sent, and is deliberately different from clearing the
     #: field: clearing restores what the parent said, emptying overrules it.
     sections: Annotated[
-        Mapping[str, ConfiguredStr], Field(max_length=MAX_OPERATING_CONTEXT_SECTIONS)
+        Mapping[str, ConfiguredStr],
+        Field(max_length=MAX_OPERATING_CONTEXT_SECTIONS),
+        field_help(
+            "Named blocks of background, one per topic — what this estate is, what is "
+            "critical, who owns what. Emptying a block's body stops it being sent while "
+            "keeping the name; removing the block inherits whatever the level above says."
+        ),
     ] = {}
-    #: The ablation switch (Article VII). Off keeps the text and sends none of
-    #: it, so the contribution of this mechanism can be measured against the
-    #: same deployment rather than against a different one.
-    enabled: bool = True
+    #: The ablation switch. Off keeps the text and sends none of it, so the
+    #: contribution of this mechanism can be measured against the same
+    #: deployment rather than against a different one.
+    enabled: Annotated[
+        bool,
+        field_help(
+            "Send this background with every investigation. Off keeps the text and sends "
+            "none of it, which is how you measure what it is worth."
+        ),
+    ] = True
 
     @model_validator(mode="after")
     def _names_are_addressable(self) -> OperatingContext:
@@ -210,17 +252,51 @@ def with_operating_context(prompt: str, context: str) -> str:
 class SubAgentConfig(ConfigSection):
     """One specialist in a team's topology."""
 
+    model_config = section_help(
+        "One specialist the investigation can hand a narrower question to — a database "
+        "specialist, a network specialist. It runs with its own instructions and its own "
+        "set of capabilities."
+    )
+
     #: Required: a specialist with no name is one nothing can dispatch, and a
     #: default here would let the omission validate silently.
-    name: ConfiguredStr
-    description: ConfiguredStr = ""
-    system_prompt: ConfiguredStr = ""
-    capabilities: ConfiguredStrList = ()
-    max_iterations: Annotated[ConfiguredInt, Field(ge=1, le=MAX_INVESTIGATION_LOOPS)] = (
-        DEFAULT_SUBAGENT_ITERATIONS
-    )
-    model_role: ConfiguredStr = "subagent"
-    enabled: bool = True
+    name: Annotated[
+        ConfiguredStr,
+        field_help("What this specialist is called. Required, and how it is dispatched."),
+    ]
+    description: Annotated[
+        ConfiguredStr,
+        field_help(
+            "When this specialist should be asked. Read by the investigation when it "
+            "decides whether to hand the question over."
+        ),
+    ] = ""
+    system_prompt: Annotated[
+        ConfiguredStr,
+        field_help("Instructions this specialist runs on. Empty means the shipped prompt."),
+    ] = ""
+    capabilities: Annotated[
+        ConfiguredStrList,
+        field_help(
+            "The capabilities this specialist may call. Empty means everything the team "
+            "already allows."
+        ),
+    ] = ()
+    max_iterations: Annotated[
+        ConfiguredInt,
+        Field(ge=1, le=MAX_INVESTIGATION_LOOPS),
+        field_help("How many turns this specialist may take before it has to report back."),
+    ] = DEFAULT_SUBAGENT_ITERATIONS
+    model_role: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Which model role this specialist runs on, so it can be given a cheaper or a "
+            "stronger model than the investigation itself."
+        ),
+    ] = "subagent"
+    enabled: Annotated[
+        bool, field_help("Off keeps the specialist configured and stops it being dispatched.")
+    ] = True
 
     @field_validator("model_role")
     @classmethod
@@ -234,23 +310,50 @@ class SubAgentConfig(ConfigSection):
 class AgentsConfig(ConfigSection):
     """Prompts, topology, and the budgets one run may spend."""
 
+    model_config = section_help(
+        "What the agent is told, which specialists it can call on, and how much one "
+        "investigation may spend before it has to stop and report."
+    )
+
     prompts: PromptOverrides = PromptOverrides()
     #: What this deployment is, added to the prompt rather than replacing it.
     operating_context: OperatingContext = OperatingContext()
-    subagents: tuple[SubAgentConfig, ...] = ()
-    max_iterations: Annotated[ConfiguredInt, Field(ge=1, le=MAX_INVESTIGATION_LOOPS)] = (
-        MAX_INVESTIGATION_LOOPS
-    )
-    max_subagent_iterations: Annotated[ConfiguredInt, Field(ge=1, le=MAX_INVESTIGATION_LOOPS)] = (
-        DEFAULT_SUBAGENT_ITERATIONS
-    )
-    max_parallel_subagents: Annotated[ConfiguredInt, Field(ge=1, le=MAX_PARALLEL_SUBAGENTS)] = (
-        MAX_PARALLEL_SUBAGENTS
-    )
-    max_subagent_depth: Annotated[ConfiguredInt, Field(ge=0, le=MAX_SUBAGENT_DEPTH)] = (
-        MAX_SUBAGENT_DEPTH
-    )
-    tool_budget: Annotated[ConfiguredInt, Field(ge=1)] = DEFAULT_TOOL_BUDGET
+    subagents: Annotated[
+        tuple[SubAgentConfig, ...],
+        field_help("The specialists this team can dispatch. Only the enabled ones are ever used."),
+    ] = ()
+    max_iterations: Annotated[
+        ConfiguredInt,
+        Field(ge=1, le=MAX_INVESTIGATION_LOOPS),
+        field_help(
+            "How many times one investigation may look, think and look again before it "
+            "stops and reports what it has. Lower it to cap what a run can cost; it "
+            "cannot be raised past the platform ceiling."
+        ),
+    ] = MAX_INVESTIGATION_LOOPS
+    max_subagent_iterations: Annotated[
+        ConfiguredInt,
+        Field(ge=1, le=MAX_INVESTIGATION_LOOPS),
+        field_help("The same ceiling, for a specialist working on a handed-over question."),
+    ] = DEFAULT_SUBAGENT_ITERATIONS
+    max_parallel_subagents: Annotated[
+        ConfiguredInt,
+        Field(ge=1, le=MAX_PARALLEL_SUBAGENTS),
+        field_help("How many specialists may be working at the same moment."),
+    ] = MAX_PARALLEL_SUBAGENTS
+    max_subagent_depth: Annotated[
+        ConfiguredInt,
+        Field(ge=0, le=MAX_SUBAGENT_DEPTH),
+        field_help(
+            "How many levels of hand-over are allowed. Zero means a specialist may not "
+            "dispatch another one."
+        ),
+    ] = MAX_SUBAGENT_DEPTH
+    tool_budget: Annotated[
+        ConfiguredInt,
+        Field(ge=1),
+        field_help("How many capability calls one investigation may make in total."),
+    ] = DEFAULT_TOOL_BUDGET
 
     @model_validator(mode="after")
     def _names_are_distinct(self) -> AgentsConfig:
@@ -303,8 +406,19 @@ class AgentsConfig(ConfigSection):
 class ModelSelection(ConfigSection):
     """The provider and model one role runs on."""
 
-    provider: ConfiguredStr = DEFAULT_PROVIDER
-    model: ConfiguredStr = DEFAULT_MODEL_ID
+    model_config = section_help(
+        "Which provider and model this one role runs on. A role left alone runs on the "
+        "deployment default, so you can give the expensive work a stronger model and "
+        "leave the rest."
+    )
+
+    provider: Annotated[
+        ConfiguredStr,
+        field_help("The provider this role calls. Must be one this deployment has installed."),
+    ] = DEFAULT_PROVIDER
+    model: Annotated[
+        ConfiguredStr, field_help("The model identifier, as that provider spells it.")
+    ] = DEFAULT_MODEL_ID
 
     @field_validator("provider")
     @classmethod
@@ -326,6 +440,8 @@ class ModelsConfig(ConfigSection):
     failing: an investigation that cannot start is worse than one that starts on
     the default model and records which one in its trace.
     """
+
+    model_config = section_help("Which provider and model each role of the agent runs on.")
 
     investigator: ModelSelection = ModelSelection()
     subagent: ModelSelection = ModelSelection()

@@ -169,6 +169,9 @@ export const EN = {
   'shell.account': 'Account',
   'shell.account.signOut': 'Sign out',
   'shell.account.impersonate': 'Act as somebody else',
+  'shell.account.language': 'Language',
+  'shell.language.en': 'English',
+  'shell.language.pt-BR': 'Português (Brasil)',
   'shell.deployment': 'Deployment',
   'shell.close': 'Close',
 
@@ -181,6 +184,10 @@ export const EN = {
   'stop.release': 'Let automation run again',
   'stop.engaged':
     'Automated writes are stopped. Investigations still run and still propose; nothing is applied.',
+  'stop.engaged.by': 'Stopped by {by}, {since}.',
+  'stop.engaged.unknown': 'Stopped before this page could say who or when.',
+  'stop.engaged.howToRelease':
+    'Anyone who may stop this deployment can release it from the top of the screen.',
   'stop.reason': 'Stopped from the console.',
   'stop.refused': 'The deployment refused to change the stop.',
   'stop.unreachable': 'The deployment could not be reached. Stop it by hand.',
@@ -192,6 +199,8 @@ export const EN = {
   'shell.guardian.posture.propose': 'propose-only',
   'shell.guardian.posture.act': 'acting',
   'shell.guardian.posture.frozen': 'frozen',
+  'shell.guardian.tooltip':
+    'What the posture means: propose-only shows every change and its blast radius, and applies nothing until you approve it. Open Autonomy to see or change it.',
 
   // --- The notification centre -------------------------------------------------
   'notifications.title': 'Needs you',
@@ -326,7 +335,7 @@ export const EN = {
   'dashboard.attention.title': 'Needs you',
   'dashboard.attention.count': '{count} items need you',
   'dashboard.attention.count.one': '{count} item needs you',
-  'dashboard.attention.oldest': 'Oldest {age}',
+  'dashboard.attention.oldest': 'Waiting longest: {age}',
   'dashboard.attention.empty.heading': 'Nothing is waiting on a person',
   'dashboard.attention.empty.body':
     'Approvals, agent questions and failed runs appear here the moment one exists. There are none.',
@@ -336,20 +345,33 @@ export const EN = {
   'dashboard.stat.healthy': 'Healthy',
   'dashboard.stat.healthy.context': '{count} of {total} at the last sweep',
   'dashboard.stat.degraded': 'Degraded and unhealthy',
-  'dashboard.stat.degraded.context': '{count} open findings behind them',
+  'dashboard.stat.degraded.context':
+    '{count} open findings behind them; {live} of {total} detectors are switched on to raise one of them into an incident',
   'dashboard.stat.runs': 'Investigations in the last day',
   'dashboard.stat.runs.context': '{failed} of them failed',
+  'dashboard.stat.successRate': 'Success rate',
+  'dashboard.stat.successRate.context':
+    '{succeeded} of {settled} finished investigations succeeded',
+  'dashboard.stat.successRate.context.none': 'No investigation has finished yet',
   'dashboard.stat.drill': 'See the list behind this figure',
   'dashboard.activity.title': 'Recent activity',
   'dashboard.activity.empty.heading': 'Nothing has happened yet',
   'dashboard.activity.empty.body':
     'Investigations, incidents and sweeps appear here as they happen. Connect an infrastructure source and the first sweep starts within a minute.',
   'dashboard.activity.empty.action': 'Connect a source',
-  'dashboard.estate.title': 'Estate health',
-  'dashboard.estate.empty.heading': 'No resources yet',
-  'dashboard.estate.empty.body':
-    'Connect an infrastructure source and the estate populates itself within a minute. Nothing here is entered by hand.',
-  'dashboard.estate.empty.action': 'Connect a source',
+  'dashboard.hero.title': 'Continue setting up',
+  'dashboard.hero.remaining': '{count} of {total} steps left',
+  'dashboard.hero.next': 'Next',
+  'dashboard.hero.action': 'Continue setting up',
+  'dashboard.hero.empty.heading': 'Setup state could not be read',
+  'dashboard.hero.empty.body':
+    'This is drawn from the deployment’s own setup checklist, and it did not answer. Everything else on this page is unaffected.',
+  'dashboard.hero.empty.action': 'Open first steps',
+  'dashboard.quickActions.title': 'Quick actions',
+  'dashboard.quickActions.empty.heading': 'Nothing to do from here',
+  'dashboard.quickActions.empty.body':
+    'These are the destinations the setup checklist is asking for. It is asking for none.',
+  'dashboard.quickActions.empty.action': 'Go to the overview',
   'dashboard.guardian.title': 'Guardian',
   'dashboard.guardian.posture': 'Posture',
   'dashboard.guardian.liveness': 'Liveness',
@@ -477,26 +499,14 @@ export const EN = {
   'firstRun.handover.estate': 'Go to the estate',
   'firstRun.handover.alerts': 'Go to the detectors',
 
-  // --- The checklist and the tutorial, where an operator is already working -------------
-  'setup.checklist.title': 'Finish setting up',
-  'setup.checklist.remaining': '{count} of {total} steps left',
-  'setup.checklist.open': 'Do this next',
-  'setup.checklist.empty.heading': 'Setup state could not be read',
-  'setup.checklist.empty.body':
-    'This panel is drawn from the deployment’s own setup checklist, and it did not answer. Everything else on this page is unaffected.',
-  'setup.checklist.empty.action': 'Open first steps',
+  // --- Setup and the tutorial, where an operator is already working ---------------------
+  // The checklist panel and the quick-action list that used to live here went
+  // with the components that read them: the remaining plan is the dashboard's
+  // hero, and the destinations are named by their own screens' headers.
   'setup.noProvider.heading': 'No model provider is configured',
   'setup.noProvider.body':
     'Nothing can be investigated until one is. It takes one credential, and the platform offers nine providers including one that runs on your own hardware.',
   'setup.noProvider.action': 'Choose a provider',
-  'setup.actions.title': 'Quick actions',
-  'setup.actions.knowledge': 'Load what your team already knows',
-  'setup.actions.agent': 'Tune what the agent may do',
-  'setup.actions.memory': 'See what it has learned',
-  'setup.actions.empty.heading': 'Nothing to do from here',
-  'setup.actions.empty.body':
-    'The actions this panel offers are the ones the setup checklist is asking for. It is asking for none.',
-  'setup.actions.empty.action': 'Go to the overview',
 
   'tutorial.title': 'What this is, in five screens',
   'tutorial.skip': 'Skip',
@@ -942,6 +952,15 @@ export const EN = {
   'configuration.editor.entryPosition': 'Evaluated',
   'configuration.editor.emptyList': 'Nothing declared here yet.',
   'configuration.editor.useSuggested': 'Use the address found here:',
+  'configuration.editor.setAt': 'Set at:',
+  'configuration.editor.usingDefault': 'Using the deployment default:',
+  'configuration.editor.toc': 'Jump to a section',
+  'configuration.editor.search': 'Find a field',
+  'configuration.editor.searchEmpty': 'No field matches this search.',
+  'configuration.editor.generalSection': 'General',
+  'configuration.provenance.default': 'Deployment default',
+  'configuration.provenance.setAt': 'Set at: {node}',
+  'configuration.provenance.mixed': 'Set across more than one node',
   'configuration.empty.heading': 'No configuration here',
   'configuration.empty.body':
     'Every node inherits from the one above it. This one sets nothing of its own, so what applies is what its parent applies.',

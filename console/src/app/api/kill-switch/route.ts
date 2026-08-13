@@ -58,11 +58,21 @@ async function forward(
       cache: 'no-store',
     });
     const answered: unknown = await answer.json().catch(() => ({}));
+    // `scopes` travels with `engaged`, because the two together are the whole
+    // answer: who stopped the estate and since when. Dropping it here is what
+    // used to force the browser to attribute the stop to whoever happened to be
+    // holding the button, and to be corrected by the next page load.
+    //
+    // Carried through as `unknown` and narrowed to an object, never spread or
+    // trusted: this is a courier, and what the gateway reports about a scope is
+    // read once, by the one function on the other side that reads it.
+    const scopes: unknown = Reflect.get(Object(answered), 'scopes');
     return NextResponse.json(
       {
         ok: answer.ok,
         reachable: true,
         engaged: Reflect.get(Object(answered), 'engaged') === true,
+        scopes: typeof scopes === 'object' && scopes !== null ? scopes : {},
       },
       { status: answer.status },
     );
