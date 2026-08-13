@@ -1,7 +1,16 @@
 """What an operator has left to do, established by asking rather than by reading.
 
-Four steps, in the order they depend on each other: claim the deployment, give
-it something to think with, give it something to look at, and watch it look.
+Five steps, in the order they depend on each other: claim the deployment, give
+it something to think with, give it something to look at, give it something to
+look *with*, and watch it look.
+
+The fourth is the one that reads oddly and is the reason this docstring is
+longer than it was. Every other step leaves a trace an operator can find from
+the console — an account, a key, a resource in the estate. A process with no
+investigation runtime composed leaves none: it looks identical to one that has,
+until somebody presses Investigate and the run fails before it starts. A
+checklist that could go to five-of-five on that deployment would be promising a
+first investigation the deployment cannot perform, so it carries the step.
 
 The rule the whole module is built around is FR-012's: **a step is done because
 the dependency answered, never because a setting is present**. A checklist that
@@ -45,6 +54,7 @@ from config.constants.first_run import (
     SETUP_STEP_DURABLE_CREDENTIAL,
     SETUP_STEP_FIRST_INVESTIGATION,
     SETUP_STEP_INFRASTRUCTURE_SOURCE,
+    SETUP_STEP_INVESTIGATION_RUNTIME,
     SETUP_STEP_MODEL_PROVIDER,
 )
 from config.constants.llm import SUPPORTED_PROVIDERS
@@ -168,6 +178,7 @@ async def build_checklist(
     verify_model: Callable[[], Awaitable[ModelVerdict]] | None = None,
     integrations: Sequence[str] = (),
     verified_integrations: Sequence[str] = (),
+    runtime_composed: bool = False,
 ) -> SetupChecklist:
     """Return the checklist this deployment is actually at.
 
@@ -182,6 +193,14 @@ async def build_checklist(
     Both are told to this module rather than discovered by it: the catalogue and
     the health ledger are tier 2, and reaching up for them is the boundary
     ``make check-imports`` exists to hold.
+
+    ``runtime_composed`` is whether this process holds something that can
+    actually drive an investigation. Told for the same reason and one more: the
+    runtime lives in the entry point that composed it, which is a tier above
+    this and is the one fact about a deployment that no store can be asked.
+    ``False`` is the honest default — a caller who did not say has not
+    established it, and guessing yes is how the checklist comes to promise a
+    first investigation the deployment cannot perform.
     """
     scope = TenantScope(org_id=organisation_id)
     stored = await _stored_credentials(gateway, scope)
@@ -208,11 +227,12 @@ async def build_checklist(
         verify_model, blocked=not credential.done, configured=configured_providers
     )
     source = _source_step(bool(resources), blocked=not provider.done)
-    investigation = _investigation_step(bool(finished), blocked=not source.done)
+    runtime = _runtime_step(runtime_composed, blocked=not source.done)
+    investigation = _investigation_step(bool(finished), blocked=not runtime.done)
 
     verified = set(verified_integrations)
     return SetupChecklist(
-        steps=(credential, provider, source, investigation),
+        steps=(credential, provider, source, runtime, investigation),
         integrations=tuple(
             IntegrationReadiness(
                 name=name,
@@ -348,6 +368,41 @@ def _source_step(has_resources: bool, *, blocked: bool) -> ChecklistStep:
             "nothing further"
             if has_resources
             else "configure an integration and run a discovery sweep"
+        ),
+    )
+
+
+def _runtime_step(composed: bool, *, blocked: bool) -> ChecklistStep:
+    """Return the step that says whether anything here can run an investigation.
+
+    Neither sentence names a setting of the process. This document is what the
+    console renders, and a step whose text is a deploy instruction would put the
+    environment variable back on the screen an operator opens — which is the
+    thing the console's failure translation exists to keep it off. The variable
+    is still named where it belongs: in the refusal the entry point logs, and in
+    the deployment documentation.
+    """
+    return ChecklistStep(
+        name=SETUP_STEP_INVESTIGATION_RUNTIME,
+        title="Give it something to investigate with",
+        state=_state(composed, blocked=blocked),
+        readiness=_readiness(configured=composed, verified=composed),
+        detail=(
+            "this deployment holds a runtime, so an investigation has something to run in"
+            if composed
+            else (
+                "nothing here can drive an investigation yet — a model provider and an "
+                "integration are both configured, and the part that puts them together "
+                "has not been supplied to this process"
+            )
+        ),
+        action=(
+            "nothing further"
+            if composed
+            else (
+                "whoever operates this deployment supplies the investigation runtime; "
+                "until they do, starting an investigation will fail immediately"
+            )
         ),
     )
 

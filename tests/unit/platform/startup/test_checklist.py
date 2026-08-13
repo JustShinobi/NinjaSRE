@@ -24,6 +24,7 @@ from config.constants.first_run import (
     SETUP_STEP_DURABLE_CREDENTIAL,
     SETUP_STEP_FIRST_INVESTIGATION,
     SETUP_STEP_INFRASTRUCTURE_SOURCE,
+    SETUP_STEP_INVESTIGATION_RUNTIME,
     SETUP_STEP_MODEL_PROVIDER,
     SETUP_STEP_ORDER,
 )
@@ -426,8 +427,17 @@ async def test_a_finished_deployment_reports_the_checklist_complete(
     async def verify() -> ModelVerdict:
         return ModelVerdict(provider_id="local", model_id="m", satisfied=True, summary_line="fine")
 
+    # A composed runtime is part of being finished now, and deliberately so:
+    # this deployment has an account, a verified provider, an estate and a
+    # completed run, and without something to run investigations in it still
+    # cannot perform the next one. "Complete" that did not include it was the
+    # console's promise of a first investigation, made on a deployment that
+    # would refuse it.
     checklist = await build_checklist(
-        store, organisation_id=DEFAULT_ORGANISATION_ID, verify_model=verify
+        store,
+        organisation_id=DEFAULT_ORGANISATION_ID,
+        verify_model=verify,
+        runtime_composed=True,
     )
 
     assert checklist.complete is True
@@ -519,3 +529,61 @@ def test_a_run_with_no_turns_still_renders_rather_than_producing_an_empty_string
 
     assert "run-1" in transcript
     assert "failed" in transcript.lower()
+
+
+# --- The investigation runtime ---------------------------------------------------
+
+
+async def test_the_runtime_step_is_outstanding_when_nothing_is_composed(
+    store: FakePersistence,
+) -> None:
+    """The step that exists because this is the one nothing else would show.
+
+    A deployment whose account, provider, model and estate are all in place looks
+    finished from every screen in the console — right up to the moment somebody
+    presses Investigate and the run fails before it starts. Every other step
+    leaves a trace an operator can go and look at; this one does not, which is
+    exactly why the checklist has to carry it.
+    """
+    checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    assert _step(checklist, SETUP_STEP_INVESTIGATION_RUNTIME).state != SETUP_STATE_DONE
+    assert _step(checklist, SETUP_STEP_INVESTIGATION_RUNTIME).action
+
+
+async def test_the_runtime_step_never_names_a_setting_of_the_process(
+    store: FakePersistence,
+) -> None:
+    """The refusal an operator used to get named an environment variable.
+
+    The console reads this document. A step whose text is a deploy instruction
+    puts the same sentence back on the screen this whole feature exists to keep
+    it off.
+    """
+    checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    step = _step(checklist, SETUP_STEP_INVESTIGATION_RUNTIME)
+    assert "NINJASRE_" not in step.detail
+    assert "NINJASRE_" not in step.action
+
+
+async def test_a_composed_runtime_completes_the_step(store: FakePersistence) -> None:
+    checklist = await build_checklist(
+        store, organisation_id=DEFAULT_ORGANISATION_ID, runtime_composed=True
+    )
+
+    assert _step(checklist, SETUP_STEP_INVESTIGATION_RUNTIME).state == SETUP_STATE_DONE
+
+
+async def test_the_first_investigation_waits_on_the_runtime_rather_than_on_the_estate(
+    store: FakePersistence,
+) -> None:
+    """Ordering, and it is the ordering that stops the checklist lying.
+
+    Telling somebody to run their first investigation on a deployment with no
+    runtime is telling them to press a button that cannot work. The step is
+    blocked until the thing that would run it exists.
+    """
+    checklist = await build_checklist(store, organisation_id=DEFAULT_ORGANISATION_ID)
+
+    assert _step(checklist, SETUP_STEP_FIRST_INVESTIGATION).state == SETUP_STATE_BLOCKED

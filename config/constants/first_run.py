@@ -148,15 +148,24 @@ MAXIMUM_CLOCK_SKEW_SECONDS: Final[float] = 60.0
 SETUP_STEP_DURABLE_CREDENTIAL: Final = "durable-credential"
 SETUP_STEP_MODEL_PROVIDER: Final = "model-provider"
 SETUP_STEP_INFRASTRUCTURE_SOURCE: Final = "infrastructure-source"
+SETUP_STEP_INVESTIGATION_RUNTIME: Final = "investigation-runtime"
 SETUP_STEP_FIRST_INVESTIGATION: Final = "first-investigation"
 
 #: The order the console shows them in, which is also the order they depend on
-#: each other: a first investigation needs a source, a source needs somebody who
-#: may configure one, and that is the durable credential.
+#: each other: a first investigation needs a runtime to run in, a runtime needs
+#: a source worth pointing it at, a source needs somebody who may configure one,
+#: and that is the durable credential.
+#:
+#: The runtime step is fourth because it is the one a deployment can satisfy
+#: without noticing it has not. Everything else here leaves a trace an operator
+#: can see from the console; a process with no investigation runtime composed
+#: looks exactly like one that has, right up to the moment somebody presses
+#: Investigate and the run fails before it starts.
 SETUP_STEP_ORDER: Final[tuple[str, ...]] = (
     SETUP_STEP_DURABLE_CREDENTIAL,
     SETUP_STEP_MODEL_PROVIDER,
     SETUP_STEP_INFRASTRUCTURE_SOURCE,
+    SETUP_STEP_INVESTIGATION_RUNTIME,
     SETUP_STEP_FIRST_INVESTIGATION,
 )
 

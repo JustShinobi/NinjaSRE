@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
+from gateway.http.runtime import runtime_composed
 from gateway.http.state import GatewayState
 from gateway.http.verifications import integration_health
 from integrations._catalogue.discovery import catalogue
@@ -139,6 +140,7 @@ async def checklist(
         organisation_id=auth.scope.org_id,
         integrations=declared,
         verified_integrations=reached,
+        runtime_composed=runtime_composed(state),
     )
     record = built.to_record()
     return ChecklistView(
