@@ -20,6 +20,8 @@ approve one thing having read another.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -30,12 +32,14 @@ from gateway.http.catalogue_readers import installed_catalogue, installed_integr
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
-from platform.approvals.appliers import proposal_appliers_for
+from platform.approvals.appliers import KnowledgeProposalApplier, proposal_appliers_for
 from platform.config_service.service import ConfigService
 from platform.knowledge.base.ingestion import KnowledgeIngestor
 from platform.knowledge.proposals import ProposalQueue as KnowledgeQueue
 from platform.memory.embeddings.local import LocalEmbedder
-from platform.proposals.models import AgentProposal
+from platform.persistence.ports.approval_store import RollbackStep
+from platform.persistence.ports.transaction import TenantScope
+from platform.proposals.models import AgentProposal, ProposalType
 from platform.proposals.service import ProposalQueue
 
 router = APIRouter(prefix="/v1/proposals", tags=["proposals"])
@@ -110,13 +114,14 @@ class DecisionResult(BaseModel):
 
 
 def _queue(state: GatewayState, auth: AuthenticatedRequest) -> ProposalQueue:
-    """Return the review queue for the caller's team, over the live registries."""
+    """Return the review queue for the caller's scope, over the live registries.
+
+    A team-scoped token gets its team's queue. An organisation-scoped token —
+    the durable credential first run establishes is one — gets the whole
+    organisation's, because an owner with no team is every team's reviewer,
+    not none of them.
+    """
     scope = auth.scope
-    if not scope.team_node_id:
-        raise bad_request(
-            "a review queue is a team's. Use a token scoped to the team whose proposals "
-            "you are answering."
-        )
     config = ConfigService(
         gateway=state.gateway,
         scope=scope,
@@ -124,27 +129,57 @@ def _queue(state: GatewayState, auth: AuthenticatedRequest) -> ProposalQueue:
         catalogue=installed_catalogue(),
         integrations=installed_integrations(),
     )
-    # The knowledge queue is the same team's, built here rather than held on
-    # the state: it is scoped to the caller's node, and a long-lived one would
-    # be scoped to whoever the process started for.
-    knowledge = KnowledgeQueue(
-        gateway=state.gateway,
-        scope=scope,
-        ingestor=KnowledgeIngestor(
-            gateway=state.gateway,
-            scope=scope,
-            embedder=LocalEmbedder(),
-            engine=state.guardrails,
-        ),
-        engine=state.guardrails,
+    appliers = proposal_appliers_for(config=config)
+    appliers[ProposalType.KNOWLEDGE] = KnowledgeApplierByProposalTeam(
+        state=state, org_id=scope.org_id
     )
     return ProposalQueue(
         gateway=state.gateway,
         scope=scope,
-        appliers=proposal_appliers_for(config=config, knowledge=knowledge),
+        appliers=appliers,
         credentials=InstalledSecretFields(),
         guardrails=state.guardrails,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class KnowledgeApplierByProposalTeam:
+    """The knowledge applier, bound to the proposal's own team when it runs.
+
+    A knowledge write must land in one team's corpus, and the team that matters
+    is the proposal's — not the reviewer's, who may hold an organisation-wide
+    credential and no team at all. So the queue and ingestor are built per call,
+    scoped to the team the stored proposal names, rather than once here scoped
+    to whoever is asking.
+    """
+
+    state: GatewayState
+    org_id: str
+
+    def _bound(self, proposal: AgentProposal) -> KnowledgeProposalApplier:
+        """Return the applier for ``proposal``'s team, over the live stores."""
+        scope = TenantScope(org_id=self.org_id, team_node_id=proposal.team_node_id)
+        return KnowledgeProposalApplier(
+            proposals=KnowledgeQueue(
+                gateway=self.state.gateway,
+                scope=scope,
+                ingestor=KnowledgeIngestor(
+                    gateway=self.state.gateway,
+                    scope=scope,
+                    embedder=LocalEmbedder(),
+                    engine=self.state.guardrails,
+                ),
+                engine=self.state.guardrails,
+            )
+        )
+
+    async def rollback_steps(self, proposal: AgentProposal) -> Sequence[RollbackStep]:
+        """Return the steps that would undo ``proposal``, ordered as executed."""
+        return await self._bound(proposal).rollback_steps(proposal)
+
+    async def apply(self, proposal: AgentProposal, *, approved_by: str) -> str:
+        """Carry ``proposal`` out in its own team and return what happened."""
+        return await self._bound(proposal).apply(proposal, approved_by=approved_by)
 
 
 class InstalledSecretFields:

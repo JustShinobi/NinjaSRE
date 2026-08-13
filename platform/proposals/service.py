@@ -20,10 +20,13 @@ same thing. The screen shows the pattern; nothing here decides on it. A queue
 that auto-rejected the fourth attempt would be a queue that had taken the
 decision away from the person the whole design exists to keep.
 
-**The queue serves one team.** The store is scoped to an organisation; the
-narrowing to a node is here, because a review queue showing another team's
-proposals is one where the wrong person approves a change to somebody else's
-cluster.
+**The queue serves one team — or the whole organisation.** The store is scoped
+to an organisation; the narrowing to a node is here, because a review queue
+showing another team's proposals is one where the wrong person approves a
+change to somebody else's cluster. A scope that names no team is the
+organisation's own — an operator whose credential is org-wide is every team's
+reviewer, not none of them — and the boundary that matters remains ``org_id``,
+which the scope always carries.
 """
 
 from __future__ import annotations
@@ -138,7 +141,12 @@ def _utc_now() -> datetime:
 
 @dataclass(slots=True)
 class ProposalQueue:
-    """Every proposal this team has been asked to decide, and the deciding."""
+    """Every proposal this scope has been asked to decide, and the deciding.
+
+    A scope naming a team is that team's queue and sees nobody else's rows. A
+    scope naming only the organisation is the organisation's queue and sees
+    every team's — the shape an org-wide operator credential arrives in.
+    """
 
     gateway: PersistenceGateway
     scope: TenantScope
@@ -150,13 +158,6 @@ class ProposalQueue:
     credentials: SecretFields | None = None
     guardrails: GuardrailEngine | None = None
     clock: Callable[[], datetime] = _utc_now
-
-    def __post_init__(self) -> None:
-        if not self.scope.team_node_id:
-            raise ValueError(
-                f"{self.scope.org_id}: the review queue must be scoped to a team — an "
-                "unscoped queue is one that shows another team's proposals"
-            )
 
     @property
     def actions(self) -> frozenset[str]:
@@ -310,10 +311,16 @@ class ProposalQueue:
     # -- internals -------------------------------------------------------------
 
     def _scoped(self, proposal: AgentProposal) -> AgentProposal:
-        """Return ``proposal`` bound to this queue's tenant, or raise on a mismatch."""
+        """Return ``proposal`` bound to this queue's tenant, or raise on a mismatch.
+
+        An organisation-scoped queue keeps whatever team the proposal declares:
+        it serves them all, and inventing one here would move a proposal into a
+        team nobody chose.
+        """
         org = proposal.org_id or self.scope.org_id
-        team = proposal.team_node_id or (self.scope.team_node_id or "")
-        if org != self.scope.org_id or team != self.scope.team_node_id:
+        own_team = self.scope.team_node_id or ""
+        team = proposal.team_node_id or own_team
+        if org != self.scope.org_id or (own_team and team != own_team):
             raise ValueError(
                 f"{proposal.proposal_id}: this queue serves "
                 f"{self.scope.org_id}/{self.scope.team_node_id} and the proposal declares "
@@ -326,7 +333,9 @@ class ProposalQueue:
         if request is None or request.action not in self.actions:
             return None
         proposal = AgentProposal.from_request(request, org_id=self.scope.org_id)
-        if proposal is None or proposal.team_node_id != self.scope.team_node_id:
+        if proposal is None:
+            return None
+        if self.scope.team_node_id and proposal.team_node_id != self.scope.team_node_id:
             return None
         return proposal
 

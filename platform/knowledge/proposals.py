@@ -240,7 +240,12 @@ class ProposalDecision:
 
 @dataclass(slots=True)
 class ProposalQueue:
-    """The review queue: where a proposal waits, and the only way out of it."""
+    """The review queue: where a proposal waits, and the only way out of it.
+
+    A scope naming a team is that team's queue and sees nobody else's rows. A
+    scope naming only the organisation is the organisation's queue and sees
+    every team's — the shape an org-wide operator credential arrives in.
+    """
 
     gateway: PersistenceGateway
     scope: TenantScope
@@ -248,13 +253,6 @@ class ProposalQueue:
     engine: GuardrailEngine | None = None
     clock: Callable[[], datetime] = _utc_now
     _proposed: set[str] = field(default_factory=set, init=False)
-
-    def __post_init__(self) -> None:
-        if not self.scope.team_node_id:
-            raise ValueError(
-                f"{self.scope.org_id}: the review queue must be scoped to a team — an "
-                "unscoped queue is one that shows another team's proposals"
-            )
 
     async def propose(self, proposal: KnowledgeProposal) -> KnowledgeProposal:
         """Queue ``proposal`` for review. Writes nothing to the knowledge base.
@@ -308,7 +306,9 @@ class ProposalQueue:
         if request is None or request.action != PROPOSAL_APPROVAL_ACTION:
             return None
         proposal = KnowledgeProposal.from_request(request, org_id=self.scope.org_id)
-        return proposal if proposal.team_node_id == self.scope.team_node_id else None
+        if self.scope.team_node_id and proposal.team_node_id != self.scope.team_node_id:
+            return None
+        return proposal
 
     async def pending(
         self, *, limit: int = MAX_PROPOSAL_QUEUE_RESULTS
@@ -391,8 +391,9 @@ class ProposalQueue:
         wrong is a bug rather than an omission.
         """
         org = proposal.org_id or self.scope.org_id
-        team = proposal.team_node_id or (self.scope.team_node_id or "")
-        if org != self.scope.org_id or team != self.scope.team_node_id:
+        own_team = self.scope.team_node_id or ""
+        team = proposal.team_node_id or own_team
+        if org != self.scope.org_id or (own_team and team != own_team):
             raise ValueError(
                 f"{proposal.proposal_id}: this queue serves "
                 f"{self.scope.org_id}/{self.scope.team_node_id} and the proposal declares "
@@ -494,7 +495,9 @@ class ProposalQueue:
             if request.action == PROPOSAL_APPROVAL_ACTION
         )
         return tuple(
-            proposal for proposal in proposals if proposal.team_node_id == self.scope.team_node_id
+            proposal
+            for proposal in proposals
+            if not self.scope.team_node_id or proposal.team_node_id == self.scope.team_node_id
         )
 
 

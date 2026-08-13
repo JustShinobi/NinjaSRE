@@ -206,6 +206,52 @@ async def test_approving_writes_the_change_and_reports_what_it_did(
     assert rows["corpus-datastore-fill"]["enabled"] is True
 
 
+async def test_an_org_scoped_credential_reads_an_empty_queue_not_an_error(
+    deployment: tuple[AsyncClient, str, FakePersistence],
+) -> None:
+    """The credential first run establishes is organisation-wide, not a team's.
+
+    That is the token the console holds in a real deployment, so the queue has
+    to answer it — an empty queue is an answer, a refusal is a broken screen.
+    """
+    client, _, store = deployment
+    org_secret = await issue_token(
+        store, TokenService(gateway=store), user_id="root", role=Role.OWNER, node_id=None
+    )
+
+    listed = await client.get("/v1/proposals", headers=auth(org_secret))
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["proposals"] == []
+    assert listed.json()["acceptance"]["decided"] == 0
+
+    counted = await client.get("/v1/proposals/count", headers=auth(org_secret))
+    assert counted.status_code == 200, counted.text
+    assert counted.json() == {"pending": 0}
+
+
+async def test_an_org_scoped_reviewer_sees_and_decides_every_teams_proposals(
+    deployment: tuple[AsyncClient, str, FakePersistence],
+) -> None:
+    """An organisation-wide owner is every team's reviewer, not none of them."""
+    client, _, store = deployment
+    await queue_one(store, detector_proposal())
+    org_secret = await issue_token(
+        store, TokenService(gateway=store), user_id="root", role=Role.OWNER, node_id=None
+    )
+
+    listed = await client.get("/v1/proposals", headers=auth(org_secret))
+    assert listed.status_code == 200, listed.text
+    assert [row["proposal_id"] for row in listed.json()["proposals"]] == ["prop-det"]
+
+    decided = await client.post(
+        "/v1/proposals/prop-det/decision",
+        json={"verdict": "approve"},
+        headers=auth(org_secret),
+    )
+    assert decided.status_code == 200, decided.text
+    assert decided.json()["state"] == "approved"
+
+
 async def test_the_acceptance_figure_carries_both_numbers(
     deployment: tuple[AsyncClient, str, FakePersistence],
 ) -> None:
