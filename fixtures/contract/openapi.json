@@ -13236,7 +13236,7 @@
     },
     "/v1/providers/{provider_id}/verify": {
       "post": {
-        "description": "Check ``provider_id`` end to end and report what came back.\n\nA real request, and the claim being made is about what happened rather than\nabout what is configured. \"It should work now\" is not the same statement as\n\"a call went out, called a tool, and returned structure\", and the difference\nis discovered at 03:00 by whoever was told the first one.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
+        "description": "Check ``provider_id`` end to end and report what came back.\n\nA real request, and the claim being made is about what happened rather than\nabout what is configured. \"It should work now\" is not the same statement as\n\"a call went out, called a tool, and returned structure\", and the difference\nis discovered at 03:00 by whoever was told the first one.\n\nThe model exercised is the one this deployment is configured to run, when\nthe configuration names one for this provider. An operator told \"choose a\nmodel that supports tool calling\" changes the configuration and presses the\nbutton again — a check that kept testing the registry's default would\nreturn the same refusal forever.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
         "operationId": "verify_provider_v1_providers__provider_id__verify_post",
         "parameters": [
           {
