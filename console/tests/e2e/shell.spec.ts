@@ -16,7 +16,7 @@ const AREAS = [
   { id: 'dashboard', path: '/', title: 'Overview' },
   { id: 'incidents', path: '/incidents', title: 'Incidents' },
   { id: 'runs', path: '/runs', title: 'Investigations' },
-  { id: 'approvals', path: '/approvals', title: 'Approvals' },
+  { id: 'approvals', path: '/approvals', title: 'Actions awaiting approval' },
   { id: 'resources', path: '/resources', title: 'Resources' },
   { id: 'topology', path: '/topology', title: 'Topology' },
   { id: 'detectors', path: '/detectors', title: 'Detectors' },

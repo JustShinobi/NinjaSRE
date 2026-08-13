@@ -35,6 +35,19 @@ describe('the approvals screen and the proposals screen it is not', () => {
     serveScenario('populated');
   });
 
+  it('names this queue and explains what the other queue is for', async () => {
+    await renderApprovals();
+
+    expect(screen.getByTestId('page-header')).toHaveTextContent(
+      'Actions awaiting approval',
+    );
+    const crossInbox = screen.getByTestId('approvals-elsewhere').parentElement;
+    if (crossInbox === null) throw new Error('the cross-inbox link has no context');
+    expect(crossInbox).toHaveTextContent(
+      /changes the agent has proposed for the deployment/i,
+    );
+  });
+
   it('points a reader at the other inbox', async () => {
     await renderApprovals();
 
@@ -92,10 +105,15 @@ describe('an empty queue that says why', () => {
       '/v1/approvals': { approvals: [] },
       '/v1/setup/checklist': { complete: true },
       '/v1/config': EMPTY_TREE,
-      '/v1/config/org-northwind': {
-        node_id: 'org-northwind',
-        values: { 'approval.required_above': 'read' },
-        provenance: { 'approval.required_above': 'org-northwind' },
+      '/v1/config/org-northwind/fields': {
+        fields: [
+          {
+            path: 'policies.approvals.threshold',
+            value: 'read_sensitive',
+            default: 'write_reversible',
+            provenance: 'org-northwind',
+          },
+        ],
       },
     });
 
@@ -108,8 +126,8 @@ describe('an empty queue that says why', () => {
       ),
     );
 
-    expect(screen.getByText(/read/)).toBeInTheDocument();
-    expect(screen.getByText(/org-northwind/)).toBeInTheDocument();
+    expect(screen.getByTestId('panel')).toHaveTextContent(/read_sensitive/);
+    expect(screen.getByTestId('panel')).toHaveTextContent(/set at org-northwind/i);
   });
 
   it('says the threshold is the shipped default when nothing set it', async () => {
@@ -117,10 +135,15 @@ describe('an empty queue that says why', () => {
       '/v1/approvals': { approvals: [] },
       '/v1/setup/checklist': { complete: true },
       '/v1/config': EMPTY_TREE,
-      '/v1/config/org-northwind': {
-        node_id: 'org-northwind',
-        values: { 'approval.required_above': 'write_reversible' },
-        provenance: {},
+      '/v1/config/org-northwind/fields': {
+        fields: [
+          {
+            path: 'policies.approvals.threshold',
+            value: null,
+            default: 'write_reversible',
+            provenance: '',
+          },
+        ],
       },
     });
 
@@ -132,7 +155,47 @@ describe('an empty queue that says why', () => {
       ),
     );
 
-    expect(screen.getByText(/nothing yet/)).toBeInTheDocument();
+    expect(screen.getByTestId('panel')).toHaveTextContent(/deployment default/i);
+  });
+
+  it('keeps recorded scenarios readable while they expose the legacy policy path', async () => {
+    stubReads({
+      '/v1/approvals': { approvals: [] },
+      '/v1/setup/checklist': { complete: true },
+      '/v1/config': EMPTY_TREE,
+      '/v1/config/org-northwind': {
+        node_id: 'org-northwind',
+        values: { 'approval.required_above': 'read' },
+        provenance: { 'approval.required_above': 'org-northwind' },
+      },
+    });
+
+    const { ApprovalsScreen } = await import('@/surfaces/screens/approvals');
+    const { contextFor, datasetViewer } = await import('../support/dataset');
+    render(
+      await ApprovalsScreen(
+        contextFor({ ...datasetViewer('populated'), teamNodeId: 'org-northwind' }),
+      ),
+    );
+
+    expect(screen.getByTestId('panel')).toHaveTextContent(/read/);
+    expect(screen.getByTestId('panel')).toHaveTextContent(/set at org-northwind/i);
+  });
+
+  it('does not announce the empty-state action as both a link and a button', async () => {
+    stubReads({
+      '/v1/approvals': { approvals: [] },
+      '/v1/setup/checklist': { complete: true },
+    });
+
+    const { ApprovalsScreen } = await import('@/surfaces/screens/approvals');
+    const { contextFor, datasetViewer } = await import('../support/dataset');
+    render(await ApprovalsScreen(contextFor(datasetViewer('populated'))));
+
+    expect(screen.getAllByRole('link', { name: 'See what is running' })).toHaveLength(
+      1,
+    );
+    expect(screen.queryByRole('button', { name: 'See what is running' })).toBeNull();
   });
 
   it('prefers telling an unfinished setup over the policy, while the checklist is open', async () => {

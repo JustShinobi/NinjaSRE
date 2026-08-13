@@ -62,13 +62,59 @@ import {
 const DECIDE = 'remediation.approve';
 
 /**
- * The configuration path the queue is gated on.
+ * The configuration paths used by the live API and the recorded mockplane.
  *
- * The API's own dotted spelling, a flat key rather than a nested one — the
- * same path `locked` and `approval_gated` name on a configuration write, so a
- * reader comparing the two screens is comparing the same field.
+ * The live configuration schema nests this under ``policies.approvals``. Older
+ * recorded scenarios expose the pre-schema flat name, so the fallback is kept at
+ * this boundary rather than making the rest of the screen know about two APIs.
  */
-const THRESHOLD_PATH = 'approval.required_above';
+const APPROVAL_POLICY_PATHS = [
+  'policies.approvals.threshold',
+  'approval.required_above',
+] as const;
+
+interface ApprovalRule {
+  readonly threshold: string;
+  readonly provenance: string;
+}
+
+/** Read a string at a dotted path, accepting the legacy flat key as well. */
+function dottedText(record: unknown, path: string): string {
+  const direct = text(record, path);
+  if (direct !== '') return direct;
+
+  let current: unknown = record;
+  for (const segment of path.split('.')) {
+    current = field(current, segment);
+  }
+  return typeof current === 'string' ? current : '';
+}
+
+/** Return the policy field that describes the active approval threshold. */
+function ruleFromFields(payload: unknown): ApprovalRule | null {
+  const declared = list(payload, 'fields').find((record) =>
+    APPROVAL_POLICY_PATHS.some((path) => text(record, 'path') === path),
+  );
+  if (declared === undefined) return null;
+
+  const threshold = text(declared, 'value') || text(declared, 'default');
+  return threshold === ''
+    ? null
+    : { threshold, provenance: text(declared, 'provenance') };
+}
+
+/** Return the policy from an effective-config response when using an old fixture. */
+function ruleFromEffective(payload: unknown): ApprovalRule | null {
+  const values = field(payload, 'values');
+  const provenance = field(payload, 'provenance');
+  for (const path of APPROVAL_POLICY_PATHS) {
+    const threshold = dottedText(values, path);
+    if (threshold !== '') {
+      return { threshold, provenance: dottedText(provenance, path) };
+    }
+  }
+  return null;
+}
 
 /** Which group an approval belongs to, by how long it has been waiting. */
 function groupOf(record: unknown, now: Date): 'overdue' | 'today' | 'later' {
@@ -136,19 +182,26 @@ export async function ApprovalsScreen(context: SurfaceContext): Promise<ReactNod
       placedTree(dataOf(tree)),
     );
     if (nodeId !== '') {
-      const effective = await optionalRead('/v1/config/{node_id}', () =>
-        read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
+      const fields = await optionalRead('/v1/config/{node_id}/fields', () =>
+        read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
       );
-      const payload = dataOf(effective);
-      const threshold = text(field(payload, 'values'), THRESHOLD_PATH);
-      const setAt = text(field(payload, 'provenance'), THRESHOLD_PATH);
-      if (threshold !== '') {
+      let rule = ruleFromFields(dataOf(fields));
+      if (rule === null) {
+        // The mockplane still serves the pre-schema effective-config shape. Keep
+        // this compatibility read local while recorded scenarios migrate; the
+        // live path above remains the source of the default and its provenance.
+        const effective = await optionalRead('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
+        );
+        rule = ruleFromEffective(dataOf(effective));
+      }
+      if (rule !== null) {
         emptyBody = [
           emptyBody,
-          `${message(locale, 'configuration.gated')}: ${threshold}.`,
-          `${message(locale, 'configuration.column.provenance')} ${
-            setAt === '' ? message(locale, 'configuration.editor.inherited') : setAt
-          }.`,
+          message(locale, 'approvals.empty.rule', { threshold: rule.threshold }),
+          rule.provenance === ''
+            ? message(locale, 'approvals.empty.rule.default')
+            : message(locale, 'approvals.empty.rule.setAt', { node: rule.provenance }),
         ].join(' ');
       }
     }
@@ -240,6 +293,7 @@ export async function ApprovalsScreen(context: SurfaceContext): Promise<ReactNod
       {may(viewer, proposals.permission) ? (
         <p className="text-meta text-muted mb-3 flex items-center gap-1">
           <CompassIcon size="empty" />
+          <span>{message(locale, 'approvals.otherInbox')}</span>
           <Link href={proposals.path} data-testid="approvals-elsewhere">
             {message(locale, 'surface.open')} {message(locale, proposals.title)}
           </Link>

@@ -20,6 +20,7 @@ import {
   text,
 } from '../read';
 import { RowList, type ListRow } from '../rows';
+import { triggerLabel } from '../run-trigger';
 import { readViewState, type FilterName } from '../url-state';
 
 /**
@@ -81,6 +82,8 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
   const none = message(locale, 'surface.none');
   const rows: readonly ListRow[] = sorted.map((record) => {
     const id = text(record, 'run_id');
+    const subject = orNone(readFailure(text(record, 'summary'), locale).title, none);
+    const trigger = text(record, 'trigger');
     const seconds = durationOf(record);
     return {
       id,
@@ -93,10 +96,11 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
         // words are still on the run itself, behind the translation.
         {
           kind: 'text',
-          text: orNone(readFailure(text(record, 'summary'), locale).title, none),
+          text: subject,
+          title: subject,
         },
         { kind: 'status', text: text(record, 'status') },
-        { kind: 'text', text: text(record, 'trigger') },
+        { kind: 'text', text: triggerLabel(locale, trigger) },
         // The id, demoted to metadata. Short enough to be a label rather than a
         // block of hex nobody can hold in their head, and it is still what
         // somebody pastes into a support channel.
@@ -133,7 +137,10 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
           {
             name: 'trigger',
             label: message(locale, 'runs.filter.trigger'),
-            options: triggers.map((trigger) => ({ value: trigger, label: trigger })),
+            options: triggers.map((trigger) => ({
+              value: trigger,
+              label: triggerLabel(locale, trigger),
+            })),
           },
         ]}
       />

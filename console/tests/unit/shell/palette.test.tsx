@@ -53,6 +53,12 @@ describe('the registry areas contribute to', () => {
     expect(commands().map((command) => command.id)).toContain('run:run-0001');
   });
 
+  it('offers the tour again as an explicit action', () => {
+    const tour = commands().find((command) => command.id === 'act:view-tour');
+
+    expect(tour).toMatchObject({ group: 'actions', href: '/?tour=1' });
+  });
+
   it('groups navigation, then runs, then actions', () => {
     const groups = [...new Set(commands().map((command) => command.group))];
     expect(groups).toEqual(['navigate', 'runs', 'actions']);
@@ -201,7 +207,7 @@ describe('searching the deployment from the palette', () => {
           id: 'resource:r1',
           group: 'resources' as const,
           label,
-          href: '/resources/r1',
+          href: '/resources?selected=r1',
           permission: 'estate.read',
         },
       ],

@@ -68,6 +68,11 @@ function haystackOf(fields: readonly (string | undefined)[]): string {
   return fields.filter((field) => field !== undefined && field !== '').join(' ');
 }
 
+/** The display name used by the estate API, with the old fixture field tolerated. */
+function resourceName(record: unknown): string {
+  return textOf(record, 'display_name') || textOf(record, 'name');
+}
+
 /** One record's string field, or `''` for anything that is not one. */
 export function textOf(record: unknown, name: string): string {
   const found: unknown = Reflect.get(Object(record), name);
@@ -89,7 +94,7 @@ export function resourcesMatching(
     .filter((record) =>
       contains(
         haystackOf([
-          textOf(record, 'name'),
+          resourceName(record),
           textOf(record, 'native_id'),
           textOf(record, 'kind'),
         ]),
@@ -100,9 +105,9 @@ export function resourcesMatching(
     .map((record) => ({
       id: `resource:${textOf(record, 'resource_id')}`,
       group: 'resources' as const,
-      label: textOf(record, 'name') || textOf(record, 'resource_id'),
+      label: resourceName(record) || textOf(record, 'resource_id'),
       hint: haystackOf([textOf(record, 'kind'), textOf(record, 'health')]),
-      href: `/resources/${encodeURIComponent(textOf(record, 'resource_id'))}`,
+      href: `/resources?selected=${encodeURIComponent(textOf(record, 'resource_id'))}`,
     }));
 }
 

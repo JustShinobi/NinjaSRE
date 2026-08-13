@@ -94,6 +94,7 @@ function enabledDetector(id: string): unknown {
 
 function serve(bodies: {
   readonly detectors: readonly unknown[];
+  readonly detectorsStatus?: number;
   readonly incidents: readonly unknown[];
   readonly setup: unknown;
 }): void {
@@ -108,7 +109,12 @@ function serve(bodies: {
     const body = byPath[path];
     return Promise.resolve(
       new Response(JSON.stringify(body ?? {}), {
-        status: body === undefined ? 404 : 200,
+        status:
+          path === '/v1/detectors' && bodies.detectorsStatus !== undefined
+            ? bodies.detectorsStatus
+            : body === undefined
+              ? 404
+              : 200,
         headers: { 'content-type': 'application/json' },
       }),
     );
@@ -205,6 +211,39 @@ describe('a deployment that is watching and has caught nothing', () => {
     expect(panel).not.toHaveTextContent('No detector is switched on');
     expect(panel).not.toHaveTextContent('still being set up');
   });
+
+  it('offers an in-console example of what an incident will look like', async () => {
+    await incidents();
+
+    expect(screen.getByTestId('incident-preview-link')).toHaveAttribute(
+      'href',
+      '#incident-preview',
+    );
+    expect(screen.getByTestId('incident-preview')).toHaveTextContent(
+      'What an incident looks like',
+    );
+    expect(screen.getByTestId('incident-preview')).toHaveTextContent(
+      'Datastore near full',
+    );
+  });
+});
+
+describe('detector coverage is unavailable', () => {
+  it('does not turn a detector read failure into a claim that nothing is watching', async () => {
+    serve({
+      detectors: [],
+      detectorsStatus: 503,
+      incidents: [],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents();
+
+    const panel = emptyPanel();
+    expect(panel).toHaveTextContent(
+      'A detector opens an incident when what it watches crosses its threshold. None has.',
+    );
+    expect(panel).not.toHaveTextContent('No detector is switched on');
+  });
 });
 
 describe('a filter with nothing to filter', () => {
@@ -227,6 +266,17 @@ describe('a filter with nothing to filter', () => {
       .getAllByTestId('filter')
       .map((filter) => filter.getAttribute('data-filter'));
     expect(rendered).toEqual(['state', 'severity']);
+  });
+
+  it('does not turn blank record fields into filter choices', async () => {
+    serve({
+      detectors: [enabledDetector('quorum-margin-zero')],
+      incidents: [{ ...OPEN_INCIDENT, state: '', severity: '' }],
+      setup: SETUP_COMPLETE,
+    });
+    await incidents();
+
+    expect(screen.queryAllByTestId('filter')).toHaveLength(0);
   });
 });
 

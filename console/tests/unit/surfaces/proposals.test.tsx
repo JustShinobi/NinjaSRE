@@ -101,22 +101,22 @@ describe('the proposals screen and the approvals queue it is not', () => {
   it('points a reader at the other inbox', async () => {
     await renderQueue();
 
-    const link = screen.getByRole('link', { name: /Approvals/ });
+    const link = screen.getByRole('link', { name: /Actions awaiting approval/ });
     expect(link).toHaveAttribute('href', '/approvals');
   });
 
   it('says what the other inbox is for, not only its name', async () => {
     await renderQueue();
 
-    expect(
-      screen.getByText(/Changes waiting on a decision, and the rollback behind each/),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('proposals-elsewhere').parentElement).toHaveTextContent(
+      /For actions the agent wants to take now/i,
+    );
   });
 
   it('names that link once, as a single interactive element', async () => {
     await renderQueue();
 
-    const links = screen.getAllByRole('link', { name: /Approvals/ });
+    const links = screen.getAllByRole('link', { name: /Actions awaiting approval/ });
     expect(links).toHaveLength(1);
     // Not a button sitting inside the same link, and not a link sitting
     // inside a button — one control, reachable once by a keyboard or a

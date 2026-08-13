@@ -1,5 +1,4 @@
 import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -254,10 +253,7 @@ describe('the values only a browser has', () => {
 });
 
 describe('the way back from a page that does not exist', () => {
-  it('is a real link as well as a control', async () => {
-    const assign = vi.fn();
-    vi.stubGlobal('location', { assign });
-
+  it('is one real link, not a button with a hidden duplicate', () => {
     render(
       <EmptyStateLink
         heading="There is no such page"
@@ -267,9 +263,11 @@ describe('the way back from a page that does not exist', () => {
       />,
     );
 
-    expect(screen.getByTestId('way-back')).toHaveAttribute('href', '/');
-    await userEvent.click(screen.getByRole('button', { name: 'Go to the overview' }));
-    expect(assign).toHaveBeenCalledWith('/');
+    expect(screen.getByRole('link', { name: 'Go to the overview' })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    expect(screen.queryByRole('button', { name: 'Go to the overview' })).toBeNull();
   });
 });
 

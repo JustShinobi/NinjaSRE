@@ -41,6 +41,7 @@ let sent: readonly { url: string; body: string }[] = [];
 // swallows navigation entirely; this file is partly *about* one, so its own
 // mock records where the router was sent.
 const pushed = vi.hoisted(() => [] as string[]);
+const replaced = vi.hoisted(() => [] as string[]);
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -48,7 +49,9 @@ vi.mock('next/navigation', () => ({
     push: (href: string) => {
       pushed.push(href);
     },
-    replace: () => undefined,
+    replace: (href: string) => {
+      replaced.push(href);
+    },
   }),
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(),
@@ -97,6 +100,7 @@ function answerWith(
 beforeEach(() => {
   sent = [];
   pushed.length = 0;
+  replaced.length = 0;
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
 });
 
@@ -1025,6 +1029,17 @@ describe('the tutorial overlay', () => {
 
     expect(screen.getByTestId('tutorial-progress')).toHaveTextContent('1 of 5');
     expect(screen.getByTestId('tutorial-skip')).toBeVisible();
+    expect(screen.getByTestId('tutorial-close')).toHaveAccessibleName('Close');
+  });
+
+  it('closes from X and clears the explicit replay address', async () => {
+    vi.stubGlobal('fetch', answerWith({}));
+    render(<Tutorial {...LABELS} replay />);
+
+    await userEvent.click(screen.getByTestId('tutorial-close'));
+
+    expect(screen.queryByTestId('tutorial')).toBeNull();
+    expect(replaced).toEqual(['/']);
   });
 
   it('walks five slides and finishes by closing', async () => {
@@ -1135,6 +1150,13 @@ describe('the tutorial overlay', () => {
     render(await DashboardScreen(await surfaceContext({})));
 
     expect(screen.queryByTestId('tutorial')).toBeNull();
+  });
+
+  it('reopens from the explicit tour address even after setup and dismissal', async () => {
+    serveScenario('populated');
+    render(await DashboardScreen(await surfaceContext({ tour: '1' })));
+
+    expect(screen.getByTestId('tutorial')).toBeInTheDocument();
   });
 
   it('writes the dismissal at the root of the tree when the viewer has no team', async () => {

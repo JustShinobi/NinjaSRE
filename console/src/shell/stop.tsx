@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
-import { Button } from '@/components/action';
+import { Button, Link } from '@/components/action';
 import { formatDateTime } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
@@ -170,6 +170,9 @@ export function KillSwitchControl({
           <span className="text-small text-text">
             {message(locale, 'stop.consequence')}
           </span>
+          <Link href="/autonomy" data-testid="stop-autonomy">
+            {message(locale, 'stop.autonomy')}
+          </Link>
           <span className="flex items-center gap-2">
             <Button
               variant="destructive"

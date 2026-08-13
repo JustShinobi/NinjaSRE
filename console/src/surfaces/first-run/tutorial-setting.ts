@@ -21,6 +21,15 @@
 /** Where the dismissal is recorded, at the viewer's own node. */
 export const TUTORIAL_SETTING = 'surfaces.console.tutorial_dismissed';
 
+/** The query parameter that explicitly reopens the tutorial. */
+export const TUTORIAL_QUERY_PARAM = 'tour';
+
+/** The query value that means "show the tutorial now". */
+export const TUTORIAL_REPLAY_VALUE = '1';
+
+/** The stable address used by the account menu and command palette. */
+export const TUTORIAL_REPLAY_HREF = `/?${TUTORIAL_QUERY_PARAM}=${TUTORIAL_REPLAY_VALUE}`;
+
 /**
  * Whether `values` — a node's effective configuration — records the dismissal.
  *

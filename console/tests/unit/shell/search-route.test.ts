@@ -70,7 +70,11 @@ it('asks the estate, the incidents and the runs, carrying the session credential
         200,
         {
           resources: [
-            { resource_id: 'r1', name: 'signoz-collector', kind: 'container' },
+            {
+              resource_id: 'r1',
+              display_name: 'signoz-collector',
+              kind: 'container',
+            },
           ],
         },
       ],
@@ -86,7 +90,13 @@ it('asks the estate, the incidents and the runs, carrying the session credential
   expect(asked.some((url) => url.includes('/v1/incidents'))).toBe(true);
   expect(asked.some((url) => url.includes('/v1/runs'))).toBe(true);
   await expect(answer.json()).resolves.toMatchObject({
-    found: [{ id: 'resource:r1', group: 'resources', href: '/resources/r1' }],
+    found: [
+      {
+        id: 'resource:r1',
+        group: 'resources',
+        href: '/resources?selected=r1',
+      },
+    ],
     partial: false,
   });
 });
@@ -100,7 +110,7 @@ it('still finds resources when the incident store is unavailable', async () => {
     answering({
       '/v1/estate/resources': [
         200,
-        { resources: [{ resource_id: 'r1', name: 'signoz-collector' }] },
+        { resources: [{ resource_id: 'r1', display_name: 'signoz-collector' }] },
       ],
       '/v1/incidents': [503, { detail: 'the store is not answering' }],
       '/v1/runs': [200, { runs: [] }],
@@ -135,7 +145,7 @@ it('says the answer is partial when a source filled its page', async () => {
   // different answers, and only one of them means the thing is not there.
   const full = Array.from({ length: 200 }, (_, at) => ({
     resource_id: `r${String(at)}`,
-    name: `worker-${String(at)}`,
+    display_name: `worker-${String(at)}`,
   }));
   vi.stubGlobal(
     'fetch',
@@ -199,7 +209,7 @@ it('the client reads what the courier sent', async () => {
                 group: 'resources',
                 label: 'signoz-collector',
                 hint: 'container healthy',
-                href: '/resources/r1',
+                href: '/resources?selected=r1',
               },
             ],
             partial: true,

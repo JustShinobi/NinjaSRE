@@ -25,7 +25,7 @@ export const EN = {
   'nav.dashboard': 'Dashboard',
   'nav.incidents': 'Incidents',
   'nav.runs': 'Investigations',
-  'nav.approvals': 'Approvals',
+  'nav.approvals': 'Actions awaiting approval',
   'nav.proposals': 'Proposed changes',
   'nav.resources': 'Resources',
   'nav.topology': 'Topology',
@@ -56,6 +56,10 @@ export const EN = {
   'nav.open': 'Open navigation',
   'nav.close': 'Close navigation',
   'nav.pending': '{count} waiting',
+  'nav.pending.approvals': '{count} actions awaiting approval',
+  'nav.pending.proposals': '{count} proposals waiting',
+  'nav.pending.incidents': '{count} open incidents',
+  'nav.pending.runs': '{count} failed investigations',
 
   // --- What each area is for ---------------------------------------------------
   'page.firstRun.title': 'First steps',
@@ -69,9 +73,9 @@ export const EN = {
   'page.runs.title': 'Investigations',
   'page.runs.context':
     'Every investigation this deployment has recorded, newest first.',
-  'page.approvals.title': 'Approvals',
+  'page.approvals.title': 'Actions awaiting approval',
   'page.approvals.context':
-    'Changes waiting on a decision, and the rollback behind each.',
+    'Actions the agent wants to take now, waiting for your approval. Each carries its blast radius and rollback plan.',
   'page.proposals.title': 'Proposed changes',
   'page.proposals.context':
     'Everything the agent has proposed and nobody has decided. Each carries what would change, why, and the investigation it came out of.',
@@ -157,7 +161,7 @@ export const EN = {
   'data.provenance.none': 'Nothing has arrived here to trace.',
 
   // --- The utility bar ---------------------------------------------------------
-  'shell.search': 'Search resources, runs, incidents',
+  'shell.search': 'Search resources, investigations, incidents',
   'shell.search.shortcut': 'Ctrl K',
   'shell.theme': 'Theme',
   'shell.density.comfortable': 'Comfortable rows',
@@ -166,6 +170,7 @@ export const EN = {
   'shell.theme.dark': 'Dark',
   'shell.theme.system': 'Follow the system',
   'shell.investigate': 'Investigate',
+  'shell.viewTour': 'View the tour',
   'shell.account': 'Account',
   'shell.account.signOut': 'Sign out',
   'shell.account.impersonate': 'Act as somebody else',
@@ -189,6 +194,7 @@ export const EN = {
   'stop.engaged.howToRelease':
     'Anyone who may stop this deployment can release it from the top of the screen.',
   'stop.reason': 'Stopped from the console.',
+  'stop.autonomy': 'Review the Autonomy posture',
   'stop.refused': 'The deployment refused to change the stop.',
   'stop.unreachable': 'The deployment could not be reached. Stop it by hand.',
 
@@ -235,7 +241,8 @@ export const EN = {
 
   // --- The command palette -----------------------------------------------------
   'palette.title': 'Command palette',
-  'palette.placeholder': 'Search resources, incidents and runs, or go to a page',
+  'palette.placeholder':
+    'Search resources, incidents and investigations, or go to a page',
   'palette.empty': 'Nothing matches that.',
   // A page was read and nothing in it matched, which is not the same claim as
   // the thing not existing. Saying so is the difference between a search
@@ -244,9 +251,9 @@ export const EN = {
     'Nothing in what was searched matches that — there is more than one page of results to look through.',
   'palette.group.resources': 'Resources',
   'palette.group.incidents': 'Incidents',
-  'palette.group.found-runs': 'Matching runs',
+  'palette.group.found-runs': 'Matching investigations',
   'palette.group.navigate': 'Go to',
-  'palette.group.runs': 'Recent runs',
+  'palette.group.runs': 'Recent investigations',
   'palette.group.actions': 'Actions',
   'palette.close': 'Close the palette',
 
@@ -338,7 +345,7 @@ export const EN = {
   'dashboard.attention.oldest': 'Waiting longest: {age}',
   'dashboard.attention.empty.heading': 'Nothing is waiting on a person',
   'dashboard.attention.empty.body':
-    'Approvals, agent questions and failed runs appear here the moment one exists. There are none.',
+    'Approvals, agent questions and failed investigations appear here the moment one exists. There are none.',
   'dashboard.attention.empty.action': 'See what is running',
   'dashboard.stat.watched': 'Resources watched',
   'dashboard.stat.watched.context': '{kinds}',
@@ -347,7 +354,7 @@ export const EN = {
   'dashboard.stat.degraded': 'Degraded and unhealthy',
   'dashboard.stat.degraded.context':
     '{count} open findings behind them; {live} of {total} detectors are switched on to raise one of them into an incident',
-  'dashboard.stat.runs': 'Investigations in the last day',
+  'dashboard.stat.runs': 'Recent investigations',
   'dashboard.stat.runs.context': '{failed} of them failed',
   'dashboard.stat.successRate': 'Success rate',
   'dashboard.stat.successRate.context':
@@ -510,6 +517,7 @@ export const EN = {
 
   'tutorial.title': 'What this is, in five screens',
   'tutorial.skip': 'Skip',
+  'tutorial.close': 'Close',
   'tutorial.next': 'Next',
   'tutorial.back': 'Back',
   'tutorial.done': 'Start setting it up',
@@ -541,8 +549,12 @@ export const EN = {
   'runs.filter.status': 'Status',
   'runs.filter.trigger': 'Trigger',
   'runs.list.title': 'Investigations',
-  'runs.list.caption': 'Every run this deployment has recorded',
-  'runs.empty.heading': 'No runs yet',
+  'runs.trigger.manual': 'Manual',
+  'runs.trigger.alert': 'Alert',
+  'runs.trigger.scheduled': 'Scheduled',
+  'runs.trigger.specialist': 'Specialist',
+  'runs.list.caption': 'Every investigation this deployment has recorded',
+  'runs.empty.heading': 'No investigations yet',
   'runs.empty.body':
     'An investigation is recorded whenever an alert, a schedule or a person starts one. None has been.',
   'runs.empty.action': 'Start an investigation',
@@ -550,7 +562,7 @@ export const EN = {
   'runs.filtered.body':
     'Every filter is in the address, so clearing them is one navigation and the view you had is still shareable.',
   'runs.filtered.action': 'Clear the filters',
-  'run.summary.title': 'What this run found',
+  'run.summary.title': 'What this investigation found',
   'run.usage.title': 'Cost and tokens',
   'run.usage.model': 'Model',
   'run.usage.turn': 'Turn',
@@ -563,13 +575,13 @@ export const EN = {
   'run.usage.empty.heading': 'No cost recorded',
   'run.usage.empty.body':
     'Cost and tokens are recorded per turn. This investigation has taken no turns yet.',
-  'run.usage.empty.action': 'Back to the run list',
+  'run.usage.empty.action': 'Back to the investigations',
   'run.changes.title': 'What changed, on the same ruler',
   'run.changes.body':
     'Every change the investigation looked at, placed against the moment it began. A change marked as managing the affected resource altered something that governs it; one marked as a coincidence only shares the window.',
   'run.changes.investigation': 'this investigation began',
   'run.changes.window': 'from {start} to {end}',
-  'run.links.title': 'What this run touched',
+  'run.links.title': 'What this investigation touched',
   'run.links.resources': 'Resources',
   'run.links.incident': 'Incident',
   'run.links.empty.heading': 'Nothing linked yet',
@@ -604,6 +616,17 @@ export const EN = {
   'incidents.empty.body':
     'A detector opens an incident when what it watches crosses its threshold. None has.',
   'incidents.empty.action': 'See what is being watched for',
+  'incidents.preview.link': 'See an example incident',
+  'incidents.preview.title': 'What an incident looks like',
+  'incidents.preview.body':
+    'An incident names what crossed a detector threshold, the affected subject, and the evidence that made it actionable. This is an example, not a live incident.',
+  'incidents.preview.label.detector': 'Detector',
+  'incidents.preview.label.subject': 'Subject',
+  'incidents.preview.label.evidence': 'Evidence',
+  'incidents.preview.example.title': 'Datastore near full',
+  'incidents.preview.example.detector': 'datastore-near-full',
+  'incidents.preview.example.subject': 'store-cove',
+  'incidents.preview.example.evidence': 'data_percent = 95.65',
   'incident.subject.title': 'Subject',
   'incident.subject.resource': 'Resource',
   'incident.subject.kind': 'Kind',
@@ -631,6 +654,11 @@ export const EN = {
   'approvals.empty.body':
     'A change that needs a person appears here with its blast radius and its rollback plan. None does.',
   'approvals.empty.action': 'See what is running',
+  'approvals.otherInbox': 'For changes the agent has proposed for the deployment:',
+  'approvals.empty.rule':
+    'The active rule asks for approval for actions at {threshold} and above.',
+  'approvals.empty.rule.default': 'This is the deployment default.',
+  'approvals.empty.rule.setAt': 'It is set at {node}.',
   'proposal.title': 'Proposed action — awaiting your decision',
   'proposal.risk': 'Risk {level} of 5',
   'proposal.target': 'Target',
@@ -659,6 +687,8 @@ export const EN = {
   'resources.column.criticality': 'Criticality',
   'resources.filter.zone': 'Zone',
   'resources.filter.criticality': 'Criticality',
+  'resources.filter.health': 'Health',
+  'resources.filter.problem': 'Degraded or unhealthy',
   'resources.zone.unplaced': 'Unplaced',
   'resources.criticality.ungraded': 'Ungraded',
   'resources.list.title': 'Resources',
@@ -738,7 +768,7 @@ export const EN = {
   'schedules.column.cron': 'Cron',
   'schedules.column.objective': 'Objective',
   'schedules.column.timezone': 'Timezone',
-  'schedules.column.nextRun': 'Next run',
+  'schedules.column.nextRun': 'Next investigation',
   'schedules.column.enabled': 'Enabled',
   'schedules.never': 'Not scheduled',
   'schedules.enable': 'Enable',
@@ -1147,9 +1177,9 @@ export const EN = {
   'live.reload': 'Reconnect',
   'live.new': '{count} new',
   'live.new.action': 'Go to the newest',
-  'live.ended.completed': 'This run has finished.',
-  'live.ended.failed': 'This run failed.',
-  'live.ended.cancelled': 'This run was stopped.',
+  'live.ended.completed': 'This investigation has finished.',
+  'live.ended.failed': 'This investigation failed.',
+  'live.ended.cancelled': 'This investigation was stopped.',
   'live.attention.approval': 'Approval',
   'live.attention.question': 'Question',
   'live.decided': 'Decided by {who}',
@@ -1157,12 +1187,14 @@ export const EN = {
   'live.question.title': 'The agent is waiting on an answer',
   'live.question.label': 'Your answer',
   'live.question.answer': 'Answer and continue',
-  'live.question.required': 'The run resumes when this is answered, so it needs one.',
+  'live.question.required':
+    'The investigation resumes when this is answered, so it needs one.',
   'live.takeover.title': 'Control',
   'live.takeover.take': 'Take over',
   'live.takeover.resume': 'Hand back to the agent',
-  'live.takeover.cancel': 'Stop this run',
-  'live.takeover.taken': 'You have control. The run pauses at its next safe point.',
+  'live.takeover.cancel': 'Stop this investigation',
+  'live.takeover.taken':
+    'You have control. The investigation pauses at its next safe point.',
   'live.takeover.consequence':
     'It stops at its next safe point, keeps what it has found, and cannot be started again.',
   'live.takeover.keep': 'Leave it running',
@@ -1172,7 +1204,7 @@ export const EN = {
   'live.context.send': 'Send without stopping it',
   'live.context.sent': 'Delivered on the next turn.',
   'live.outcome.dismiss': 'Dismiss this message',
-  'live.outcome.recorded': 'in this run’s transcript',
+  'live.outcome.recorded': 'in this investigation’s transcript',
   'live.outcome.refused': 'The deployment refused: {reason}',
   'live.outcome.unreachable': 'The deployment could not be reached.',
   'live.investigate.title': 'Start an investigation',
@@ -1213,7 +1245,7 @@ export const EN = {
   'agent.models.empty.body':
     'The deployment could not say which roles it resolves. Every role still runs on the deployment default.',
   'agent.models.empty.action': 'Edit the configuration',
-  'agent.budgets.title': 'What one run may spend',
+  'agent.budgets.title': 'What one investigation may spend',
   'agent.budgets.body':
     'A team may lower any of these and may not raise one past its ceiling. The ceiling is a constant in the deployment, not a setting.',
   'agent.budgets.ceiling': 'ceiling {ceiling}',
@@ -1272,6 +1304,7 @@ export const EN = {
   'proposals.empty.body':
     'Proposals arrive from investigations and from the documented checks in your corpus. Nothing here is applied until you approve it.',
   'proposals.empty.action': 'See what is running',
+  'proposals.otherInbox': 'For actions the agent wants to take now:',
   'proposals.acceptance': '{approved} of {decided} decided proposals accepted',
   'proposals.acceptance.none': 'Nothing has been decided yet',
   'proposals.type.knowledge': 'Knowledge',

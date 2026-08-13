@@ -136,6 +136,16 @@ const BRAVO = {
   attributes: { zone: 'dmz', criticality: 'low' },
 };
 
+const CHARLIE = {
+  resource_id: 'r-charlie',
+  display_name: 'charlie',
+  kind: 'container',
+  health: 'unhealthy',
+  correlation_key: 'ck-charlie',
+  last_seen_at: '2026-08-07T12:00:00Z',
+  attributes: { zone: 'core', criticality: 'critical' },
+};
+
 describe('resources: no column reads "Not recorded" on every row', () => {
   it('draws no utilisation column when nothing in view has a reading', async () => {
     serve({ resources: [ALPHA, BRAVO] });
@@ -245,5 +255,28 @@ describe('resources: a filter by name', () => {
     const form = screen.getByTestId('resource-search');
     expect(form).toHaveAttribute('method', 'get');
     expect(within(form).getByDisplayValue('critical')).toBeInTheDocument();
+  });
+});
+
+describe('resources: a filter by health', () => {
+  it('applies the healthy value carried by the dashboard drill-down', async () => {
+    serve({ resources: [ALPHA, BRAVO, CHARLIE] });
+    await resources({ health: 'healthy' });
+
+    expect(screen.getAllByTestId('row')).toHaveLength(1);
+    expect(screen.getByTestId('row')).toHaveAttribute('data-row', 'r-alpha');
+  });
+
+  it('groups degraded and unhealthy resources under the problem drill-down', async () => {
+    serve({ resources: [ALPHA, BRAVO, CHARLIE] });
+    await resources({ health: 'problem' });
+
+    const rows = screen.getAllByTestId('row');
+    expect(rows).toHaveLength(2);
+    const ids = rows.map((row) => row.getAttribute('data-row'));
+    expect(ids).toEqual(expect.arrayContaining(['r-bravo', 'r-charlie']));
+    expect(ids).not.toContain('r-alpha');
+    expect(screen.getByText('bravo')).toBeInTheDocument();
+    expect(screen.getByText('charlie')).toBeInTheDocument();
   });
 });

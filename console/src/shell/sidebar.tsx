@@ -7,7 +7,7 @@ import type { ReactNode } from 'react';
 import { StatusDot } from '@/components/status';
 import { Lockup } from '@/design/brand';
 import { cx } from '@/design/cx';
-import { message, type Locale } from '@/i18n/messages';
+import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import type { Viewer } from '@/session/viewer';
 import { groupsFor, type Area } from './routes';
 
@@ -47,6 +47,14 @@ const POSTURE_KEY = {
   act: 'shell.guardian.posture.act',
   frozen: 'shell.guardian.posture.frozen',
 } as const;
+
+/** The noun in each badge's accessible name matches the count's meaning. */
+const COUNT_LABEL: Readonly<Record<string, MessageKey>> = {
+  approvals: 'nav.pending.approvals',
+  proposals: 'nav.pending.proposals',
+  incidents: 'nav.pending.incidents',
+  runs: 'nav.pending.runs',
+};
 
 export interface SidebarProps {
   readonly viewer: Viewer;
@@ -129,7 +137,11 @@ export function SidebarNav({
                       <span
                         data-testid="nav-count"
                         className="ml-auto rounded-full bg-danger-bg text-danger px-1 text-micro"
-                        aria-label={message(locale, 'nav.pending', { count })}
+                        aria-label={message(
+                          locale,
+                          COUNT_LABEL[area.id] ?? 'nav.pending',
+                          { count },
+                        )}
                       >
                         {count}
                       </span>

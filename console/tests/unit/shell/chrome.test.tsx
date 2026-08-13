@@ -173,12 +173,19 @@ describe('the sidebar', () => {
         viewer={owner()}
         locale="en"
         guardian={GUARDIAN}
-        counts={{ approvals: 2, incidents: 3, runs: 0 }}
+        counts={{ approvals: 2, incidents: 3, runs: 4 }}
       />,
     );
 
     const counts = screen.getAllByTestId('nav-count').map((each) => each.textContent);
-    expect(counts).toEqual(['3', '2']);
+    expect(counts).toEqual(['3', '4', '2']);
+    const runs = screen
+      .getAllByTestId('nav-entry')
+      .find((entry) => entry.getAttribute('data-area') === 'runs');
+    expect(runs?.querySelector('[data-testid="nav-count"]')).toHaveAttribute(
+      'aria-label',
+      '4 failed investigations',
+    );
   });
 
   it('renders every label from the catalogue, in whichever language the viewer reads', () => {
@@ -227,6 +234,12 @@ describe('the utility bar', () => {
     expect(screen.getByTestId('theme-switch')).toBeInTheDocument();
     expect(screen.getByTestId('open-notifications')).toBeInTheDocument();
     expect(screen.getByTestId('account')).toBeInTheDocument();
+  });
+
+  it('offers the dismissed tour again from the account menu', () => {
+    renderTopbar();
+
+    expect(screen.getByTestId('view-tour')).toHaveAttribute('href', '/?tour=1');
   });
 
   it('shows no unread count when nothing is waiting', () => {

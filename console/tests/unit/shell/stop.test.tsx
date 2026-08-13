@@ -98,6 +98,7 @@ describe('the control, for whoever may use it', () => {
     expect(screen.getByTestId('stop-confirm')).toHaveTextContent(
       'every automated write, immediately',
     );
+    expect(screen.getByTestId('stop-autonomy')).toHaveAttribute('href', '/autonomy');
     expect(sent).toHaveLength(0);
   });
 

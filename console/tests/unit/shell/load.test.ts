@@ -305,6 +305,8 @@ describe('what the deployment is called', () => {
   it('puts the page in front of the deployment in a title', () => {
     // A browser truncates a tab from the right, and the page is the part that
     // distinguishes one tab from the next.
-    expect(documentTitle('Approvals', 'HAL9000')).toBe('Approvals · HAL9000');
+    expect(documentTitle('Actions awaiting approval', 'HAL9000')).toBe(
+      'Actions awaiting approval · HAL9000',
+    );
   });
 });

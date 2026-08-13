@@ -14,6 +14,8 @@
 
 import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
+import { readFailure } from '@/surfaces/failures';
+import { TUTORIAL_REPLAY_HREF } from '@/surfaces/first-run/tutorial-setting';
 import { visibleAreas, type AreaContext } from './routes';
 import type { Found } from './search';
 
@@ -72,12 +74,15 @@ export function navigationCommands(
 }
 
 /** The recent runs, as commands. Reaching one by identifier is most of what this is for. */
-export function runCommands(runs: readonly RecentRun[]): readonly Command[] {
+export function runCommands(
+  runs: readonly RecentRun[],
+  locale: Locale,
+): readonly Command[] {
   return runs.map((run) => ({
     id: `run:${run.id}`,
     group: 'runs' as const,
     label: run.id,
-    ...(run.summary === null ? {} : { hint: run.summary }),
+    ...(run.summary === null ? {} : { hint: safeRunHint(run.summary, locale) }),
     href: `/runs/${run.id}`,
     permission: 'investigation.read',
   }));
@@ -104,7 +109,10 @@ export interface SearchAnswer {
  * same presence rule the navigation follows, and the reason the filter in
  * `commandsFor` is the only place permission is decided.
  */
-export function searchCommands(found: readonly Found[]): readonly Command[] {
+export function searchCommands(
+  found: readonly Found[],
+  locale: Locale = 'en',
+): readonly Command[] {
   const permissions: Readonly<Record<Found['group'], string>> = {
     resources: 'estate.read',
     incidents: 'incident.read',
@@ -119,7 +127,11 @@ export function searchCommands(found: readonly Found[]): readonly Command[] {
     id: entry.id,
     group: groups[entry.group],
     label: entry.label,
-    ...(entry.hint === '' ? {} : { hint: entry.hint }),
+    ...(entry.hint === ''
+      ? {}
+      : {
+          hint: entry.group === 'runs' ? safeRunHint(entry.hint, locale) : entry.hint,
+        }),
     href: entry.href,
     permission: permissions[entry.group],
   }));
@@ -135,7 +147,20 @@ export function actionCommands(locale: Locale): readonly Command[] {
       href: '/runs?start=1',
       permission: 'investigation.run',
     },
+    {
+      id: 'act:view-tour',
+      group: 'actions',
+      label: message(locale, 'shell.viewTour'),
+      href: TUTORIAL_REPLAY_HREF,
+      permission: null,
+    },
   ];
+}
+
+/** A run summary suitable for a palette hint, with exception text translated away. */
+function safeRunHint(summary: string, locale: Locale): string {
+  const reading = readFailure(summary, locale);
+  return reading.technical === '' ? summary : reading.action || reading.title;
 }
 
 /** Everything a viewer may run, in group order. */
@@ -151,7 +176,7 @@ export function commandsFor(
 ): readonly Command[] {
   const everything = [
     ...navigationCommands(viewer, locale, context),
-    ...runCommands(runs),
+    ...runCommands(runs, locale),
     ...actionCommands(locale),
   ];
   const permitted = everything.filter(

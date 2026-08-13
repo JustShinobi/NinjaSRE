@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-import { Button, IconButton } from '@/components/action';
+import { Button, IconButton, Link } from '@/components/action';
 import { Avatar } from '@/components/navigation';
 import {
   BellIcon,
@@ -22,6 +22,7 @@ import { storeLocale, useChosenTheme, useDensity } from './browser';
 import type { Deployment } from './deployment';
 import type { Stoppage } from './load';
 import { KillSwitchControl } from './stop';
+import { TUTORIAL_REPLAY_HREF } from '@/surfaces/first-run/tutorial-setting';
 
 /**
  * The utility bar: what deployment this is, the palette, the theme, what is
@@ -224,6 +225,9 @@ export function Topbar({
               {message(locale, 'shell.account.impersonate')}
             </Button>
           ) : null}
+          <Link href={TUTORIAL_REPLAY_HREF} data-testid="view-tour">
+            {message(locale, 'shell.viewTour')}
+          </Link>
           {/* Persisted the way the theme and the density are: kept on this
               origin, applied, and the choice survives a reload. Unlike those
               two this one has to reach the server — every string on the page

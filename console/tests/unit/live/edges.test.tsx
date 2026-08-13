@@ -428,7 +428,7 @@ describe('steering a run that will not be steered', () => {
     await userEvent.click(screen.getByTestId('stop-run'));
     const dialog = screen.getByRole('dialog');
     await userEvent.click(
-      within(dialog).getByRole('button', { name: /stop this run/i }),
+      within(dialog).getByRole('button', { name: /stop this investigation/i }),
     );
 
     expect(fetching.mock.calls.length).toBeGreaterThan(0);

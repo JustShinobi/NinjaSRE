@@ -71,21 +71,30 @@ import { UNPLACED, criticalityOf, criticalityRank, zoneOf } from './resources-vi
  */
 
 /**
- * Zone and criticality, not kind and state.
+ * Zone, criticality and health, not kind.
  *
  * Kind and state are what the hypervisor knows. An operator triaging an
  * estate asks "what is in the DMZ" and "what is critical" — and until the
  * declared inventory was read, neither question had an answer to filter on,
  * so the screen offered the two facts it happened to have.
  *
- * State has not gone anywhere: the default sort is still worst-first, and the
- * state column is still there. It is simply not what somebody narrows by.
+ * The state column and its worst-first sort remain. Health is also a filter now,
+ * because a dashboard drill-down that only changes the address is not a
+ * drill-down at all.
  *
  * `q` is the fourth: a name search, round-tripped through the address like
  * every other filter here rather than held in component state, so a search
  * survives a reload and a link to it finds the same rows for whoever opens it.
  */
-export const RESOURCE_FILTERS: readonly FilterName[] = ['zone', 'criticality', 'q'];
+export const RESOURCE_FILTERS: readonly FilterName[] = [
+  'zone',
+  'criticality',
+  'health',
+  'q',
+];
+
+/** The two states represented by the dashboard's combined problem figure. */
+const PROBLEM_HEALTH = new Set(['degraded', 'unhealthy']);
 
 /**
  * Worst first. The order is the triage order, not the alphabet.
@@ -220,6 +229,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   // an operator whose tiers are gold/silver/bronze filters by those words.
   const zones = [...new Set(records.map(zoneOf))].sort();
   const criticalities = [...new Set(records.map(criticalityOf))].filter(Boolean).sort();
+  const healths = [...new Set(records.map((record) => text(record, 'health')))]
+    .filter(Boolean)
+    .sort();
 
   // A name typed into the address, folded for a case that should not matter to
   // the person who typed it.
@@ -228,8 +240,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
   const filtered = records.filter((record) => {
     const zone = state.filters.zone;
     const criticality = state.filters.criticality;
+    const health = state.filters.health;
     if (zone !== undefined && zoneOf(record) !== zone) return false;
     if (criticality !== undefined && criticalityOf(record) !== criticality)
+      return false;
+    if (health === 'problem' && !PROBLEM_HEALTH.has(text(record, 'health')))
+      return false;
+    if (
+      health !== undefined &&
+      health !== 'problem' &&
+      text(record, 'health') !== health
+    )
       return false;
     if (query !== '' && !text(record, 'display_name').toLowerCase().includes(query))
       return false;
@@ -363,6 +384,9 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
         {state.filters.criticality === undefined ? null : (
           <input type="hidden" name="criticality" value={state.filters.criticality} />
         )}
+        {state.filters.health === undefined ? null : (
+          <input type="hidden" name="health" value={state.filters.health} />
+        )}
         {state.sort === '' ? null : (
           <input
             type="hidden"
@@ -394,6 +418,17 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
             name: 'criticality',
             label: message(locale, 'resources.filter.criticality'),
             options: criticalities.map((value) => ({ value, label: value })),
+          },
+          {
+            name: 'health',
+            label: message(locale, 'resources.filter.health'),
+            options: [
+              {
+                value: 'problem',
+                label: message(locale, 'resources.filter.problem'),
+              },
+              ...healths.map((value) => ({ value, label: value })),
+            ],
           },
         ]}
       />

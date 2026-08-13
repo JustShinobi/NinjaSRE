@@ -361,7 +361,7 @@ describe('what a search may show the person doing it', () => {
             group: 'resources' as const,
             label: 'signoz-collector',
             hint: 'container',
-            href: '/resources/r1',
+            href: '/resources?selected=r1',
           },
           {
             id: 'incident:i1',

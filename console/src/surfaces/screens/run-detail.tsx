@@ -35,6 +35,7 @@ import { LiveRun } from '@/live/live-run';
 import { may } from '@/session/viewer';
 import { eventsFromReplay, usageFrom } from '../transcript';
 import { Transcript } from '../transcript-view';
+import { triggerLabel } from '../run-trigger';
 
 /**
  * One run, read back.
@@ -126,10 +127,11 @@ export async function RunDetailScreen(
   const area = areaFor('runs');
   const Icon = area.icon;
   const title = said.title === '' ? runId : said.title;
-  const trail = trailFor(area, [{ label: title }]);
+  const trail = trailFor(area, [{ label: runId }]);
+  const trigger = triggerLabel(locale, text(run, 'trigger'));
   const subtitle = [
     started.relative,
-    text(run, 'trigger'),
+    trigger,
     seconds === 0 ? '' : formatDuration(locale, seconds),
     usage.cost === 0 ? '' : formatCurrency(locale, usage.cost, CURRENCY),
   ]
@@ -185,7 +187,7 @@ export async function RunDetailScreen(
                 it is the one somebody lands on to find out what happened. The
                 headline is the translation; the raw text is a disclosure below
                 it, closed, for whoever runs the deployment. */}
-            <p className="text-small">{said.title}</p>
+            {said.technical === '' ? <p className="text-small">{said.title}</p> : null}
             {said.action === '' ? null : (
               <p className="text-small text-muted mt-1">{said.action}</p>
             )}
@@ -203,7 +205,7 @@ export async function RunDetailScreen(
               <time dateTime={started.iso} title={started.absolute}>
                 {started.relative}
               </time>{' '}
-              · {text(run, 'trigger')}
+              · {trigger}
             </p>
           </Panel>
 

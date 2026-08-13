@@ -28,6 +28,8 @@ export interface AttentionRow {
   readonly href: string;
   /** How long it has been waiting, already phrased. */
   readonly since: string;
+  /** The source instant used to decide which row has waited longest. */
+  readonly at?: string;
 }
 
 export interface AttentionBlockProps {

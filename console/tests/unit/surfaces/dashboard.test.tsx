@@ -5,7 +5,7 @@ import { EN } from '@/i18n/en';
 import { areaByPath } from '@/shell/routes';
 import { AttentionBlock } from '@/surfaces/attention';
 import { Figure } from '@/surfaces/figure';
-import { DashboardScreen } from '@/surfaces/screens/dashboard';
+import { DashboardScreen, oldestAttention } from '@/surfaces/screens/dashboard';
 import { surfaceContext } from '@/surfaces/context';
 import { serveScenario, type Scenario } from '../support/dataset';
 
@@ -64,6 +64,25 @@ async function dashboardWithRaisedFailure(): Promise<void> {
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0], init);
+  });
+  render(await DashboardScreen(await surfaceContext({})));
+}
+
+/** Render the populated dashboard with a deliberately mixed health summary. */
+async function dashboardWithHealthSummary(summary: unknown): Promise<void> {
+  serveScenario('populated');
+  const scenario = globalThis.fetch;
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURES_BASE).pathname;
+    if (path === '/v1/estate/summary') {
+      return Promise.resolve(
+        new Response(JSON.stringify(summary), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
       );
     }
     return scenario(input as Parameters<typeof fetch>[0], init);
@@ -171,6 +190,38 @@ describe('the figures on a populated deployment', () => {
     // that bridges "14 unhealthy" and "Incidents: none".
     expect(degraded?.textContent).toMatch(/14 of 14/);
   });
+
+  it('counts only degraded and unhealthy states, not unknown or stale observations', async () => {
+    await dashboardWithHealthSummary({
+      total: 10,
+      problems: 4,
+      by_health: { healthy: 4, degraded: 2, unhealthy: 2, unknown: 3, stale: 3 },
+      by_kind: {},
+    });
+
+    const degraded = screen
+      .getAllByTestId('figure')
+      .find(
+        (figure) =>
+          figure.getAttribute('data-figure') === EN['dashboard.stat.degraded'],
+      );
+    expect(degraded).toBeDefined();
+    if (degraded === undefined) throw new Error('the degraded figure was not rendered');
+    expect(within(degraded).getByTestId('stat-value')).toHaveTextContent('4');
+    expect(degraded).toHaveTextContent('4 open findings');
+  });
+
+  it('sends the problem figure to the resource list that contains both problem states', async () => {
+    await dashboard('populated');
+
+    const degraded = screen
+      .getAllByTestId('figure')
+      .find(
+        (figure) =>
+          figure.getAttribute('data-figure') === EN['dashboard.stat.degraded'],
+      );
+    expect(degraded).toHaveAttribute('href', '/resources?health=problem');
+  });
 });
 
 // --- 4. At least one number is about the agent, not the estate ----------------------------
@@ -246,5 +297,30 @@ describe('the "needs you" band’s oldest badge', () => {
 
     const badge = screen.getByText('Waiting longest: 2h 14m');
     expect(badge.className).not.toMatch(/\buppercase\b/);
+  });
+
+  it('chooses the oldest timestamp rather than the last source group', () => {
+    const oldest = oldestAttention([
+      {
+        id: 'newer',
+        kind: 'incident',
+        title: 'Newer',
+        detail: 'open',
+        href: '/incidents/newer',
+        since: '1h ago',
+        at: '2026-08-07T11:00:00Z',
+      },
+      {
+        id: 'older',
+        kind: 'failure',
+        title: 'Older',
+        detail: 'failed',
+        href: '/runs/older',
+        since: '2d ago',
+        at: '2026-08-05T11:00:00Z',
+      },
+    ]);
+
+    expect(oldest?.id).toBe('older');
   });
 });

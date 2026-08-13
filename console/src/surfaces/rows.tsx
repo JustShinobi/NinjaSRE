@@ -43,6 +43,8 @@ export interface Cell {
   readonly kind: CellKind;
   /** What is written in the cell. A meter shows this beside the bar. */
   readonly text: string;
+  /** The complete value, shown when the cell's visible text is truncated. */
+  readonly title?: string;
   /** Per cent, for a meter. Ignored by every other kind. */
   readonly value?: number;
 }
@@ -274,7 +276,7 @@ export function RowList({
                   >
                     {index === 0 ? (
                       <a href={row.href} className="flex items-center gap-2 min-w-0">
-                        <span className="truncate">
+                        <span className="truncate" title={cell.title}>
                           <CellBody cell={cell} />
                         </span>
                         <span className="sr-only">{labels.open}</span>

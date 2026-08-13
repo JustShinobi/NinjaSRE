@@ -61,7 +61,7 @@ function serveFailedBeforeStart(): void {
         run_id: RUN,
         status: 'failed',
         summary: RAW,
-        trigger: 'manual',
+        trigger: 'interactive',
         started_at: '2026-08-07T13:52:00+00:00',
         finished_at: '2026-08-07T13:52:03+00:00',
       },
@@ -96,6 +96,23 @@ describe('a run that failed before it started', () => {
 
     // Present exactly once: the disclosure on the summary panel.
     expect(screen.getAllByText(RAW)).toHaveLength(1);
+  });
+
+  it('shows the translated failure headline only once', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    const title = 'Investigations are not switched on yet';
+    expect(screen.getAllByText(title)).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+  });
+
+  it('uses the operator trigger label instead of the internal slug', async () => {
+    serveFailedBeforeStart();
+    await runScreen();
+
+    expect(screen.getByTestId('page-header')).toHaveTextContent('Manual');
+    expect(screen.queryByText('interactive')).toBeNull();
   });
 
   it('carries no duplicate "report" entry into the transcript', async () => {
@@ -135,7 +152,10 @@ describe('a run that failed before it started', () => {
 
     const links = screen
       .getAllByTestId('panel')
-      .find((panel) => within(panel).queryByText('What this run touched') !== null);
+      .find(
+        (panel) =>
+          within(panel).queryByText('What this investigation touched') !== null,
+      );
     expect(links).toBeDefined();
     if (links === undefined) return;
     expect(links).toHaveAttribute('data-state', 'ready');

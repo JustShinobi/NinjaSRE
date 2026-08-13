@@ -21,7 +21,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.dashboard': 'Painel',
   'nav.incidents': 'Incidentes',
   'nav.runs': 'Investigações',
-  'nav.approvals': 'Aprovações',
+  'nav.approvals': 'Ações aguardando aprovação',
   'nav.proposals': 'Mudanças propostas',
   'nav.resources': 'Recursos',
   'nav.topology': 'Topologia',
@@ -46,6 +46,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.open': 'Abrir a navegação',
   'nav.close': 'Fechar a navegação',
   'nav.pending': '{count} aguardando',
+  'nav.pending.approvals': '{count} ações aguardando aprovação',
+  'nav.pending.proposals': '{count} propostas aguardando',
+  'nav.pending.incidents': '{count} incidentes abertos',
+  'nav.pending.runs': '{count} investigações falhadas',
 
   'page.firstRun.title': 'Primeiros passos',
   'page.firstRun.context':
@@ -172,6 +176,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'tutorial.title': 'O que é isto, em cinco telas',
   'tutorial.skip': 'Pular',
+  'tutorial.close': 'Fechar',
   'tutorial.next': 'Próximo',
   'tutorial.back': 'Voltar',
   'tutorial.done': 'Começar a configurar',
@@ -202,10 +207,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.incidents.context': 'O que um detector abriu e o que aconteceu desde então.',
   'page.runs.title': 'Investigações',
   'page.runs.context':
-    'Todas as execuções que esta instalação registou, da mais recente para a mais antiga.',
-  'page.approvals.title': 'Aprovações',
+    'Todas as investigações que esta instalação registou, da mais recente para a mais antiga.',
+  'page.approvals.title': 'Ações aguardando aprovação',
   'page.approvals.context':
-    'Mudanças à espera de uma decisão, e a reversão que existe por trás de cada uma.',
+    'Ações que o agente quer realizar agora, à espera da sua aprovação. Cada uma traz seu raio de impacto e plano de reversão.',
   'page.proposals.title': 'Mudanças propostas',
   'page.proposals.context':
     'Tudo o que o agente propôs e ninguém decidiu. Cada proposta carrega o que mudaria, por quê, e a investigação de onde veio.',
@@ -242,7 +247,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.pending':
     'Esta área chega com as telas de dados. A moldura à volta dela está pronta.',
 
-  'shell.search': 'Procurar recursos, execuções, incidentes',
+  'shell.search': 'Procurar recursos, investigações, incidentes',
   'shell.search.shortcut': 'Ctrl K',
   'shell.theme': 'Tema',
   'shell.density.comfortable': 'Linhas confortáveis',
@@ -251,6 +256,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'shell.theme.dark': 'Escuro',
   'shell.theme.system': 'Seguir o sistema',
   'shell.investigate': 'Investigar',
+  'shell.viewTour': 'Ver o tour',
   'shell.account': 'Conta',
   'shell.account.signOut': 'Terminar sessão',
   'shell.account.impersonate': 'Agir como outra pessoa',
@@ -274,6 +280,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'stop.engaged.howToRelease':
     'Quem puder parar este deployment também pode liberá-lo, no topo da tela.',
   'stop.reason': 'Parado a partir do console.',
+  'stop.autonomy': 'Rever a postura de Autonomia',
   'stop.refused': 'O deployment recusou mudar a paragem.',
   'stop.unreachable': 'Não foi possível alcançar o deployment. Pare-o à mão.',
 
@@ -314,15 +321,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'palette.title': 'Paleta de comandos',
   'palette.placeholder':
-    'Procure recursos, incidentes e execuções, ou vá para uma página',
+    'Procure recursos, incidentes e investigações, ou vá para uma página',
   'palette.empty': 'Nada corresponde a isso.',
   'palette.empty.partial':
     'Nada do que foi procurado corresponde a isso — há mais de uma página de resultados por percorrer.',
   'palette.group.resources': 'Recursos',
   'palette.group.incidents': 'Incidentes',
-  'palette.group.found-runs': 'Execuções correspondentes',
+  'palette.group.found-runs': 'Investigações correspondentes',
   'palette.group.navigate': 'Ir para',
-  'palette.group.runs': 'Execuções recentes',
+  'palette.group.runs': 'Investigações recentes',
   'palette.group.actions': 'Acções',
   'palette.close': 'Fechar a paleta',
 
@@ -396,7 +403,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.events.one': '{count} evento',
   'transcript.empty.heading': 'Ainda não há transcrição',
   'transcript.empty.body':
-    'A transcrição aparece assim que a execução dá o primeiro passo. Nada foi registado nesta.',
+    'A transcrição aparece assim que a investigação dá o primeiro passo. Nada foi registado nesta.',
   'transcript.empty.action': 'Voltar às investigações',
 
   'dashboard.attention.title': 'Precisa de si',
@@ -405,7 +412,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.attention.oldest': 'À espera há mais tempo: {age}',
   'dashboard.attention.empty.heading': 'Nada está à espera de uma pessoa',
   'dashboard.attention.empty.body':
-    'Aprovações, perguntas do agente e execuções falhadas aparecem aqui assim que existirem. Não existe nenhuma.',
+    'Aprovações, perguntas do agente e investigações falhadas aparecem aqui assim que existirem. Não existe nenhuma.',
   'dashboard.attention.empty.action': 'Ver o que está a correr',
   'dashboard.stat.watched': 'Recursos vigiados',
   'dashboard.stat.watched.context': '{kinds}',
@@ -414,7 +421,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.stat.degraded': 'Degradados e não saudáveis',
   'dashboard.stat.degraded.context':
     '{count} constatações abertas por trás deles; {live} de {total} detectores estão ligados para transformar uma delas num incidente',
-  'dashboard.stat.runs': 'Investigações no último dia',
+  'dashboard.stat.runs': 'Investigações recentes',
   'dashboard.stat.runs.context': '{failed} delas falharam',
   'dashboard.stat.successRate': 'Taxa de sucesso',
   'dashboard.stat.successRate.context':
@@ -424,7 +431,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.activity.title': 'Actividade recente',
   'dashboard.activity.empty.heading': 'Ainda não aconteceu nada',
   'dashboard.activity.empty.body':
-    'Execuções, incidentes e varreduras aparecem aqui à medida que acontecem. Ligue uma fonte de infra-estrutura e a primeira varredura começa dentro de um minuto.',
+    'Investigações, incidentes e varreduras aparecem aqui à medida que acontecem. Ligue uma fonte de infra-estrutura e a primeira varredura começa dentro de um minuto.',
   'dashboard.activity.empty.action': 'Ligar uma fonte',
   'dashboard.hero.title': 'Continuar a configuração',
   'dashboard.hero.remaining': '{count} de {total} passos por fazer',
@@ -460,16 +467,20 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'runs.filter.status': 'Estado',
   'runs.filter.trigger': 'Origem',
   'runs.list.title': 'Investigações',
-  'runs.list.caption': 'Todas as execuções registadas por esta instalação',
-  'runs.empty.heading': 'Ainda não há execuções',
+  'runs.trigger.manual': 'Manual',
+  'runs.trigger.alert': 'Alerta',
+  'runs.trigger.scheduled': 'Agendada',
+  'runs.trigger.specialist': 'Especialista',
+  'runs.list.caption': 'Todas as investigações registadas por esta instalação',
+  'runs.empty.heading': 'Ainda não há investigações',
   'runs.empty.body':
-    'Uma execução é registada quando um alerta, um horário ou uma pessoa inicia uma investigação. Nenhuma o fez.',
+    'Uma investigação é registada quando um alerta, um horário ou uma pessoa inicia uma. Nenhuma foi registada.',
   'runs.empty.action': 'Iniciar uma investigação',
   'runs.filtered.heading': 'Nenhuma investigação corresponde a esses filtros',
   'runs.filtered.body':
     'Todos os filtros estão no endereço, por isso limpá-los é uma navegação e a vista que tinha continua partilhável.',
   'runs.filtered.action': 'Limpar os filtros',
-  'run.summary.title': 'O que esta execução encontrou',
+  'run.summary.title': 'O que esta investigação encontrou',
   'run.usage.title': 'Custo e tokens',
   'run.usage.model': 'Modelo',
   'run.usage.turn': 'Passo',
@@ -478,22 +489,22 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'run.usage.tokens': 'Tokens',
   'run.usage.cost': 'Custo',
   'run.usage.apportioned':
-    'A execução reporta um total; a divisão abaixo é esse total repartido pelos seus passos.',
+    'A investigação reporta um total; a divisão abaixo é esse total repartido pelos seus passos.',
   'run.usage.empty.heading': 'Nenhum custo registado',
   'run.usage.empty.body':
-    'O custo e os tokens são registados por passo. Esta execução ainda não deu nenhum.',
-  'run.usage.empty.action': 'Voltar à lista de execuções',
+    'O custo e os tokens são registados por passo. Esta investigação ainda não deu nenhum.',
+  'run.usage.empty.action': 'Voltar às investigações',
   'run.changes.title': 'O que mudou, na mesma régua',
   'run.changes.body':
     'Cada mudança que a investigação consultou, posicionada contra o instante em que ela começou. Uma mudança marcada como gerenciando o recurso afetado alterou algo que o governa; uma marcada como coincidência apenas divide a janela.',
   'run.changes.investigation': 'esta investigação começou',
   'run.changes.window': 'de {start} até {end}',
-  'run.links.title': 'O que esta execução tocou',
+  'run.links.title': 'O que esta investigação tocou',
   'run.links.resources': 'Recursos',
   'run.links.incident': 'Incidente',
   'run.links.empty.heading': 'Ainda nada ligado',
   'run.links.empty.body':
-    'Recursos e incidentes são ligados à medida que a execução os nomeia. Esta não nomeou nenhum.',
+    'Recursos e incidentes são ligados à medida que a investigação os nomeia. Esta não nomeou nenhum.',
   'run.links.empty.action': 'Ver o parque',
 
   'incidents.column.severity': 'Gravidade',
@@ -517,6 +528,17 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incidents.empty.body':
     'Um detector abre um incidente quando o que vigia ultrapassa o seu limiar. Nenhum o fez.',
   'incidents.empty.action': 'Ver o que está a ser vigiado',
+  'incidents.preview.link': 'Ver um incidente de exemplo',
+  'incidents.preview.title': 'Como é um incidente',
+  'incidents.preview.body':
+    'Um incidente nomeia o que ultrapassou o limiar de um detector, o assunto afetado e a evidência que o tornou acionável. Este é um exemplo, não um incidente real.',
+  'incidents.preview.label.detector': 'Detector',
+  'incidents.preview.label.subject': 'Assunto',
+  'incidents.preview.label.evidence': 'Evidência',
+  'incidents.preview.example.title': 'Armazenamento quase cheio',
+  'incidents.preview.example.detector': 'datastore-near-full',
+  'incidents.preview.example.subject': 'store-cove',
+  'incidents.preview.example.evidence': 'data_percent = 95.65',
   'incident.subject.title': 'Assunto',
   'incident.subject.resource': 'Recurso',
   'incident.subject.kind': 'Tipo',
@@ -544,6 +566,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'approvals.empty.body':
     'Uma mudança que precisa de uma pessoa aparece aqui com o seu raio de impacto e o seu plano de reversão. Nenhuma aparece.',
   'approvals.empty.action': 'Ver o que está a correr',
+  'approvals.otherInbox': 'Para mudanças que o agente propôs para o deployment:',
+  'approvals.empty.rule':
+    'A regra ativa pede aprovação para ações em {threshold} e acima.',
+  'approvals.empty.rule.default': 'Esse é o padrão do deployment.',
+  'approvals.empty.rule.setAt': 'Está definido em {node}.',
   'proposal.title': 'Acção proposta — à espera da sua decisão',
   'proposal.risk': 'Risco {level} de 5',
   'proposal.target': 'Alvo',
@@ -571,6 +598,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'resources.column.criticality': 'Criticidade',
   'resources.filter.zone': 'Zona',
   'resources.filter.criticality': 'Criticidade',
+  'resources.filter.health': 'Saúde',
+  'resources.filter.problem': 'Degradados ou não saudáveis',
   'resources.zone.unplaced': 'Sem zona',
   'resources.criticality.ungraded': 'Sem classificação',
   'resources.list.title': 'Recursos',
@@ -647,7 +676,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'schedules.column.cron': 'Cron',
   'schedules.column.objective': 'Objectivo',
   'schedules.column.timezone': 'Fuso horário',
-  'schedules.column.nextRun': 'Próxima execução',
+  'schedules.column.nextRun': 'Próxima investigação',
   'schedules.column.enabled': 'Activo',
   'schedules.never': 'Não agendado',
   'schedules.enable': 'Activar',
@@ -1045,9 +1074,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'live.reload': 'Reconectar',
   'live.new': '{count} novos',
   'live.new.action': 'Ir para o mais recente',
-  'live.ended.completed': 'Esta execução terminou.',
-  'live.ended.failed': 'Esta execução falhou.',
-  'live.ended.cancelled': 'Esta execução foi interrompida.',
+  'live.ended.completed': 'Esta investigação terminou.',
+  'live.ended.failed': 'Esta investigação falhou.',
+  'live.ended.cancelled': 'Esta investigação foi interrompida.',
   'live.attention.approval': 'Aprovação',
   'live.attention.question': 'Pergunta',
   'live.decided': 'Decidido por {who}',
@@ -1056,13 +1085,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'live.question.label': 'Sua resposta',
   'live.question.answer': 'Responder e continuar',
   'live.question.required':
-    'A execução retoma quando isto for respondido, então precisa de uma resposta.',
+    'A investigação retoma quando isto for respondido, então precisa de uma resposta.',
   'live.takeover.title': 'Controle',
   'live.takeover.take': 'Assumir o controle',
   'live.takeover.resume': 'Devolver ao agente',
-  'live.takeover.cancel': 'Interromper esta execução',
+  'live.takeover.cancel': 'Interromper esta investigação',
   'live.takeover.taken':
-    'Você está no controle. A execução pausa no próximo ponto seguro.',
+    'Você está no controle. A investigação pausa no próximo ponto seguro.',
   'live.takeover.consequence':
     'Ela para no próximo ponto seguro, mantém o que já descobriu e não pode ser reiniciada.',
   'live.takeover.keep': 'Deixar em execução',
@@ -1072,7 +1101,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'live.context.send': 'Enviar sem interromper',
   'live.context.sent': 'Entregue no próximo turno.',
   'live.outcome.dismiss': 'Dispensar esta mensagem',
-  'live.outcome.recorded': 'na transcrição desta execução',
+  'live.outcome.recorded': 'na transcrição desta investigação',
   'live.outcome.refused': 'O deployment recusou: {reason}',
   'live.outcome.unreachable': 'Não foi possível alcançar o deployment.',
   'nav.agent': 'Agente',
@@ -1108,7 +1137,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.models.empty.body':
     'O deployment não disse quais papéis ele resolve. Todo papel continua rodando no padrão do deployment.',
   'agent.models.empty.action': 'Editar a configuração',
-  'agent.budgets.title': 'O que uma execução pode gastar',
+  'agent.budgets.title': 'O que uma investigação pode gastar',
   'agent.budgets.body':
     'Uma equipe pode baixar qualquer um destes e não pode subir nenhum além do seu teto. O teto é uma constante do deployment, não um ajuste.',
   'agent.budgets.ceiling': 'teto {ceiling}',
@@ -1216,6 +1245,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'proposals.empty.body':
     'As propostas vêm das investigações e das verificações documentadas no seu repositório. Nada aqui é aplicado sem a sua aprovação.',
   'proposals.empty.action': 'Ver o que está em execução',
+  'proposals.otherInbox': 'Para ações que o agente quer realizar agora:',
   'proposals.acceptance': '{approved} de {decided} propostas decididas foram aceitas',
   'proposals.acceptance.none': 'Nada foi decidido ainda',
   'proposals.type.knowledge': 'Conhecimento',

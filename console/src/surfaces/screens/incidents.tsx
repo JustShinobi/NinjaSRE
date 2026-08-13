@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { Link } from '@/components/action';
+import { Badge } from '@/components/status';
 import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -47,6 +49,59 @@ function severityRank(record: unknown): number {
   return found === -1 ? SEVERITY_ORDER.length : found;
 }
 
+function IncidentPreview({ locale }: Pick<SurfaceContext, 'locale'>): ReactNode {
+  return (
+    <section
+      id="incident-preview"
+      data-testid="incident-preview"
+      aria-labelledby="incident-preview-title"
+      className="mt-5 flex flex-col gap-3 rounded-3 edge border-border bg-raised p-4 shadow-1"
+    >
+      <div className="flex flex-col gap-1">
+        <h3 id="incident-preview-title" className="text-strong">
+          {message(locale, 'incidents.preview.title')}
+        </h3>
+        <p className="text-small text-muted">
+          {message(locale, 'incidents.preview.body')}
+        </p>
+      </div>
+      <p className="text-small text-strong">
+        {message(locale, 'incidents.preview.example.title')}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge status="critical" />
+        <Badge status="open" />
+      </div>
+      <dl className="flex flex-col gap-2 text-small">
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <dt className="text-muted">
+            {message(locale, 'incidents.preview.label.detector')}
+          </dt>
+          <dd className="font-mono break-all">
+            {message(locale, 'incidents.preview.example.detector')}
+          </dd>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <dt className="text-muted">
+            {message(locale, 'incidents.preview.label.subject')}
+          </dt>
+          <dd className="font-mono break-all">
+            {message(locale, 'incidents.preview.example.subject')}
+          </dd>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1">
+          <dt className="text-muted">
+            {message(locale, 'incidents.preview.label.evidence')}
+          </dt>
+          <dd className="font-mono break-all">
+            {message(locale, 'incidents.preview.example.evidence')}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
 export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, INCIDENT_FILTERS);
@@ -63,9 +118,15 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
   ]);
   const records = list(dataOf(incidents), 'incidents');
 
-  const states = [...new Set(records.map((record) => text(record, 'state')))].sort();
+  const states = [
+    ...new Set(
+      records.map((record) => text(record, 'state')).filter((value) => value !== ''),
+    ),
+  ].sort();
   const severities = [
-    ...new Set(records.map((record) => text(record, 'severity'))),
+    ...new Set(
+      records.map((record) => text(record, 'severity')).filter((value) => value !== ''),
+    ),
   ].sort();
 
   const liveDetectors =
@@ -134,6 +195,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
       options: severities.map((value) => ({ value, label: value })),
     },
   ].filter((choice) => choice.options.length > 0);
+  const showPreview = incidents.status === 'ready' && records.length === 0;
 
   return (
     <>
@@ -149,6 +211,13 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
 
       <Panel
         title={message(locale, 'incidents.list.title')}
+        action={
+          showPreview ? (
+            <Link href="#incident-preview" data-testid="incident-preview-link">
+              {message(locale, 'incidents.preview.link')}
+            </Link>
+          ) : undefined
+        }
         state={stateOf(incidents, rows.length === 0)}
         dependency={dependencyOf(incidents)}
         labels={panelLabels(locale, message(locale, 'incidents.list.title'))}
@@ -198,6 +267,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
           rows={rows}
         />
       </Panel>
+      {showPreview ? <IncidentPreview locale={locale} /> : null}
     </>
   );
 }

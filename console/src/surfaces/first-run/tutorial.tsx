@@ -4,8 +4,9 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Button } from '@/components/action';
+import { Button, IconButton } from '@/components/action';
 import { ProgressBar } from '@/components/feedback';
+import { CloseIcon } from '@/design/icons';
 import { message, type Locale } from '@/i18n/messages';
 import { CONFIG_ENDPOINT } from './model';
 import { dismissalPatch } from './tutorial-setting';
@@ -43,10 +44,12 @@ export interface TutorialProps {
   readonly locale: Locale;
   /** The node the dismissal is written at. Empty when the viewer resolves to none. */
   readonly nodeId: string;
+  /** Whether this instance came from the explicit replay address. */
+  readonly replay?: boolean;
 }
 
 /** The dismissable tutorial, over a dashboard that is rendered behind it. */
-export function Tutorial({ locale, nodeId }: TutorialProps): ReactNode {
+export function Tutorial({ locale, nodeId, replay = false }: TutorialProps): ReactNode {
   const router = useRouter();
   const [slide, setSlide] = useState(0);
   const [closed, setClosed] = useState(false);
@@ -56,6 +59,7 @@ export function Tutorial({ locale, nodeId }: TutorialProps): ReactNode {
     // tomorrow, and a person who dismissed something must not have to wait for
     // a round trip to find out whether they did.
     setClosed(true);
+    if (replay) router.replace('/');
     if (nodeId === '') return;
     void fetch(CONFIG_ENDPOINT, {
       method: 'POST',
@@ -94,10 +98,16 @@ export function Tutorial({ locale, nodeId }: TutorialProps): ReactNode {
           {/* Visible from the first slide and the same size as the control
               beside it. A skip somebody has to hunt for is a skip that was not
               offered. */}
-          <span className="ml-auto">
+          <span className="ml-auto flex items-center gap-2">
             <Button data-testid="tutorial-skip" onClick={close}>
               {message(locale, 'tutorial.skip')}
             </Button>
+            <IconButton
+              label={message(locale, 'tutorial.close')}
+              icon={<CloseIcon />}
+              data-testid="tutorial-close"
+              onClick={close}
+            />
           </span>
         </div>
 

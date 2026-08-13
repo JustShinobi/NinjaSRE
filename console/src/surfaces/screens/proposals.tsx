@@ -114,7 +114,7 @@ export async function ProposalsScreen(context: SurfaceContext): Promise<ReactNod
       {may(viewer, approvals.permission) ? (
         <p className="text-meta text-muted mb-3 flex items-center gap-1">
           <CompassIcon size="empty" />
-          {message(locale, 'page.approvals.context')}
+          <span>{message(locale, 'proposals.otherInbox')}</span>
           <Link href={approvals.path} data-testid="proposals-elsewhere">
             {message(locale, 'surface.open')} {message(locale, approvals.title)}
           </Link>

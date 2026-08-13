@@ -35,7 +35,11 @@ import { Tutorial } from '../first-run/tutorial';
 // From the plain module rather than from the overlay: this screen renders on
 // the server, and reading the flag out of a `'use client'` file made the whole
 // dashboard throw before it painted anything.
-import { tutorialDismissed } from '../first-run/tutorial-setting';
+import {
+  TUTORIAL_QUERY_PARAM,
+  TUTORIAL_REPLAY_VALUE,
+  tutorialDismissed,
+} from '../first-run/tutorial-setting';
 import { viewerNode } from '../tree';
 import type { SurfaceContext } from '../context';
 
@@ -66,8 +70,23 @@ const FAILED = new Set(['failed', 'error', 'cancelled']);
 /** How many activity entries the feed shows before it is a list rather than a narrative. */
 const FEED_LENGTH = 8;
 
+/** Return the attention row whose source timestamp is the earliest valid instant. */
+export function oldestAttention(
+  rows: readonly AttentionRow[],
+): AttentionRow | undefined {
+  let oldest: AttentionRow | undefined;
+  let oldestAt = Number.POSITIVE_INFINITY;
+  for (const row of rows) {
+    const at = Date.parse(row.at ?? '');
+    if (Number.isNaN(at) || at >= oldestAt) continue;
+    oldest = row;
+    oldestAt = at;
+  }
+  return oldest;
+}
+
 export async function DashboardScreen(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, now, viewer, zone } = context;
+  const { credential, locale, now, search, viewer, zone } = context;
   const init = authorised(credential);
   // The tutorial's dismissal is written at this node and read back from it, so
   // it has to resolve to a node that exists rather than to the empty string.
@@ -102,6 +121,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   ]);
 
   const setup = readSetup(dataOf(checklist), field(dataOf(effective), 'values'));
+  const replay = search.get(TUTORIAL_QUERY_PARAM) === TUTORIAL_REPLAY_VALUE;
 
   const runRecords = list(dataOf(runs), 'runs');
   const approvalRecords = list(dataOf(approvals), 'approvals');
@@ -122,6 +142,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       detail: text(record, 'action'),
       href: `/approvals?selected=${id}`,
       since: timestamp(locale, text(record, 'requested_at'), now, zone).relative,
+      at: text(record, 'requested_at'),
     });
   }
   for (const record of proposalRecords) {
@@ -134,6 +155,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       detail: text(record, 'proposal_type'),
       href: `/proposals?selected=${id}`,
       since: timestamp(locale, text(record, 'proposed_at'), now, zone).relative,
+      at: text(record, 'proposed_at'),
     });
   }
   for (const record of incidentRecords) {
@@ -146,6 +168,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       detail: text(record, 'summary'),
       href: `/incidents/${id}`,
       since: timestamp(locale, text(record, 'opened_at'), now, zone).relative,
+      at: text(record, 'opened_at'),
     });
   }
   for (const record of runRecords) {
@@ -165,10 +188,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       detail: raised ? said.action : text(record, 'status'),
       href: raised && said.href !== '' ? said.href : `/runs/${id}`,
       since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
+      at: text(record, 'started_at'),
     });
   }
 
-  const oldest = attention[attention.length - 1];
+  const oldest = oldestAttention(attention);
 
   // --- The narrative ---------------------------------------------------------
   const feed: ActivityEntry[] = [];
@@ -213,13 +237,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   // --- The estate ------------------------------------------------------------
   const watched = number(summary, 'total');
   const healthy = countOf(summary, 'by_health', 'healthy');
-  // Not knowing and being broken are different facts, and the tile is the one
-  // place they are added together — because the question it answers is "how
-  // much of the estate am I not confident about".
-  const degraded =
-    number(summary, 'problems') +
-    countOf(summary, 'by_health', 'unknown') +
-    countOf(summary, 'by_health', 'stale');
+  // The persistence contract defines `problems` as degraded or unhealthy. Keep
+  // unknown and stale out: they are gaps in observation, not estate faults, and
+  // the problem drill-down must contain exactly what this number counts.
+  const degraded = number(summary, 'problems');
   const kinds = counts(summary, 'by_kind')
     .map(([kind, count]) => `${formatNumber(locale, count)} ${kind}`)
     .join(' · ');
@@ -250,10 +271,11 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           configuration records a dismissal. A dismissal that never reached the
           deployment therefore cannot leave a configured one behind an overlay:
           the worst it can do is show this a second time. */}
-      {outstanding(setup) === 0 ||
-      tutorialDismissed(field(dataOf(effective), 'values')) ? null : (
-        <Tutorial locale={locale} nodeId={node} />
-      )}
+      {replay ||
+      (outstanding(setup) !== 0 &&
+        !tutorialDismissed(field(dataOf(effective), 'values'))) ? (
+        <Tutorial locale={locale} nodeId={node} replay={replay} />
+      ) : null}
 
       <AreaHeader area={areaFor('dashboard')} locale={locale} />
 
@@ -299,8 +321,8 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           absent, not shrunk, the moment nothing is left. */}
       <SetupHero locale={locale} setup={setup} source={checklist} />
 
-      {/* Every figure has a period, a comparison and a list behind it. A figure
-          that had none of those would not compile — see `figure.tsx`. */}
+      {/* Every figure has context and a list behind it. A figure that had neither
+          would not compile — see `figure.tsx`. */}
       <div
         data-testid="main-figures"
         className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-5"
@@ -337,7 +359,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
             live: formatNumber(locale, liveDetectors),
             total: formatNumber(locale, detectorRecords.length),
           })}
-          href="/resources?health=degraded"
+          href="/resources?health=problem"
           drillLabel={message(locale, 'dashboard.stat.drill')}
           trend={degraded > 0 ? 'down' : 'flat'}
         />

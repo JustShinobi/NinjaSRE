@@ -178,13 +178,13 @@ export function Shell({
     async (query: string, signal: AbortSignal): Promise<SearchAnswer> => {
       const answer = await askSearch(query, signal);
       return {
-        commands: searchCommands(answer.found).filter(
+        commands: searchCommands(answer.found, locale).filter(
           (command) => command.permission === null || may(viewer, command.permission),
         ),
         partial: answer.partial,
       };
     },
-    [askSearch, viewer],
+    [askSearch, locale, viewer],
   );
 
   const life = sessionLife(expiresAt, now ?? new Date(0));
