@@ -61,8 +61,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.firstRun.title': 'Configuração inicial',
   'page.firstRun.context':
     'O que configurar, em ordem, com a razão de cada passo e a opção de parar depois de qualquer um deles.',
-  'credential.submit': 'Guardar esta credencial',
-  'credential.sending': 'Guardando…',
+  'credential.submit': 'Salvar esta credencial',
+  'credential.sending': 'Salvando…',
   'credential.stored': 'Guardada no cofre. Nunca é mostrada de novo.',
   'credential.absent': 'Esta não declara nenhum campo de credencial.',
   'credential.whereToGetIt': 'Onde obter:',
@@ -80,7 +80,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.unreachable': 'Não foi possível alcançar o deployment.',
 
   'firstRun.step.provider': 'Escolher um provider de modelo',
-  'firstRun.step.credential': 'Guardar a credencial dele',
+  'firstRun.step.credential': 'Salvar a credencial dele',
   'firstRun.step.model': 'Escolher um modelo',
   'firstRun.step.integrations': 'Conectar o que ele pode consultar',
   'firstRun.step.verify': 'Verificar que cada coisa funciona',
@@ -228,7 +228,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'O que o agente quer fazer agora, e o que ele quer que o deployment se torne.',
   'page.integrations.title': 'Integrações',
   'page.integrations.context':
-    'Cada integração para a qual este deployment pode guardar uma credencial, seu estado, e uma forma de testá-la.',
+    'Cada integração para a qual este deployment pode salvar uma credencial, seu estado, e uma forma de testá-la.',
   'page.signals.title': 'Sinais',
   'page.signals.context':
     'O que entra em observação contínua, e para onde um alerta vai depois de entrar.',
@@ -835,14 +835,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.editor.explaining': 'Explicando…',
   'autonomy.editor.capability': 'Capacidade',
   'autonomy.editor.resource': 'Recurso',
-  'autonomy.editor.save': 'Guardar esta postura',
-  'autonomy.editor.saving': 'Guardando…',
+  'autonomy.editor.save': 'Salvar esta postura',
+  'autonomy.editor.saving': 'Salvando…',
   'autonomy.editor.saved':
     'Guardado. É isto que o deployment pode fazer sozinho agora.',
   'autonomy.editor.failed': 'O deployment recusou esta postura.',
   'autonomy.editor.unreachable': 'Não foi possível alcançar o deployment.',
   'autonomy.editor.previewFirst':
-    'Veja o que isto teria decidido de forma diferente antes de guardar. A lista do que passa a ser autônomo é a metade que importa ler.',
+    'Veja o que isto teria decidido de forma diferente antes de salvar. A lista do que passa a ser autônomo é a metade que importa ler.',
   'autonomy.editor.considered': 'Consideradas',
   'autonomy.editor.changed': 'Decididas diferente',
   'autonomy.editor.newlyAutonomous': 'Passam a autônomas',
@@ -914,12 +914,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.locked.detail': 'Uma mudança feita aqui seria recusada.',
   'configuration.required.detail': 'Este valor não pode ser limpo.',
   'configuration.gated.detail':
-    'Guardar isto põe a mudança em fila em vez de a aplicar.',
-  'configuration.preview.title': 'O que guardar iria resolver',
+    'Salvar isto põe a mudança em fila em vez de a aplicar.',
+  'configuration.preview.title': 'O que salvar iria resolver',
   'configuration.preview.lead':
     'Foi a instalação que calculou isto, não a consola. Uma junção do lado do cliente que concorda hoje é uma que discorda depois da próxima mudança.',
   'configuration.preview.before': 'Agora',
-  'configuration.preview.after': 'Depois de guardar',
+  'configuration.preview.after': 'Depois de salvar',
   'configuration.preview.empty.heading': 'Nada mudaria',
   'configuration.preview.empty.body':
     'Uma pré-visualização é a resposta da instalação a uma alteração. Não há nenhuma pendente para este nó.',
@@ -953,18 +953,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'teamContext.empty.action': 'Ver a organização',
   'teamContext.template.title': 'Um ponto de partida, a partir do que já se sabe',
   'teamContext.template.lead':
-    'Derivado do próprio parque desta instalação — os tipos que tem, as zonas em que os endereços estão, a fonte que responde a cada pergunta de sinal. Nada aqui fica escrito até guardar.',
+    'Derivado do próprio parque desta instalação — os tipos que tem, as zonas em que os endereços estão, a fonte que responde a cada pergunta de sinal. Nada aqui fica escrito até salvar.',
   'teamContext.template.use': 'Usar o documento inicial',
   'teamContext.preview.title': 'O que o modelo vai receber',
   'teamContext.preview.lead':
-    'O texto exato que o prompt de sistema da próxima investigação vai levar, montado pela instalação. O botão de guardar aparece quando o tiver pedido.',
+    'O texto exato que o prompt de sistema da próxima investigação vai levar, montado pela instalação. O botão de salvar aparece quando o tiver pedido.',
   'teamContext.preview.submit': 'Mostrar-me o prompt',
   'teamContext.preview.disabledReason': 'Altere uma seção antes de pedir o prompt.',
   'teamContext.preview.previewing': 'Montando…',
   'teamContext.preview.first':
-    'Veja o prompt antes de o guardar. Este texto é enviado em cada chamada ao modelo de cada investigação.',
-  'teamContext.save': 'Guardar',
-  'teamContext.saving': 'Guardando…',
+    'Veja o prompt antes de o salvar. Este texto é enviado em cada chamada ao modelo de cada investigação.',
+  'teamContext.save': 'Salvar',
+  'teamContext.saving': 'Salvando…',
   'teamContext.saved': 'Guardado. A próxima investigação leva isto.',
   'teamContext.failed': 'O deployment recusou este contexto.',
   'teamContext.unreachable': 'Não foi possível contatar o deployment.',
@@ -972,15 +972,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'configuration.editor.title': 'Mudar o que se aplica aqui',
   'configuration.editor.lead':
-    'Cada controle abaixo vem do esquema do próprio deployment. Mude o que precisar e depois veja o que guardar iria resolver — o botão de guardar aparece quando o tiver visto.',
+    'Cada controle abaixo vem do esquema do próprio deployment. Mude o que precisar e depois veja o que salvar iria resolver — o botão de salvar aparece quando o tiver visto.',
   'configuration.editor.submit': 'Pré-visualizar esta mudança',
-  'configuration.editor.save': 'Guardar',
-  'configuration.editor.saving': 'Guardando…',
+  'configuration.editor.save': 'Salvar',
+  'configuration.editor.saving': 'Salvando…',
   'configuration.editor.saved': 'Guardado. Os valores acima são os novos.',
   'configuration.editor.failed': 'O deployment recusou esta mudança.',
   'configuration.editor.unreachable': 'Não foi possível contatar o deployment.',
   'configuration.editor.previewFirst':
-    'Pré-visualize esta mudança antes de a guardar — o diff é o único lugar onde a herança é visível.',
+    'Pré-visualize esta mudança antes de a salvar — o diff é o único lugar onde a herança é visível.',
   'configuration.editor.clear': 'Remover esta substituição',
   'configuration.editor.cleared': 'Vai voltar a ser herdado',
   'configuration.editor.redundant': 'Já é herdado com este valor de',
@@ -1118,8 +1118,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.sso.jwks': 'Conjunto de chaves',
   'admin.sso.redirect': 'Redirecionar de volta para',
   'admin.sso.defaultNode': 'Equipe padrão',
-  'admin.sso.save': 'Guardar esta configuração',
-  'admin.sso.saving': 'Guardando…',
+  'admin.sso.save': 'Salvar esta configuração',
+  'admin.sso.saving': 'Salvando…',
   'admin.sso.test': 'Testar com um conjunto de claims real',
   'admin.sso.testing': 'Testando…',
   'admin.sso.claims': 'As claims que o seu provider devolveu',
