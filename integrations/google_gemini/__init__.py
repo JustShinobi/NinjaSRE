@@ -47,6 +47,7 @@ DESCRIPTOR: Final = GEMINI
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Google Gemini",
     category=IntegrationCategory.MODEL_PROVIDER,
     summary=(
         "Google Gemini, declared so a provider key stored in the vault is reachable "

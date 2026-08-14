@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Discord",
     category=IntegrationCategory.COMMUNICATION,
     summary="A Discord channel used for incident response: what has been said recently, and a finding posted into it.",
     regions=REGIONS,

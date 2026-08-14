@@ -33,6 +33,7 @@ import {
   Spinner,
   SplitLayout,
   StatTile,
+  StatusChip,
   StatusDot,
   Switch,
   Table,
@@ -48,6 +49,7 @@ import { SURFACE_STATES } from '@/components/surface';
 import {
   ATTENTION_STATUSES,
   CONNECTION_STATUSES,
+  CREDENTIAL_STATUSES,
   RESOURCE_STATUSES,
   RUN_STATUSES,
 } from '@/design/status';
@@ -181,6 +183,16 @@ export const GALLERY: readonly GalleryPrimitive[] = [
       id: `dot-${status}`,
       label: status,
       node: <StatusDot status={status} standalone />,
+    })),
+  },
+  {
+    name: 'StatusChip',
+    summary:
+      'A credential and its verification, in one translated word — never the raw spelling.',
+    entries: CREDENTIAL_STATUSES.map((status) => ({
+      id: `credential-chip-${status}`,
+      label: status,
+      node: <StatusChip locale="en" status={status} />,
     })),
   },
   {

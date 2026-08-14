@@ -3,7 +3,8 @@
 import { useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/action';
-import { Badge } from '@/components/status';
+import { StatusChip } from '@/components/status';
+import type { Locale } from '@/i18n/messages';
 import {
   CredentialField,
   type CredentialFieldSpec,
@@ -38,7 +39,10 @@ export interface IntegrationCardLabels {
 }
 
 export interface IntegrationCardProps {
+  readonly locale: Locale;
   readonly name: string;
+  /** What a person calls this vendor. Shown instead of `name`, which stays for technical attributes. */
+  readonly displayName: string;
   /** `unconfigured` | `unknown` | `healthy` | `degraded`, verbatim from the API. */
   readonly health: string;
   readonly healthDetail: string;
@@ -48,7 +52,9 @@ export interface IntegrationCardProps {
 
 /** A collapsed card: name, state, and a legend — the form only on request. */
 export function IntegrationCard({
+  locale,
   name,
+  displayName,
   health,
   healthDetail,
   fields,
@@ -65,8 +71,8 @@ export function IntegrationCard({
       className="flex flex-col gap-2 rounded-3 edge border-border p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-strong">{name}</span>
-        <Badge status={health} />
+        <span className="text-strong">{displayName}</span>
+        <StatusChip locale={locale} status={health} />
         <Button
           variant="quiet"
           data-testid="integration-toggle"
@@ -89,9 +95,8 @@ export function IntegrationCard({
       {expanded ? (
         <div className="flex flex-col gap-3 pt-2">
           <VerifyStep
-            things={[
-              { kind: 'integration', name, displayName: name, readiness: health },
-            ]}
+            locale={locale}
+            things={[{ kind: 'integration', name, displayName, readiness: health }]}
             labels={labels.verify}
           />
           <CredentialField

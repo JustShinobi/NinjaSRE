@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Apache Kafka",
     category=IntegrationCategory.DATA_PLATFORM,
     summary="Kafka through its REST Proxy: which topics and consumer groups exist on a cluster, and which groups are not in a stable state.",
     regions=REGIONS,

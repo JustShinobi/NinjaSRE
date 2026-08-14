@@ -178,6 +178,31 @@ def test_the_console_names_the_checklist_steps_the_platform_names() -> None:
     assert not unknown, f"{sorted(unknown)} is not a checklist step this platform reports"
 
 
+def test_the_progress_count_is_not_recomputed_from_the_console_s_own_wizard_steps() -> None:
+    """`outstanding` reads the deployment's own steps, not a client-only tally.
+
+    The seven wizard steps are a UI sequencing concept with no counterpart in
+    the document this route answers — the checklist has its own steps, in its
+    own vocabulary, and a count built by filtering the wizard's seven against
+    ad hoc client rules is a count the CLI has no way to reproduce. `outstanding`
+    is required to read `setup.steps` — the array this document actually
+    carries — rather than the `WIZARD_STEPS` constant, so the same document
+    that decides the CLI's view decides this one too.
+    """
+    source = _source(PLAN)
+    body = re.search(
+        r"function outstanding\(setup: DeploymentSetup\): number \{(.*?)\n\}", source, re.DOTALL
+    )
+    assert body is not None, "plan.ts declares no outstanding(setup) function to inspect"
+    assert "WIZARD_STEPS" not in body.group(1), (
+        "outstanding() still tallies the client-only WIZARD_STEPS list rather than reading "
+        "setup.steps, the array the checklist route actually serves"
+    )
+    assert "setup.steps" in body.group(1), (
+        "outstanding() does not read setup.steps, so it has no server-reported state to count"
+    )
+
+
 # --- One source, and no second one ----------------------------------------------------
 
 

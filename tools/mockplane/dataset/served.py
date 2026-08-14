@@ -1408,6 +1408,7 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                 "integrations": [
                     {
                         "name": "metrics-store",
+                        "display_name": "Metrics store",
                         "category": "observability",
                         "summary": "Range queries against the metrics store.",
                         "health": "unconfigured",
@@ -1431,6 +1432,7 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                     },
                     {
                         "name": "chat",
+                        "display_name": "Chat",
                         "category": "collaboration",
                         "summary": "Posts investigation summaries and takes approvals.",
                         "health": "healthy",
@@ -1445,6 +1447,7 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                     },
                     {
                         "name": "ticketing",
+                        "display_name": "Ticketing",
                         "category": "workflow",
                         "summary": "Opens and updates tickets from findings.",
                         "health": "degraded",

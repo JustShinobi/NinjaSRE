@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Confluence",
     category=IntegrationCategory.TICKETING,
     summary="What has already been written down: the Confluence pages matching a search, and the ones most recently changed.",
     regions=REGIONS,

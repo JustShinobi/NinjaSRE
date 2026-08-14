@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="VictoriaLogs",
     category=IntegrationCategory.LOG_STORE,
     summary="LogsQL against VictoriaLogs, counted by stream field before any line is read, for the estates that chose it for its ingest cost.",
     regions=REGIONS,

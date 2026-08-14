@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="PagerDuty",
     category=IntegrationCategory.INCIDENT_MANAGEMENT,
     summary="Who is being paged and for what: the incidents PagerDuty is holding, one incident's log, and the acknowledgement that stops the escalation clock.",
     regions=REGIONS,

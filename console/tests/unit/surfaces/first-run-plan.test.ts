@@ -208,11 +208,25 @@ describe('the list of steps the screen draws', () => {
     expect(provider?.href).toBe('/first-run?step=provider');
   });
 
-  it('counts what is left, so the screen can say how far along this is', () => {
-    expect(outstanding(setup())).toBe(WIZARD_STEPS.length);
-    expect(outstanding(setup({ provider: 'configured' }))).toBe(
-      WIZARD_STEPS.length - 2,
-    );
+  it('counts what the deployment itself reports as not done, never a client tally', () => {
+    // Deliberately not built from WIZARD_STEPS or from stepDone: a client-only
+    // count of the seven UI screens is exactly the recomputation this function
+    // must not do. `provider` and `modelChosen` below are irrelevant to it —
+    // only `steps[].state` is.
+    expect(outstanding(setup())).toBe(0);
+    expect(
+      outstanding(
+        setup({
+          provider: 'configured',
+          modelChosen: true,
+          steps: [
+            { name: 'durable-credential', state: 'done' },
+            { name: 'model-provider', state: 'ready' },
+            { name: 'infrastructure-source', state: 'blocked' },
+          ],
+        }),
+      ),
+    ).toBe(2);
   });
 });
 

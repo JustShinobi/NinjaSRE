@@ -47,6 +47,7 @@ DESCRIPTOR: Final = PROXMOX_BACKUP_SERVER
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Proxmox Backup Server",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary=(
         "Datastore usage, snapshots, verification outcomes and garbage-collection state "

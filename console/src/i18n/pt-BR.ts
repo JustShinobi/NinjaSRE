@@ -133,18 +133,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.verify.check': 'Verificar',
   'firstRun.verify.checking': 'Verificando…',
   'firstRun.verify.retry': 'Verificar de novo',
-  'firstRun.verify.passed': 'Respondeu.',
-  'firstRun.verify.failed': 'Não respondeu.',
-  'firstRun.verify.unchecked': 'Ninguém verificou esta.',
   'firstRun.verify.nothing':
     'Nada está configurado ainda, então não há o que verificar. Guarde primeiro uma credencial de provider.',
   'firstRun.verify.remedy': 'O que fazer:',
-  'firstRun.verify.findings':
-    'Ele respondeu, e no que respondeu n\u00e3o d\u00e1 para confiar:',
+  'firstRun.verify.findings': 'O que foi encontrado e n\u00e3o \u00e9 confi\u00e1vel:',
 
   'firstRun.established.title': 'O que já está configurado',
-  'firstRun.established.verified': 'respondeu',
-  'firstRun.established.configured': 'guardado, não verificado',
   'firstRun.established.empty.heading': 'Nada está configurado ainda',
   'firstRun.established.empty.body':
     'Tudo para o que este deployment tem credencial aparece aqui, com se algo realmente chegou lá. Ele não tem nenhuma, então ainda não consegue investigar.',
@@ -402,6 +396,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'pagination.previous': 'Anterior',
   'pagination.next': 'Seguinte',
   'pagination.position': 'Página {page} de {pages}',
+
+  'status.credential.notConnected': 'Não conectada',
+  'status.credential.stored': 'Armazenada',
+  'status.credential.verified': 'Verificada',
+  'status.credential.failing': 'Falhando',
+  'status.credential.unknown': 'Desconhecida',
+  'status.credential.unknown.explain':
+    'O gateway deste deployment não pôde ser contatado, então o estado real não pôde ser lido.',
 
   'surface.loading': 'A carregar {panel}…',
   'surface.error.heading': 'Não foi possível preencher este painel',
@@ -1068,7 +1070,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   // dizem o mesmo no espaço que um card recolhido permite; o filtro precisa
   // do espaço que uma lista suspensa permite.
   'catalogue.integrations.filter.state.unconfigured': 'Não conectada',
-  'catalogue.integrations.filter.state.unknown': 'Não verificada',
+  'catalogue.integrations.filter.state.unknown': 'Armazenada',
   'catalogue.integrations.filter.state.healthy': 'Verificada',
   'catalogue.integrations.filter.state.degraded': 'Falhando',
 

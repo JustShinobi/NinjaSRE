@@ -3228,6 +3228,10 @@
             "title": "Category",
             "type": "string"
           },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
           "health": {
             "title": "Health",
             "type": "string"
@@ -3296,6 +3300,7 @@
         },
         "required": [
           "name",
+          "display_name",
           "category",
           "summary",
           "hosts",

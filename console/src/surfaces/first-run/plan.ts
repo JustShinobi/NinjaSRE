@@ -183,9 +183,21 @@ export function stepDone(step: WizardStep, setup: DeploymentSetup): boolean {
   }
 }
 
-/** How many of the seven are still outstanding. */
+/**
+ * How many of the deployment's own checklist steps still need something.
+ *
+ * Read from `setup.steps` — the array `GET /v1/setup/checklist` actually
+ * serves — rather than filtered from `WIZARD_STEPS`, the console's own
+ * seven-screen sequencing, against `stepDone`'s client-only rules. The seven
+ * screens are a UI concept the checklist route has never heard of, so a count
+ * built from them was a count only this console could reproduce; a CLI
+ * reading the same document had no way to arrive at the same number. This one
+ * counts what the document itself reports as not done, which is the property
+ * that makes "the same count everywhere it is cited" true by construction
+ * rather than by every surface happening to call the same function.
+ */
 export function outstanding(setup: DeploymentSetup): number {
-  return WIZARD_STEPS.filter((step) => !stepDone(step, setup)).length;
+  return setup.steps.filter((step) => step.state !== 'done').length;
 }
 
 /**

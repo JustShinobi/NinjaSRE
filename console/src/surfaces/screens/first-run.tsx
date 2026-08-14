@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
-import { StatusDot } from '@/components/status';
+import { StatusChip, StatusDot } from '@/components/status';
 import { cx } from '@/design/cx';
 import { message, type Locale } from '@/i18n/messages';
 import { formatNumber } from '@/i18n/format';
@@ -294,11 +294,30 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   // Gemini both drives investigations and appears in the integration
   // catalogue — is one stored credential, not two, and this list claims to
   // show what is established, not how many places a fact is recorded.
-  const established: readonly { name: string; readiness: string }[] = [
+  const established: readonly {
+    name: string;
+    displayName: string;
+    readiness: string;
+  }[] = [
     ...(setup.provider === 'absent'
       ? []
-      : [{ name: chosen === '' ? 'provider' : chosen, readiness: setup.provider }]),
-    ...configuredIntegrations(setup).filter((entry) => entry.name !== runningProvider),
+      : [
+          {
+            name: chosen === '' ? 'provider' : chosen,
+            displayName: text(
+              providerRecords.find((record) => text(record, 'provider_id') === chosen),
+              'display_name',
+            ),
+            readiness: setup.provider,
+          },
+        ]),
+    ...configuredIntegrations(setup)
+      .filter((entry) => entry.name !== runningProvider)
+      .map((entry) => ({
+        ...entry,
+        displayName:
+          offers.find((offer) => offer.name === entry.name)?.displayName ?? entry.name,
+      })),
   ];
 
   const stepTitle = (step: WizardStep): string =>
@@ -352,7 +371,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
             <p className="mb-3 text-meta text-muted" data-testid="first-run-progress">
               {message(locale, 'firstRun.progress', {
                 left: formatNumber(locale, outstanding(setup)),
-                total: formatNumber(locale, WIZARD_STEPS.length),
+                total: formatNumber(locale, setup.steps.length),
               })}
             </p>
             <ol className="flex flex-col gap-1">
@@ -428,17 +447,11 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
             <ul className="flex flex-col gap-1 text-small" data-testid="established">
               {established.map((entry) => (
                 <li key={entry.name} className="flex items-center gap-2">
-                  <StatusDot
-                    status={entry.readiness === 'verified' ? 'healthy' : 'unknown'}
-                  />
-                  <span className="min-w-0 truncate">{entry.name}</span>
-                  <span className="ml-auto text-meta text-muted">
-                    {message(
-                      locale,
-                      entry.readiness === 'verified'
-                        ? 'firstRun.established.verified'
-                        : 'firstRun.established.configured',
-                    )}
+                  <span className="min-w-0 truncate">
+                    {entry.displayName === '' ? entry.name : entry.displayName}
+                  </span>
+                  <span className="ml-auto">
+                    <StatusChip locale={locale} status={entry.readiness} />
                   </span>
                 </li>
               ))}
@@ -598,7 +611,11 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
               ) : null}
 
               {here === 'verify' ? (
-                <VerifyStep things={verifiable} labels={verifyLabels(locale)} />
+                <VerifyStep
+                  locale={locale}
+                  things={verifiable}
+                  labels={verifyLabels(locale)}
+                />
               ) : null}
 
               {here === 'estate' && estateSource !== '' ? (

@@ -9,7 +9,7 @@
  */
 
 export { Button, IconButton, Link } from './action';
-export { Badge, StatusDot } from './status';
+export { Badge, StatusChip, StatusDot } from './status';
 export { Card, StatTile } from './surface';
 export {
   Checkbox,

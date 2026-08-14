@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="FireHydrant",
     category=IntegrationCategory.INCIDENT_MANAGEMENT,
     summary="FireHydrant's incident record: what is active, one incident's events, and the note that says an automated investigation has started.",
     regions=REGIONS,

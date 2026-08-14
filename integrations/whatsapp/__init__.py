@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="WhatsApp",
     category=IntegrationCategory.COMMUNICATION,
     summary="A WhatsApp Business number used for on-call notification: the message templates available, and a finding delivered to a responder.",
     regions=REGIONS,

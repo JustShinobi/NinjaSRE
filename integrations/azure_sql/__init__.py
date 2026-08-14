@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Azure SQL Database",
     category=IntegrationCategory.DATABASE,
     summary="Azure SQL through Resource Manager: which databases exist in a subscription and in what state, and their recent service-level events.",
     regions=REGIONS,

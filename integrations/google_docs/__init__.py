@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Google Docs",
     category=IntegrationCategory.TICKETING,
     summary="What the team has written in Google Docs: the documents matching a search, and the ones most recently modified.",
     regions=REGIONS,

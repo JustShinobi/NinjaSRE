@@ -1,3 +1,4 @@
+import { resolveCta } from '@/design/empty-state';
 import { message, type Locale } from '@/i18n/messages';
 import { outstanding, readSetup, type DeploymentSetup } from './first-run/plan';
 import type { PanelEmpty } from './panel';
@@ -48,7 +49,7 @@ export function setupCause(locale: Locale, setup: DeploymentSetup): Cause | null
   return {
     body: message(locale, 'empty.cause.setup', { count: String(left) }),
     actionLabel: message(locale, 'empty.cause.setup.action'),
-    href: '/first-run',
+    href: resolveCta({ route: '/first-run' }).href,
   };
 }
 
@@ -65,7 +66,7 @@ export function watchingCause(locale: Locale, live: number): Cause | null {
   return {
     body: message(locale, 'empty.cause.watching'),
     actionLabel: message(locale, 'empty.cause.watching.action'),
-    href: '/signals?tab=observation',
+    href: resolveCta({ route: '/signals', query: { tab: 'observation' } }).href,
   };
 }
 

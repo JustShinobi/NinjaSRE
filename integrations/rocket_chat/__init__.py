@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Rocket.Chat",
     category=IntegrationCategory.COMMUNICATION,
     summary="A Rocket.Chat channel used for incident response: what has been said, and a finding posted into it.",
     regions=REGIONS,

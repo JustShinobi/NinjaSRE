@@ -85,6 +85,11 @@ class IntegrationProfile:
     """
 
     integration: str
+    #: What a person calls this vendor — "Azure Monitor", never `azure_monitor`.
+    #: The console and the generated documentation use this in every title,
+    #: list and label; the raw id below stays for technical contexts only
+    #: (the API, the audit trail, this profile's own identity).
+    display_name: str
     category: IntegrationCategory
     summary: str
     regions: RegionMap
@@ -113,6 +118,12 @@ class IntegrationProfile:
                 f"{self.integration}: a profile with no summary gives the console and the "
                 f"generated documentation nothing to say about this vendor"
             )
+        if not self.display_name.strip():
+            raise ValueError(
+                f"{self.integration}: a profile with no display_name leaves the console and "
+                f"the generated documentation with only the raw id to title this vendor with, "
+                f"which is not a name a person reads"
+            )
         endpoints = [declared.endpoint for declared in self.pagination]
         duplicates = sorted({name for name in endpoints if endpoints.count(name) > 1})
         if duplicates:
@@ -132,6 +143,11 @@ class CatalogueEntry:
     capabilities: tuple[str, ...] = ()
     health: HealthStatus = HealthStatus.UNKNOWN
     health_detail: str = ""
+
+    @property
+    def display_name(self) -> str:
+        """Return what a person calls this vendor, never the raw id."""
+        return self.profile.display_name
 
     @property
     def category(self) -> IntegrationCategory:
@@ -169,6 +185,7 @@ class CatalogueEntry:
         """Return the JSON-serialisable form the console and docs generation read."""
         return {
             "name": self.name,
+            "display_name": self.display_name,
             "category": self.category.value,
             "summary": self.summary,
             "capabilities": list(self.capabilities),

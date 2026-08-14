@@ -102,7 +102,9 @@ describe('a deployment where no investigation has ever ended', () => {
     expect(
       screen.getByText(/this deployment is still being set up/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/7 step\(s\) are outstanding/)).toBeInTheDocument();
+    // Four of the platform's own five steps, read from the checklist fixture
+    // itself rather than from the console's seven-screen wizard sequencing.
+    expect(screen.getByText(/4 step\(s\) are outstanding/)).toBeInTheDocument();
 
     const link = screen.getByTestId('way-back');
     expect(link).toHaveAttribute('href', '/first-run');

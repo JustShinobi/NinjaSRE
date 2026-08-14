@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Prefect",
     category=IntegrationCategory.DATA_PLATFORM,
     summary="Prefect flow runs: which are in which state, and the ones that failed, for the estates orchestrating their pipelines with it.",
     regions=REGIONS,

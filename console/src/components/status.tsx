@@ -1,8 +1,15 @@
 import type { ReactNode } from 'react';
 
 import { cx } from '@/design/cx';
-import { type Shape, statusPresentation } from '@/design/status';
+import {
+  credentialStatus,
+  type CredentialStatus,
+  type Shape,
+  statusPresentation,
+} from '@/design/status';
 import type { SemanticRole } from '@/design/tokens';
+import type { MessageKey } from '@/i18n/en';
+import { message, type Locale } from '@/i18n/messages';
 
 /**
  * Status, drawn twice.
@@ -147,5 +154,59 @@ export function StatusDot({
         className,
       )}
     />
+  );
+}
+
+/** Where each of the five canonical credential words is declared. */
+const CREDENTIAL_STATUS_LABEL: Readonly<Record<CredentialStatus, MessageKey>> = {
+  not_connected: 'status.credential.notConnected',
+  stored: 'status.credential.stored',
+  verified: 'status.credential.verified',
+  failing: 'status.credential.failing',
+  unknown: 'status.credential.unknown',
+};
+
+export interface StatusChipProps {
+  readonly locale: Locale;
+  /** The status as any surface reports it — any spelling `credentialStatus` recognises. */
+  readonly status: string;
+  readonly className?: string;
+}
+
+/**
+ * A credential's own state, or what the last check against it found — the one
+ * chip every screen renders it as, in the viewer's language.
+ *
+ * Unlike `Badge`, which shows the raw word a status arrives as (and is right
+ * to, for a run's status or a resource's health), this never shows a raw
+ * backend spelling. `status` is translated onto one of the five canonical
+ * words before anything is rendered, so "healthy", "configured" and
+ * "verified" — three different vocabularies' way of saying the same thing —
+ * draw as the identical chip. The degrade carries a tooltip explaining why,
+ * because "Unknown" alone does not say whether that is the credential's own
+ * state or a gateway this reader's screen could not reach.
+ */
+export function StatusChip({ locale, status, className }: StatusChipProps): ReactNode {
+  const canonical = credentialStatus(status);
+  const presented = statusPresentation(canonical);
+  const label = message(locale, CREDENTIAL_STATUS_LABEL[canonical]);
+  const explain =
+    canonical === 'unknown'
+      ? message(locale, 'status.credential.unknown.explain')
+      : undefined;
+  return (
+    <span
+      data-role={presented.role}
+      data-credential-status={canonical}
+      title={explain}
+      className={cx(
+        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
+        ROLE_SKIN[presented.role],
+        className,
+      )}
+    >
+      <ShapeMark shape={presented.shape} role={presented.role} />
+      {label}
+    </span>
   );
 }

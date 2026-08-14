@@ -44,11 +44,13 @@ function principal(): unknown {
 
 function integration(source: {
   readonly name: string;
+  readonly displayName?: string;
   readonly health: string;
   readonly healthDetail?: string;
 }): unknown {
   return {
     name: source.name,
+    display_name: source.displayName ?? source.name,
     category: 'observability',
     summary: `What ${source.name} is for.`,
     hosts: [],
@@ -66,15 +68,21 @@ function integration(source: {
 
 const INTEGRATIONS = {
   integrations: [
-    integration({ name: 'prometheus', health: 'unconfigured' }),
-    integration({ name: 'datadog', health: 'unknown' }),
+    integration({
+      name: 'prometheus',
+      displayName: 'Prometheus',
+      health: 'unconfigured',
+    }),
+    integration({ name: 'datadog', displayName: 'Datadog', health: 'unknown' }),
     integration({
       name: 'chat',
+      displayName: 'Team Chat',
       health: 'healthy',
       healthDetail: 'verified 3 hours ago',
     }),
     integration({
       name: 'ticketing',
+      displayName: 'Ticketing Desk',
       health: 'degraded',
       healthDetail: 'the last verification timed out',
     }),
@@ -154,13 +162,27 @@ describe('a credential form is collapsed until asked for', () => {
     ).toBeDefined();
 
     expect(integrationCard('chat').getAttribute('data-state')).toBe('healthy');
-    expect(within(integrationCard('chat')).getByText(/Verified/)).toBeDefined();
+    expect(
+      integrationCard('chat').querySelector('[data-credential-status="verified"]'),
+    ).not.toBeNull();
     expect(
       within(integrationCard('chat')).getByText(/verified 3 hours ago/),
     ).toBeDefined();
 
     expect(integrationCard('ticketing').getAttribute('data-state')).toBe('degraded');
-    expect(within(integrationCard('ticketing')).getByText(/Failing/)).toBeDefined();
+    expect(
+      integrationCard('ticketing').querySelector('[data-credential-status="failing"]'),
+    ).not.toBeNull();
+  });
+
+  it('titles every card with the display name, never the raw id', async () => {
+    await integrations();
+
+    expect(within(integrationCard('chat')).getByText('Team Chat')).toBeInTheDocument();
+    expect(within(integrationCard('chat')).queryByText('chat')).toBeNull();
+    expect(
+      within(integrationCard('ticketing')).getByText('Ticketing Desk'),
+    ).toBeInTheDocument();
   });
 
   it('renders no credential form and no verify control before anything is expanded', async () => {
@@ -203,13 +225,7 @@ describe('a state filter, so eighty-five cards is a search rather than a scroll'
     const options = within(filter)
       .getAllByRole('option')
       .map((option) => option.textContent);
-    expect(options).toEqual([
-      'Any',
-      'Not connected',
-      'Unchecked',
-      'Verified',
-      'Failing',
-    ]);
+    expect(options).toEqual(['Any', 'Not connected', 'Stored', 'Verified', 'Failing']);
   });
 
   it('narrows the cards to the state named in the address', async () => {

@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="incident.io",
     category=IntegrationCategory.INCIDENT_MANAGEMENT,
     summary="incident.io's record of what is happening: the open incidents, one incident's timeline, and the acknowledgement that says somebody is on it.",
     regions=REGIONS,

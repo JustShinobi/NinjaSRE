@@ -68,6 +68,13 @@ class ProviderOnboarding:
     models: tuple[str, ...] = ()
     extras: tuple[str, ...] = field(default_factory=tuple)
 
+    def __post_init__(self) -> None:
+        if not self.display_name.strip():
+            raise ValueError(
+                f"{self.provider_id}: an onboarding with no display_name leaves the console "
+                f"with only the raw provider id to title the choice with"
+            )
+
     @property
     def local(self) -> bool:
         """Return whether this provider runs on the operator's own infrastructure."""

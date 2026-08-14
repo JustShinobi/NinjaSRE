@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Supabase",
     category=IntegrationCategory.DATABASE,
     summary="The Supabase management API: which projects exist in an organisation and in what state, for the estates that run their Postgres there.",
     regions=REGIONS,

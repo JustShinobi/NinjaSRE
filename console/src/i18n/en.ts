@@ -342,6 +342,18 @@ export const EN = {
   'pagination.next': 'Next',
   'pagination.position': 'Page {page} of {pages}',
 
+  // --- The credential and verification vocabulary --------------------------------
+  // The one word `StatusChip` renders for each of the five states declared in
+  // `design/status.ts`, whatever backend spelling — a resource's health, an
+  // integration's health, a checklist's readiness — it was translated from.
+  'status.credential.notConnected': 'Not connected',
+  'status.credential.stored': 'Stored',
+  'status.credential.verified': 'Verified',
+  'status.credential.failing': 'Failing',
+  'status.credential.unknown': 'Unknown',
+  'status.credential.unknown.explain':
+    "This deployment's gateway could not be reached, so the real state could not be read.",
+
   // --- What every data-bearing region says on its own behalf --------------------
   'surface.loading': 'Loading {panel}…',
   'surface.error.heading': 'This panel could not be filled',
@@ -528,17 +540,12 @@ export const EN = {
   'firstRun.verify.check': 'Check it',
   'firstRun.verify.checking': 'Checking…',
   'firstRun.verify.retry': 'Check it again',
-  'firstRun.verify.passed': 'It answered.',
-  'firstRun.verify.failed': 'It did not answer.',
-  'firstRun.verify.unchecked': 'Nobody has checked this one.',
   'firstRun.verify.nothing':
     'Nothing is configured yet, so there is nothing to check. Store a provider credential first.',
   'firstRun.verify.remedy': 'What to do:',
-  'firstRun.verify.findings': 'It answered, and what it answered cannot be relied on:',
+  'firstRun.verify.findings': 'What it found that cannot be relied on:',
 
   'firstRun.established.title': 'What is set up so far',
-  'firstRun.established.verified': 'it answered',
-  'firstRun.established.configured': 'stored, unchecked',
   'firstRun.established.empty.heading': 'Nothing is set up yet',
   'firstRun.established.empty.body':
     'Everything this deployment holds a credential for appears here, with whether anything has actually reached it. It holds none, so it cannot investigate yet.',
@@ -1206,7 +1213,7 @@ export const EN = {
   // same thing at the length a collapsed card affords; the filter needs the
   // length a dropdown affords instead.
   'catalogue.integrations.filter.state.unconfigured': 'Not connected',
-  'catalogue.integrations.filter.state.unknown': 'Unchecked',
+  'catalogue.integrations.filter.state.unknown': 'Stored',
   'catalogue.integrations.filter.state.healthy': 'Verified',
   'catalogue.integrations.filter.state.degraded': 'Failing',
 

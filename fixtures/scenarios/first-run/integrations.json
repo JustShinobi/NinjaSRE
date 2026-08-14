@@ -9,6 +9,7 @@
               "metrics.range_query"
             ],
             "category": "observability",
+            "display_name": "Metrics store",
             "health": "unconfigured",
             "health_detail": "no credential is stored anywhere in this deployment",
             "hosts": [

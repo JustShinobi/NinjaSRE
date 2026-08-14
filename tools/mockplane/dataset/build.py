@@ -201,6 +201,7 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
             "integrations": [
                 {
                     "name": "metrics-store",
+                    "display_name": "Metrics store",
                     "category": "observability",
                     "summary": "Range queries against the metrics store.",
                     "health": "unconfigured",

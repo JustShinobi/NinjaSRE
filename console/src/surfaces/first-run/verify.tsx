@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { Button } from '@/components/action';
-import { StatusDot } from '@/components/status';
+import { StatusChip } from '@/components/status';
+import type { Locale } from '@/i18n/messages';
 
 /**
  * Checking each configured thing for real, one row at a time.
@@ -45,9 +46,6 @@ export interface VerifyStepLabels {
   readonly check: string;
   readonly checking: string;
   readonly retry: string;
-  readonly passed: string;
-  readonly failed: string;
-  readonly unchecked: string;
   readonly unreachable: string;
   readonly nothing: string;
   readonly remedy: string;
@@ -55,6 +53,7 @@ export interface VerifyStepLabels {
 }
 
 export interface VerifyStepProps {
+  readonly locale: Locale;
   readonly things: readonly VerifiableThing[];
   readonly labels: VerifyStepLabels;
 }
@@ -80,7 +79,7 @@ function keyOf(thing: VerifiableThing): string {
 }
 
 /** One result line per configured thing, each with its own retry. */
-export function VerifyStep({ things, labels }: VerifyStepProps): ReactNode {
+export function VerifyStep({ locale, things, labels }: VerifyStepProps): ReactNode {
   const [verdicts, setVerdicts] = useState<Readonly<Record<string, Verdict>>>({});
   const [running, setRunning] = useState<readonly string[]>([]);
 
@@ -146,13 +145,14 @@ export function VerifyStep({ things, labels }: VerifyStepProps): ReactNode {
             className="flex flex-col gap-1 rounded-3 edge border-border p-3"
           >
             <span className="flex flex-wrap items-center gap-2">
-              <StatusDot
+              <StatusChip
+                locale={locale}
                 status={
                   verdict === undefined
-                    ? 'unknown'
+                    ? thing.readiness
                     : verdict.state === 'passed'
-                      ? 'healthy'
-                      : 'failed'
+                      ? 'verified'
+                      : 'failing'
                 }
               />
               <span className="text-strong">{thing.displayName}</span>
@@ -170,11 +170,9 @@ export function VerifyStep({ things, labels }: VerifyStepProps): ReactNode {
                     : labels.retry}
               </Button>
             </span>
-            <span className="text-meta text-muted">
-              {verdict === undefined
-                ? labels.unchecked
-                : `${verdict.state === 'passed' ? labels.passed : labels.failed} ${verdict.detail}`.trim()}
-            </span>
+            {verdict === undefined || verdict.detail === '' ? null : (
+              <span className="text-meta text-muted">{verdict.detail}</span>
+            )}
             {verdict?.remedy === undefined || verdict.remedy === '' ? null : (
               <span className="text-meta text-warning" data-testid="verify-remedy">
                 {labels.remedy} {verdict.remedy}

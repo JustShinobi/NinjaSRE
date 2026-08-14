@@ -103,6 +103,66 @@ export const CONNECTION_STATUSES = [
 
 export type ConnectionStatus = (typeof CONNECTION_STATUSES)[number];
 
+/**
+ * The one vocabulary for a credential's own state, and for what the last live
+ * check against it found.
+ *
+ * Declared once, here, and consumed everywhere a screen shows a credential or
+ * a verification — Setup, Integrations, Administration, a card doing its own
+ * check. Before this there were at least two backend spellings for the same
+ * four facts (the integration catalogue's health — `healthy` / `degraded` /
+ * `unknown` / `unconfigured` — and the first-run checklist's own three-word
+ * readiness), and a handful of free-form sentences on top of both
+ * ("it answered", "stored, unchecked"). `credentialStatus` below is the one
+ * place that reconciles every spelling onto this set, so no screen chooses a
+ * synonym for a fact one of these five words already has.
+ */
+export const CREDENTIAL_STATUSES = [
+  'not_connected',
+  'stored',
+  'verified',
+  'failing',
+  'unknown',
+] as const;
+
+export type CredentialStatus = (typeof CREDENTIAL_STATUSES)[number];
+
+/**
+ * Every raw spelling a backend vocabulary uses for one of the five, mapped
+ * onto the canonical word.
+ *
+ * The subtle one is `unknown`: the integration catalogue's `HealthStatus`
+ * uses that exact word for "a credential exists and nothing has checked it
+ * yet" — which is this vocabulary's `stored`, not its own `unknown`. This
+ * module's `unknown` is reserved for the degrade: a spelling nothing here
+ * declares, which is what a screen is left holding when the gateway that
+ * would say which of the four it actually is cannot be reached.
+ */
+const CREDENTIAL_STATUS_ALIASES: Readonly<Record<string, CredentialStatus>> = {
+  unconfigured: 'not_connected',
+  absent: 'not_connected',
+  not_connected: 'not_connected',
+  configured: 'stored',
+  unknown: 'stored',
+  stored: 'stored',
+  healthy: 'verified',
+  verified: 'verified',
+  degraded: 'failing',
+  failing: 'failing',
+};
+
+/**
+ * `value`, translated onto the one credential vocabulary.
+ *
+ * Never throws and never returns a sixth word: a spelling this mapping does
+ * not recognise — a future vendor state, an empty read, a typo — degrades to
+ * `'unknown'` rather than inventing one of the other four. FR-001's edge case
+ * is exactly this: a chip may say it does not know, and must never guess.
+ */
+export function credentialStatus(value: string): CredentialStatus {
+  return CREDENTIAL_STATUS_ALIASES[value] ?? 'unknown';
+}
+
 /** The shapes a status can be drawn as, so colour is never on its own. */
 export const SHAPES = [
   'filled-circle',
@@ -188,6 +248,17 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   // with runs — the same word means the same thing whichever record it is on.
   allowed: { role: 'success', shape: 'filled-circle' },
   denied: { role: 'danger', shape: 'square' },
+  // The credential and verification vocabulary. Its own four shapes rather
+  // than reusing `unconfigured`/`healthy`/`degraded` above: those three are
+  // the raw words two different backend vocabularies (a resource's health, an
+  // integration's health) already speak, and this is the one, translated,
+  // canonical set every screen shows instead of them. `stored` gets a shape
+  // no other neutral-or-otherwise entry above carries, so it reads as its own
+  // fact rather than as a dim copy of `unconfigured` or of `unknown`.
+  not_connected: { role: 'neutral', shape: 'dash' },
+  stored: { role: 'info', shape: 'dimmed-circle' },
+  verified: { role: 'success', shape: 'filled-circle' },
+  failing: { role: 'danger', shape: 'square' },
 };
 
 /** Whether `value` is a run status the gateway is known to report. */

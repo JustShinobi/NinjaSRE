@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Temporal",
     category=IntegrationCategory.DATA_PLATFORM,
     summary="Temporal workflow executions over its HTTP API: which are open, which failed, and how that distribution has changed.",
     regions=REGIONS,

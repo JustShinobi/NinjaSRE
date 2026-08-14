@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Opsgenie",
     category=IntegrationCategory.INCIDENT_MANAGEMENT,
     summary="Opsgenie alerts and their state: what is open, one alert's log, and the acknowledgement that stops the escalation.",
     regions=REGIONS,

@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Prometheus",
     category=IntegrationCategory.METRICS_STORE,
     summary="PromQL evaluation and the alert rules currently firing, from the server that holds the series rather than from a dashboard on top of it.",
     regions=REGIONS,

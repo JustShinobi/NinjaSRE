@@ -4497,6 +4497,8 @@ export interface components {
             capabilities: string[];
             /** Category */
             category: string;
+            /** Display Name */
+            display_name: string;
             /** Health */
             health: string;
             /** Health Detail */

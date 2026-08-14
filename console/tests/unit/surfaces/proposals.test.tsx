@@ -141,7 +141,10 @@ describe('an empty queue that says where a proposal would come from', () => {
   it('prefers the setup cause when the deployment has never investigated', async () => {
     stubReads({
       '/v1/proposals': EMPTY_QUEUE,
-      '/v1/setup/checklist': { complete: false },
+      '/v1/setup/checklist': {
+        complete: false,
+        steps: [{ name: 'model-provider', state: 'ready' }],
+      },
     });
 
     const { ProposalsTab } = await import('@/surfaces/screens/proposals');

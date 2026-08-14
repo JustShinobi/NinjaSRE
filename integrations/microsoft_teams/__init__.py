@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Microsoft Teams",
     category=IntegrationCategory.COMMUNICATION,
     summary="The Teams channel an incident is being run from: what has been said, and a finding posted where the responders are.",
     regions=REGIONS,

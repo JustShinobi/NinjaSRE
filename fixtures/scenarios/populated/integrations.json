@@ -9,6 +9,7 @@
               "metrics.range_query"
             ],
             "category": "observability",
+            "display_name": "Metrics store",
             "health": "unconfigured",
             "health_detail": "no credential is stored for this node",
             "hosts": [
@@ -36,6 +37,7 @@
               "chat.post_message"
             ],
             "category": "collaboration",
+            "display_name": "Chat",
             "health": "healthy",
             "health_detail": "verified 3 hours ago",
             "hosts": [
@@ -58,6 +60,7 @@
               "ticketing.open_ticket"
             ],
             "category": "workflow",
+            "display_name": "Ticketing",
             "health": "degraded",
             "health_detail": "the last verification timed out",
             "hosts": [

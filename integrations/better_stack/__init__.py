@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Better Stack",
     category=IntegrationCategory.LOG_STORE,
     summary="Better Stack's log search and the monitors it is currently reporting as down, for teams using it as both log store and uptime checker.",
     regions=REGIONS,

@@ -121,7 +121,9 @@ export async function IntegrationsScreen(context: SurfaceContext): Promise<React
             return (
               <IntegrationCard
                 key={name}
+                locale={locale}
                 name={name}
+                displayName={text(integration, 'display_name')}
                 health={text(integration, 'health')}
                 healthDetail={text(integration, 'health_detail')}
                 // The catalogue knows the field *names* a vendor requires

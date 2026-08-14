@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS EC2",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="EC2 instance state for a region: how many instances are in which state, and the instances themselves with their type, zone, and launch time.",
     regions=REGIONS,

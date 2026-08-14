@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="ClickUp",
     category=IntegrationCategory.TICKETING,
     summary="What ClickUp already tracks: the tasks in a list, in what status, and which are worth reading before another is created.",
     regions=REGIONS,

@@ -752,13 +752,10 @@ describe('verifying what is configured', () => {
     check: 'Check it',
     checking: '…',
     retry: 'Check it again',
-    passed: 'It answered.',
-    failed: 'It did not answer.',
-    unchecked: 'nobody has checked',
     unreachable: 'unreachable',
     nothing: 'nothing to check',
     remedy: 'What to do:',
-    findings: 'It answered, and what it answered cannot be relied on:',
+    findings: 'What it found that cannot be relied on:',
   };
 
   const THINGS = [
@@ -777,7 +774,7 @@ describe('verifying what is configured', () => {
   ];
 
   it('draws one result line per configured thing, each unchecked until asked', () => {
-    render(<VerifyStep things={THINGS} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
 
     const rows = screen.getAllByTestId('verify-row');
     expect(rows).toHaveLength(2);
@@ -791,7 +788,7 @@ describe('verifying what is configured', () => {
       'fetch',
       answerWith({ verified: false, reason: 'it refused the key' }),
     );
-    render(<VerifyStep things={THINGS} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
 
     const [first] = screen.getAllByTestId('verify-row');
     await userEvent.click(within(one(first)).getByTestId('verify-one'));
@@ -819,7 +816,7 @@ describe('verifying what is configured', () => {
         remedy: 'ANTHROPIC_API_KEY was skipped at setup',
       }),
     );
-    render(<VerifyStep things={THINGS} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
 
     await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
 
@@ -842,7 +839,7 @@ describe('verifying what is configured', () => {
         ],
       }),
     );
-    render(<VerifyStep things={THINGS} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
 
     await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
 
@@ -860,7 +857,7 @@ describe('verifying what is configured', () => {
       'fetch',
       answerWith({ verified: true, reason: 'the credential works' }),
     );
-    render(<VerifyStep things={THINGS} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
 
     await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
 
@@ -872,7 +869,7 @@ describe('verifying what is configured', () => {
       'fetch',
       vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
     );
-    render(<VerifyStep things={THINGS} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
 
     await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
 
@@ -884,7 +881,7 @@ describe('verifying what is configured', () => {
 
   it('reports a check that answered as passed', async () => {
     vi.stubGlobal('fetch', answerWith({ verified: true, reason: 'it answered' }));
-    render(<VerifyStep things={THINGS} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
 
     await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
 
@@ -895,7 +892,7 @@ describe('verifying what is configured', () => {
   });
 
   it('says so rather than showing an empty list when nothing is configured', () => {
-    render(<VerifyStep things={[]} labels={LABELS} />);
+    render(<VerifyStep locale="en" things={[]} labels={LABELS} />);
 
     expect(screen.getByTestId('nothing-to-verify')).toBeInTheDocument();
   });
@@ -952,7 +949,10 @@ describe('what is established', () => {
     render(await FirstRunScreen(await surfaceContext()));
 
     const established = screen.getByTestId('established');
-    expect(within(established).getAllByText('google_gemini')).toHaveLength(1);
+    // The display name, not the raw id: the chosen provider is also a
+    // catalogue integration under the same underlying credential, and the
+    // list has to say so with one name rather than with two spellings of it.
+    expect(within(established).getAllByText('Gemini')).toHaveLength(1);
   });
 });
 

@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Google Cloud Platform",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="The Google Cloud control plane through Cloud Asset Inventory and Cloud Logging: what exists in a project, and the admin activity that changed it.",
     regions=REGIONS,

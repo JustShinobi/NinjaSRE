@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Jaeger",
     category=IntegrationCategory.TRACING,
     summary="Jaeger's trace store: where a service's operations concentrate latency, and the slowest traces behind that concentration.",
     regions=REGIONS,

@@ -116,6 +116,9 @@ class KnownGapView(BaseModel):
 
 class IntegrationView(BaseModel):
     name: str
+    #: What a person calls this vendor — never the raw id above, outside a
+    #: technical context.
+    display_name: str
     category: str
     summary: str
     hosts: list[str]
@@ -251,6 +254,7 @@ async def list_integrations(
         integrations=[
             IntegrationView(
                 name=entry.name,
+                display_name=entry.display_name,
                 category=entry.category.value,
                 summary=entry.summary,
                 hosts=list(entry.descriptor.rule.hosts),

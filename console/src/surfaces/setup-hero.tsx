@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { resolveCta } from '@/design/empty-state';
 import { cx } from '@/design/cx';
 import { formatNumber } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -10,7 +11,6 @@ import { Panel } from './panel';
 import type { PanelData } from './read';
 import { dependencyOf, stateOf } from './read';
 import {
-  WIZARD_STEPS,
   currentStep,
   hrefFor,
   outstanding,
@@ -56,14 +56,14 @@ export function SetupHero({ locale, setup, source }: SetupHeroProps): ReactNode 
           heading: message(locale, 'dashboard.hero.empty.heading'),
           body: message(locale, 'dashboard.hero.empty.body'),
           actionLabel: message(locale, 'dashboard.hero.empty.action'),
-          href: '/first-run',
+          href: resolveCta({ route: '/first-run' }).href,
         }}
       >
         <div className="flex flex-col items-center gap-4 py-4 text-center">
           <p className="text-muted text-small">
             {message(locale, 'dashboard.hero.remaining', {
               count: formatNumber(locale, left),
-              total: formatNumber(locale, WIZARD_STEPS.length),
+              total: formatNumber(locale, setup.steps.length),
             })}
           </p>
           <ol className="flex w-full max-w-md flex-col gap-1 text-left text-small">

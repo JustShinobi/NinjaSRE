@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="SigNoz",
     category=IntegrationCategory.TRACING,
     summary="SigNoz's span store: where latency and errors concentrate for a service, and the slowest traces behind that concentration.",
     regions=REGIONS,

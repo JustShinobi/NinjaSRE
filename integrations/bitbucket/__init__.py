@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Bitbucket",
     category=IntegrationCategory.VERSION_CONTROL,
     summary="What landed in a Bitbucket workspace: the repositories that changed recently and the pull requests merged into them.",
     regions=REGIONS,

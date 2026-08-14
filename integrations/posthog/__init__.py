@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="PostHog",
     category=IntegrationCategory.METRICS_STORE,
     summary="PostHog's product analytics: how event volume moved during a window, and which feature flags are currently on.",
     regions=REGIONS,

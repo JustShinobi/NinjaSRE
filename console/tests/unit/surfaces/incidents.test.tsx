@@ -50,7 +50,10 @@ const SETUP_INCOMPLETE = {
   complete: false,
   provider: 'absent',
   integrations: [],
-  steps: [],
+  // At least one step not done, so the count this deployment reports is
+  // actually outstanding — an empty array is not a shape the real checklist
+  // route ever answers with.
+  steps: [{ name: 'model-provider', state: 'ready' }],
 };
 
 /** A checklist with nothing left to do. */

@@ -157,7 +157,10 @@ describe('an empty queue that says why', () => {
   it('prefers telling an unfinished setup over the policy, while the checklist is open', async () => {
     stubReads({
       '/v1/approvals': { approvals: [] },
-      '/v1/setup/checklist': { complete: false },
+      '/v1/setup/checklist': {
+        complete: false,
+        steps: [{ name: 'model-provider', state: 'ready' }],
+      },
       '/v1/config': EMPTY_TREE,
       '/v1/config/org-northwind': {
         node_id: 'org-northwind',

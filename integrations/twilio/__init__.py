@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Twilio",
     category=IntegrationCategory.COMMUNICATION,
     summary="Twilio as an SMS notification path: the messages this account has sent recently, and a finding delivered to a responder's phone.",
     regions=REGIONS,
