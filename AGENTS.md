@@ -150,6 +150,32 @@ Things that have already cost time here.
 - **The import contracts and the tier table above are one fact in two places.**
   Change one and you change the other, in the same commit.
 
+## Codex Spec-Wave Adapter
+
+Codex uses this repository's `AGENTS.md` plus project-scoped `.codex/agents/*.toml`
+roles. When asked to execute a spec-kit wave, use the `spec_implementer` role for
+one feature at a time, then `spec_verifier` and `spec_browser_verifier` before
+advancing. The shared worktree policy is deliberate: `.codex/config.toml` caps
+concurrent subagent threads at one, so do not parallelize writers unless the
+operator provides isolated worktrees with disjoint file ownership.
+
+The generic browser lifecycle is:
+
+```text
+uv run python -m tools.spec_validation browser \
+  --feature <feature-directory> \
+  --test <test-path>
+```
+
+It builds the standalone console, starts the deterministic mock backing by
+default, runs the selected Playwright tests, and tears down the processes. Use
+`--backing compose` only for behavior that requires the real gateway/database.
+For registered visual screens, use `tools.spec_validation visual`; never accept
+a visual baseline automatically. Run focused gates after each feature, `make
+verify` at wave checkpoints, and update the wave's `progress.json` and
+`CONFRONTO.md` from real evidence. Do not stage or commit unless the operator
+explicitly asks for it.
+
 ## Adding a package
 
 ```bash
