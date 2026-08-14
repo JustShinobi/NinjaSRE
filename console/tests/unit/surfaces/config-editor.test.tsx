@@ -448,7 +448,7 @@ describe('sections, collapsed by default and reachable two ways', () => {
 });
 
 describe('an ordered list entry, titled by what it is rather than by its position', () => {
-  function integrations(): EditableField {
+  function integrations(over: Partial<EditableField> = {}): EditableField {
     return field({
       path: 'capabilities.integrations',
       label: 'Integrations',
@@ -476,6 +476,7 @@ describe('an ordered list entry, titled by what it is rather than by its positio
           default: false,
         },
       ],
+      ...over,
     });
   }
 
@@ -489,6 +490,16 @@ describe('an ordered list entry, titled by what it is rather than by its positio
     editor([integrations()]);
 
     expect(screen.getByLabelText('proxmox — Enabled')).toBeInTheDocument();
+  });
+
+  it('names the toggle by its position instead, for an entry with no name typed yet', () => {
+    // A freshly-added entry starts with an empty name — `blankEntry` seeds it
+    // at `''` until the operator types one. The toggle beside it still has to
+    // say whose it is; a bare "Enabled" names nothing, and position is the one
+    // fact about an unnamed entry that is never a guess.
+    editor([integrations({ value: [{ name: '', enabled: true }] })]);
+
+    expect(screen.getByLabelText('Evaluated 1 — Enabled')).toBeInTheDocument();
   });
 });
 

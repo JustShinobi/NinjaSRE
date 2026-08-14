@@ -870,7 +870,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Uma exceção é um aumento temporário e justificado do nível de um âmbito, concedida em registro e encerrada assim que expira ou é revogada.',
 
   'configuration.tree.title': 'Organização',
-  'configuration.values.title': 'Configuração efectiva',
+  'configuration.values.title': 'Configuração efetiva',
   'configuration.column.setting': 'Definição',
   'configuration.column.value': 'Valor',
   'configuration.column.provenance': 'Definido em',
@@ -889,7 +889,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.preview.empty.heading': 'Nada mudaria',
   'configuration.preview.empty.body':
     'Uma pré-visualização é a resposta da instalação a uma alteração. Não há nenhuma pendente para este nó.',
-  'configuration.preview.empty.action': 'Ver os valores efectivos',
+  'configuration.preview.empty.action': 'Ver os valores efetivos',
   'teamContext.sections.title': 'O que este ambiente é',
   'teamContext.sections.lead':
     'Factos que um operador escreve uma vez e que entram no prompt de toda investigação. São acrescentados ao prompt distribuído, nunca no lugar dele — as substituições de prompt no ecrã de Configuração são a outra coisa, e essas substituem-no.',
@@ -933,21 +933,21 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'configuration.editor.title': 'Mudar o que se aplica aqui',
   'configuration.editor.lead':
-    'Cada controlo abaixo vem do esquema do próprio deployment. Mude o que precisar e depois veja o que guardar iria resolver — o botão de guardar aparece quando o tiver visto.',
+    'Cada controle abaixo vem do esquema do próprio deployment. Mude o que precisar e depois veja o que guardar iria resolver — o botão de guardar aparece quando o tiver visto.',
   'configuration.editor.submit': 'Pré-visualizar esta mudança',
   'configuration.editor.save': 'Guardar',
-  'configuration.editor.saving': 'A guardar…',
+  'configuration.editor.saving': 'Guardando…',
   'configuration.editor.saved': 'Guardado. Os valores acima são os novos.',
   'configuration.editor.failed': 'O deployment recusou esta mudança.',
-  'configuration.editor.unreachable': 'Não foi possível contactar o deployment.',
+  'configuration.editor.unreachable': 'Não foi possível contatar o deployment.',
   'configuration.editor.previewFirst':
-    'Pré-visualize esta mudança antes de a guardar — o diff é o único sítio onde a herança é visível.',
+    'Pré-visualize esta mudança antes de a guardar — o diff é o único lugar onde a herança é visível.',
   'configuration.editor.clear': 'Remover esta substituição',
   'configuration.editor.cleared': 'Vai voltar a ser herdado',
   'configuration.editor.redundant': 'Já é herdado com este valor de',
   'configuration.editor.reverts': 'Volta a',
   'configuration.editor.notEditable':
-    'Uma lista ou uma secção livre: é substituída por inteiro na escrita, por isso não se edita campo a campo.',
+    'Uma lista ou uma seção livre: é substituída por inteiro na escrita, por isso não se edita campo a campo.',
   'configuration.editor.inherited': 'ainda nada',
   'configuration.editor.addEntry': 'Adicionar outro',
   'configuration.editor.removeEntry': 'Remover',

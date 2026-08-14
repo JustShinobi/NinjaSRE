@@ -1063,9 +1063,14 @@ function ObjectList({
                         // A switch read on its own says only "Enabled" — of
                         // what is not in the sentence. Every other control in
                         // the entry sits under a title that answers that, but a
-                        // screen reader visits controls one at a time.
-                        item.type === 'boolean' && title !== ''
-                          ? { ...item, label: `${title} — ${item.label}` }
+                        // screen reader visits controls one at a time. An entry
+                        // with no name typed yet still has a position, which is
+                        // the one fact about it that is never a guess.
+                        item.type === 'boolean'
+                          ? {
+                              ...item,
+                              label: `${title !== '' ? title : `${labels.entryPosition} ${String(index + 1)}`} — ${item.label}`,
+                            }
                           : item
                       }
                       name={`${field.path}.${String(index)}.${item.path}`}
