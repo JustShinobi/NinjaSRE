@@ -97,6 +97,24 @@ function text(record: unknown, name: string): string {
   return typeof found === 'string' ? found : '';
 }
 
+/**
+ * `principals`' own label for `principalId`, or the id itself when nobody named it.
+ *
+ * A grant names who holds it by id — `bootstrap-administrator`, `local-admin` —
+ * and a reader has to already know what that id means. `principals` is read
+ * here rather than added to `Grant` itself, because it already carries the
+ * answer for the picker above and a row just created from the deployment's own
+ * answer (`grant()`, below) is resolved the same way as one the screen served,
+ * with no second lookup to keep level with this one.
+ */
+function principalLabel(
+  principals: readonly GrantPrincipalOption[],
+  principalId: string,
+): string {
+  const found = principals.find((option) => option.id === principalId);
+  return found === undefined || found.label === '' ? principalId : found.label;
+}
+
 interface Answered {
   readonly reachable: boolean;
   readonly ok: boolean;
@@ -220,7 +238,9 @@ export function GrantPanel({
             data-grant={row.grantId}
             className="flex items-center gap-3 min-w-0"
           >
-            <span className="font-mono truncate">{row.principalId}</span>
+            <span className="truncate">
+              {principalLabel(principals, row.principalId)}
+            </span>
             <span className="ml-auto flex items-center gap-2">
               <Badge status={row.role} />
               <span className="text-meta text-muted">
@@ -303,7 +323,7 @@ export function GrantPanel({
           target={
             confirmingGrant === undefined
               ? confirming
-              : `${confirmingGrant.principalId} — ${confirmingGrant.role}`
+              : `${principalLabel(principals, confirmingGrant.principalId)} — ${confirmingGrant.role}`
           }
           action={labels.removeAction}
           consequence={labels.removeConsequence}

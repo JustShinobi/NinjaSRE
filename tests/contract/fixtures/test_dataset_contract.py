@@ -97,6 +97,35 @@ def test_every_fixture_validates_against_the_api_document(scenario: str) -> None
     assert not failures, "\n".join(failures)
 
 
+def test_every_principal_kind_is_one_the_backend_actually_declares() -> None:
+    """``kind`` is a plain ``str`` on the wire, so schema validation alone never
+    catches a value the real ``PrincipalKind`` enum does not have — the gap that
+    let this dataset serve ``"person"``/``"machine"`` while the backend only
+    ever emits ``"user"``/``"service_account"``, invisible until a screen
+    rendered the wrong fallback for a value nothing here ever served.
+    """
+    from platform.persistence.ports import PrincipalKind
+
+    allowed = {member.value for member in PrincipalKind}
+    offending: list[str] = []
+    for scenario in FIXTURE_SCENARIO_NAMES:
+        for record in scenarios.load(scenario).all_records():
+            if record.slug == "principal":
+                people: list[Any] = [record.body]
+            elif record.slug == "principals":
+                users = record.body.get("users") if isinstance(record.body, dict) else None
+                people = users if isinstance(users, list) else []
+            else:
+                continue
+            for person in people:
+                kind = person.get("kind") if isinstance(person, dict) else None
+                if kind is not None and kind not in allowed:
+                    offending.append(f"{scenario}/{record.slug}: {kind!r}")
+    assert not offending, (
+        f"a fixture serves a principal kind the real backend never emits: {offending}"
+    )
+
+
 def test_a_seeded_contract_change_fails_naming_the_endpoint_and_the_field() -> None:
     # What a route change looks like from here: the document gains a required
     # field the fixture does not carry.

@@ -293,7 +293,7 @@ describe('removing a grant', () => {
     await userEvent.click(one(screen.getAllByTestId('remove-grant')[0]));
 
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('user-avery — owner')).toBeInTheDocument();
+    expect(within(dialog).getByText('Avery Lockhart — owner')).toBeInTheDocument();
     expect(within(dialog).getByText(LABELS.removeConsequence)).toBeInTheDocument();
     expect(sent).toHaveLength(0);
   });
@@ -395,6 +395,32 @@ describe('removing a grant', () => {
     panel();
 
     expect(screen.getByText(LABELS.organisation)).toBeInTheDocument();
+  });
+});
+
+describe('who a grant belongs to, at a glance', () => {
+  it('shows the display name a principal is known by, not their raw id', () => {
+    panel();
+
+    const row = one(screen.getAllByTestId('grant')[0]);
+    expect(within(row).getByText('Avery Lockhart')).toBeInTheDocument();
+    expect(within(row).queryByText('user-avery')).toBeNull();
+  });
+
+  it('falls back to the raw id for a principal this console has no label for', () => {
+    panel({
+      grants: [
+        {
+          grantId: 'grant-3',
+          principalId: 'bootstrap-administrator',
+          role: 'owner',
+          nodeId: '',
+        },
+      ],
+    });
+
+    const row = one(screen.getAllByTestId('grant')[0]);
+    expect(within(row).getByText('bootstrap-administrator')).toBeInTheDocument();
   });
 });
 

@@ -1158,6 +1158,8 @@ export const EN = {
 
   // --- Administration ----------------------------------------------------------------------------
   'admin.principals.title': 'People and machines',
+  'admin.principals.serviceAccount':
+    'A service account created at deploy, with no email.',
   'admin.column.principal': 'Principal',
   'admin.column.kind': 'Kind',
   'admin.column.active': 'Active',

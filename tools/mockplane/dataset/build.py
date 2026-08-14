@@ -77,7 +77,10 @@ def empty_records() -> tuple[CapturedRecord, ...]:
             "principal_id": served.OPERATOR,
             "display_name": "Avery Lockhart",
             "email": "avery.lockhart@example.invalid",
-            "kind": "person",
+            # Read off `USERS[0]` (the same operator) rather than repeated as a
+            # literal, so this can never drift from the real `PrincipalKind`
+            # the backend declares (`platform/persistence/ports/identity_repository.py`).
+            "kind": served.USERS[0]["kind"],
             "roles": ["owner"],
             "permissions": list(served.OPERATOR_PERMISSIONS),
             "team_node_id": served.ORG_NODE,

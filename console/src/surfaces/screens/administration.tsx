@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/status';
 import { timestamp } from '@/i18n/format';
-import { message } from '@/i18n/messages';
+import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
@@ -55,6 +55,26 @@ import {
 const TOKENS = 'token.manage';
 const SSO = 'sso.manage';
 const GRANTS = 'identity.write';
+
+/**
+ * The Principals panel's second line, for one record.
+ *
+ * Their email where the deployment recorded one. A service account — the
+ * bootstrap administrator is the one every deployment has — is created
+ * without an email by design, because it is not a person; showing "Not
+ * recorded" there reads as something this deployment forgot rather than as
+ * what the record actually is, so this names it instead. A blank email on a
+ * record that is not a service account (which the current identity model
+ * never produces, but nothing here assumes it never will) falls back to the
+ * id, the same way a session with no known display name does.
+ */
+export function principalIdentity(locale: Locale, person: unknown): string {
+  const email = text(person, 'email');
+  if (email !== '') return email;
+  return text(person, 'kind') === 'service_account'
+    ? message(locale, 'admin.principals.serviceAccount')
+    : text(person, 'user_id');
+}
 
 export async function AdministrationScreen(
   context: SurfaceContext,
@@ -169,14 +189,7 @@ export async function AdministrationScreen(
               >
                 <span className="truncate">{text(person, 'display_name')}</span>
                 <span className="text-meta text-muted truncate">
-                  {/* A service account has no email by design — it is not a
-                      person — so "Not recorded" here reads as a bug rather
-                      than as what it is. Its own id says what it actually is:
-                      an account this deployment created, not one anybody typed
-                      in. */}
-                  {text(person, 'email') === ''
-                    ? text(person, 'user_id')
-                    : text(person, 'email')}
+                  {principalIdentity(locale, person)}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
                   <Badge status={text(person, 'kind')} />

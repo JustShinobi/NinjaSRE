@@ -7,7 +7,7 @@
         "email": "avery.lockhart@example.invalid",
         "impersonated_by": null,
         "impersonating": false,
-        "kind": "person",
+        "kind": "user",
         "permissions": [
           "approval.read",
           "approval.review",

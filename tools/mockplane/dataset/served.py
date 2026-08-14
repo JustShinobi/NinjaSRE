@@ -1973,28 +1973,31 @@ USERS: Final[tuple[Mapping[str, Any], ...]] = (
         "user_id": OPERATOR,
         "display_name": "Avery Lockhart",
         "email": "avery.lockhart@example.invalid",
-        "kind": "person",
+        # The two values ``PrincipalKind`` actually declares
+        # (``platform/persistence/ports/identity_repository.py``) — not
+        # ``"person"``/``"machine"``, which the real backend never emits.
+        "kind": "user",
         "is_active": True,
     },
     {
         "user_id": REVIEWER,
         "display_name": "Morgan Thorne",
         "email": "morgan.thorne@example.invalid",
-        "kind": "person",
+        "kind": "user",
         "is_active": True,
     },
     {
         "user_id": VIEWER,
         "display_name": "Reese Underhill",
         "email": "reese.underhill@example.invalid",
-        "kind": "person",
+        "kind": "user",
         "is_active": True,
     },
     {
         "user_id": AUTOMATION,
         "display_name": "Scheduler",
         "email": "scheduler@example.invalid",
-        "kind": "machine",
+        "kind": "service_account",
         "is_active": True,
     },
 )
@@ -2161,7 +2164,9 @@ def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
                 "principal_id": principal,
                 "display_name": display["display_name"],
                 "email": display["email"],
-                "kind": "person",
+                # Read off the same record rather than repeated as a literal,
+                # so this can never drift from `USERS` the way it once did.
+                "kind": display["kind"],
                 "roles": [role],
                 "permissions": list(VIEWER_PERMISSIONS if viewer else OPERATOR_PERMISSIONS),
                 "team_node_id": ORG_NODE,
