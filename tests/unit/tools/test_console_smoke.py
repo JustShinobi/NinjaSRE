@@ -43,6 +43,24 @@ class Console:
     #: Every path that was asked for, in the order it was asked.
     visited: list[str] = field(default_factory=list)
 
+    def breaks(self, *paths: str, status: int = 500) -> None:
+        """Make each of ``paths`` answer ``status``, refusing one the walk skips.
+
+        A path the walk never visits is not a broken route — it is a typo, or a
+        route that was renamed out from under the test. The stub would answer
+        nobody, the assertion would compare two empty things, and the test would
+        keep passing while proving nothing. Setting ``broken`` directly is how
+        two of these went on naming a route for the whole time after it was
+        folded into another one.
+        """
+        unknown = [path for path in paths if path not in SHELL_PATHS]
+        if unknown:
+            raise AssertionError(
+                f"{unknown} is not walked, so breaking it asserts nothing. "
+                f"The walk visits {list(SHELL_PATHS)}"
+            )
+        self.broken.update(dict.fromkeys(paths, status))
+
 
 def _handler(state: Console) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
@@ -121,12 +139,12 @@ def test_the_walk_visits_every_shell_route_signed_in(console: tuple[Console, str
 
 def test_a_route_that_does_not_answer_200_is_named(console: tuple[Console, str]) -> None:
     state, base = console
-    state.broken = {"/catalogue": 500, "/autonomy": 500}
+    state.breaks("/integrations", "/autonomy")
 
     results = walk(base, USERNAME, PASSWORD)
 
     assert {result.path: result.status for result in results if result.status != 200} == {
-        "/catalogue": 500,
+        "/integrations": 500,
         "/autonomy": 500,
     }
 
@@ -136,15 +154,15 @@ def test_the_command_refuses_the_deploy_when_a_route_is_broken(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     state, base = console
-    state.broken = {"/catalogue": 500}
+    state.breaks("/integrations")
 
     code = main(["--base-url", base, "--username", USERNAME, "--password", PASSWORD])
 
     assert code == 1
     printed = capsys.readouterr().out
     # Named, with its status, because "the console smoke failed" sends somebody
-    # to read fourteen routes by hand.
-    assert "/catalogue" in printed
+    # to read thirteen routes by hand.
+    assert "/integrations" in printed
     assert "500" in printed
 
 
