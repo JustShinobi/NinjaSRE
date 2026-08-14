@@ -51,8 +51,12 @@ export interface OperatingContextLabels {
   readonly provenance: string;
   readonly budget: string;
   readonly budgetUsed: string;
+  /** What happens past the budget — refused, not shortened. Said before anyone is near it. */
+  readonly budgetConsequence: string;
   readonly overBudget: string;
   readonly addSection: string;
+  /** Why "Add a section" is disabled, while nothing has been typed to name it yet. */
+  readonly addSectionDisabledReason: string;
   readonly sectionName: string;
   readonly remove: string;
   readonly factNotInstruction: string;
@@ -61,6 +65,8 @@ export interface OperatingContextLabels {
   readonly previewTitle: string;
   readonly previewLead: string;
   readonly submit: string;
+  /** Why "Show me the prompt" is disabled, while there is nothing new to show. */
+  readonly previewDisabledReason: string;
   readonly previewing: string;
   readonly previewFirst: string;
   readonly save: string;
@@ -70,6 +76,8 @@ export interface OperatingContextLabels {
   readonly unreachable: string;
   readonly roles: string;
   readonly templateUse: string;
+  /** What the starting document actually is, for the button that offers it. */
+  readonly templateLead: string;
 }
 
 export interface OperatingContextEditorProps {
@@ -149,6 +157,9 @@ export function OperatingContextEditor({
   const serialised = JSON.stringify(document);
   const edited = rows.some((row) => (bodyFor[row.name] ?? row.body) !== row.body);
   const current = answer !== null && serialised === previewedDocument;
+  // Neither a pending edit nor an existing preview to show: there is nothing
+  // new for a preview to say yet, and the button explains exactly that.
+  const previewBlocked = !edited && !current;
 
   async function ask(operation: string, payload: unknown): Promise<unknown> {
     setFailure('');
@@ -248,6 +259,11 @@ export function OperatingContextEditor({
           .replace('{used}', String(spent))
           .replace('{budget}', String(tokenBudget))}
       </p>
+      {/* Said before anyone is near the limit, not only once they have crossed
+          it: what happens past the budget is a refusal, never a silent cut. */}
+      <p data-testid="context-budget-consequence" className="text-meta text-muted">
+        {labels.budgetConsequence}
+      </p>
       {over ? (
         <p
           data-testid="context-over-budget"
@@ -307,6 +323,7 @@ export function OperatingContextEditor({
           <Button
             data-testid="add-section"
             state={naming.trim() === '' ? 'disabled' : 'default'}
+            title={naming.trim() === '' ? labels.addSectionDisabledReason : undefined}
             onClick={() => {
               const name = naming.trim();
               if (name === '') return;
@@ -318,8 +335,12 @@ export function OperatingContextEditor({
             {labels.addSection}
           </Button>
           {template.length === 0 ? null : (
+            // The label alone answers "start from what?"; the title carries the
+            // longer answer (what it was derived from, and that nothing is
+            // written until save) for whoever hovers rather than guesses.
             <Button
               data-testid="use-template"
+              title={labels.templateLead}
               onClick={() => {
                 startFromTemplate();
               }}
@@ -336,12 +357,9 @@ export function OperatingContextEditor({
             variant="primary"
             data-testid="ask-context-preview"
             state={
-              busy === 'preview'
-                ? 'loading'
-                : edited || current
-                  ? 'default'
-                  : 'disabled'
+              busy === 'preview' ? 'loading' : previewBlocked ? 'disabled' : 'default'
             }
+            title={previewBlocked ? labels.previewDisabledReason : undefined}
             onClick={() => {
               void preview();
             }}

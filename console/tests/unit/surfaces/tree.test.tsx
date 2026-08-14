@@ -4,7 +4,13 @@ import { join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { OrgTree, placeNodes, placedTree, type TreeNode } from '@/surfaces/tree';
+import {
+  OrgNav,
+  OrgTree,
+  placeNodes,
+  placedTree,
+  type TreeNode,
+} from '@/surfaces/tree';
 
 /**
  * Five hundred configuration nodes, every one of them present.
@@ -117,6 +123,56 @@ describe('SC-008: five hundred nodes', () => {
       .filter((link) => link.getAttribute('aria-current') === 'true');
     expect(current).toHaveLength(1);
     expect(current[0]).toHaveAttribute('href', '/configuration?node=node-3');
+  });
+});
+
+/**
+ * The Organisation panel's own body: the tree, or the breadcrumb that
+ * replaces it once there is nothing to navigate.
+ *
+ * Every screen that shows this panel — Team context and Configuration today
+ * — read this same two-branch decision, each keeping its own copy of it,
+ * until both were moved onto this one function. The two branches were
+ * already characterised, screen by screen: `team-context.test.tsx`'s two
+ * tests and `configuration-tree.test.tsx`'s two tests exercise the same
+ * logic through each screen's own render and continue to pass unchanged
+ * after this extraction. These two are the direct, isolated tests of the
+ * shared function itself.
+ */
+describe('the organisation panel: a tree, or a breadcrumb with nothing to navigate', () => {
+  it('draws the tree once there is more than one node', () => {
+    render(
+      <OrgNav
+        nodes={placeNodes(organisation(3))}
+        selected="node-0"
+        label="Organisation"
+        hrefFor={(id) => `/configuration?node=${id}`}
+      />,
+    );
+
+    expect(screen.getByTestId('org-tree')).toBeInTheDocument();
+    expect(screen.queryByTestId('org-breadcrumb')).not.toBeInTheDocument();
+  });
+
+  it('collapses to a breadcrumb naming the one node, rather than a one-row nav', () => {
+    render(
+      <OrgNav
+        nodes={placeNodes([
+          {
+            id: 'org-northwind',
+            name: 'Northwind',
+            kind: 'organisation',
+            parentId: null,
+          },
+        ])}
+        selected="org-northwind"
+        label="Organisation"
+        hrefFor={(id) => `/configuration?node=${id}`}
+      />,
+    );
+
+    expect(screen.getByTestId('org-breadcrumb')).toHaveTextContent('Northwind');
+    expect(screen.queryByTestId('org-tree')).not.toBeInTheDocument();
   });
 });
 

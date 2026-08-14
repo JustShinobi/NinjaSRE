@@ -1068,11 +1068,13 @@ export const EN = {
   'teamContext.provenance': 'Set at',
   'teamContext.budget': 'Prompt budget',
   'teamContext.budgetUsed': '{used} of {budget} tokens',
+  'teamContext.budgetConsequence': 'What goes over budget is refused, not truncated.',
   'teamContext.overBudget':
     'Over the budget. The deployment will refuse this until it is shorter.',
   'teamContext.disabled':
     'The operating context is switched off for this node. It is stored and nothing is sent.',
   'teamContext.addSection': 'Add a section',
+  'teamContext.addSection.disabledReason': 'Type a name before adding a section.',
   'teamContext.sectionName': 'Section name',
   'teamContext.remove': 'Clear this section',
   'teamContext.empty.heading': 'Nothing written here yet',
@@ -1082,11 +1084,13 @@ export const EN = {
   'teamContext.template.title': 'A starting point, from what is already known',
   'teamContext.template.lead':
     'Derived from this deployment’s own estate — the kinds it holds, the zones its addresses sit on, the source that answers each signal question. Nothing here is written until you save it.',
-  'teamContext.template.use': 'Start from this',
+  'teamContext.template.use': 'Use the starting document',
   'teamContext.preview.title': 'What the model will be sent',
   'teamContext.preview.lead':
     'The exact text the next investigation’s system prompt will carry, assembled by the deployment. The save appears once you have asked for it.',
   'teamContext.preview.submit': 'Show me the prompt',
+  'teamContext.preview.disabledReason':
+    'Change a section before asking for the prompt.',
   'teamContext.preview.previewing': 'Assembling…',
   'teamContext.preview.first':
     'See the prompt before saving it. This text is sent on every model call of every investigation.',

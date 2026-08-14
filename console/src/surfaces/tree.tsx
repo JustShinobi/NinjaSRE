@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { Breadcrumb } from '@/components/navigation';
 import { dataOf, list, optionalRead, read, text } from './read';
 
 /**
@@ -172,5 +173,31 @@ export function OrgTree({ nodes, selected, hrefFor, label }: OrgTreeProps): Reac
         ))}
       </ul>
     </nav>
+  );
+}
+
+/**
+ * The Organisation panel's own body: the tree, or — with nothing to
+ * navigate — the breadcrumb that says so.
+ *
+ * A tree earns the space it takes. One node is the common shape of a fresh
+ * or small deployment, and a nav-and-list rendering of a single node is a
+ * whole column spent on a name the panel's own title already gives; that
+ * case collapses to a breadcrumb instead, and `OrgTree` itself is drawn
+ * only where there is more than one node to choose between. Every screen
+ * that shows this panel — Team context today, Configuration alongside it —
+ * shares this one function rather than each keeping its own copy of the
+ * same two branches.
+ */
+export function OrgNav({ nodes, selected, hrefFor, label }: OrgTreeProps): ReactNode {
+  if (nodes.length > 1) {
+    return (
+      <OrgTree nodes={nodes} selected={selected} hrefFor={hrefFor} label={label} />
+    );
+  }
+  return (
+    <div data-testid="org-breadcrumb">
+      <Breadcrumb label={label} trail={nodes.map((node) => ({ label: node.name }))} />
+    </div>
   );
 }

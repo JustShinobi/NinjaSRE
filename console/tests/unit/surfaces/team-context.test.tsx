@@ -135,4 +135,47 @@ describe('an operating context nothing has written yet', () => {
     expect(empty).toBeDefined();
     expect(empty).toHaveTextContent('Container metrics come from the host, by vmid');
   });
+
+  it('keeps the same example visible once a starting document exists, before anything is written', async () => {
+    serveSingleNodeOrganisation({
+      sections: [],
+      template: [
+        {
+          name: 'signals',
+          body: 'Container metrics come from the host.',
+          provenance: '',
+        },
+      ],
+    });
+
+    await renderTeamContext();
+
+    // A node whose estate already produced a starting document is not "empty"
+    // in the panel's own sense — the editor renders directly, with zero rows —
+    // so the example has to come from the editor's own always-visible lead
+    // sentence rather than from the panel-level empty state above.
+    expect(screen.getByTestId('operating-context-editor')).toHaveTextContent(
+      'Container metrics come from the host, by vmid',
+    );
+  });
+});
+
+describe('the starting-document button', () => {
+  it('says what it does instead of the unexplained "Start from this"', async () => {
+    serveSingleNodeOrganisation({
+      sections: [],
+      template: [
+        {
+          name: 'signals',
+          body: 'Container metrics come from the host.',
+          provenance: '',
+        },
+      ],
+    });
+
+    await renderTeamContext();
+
+    expect(screen.queryByText('Start from this')).not.toBeInTheDocument();
+    expect(screen.getByTestId('use-template')).toHaveTextContent(/starting document/i);
+  });
 });

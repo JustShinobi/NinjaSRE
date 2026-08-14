@@ -18,7 +18,7 @@ import {
   read,
   stateOf,
 } from '../read';
-import { OrgTree, placedTree } from '../tree';
+import { OrgNav, placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
@@ -181,7 +181,7 @@ export async function ConfigurationScreen(context: SurfaceContext): Promise<Reac
               href: '/configuration',
             }}
           >
-            <OrgTree
+            <OrgNav
               nodes={placed}
               selected={selected}
               label={message(locale, 'configuration.tree.title')}

@@ -40,7 +40,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.catalogue': 'Catálogo',
   'nav.administration': 'Administração',
   'nav.configuration': 'Configuração',
-  'nav.teamContext': 'Contexto da equipa',
+  'nav.teamContext': 'Contexto da equipe',
   'nav.audit': 'Auditoria',
   'nav.data': 'Dados',
   'nav.open': 'Abrir a navegação',
@@ -241,9 +241,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.configuration.title': 'Configuração',
   'page.configuration.context':
     'A árvore da organização, e o resultado a que uma mudança nela levaria.',
-  'page.teamContext.title': 'Contexto da equipa',
+  'page.teamContext.title': 'Contexto da equipe',
   'page.teamContext.context':
-    'Factos sobre este ambiente de que toda investigação devia partir.',
+    'Fatos sobre este ambiente de que toda investigação devia partir.',
   'page.catalogue.title': 'Catálogo',
   'page.catalogue.context':
     'Todas as ferramentas e competências que esta instalação declara, e quais delas a sua equipe pode usar.',
@@ -892,23 +892,27 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.preview.empty.action': 'Ver os valores efetivos',
   'teamContext.sections.title': 'O que este ambiente é',
   'teamContext.sections.lead':
-    'Factos que um operador escreve uma vez e que entram no prompt de toda investigação. São acrescentados ao prompt distribuído, nunca no lugar dele — as substituições de prompt no ecrã de Configuração são a outra coisa, e essas substituem-no.',
+    'Fatos que um operador escreve uma vez e que entram no prompt de toda investigação. São acrescentados ao prompt distribuído, nunca no lugar dele — as substituições de prompt na tela de Configuração são a outra coisa, e essas substituem-no.',
   'teamContext.factNotInstruction':
-    'Escreva factos, não instruções. “As métricas de um contentor vêm do anfitrião, por vmid” muda como o agente lê o que observa; “reinicie sempre o serviço primeiro” é um procedimento, e um procedimento pertence a um runbook ou à política de autonomia, onde é auditável e reversível.',
+    'Escreva fatos, não instruções. “As métricas de um container vêm do host, por vmid” muda como o agente lê o que observa; “reinicie sempre o serviço primeiro” é um procedimento, e um procedimento pertence a um runbook ou à política de autonomia, onde é auditável e reversível.',
   'teamContext.runbooks': 'Os runbooks vivem em Conhecimento',
   'teamContext.policy': 'Os procedimentos vivem em Autonomia',
-  'teamContext.column.section': 'Secção',
+  'teamContext.column.section': 'Seção',
   'teamContext.column.body': 'O que diz',
   'teamContext.provenance': 'Definido em',
   'teamContext.budget': 'Orçamento do prompt',
   'teamContext.budgetUsed': '{used} de {budget} tokens',
+  'teamContext.budgetConsequence':
+    'O que ultrapassa o orçamento é recusado, não truncado.',
   'teamContext.overBudget':
     'Acima do orçamento. A instalação recusa isto enquanto não for mais curto.',
   'teamContext.disabled':
     'O contexto operacional está desligado neste nó. Fica guardado e nada é enviado.',
-  'teamContext.addSection': 'Acrescentar uma secção',
-  'teamContext.sectionName': 'Nome da secção',
-  'teamContext.remove': 'Limpar esta secção',
+  'teamContext.addSection': 'Acrescentar uma seção',
+  'teamContext.addSection.disabledReason':
+    'Digite um nome antes de acrescentar uma seção.',
+  'teamContext.sectionName': 'Nome da seção',
+  'teamContext.remove': 'Limpar esta seção',
   'teamContext.empty.heading': 'Ainda não há nada escrito aqui',
   'teamContext.empty.body':
     'Nenhum nível desta árvore escreveu contexto operacional, portanto cada investigação parte apenas do prompt distribuído. O documento inicial abaixo é derivado do que esta instalação já descobriu.',
@@ -916,19 +920,20 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'teamContext.template.title': 'Um ponto de partida, a partir do que já se sabe',
   'teamContext.template.lead':
     'Derivado do próprio parque desta instalação — os tipos que tem, as zonas em que os endereços estão, a fonte que responde a cada pergunta de sinal. Nada aqui fica escrito até guardar.',
-  'teamContext.template.use': 'Partir daqui',
+  'teamContext.template.use': 'Usar o documento inicial',
   'teamContext.preview.title': 'O que o modelo vai receber',
   'teamContext.preview.lead':
-    'O texto exacto que o prompt de sistema da próxima investigação vai levar, montado pela instalação. O botão de guardar aparece quando o tiver pedido.',
+    'O texto exato que o prompt de sistema da próxima investigação vai levar, montado pela instalação. O botão de guardar aparece quando o tiver pedido.',
   'teamContext.preview.submit': 'Mostrar-me o prompt',
-  'teamContext.preview.previewing': 'A montar…',
+  'teamContext.preview.disabledReason': 'Altere uma seção antes de pedir o prompt.',
+  'teamContext.preview.previewing': 'Montando…',
   'teamContext.preview.first':
     'Veja o prompt antes de o guardar. Este texto é enviado em cada chamada ao modelo de cada investigação.',
   'teamContext.save': 'Guardar',
-  'teamContext.saving': 'A guardar…',
+  'teamContext.saving': 'Guardando…',
   'teamContext.saved': 'Guardado. A próxima investigação leva isto.',
   'teamContext.failed': 'O deployment recusou este contexto.',
-  'teamContext.unreachable': 'Não foi possível contactar o deployment.',
+  'teamContext.unreachable': 'Não foi possível contatar o deployment.',
   'teamContext.roles': 'Enviado a',
 
   'configuration.editor.title': 'Mudar o que se aplica aqui',

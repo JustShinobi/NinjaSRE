@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import { Breadcrumb } from '@/components/navigation';
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
@@ -20,7 +19,7 @@ import {
   stateOf,
   text,
 } from '../read';
-import { OrgTree, placedTree } from '../tree';
+import { OrgNav, placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
@@ -101,26 +100,12 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
               href: '/team-context',
             }}
           >
-            {/* A tree earns the space it takes. One node — the common case for a
-                deployment with a single team — has nothing to navigate, and a
-                nav-and-list rendering of it is a whole column spent on a name
-                already in the panel's own title. That case collapses to a
-                breadcrumb; the tree itself is drawn only where there is one. */}
-            {placed.length > 1 ? (
-              <OrgTree
-                nodes={placed}
-                selected={selected}
-                label={message(locale, 'configuration.tree.title')}
-                hrefFor={(id) => `/team-context?node=${encodeURIComponent(id)}`}
-              />
-            ) : (
-              <div data-testid="org-breadcrumb">
-                <Breadcrumb
-                  label={message(locale, 'configuration.tree.title')}
-                  trail={placed.map((node) => ({ label: node.name }))}
-                />
-              </div>
-            )}
+            <OrgNav
+              nodes={placed}
+              selected={selected}
+              label={message(locale, 'configuration.tree.title')}
+              hrefFor={(id) => `/team-context?node=${encodeURIComponent(id)}`}
+            />
           </Panel>
         </div>
 
@@ -161,8 +146,13 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
                 provenance: message(locale, 'teamContext.provenance'),
                 budget: message(locale, 'teamContext.budget'),
                 budgetUsed: message(locale, 'teamContext.budgetUsed'),
+                budgetConsequence: message(locale, 'teamContext.budgetConsequence'),
                 overBudget: message(locale, 'teamContext.overBudget'),
                 addSection: message(locale, 'teamContext.addSection'),
+                addSectionDisabledReason: message(
+                  locale,
+                  'teamContext.addSection.disabledReason',
+                ),
                 sectionName: message(locale, 'teamContext.sectionName'),
                 remove: message(locale, 'teamContext.remove'),
                 factNotInstruction: message(locale, 'teamContext.factNotInstruction'),
@@ -171,6 +161,10 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
                 previewTitle: message(locale, 'teamContext.preview.title'),
                 previewLead: message(locale, 'teamContext.preview.lead'),
                 submit: message(locale, 'teamContext.preview.submit'),
+                previewDisabledReason: message(
+                  locale,
+                  'teamContext.preview.disabledReason',
+                ),
                 previewing: message(locale, 'teamContext.preview.previewing'),
                 previewFirst: message(locale, 'teamContext.preview.first'),
                 save: message(locale, 'teamContext.save'),
@@ -180,6 +174,7 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
                 unreachable: message(locale, 'teamContext.unreachable'),
                 roles: message(locale, 'teamContext.roles'),
                 templateUse: message(locale, 'teamContext.template.use'),
+                templateLead: message(locale, 'teamContext.template.lead'),
               }}
             />
           </Panel>

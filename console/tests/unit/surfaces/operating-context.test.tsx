@@ -83,8 +83,10 @@ const LABELS = {
   provenance: 'Set at',
   budget: 'Prompt budget',
   budgetUsed: '{used} of {budget} tokens',
+  budgetConsequence: 'What goes over budget is refused, not truncated.',
   overBudget: 'Over the budget.',
   addSection: 'Add a section',
+  addSectionDisabledReason: 'Type a name before adding a section.',
   sectionName: 'Section name',
   remove: 'Clear this section',
   factNotInstruction: 'Write facts, not instructions.',
@@ -93,6 +95,7 @@ const LABELS = {
   previewTitle: 'What the model will be sent',
   previewLead: 'The exact text the next investigation will carry.',
   submit: 'Show me the prompt',
+  previewDisabledReason: 'Change a section before asking for the prompt.',
   previewing: 'Assembling…',
   previewFirst: 'See the prompt before saving it.',
   save: 'Save',
@@ -101,7 +104,8 @@ const LABELS = {
   failed: 'The deployment refused this context.',
   unreachable: 'The deployment could not be reached.',
   roles: 'Sent to',
-  templateUse: 'Start from this',
+  templateUse: 'Use the starting document',
+  templateLead: 'Derived from your own estate; nothing is written until you save it.',
 };
 
 const SECTIONS: readonly ContextSection[] = [
@@ -203,6 +207,26 @@ it('shows what the context costs against the budget the deployment declares', ()
   expect(screen.getByTestId('context-budget')).toHaveTextContent('240 of 1200 tokens');
 });
 
+it('explains the consequence of the budget before anybody is anywhere near it', () => {
+  editor();
+
+  expect(screen.getByTestId('context-budget-consequence')).toHaveTextContent(
+    LABELS.budgetConsequence,
+  );
+});
+
+it('keeps explaining the consequence once the budget is actually exceeded', async () => {
+  answerWith(REFUSED);
+  editor();
+
+  await editSection('network', 'a very long section');
+  await userEvent.click(screen.getByTestId('ask-context-preview'));
+
+  expect(screen.getByTestId('context-budget-consequence')).toHaveTextContent(
+    LABELS.budgetConsequence,
+  );
+});
+
 it('leaves a reader the text and none of the controls', () => {
   editor({ writable: false });
 
@@ -216,6 +240,23 @@ it('will not preview at all until something has been changed', () => {
   editor();
 
   expect(screen.getByTestId('ask-context-preview')).toBeDisabled();
+});
+
+it('explains why "Show me the prompt" is disabled before anything has changed', () => {
+  editor();
+
+  expect(screen.getByTestId('ask-context-preview')).toHaveAttribute(
+    'title',
+    LABELS.previewDisabledReason,
+  );
+});
+
+it('carries no disabled explanation once there is something to preview', async () => {
+  editor();
+  await editSection('network', 'MTU is 1450 over a 1450 underlay.');
+
+  expect(screen.getByTestId('ask-context-preview')).not.toBeDisabled();
+  expect(screen.getByTestId('ask-context-preview')).not.toHaveAttribute('title');
 });
 
 it('shows the prompt the deployment assembled, not one it built itself', async () => {
@@ -324,6 +365,15 @@ it('offers the derived template only where the deployment sent one', () => {
   expect(screen.queryByTestId('use-template')).not.toBeInTheDocument();
 });
 
+it('names what the starting-document button does, rather than "start from this"', () => {
+  editor({ sections: [], template: TEMPLATE });
+
+  const button = screen.getByTestId('use-template');
+  expect(button).toHaveTextContent(LABELS.templateUse);
+  expect(button.textContent).not.toBe('Start from this');
+  expect(button).toHaveAttribute('title', LABELS.templateLead);
+});
+
 it('fills the sections from the template rather than saving it', async () => {
   editor({ sections: [], template: TEMPLATE });
 
@@ -404,4 +454,22 @@ it('adds a section by name', async () => {
     'data-section',
     'change windows',
   );
+});
+
+it('explains why "Add a section" is disabled before a name is typed', () => {
+  editor({ sections: [] });
+
+  expect(screen.getByTestId('add-section')).toHaveAttribute(
+    'title',
+    LABELS.addSectionDisabledReason,
+  );
+});
+
+it('carries no disabled explanation once a name has been typed', async () => {
+  editor({ sections: [] });
+
+  await userEvent.type(screen.getByLabelText(LABELS.sectionName), 'change windows');
+
+  expect(screen.getByTestId('add-section')).not.toBeDisabled();
+  expect(screen.getByTestId('add-section')).not.toHaveAttribute('title');
 });
