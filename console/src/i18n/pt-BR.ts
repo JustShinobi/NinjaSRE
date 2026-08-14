@@ -566,7 +566,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'As mudanças de estado são registadas aqui à medida que acontecem. Este incidente não teve nenhuma desde que abriu.',
   'incident.timeline.empty.action': 'Voltar à lista de incidentes',
 
-  'approvals.title': 'À espera de uma decisão',
+  'approvals.title': 'Ações aguardando aprovação',
   'approvals.group.overdue': 'Depois do prazo',
   'approvals.group.today': 'À espera hoje',
   'approvals.group.later': 'À espera há mais tempo',
@@ -1294,7 +1294,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.data.context':
     'O que entra, o que se faz com isso, e para onde vai o resultado.',
   // --- Changes the agent has proposed ------------------------------------------
-  'proposals.title': 'Mudanças propostas pelo agente',
+  // O painel abaixo é todo o conteúdo desta tela, não uma subvisão filtrada —
+  // então o próprio título nomeia o mesmo conceito que o menu e o título da
+  // página já usam, em vez de uma segunda forma de dizer a mesma coisa.
+  'proposals.title': 'Mudanças propostas',
   'proposals.empty.heading': 'O agente não propôs nada',
   'proposals.empty.body':
     'As propostas vêm das investigações e das verificações documentadas no seu repositório. Nada aqui é aplicado sem a sua aprovação.',

@@ -677,7 +677,7 @@ export const EN = {
   'incident.timeline.empty.action': 'Back to the incident list',
 
   // --- Approvals ---------------------------------------------------------------------
-  'approvals.title': 'Waiting on a decision',
+  'approvals.title': 'Actions awaiting approval',
   'approvals.group.overdue': 'Past its expiry',
   'approvals.group.today': 'Waiting today',
   'approvals.group.later': 'Waiting longer',
@@ -1375,7 +1375,10 @@ export const EN = {
   'live.investigate.caveat':
     'Quality depends on what is connected. With no integration configured the agent reasons and consults nothing.',
   // --- Changes the agent has proposed ------------------------------------------
-  'proposals.title': 'Changes the agent has proposed',
+  // The panel below is the whole of this page's content, not a filtered
+  // sub-view — so its own heading names the same concept the sidebar and the
+  // page title already do, rather than a second phrasing of it.
+  'proposals.title': 'Proposed changes',
   'proposals.empty.heading': 'The agent has proposed nothing',
   'proposals.empty.body':
     'Proposals arrive from investigations and from the documented checks in your corpus. Nothing here is applied until you approve it.',

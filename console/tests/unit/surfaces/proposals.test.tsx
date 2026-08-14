@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { serveScenario } from '../support/dataset';
@@ -15,11 +15,14 @@ import { serveScenario } from '../support/dataset';
  * The acceptance figure carries both numbers rather than a percentage, because
  * sixty per cent of five and sixty per cent of two hundred are different facts.
  *
- * Two more things this screen has to get right, alongside Approvals:
+ * Three more things this screen has to get right, alongside Approvals:
  * - it points a reader who may see the other queue at it, and says nothing to
- *   one who may not (spec 034, item 2);
+ *   one who may not;
+ * - it names itself once — the sidebar, the page title and the one panel on
+ *   this page agree, rather than the panel offering a second phrasing of the
+ *   same concept the header just named;
  * - its empty state names where a proposal comes from, and prefers the setup
- *   cause when the deployment has never investigated at all (spec 034, item 3).
+ *   cause when the deployment has never investigated at all.
  */
 
 vi.mock('next/headers', () => ({
@@ -79,6 +82,19 @@ describe('the proposal queue', () => {
     await renderQueue();
 
     expect(screen.getByTestId('acceptance')).toHaveTextContent('3 of 5');
+  });
+
+  it('names its one panel the same thing the sidebar and the page title already do', async () => {
+    await renderQueue();
+
+    // The page header already says "Proposed changes" (nav.proposals /
+    // page.proposals.title). The panel beneath it is the whole of this
+    // page's content — not a filtered sub-view the way "Episodes" is one of
+    // two panels on Memory — so a different construction of the same three
+    // words here is a second name for one concept, not a more specific one.
+    const panel = screen.getByTestId('panel');
+    expect(within(panel).getByText('Proposed changes')).toBeInTheDocument();
+    expect(screen.queryByText('Changes the agent has proposed')).toBeNull();
   });
 });
 
