@@ -790,7 +790,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'autonomy.rules.title': 'Regras, por ordem de resolução',
   'autonomy.column.scope': 'Âmbito',
-  'autonomy.column.matcher': 'Selector',
+  'autonomy.column.matcher': 'Seletor',
   'autonomy.column.level': 'Nível',
   'autonomy.column.risk': 'Limite de risco',
   'autonomy.column.applies': 'Aplica-se a',
@@ -808,11 +808,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.editor.failed': 'O deployment recusou esta postura.',
   'autonomy.editor.unreachable': 'Não foi possível alcançar o deployment.',
   'autonomy.editor.previewFirst':
-    'Veja o que isto teria decidido de forma diferente antes de guardar. A lista do que passa a ser autónomo é a metade que importa ler.',
+    'Veja o que isto teria decidido de forma diferente antes de guardar. A lista do que passa a ser autônomo é a metade que importa ler.',
   'autonomy.editor.considered': 'Consideradas',
   'autonomy.editor.changed': 'Decididas diferente',
-  'autonomy.editor.newlyAutonomous': 'Passam a autónomas',
-  'autonomy.editor.nothingChanges': 'Nada passaria a ser mais autónomo.',
+  'autonomy.editor.newlyAutonomous': 'Passam a autônomas',
+  'autonomy.editor.nothingChanges': 'Nada passaria a ser mais autônomo.',
   'autonomy.editor.dryRunOn': 'Simular tudo',
   'autonomy.editor.dryRunOff': 'Parar de simular',
   'autonomy.editor.dryRunBanner':
@@ -825,8 +825,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.override.panel.title': 'Conceder ou revogar uma exceção',
   'autonomy.override.grant.title': 'Conceder uma exceção',
   'autonomy.override.grant.name': 'Nome',
+  'autonomy.override.grant.nameHelp':
+    'Um identificador curto para esta exceção, único neste nó. Aparece na trilha de auditoria e é o nome que uma revogação usa.',
   'autonomy.override.grant.level': 'Nível',
   'autonomy.override.grant.reason': 'Motivo',
+  'autonomy.override.grant.reasonHelp':
+    'Registrado na trilha de auditoria junto com a exceção, para quem for revisá-la depois.',
+  'autonomy.override.grant.duration': 'Duração',
+  'autonomy.override.grant.durationDefault': 'Padrão (2 horas)',
+  'autonomy.override.grant.durationOneHour': '1 hora',
+  'autonomy.override.grant.durationEightHours': '8 horas',
+  'autonomy.override.grant.durationTwentyFourHours': '24 horas',
+  'autonomy.override.grant.durationCustom': 'Duração personalizada…',
   'autonomy.override.grant.seconds': 'Segundos (opcional)',
   'autonomy.override.grant.submit': 'Conceder',
   'autonomy.override.grant.granting': 'Concedendo…',
@@ -834,7 +844,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.override.grant.reasonRequired':
     'É preciso um motivo antes que isto possa ser concedido.',
   'autonomy.override.revoke.title': 'Revogar uma exceção',
-  'autonomy.override.revoke.name': 'Nome da exceção',
+  'autonomy.override.revoke.empty': 'Nenhuma exceção está ativa neste nó agora.',
   'autonomy.override.revoke.submit': 'Revogar',
   'autonomy.override.revoke.revoking': 'Revogando…',
   'autonomy.override.revoke.revoked': 'Revogada.',
@@ -848,10 +858,16 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.preview.lead':
     'O que a mudança pendente teria feito contra o histórico registado.',
   'autonomy.preview.apply': 'Aplicar esta postura',
-  'autonomy.empty.heading': 'Nenhuma política registada',
+  'autonomy.empty.heading': 'Nenhuma política registrada',
   'autonomy.empty.body':
-    'Sem regra registada, tudo resolve para apenas-propor. Esse é o comportamento seguro, não um erro.',
+    'Sem regra registrada, tudo resolve para apenas-propor. Esse é o comportamento seguro, não um erro.',
   'autonomy.empty.action': 'Ver a configuração',
+  'autonomy.glossary.rule':
+    'Uma regra decide o que este deployment pode fazer para um âmbito, do deployment inteiro até um único recurso — lida em ordem, da menos específica à mais específica.',
+  'autonomy.glossary.bound':
+    'Um limite é um teto que nenhuma regra ultrapassa — a parada de emergência, uma janela de congelamento, um teto de gasto — verificado depois que uma regra decide, e capaz de recusar o que ela decidiu.',
+  'autonomy.glossary.override':
+    'Uma exceção é um aumento temporário e justificado do nível de um âmbito, concedida em registro e encerrada assim que expira ou é revogada.',
 
   'configuration.tree.title': 'Organização',
   'configuration.values.title': 'Configuração efectiva',

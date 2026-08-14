@@ -11,7 +11,7 @@ import { KillSwitchControl } from '@/shell/stop';
 import type { SurfaceContext } from '../context';
 import { AutonomyEditor, type EditableRule } from '../autonomy-editor';
 import { panelLabels } from '../labels';
-import { OverrideEditor } from '../override-editor';
+import { OverrideEditor, type ActiveOverride } from '../override-editor';
 import { Panel } from '../panel';
 import { postureLabels } from '../postures';
 import {
@@ -75,6 +75,18 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
  * than restate that in the screen's own words, the stopped row renders the
  * shell's own kill-switch control, so resuming automation is available exactly
  * where an operator is already looking at what automation may do.
+ *
+ * **The vocabulary is stated, not assumed.** A rule, a bound and an override
+ * are used throughout this page before anything else on it explains them, so
+ * three lines at the top say what each one is — the same three words the rest
+ * of the screen already uses, not a fourth set invented for the glossary.
+ *
+ * **An override is revoked by clicking it, never by typing its name.** Every
+ * override this node's bounds report — the informational row above and the
+ * revocable one beside it — is resolved once, here, into `activeOverrides`,
+ * so a reader sees the same expiry either place and a click always names
+ * something the deployment can actually find; there is nothing to remember
+ * or mistype.
  */
 
 export const AUTONOMY_FILTERS: readonly FilterName[] = ['node'];
@@ -190,6 +202,23 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const overrides = list(dataOf(bounds), 'overrides');
   const writable = may(viewer, WRITE);
 
+  // Resolved once, here, where the locale and the clock are — the override
+  // editor is a client component with neither. Feeds both the read-only row
+  // below and the revoke list beside it, so the two can never format the same
+  // override's expiry two different ways.
+  const activeOverrides: readonly ActiveOverride[] = overrides.map((override) => {
+    const expires = timestamp(locale, text(override, 'expires_at'), now, zone);
+    return {
+      name: text(override, 'name'),
+      level: text(override, 'level'),
+      expiresIso: expires.iso,
+      expiresRelative: expires.relative,
+      expiresAbsolute: expires.absolute,
+      reason: text(override, 'reason'),
+      grantedBy: text(override, 'granted_by'),
+    };
+  });
+
   const rulesEmpty = rules.length === 0;
   const boundsEmpty =
     !stopped && freezes.length === 0 && budgets.length === 0 && overrides.length === 0;
@@ -237,6 +266,18 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
         // whose last step is blank reads as a page that lost its subject.
         nested={nodeId === '' ? [] : [{ label: nodeId }]}
       />
+
+      {/* What the rest of the page assumes an operator already knows. Three
+          lines, one per term, because the page uses all three below without
+          ever pausing to define them otherwise. */}
+      <div
+        data-testid="autonomy-glossary"
+        className="flex flex-col gap-1 text-meta text-muted mb-5 max-w-prose"
+      >
+        <p>{message(locale, 'autonomy.glossary.rule')}</p>
+        <p>{message(locale, 'autonomy.glossary.bound')}</p>
+        <p>{message(locale, 'autonomy.glossary.override')}</p>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2 min-w-0">
@@ -438,36 +479,31 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     </dd>
                   </div>
                 ))}
-                {overrides.map((override) => {
+                {activeOverrides.map((override) => {
                   // Duration and reason in the row itself. An override is a
                   // deliberate, temporary widening of what may happen without a
                   // person, and a list that showed only its name would make
                   // "until when, and who said so" a second lookup nobody makes.
-                  const expires = timestamp(
-                    locale,
-                    text(override, 'expires_at'),
-                    now,
-                    zone,
-                  );
                   return (
                     <div
-                      key={text(override, 'name')}
+                      key={override.name}
                       className="flex flex-wrap items-center gap-3"
                       data-testid="bound"
                       data-bound="override"
                     >
-                      <dt className="font-mono min-w-0 truncate">
-                        {text(override, 'name')}
-                      </dt>
+                      <dt className="font-mono min-w-0 truncate">{override.name}</dt>
                       <dd className="flex flex-wrap items-center gap-2">
-                        <Badge status={text(override, 'level')} />
+                        <Badge status={override.level} />
                         <span
                           className="text-meta text-muted"
                           data-testid="override-duration"
                         >
                           {message(locale, 'autonomy.override.duration')}{' '}
-                          <time dateTime={expires.iso} title={expires.absolute}>
-                            {expires.relative}
+                          <time
+                            dateTime={override.expiresIso}
+                            title={override.expiresAbsolute}
+                          >
+                            {override.expiresRelative}
                           </time>
                         </span>
                         <span
@@ -475,7 +511,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                           data-testid="override-reason"
                         >
                           {message(locale, 'autonomy.override.reason')}{' '}
-                          {text(override, 'reason')}
+                          {override.reason}
                         </span>
                       </dd>
                     </div>
@@ -506,11 +542,38 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 nodeId={nodeId}
                 levels={OVERRIDE_LEVELS}
                 levelLabels={postureLabels(locale, OVERRIDE_LEVELS)}
+                active={activeOverrides}
                 labels={{
                   grantTitle: message(locale, 'autonomy.override.grant.title'),
                   grantName: message(locale, 'autonomy.override.grant.name'),
+                  grantNameHelp: message(locale, 'autonomy.override.grant.nameHelp'),
                   grantLevel: message(locale, 'autonomy.override.grant.level'),
                   grantReason: message(locale, 'autonomy.override.grant.reason'),
+                  grantReasonHelp: message(
+                    locale,
+                    'autonomy.override.grant.reasonHelp',
+                  ),
+                  grantDuration: message(locale, 'autonomy.override.grant.duration'),
+                  grantDurationDefault: message(
+                    locale,
+                    'autonomy.override.grant.durationDefault',
+                  ),
+                  grantDurationOneHour: message(
+                    locale,
+                    'autonomy.override.grant.durationOneHour',
+                  ),
+                  grantDurationEightHours: message(
+                    locale,
+                    'autonomy.override.grant.durationEightHours',
+                  ),
+                  grantDurationTwentyFourHours: message(
+                    locale,
+                    'autonomy.override.grant.durationTwentyFourHours',
+                  ),
+                  grantDurationCustom: message(
+                    locale,
+                    'autonomy.override.grant.durationCustom',
+                  ),
                   grantSeconds: message(locale, 'autonomy.override.grant.seconds'),
                   grant: message(locale, 'autonomy.override.grant.submit'),
                   granting: message(locale, 'autonomy.override.grant.granting'),
@@ -520,7 +583,10 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     'autonomy.override.grant.reasonRequired',
                   ),
                   revokeTitle: message(locale, 'autonomy.override.revoke.title'),
-                  revokeName: message(locale, 'autonomy.override.revoke.name'),
+                  revokeEmpty: message(locale, 'autonomy.override.revoke.empty'),
+                  duration: message(locale, 'autonomy.override.duration'),
+                  reasonLabel: message(locale, 'autonomy.override.reason'),
+                  grantedBy: message(locale, 'autonomy.override.grantedBy'),
                   revoke: message(locale, 'autonomy.override.revoke.submit'),
                   revoking: message(locale, 'autonomy.override.revoke.revoking'),
                   revoked: message(locale, 'autonomy.override.revoke.revoked'),

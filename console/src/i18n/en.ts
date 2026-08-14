@@ -951,8 +951,18 @@ export const EN = {
   'autonomy.override.panel.title': 'Grant or revoke an override',
   'autonomy.override.grant.title': 'Grant an override',
   'autonomy.override.grant.name': 'Name',
+  'autonomy.override.grant.nameHelp':
+    'A short identifier for this override, unique on this node. It appears in the audit trail and is what a revoke names.',
   'autonomy.override.grant.level': 'Level',
   'autonomy.override.grant.reason': 'Reason',
+  'autonomy.override.grant.reasonHelp':
+    'Recorded in the audit trail beside the override, for whoever reviews it later.',
+  'autonomy.override.grant.duration': 'Duration',
+  'autonomy.override.grant.durationDefault': 'Default (2 hours)',
+  'autonomy.override.grant.durationOneHour': '1 hour',
+  'autonomy.override.grant.durationEightHours': '8 hours',
+  'autonomy.override.grant.durationTwentyFourHours': '24 hours',
+  'autonomy.override.grant.durationCustom': 'Custom duration…',
   'autonomy.override.grant.seconds': 'Seconds (optional)',
   'autonomy.override.grant.submit': 'Grant',
   'autonomy.override.grant.granting': 'Granting…',
@@ -960,7 +970,7 @@ export const EN = {
   'autonomy.override.grant.reasonRequired':
     'A reason is required before this can be granted.',
   'autonomy.override.revoke.title': 'Revoke an override',
-  'autonomy.override.revoke.name': 'Name of the override',
+  'autonomy.override.revoke.empty': 'No override is active on this node right now.',
   'autonomy.override.revoke.submit': 'Revoke',
   'autonomy.override.revoke.revoking': 'Revoking…',
   'autonomy.override.revoke.revoked': 'Revoked.',
@@ -978,6 +988,12 @@ export const EN = {
   'autonomy.empty.body':
     'With no rule recorded, everything resolves to propose-only. That is the safe default rather than an error.',
   'autonomy.empty.action': 'Look at the configuration',
+  'autonomy.glossary.rule':
+    'A rule decides what this deployment may do for one scope, from the whole deployment down to a single resource — read in order, least specific first.',
+  'autonomy.glossary.bound':
+    'A bound is a limit no rule can raise — the emergency stop, a freeze window, a spend cap — checked after a rule decides, and able to refuse it.',
+  'autonomy.glossary.override':
+    "An override is a temporary, reasoned raise of one scope's level, granted on the record and gone the moment it expires or is revoked.",
 
   // --- Configuration --------------------------------------------------------------------------
   'configuration.tree.title': 'Organisation',

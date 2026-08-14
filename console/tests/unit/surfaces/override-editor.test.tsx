@@ -1,18 +1,21 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { OverrideEditor } from '@/surfaces/override-editor';
+import { OverrideEditor, type ActiveOverride } from '@/surfaces/override-editor';
 
 /**
  * Widening autonomy for a while, on the record — and taking the widening away.
  *
  * The API refuses a grant with no reason outright, and the control refuses it
- * first: there is no code path here that sends one. Revoking takes only a name,
- * because the deployment is the one place that knows whether this node granted
- * it — asked for one it did not, it answers 404 naming where the override has
- * to be revoked instead, and that sentence is rendered exactly as it came back
- * rather than replaced with something this component made up about inheritance.
+ * first: there is no code path here that sends one. Revoking is a click on the
+ * override itself — the deployment is the one place that knows whether this
+ * node granted it, and every override this node's own bounds report is listed
+ * here with a button of its own, never a name typed from memory. Asked to
+ * revoke one it did not — an override inherited from above — it answers 404
+ * naming where the override has to be revoked instead, and that sentence is
+ * rendered exactly as it came back rather than replaced with something this
+ * component made up about inheritance.
  */
 
 let sent: { operation: string; payload: unknown }[] = [];
@@ -48,15 +51,26 @@ afterEach(() => {
 const LABELS = {
   grantTitle: 'Grant an override',
   grantName: 'Name',
+  grantNameHelp: 'A short identifier for this override, unique on this node.',
   grantLevel: 'Level',
   grantReason: 'Reason',
+  grantReasonHelp: 'Recorded in the audit trail beside the override.',
+  grantDuration: 'Duration',
+  grantDurationDefault: 'Default (2 hours)',
+  grantDurationOneHour: '1 hour',
+  grantDurationEightHours: '8 hours',
+  grantDurationTwentyFourHours: '24 hours',
+  grantDurationCustom: 'Custom duration…',
   grantSeconds: 'Seconds (optional)',
   grant: 'Grant',
   granting: 'Granting…',
   granted: 'Granted. It will expire on its own.',
   reasonRequired: 'A reason is required before this can be granted.',
   revokeTitle: 'Revoke an override',
-  revokeName: 'Name of the override',
+  revokeEmpty: 'No override is active on this node right now.',
+  duration: 'Expires',
+  reasonLabel: 'Granted because',
+  grantedBy: 'Granted by',
   revoke: 'Revoke',
   revoking: 'Revoking…',
   revoked: 'Revoked.',
@@ -66,8 +80,27 @@ const LABELS = {
 
 const LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report'];
 
-function editor(): void {
-  render(<OverrideEditor nodeId="team-platform" levels={LEVELS} labels={LABELS} />);
+const ONE_ACTIVE: ActiveOverride = {
+  name: 'incident-widen',
+  level: 'act_and_report',
+  expiresIso: '2026-08-13T18:00:00.000Z',
+  expiresRelative: 'in 2 hours',
+  expiresAbsolute: 'Aug 13, 2026, 6:00 PM UTC',
+  reason: 'restoring a paged service',
+  grantedBy: 'user-operator',
+};
+
+const ACTIVE: readonly ActiveOverride[] = [ONE_ACTIVE];
+
+function editor(active: readonly ActiveOverride[] = []): void {
+  render(
+    <OverrideEditor
+      nodeId="team-platform"
+      levels={LEVELS}
+      active={active}
+      labels={LABELS}
+    />,
+  );
 }
 
 describe('granting an override', () => {
@@ -92,7 +125,7 @@ describe('granting an override', () => {
     expect(screen.queryByTestId('override-reason-required')).toBeNull();
   });
 
-  it('sends the name, level and reason once both are given', async () => {
+  it('sends the name, level and reason once both are given, and nothing for a duration left at the default', async () => {
     editor();
 
     await userEvent.type(screen.getByLabelText('Name'), 'incident-widen');
@@ -111,11 +144,52 @@ describe('granting an override', () => {
     expect(Reflect.get(Object(request?.payload), 'seconds')).toBeUndefined();
   });
 
-  it('carries seconds when a duration was given', async () => {
+  it('sends the preset’s own seconds once a duration is chosen', async () => {
     editor();
 
     await userEvent.type(screen.getByLabelText('Name'), 'incident-widen');
     await userEvent.type(screen.getByLabelText('Reason'), 'restoring a paged service');
+    await userEvent.selectOptions(screen.getByLabelText('Duration'), '8 hours');
+    await userEvent.click(screen.getByTestId('grant-override'));
+
+    const request = sent.find((each) => each.operation === 'override');
+    expect(Reflect.get(Object(request?.payload), 'seconds')).toBe(8 * 60 * 60);
+  });
+
+  it('sends the twenty-four-hour preset at the deployment’s own ceiling', async () => {
+    editor();
+
+    await userEvent.type(screen.getByLabelText('Name'), 'incident-widen');
+    await userEvent.type(screen.getByLabelText('Reason'), 'restoring a paged service');
+    await userEvent.selectOptions(screen.getByLabelText('Duration'), '24 hours');
+    await userEvent.click(screen.getByTestId('grant-override'));
+
+    const request = sent.find((each) => each.operation === 'override');
+    expect(Reflect.get(Object(request?.payload), 'seconds')).toBe(24 * 60 * 60);
+  });
+
+  it('reveals a plain seconds field only once a custom duration is chosen', async () => {
+    editor();
+
+    expect(screen.queryByLabelText('Seconds (optional)')).toBeNull();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText('Duration'),
+      'Custom duration…',
+    );
+
+    expect(screen.getByLabelText('Seconds (optional)')).toBeInTheDocument();
+  });
+
+  it('carries the custom seconds typed once a custom duration is chosen', async () => {
+    editor();
+
+    await userEvent.type(screen.getByLabelText('Name'), 'incident-widen');
+    await userEvent.type(screen.getByLabelText('Reason'), 'restoring a paged service');
+    await userEvent.selectOptions(
+      screen.getByLabelText('Duration'),
+      'Custom duration…',
+    );
     await userEvent.type(screen.getByLabelText('Seconds (optional)'), '900');
     await userEvent.click(screen.getByTestId('grant-override'));
 
@@ -123,11 +197,15 @@ describe('granting an override', () => {
     expect(Reflect.get(Object(request?.payload), 'seconds')).toBe(900);
   });
 
-  it('omits seconds rather than sending one it could not parse', async () => {
+  it('omits seconds rather than sending a custom one it could not parse', async () => {
     editor();
 
     await userEvent.type(screen.getByLabelText('Name'), 'incident-widen');
     await userEvent.type(screen.getByLabelText('Reason'), 'restoring a paged service');
+    await userEvent.selectOptions(
+      screen.getByLabelText('Duration'),
+      'Custom duration…',
+    );
     // A lone minus sign is a valid, incomplete number-field value in the DOM,
     // and `Number('-')` is not finite — the branch a normal keystroke sequence
     // never reaches.
@@ -138,6 +216,18 @@ describe('granting an override', () => {
 
     const request = sent.find((each) => each.operation === 'override');
     expect(Reflect.get(Object(request?.payload), 'seconds')).toBeUndefined();
+  });
+
+  it('names what the identifier is for, before anything is typed', () => {
+    editor();
+
+    expect(screen.getByText(LABELS.grantNameHelp)).toBeInTheDocument();
+  });
+
+  it('says the reason is recorded in the audit trail', () => {
+    editor();
+
+    expect(screen.getByText(LABELS.grantReasonHelp)).toBeInTheDocument();
   });
 
   it('reports success and clears the form for the next one', async () => {
@@ -195,43 +285,66 @@ describe('granting an override', () => {
   });
 });
 
-describe('revoking an override', () => {
-  it('will not revoke until an override has been named', () => {
-    editor();
+describe('revoking an active override', () => {
+  it('says there is nothing to revoke when none is active, and offers no name to type', () => {
+    editor([]);
 
-    expect(screen.getByTestId('revoke-override')).toBeDisabled();
+    expect(screen.getByTestId('override-revoke-empty')).toHaveTextContent(
+      LABELS.revokeEmpty,
+    );
+    expect(screen.queryByTestId('revoke-override')).toBeNull();
+    expect(screen.queryByLabelText('Name of the override')).toBeNull();
   });
 
-  it('names the override in the request, and nothing else', async () => {
-    editor();
+  it('lists every active override with its own revoke button, no name to type from memory', () => {
+    editor(ACTIVE);
 
-    await userEvent.type(
-      screen.getByLabelText('Name of the override'),
-      'incident-widen',
-    );
+    expect(screen.queryByTestId('override-revoke-empty')).toBeNull();
+    expect(screen.queryByLabelText('Name of the override')).toBeNull();
+    const row = screen.getByTestId('active-override');
+    expect(row).toHaveTextContent('incident-widen');
+    expect(row).toHaveTextContent('restoring a paged service');
+    expect(row).toHaveTextContent('user-operator');
+    expect(screen.getByTestId('revoke-override')).toBeInTheDocument();
+  });
+
+  it('names the override the clicked row is for, and nothing else', async () => {
+    editor(ACTIVE);
+
     await userEvent.click(screen.getByTestId('revoke-override'));
 
     const request = sent.find((each) => each.operation === 'revoke-override');
     expect(request?.payload).toEqual({ name: 'incident-widen' });
   });
 
-  it('reports success, and clears the name for the next one', async () => {
-    editor();
+  it('reports success and removes the revoked override from its own list', async () => {
+    editor(ACTIVE);
 
-    await userEvent.type(
-      screen.getByLabelText('Name of the override'),
-      'incident-widen',
-    );
     await userEvent.click(screen.getByTestId('revoke-override'));
 
     expect(await screen.findByTestId('override-revoked')).toHaveTextContent(
       LABELS.revoked,
     );
-    expect(screen.getByLabelText('Name of the override')).toHaveValue('');
+    expect(screen.queryByTestId('active-override')).toBeNull();
+    expect(screen.getByTestId('override-revoke-empty')).toBeInTheDocument();
+  });
+
+  it('revokes only the row that was clicked, leaving the others listed', async () => {
+    editor([ONE_ACTIVE, { ...ONE_ACTIVE, name: 'incident-widen-2' }]);
+
+    expect(screen.getAllByTestId('active-override')).toHaveLength(2);
+
+    const firstRow = screen.getByText('incident-widen').closest('li');
+    if (firstRow === null) throw new Error('expected a row for incident-widen');
+    await userEvent.click(within(firstRow).getByTestId('revoke-override'));
+    await screen.findByTestId('override-revoked');
+
+    expect(screen.getAllByTestId('active-override')).toHaveLength(1);
+    expect(screen.getByText('incident-widen-2')).toBeInTheDocument();
   });
 
   it('renders the deployment’s own words for an override this node never granted', async () => {
-    editor();
+    editor(ACTIVE);
     // The deployment's actual wording for this case, rendered verbatim rather
     // than a sentence this component invented about inheritance.
     answerWith(
@@ -240,23 +353,17 @@ describe('revoking an override', () => {
       'this node granted no override named incident-widen; an inherited override is revoked at the node that granted it',
     );
 
-    await userEvent.type(
-      screen.getByLabelText('Name of the override'),
-      'incident-widen',
-    );
     await userEvent.click(screen.getByTestId('revoke-override'));
 
     expect(await screen.findByTestId('override-revoke-failure')).toHaveTextContent(
       'is revoked at the node that granted it',
     );
+    // A refusal never removes the row silently: it is still there to retry.
+    expect(screen.getByTestId('active-override')).toBeInTheDocument();
   });
 
   it('says the deployment could not be reached', async () => {
-    editor();
-    await userEvent.type(
-      screen.getByLabelText('Name of the override'),
-      'incident-widen',
-    );
+    editor(ACTIVE);
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')));
 
     await userEvent.click(screen.getByTestId('revoke-override'));

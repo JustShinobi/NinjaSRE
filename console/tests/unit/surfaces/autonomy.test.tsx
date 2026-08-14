@@ -167,6 +167,62 @@ describe('a node with no rule and no bound recorded', () => {
   });
 });
 
+describe('the vocabulary this screen assumes an operator already has', () => {
+  it('defines a rule, a bound and an override in the reader’s own words, near the top of the page', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy();
+
+    const glossary = screen.getByTestId('autonomy-glossary');
+    expect(glossary).toHaveTextContent(/rule/i);
+    expect(glossary).toHaveTextContent(/bound/i);
+    expect(glossary).toHaveTextContent(/override/i);
+  });
+});
+
+describe('an active override on the bounds this node holds', () => {
+  it('is shown to a writer with its own revoke button, never a name typed from memory', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: {
+        ...EMPTY_BOUNDS,
+        overrides: [
+          {
+            name: 'incident-widen',
+            scope: { kind: 'deployment' },
+            level: 'act_and_report',
+            risk_bound: 'low',
+            expires_at: '2026-08-14T00:00:00Z',
+            granted_by: 'user-operator',
+            reason: 'restoring a paged service',
+          },
+        ],
+      },
+    });
+
+    await renderAutonomy();
+
+    expect(screen.queryByTestId('override-revoke-empty')).not.toBeInTheDocument();
+    // Specifically the row *inside the revoke section*, not the read-only
+    // mention of the same override in the bounds panel above it — a test that
+    // only checked for the name anywhere on the page would pass against the
+    // unmodified free-text control too, since that name is already shown
+    // there.
+    const row = screen.getByTestId('active-override');
+    expect(row).toHaveTextContent('incident-widen');
+    expect(screen.getByTestId('revoke-override')).toBeInTheDocument();
+  });
+
+  it('says there is nothing to revoke for a node with none active', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy();
+
+    expect(screen.queryByTestId('revoke-override')).not.toBeInTheDocument();
+    expect(screen.getByTestId('override-revoke-empty')).toBeInTheDocument();
+  });
+});
+
 describe('a deployment with no organisation tree at all', () => {
   it('shows exactly one empty panel and nothing that needs a node', async () => {
     serveAutonomy({
