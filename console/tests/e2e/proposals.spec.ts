@@ -6,12 +6,13 @@ import { signIn } from './session';
  * Approving without having looked, attempted in a browser.
  *
  * The component test proves the control is absent until the effect has
- * rendered. What it cannot prove is that a person arriving at `/proposals` has
- * no other way through: no second approve button further down the page, no
- * form that submits on Enter, nothing that a keyboard reaches and a render
- * assertion does not. So this drives the bypass — land on the queue, look for
- * something to approve with, and require that there is nothing — and then walks
- * the intended path to be sure the absence is a guarantee rather than a bug.
+ * rendered. What it cannot prove is that a person arriving at the Changes tab
+ * of Decisions has no other way through: no second approve button further
+ * down the page, no form that submits on Enter, nothing that a keyboard
+ * reaches and a render assertion does not. So this drives the bypass — land
+ * on the queue, look for something to approve with, and require that there is
+ * nothing — and then walks the intended path to be sure the absence is a
+ * guarantee rather than a bug.
  */
 
 test.beforeEach(async ({ context, baseURL }) => {
@@ -21,7 +22,7 @@ test.beforeEach(async ({ context, baseURL }) => {
 test('the queue offers nothing to approve with before the effect has rendered', async ({
   page,
 }) => {
-  await page.goto('/proposals');
+  await page.goto('/decisions?tab=changes');
 
   const items = page.getByTestId('proposal-item');
   await expect(items.first()).toBeVisible();
@@ -39,7 +40,7 @@ test('the queue offers nothing to approve with before the effect has rendered', 
 test('the approval appears once the deployment has said what would change', async ({
   page,
 }) => {
-  await page.goto('/proposals');
+  await page.goto('/decisions?tab=changes');
 
   await page.getByTestId('show-effect').first().click();
 
@@ -50,7 +51,7 @@ test('the approval appears once the deployment has said what would change', asyn
 test('each proposal carries the investigation it came out of, as a link', async ({
   page,
 }) => {
-  await page.goto('/proposals');
+  await page.goto('/decisions?tab=changes');
 
   const origin = page.getByTestId('origin-run').first();
   await expect(origin).toBeVisible();

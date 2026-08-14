@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { TabLinks } from '@/components';
 import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
@@ -23,10 +24,12 @@ import {
 } from '../read';
 import { RowList, type ListRow } from '../rows';
 import { readViewState, type FilterName } from '../url-state';
+import { LearnedTab } from './memory';
+import { TopologyTab } from './topology';
 
 /**
- * The documents an investigation is allowed to read, and the changes one has
- * proposed to them.
+ * The "Documents" tab of Knowledge: the documents an investigation is allowed
+ * to read, and the changes one has proposed to them.
  *
  * **Nothing on this screen uploads, pastes, or connects a source.** There is
  * no such control anywhere in this console, so the empty state must not
@@ -41,15 +44,19 @@ import { readViewState, type FilterName } from '../url-state';
  * **The proposal panel is a pointer, not a second list.** `/v1/proposals`
  * already carries knowledge-typed entries beside detector and configuration
  * ones — reviewing what an agent wants to write down happens in the one
- * queue every proposal waits in. Rendering a second, silent copy of it here
- * would be a queue that could disagree with the one a reviewer actually
- * decides on.
+ * queue every proposal waits in, now the "Changes proposed" tab of Decisions.
+ * Rendering a second, silent copy of it here would be a queue that could
+ * disagree with the one a reviewer actually decides on.
+ *
+ * One of three tabs Knowledge asks about the same environment — learned,
+ * documented, observed — so `screens/knowledge.tsx` renders this beside
+ * `memory.tsx`'s and `topology.tsx`'s own content.
  */
 
-export const KNOWLEDGE_FILTERS: readonly FilterName[] = ['kind'];
+export const KNOWLEDGE_FILTERS: readonly FilterName[] = ['tab', 'kind'];
 
 /** Where every proposal — knowledge included — is reviewed and decided. */
-const PROPOSALS_HREF = '/proposals';
+const PROPOSALS_HREF = '/decisions?tab=changes';
 
 /**
  * The "Proposed by an agent" panel's own state.
@@ -60,7 +67,7 @@ const PROPOSALS_HREF = '/proposals';
  */
 const PROPOSALS_POINTER: PanelData<undefined> = { status: 'ready', data: undefined };
 
-export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNode> {
+export async function DocumentsTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, KNOWLEDGE_FILTERS);
 
@@ -98,7 +105,7 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
   const none = message(locale, 'surface.none');
   const rows: readonly ListRow[] = filtered.map((record) => ({
     id: text(record, 'document_id'),
-    href: `/knowledge?selected=${text(record, 'document_id')}`,
+    href: `/knowledge?tab=documents&selected=${text(record, 'document_id')}`,
     cells: [
       { kind: 'text', text: text(record, 'title') },
       { kind: 'muted', text: kindOf(record) === '' ? none : kindOf(record) },
@@ -111,8 +118,6 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
 
   return (
     <>
-      <AreaHeader area={areaFor('knowledge')} locale={locale} />
-
       <FilterBar
         path="/knowledge"
         state={state}
@@ -193,6 +198,65 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
           </a>
         </Panel>
       </div>
+    </>
+  );
+}
+
+/**
+ * What the agent knows about this environment, in three tabs: episodes and
+ * strategies it learned, documents it was taught, the graph it has observed.
+ * All three used to be separate menu entries pointing at empty states that
+ * explained one another; one screen with a shared empty-state vocabulary
+ * says the same thing once.
+ *
+ * Documents stays the default tab — it is what `/knowledge` already showed
+ * before this fusion, so a bookmark or an existing deep link still opens the
+ * same content it always did.
+ */
+export const KNOWLEDGE_TABS = ['learned', 'documents', 'topology'] as const;
+
+export type KnowledgeAreaTab = (typeof KNOWLEDGE_TABS)[number];
+
+/** The tab the address names, and Documents when it names nothing known. */
+export function tabFrom(value: string): KnowledgeAreaTab {
+  return KNOWLEDGE_TABS.find((tab) => tab === value) ?? 'documents';
+}
+
+export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNode> {
+  const { locale, search } = context;
+  const tab = tabFrom(search.get('tab') ?? '');
+  // Only the Topology tab carries a node in its own breadcrumb — see this
+  // file's own note on why that decision moved up here rather than staying
+  // inside `topology.tsx`.
+  const node = tab === 'topology' ? (search.get('node') ?? '') : '';
+
+  // Only the selected tab reads anything.
+  const content =
+    tab === 'learned'
+      ? await LearnedTab(context)
+      : tab === 'topology'
+        ? await TopologyTab(context)
+        : await DocumentsTab(context);
+
+  return (
+    <>
+      <AreaHeader
+        area={areaFor('knowledge')}
+        locale={locale}
+        nested={node === '' ? [] : [{ label: node }]}
+      />
+
+      <TabLinks
+        label={message(locale, 'knowledge.tabs')}
+        selected={tab}
+        tabs={KNOWLEDGE_TABS.map((each) => ({
+          id: each,
+          label: message(locale, `knowledge.tab.${each}`),
+          href: `?tab=${each}`,
+        }))}
+      />
+
+      <div className="mt-4">{content}</div>
     </>
   );
 }

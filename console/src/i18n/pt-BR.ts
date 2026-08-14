@@ -17,10 +17,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.group.now': 'Agora',
   'nav.group.environment': 'O ambiente',
   'nav.group.settings': 'Ajustes',
-  'nav.firstRun': 'Primeiros passos',
+  'nav.firstRun': 'Configuração inicial',
   'nav.dashboard': 'Painel',
   'nav.incidents': 'Incidentes',
   'nav.runs': 'Investigações',
+  'nav.decisions': 'Decisões',
+  // Mantidas para as áreas que a reorganização dobrou dentro de uma aba de
+  // outra tela: a frase de um link cruzado ainda precisa de um nome para a
+  // tela que ele aponta, mesmo sem entrada própria no menu.
   'nav.approvals': 'Ações aguardando aprovação',
   'nav.proposals': 'Mudanças propostas',
   'nav.resources': 'Recursos',
@@ -28,6 +32,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.detectors': 'Detectores',
   'nav.memory': 'Memória',
   'nav.knowledge': 'Conhecimento',
+  'nav.integrations': 'Integrações',
+  'nav.signals': 'Sinais',
   'autonomy.level.propose_only':
     'Apenas propor — toda ação é registrada para uma pessoa aprovar. Nada roda sem isso.',
   'autonomy.level.act_on_low_risk':
@@ -46,12 +52,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.open': 'Abrir a navegação',
   'nav.close': 'Fechar a navegação',
   'nav.pending': '{count} aguardando',
+  'nav.pending.decisions': '{count} decisões aguardando',
   'nav.pending.approvals': '{count} ações aguardando aprovação',
   'nav.pending.proposals': '{count} propostas aguardando',
   'nav.pending.incidents': '{count} incidentes abertos',
   'nav.pending.runs': '{count} investigações falhadas',
 
-  'page.firstRun.title': 'Primeiros passos',
+  'page.firstRun.title': 'Configuração inicial',
   'page.firstRun.context':
     'O que configurar, em ordem, com a razão de cada passo e a opção de parar depois de qualquer um deles.',
   'credential.submit': 'Guardar esta credencial',
@@ -216,6 +223,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.runs.title': 'Investigações',
   'page.runs.context':
     'Todas as investigações que esta instalação registou, da mais recente para a mais antiga.',
+  'page.decisions.title': 'Decisões',
+  'page.decisions.context':
+    'O que o agente quer fazer agora, e o que ele quer que o deployment se torne.',
+  'page.integrations.title': 'Integrações',
+  'page.integrations.context':
+    'Cada integração para a qual este deployment pode guardar uma credencial, seu estado, e uma forma de testá-la.',
+  'page.signals.title': 'Sinais',
+  'page.signals.context':
+    'O que entra em observação contínua, e para onde um alerta vai depois de entrar.',
   'page.approvals.title': 'Ações aguardando aprovação',
   'page.approvals.context':
     'Ações que o agente quer realizar agora, à espera da sua aprovação. Cada uma traz seu raio de impacto e plano de reversão.',
@@ -254,6 +270,24 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.audit.context': 'Quem fez o quê, quando, e sobre que recurso.',
   'page.pending':
     'Esta área chega com as telas de dados. A moldura à volta dela está pronta.',
+
+  // --- Abas de uma tela que uma fusão construiu ---------------------------------
+  'decisions.tabs': 'O que precisa de uma decisão',
+  'decisions.tab.actions': 'Ações',
+  'decisions.tab.changes': 'Mudanças',
+  'knowledge.tabs': 'O que o agente sabe sobre este ambiente',
+  'knowledge.tab.learned': 'Aprendido',
+  'knowledge.tab.documents': 'Documentos',
+  'knowledge.tab.topology': 'Topologia',
+  'signals.tabs': 'O que entra em observação e o que sai dela',
+  'signals.tab.intake': 'Entrada',
+  'signals.tab.observation': 'Observação contínua',
+  'signals.tab.schedules': 'Agendas',
+  'signals.tab.destinations': 'Destinos',
+  'admin.tabs': 'Quem pode o quê, e quem fez o quê',
+  'admin.tab.people': 'Pessoas',
+  'admin.tab.audit': 'Auditoria',
+  'agent.tab.team': 'Contexto do time',
 
   'shell.search': 'Procurar recursos, investigações, incidentes',
   'shell.search.shortcut': 'Ctrl K',
@@ -1030,6 +1064,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.credential.state.healthy': 'Verificada — a última verificação passou.',
   'catalogue.credential.state.degraded':
     'Falhando — a última verificação encontrou um problema.',
+  // Uma palavra cada, para as opções do próprio filtro — as frases acima
+  // dizem o mesmo no espaço que um card recolhido permite; o filtro precisa
+  // do espaço que uma lista suspensa permite.
+  'catalogue.integrations.filter.state.unconfigured': 'Não conectada',
+  'catalogue.integrations.filter.state.unknown': 'Não verificada',
+  'catalogue.integrations.filter.state.healthy': 'Verificada',
+  'catalogue.integrations.filter.state.degraded': 'Falhando',
 
   'admin.principals.title': 'Pessoas e máquinas',
   'admin.principals.serviceAccount': 'Conta de serviço criada no deploy, sem e-mail.',
@@ -1208,6 +1249,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.empty.body':
     'O deployment não respondeu com as etapas que uma investigação executa. Nada aqui é configuração; é o que o build é.',
   'agent.empty.action': 'Editar a configuração',
+  'agent.tools.browse': 'Encontrar uma tool ou skill',
   'agent.tools.reads': 'Ferramentas que leem',
   'agent.tools.reads.body': 'Estas consultam algo e não mudam nada.',
   'agent.tools.writes': 'Ferramentas que escrevem',

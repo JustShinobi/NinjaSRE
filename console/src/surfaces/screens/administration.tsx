@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { TabLinks } from '@/components';
 import { Badge } from '@/components/status';
 import { timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
@@ -27,6 +28,8 @@ import {
   stateOf,
   text,
 } from '../read';
+import { readViewState, type FilterName } from '../url-state';
+import { AuditTab } from './audit';
 
 /**
  * Who exists, what they hold, and what has been issued on their behalf.
@@ -76,9 +79,8 @@ export function principalIdentity(locale: Locale, person: unknown): string {
     : text(person, 'user_id');
 }
 
-export async function AdministrationScreen(
-  context: SurfaceContext,
-): Promise<ReactNode> {
+/** The "People" tab of Administration: who exists, and what they hold. */
+async function PeopleTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone } = context;
   const init = authorised(credential);
 
@@ -170,8 +172,6 @@ export async function AdministrationScreen(
 
   return (
     <>
-      <AreaHeader area={areaFor('administration')} locale={locale} />
-
       <div className="flex flex-col gap-5">
         <Panel
           title={message(locale, 'admin.principals.title')}
@@ -373,6 +373,56 @@ export async function AdministrationScreen(
           </Panel>
         ) : null}
       </div>
+    </>
+  );
+}
+
+/** The two tabs, People first because it is the one read every day. */
+export const ADMINISTRATION_TABS = ['people', 'audit'] as const;
+
+export type AdministrationTab = (typeof ADMINISTRATION_TABS)[number];
+
+/** The tab the address names, and the first one when it names nothing known. */
+export function tabFrom(value: string): AdministrationTab {
+  return ADMINISTRATION_TABS.find((tab) => tab === value) ?? ADMINISTRATION_TABS[0];
+}
+
+/**
+ * The address filters this wrapper reads for itself.
+ *
+ * `AuditTab`'s own `AUDIT_FILTERS` already declares `tab`, so a filter or a
+ * sort clicked on the Audit tab carries it through without this constant's
+ * help; this one exists only so the wrapper can ask which tab is selected
+ * before it decides which content to fetch at all.
+ */
+const ADMINISTRATION_FILTERS: readonly FilterName[] = ['tab'];
+
+export async function AdministrationScreen(
+  context: SurfaceContext,
+): Promise<ReactNode> {
+  const { locale, search } = context;
+  const state = readViewState(search, ADMINISTRATION_FILTERS);
+  const tab = tabFrom(state.filters.tab ?? '');
+
+  // Only the selected tab reads anything, the same "fetch what is showing"
+  // rule `agent.tsx` and `decisions.tsx` both follow for their own tabs.
+  const content = tab === 'people' ? await PeopleTab(context) : await AuditTab(context);
+
+  return (
+    <>
+      <AreaHeader area={areaFor('administration')} locale={locale} />
+
+      <TabLinks
+        label={message(locale, 'admin.tabs')}
+        selected={tab}
+        tabs={ADMINISTRATION_TABS.map((each) => ({
+          id: each,
+          label: message(locale, `admin.tab.${each}`),
+          href: `?tab=${each}`,
+        }))}
+      />
+
+      <div className="mt-4">{content}</div>
     </>
   );
 }

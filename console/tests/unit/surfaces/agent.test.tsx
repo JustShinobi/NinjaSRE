@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { message } from '@/i18n/messages';
@@ -511,6 +512,273 @@ describe('what it can do: the tools', () => {
       'runbooks',
     );
     expect(servers[0]?.textContent).toContain('mcp');
+  });
+});
+
+/**
+ * The catalogue's own read half, absorbed whole: 233 tools and ~100 skills,
+ * searchable, with an anchor per domain and a "N of M enabled" count — what
+ * `catalogue.tsx` used to draw on its own route, before Integrations took the
+ * write half and this tab took the read one.
+ *
+ * Four things this block pins, ported from that screen's own confrontation:
+ *
+ * - a name/domain search a reader can use to find one tool in under five
+ *   seconds, with an anchor per domain and a "N of M enabled" count;
+ * - the exact broken sentence a prior bug report quoted ("Blocked by needs
+ *   the X integration") never renders, replaced by a structured sentence and
+ *   a link to where the missing integration is connected;
+ * - skills are searchable and grouped under their own heading, not a wall of
+ *   repeated prose.
+ */
+describe("what it can do: the catalogue's own read half", () => {
+  const CATALOGUE_BASE = ['http:', '//gateway.test'].join('');
+
+  function tool(source: { readonly name: string; readonly domain: string }): unknown {
+    return {
+      name: source.name,
+      description: `What ${source.name} does.`,
+      domain: source.domain,
+      side_effect_level: 'read',
+    };
+  }
+
+  function entry(source: {
+    readonly name: string;
+    readonly available: boolean;
+    readonly reason?: string;
+    readonly requiredIntegrations?: readonly string[];
+  }): unknown {
+    return {
+      name: source.name,
+      kind: 'tool',
+      summary: `What ${source.name} does.`,
+      tags: [],
+      side_effect_level: 'read',
+      required_integrations: source.requiredIntegrations ?? [],
+      available: source.available,
+      reason: source.reason ?? null,
+    };
+  }
+
+  const CAPABILITIES = {
+    tools: [
+      tool({ name: 'estate.list_resources', domain: 'estate' }),
+      tool({ name: 'chat.post_message', domain: 'chat' }),
+      tool({ name: 'audit.tamper_check', domain: 'audit' }),
+    ],
+    skills: [
+      {
+        name: 'kubernetes-triage',
+        description: 'Diagnose a crashing pod, one command at a time.',
+      },
+    ],
+  };
+
+  const NODE_CATALOGUE = {
+    entries: [
+      entry({ name: 'estate.list_resources', available: true }),
+      entry({
+        name: 'chat.post_message',
+        available: false,
+        reason: 'needs the chat integration',
+        requiredIntegrations: ['chat'],
+      }),
+      entry({
+        name: 'audit.tamper_check',
+        available: false,
+        reason: 'disabled for this team',
+      }),
+    ],
+    blocked_by_integration: { chat: ['chat.post_message'] },
+  };
+
+  function serve(): void {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), CATALOGUE_BASE).pathname;
+      const byPath: Record<string, unknown> = {
+        '/auth/me': {
+          principal_id: 'user-operator',
+          display_name: 'Avery Lockhart',
+          kind: 'person',
+          roles: ['owner'],
+          permissions: EVERYTHING,
+          team_node_id: 'org-northwind',
+          impersonating: false,
+          impersonated_by: null,
+        },
+        '/v1/capabilities': CAPABILITIES,
+        '/v1/config': { nodes: [] },
+        '/v1/config/org-northwind/catalogue': NODE_CATALOGUE,
+      };
+      const body = byPath[path];
+      return Promise.resolve(
+        new Response(JSON.stringify(body ?? {}), {
+          status: body === undefined ? 404 : 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+  }
+
+  /** The `<tr data-testid="capability">` row for one tool, by its declared name. */
+  function toolRow(name: string): HTMLElement {
+    const found = screen
+      .getAllByTestId('capability')
+      .find((row) => row.getAttribute('data-capability') === name);
+    if (found === undefined) throw new Error(`no capability row for ${name}`);
+    return found;
+  }
+
+  /** The `<tr data-testid="capability-domain">` heading row for one domain. */
+  function domainHeading(domain: string): HTMLElement {
+    const found = screen
+      .getAllByTestId('capability-domain')
+      .find((row) => row.getAttribute('data-domain') === domain);
+    if (found === undefined) throw new Error(`no domain heading for ${domain}`);
+    return found;
+  }
+
+  describe('finding a tool by name or domain', () => {
+    beforeEach(() => {
+      serve();
+    });
+
+    it('shows every tool and skill with nothing typed', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      expect(toolRow('estate.list_resources')).toBeDefined();
+      expect(toolRow('chat.post_message')).toBeDefined();
+      expect(toolRow('audit.tamper_check')).toBeDefined();
+      expect(screen.getByText('kubernetes-triage')).toBeDefined();
+    });
+
+    it('narrows to the rows a search matches, by name', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      await userEvent.type(
+        screen.getByLabelText('Find a tool or skill by name or domain'),
+        'chat',
+      );
+
+      expect(toolRow('chat.post_message')).toBeDefined();
+      expect(
+        screen
+          .queryAllByTestId('capability')
+          .some(
+            (row) => row.getAttribute('data-capability') === 'estate.list_resources',
+          ),
+      ).toBe(false);
+    });
+
+    it('says how many of the whole catalogue are enabled, unaffected by the filter', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      expect(screen.getByTestId('capability-count')).toHaveTextContent(
+        '1 of 3 enabled',
+      );
+
+      await userEvent.type(
+        screen.getByLabelText('Find a tool or skill by name or domain'),
+        'chat',
+      );
+
+      expect(screen.getByTestId('capability-count')).toHaveTextContent(
+        '1 of 3 enabled',
+      );
+    });
+
+    it('offers an anchor per domain a reader can jump to', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      const nav = screen.getByTestId('domain-nav');
+      expect(within(nav).getByRole('link', { name: /^estate/ })).toHaveAttribute(
+        'href',
+        '#domain-estate',
+      );
+      expect(within(nav).getByRole('link', { name: /^chat/ })).toHaveAttribute(
+        'href',
+        '#domain-chat',
+      );
+    });
+
+    it('says plainly when nothing matches, rather than an empty table', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      await userEvent.type(
+        screen.getByLabelText('Find a tool or skill by name or domain'),
+        'nothing-matches-this',
+      );
+
+      expect(screen.getByTestId('capability-search-empty')).toBeDefined();
+      expect(screen.queryAllByTestId('capability')).toHaveLength(0);
+    });
+  });
+
+  describe('why a tool is not available here', () => {
+    beforeEach(() => {
+      serve();
+    });
+
+    it('never renders the broken sentence a prior bug report quoted', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      expect(screen.queryByText(/Blocked by needs the/)).toBeNull();
+      expect(document.body.textContent).not.toContain('Blocked by needs the');
+    });
+
+    it('names the missing integration in a sentence that stands on its own, with a link to connect it', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      const blocked = within(toolRow('chat.post_message')).getByTestId(
+        'capability-blocked',
+      );
+      expect(blocked).toHaveTextContent('Requires the chat integration');
+      const link = within(blocked).getByRole('link', { name: 'Connect it' });
+      expect(link).toHaveAttribute('href', '/configuration?node=org-northwind');
+    });
+
+    it('shows a refusal that is not about a missing integration as-is, with no link', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      const blocked = within(toolRow('audit.tamper_check')).getByTestId(
+        'capability-blocked',
+      );
+      expect(blocked).toHaveTextContent('disabled for this team');
+      expect(within(blocked).queryByRole('link')).toBeNull();
+    });
+  });
+
+  describe('skills are searchable and grouped, not a wall of prose', () => {
+    beforeEach(() => {
+      serve();
+    });
+
+    it('groups skills under their own heading rather than repeating "Skills —" on every row', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      expect(domainHeading('skills')).toHaveTextContent('Skills (1)');
+      expect(screen.getByText('kubernetes-triage')).toBeDefined();
+      expect(screen.queryByText(/Skills — /)).toBeNull();
+    });
+
+    it('is found by the same search that finds a tool', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      await userEvent.type(
+        screen.getByLabelText('Find a tool or skill by name or domain'),
+        'triage',
+      );
+
+      expect(screen.getByText('kubernetes-triage')).toBeDefined();
+      expect(
+        screen
+          .queryAllByTestId('capability')
+          .some(
+            (row) => row.getAttribute('data-capability') === 'estate.list_resources',
+          ),
+      ).toBe(false);
+    });
   });
 });
 

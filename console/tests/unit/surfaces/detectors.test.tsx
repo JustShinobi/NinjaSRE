@@ -3,21 +3,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { surfaceContext } from '@/surfaces/context';
-import { DetectorsScreen } from '@/surfaces/screens/detectors';
+import { ObservationTab, SchedulesTab } from '@/surfaces/screens/detectors';
 
 /**
  * The empty state that sent an operator with two connected sources back to
  * "Connect a source" — the one screen they had already been to.
  *
  * Sources being reachable and the guardian being switched on are two
- * different facts, and only the second is what an empty Detectors screen is
- * actually missing once the first is true. This file pins the distinction:
- * the watching cause (with its destination rewritten to where the toggle
- * actually lives, since a bare `watchingCause` would point this screen back
- * at itself), the setup cause when the deployment itself is unfinished, and
- * the scheduled-investigations panel's own empty state — which, unlike the
- * detector table, keeps its create form on the page rather than hiding it
- * behind the notice.
+ * different facts, and only the second is what an empty "Continuous
+ * observation" tab is actually missing once the first is true. This file
+ * pins the distinction: the watching cause (with its destination rewritten
+ * to where the toggle actually lives, since a bare `watchingCause` would
+ * point this tab back at itself), the setup cause when the deployment itself
+ * is unfinished, and the "Schedules" tab's own empty state — which, unlike
+ * the detector table, keeps its create form on the page rather than hiding
+ * it behind the notice. The two used to be one screen; they are two tabs of
+ * Signals now (`screens/signals.tsx`), and each is tested here on its own.
  */
 
 vi.mock('next/headers', () => ({
@@ -116,8 +117,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function detectors(): Promise<void> {
-  render(await DetectorsScreen(await surfaceContext({})));
+async function observation(): Promise<void> {
+  render(await ObservationTab(await surfaceContext({})));
+}
+
+async function schedules(): Promise<void> {
+  const content = await SchedulesTab(await surfaceContext({}));
+  render(content ?? <></>);
 }
 
 function emptyPanel(): HTMLElement {
@@ -134,7 +140,7 @@ describe('sources are connected and nothing is switched on', () => {
   });
 
   it('says nothing is watching, not that a source needs connecting', async () => {
-    await detectors();
+    await observation();
 
     const panel = emptyPanel();
     expect(panel).toHaveTextContent(
@@ -145,7 +151,7 @@ describe('sources are connected and nothing is switched on', () => {
   });
 
   it('sends the operator to turn on continuous observation, at the node they hold', async () => {
-    await detectors();
+    await observation();
 
     const action = screen.getByRole('link', {
       name: 'Turn on continuous observation',
@@ -160,7 +166,7 @@ describe('the deployment itself is still being set up', () => {
   });
 
   it('names the outstanding setup rather than the guardian toggle', async () => {
-    await detectors();
+    await observation();
 
     const panel = emptyPanel();
     expect(panel).toHaveTextContent('still being set up');
@@ -168,7 +174,7 @@ describe('the deployment itself is still being set up', () => {
   });
 
   it('points at finishing the setup, not at Configuration', async () => {
-    await detectors();
+    await observation();
 
     const action = screen.getByRole('link', { name: 'Finish setting up' });
     expect(action).toHaveAttribute('href', '/first-run');
@@ -183,7 +189,7 @@ describe('a deployment that is watching and has coverage', () => {
       detectors: [enabledDetector('quorum-margin-zero')],
       setup: SETUP_COMPLETE,
     });
-    await detectors();
+    await observation();
 
     expect(screen.queryAllByTestId('panel')).not.toHaveLength(0);
     expect(
@@ -205,7 +211,7 @@ describe('scheduled investigations with none set up yet', () => {
   });
 
   it('names what is missing, why, and links to the form that fixes it', async () => {
-    await detectors();
+    await schedules();
 
     const notice = screen.getByTestId('schedules-empty');
     expect(notice).toHaveTextContent('No scheduled investigations');
@@ -217,13 +223,13 @@ describe('scheduled investigations with none set up yet', () => {
   });
 
   it('still shows the create form, rather than hiding it behind the notice', async () => {
-    await detectors();
+    await schedules();
 
     expect(screen.getByTestId('create-schedule')).toBeInTheDocument();
   });
 
   it('explains what the section is for', async () => {
-    await detectors();
+    await schedules();
 
     expect(
       screen.getByText(
@@ -251,7 +257,7 @@ describe('scheduled investigations with something already on the calendar', () =
       ],
       setup: SETUP_COMPLETE,
     });
-    await detectors();
+    await schedules();
 
     expect(screen.queryByTestId('schedules-empty')).toBeNull();
     expect(screen.getByTestId('schedule')).toBeInTheDocument();
@@ -261,7 +267,7 @@ describe('scheduled investigations with something already on the calendar', () =
 describe('a viewer who may not manage schedules', () => {
   it('renders no schedules panel at all, rather than one it cannot use', async () => {
     serve({ permissions: [], detectors: [], setup: SETUP_COMPLETE });
-    await detectors();
+    await schedules();
 
     expect(screen.queryByTestId('schedules-empty')).toBeNull();
     expect(screen.queryByTestId('create-schedule')).toBeNull();

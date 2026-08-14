@@ -353,10 +353,10 @@ describe('the investigation drawer when the deployment refuses', () => {
     expect(went).toEqual([]);
     expect(await screen.findByTestId('outcomes')).toHaveTextContent('shutting down');
     // The refusal is recorded where somebody looks when they are sure they
-    // pressed the button.
+    // pressed the button — the Audit tab of Administration now.
     expect(screen.getByRole('link', { name: /audit/i })).toHaveAttribute(
       'href',
-      '/audit',
+      '/administration?tab=audit',
     );
   });
 

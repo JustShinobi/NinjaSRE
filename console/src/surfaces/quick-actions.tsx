@@ -19,12 +19,14 @@ import { Panel } from './panel';
 /** One destination the setup checklist is asking somebody to visit. */
 interface QuickAction {
   readonly href: string;
-  readonly titleKey:
-    'page.knowledge.title' | 'page.autonomy.title' | 'page.memory.title';
-  readonly contextKey:
-    'page.knowledge.context' | 'page.autonomy.context' | 'page.memory.context';
+  readonly titleKey: 'page.knowledge.title' | 'page.autonomy.title';
+  readonly contextKey: 'page.knowledge.context' | 'page.autonomy.context';
 }
 
+// Two destinations rather than three: Knowledge absorbed what used to be a
+// separate Memory area (episodes and strategies are its own "Learned" tab
+// now), so pointing a second action at it under a second name would be the
+// same screen offered twice.
 const ACTIONS: readonly QuickAction[] = [
   {
     href: '/knowledge',
@@ -38,7 +40,6 @@ const ACTIONS: readonly QuickAction[] = [
     titleKey: 'page.autonomy.title',
     contextKey: 'page.autonomy.context',
   },
-  { href: '/memory', titleKey: 'page.memory.title', contextKey: 'page.memory.context' },
 ];
 
 /** The destinations the checklist is asking for, each named and described. */

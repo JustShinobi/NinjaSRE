@@ -140,7 +140,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       kind: 'approval',
       title: text(record, 'summary'),
       detail: text(record, 'action'),
-      href: `/approvals?selected=${id}`,
+      href: `/decisions?tab=actions&selected=${id}`,
       since: timestamp(locale, text(record, 'requested_at'), now, zone).relative,
       at: text(record, 'requested_at'),
     });
@@ -153,7 +153,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       kind: 'proposal',
       title: text(record, 'summary'),
       detail: text(record, 'proposal_type'),
-      href: `/proposals?selected=${id}`,
+      href: `/decisions?tab=changes&selected=${id}`,
       since: timestamp(locale, text(record, 'proposed_at'), now, zone).relative,
       at: text(record, 'proposed_at'),
     });

@@ -76,7 +76,7 @@ const ESTATE_CATEGORY = 'cloud_control_plane';
 
 const HANDOVER: Readonly<Record<'estate' | 'alerts', string>> = {
   estate: '/resources',
-  alerts: '/detectors',
+  alerts: '/signals',
 };
 
 /**

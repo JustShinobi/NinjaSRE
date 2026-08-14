@@ -5,6 +5,11 @@ import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
+import {
+  CapabilityBrowser,
+  type BrowsableSkill,
+  type BrowsableTool,
+} from '../capability-browser';
 import { bridgedServers, capabilityRows, type CapabilityRow } from '../capability-rows';
 import type { SurfaceContext } from '../context';
 import { HierarchyGraph, type HierarchyRank } from '../graph';
@@ -28,6 +33,7 @@ import {
 } from '../read';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
+import { TeamTab } from './team-context';
 
 /**
  * What the agent is, what it can do, and what it will do on its own.
@@ -60,8 +66,13 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
  * seconds anybody spends looking for a tab.
  */
 
-/** The three sections, in the order the questions are asked. */
-export const AGENT_TABS = ['topology', 'tools', 'autonomy'] as const;
+/**
+ * The four sections, in the order the questions are asked. `team` is the
+ * newest: what the team's own operating context says, absorbed whole from
+ * the screen that used to carry it on its own address — see `team-context.tsx`'s
+ * own note on why it moved rather than staying linked from here.
+ */
+export const AGENT_TABS = ['topology', 'tools', 'autonomy', 'team'] as const;
 
 export type AgentTab = (typeof AGENT_TABS)[number];
 
@@ -130,7 +141,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             read('/v1/agent/pipeline', init),
           )
         : nothing(),
-      node === '' || tab === 'autonomy'
+      node === '' || tab === 'autonomy' || tab === 'team'
         ? nothing()
         : optionalRead<unknown>('/v1/config/{node_id}', () =>
             read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
@@ -174,6 +185,13 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
           currentPolicyReplay(node, init),
         );
 
+  // Self-contained rather than pre-fetched into a prop, like every other
+  // tab this reorganisation folded in from its own former screen: `TeamTab`
+  // reads the same address this function already parsed and does its own
+  // requests, so it stays independently testable and this function does not
+  // have to know the shape of what it fetches.
+  const team = tab === 'team' ? await TeamTab(context) : null;
+
   return (
     <>
       <AreaHeader
@@ -207,6 +225,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             capabilities={capabilities}
             entries={entries}
             effective={effective}
+            node={node}
           />
         ) : null}
         {tab === 'autonomy' ? (
@@ -218,6 +237,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             viewer={viewer}
           />
         ) : null}
+        {tab === 'team' ? team : null}
       </div>
     </>
   );
@@ -749,16 +769,60 @@ function DocumentPanel({
 
 // --- What it can do --------------------------------------------------------------
 
+/** `rows`, restricted to the tools this node has an opinion about and blocking, rendered once. */
+function browsableTools(
+  rows: readonly CapabilityRow[],
+  locale: Locale,
+  none: string,
+): readonly BrowsableTool[] {
+  return rows
+    .filter((row) => row.kind === 'tool')
+    .map((row) => {
+      if (!row.known || row.available) {
+        return {
+          name: row.name,
+          domain: row.domain,
+          sideEffect: row.sideEffect,
+          known: row.known,
+          available: row.available,
+          blockedText: '',
+          blockedLinked: false,
+        };
+      }
+      // Structured data leads: what the node actually declares this tool
+      // needs, not a parse of the deployment's own free-text reason.
+      const linked = row.requiredIntegrations.length > 0;
+      const blockedText = linked
+        ? message(locale, 'catalogue.blocked', {
+            integration: row.requiredIntegrations.join(', '),
+          })
+        : row.reason === ''
+          ? none
+          : row.reason;
+      return {
+        name: row.name,
+        domain: row.domain,
+        sideEffect: row.sideEffect,
+        known: row.known,
+        available: row.available,
+        blockedText,
+        blockedLinked: linked,
+      };
+    });
+}
+
 function ToolsTab({
   locale,
   capabilities,
   entries,
   effective,
+  node,
 }: {
   readonly locale: Locale;
   readonly capabilities: PanelData<unknown>;
   readonly entries: PanelData<unknown>;
   readonly effective: PanelData<unknown>;
+  readonly node: string;
 }): ReactNode {
   const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
   const tools = rows.filter((row) => row.kind === 'tool');
@@ -769,8 +833,59 @@ function ToolsTab({
   // is blocked" beside a list that is itself empty for another reason.
   const source = capabilities.status === 'error' ? capabilities : entries;
 
+  // The catalogue's own read half, absorbed whole: every tool and skill this
+  // deployment declares, searchable, grouped by domain — beside the risk
+  // grouping above rather than instead of it. The two answer different
+  // questions ("what exists, and where do I find it" versus "what could
+  // this actually do, and at what risk") and this screen is where both of
+  // them now live.
+  const none = message(locale, 'surface.none');
+  const skills: readonly BrowsableSkill[] = rows
+    .filter((row) => row.kind === 'skill')
+    .map((row) => ({ name: row.name, summary: row.summary }));
+  const enabledCount = tools.filter((row) => row.known && row.available).length;
+  const count = message(locale, 'catalogue.count', {
+    enabled: enabledCount,
+    total: tools.length,
+  });
+  const configurationHref =
+    node === '' ? '/configuration' : `/configuration?node=${encodeURIComponent(node)}`;
+
   return (
     <>
+      <Panel
+        title={message(locale, 'agent.tools.browse')}
+        state={stateOf(source, tools.length === 0 && skills.length === 0)}
+        dependency={dependencyOf(source)}
+        labels={panelLabels(locale, message(locale, 'agent.tools.browse'))}
+        empty={{
+          heading: message(locale, 'agent.tools.empty.heading'),
+          body: message(locale, 'agent.tools.empty.body'),
+          actionLabel: message(locale, 'agent.tools.empty.action'),
+          href: '/configuration',
+        }}
+      >
+        <CapabilityBrowser
+          tools={browsableTools(rows, locale, none)}
+          skills={skills}
+          count={count}
+          configurationHref={configurationHref}
+          labels={{
+            tableCaption: message(locale, 'agent.tools.browse'),
+            search: message(locale, 'catalogue.search'),
+            searchEmpty: message(locale, 'catalogue.search.empty'),
+            domainsNav: message(locale, 'catalogue.domains.nav'),
+            skillsHeading: message(locale, 'catalogue.skills'),
+            columnName: message(locale, 'catalogue.column.name'),
+            columnDomain: message(locale, 'catalogue.column.domain'),
+            columnEffect: message(locale, 'catalogue.column.effect'),
+            columnEnabled: message(locale, 'catalogue.column.enabled'),
+            none,
+            blockedAction: message(locale, 'catalogue.blocked.action'),
+          }}
+        />
+      </Panel>
+
       <ToolGroup
         locale={locale}
         source={source}

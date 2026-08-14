@@ -99,11 +99,19 @@ def test_the_fixture_server_answers_every_read_a_surface_makes() -> None:
         )
 
 
-# --- The two areas this feature adds -----------------------------------------------
+# --- Areas added after this file was first written, on the same claim -------------
 
-#: Which gateway route each new area reads, so its permission is the server's.
+#: Which gateway route each area reads, so its permission is the server's.
+#:
+#: ``catalogue`` named this dict's own area once, reaching ``/v1/capabilities``.
+#: The menu reorganisation retired it as an area: its read half — browsing tools
+#: and skills — moved to The agent's own Tools tab, and its write half — the
+#: credential form and the verification control — became its own address,
+#: ``integrations``, entered here on the permission ``GET /v1/integrations``
+#: itself now requires (`gateway/http/security/gateway_routes.py`), which is
+#: narrower than the read permission the old, merged screen held.
 NEW_AREA_ROUTE: Final[dict[str, tuple[str, str]]] = {
-    "catalogue": ("GET", "/v1/capabilities"),
+    "integrations": ("GET", "/v1/integrations"),
     "administration": ("GET", "/identity/principals"),
 }
 

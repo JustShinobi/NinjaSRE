@@ -1,6 +1,23 @@
-import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { principalIdentity } from '@/surfaces/screens/administration';
+import { SESSION_COOKIE } from '@/session/cookies';
+import { surfaceContext } from '@/surfaces/context';
+import {
+  AdministrationScreen,
+  principalIdentity,
+} from '@/surfaces/screens/administration';
+
+import { serveScenario } from '../support/dataset';
+
+vi.mock('next/headers', () => ({
+  cookies: () =>
+    Promise.resolve({
+      get: (name: string) =>
+        name === SESSION_COOKIE ? { value: 'a-token' } : undefined,
+    }),
+  headers: () => Promise.resolve({ get: () => null }),
+}));
 
 /**
  * What the Principals panel's second line says for one record.
@@ -45,5 +62,59 @@ describe('a principal’s identity line', () => {
     expect(
       principalIdentity('en', { email: '', kind: 'user', user_id: 'user-mystery' }),
     ).toBe('user-mystery');
+  });
+});
+
+/**
+ * Administration absorbing Audit as a second tab, beside its own People and
+ * access content — both already gated on an administrator's own permission,
+ * so neither tab has to hide itself from a viewer who could reach the other.
+ */
+describe('Audit absorbed as a tab', () => {
+  beforeEach(() => {
+    vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
+    serveScenario('populated');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  async function render_(params: Record<string, string> = {}): Promise<void> {
+    render(await AdministrationScreen(await surfaceContext(params)));
+  }
+
+  it('names the area Administration, whichever tab is open', async () => {
+    await render_({ tab: 'audit' });
+
+    expect(screen.getByTestId('page-header')).toHaveAttribute(
+      'data-area',
+      'administration',
+    );
+    expect(screen.getByTestId('page-header')).toHaveTextContent('Administration');
+  });
+
+  it('offers both tabs, People first', async () => {
+    await render_();
+
+    const tabs = screen.getAllByTestId('tab-link');
+    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).toEqual([
+      'people',
+      'audit',
+    ]);
+  });
+
+  it('defaults to People', async () => {
+    await render_();
+
+    expect(screen.getAllByTestId('principal').length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('row-list')).toBeNull();
+  });
+
+  it('shows the audit trail on its own tab', async () => {
+    await render_({ tab: 'audit' });
+
+    expect(screen.getByTestId('row-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('principal')).toBeNull();
   });
 });

@@ -144,21 +144,27 @@ def test_every_declared_permission_is_one_the_platform_has() -> None:
 
 
 #: Which route each area reads, for the areas whose data the gateway already
-#: serves. The four that are missing — incidents, resources, detectors and
-#: autonomy — are projections with no gateway row yet; the permission-catalogue
-#: test above is what holds those, and this table gains a row for each of them
-#: as the endpoint that serves it lands.
+#: serves *and* whose route is declared in the table this file composes below
+#: (`ROUTE_TABLE` extended with `GATEWAY_ROUTES` and `CONSOLE_ROUTES` — not
+#: every route table the application has; `incident_routes.py`'s is one of
+#: several this composition leaves out). The areas missing here — incidents,
+#: resources, autonomy, and now Signals — are either projections with no
+#: gateway row yet, or read a route declared in a table this composition does
+#: not reach; the permission-catalogue test above is what holds those.
+#:
+#: Decisions stands in for the fusion the menu reorganisation built: it reads
+#: the same `/v1/approvals` Approvals always did, and its sibling tab
+#: (Proposed changes) shares the identical `approval.read` permission, so
+#: one representative route still proves the area's own gate. Knowledge and
+#: Administration are unchanged — both already covered a fusion's worth of
+#: tabs under one permission before this reorganisation gave them more.
 AREA_ROUTE: Final[dict[str, tuple[str, str]]] = {
     "dashboard": ("GET", "/v1/runs"),
     "runs": ("GET", "/v1/runs"),
-    "approvals": ("GET", "/v1/approvals"),
-    "topology": ("GET", "/v1/topology/{node_id}"),
-    "memory": ("GET", "/v1/memory/stats"),
+    "decisions": ("GET", "/v1/approvals"),
     "knowledge": ("GET", "/v1/knowledge/documents"),
     "configuration": ("GET", "/v1/config"),
-    "catalogue": ("GET", "/v1/capabilities"),
     "administration": ("GET", "/identity/principals"),
-    "audit": ("GET", "/audit/events"),
 }
 
 

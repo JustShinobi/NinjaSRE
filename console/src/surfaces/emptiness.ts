@@ -65,7 +65,7 @@ export function watchingCause(locale: Locale, live: number): Cause | null {
   return {
     body: message(locale, 'empty.cause.watching'),
     actionLabel: message(locale, 'empty.cause.watching.action'),
-    href: '/detectors',
+    href: '/signals?tab=observation',
   };
 }
 

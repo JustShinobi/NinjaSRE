@@ -470,7 +470,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
           <Toast
             role="success"
             message="Reclaimed 41 GiB on local-lvm."
-            recordedAt={{ href: '/audit', label: 'the audit trail' }}
+            recordedAt={{ href: '/administration?tab=audit', label: 'the audit trail' }}
             dismissLabel="Dismiss this message"
             onDismiss={nothing}
           />
@@ -483,7 +483,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
           <Toast
             role="danger"
             message="The reclaim failed."
-            recordedAt={{ href: '/audit', label: 'the audit trail' }}
+            recordedAt={{ href: '/administration?tab=audit', label: 'the audit trail' }}
             dismissLabel="Dismiss this message"
             onDismiss={nothing}
           />

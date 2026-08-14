@@ -1,12 +1,8 @@
 import type { ReactNode } from 'react';
 
-import { Link } from '@/components/action';
-import { CompassIcon } from '@/design/icons';
 import { message } from '@/i18n/messages';
 import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { panelLabels } from '../labels';
@@ -26,7 +22,8 @@ import {
 } from '../read';
 
 /**
- * Everything the agent has proposed and nobody has decided.
+ * The "Changes proposed" tab of Decisions: everything the agent has proposed
+ * and nobody has decided.
  *
  * One list rather than one per origin. A reviewer's question is "what is
  * waiting on me", not "what is waiting on me about detectors", and three lists
@@ -42,13 +39,13 @@ import {
  * sixty per cent of two hundred are different facts about a team, and a screen
  * showing only the percentage lets the first pass for the second.
  *
- * **This is not the only inbox.** Approvals asks "can the agent do this now";
- * this asks "should the deployment be different from tomorrow on" — a change
- * to what it knows or how it is configured, rather than a single action it
- * wants to take. The line above the panel says so and points at Approvals, the
- * way Approvals now points back here — absent for a viewer who may not open
- * that queue, because a link to a screen somebody cannot see is a dead end
- * dressed as a courtesy.
+ * **This tab is one half of Decisions.** "Can the agent do this now" and
+ * "should the deployment be different from tomorrow on" are different
+ * questions, which is why this stays a separate tab from Actions rather than
+ * one filtered view of it — `screens/decisions.tsx` renders this content and
+ * `approvals.tsx`'s side by side, so a reviewer who opens either tab sees the
+ * other exists without a cross-link paragraph doing the work the tab bar
+ * already does.
  *
  * **The empty state names where a proposal comes from, not only that there are
  * none.** An investigation that learns something worth writing down proposes
@@ -64,7 +61,7 @@ const DECIDE = 'approval.review';
 /** The kinds whose effect is their own words, needing no round trip to show. */
 const TEXTUAL = new Set(['text']);
 
-export async function ProposalsScreen(context: SurfaceContext): Promise<ReactNode> {
+export async function ProposalsTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone } = context;
   const init = authorised(credential);
 
@@ -102,25 +99,8 @@ export async function ProposalsScreen(context: SurfaceContext): Promise<ReactNod
     cause,
   );
 
-  const approvals = areaFor('approvals');
-
   return (
     <>
-      <AreaHeader area={areaFor('proposals')} locale={locale} />
-
-      {/* Absent for a viewer who may not open the other queue at all — a link
-          to a screen somebody cannot see is not a courtesy, it is a dead end
-          dressed as one. */}
-      {may(viewer, approvals.permission) ? (
-        <p className="text-meta text-muted mb-3 flex items-center gap-1">
-          <CompassIcon size="empty" />
-          <span>{message(locale, 'proposals.otherInbox')}</span>
-          <Link href={approvals.path} data-testid="proposals-elsewhere">
-            {message(locale, 'surface.open')} {message(locale, approvals.title)}
-          </Link>
-        </p>
-      ) : null}
-
       <Panel
         title={message(locale, 'proposals.title')}
         state={stateOf(queue, proposals.length === 0)}

@@ -3,8 +3,6 @@ import type { ReactNode } from 'react';
 import { Link } from '@/components/action';
 import { formatNumber } from '@/i18n/format';
 import { message } from '@/i18n/messages';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { DependencyGraph, NEIGHBOUR_BOUND, type GraphNode } from '../graph';
@@ -22,11 +20,11 @@ import {
   stateOf,
   text,
 } from '../read';
-import { placedTree } from '../tree';
 import { readViewState, type FilterName } from '../url-state';
 
 /**
- * How the estate is connected, as the platform understands it.
+ * The "Topology" tab of Knowledge: how the estate is connected, as the
+ * platform understands it.
  *
  * Two views of one graph — a picture for a glance and a list for a keyboard, a
  * screen reader, and the two hundred dependents the picture is bounded away
@@ -40,33 +38,44 @@ import { readViewState, type FilterName } from '../url-state';
  * means no investigation has run at all. Pointing at Resources — a screen the
  * graph is not fed by — was a door that did not lead anywhere; `setupCause`
  * closes the chain instead.
+ *
+ * The third of three tabs Knowledge asks about one environment — learned,
+ * documented, observed — rendered by `screens/knowledge.tsx` beside
+ * `memory.tsx`'s and `documents.tsx`'s own content.
+ *
+ * **The breadcrumb is the wrapper's, not this tab's.** A single `AreaHeader`
+ * covers all three tabs now, so `screens/knowledge.tsx` is what decides
+ * whether a node name appears in the trail, from the same `node` query
+ * parameter this tab already reads — the organisation's own name at the
+ * unqualified address was a refinement one tab's fetch could afford; a
+ * wrapper deciding a page-level breadcrumb for three tabs at once should not
+ * carry a request none of the other two need just to draw it.
  */
 
-export const TOPOLOGY_FILTERS: readonly FilterName[] = ['node'];
+export const TOPOLOGY_FILTERS: readonly FilterName[] = ['tab', 'node'];
 
 /** Which node the graph is centred on when the address does not say. */
 const DEFAULT_NODE = 'root';
+
+/** This tab's own address, with the query this file's own hrefs never lose. */
+const TAB_HREF = '/knowledge?tab=topology';
 
 function nodesFrom(records: readonly unknown[]): readonly GraphNode[] {
   return records.map((record) => ({
     id: text(record, 'node_id'),
     name: text(record, 'name') === '' ? text(record, 'node_id') : text(record, 'name'),
     kind: text(record, 'kind'),
-    href: `/topology?node=${encodeURIComponent(text(record, 'node_id'))}`,
+    href: `${TAB_HREF}&node=${encodeURIComponent(text(record, 'node_id'))}`,
   }));
 }
 
-export async function TopologyScreen(context: SurfaceContext): Promise<ReactNode> {
+export async function TopologyTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, search } = context;
   const state = readViewState(search, TOPOLOGY_FILTERS);
   const nodeId = state.filters.node ?? DEFAULT_NODE;
-  // `root` is a sentinel this screen falls back to, not a node any tree names
-  // — so it is never fit to print. The organisation's own name is what the
-  // breadcrumb owes a viewer standing at the unqualified address.
-  const atRoot = nodeId === DEFAULT_NODE;
   const init = authorised(credential);
 
-  const [topology, setup, tree] = await Promise.all([
+  const [topology, setup] = await Promise.all([
     // A node nothing has observed yet answers 404 — the ordinary state of a
     // deployment whose investigations have not run, not a failure — so this
     // reads the way `/v1/config/{node_id}` does: a 404 here is data, and only
@@ -75,11 +84,6 @@ export async function TopologyScreen(context: SurfaceContext): Promise<ReactNode
       read('/v1/topology/{node_id}', { ...init, params: { node_id: nodeId } }),
     ),
     readSetupState(credential),
-    // Read for the breadcrumb alone, and only worth the name at the root: a
-    // node reached through `?node=` already carries a real name in the graph
-    // it came from, and asking the organisation tree about it would be asking
-    // the wrong document.
-    optionalRead('/v1/config', () => read('/v1/config', init)),
   ]);
 
   const body = dataOf(topology);
@@ -93,7 +97,7 @@ export async function TopologyScreen(context: SurfaceContext): Promise<ReactNode
     id: nodeId,
     name: nodeId,
     kind: '',
-    href: `/topology?node=${encodeURIComponent(nodeId)}`,
+    href: `${TAB_HREF}&node=${encodeURIComponent(nodeId)}`,
   };
 
   const bounded = Math.max(dependencies.length, dependents.length) > NEIGHBOUR_BOUND;
@@ -112,17 +116,8 @@ export async function TopologyScreen(context: SurfaceContext): Promise<ReactNode
     cause,
   );
 
-  const orgName = atRoot ? (placedTree(dataOf(tree))[0]?.name ?? '') : '';
-  const nested = atRoot
-    ? orgName === ''
-      ? []
-      : [{ label: orgName }]
-    : [{ label: nodeId }];
-
   return (
     <>
-      <AreaHeader area={areaFor('topology')} locale={locale} nested={nested} />
-
       {resolvedState === 'empty' ? (
         <Panel
           title={message(locale, 'topology.graph.title')}

@@ -131,7 +131,9 @@ describe('resolving what the shell needs', () => {
     expect(approvals.length).toBeGreaterThan(0);
     // Every one of them was pending in the dataset; a decided one appearing
     // here is the notification centre people learn to distrust.
-    expect(approvals.every((item) => item.href.startsWith('/approvals/'))).toBe(true);
+    expect(
+      approvals.every((item) => item.href.startsWith('/decisions?tab=actions')),
+    ).toBe(true);
   });
 
   it('reads the guardian&apos;s liveness from what the deployment reports', async () => {
@@ -143,13 +145,10 @@ describe('resolving what the shell needs', () => {
     vi.stubGlobal('fetch', servingFixtures());
     const counts = countsFrom(await loadAttention('opaque'));
 
-    expect(counts.approvals).toBeGreaterThan(0);
-    expect(Object.keys(counts).sort()).toEqual([
-      'approvals',
-      'incidents',
-      'proposals',
-      'runs',
-    ]);
+    // Decisions is one area for both kinds now: an approval waiting and a
+    // proposal waiting both count toward the same badge.
+    expect(counts.decisions).toBeGreaterThan(0);
+    expect(Object.keys(counts).sort()).toEqual(['decisions', 'incidents', 'runs']);
   });
 });
 

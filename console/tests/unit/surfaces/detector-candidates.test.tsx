@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { surfaceContext } from '@/surfaces/context';
-import { DetectorsScreen } from '@/surfaces/screens/detectors';
+import { ObservationTab } from '@/surfaces/screens/detectors';
 
 /**
  * A detector a document proposed, in the table beside the ones that are running.
@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 async function detectors(): Promise<void> {
-  render(await DetectorsScreen(await surfaceContext({})));
+  render(await ObservationTab(await surfaceContext({})));
 }
 
 function rowFor(detectorId: string): HTMLElement {

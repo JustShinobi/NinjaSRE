@@ -139,7 +139,7 @@ async function readAttention(credential: string): Promise<readonly AttentionItem
         kind: 'approval',
         title: text(record, 'summary'),
         detail: text(record, 'action'),
-        href: `/approvals/${id}`,
+        href: `/decisions?tab=actions&selected=${id}`,
         since: text(record, 'requested_at'),
       });
     }
@@ -159,7 +159,7 @@ async function readAttention(credential: string): Promise<readonly AttentionItem
         kind: 'proposal',
         title: text(record, 'summary'),
         detail: text(record, 'proposal_type'),
-        href: `/proposals?selected=${id}`,
+        href: `/decisions?tab=changes&selected=${id}`,
         since: text(record, 'proposed_at'),
       });
     }
@@ -308,8 +308,11 @@ export function countsFrom(
   attention: readonly AttentionItem[],
 ): Readonly<Record<string, number>> {
   return {
-    approvals: attention.filter((item) => item.kind === 'approval').length,
-    proposals: attention.filter((item) => item.kind === 'proposal').length,
+    // Decisions is one area now, for both kinds — a decision waiting is a
+    // decision waiting, whichever of its two tabs it would open to.
+    decisions: attention.filter(
+      (item) => item.kind === 'approval' || item.kind === 'proposal',
+    ).length,
     incidents: attention.filter((item) => item.kind === 'incident').length,
     runs: attention.filter((item) => item.kind === 'failure').length,
   };

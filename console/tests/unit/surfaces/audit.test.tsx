@@ -3,14 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { CLOCK_ENV, surfaceContext } from '@/surfaces/context';
-import { AuditScreen } from '@/surfaces/screens/audit';
+import { AuditTab } from '@/surfaces/screens/audit';
 
 /**
- * The audit trail with its real volume in it: thousands of identical polling
- * resolutions and, somewhere among them, the handful of things a person did.
+ * The "Audit" tab of Administration, with its real volume in it: thousands of
+ * identical polling resolutions and, somewhere among them, the handful of
+ * things a person did.
  *
  * Every fixture below is built around one question — can a human action from
- * today still be found — and pins the two mechanisms spec 038 asks for
+ * today still be found — and pins the two mechanisms that make it findable
  * together: consecutive identical events collapse into one row, and the
  * system principal is excluded from the reading a viewer lands on by default.
  */
@@ -110,7 +111,7 @@ afterEach(() => {
 });
 
 async function audit(params: Record<string, string> = {}): Promise<void> {
-  render(await AuditScreen(await surfaceContext(params)));
+  render(await AuditTab(await surfaceContext(params)));
 }
 
 function rowList(): HTMLElement {

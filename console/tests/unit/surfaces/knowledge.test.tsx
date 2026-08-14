@@ -100,7 +100,7 @@ describe('a finished deployment that has ingested nothing yet', () => {
     // The label is not fixed by this screen — but the destination must never
     // be the general settings screen, which has no ingestion control on it.
     const wayBack = screen.getByTestId('way-back');
-    expect(wayBack).toHaveAttribute('href', '/proposals');
+    expect(wayBack).toHaveAttribute('href', '/decisions?tab=changes');
     expect(wayBack.getAttribute('href')).not.toBe('/configuration');
   });
 });
@@ -112,7 +112,7 @@ describe('what an investigation proposed to the knowledge base', () => {
     await renderKnowledge();
 
     const link = screen.getByTestId('proposals-link');
-    expect(link).toHaveAttribute('href', '/proposals');
+    expect(link).toHaveAttribute('href', '/decisions?tab=changes');
     expect(
       screen.getByText(/Changes an investigation proposed, awaiting review/),
     ).toBeInTheDocument();
@@ -135,6 +135,64 @@ describe('what an investigation proposed to the knowledge base', () => {
     expect(
       screen.getByText(/same queue as every other proposed change/),
     ).toBeInTheDocument();
+  });
+});
+
+describe('the fusion of Memory, Knowledge and Topology into one screen', () => {
+  async function renderTab(tab: string): Promise<void> {
+    const { default: Page } = await import('@/app/(shell)/knowledge/page');
+    render(await Page({ searchParams: Promise.resolve({ tab }) }));
+  }
+
+  it('names the area Knowledge, whichever tab is open', async () => {
+    serveScenario('populated');
+    await renderTab('learned');
+
+    expect(screen.getByTestId('page-header')).toHaveAttribute('data-area', 'knowledge');
+    expect(screen.getByTestId('page-header')).toHaveTextContent('Knowledge');
+  });
+
+  it('offers all three tabs, in the order learned, documents, topology', async () => {
+    serveScenario('populated');
+    await renderTab('documents');
+
+    const tabs = screen.getAllByTestId('tab-link');
+    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).toEqual([
+      'learned',
+      'documents',
+      'topology',
+    ]);
+  });
+
+  it('defaults to Documents for a bare address, so an existing bookmark still opens the same content', async () => {
+    serveScenario('populated');
+    await renderKnowledge();
+
+    expect(screen.getByTestId('row-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('graph')).toBeNull();
+  });
+
+  it('shows Learned — episodes and strategies — on its own tab', async () => {
+    serveScenario('populated');
+    await renderTab('learned');
+
+    expect(screen.getByText('Episodes')).toBeInTheDocument();
+    expect(screen.getByText('Strategies')).toBeInTheDocument();
+    expect(screen.queryByTestId('proposals-link')).toBeNull();
+  });
+
+  it('shows the topology graph on its own tab, and carries a node in the breadcrumb', async () => {
+    serveScenario('populated');
+    const { default: Page } = await import('@/app/(shell)/knowledge/page');
+    render(
+      await Page({
+        searchParams: Promise.resolve({ tab: 'topology', node: 'svc-ledger' }),
+      }),
+    );
+
+    expect(screen.getByTestId('graph')).toBeInTheDocument();
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(trail).toHaveTextContent('svc-ledger');
   });
 });
 

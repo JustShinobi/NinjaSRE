@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
 import { OperatingContextEditor, type ContextSection } from '../operating-context';
@@ -23,9 +21,10 @@ import { OrgNav, placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
- * What this team knows about its own environment, and the prompt it becomes.
+ * The "Team" tab of The agent: what this team knows about its own
+ * environment, and the prompt it becomes.
  *
- * The screen exists because the facts here are not fields. "Container metrics
+ * The tab exists because the facts here are not fields. "Container metrics
  * come from the host, by vmid" has no type, no range and no closed set — it is
  * a paragraph somebody writes once and every investigation reads afterwards —
  * and a form generated from a schema has nothing useful to say about one.
@@ -43,9 +42,15 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
  * derived from what the estate has already discovered, and it is offered rather
  * than applied for the same reason a suggested address is: derived text is
  * evidence, and typing it is a decision.
+ *
+ * On its own address once, `/team-context`. The team's operating context is,
+ * in practice, part of the agent's own prompt — this screen's own words say
+ * so — so it moved to The agent rather than staying a menu entry beside it;
+ * unlike Autonomy or Integrations, it never had a separate write surface to
+ * preserve, editor and all, this tab *is* the whole of it.
  */
 
-export const TEAM_CONTEXT_FILTERS: readonly FilterName[] = ['node'];
+export const TEAM_CONTEXT_FILTERS: readonly FilterName[] = ['tab', 'node'];
 
 /** The permission that decides whether the editor is on the page at all. */
 const WRITE = 'config.write';
@@ -58,7 +63,7 @@ function sectionsOf(record: unknown, name: string): readonly ContextSection[] {
   }));
 }
 
-export async function TeamContextScreen(context: SurfaceContext): Promise<ReactNode> {
+export async function TeamTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search } = context;
   const state = readViewState(search, TEAM_CONTEXT_FILTERS);
   const init = authorised(credential);
@@ -84,8 +89,6 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
 
   return (
     <>
-      <AreaHeader area={areaFor('team-context')} locale={locale} />
-
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="min-w-0">
           <Panel
@@ -97,14 +100,14 @@ export async function TeamContextScreen(context: SurfaceContext): Promise<ReactN
               heading: message(locale, 'configuration.empty.heading'),
               body: message(locale, 'configuration.empty.body'),
               actionLabel: message(locale, 'configuration.empty.action'),
-              href: '/team-context',
+              href: '/agent?tab=team',
             }}
           >
             <OrgNav
               nodes={placed}
               selected={selected}
               label={message(locale, 'configuration.tree.title')}
-              hrefFor={(id) => `/team-context?node=${encodeURIComponent(id)}`}
+              hrefFor={(id) => `/agent?tab=team&node=${encodeURIComponent(id)}`}
             />
           </Panel>
         </div>

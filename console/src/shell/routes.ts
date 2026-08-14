@@ -22,19 +22,15 @@ import {
   ActivityIcon,
   AlertCircleIcon,
   BookIcon,
-  BrainIcon,
   CheckIcon,
-  ClipboardIcon,
   CompassIcon,
   DatabaseIcon,
   GridIcon,
-  InboxIcon,
   ListIcon,
   LayersIcon,
   ServerIcon,
   SettingsIcon,
   ShieldIcon,
-  SitemapIcon,
   UsersIcon,
 } from '@/design/icons';
 import type { MessageKey } from '@/i18n/en';
@@ -102,12 +98,34 @@ export interface Area {
 /**
  * The areas, grouped as the design groups them.
  *
+ * Eighteen areas became thirteen (twelve once the guided first run is done)
+ * in one pass, on the reasoning that the previous grouping — one screen per
+ * subsystem — followed the software's own architecture rather than the six
+ * questions an operator actually asks. Six fusions did the shrinking, each a
+ * tabbed screen rather than a lost feature: **Decisions** absorbs Approvals
+ * and Proposed changes (the same "may the agent act" / "should the
+ * deployment be different" split, now sitting beside each other instead of
+ * behind separate menu entries); **Knowledge** absorbs Memory and Topology
+ * (learned, documented, observed — three angles on one question, "what does
+ * the agent know about this environment"); **The agent** absorbs the
+ * Catalogue's read surface and Team context (reading what the agent is
+ * stays here; writing stays on the screens built for it); **Integrations**
+ * is what the Catalogue's write surface becomes, on its own address;
+ * **Signals** absorbs Detectors and Data (what enters continuous
+ * observation and what leaves it, which were two screens in two different
+ * zones for no reason a reader could see); and **Administration** absorbs
+ * Audit as a tab, because both answer "who did what" from an
+ * administrator's own permission.
+ *
  * Two of the permissions are worth reading twice. **Autonomy** takes
  * `config.write`: the screen exists to change what the deployment may do on its
  * own, and a reader who cannot change it already sees the current posture on the
- * overview and in the sidebar footer. **Audit** takes `audit.read`, which is an
- * administrator's permission — the record of who did what is not a thing every
- * signed-in person is entitled to.
+ * overview and in the sidebar footer. **Administration** takes `identity.read`,
+ * which is an administrator's permission and also covers `audit.read` by
+ * construction — the two are granted together at every role that holds either
+ * (see `platform/identity/permissions.py`'s `Role.ADMIN` increment) — so the
+ * area's own gate never hides the Audit tab from somebody who could open the
+ * People one.
  */
 export const AREAS: readonly Area[] = [
   {
@@ -140,13 +158,18 @@ export const AREAS: readonly Area[] = [
     permission: 'investigation.read',
     icon: ListIcon,
   },
+  // Fuses Approvals ("may the agent do this now") and Proposed changes
+  // ("should the deployment be different from tomorrow") into one screen,
+  // two tabs. Both already needed `approval.read`, so the fusion needed no
+  // new permission — a reader who could open either queue before can open
+  // both tabs now, and nobody who could not gains access to either.
   {
-    id: 'approvals',
-    path: '/approvals',
+    id: 'decisions',
+    path: '/decisions',
     group: 'now',
-    label: 'nav.approvals',
-    title: 'page.approvals.title',
-    context: 'page.approvals.context',
+    label: 'nav.decisions',
+    title: 'page.decisions.title',
+    context: 'page.decisions.context',
     permission: 'approval.read',
     icon: CheckIcon,
   },
@@ -160,36 +183,12 @@ export const AREAS: readonly Area[] = [
     permission: 'investigation.read',
     icon: ServerIcon,
   },
-  {
-    id: 'topology',
-    path: '/topology',
-    group: 'environment',
-    label: 'nav.topology',
-    title: 'page.topology.title',
-    context: 'page.topology.context',
-    permission: 'memory.read',
-    icon: SitemapIcon,
-  },
-  {
-    id: 'detectors',
-    path: '/detectors',
-    group: 'environment',
-    label: 'nav.detectors',
-    title: 'page.detectors.title',
-    context: 'page.detectors.context',
-    permission: 'config.read',
-    icon: DatabaseIcon,
-  },
-  {
-    id: 'memory',
-    path: '/memory',
-    group: 'environment',
-    label: 'nav.memory',
-    title: 'page.memory.title',
-    context: 'page.memory.context',
-    permission: 'memory.read',
-    icon: BrainIcon,
-  },
+  // Fuses Memory, Topology and this screen's own prior content (the
+  // documents an investigation may read) into three tabs on one question:
+  // what does the agent know about this environment. `memory.read` and
+  // `knowledge.read` are both granted at `Role.VIEWER` (see
+  // `platform/identity/permissions.py`), so every viewer who could reach any
+  // one of the three before can reach all three tabs now.
   {
     id: 'knowledge',
     path: '/knowledge',
@@ -199,6 +198,24 @@ export const AREAS: readonly Area[] = [
     context: 'page.knowledge.context',
     permission: 'knowledge.read',
     icon: BookIcon,
+  },
+  {
+    // What the agent is, what it can do, and what it will do alone — now also
+    // the catalogue's own read surface (tools and skills, in read mode, with
+    // search) and the team's operating context, both absorbed whole. Writing
+    // still happens on the screens built for it (Integrations, Autonomy,
+    // Configuration); this is where an operator comes to read the agent, not
+    // to change it. The permission is the narrowest of the reads it makes —
+    // the node's catalogue, its fields, its effective configuration and its
+    // posture are all `config.read`.
+    id: 'agent',
+    path: '/agent',
+    group: 'environment',
+    label: 'nav.agent',
+    title: 'page.agent.title',
+    context: 'page.agent.context',
+    permission: 'config.read',
+    icon: ActivityIcon,
   },
   {
     // First in its zone, and the one entry with a `visible` rule: this is a
@@ -214,6 +231,40 @@ export const AREAS: readonly Area[] = [
     permission: 'config.read',
     icon: CompassIcon,
     visible: (context) => !context.checklistComplete,
+  },
+  // What the Catalogue used to be, once its browsing half moved to The
+  // agent: 85 integrations as cards with a real state (absent, stored,
+  // verified, failing), a credential form collapsed until asked for, and the
+  // credential test. The first run points here, a blocked tool's "connect
+  // it" link points here, and there is no third place a credential is
+  // entered from. `integration.manage` rather than a broader read
+  // permission: the gateway's own `GET /v1/integrations` already requires it
+  // (`gateway/http/security/gateway_routes.py`), so a broader area gate
+  // would only mean the one screen's one panel 403s for whoever it let in —
+  // the same reasoning Autonomy's own gate already applies.
+  {
+    id: 'integrations',
+    path: '/integrations',
+    group: 'settings',
+    label: 'nav.integrations',
+    title: 'page.integrations.title',
+    context: 'page.integrations.context',
+    permission: 'integration.manage',
+    icon: LayersIcon,
+  },
+  // Fuses Detectors and Data: two halves of the one pipe an alert travels
+  // through, entrada and saída, that used to sit in different zones of the
+  // menu for no reason a reader could see. Both already needed
+  // `config.read`.
+  {
+    id: 'signals',
+    path: '/signals',
+    group: 'settings',
+    label: 'nav.signals',
+    title: 'page.signals.title',
+    context: 'page.signals.context',
+    permission: 'config.read',
+    icon: DatabaseIcon,
   },
   {
     id: 'autonomy',
@@ -235,65 +286,14 @@ export const AREAS: readonly Area[] = [
     permission: 'config.read',
     icon: SettingsIcon,
   },
-  // Beside Configuration rather than inside it. What a team knows about its own
-  // environment is prose somebody writes and rereads, not a field with a range —
-  // and a panel that needs an editor, a budget meter and a preview of the
-  // assembled prompt is a panel trying to be a screen.
-  {
-    id: 'team-context',
-    path: '/team-context',
-    group: 'settings',
-    label: 'nav.teamContext',
-    title: 'page.teamContext.title',
-    context: 'page.teamContext.context',
-    permission: 'config.read',
-    icon: BookIcon,
-  },
-  // Its own item in Settings rather than a tab of Approvals, and the reason is
-  // the question each answers. Approvals is "may the agent do this now"; this is
-  // "should the deployment be different from tomorrow". They are read at
-  // different times by, often, different people — and a queue that only exists
-  // behind somebody else's screen is a queue that grows until it is discovered.
-  {
-    id: 'proposals',
-    path: '/proposals',
-    group: 'settings',
-    label: 'nav.proposals',
-    title: 'page.proposals.title',
-    context: 'page.proposals.context',
-    permission: 'approval.read',
-    icon: InboxIcon,
-  },
-  {
-    id: 'catalogue',
-    path: '/catalogue',
-    // Grouped with memory, knowledge and the estate rather than with settings:
-    // what the deployment *can do* is part of what exists and what is known
-    // about it, and it is read far more often than it is changed — which is the
-    // axis the zones are cut on.
-    group: 'environment',
-    label: 'nav.catalogue',
-    title: 'page.catalogue.title',
-    context: 'page.catalogue.context',
-    permission: 'investigation.read',
-    icon: LayersIcon,
-  },
-  {
-    // What the agent is, what it can do, and what it will do alone. In
-    // settings because that is where the information architecture puts it: it
-    // is what the platform *is* rather than what is happening. The permission
-    // is the narrowest of the four reads it makes — the node's catalogue, its
-    // fields, its effective configuration and its posture are all `config.read`
-    // — following the same rule the catalogue route's row states.
-    id: 'agent',
-    path: '/agent',
-    group: 'settings',
-    label: 'nav.agent',
-    title: 'page.agent.title',
-    context: 'page.agent.context',
-    permission: 'config.read',
-    icon: ActivityIcon,
-  },
+  // Audit is a tab here rather than its own entry: it is read in the context
+  // of "who did what", the neighbouring question to "who may do what", and
+  // both already took an administrator's own permission.
+  //
+  // The comment is outside the object literal deliberately: the contract suite
+  // parses this file with a regular expression that reads `id` immediately
+  // after the brace, so a comment inside makes an area invisible to the check
+  // that every declared route is walked.
   {
     id: 'administration',
     path: '/administration',
@@ -303,36 +303,6 @@ export const AREAS: readonly Area[] = [
     context: 'page.administration.context',
     permission: 'identity.read',
     icon: UsersIcon,
-  },
-  // Its own place rather than a corner of configuration, and the reason is a
-  // different question: the configuration tree answers "what value applies
-  // here", and this answers "where did this come from and where did it go".
-  // Mixing the two is how an operator ends up opening five screens to find out
-  // why an alert never became an investigation.
-  //
-  // The comment is outside the object literal deliberately: the contract suite
-  // parses this file with a regular expression that reads `id` immediately
-  // after the brace, so a comment inside makes an area invisible to the check
-  // that every declared route is walked.
-  {
-    id: 'data',
-    path: '/data',
-    group: 'settings',
-    label: 'nav.data',
-    title: 'page.data.title',
-    context: 'page.data.context',
-    permission: 'config.read',
-    icon: DatabaseIcon,
-  },
-  {
-    id: 'audit',
-    path: '/audit',
-    group: 'settings',
-    label: 'nav.audit',
-    title: 'page.audit.title',
-    context: 'page.audit.context',
-    permission: 'audit.read',
-    icon: ClipboardIcon,
   },
 ];
 

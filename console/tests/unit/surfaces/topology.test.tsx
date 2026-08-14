@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { surfaceContext } from '@/surfaces/context';
-import { TopologyScreen } from '@/surfaces/screens/topology';
+import { TopologyTab } from '@/surfaces/screens/topology';
 
 /**
  * Two panels that were the same empty state twice, and a door that did not
@@ -85,12 +85,6 @@ const TOPOLOGY_WITH_DATA = {
   blast_radius: [{ depth: 1, node: neighbour('svc-gateway', 'harbour') }],
 };
 
-const ORG_TREE = {
-  nodes: [
-    { kind: 'organisation', name: 'Northwind', node_id: 'root', parent_id: null },
-  ],
-};
-
 function serve(bodies: {
   readonly topology?: unknown;
   readonly setup: unknown;
@@ -125,7 +119,7 @@ afterEach(() => {
 });
 
 async function topology(): Promise<void> {
-  render(await TopologyScreen(await surfaceContext({})));
+  render(await TopologyTab(await surfaceContext({})));
 }
 
 function panels(): readonly HTMLElement[] {
@@ -185,34 +179,9 @@ describe('a node with real neighbours', () => {
   });
 });
 
-describe('the breadcrumb at the unqualified address', () => {
-  it('never prints the internal fallback name', async () => {
-    serve({ setup: SETUP_INCOMPLETE, tree: { nodes: [] } });
-    await topology();
-
-    expect(screen.queryByText('root')).toBeNull();
-  });
-
-  it('omits the crumb while the organisation tree names nothing', async () => {
-    serve({ setup: SETUP_INCOMPLETE, tree: { nodes: [] } });
-    await topology();
-
-    // `AreaHeader` draws no landmark at all for a trail of one — a breadcrumb
-    // that says only "Topology" is furniture, and this is that case: there is
-    // nothing the organisation tree can name here.
-    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
-  });
-
-  it('shows the organisation’s own name once the tree can name one', async () => {
-    serve({ topology: TOPOLOGY_WITH_DATA, setup: SETUP_COMPLETE, tree: ORG_TREE });
-    await topology();
-
-    // Scoped to the breadcrumb landmark itself: the graph beside it draws a
-    // box labelled with the address it was asked for, which is a different
-    // fact from what the breadcrumb owes a reader, and is not this test's
-    // concern.
-    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(trail).toHaveTextContent('Northwind');
-    expect(trail).not.toHaveTextContent('root');
-  });
-});
+// The breadcrumb itself moved: a single `AreaHeader` now covers all three of
+// Knowledge's tabs, so `screens/knowledge.tsx` is what decides whether a node
+// name appears in the trail, from the same `node` query parameter this tab
+// already reads — see that file's own note, and `knowledge.test.tsx` for the
+// tests that pin it there. This tab no longer reads the organisation tree at
+// all, so there is nothing left here to pin about an org name at the root.

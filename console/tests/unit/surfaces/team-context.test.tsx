@@ -1,11 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { surfaceContext } from '@/surfaces/context';
+import { TeamTab } from '@/surfaces/screens/team-context';
+
 import { serveScenario } from '../support/dataset';
 
 /**
- * What the team-context screen says about the organisation it is scoped to,
- * and about a section nobody has written yet.
+ * The "Team" tab of The agent: what it says about the organisation it is
+ * scoped to, and about a section nobody has written yet.
  *
  * Two defects this file exists to catch. First: a deployment with one node —
  * the ordinary shape of a fresh or small deployment — got a whole column
@@ -33,8 +36,7 @@ afterEach(() => {
 });
 
 async function renderTeamContext(): Promise<void> {
-  const { default: Page } = await import('@/app/(shell)/team-context/page');
-  render(await Page({ searchParams: Promise.resolve({}) }));
+  render(await TeamTab(await surfaceContext({})));
 }
 
 function respond(body: unknown, status = 200): Response {

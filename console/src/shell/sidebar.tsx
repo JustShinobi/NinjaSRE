@@ -50,8 +50,7 @@ const POSTURE_KEY = {
 
 /** The noun in each badge's accessible name matches the count's meaning. */
 const COUNT_LABEL: Readonly<Record<string, MessageKey>> = {
-  approvals: 'nav.pending.approvals',
-  proposals: 'nav.pending.proposals',
+  decisions: 'nav.pending.decisions',
   incidents: 'nav.pending.incidents',
   runs: 'nav.pending.runs',
 };

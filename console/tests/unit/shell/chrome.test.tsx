@@ -95,13 +95,13 @@ describe('the sidebar', () => {
   });
 
   it('marks exactly one entry as current, and marks the right one', () => {
-    renderSidebar('/audit');
+    renderSidebar('/administration');
     const marked = screen
       .getAllByTestId('nav-entry')
       .filter((entry) => entry.getAttribute('aria-current') === 'page');
 
     expect(marked).toHaveLength(1);
-    expect(marked[0]?.getAttribute('data-area')).toBe('audit');
+    expect(marked[0]?.getAttribute('data-area')).toBe('administration');
   });
 
   it('marks the area a nested route belongs to, not nothing at all', () => {
@@ -173,7 +173,7 @@ describe('the sidebar', () => {
         viewer={owner()}
         locale="en"
         guardian={GUARDIAN}
-        counts={{ approvals: 2, incidents: 3, runs: 4 }}
+        counts={{ decisions: 2, incidents: 3, runs: 4 }}
       />,
     );
 
@@ -191,8 +191,10 @@ describe('the sidebar', () => {
   it('renders every label from the catalogue, in whichever language the viewer reads', () => {
     render(<Sidebar viewer={owner()} locale="pt-BR" guardian={GUARDIAN} />);
 
-    expect(screen.getByText(message('pt-BR', 'nav.audit'))).toBeInTheDocument();
-    expect(screen.queryByText(EN['nav.audit'])).toBeNull();
+    expect(
+      screen.getByText(message('pt-BR', 'nav.administration')),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(EN['nav.administration'])).toBeNull();
   });
 });
 

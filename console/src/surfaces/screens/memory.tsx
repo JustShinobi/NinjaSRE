@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 
 import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { readSetupState, setupCause } from '../emptiness';
 import { FilterBar, type FilterChoice } from '../filters';
@@ -23,7 +21,8 @@ import { RowList, type ListRow } from '../rows';
 import { readViewState, type FilterName } from '../url-state';
 
 /**
- * What past investigations left behind, and what was learned from them.
+ * The "Learned" tab of Knowledge: what past investigations left behind, and
+ * what was learned from them.
  *
  * Episodes are browsable and each links to the run that produced it, which is
  * the property that makes the corpus evidence rather than assertion: a claim
@@ -40,11 +39,22 @@ import { readViewState, type FilterName } from '../url-state';
  * viewport for one fact. Below, the two collapse to the single section that
  * explains the whole chain, and the chain's own root cause: an unfinished
  * setup, named with a link to the place that finishes it.
+ *
+ * One of three tabs Knowledge asks about the same environment — learned,
+ * documented, observed — so this content is rendered by
+ * `screens/knowledge.tsx` beside `documents.tsx`'s and `topology.tsx`'s own.
  */
 
-export const MEMORY_FILTERS: readonly FilterName[] = ['component', 'outcome'];
+export const MEMORY_FILTERS: readonly FilterName[] = [
+  // Carried through every filter link this tab regenerates, so choosing a
+  // component or an outcome does not also silently switch Knowledge back to
+  // its default tab. See `hrefFor`'s own docstring in `url-state.ts`.
+  'tab',
+  'component',
+  'outcome',
+];
 
-export async function MemoryScreen(context: SurfaceContext): Promise<ReactNode> {
+export async function LearnedTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, now, zone, search } = context;
   const state = readViewState(search, MEMORY_FILTERS);
   const init = authorised(credential);
@@ -134,11 +144,9 @@ export async function MemoryScreen(context: SurfaceContext): Promise<ReactNode> 
 
   return (
     <>
-      <AreaHeader area={areaFor('memory')} locale={locale} />
-
       {corpusEmpty || choices.length === 0 ? null : (
         <FilterBar
-          path="/memory"
+          path="/knowledge"
           state={state}
           filters={MEMORY_FILTERS}
           anyLabel={message(locale, 'surface.filter.any')}
@@ -169,7 +177,7 @@ export async function MemoryScreen(context: SurfaceContext): Promise<ReactNode> 
             }}
           >
             <RowList
-              path="/memory"
+              path="/knowledge"
               state={state}
               filters={MEMORY_FILTERS}
               labels={rowLabels(locale, message(locale, 'memory.episodes.caption'))}
@@ -210,7 +218,7 @@ export async function MemoryScreen(context: SurfaceContext): Promise<ReactNode> 
               heading: message(locale, 'memory.strategies.empty.heading'),
               body: message(locale, 'memory.strategies.empty.body'),
               actionLabel: message(locale, 'memory.strategies.empty.action'),
-              href: '/memory',
+              href: '/knowledge?tab=learned',
             }}
           />
         </div>

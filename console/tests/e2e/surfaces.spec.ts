@@ -123,7 +123,7 @@ test('the estate is sorted by health, with a meter and a number', async ({ page 
 });
 
 test('the topology draws a picture and a list of the same graph', async ({ page }) => {
-  await page.goto('/topology?node=svc-ledger');
+  await page.goto('/knowledge?tab=topology&node=svc-ledger');
 
   await expect(page.getByTestId('graph')).toBeVisible();
   await expect(page.getByTestId('graph-list')).toBeVisible();
@@ -141,7 +141,7 @@ test('the organisation tree has every node in it', async ({ page }) => {
 test('a proposal carries all eight fields before it can be decided', async ({
   page,
 }) => {
-  await page.goto('/approvals');
+  await page.goto('/decisions?tab=actions');
 
   const rows = page.getByTestId('proposal-row');
   await expect(rows.first()).toBeVisible();
@@ -174,7 +174,7 @@ test('a proposal carries all eight fields before it can be decided', async ({
  */
 
 test('a silent receiver is the first thing on the transit screen', async ({ page }) => {
-  await page.goto('/data');
+  await page.goto('/signals?tab=intake');
 
   const first = page.getByTestId('ingress-source').first();
   await expect(first).toHaveAttribute('data-never-delivered', 'true');
@@ -182,14 +182,14 @@ test('a silent receiver is the first thing on the transit screen', async ({ page
 });
 
 test('the rule that catches everything else is always drawn', async ({ page }) => {
-  await page.goto('/data');
+  await page.goto('/signals?tab=intake');
 
   await expect(page.getByTestId('catch-all-rule')).toBeVisible();
   await expect(page.getByTestId('catch-all-note')).toBeVisible();
 });
 
 test('a rule cannot be saved until its effect has been seen', async ({ page }) => {
-  await page.goto('/data');
+  await page.goto('/signals?tab=intake');
 
   const save = page.getByTestId('simulate-save');
   const simulate = page.getByTestId('simulate');
@@ -208,7 +208,7 @@ test('a rule cannot be saved until its effect has been seen', async ({ page }) =
 
 test('editing the payload after simulating locks save again', async ({ page }) => {
   // The bypass attempt: simulate something harmless, edit it, then save.
-  await page.goto('/data');
+  await page.goto('/signals?tab=intake');
 
   await page.getByTestId('simulate-payload').fill('{"groupKey": "g"}');
   await page.getByTestId('simulate').click();
@@ -222,7 +222,7 @@ test('editing the payload after simulating locks save again', async ({ page }) =
 test('a report that did not arrive can be sent again from the row it failed on', async ({
   page,
 }) => {
-  await page.goto('/data');
+  await page.goto('/signals?tab=destinations');
 
   const failed = page.getByTestId('failed-delivery').first();
   await expect(failed).toContainText('channel_not_found');
@@ -237,7 +237,7 @@ test('a report that did not arrive can be sent again from the row it failed on',
 test('an arrival answers which rule caught it and which run it became', async ({
   page,
 }) => {
-  await page.goto('/data');
+  await page.goto('/signals?tab=intake');
 
   const live = page
     .getByTestId('ingress-source')
@@ -258,7 +258,7 @@ test('the operating context names the level each section came from', async ({
   // Acceptance 2 in a browser: a section is the unit of inheritance here, and an
   // operator who cannot tell an organisation's fact from their own team's edits
   // at the wrong level and concludes nothing happened.
-  await page.goto('/team-context?node=org-northwind');
+  await page.goto('/agent?tab=team&node=org-northwind');
 
   const sections = page.getByTestId('context-section');
   await expect(sections.first()).toBeVisible();
@@ -266,7 +266,7 @@ test('the operating context names the level each section came from', async ({
     'org-northwind',
   );
 
-  await page.goto('/team-context?node=team-platform');
+  await page.goto('/agent?tab=team&node=team-platform');
   const attributed = await page
     .getByTestId('section-provenance')
     .evaluateAll((nodes) => nodes.map((node) => node.textContent));
@@ -284,7 +284,7 @@ test('the operating context shows the prompt before it offers a save', async ({
   // deployment's own assembly, arriving over a real POST. A unit test can show
   // the console renders what it is handed; only this shows that what it is
   // handed came from the server.
-  await page.goto('/team-context?node=org-northwind');
+  await page.goto('/agent?tab=team&node=org-northwind');
 
   await expect(page.getByTestId('ask-context-preview')).toBeDisabled();
   await page

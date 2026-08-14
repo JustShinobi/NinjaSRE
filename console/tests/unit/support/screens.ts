@@ -7,23 +7,15 @@ import Administration, {
   generateMetadata as administrationMeta,
 } from '@/app/(shell)/administration/page';
 import Agent, { generateMetadata as agentMeta } from '@/app/(shell)/agent/page';
-import Approvals, {
-  generateMetadata as approvalsMeta,
-} from '@/app/(shell)/approvals/page';
-import Audit, { generateMetadata as auditMeta } from '@/app/(shell)/audit/page';
 import Autonomy, {
   generateMetadata as autonomyMeta,
 } from '@/app/(shell)/autonomy/page';
-import Catalogue, {
-  generateMetadata as catalogueMeta,
-} from '@/app/(shell)/catalogue/page';
 import Configuration, {
   generateMetadata as configurationMeta,
 } from '@/app/(shell)/configuration/page';
-import Data, { generateMetadata as dataMeta } from '@/app/(shell)/data/page';
-import Detectors, {
-  generateMetadata as detectorsMeta,
-} from '@/app/(shell)/detectors/page';
+import Decisions, {
+  generateMetadata as decisionsMeta,
+} from '@/app/(shell)/decisions/page';
 import FirstRun, {
   generateMetadata as firstRunMeta,
 } from '@/app/(shell)/first-run/page';
@@ -31,25 +23,19 @@ import IncidentDetail from '@/app/(shell)/incidents/[incidentId]/page';
 import Incidents, {
   generateMetadata as incidentsMeta,
 } from '@/app/(shell)/incidents/page';
+import Integrations, {
+  generateMetadata as integrationsMeta,
+} from '@/app/(shell)/integrations/page';
 import Knowledge, {
   generateMetadata as knowledgeMeta,
 } from '@/app/(shell)/knowledge/page';
-import Memory, { generateMetadata as memoryMeta } from '@/app/(shell)/memory/page';
 import Overview, { generateMetadata as overviewMeta } from '@/app/(shell)/page';
-import Proposals, {
-  generateMetadata as proposalsMeta,
-} from '@/app/(shell)/proposals/page';
 import Resources, {
   generateMetadata as resourcesMeta,
 } from '@/app/(shell)/resources/page';
 import RunDetail from '@/app/(shell)/runs/[runId]/page';
 import Runs, { generateMetadata as runsMeta } from '@/app/(shell)/runs/page';
-import TeamContext, {
-  generateMetadata as teamContextMeta,
-} from '@/app/(shell)/team-context/page';
-import Topology, {
-  generateMetadata as topologyMeta,
-} from '@/app/(shell)/topology/page';
+import Signals, { generateMetadata as signalsMeta } from '@/app/(shell)/signals/page';
 
 /**
  * Every screen this console has, in one list.
@@ -78,22 +64,16 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'dashboard', render: Overview, metadata: overviewMeta },
   { id: 'incidents', render: Incidents, metadata: incidentsMeta },
   { id: 'runs', render: Runs, metadata: runsMeta },
-  { id: 'approvals', render: Approvals, metadata: approvalsMeta },
+  { id: 'decisions', render: Decisions, metadata: decisionsMeta },
   { id: 'resources', render: Resources, metadata: resourcesMeta },
-  { id: 'topology', render: Topology, metadata: topologyMeta },
-  { id: 'detectors', render: Detectors, metadata: detectorsMeta },
-  { id: 'memory', render: Memory, metadata: memoryMeta },
   { id: 'knowledge', render: Knowledge, metadata: knowledgeMeta },
-  { id: 'catalogue', render: Catalogue, metadata: catalogueMeta },
+  { id: 'agent', render: Agent, metadata: agentMeta },
+  { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
+  { id: 'integrations', render: Integrations, metadata: integrationsMeta },
+  { id: 'signals', render: Signals, metadata: signalsMeta },
   { id: 'autonomy', render: Autonomy, metadata: autonomyMeta },
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
-  { id: 'team-context', render: TeamContext, metadata: teamContextMeta },
-  { id: 'proposals', render: Proposals, metadata: proposalsMeta },
-  { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
-  { id: 'agent', render: Agent, metadata: agentMeta },
   { id: 'administration', render: Administration, metadata: administrationMeta },
-  { id: 'audit', render: Audit, metadata: auditMeta },
-  { id: 'data', render: Data, metadata: dataMeta },
 ];
 
 /** The two detail screens, which are reached from a list rather than the navigation. */

@@ -1,17 +1,15 @@
 import { render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { serveScenario } from '../support/dataset';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Two inboxes of human decisions, one named "Approvals" and one named
- * "Proposed changes", in different menu groups, neither mentioning the other.
+ * The "Actions" tab of Decisions: what the agent wants to do now.
  *
- * A reader who opens both in sequence has to be able to say, from the screens
- * alone, which queue serves what — this is the minimal fix short of the
- * structural merge: a line on Approvals pointing at Proposed changes, and an
- * empty state that cites the rule feeding the queue rather than only the
- * mechanism.
+ * Used to be its own screen with a paragraph pointing at "Proposed changes",
+ * the sibling inbox for "should the deployment be different from tomorrow
+ * on". The two are tabs of one screen now (`screens/decisions.tsx`), which is
+ * what a reader of either sees the other exists from — the mutual-visibility
+ * assertions that used to live here moved to `decisions.test.tsx`, which
+ * tests the tab bar both tabs share.
  */
 
 vi.mock('next/headers', () => ({
@@ -23,48 +21,6 @@ vi.mock('next/headers', () => ({
 
 afterEach(() => {
   vi.unstubAllGlobals();
-});
-
-async function renderApprovals(): Promise<void> {
-  const { default: Page } = await import('@/app/(shell)/approvals/page');
-  render(await Page({ searchParams: Promise.resolve({}) }));
-}
-
-describe('the approvals screen and the proposals screen it is not', () => {
-  beforeEach(() => {
-    serveScenario('populated');
-  });
-
-  it('names this queue and explains what the other queue is for', async () => {
-    await renderApprovals();
-
-    expect(screen.getByTestId('page-header')).toHaveTextContent(
-      'Actions awaiting approval',
-    );
-    const crossInbox = screen.getByTestId('approvals-elsewhere').parentElement;
-    if (crossInbox === null) throw new Error('the cross-inbox link has no context');
-    expect(crossInbox).toHaveTextContent(
-      /changes the agent has proposed for the deployment/i,
-    );
-  });
-
-  it('points a reader at the other inbox', async () => {
-    await renderApprovals();
-
-    const link = screen.getByRole('link', { name: /Proposed changes/ });
-    expect(link).toHaveAttribute('href', '/proposals');
-  });
-
-  it('names that link once, as a single interactive element', async () => {
-    await renderApprovals();
-
-    const links = screen.getAllByRole('link', { name: /Proposed changes/ });
-    expect(links).toHaveLength(1);
-    // Not a button sitting inside the same link, and not a link sitting
-    // inside a button — one control, reachable once by a keyboard or a
-    // screen reader.
-    expect(links[0]?.closest('a,button')).toBe(links[0]);
-  });
 });
 
 // A base for parsing a path-only address. Never contacted, and built rather
@@ -117,11 +73,11 @@ describe('an empty queue that says why', () => {
       },
     });
 
-    const { ApprovalsScreen } = await import('@/surfaces/screens/approvals');
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
     const { contextFor } = await import('../support/dataset');
     const { datasetViewer } = await import('../support/dataset');
     render(
-      await ApprovalsScreen(
+      await ApprovalsTab(
         contextFor({ ...datasetViewer('populated'), teamNodeId: 'org-northwind' }),
       ),
     );
@@ -147,10 +103,10 @@ describe('an empty queue that says why', () => {
       },
     });
 
-    const { ApprovalsScreen } = await import('@/surfaces/screens/approvals');
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
     const { contextFor, datasetViewer } = await import('../support/dataset');
     render(
-      await ApprovalsScreen(
+      await ApprovalsTab(
         contextFor({ ...datasetViewer('populated'), teamNodeId: 'org-northwind' }),
       ),
     );
@@ -170,10 +126,10 @@ describe('an empty queue that says why', () => {
       },
     });
 
-    const { ApprovalsScreen } = await import('@/surfaces/screens/approvals');
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
     const { contextFor, datasetViewer } = await import('../support/dataset');
     render(
-      await ApprovalsScreen(
+      await ApprovalsTab(
         contextFor({ ...datasetViewer('populated'), teamNodeId: 'org-northwind' }),
       ),
     );
@@ -188,9 +144,9 @@ describe('an empty queue that says why', () => {
       '/v1/setup/checklist': { complete: true },
     });
 
-    const { ApprovalsScreen } = await import('@/surfaces/screens/approvals');
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
     const { contextFor, datasetViewer } = await import('../support/dataset');
-    render(await ApprovalsScreen(contextFor(datasetViewer('populated'))));
+    render(await ApprovalsTab(contextFor(datasetViewer('populated'))));
 
     expect(screen.getAllByRole('link', { name: 'See what is running' })).toHaveLength(
       1,
@@ -210,10 +166,10 @@ describe('an empty queue that says why', () => {
       },
     });
 
-    const { ApprovalsScreen } = await import('@/surfaces/screens/approvals');
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
     const { contextFor, datasetViewer } = await import('../support/dataset');
     render(
-      await ApprovalsScreen(
+      await ApprovalsTab(
         contextFor({ ...datasetViewer('populated'), teamNodeId: 'org-northwind' }),
       ),
     );

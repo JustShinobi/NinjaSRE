@@ -113,23 +113,31 @@ describe('a screen reached through its address', () => {
   });
 
   it('centres the topology on the node the address names', async () => {
-    serveScenario('populated', principalHolding(['memory.read']));
-    await renderArea('topology', { node: 'svc-checkout' });
+    serveScenario('populated', principalHolding(['memory.read', 'knowledge.read']));
+    await renderArea('knowledge', { tab: 'topology', node: 'svc-checkout' });
 
     expect(screen.getByTestId('graph-list')).toBeInTheDocument();
   });
 
   it('filters the knowledge base and the episode corpus', async () => {
     serveScenario('populated', principalHolding(['knowledge.read', 'memory.read']));
-    await renderArea('knowledge', { kind: 'runbook' });
-    await renderArea('memory', { component: 'storage', outcome: 'resolved' });
+    await renderArea('knowledge', { tab: 'documents', kind: 'runbook' });
+    await renderArea('knowledge', {
+      tab: 'learned',
+      component: 'storage',
+      outcome: 'resolved',
+    });
 
     expect(screen.getAllByTestId('page-header').length).toBe(2);
   });
 
   it('filters the audit record by principal and action', async () => {
-    serveScenario('populated', principalHolding(['audit.read', 'audit.export']));
-    await renderArea('audit', { actor: 'user-avery', action: 'run.start' });
+    serveScenario('populated', principalHolding(['identity.read', 'audit.export']));
+    await renderArea('administration', {
+      tab: 'audit',
+      actor: 'user-avery',
+      action: 'run.start',
+    });
 
     expect(screen.getByTestId('audit-export')).toBeInTheDocument();
   });
@@ -177,20 +185,23 @@ describe('a viewer who may act', () => {
       'populated',
       principalHolding(['approval.read', 'remediation.approve', 'investigation.read']),
     );
-    await renderArea('approvals');
+    await renderArea('decisions', { tab: 'actions' });
 
     expect(screen.getAllByTestId('approval').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('proposal-row').length).toBeGreaterThan(0);
   });
 
-  it('is offered the credential field on the catalogue', async () => {
-    serveScenario(
-      'populated',
-      principalHolding(['investigation.read', 'config.read', 'integration.manage']),
-    );
-    await renderArea('catalogue');
+  it('is offered the tools browser on the agent screen', async () => {
+    serveScenario('populated', principalHolding(['config.read', 'integration.manage']));
+    await renderArea('agent', { tab: 'tools' });
 
     expect(screen.getAllByTestId('capability').length).toBeGreaterThan(0);
+  });
+
+  it('is offered the credential field on integrations', async () => {
+    serveScenario('populated', principalHolding(['integration.manage']));
+    await renderArea('integrations');
+
     expect(screen.getAllByTestId('integration').length).toBeGreaterThan(0);
   });
 
@@ -199,11 +210,8 @@ describe('a viewer who may act', () => {
     // discovers an absence by looking for it and not finding it, which is the
     // worst moment and the worst way. A decision with the reasoning written
     // down is also where the next "should we build X" conversation starts.
-    serveScenario(
-      'populated',
-      principalHolding(['investigation.read', 'config.read', 'integration.manage']),
-    );
-    await renderArea('catalogue');
+    serveScenario('populated', principalHolding(['integration.manage']));
+    await renderArea('integrations');
 
     const gaps = screen.getAllByTestId('known-gap');
     const named = gaps.map((gap) => gap.getAttribute('data-integration'));
@@ -217,11 +225,8 @@ describe('a viewer who may act', () => {
   });
 
   it('tells a decision apart from something the architecture forbids', async () => {
-    serveScenario(
-      'populated',
-      principalHolding(['investigation.read', 'config.read', 'integration.manage']),
-    );
-    await renderArea('catalogue');
+    serveScenario('populated', principalHolding(['integration.manage']));
+    await renderArea('integrations');
 
     const causes = screen
       .getAllByTestId('known-gap')

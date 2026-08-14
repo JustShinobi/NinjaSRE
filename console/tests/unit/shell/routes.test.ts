@@ -44,6 +44,7 @@ const OWNER = viewerHolding([
   'config.write',
   'audit.read',
   'identity.read',
+  'integration.manage',
   'impersonation.use',
 ]);
 
@@ -73,22 +74,16 @@ describe('the route manifest', () => {
       dashboard: 'now',
       incidents: 'now',
       runs: 'now',
-      approvals: 'now',
+      decisions: 'now',
       resources: 'environment',
-      topology: 'environment',
-      detectors: 'environment',
       knowledge: 'environment',
-      memory: 'environment',
-      catalogue: 'environment',
+      agent: 'environment',
       'first-run': 'settings',
-      agent: 'settings',
+      integrations: 'settings',
+      signals: 'settings',
       autonomy: 'settings',
       configuration: 'settings',
-      data: 'settings',
-      'team-context': 'settings',
-      proposals: 'settings',
       administration: 'settings',
-      audit: 'settings',
     };
     for (const area of AREAS) {
       expect(zones[area.id], `${area.id} is in no declared zone`).toBeDefined();
@@ -133,8 +128,8 @@ describe('the route manifest', () => {
   });
 
   it('finds an area by path, and answers nothing for a path it does not serve', () => {
-    expect(areaByPath('/audit')?.id).toBe('audit');
-    expect(areaByPath('/audit/')?.id).toBe('audit');
+    expect(areaByPath('/administration')?.id).toBe('administration');
+    expect(areaByPath('/administration/')?.id).toBe('administration');
     expect(areaByPath('/no-such-place')).toBeUndefined();
   });
 });

@@ -43,7 +43,7 @@ describe('the registry areas contribute to', () => {
     const offered = commandsFor(viewerAt(least), 'en').map((command) => command.id);
 
     expect(offered).toContain('go:dashboard');
-    expect(offered).not.toContain('go:audit');
+    expect(offered).not.toContain('go:administration');
     // The action, too: a palette entry that refuses is a palette entry that has
     // told somebody the capability exists.
     expect(offered).not.toContain('act:investigate');
@@ -73,7 +73,7 @@ describe('the registry areas contribute to', () => {
   });
 
   it('matches without regard to case, because nobody types the case', () => {
-    expect(matching(commands(), 'AUDIT').length).toBeGreaterThan(0);
+    expect(matching(commands(), 'SIGNALS').length).toBeGreaterThan(0);
   });
 });
 
@@ -113,12 +113,12 @@ describe('the palette, from the keyboard alone', () => {
 
   it('filters as somebody types', async () => {
     open();
-    await userEvent.keyboard('audit');
+    await userEvent.keyboard('signals');
 
     const shown = screen
       .getAllByTestId('palette-command')
       .map((command) => command.getAttribute('data-command'));
-    expect(shown).toEqual(['go:audit']);
+    expect(shown).toEqual(['go:signals']);
   });
 
   it('says nothing matches rather than showing an empty list', async () => {
@@ -148,10 +148,10 @@ describe('the palette, from the keyboard alone', () => {
 
   it('runs the highlighted command on Enter', async () => {
     const { onRun } = open();
-    await userEvent.keyboard('audit{Enter}');
+    await userEvent.keyboard('signals{Enter}');
 
     expect(onRun).toHaveBeenCalledOnce();
-    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/audit' });
+    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/signals' });
   });
 
   it('runs nothing at all when nothing matches', async () => {
@@ -303,7 +303,7 @@ describe('searching the deployment from the palette', () => {
     await person.type(box, 'signoz');
     await screen.findByText('stale-result');
     await person.clear(box);
-    await person.type(box, 'audit');
+    await person.type(box, 'signals');
 
     expect(screen.queryByText('stale-result')).toBeNull();
   });
@@ -325,7 +325,7 @@ describe('searching the deployment from the palette', () => {
       />,
     );
 
-    await person.type(screen.getByTestId('palette-query'), 'audit');
+    await person.type(screen.getByTestId('palette-query'), 'signals');
 
     expect(screen.getAllByTestId('palette-command').length).toBeGreaterThan(0);
   });
@@ -369,14 +369,16 @@ describe('the palette with a pointer, which people also use', () => {
       />,
     );
 
-    const audit = screen
+    const signals = screen
       .getAllByTestId('palette-command')
-      .find((node) => node.getAttribute('data-command') === 'go:audit');
-    if (audit === undefined) throw new Error('the palette did not offer the audit row');
-    await person.click(audit);
+      .find((node) => node.getAttribute('data-command') === 'go:signals');
+    if (signals === undefined) {
+      throw new Error('the palette did not offer the signals row');
+    }
+    await person.click(signals);
 
     expect(onRun).toHaveBeenCalledOnce();
-    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/audit' });
+    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/signals' });
   });
 
   it('follows the pointer with the highlight, so Enter runs what is under it', async () => {

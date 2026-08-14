@@ -236,7 +236,7 @@ export async function IncidentDetailScreen(
               heading: message(locale, 'incident.derivation.empty.heading'),
               body: message(locale, 'incident.derivation.empty.body'),
               actionLabel: message(locale, 'incident.derivation.empty.action'),
-              href: '/detectors',
+              href: '/signals?tab=observation',
             }}
           >
             <p className="text-meta text-muted mb-2">

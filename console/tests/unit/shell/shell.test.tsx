@@ -169,9 +169,9 @@ describe('the palette, from anywhere', () => {
   it('navigates when a command is run, and closes behind itself', async () => {
     const { navigate } = renderShell();
     await userEvent.keyboard('{Control>}k{/Control}');
-    await userEvent.keyboard('audit{Enter}');
+    await userEvent.keyboard('signals{Enter}');
 
-    expect(navigate).toHaveBeenCalledWith('/audit');
+    expect(navigate).toHaveBeenCalledWith('/signals');
     await waitFor(() => {
       expect(screen.queryByTestId('palette')).toBeNull();
     });

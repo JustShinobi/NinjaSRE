@@ -1,12 +1,8 @@
 import type { ReactNode } from 'react';
 
-import { Link } from '@/components/action';
-import { CompassIcon } from '@/design/icons';
 import { message } from '@/i18n/messages';
 import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { DecisionControls } from '../decision';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
@@ -32,8 +28,8 @@ import {
 } from '../read';
 
 /**
- * Everything waiting on a decision, grouped by how long it has waited, decidable
- * where it is read.
+ * The "Actions" tab of Decisions: everything waiting on an approval, grouped by
+ * how long it has waited, decidable where it is read.
  *
  * The grouping is by urgency rather than by run or by kind: an approval that has
  * passed its expiry is a different thing from one that arrived a minute ago, and
@@ -43,12 +39,13 @@ import {
  * disabled: a disabled control still says the capability exists, still says
  * somebody else has it, and still ships the handler behind it.
  *
- * **This is not the only inbox.** "Approvals" and "Proposed changes" are both
- * queues of a human decision, and the difference — can the agent do this now,
- * versus should the deployment be different from tomorrow on — is real but is
- * not carried by either name. This screen says so, with a line to the other
- * queue, because the structural fix (one inbox, two tabs) is a later change and
- * this one is not.
+ * **This tab is one half of Decisions.** "Can the agent do this now" and
+ * "should the deployment be different from tomorrow on" are different
+ * questions, and used to be two menu entries with no reference to each other.
+ * They are two tabs of one screen now — `screens/decisions.tsx`, which renders
+ * this content and `proposals.tsx`'s side by side — so a reader who opens
+ * either sees that the other exists without a cross-link paragraph doing the
+ * work a tab bar already does.
  *
  * **The empty state names the rule, not only the mechanism.** "None does" is
  * true and unhelpful on a deployment where the approval threshold was never
@@ -126,7 +123,7 @@ function groupOf(record: unknown, now: Date): 'overdue' | 'today' | 'later' {
   return 'later';
 }
 
-export async function ApprovalsScreen(context: SurfaceContext): Promise<ReactNode> {
+export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone, search } = context;
   const init = authorised(credential);
 
@@ -272,7 +269,6 @@ export async function ApprovalsScreen(context: SurfaceContext): Promise<ReactNod
     records: pending.filter((record) => groupOf(record, now) === group),
   }));
 
-  const proposals = areaFor('proposals');
   const empty = emptyBecause(
     {
       heading: message(locale, 'approvals.empty.heading'),
@@ -285,21 +281,6 @@ export async function ApprovalsScreen(context: SurfaceContext): Promise<ReactNod
 
   return (
     <>
-      <AreaHeader area={areaFor('approvals')} locale={locale} />
-
-      {/* Absent for a viewer who may not open the other queue at all — a link
-          to a screen somebody cannot see is not a courtesy, it is a dead end
-          dressed as one. */}
-      {may(viewer, proposals.permission) ? (
-        <p className="text-meta text-muted mb-3 flex items-center gap-1">
-          <CompassIcon size="empty" />
-          <span>{message(locale, 'approvals.otherInbox')}</span>
-          <Link href={proposals.path} data-testid="approvals-elsewhere">
-            {message(locale, 'surface.open')} {message(locale, proposals.title)}
-          </Link>
-        </p>
-      ) : null}
-
       <Panel
         title={message(locale, 'approvals.title')}
         state={stateOf(approvals, pending.length === 0)}

@@ -9,7 +9,18 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "Who may do what. A screen where a change of emphasis is a change of meaning."
+        "reason": "Who may do what — the People tab, and the default one. A screen where a change of emphasis is a change of meaning."
+      }
+    },
+    {
+      "id": "administration-audit-1440-light",
+      "route": "/administration?tab=audit",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "Who did what, when, and against which resource — Audit's own tab now, on the same administrator's permission People already needed. First capture: this is the menu reorganisation's own fusion, and needs recapturing before it protects anything."
       }
     },
     {
@@ -42,29 +53,18 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The tools section, split by the one distinction that changes the risk: what reads and what writes, with a blocked tool dimmed and the integration that blocks it named. The dimming is the part worth a picture — it is the only place on this screen where state rides on anything visual, and it is paired with words in the row rather than left to the shade."
+        "reason": "The tools section, split by the one distinction that changes the risk: what reads and what writes, with a blocked tool dimmed and the integration that blocks it named. The dimming is the part worth a picture — it is the only place on this screen where state rides on anything visual, and it is paired with words in the row rather than left to the shade. Not yet re-reviewed against the Catalogue's own former reference: the menu reorganisation added the searchable, domain-grouped browse table this tab now opens with (the former Catalogue screen's own read half), above the risk grouping this baseline already covered — needs recapturing before it protects the new panel too."
       }
     },
     {
-      "id": "approvals-1440-light",
-      "route": "/approvals",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "The proposal card, reviewed against the reference's: all eight fields — target, current state, proposed change, what each protects, blast radius, rollback plan, verification, autonomy — in that order, with a danger border, a risk chip, and the decision controls in the card's own footer. A field the dataset has nothing for says so rather than being dropped, so the card's shape does not depend on the data."
-      }
-    },
-    {
-      "id": "audit-1440-light",
-      "route": "/audit",
+      "id": "agent-team-1440-light",
+      "route": "/agent?tab=team",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "What was done and by whom. The record somebody reaches for when the question is already serious."
+        "reason": "The team's operating context, absorbed whole from its own former address: the organisation tree, the section editor with its per-section provenance, and the token budget meter. First capture: this is the menu reorganisation's own fusion, and needs recapturing before it protects anything."
       }
     },
     {
@@ -79,17 +79,6 @@
       }
     },
     {
-      "id": "catalogue-1440-light",
-      "route": "/catalogue",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "Everything this deployment can bring to an incident. A capability that stops being listed is a capability nobody will ask for."
-      }
-    },
-    {
       "id": "configuration-1440-light",
       "route": "/configuration",
       "status": "baselined",
@@ -101,36 +90,25 @@
       }
     },
     {
-      "id": "data-1440-light",
-      "route": "/data",
+      "id": "decisions-1440-light",
+      "route": "/decisions?tab=actions",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "04-screen-incident.png",
+        "reason": "The Actions tab — what used to be the whole of Approvals, now the default of one fused screen. The proposal card, reviewed against the reference's: all eight fields — target, current state, proposed change, what each protects, blast radius, rollback plan, verification, autonomy — in that order, with a danger border, a risk chip, and the decision controls in the card's own footer. A field the dataset has nothing for says so rather than being dropped, so the card's shape does not depend on the data. Not yet re-reviewed at this address: needs recapturing before it protects the fused screen."
+      }
+    },
+    {
+      "id": "decisions-changes-1440-light",
+      "route": "/decisions?tab=changes",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The three columns of transit, in the order data moves through them: what arrives, what happens to it, and where the result goes. No reference is drawn for it; the baseline exists because the one thing this screen has to get right is *emphasis without alarm* — a receiver that has never delivered is drawn first, in the same neutral tone as everything else, and a change that lost either the ordering or the neutrality would be invisible to every other check while undoing the whole reason the screen reads this way."
-      }
-    },
-    {
-      "id": "data-320-light",
-      "route": "/data",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "Three columns at the narrowest width the console declares, where they are one column stacked. What this catches is the masked payload sample — a long unbroken string — scrolling the page sideways."
-      }
-    },
-    {
-      "id": "detectors-1440-light",
-      "route": "/detectors",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "What this deployment watches for, and the threshold each check reads. An operator deciding whether to change one has to see the measurement beside it."
+        "reason": "The Changes tab — what used to be the whole of Proposed changes, now the sibling tab of Actions rather than a separate menu entry. The emphasis is the point: a proposal awaiting a human must not read like a completed one. First capture at this address: needs recapturing before it protects anything."
       }
     },
     {
@@ -218,7 +196,18 @@
       "theme": "light",
       "accepted": {
         "against": "04-screen-incident.png",
-        "reason": "Incident detail at the reference's two-thirds/one-third split: the primary column carrying the transcript and the timeline, the context rail carrying the subject and the 'why degraded' derivation — named signals with their values rather than a provider string, and the note that the raw status is retained. The proposal card is reviewed on the approvals capture, where a pending proposal actually exists in this dataset."
+        "reason": "Incident detail at the reference's two-thirds/one-third split: the primary column carrying the transcript and the timeline, the context rail carrying the subject and the 'why degraded' derivation — named signals with their values rather than a provider string, and the note that the raw status is retained. The proposal card is reviewed on the decisions capture, where a pending proposal actually exists in this dataset."
+      }
+    },
+    {
+      "id": "integrations-1440-light",
+      "route": "/integrations",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The credential form, collapsed until asked for, extracted from Catalogue into its own dedicated write surface for exactly what this deployment can reach and what a call blocked at the gateway means, with a state filter above it so eighty-five cards is a search rather than a scroll. No reference is drawn for it; the baseline exists because the collapsed-until-asked-for state is the one this screen must never open by default, and a change that did would put a secret-entry form in front of every visitor to this address. First capture at this address: needs recapturing before it protects anything."
       }
     },
     {
@@ -229,29 +218,29 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The corpus this deployment can cite. Its failure mode is looking populated while citing nothing, so the baseline covers the shape rather than the count."
+        "reason": "The Documents tab, and the default one now that Knowledge, Memory and Topology are three tabs of a single screen. The corpus this deployment can cite. Its failure mode is looking populated while citing nothing, so the baseline covers the shape rather than the count."
       }
     },
     {
-      "id": "memory-1440-light",
-      "route": "/memory",
+      "id": "knowledge-learned-1440-light",
+      "route": "/knowledge?tab=learned",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "What previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything."
+        "reason": "The Learned tab, absorbed whole from its own former address: what previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything. First capture at this address: needs recapturing before it protects anything."
       }
     },
     {
-      "id": "proposals-1440-light",
-      "route": "/proposals",
+      "id": "knowledge-topology-1440-light",
+      "route": "/knowledge?tab=topology",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "What the deployment wants to change and has not. The emphasis is the point: a proposal awaiting a human must not read like a completed one."
+        "reason": "The Topology tab, absorbed whole from its own former address: the service graph, which is the one part of this screen whose whole content is a drawing — a change that collapsed the layout or lost an edge would pass every other check. First capture at this address: needs recapturing before it protects anything."
       }
     },
     {
@@ -365,25 +354,47 @@
       }
     },
     {
-      "id": "team-context-1440-light",
-      "route": "/team-context",
+      "id": "signals-1440-light",
+      "route": "/signals",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The team's operating context beside the organisation tree: a section per named fact with the level that supplied it beside each, the token meter against the budget the deployment enforces, and the statement that this field takes facts rather than instructions with links to the two places an instruction belongs. No reference is drawn for it. The baseline exists because the one thing this screen must never lose is the per-section provenance — an operator editing at the wrong level otherwise sees nothing happen — and because the fact-not-instruction line is the whole of what keeps this field from becoming an unreviewed runbook."
+        "reason": "The Intake tab, and the default one now that ingress, routing, continuous observation and destinations are four tabs of a single screen: what arrives and what happens to it, in the order data moves through them. No reference is drawn for it; the baseline exists because the one thing this tab has to get right is *emphasis without alarm* — a receiver that has never delivered is drawn first, in the same neutral tone as everything else, and a change that lost either the ordering or the neutrality would be invisible to every other check while undoing the whole reason the tab reads this way."
       }
     },
     {
-      "id": "topology-1440-light",
-      "route": "/topology",
+      "id": "signals-observation-1440-light",
+      "route": "/signals?tab=observation",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The service graph, which is the one screen whose whole content is a drawing: a change that collapsed the layout or lost an edge would pass every other check."
+        "reason": "The Continuous observation tab, absorbed whole from its own former address: what this deployment watches for, and the threshold each check reads. An operator deciding whether to change one has to see the measurement beside it. First capture at this address: needs recapturing before it protects anything."
+      }
+    },
+    {
+      "id": "signals-schedules-1440-light",
+      "route": "/signals?tab=schedules",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The Schedules tab: investigations that run on a clock rather than a detector, absent rather than disabled for a viewer who may not manage them. First capture at this address: needs recapturing before it protects anything."
+      }
+    },
+    {
+      "id": "signals-destinations-1440-light",
+      "route": "/signals?tab=destinations",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The Destinations tab: where the result goes, and which outbound deliveries failed and can be resent. First capture at this address: needs recapturing before it protects anything."
       }
     }
   ],
@@ -410,7 +421,7 @@
       "file": "04-screen-incident.png",
       "status": "baselined",
       "surface": "the console data surfaces",
-      "note": "One investigation: the transcript, the derivation behind the verdict, and the proposal card. Reviewed across three captures — the run detail for the transcript, the incident detail for the rail, and the approvals queue for the card — because the reference draws one page and this dataset carries the three things it draws on three of them."
+      "note": "One investigation: the transcript, the derivation behind the verdict, and the proposal card. Reviewed across three captures — the run detail for the transcript, the incident detail for the rail, and the Decisions screen's Actions tab for the card — because the reference draws one page and this dataset carries the three things it draws on three of them."
     },
     {
       "file": "05-screen-estate.png",

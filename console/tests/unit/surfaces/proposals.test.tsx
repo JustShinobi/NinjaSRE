@@ -1,10 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { serveScenario } from '../support/dataset';
+import { contextFor, datasetViewer, serveScenario } from '../support/dataset';
 
 /**
- * The queue as a reviewer meets it.
+ * The "Changes" tab of Decisions, as a reviewer meets it.
  *
  * Four things per row, always in the same order: what would change, why, the
  * evidence, and a link back to the investigation. The link is the one that is
@@ -15,14 +15,12 @@ import { serveScenario } from '../support/dataset';
  * The acceptance figure carries both numbers rather than a percentage, because
  * sixty per cent of five and sixty per cent of two hundred are different facts.
  *
- * Three more things this screen has to get right, alongside Approvals:
- * - it points a reader who may see the other queue at it, and says nothing to
- *   one who may not;
- * - it names itself once — the sidebar, the page title and the one panel on
- *   this page agree, rather than the panel offering a second phrasing of the
- *   same concept the header just named;
- * - its empty state names where a proposal comes from, and prefers the setup
- *   cause when the deployment has never investigated at all.
+ * Used to be its own screen, with a paragraph pointing at Approvals and a
+ * check that its one panel named itself the same way the page title did. Both
+ * moved: the sibling tab (`approvals.tsx`, rendered as "Actions" beside this
+ * one) is now what shows a reader the other queue exists, and the page-title
+ * invariant no longer applies once this panel is one tab of a bigger page
+ * rather than the whole of it — see `decisions.test.tsx`.
  */
 
 vi.mock('next/headers', () => ({
@@ -41,8 +39,8 @@ afterEach(() => {
 });
 
 async function renderQueue(): Promise<void> {
-  const { default: Page } = await import('@/app/(shell)/proposals/page');
-  render(await Page({ searchParams: Promise.resolve({}) }));
+  const { ProposalsTab } = await import('@/surfaces/screens/proposals');
+  render(await ProposalsTab(contextFor(datasetViewer('populated'))));
 }
 
 describe('the proposal queue', () => {
@@ -83,19 +81,6 @@ describe('the proposal queue', () => {
 
     expect(screen.getByTestId('acceptance')).toHaveTextContent('3 of 5');
   });
-
-  it('names its one panel the same thing the sidebar and the page title already do', async () => {
-    await renderQueue();
-
-    // The page header already says "Proposed changes" (nav.proposals /
-    // page.proposals.title). The panel beneath it is the whole of this
-    // page's content — not a filtered sub-view the way "Episodes" is one of
-    // two panels on Memory — so a different construction of the same three
-    // words here is a second name for one concept, not a more specific one.
-    const panel = screen.getByTestId('panel');
-    expect(within(panel).getByText('Proposed changes')).toBeInTheDocument();
-    expect(screen.queryByText('Changes the agent has proposed')).toBeNull();
-  });
 });
 
 describe('a deployment nobody has proposed anything to', () => {
@@ -106,38 +91,6 @@ describe('a deployment nobody has proposed anything to', () => {
 
     expect(screen.getByText('The agent has proposed nothing')).toBeInTheDocument();
     expect(screen.queryAllByTestId('proposal-item')).toHaveLength(0);
-  });
-});
-
-describe('the proposals screen and the approvals queue it is not', () => {
-  beforeEach(() => {
-    serveScenario('populated');
-  });
-
-  it('points a reader at the other inbox', async () => {
-    await renderQueue();
-
-    const link = screen.getByRole('link', { name: /Actions awaiting approval/ });
-    expect(link).toHaveAttribute('href', '/approvals');
-  });
-
-  it('says what the other inbox is for, not only its name', async () => {
-    await renderQueue();
-
-    expect(screen.getByTestId('proposals-elsewhere').parentElement).toHaveTextContent(
-      /For actions the agent wants to take now/i,
-    );
-  });
-
-  it('names that link once, as a single interactive element', async () => {
-    await renderQueue();
-
-    const links = screen.getAllByRole('link', { name: /Actions awaiting approval/ });
-    expect(links).toHaveLength(1);
-    // Not a button sitting inside the same link, and not a link sitting
-    // inside a button — one control, reachable once by a keyboard or a
-    // screen reader.
-    expect(links[0]?.closest('a,button')).toBe(links[0]);
   });
 });
 
@@ -172,37 +125,6 @@ const EMPTY_QUEUE = {
   acceptance: { decided: 0, approved: 0, rate: 0 },
 };
 
-describe('the other inbox, absent for a viewer who may not open it', () => {
-  it('renders no link when the viewer lacks the permission the other queue needs', async () => {
-    stubReads({
-      '/v1/proposals': EMPTY_QUEUE,
-      '/v1/setup/checklist': { complete: true },
-    });
-
-    const { ProposalsScreen } = await import('@/surfaces/screens/proposals');
-    const { contextFor } = await import('../support/dataset');
-    render(
-      await ProposalsScreen(
-        contextFor({
-          principalId: 'user-under-test',
-          displayName: 'Avery Lockhart',
-          email: null,
-          roles: [],
-          // No `approval.read` — the permission both Approvals and this
-          // screen read behind.
-          permissions: ['investigation.read'],
-          teamNodeId: 'org-northwind',
-          impersonating: false,
-          impersonatedBy: null,
-        }),
-      ),
-    );
-
-    expect(screen.queryByTestId('proposals-elsewhere')).toBeNull();
-    expect(screen.queryByRole('link', { name: /Approvals/ })).toBeNull();
-  });
-});
-
 describe('an empty queue that says where a proposal would come from', () => {
   it('names the investigation mechanism once the setup is done', async () => {
     stubReads({
@@ -210,9 +132,8 @@ describe('an empty queue that says where a proposal would come from', () => {
       '/v1/setup/checklist': { complete: true },
     });
 
-    const { ProposalsScreen } = await import('@/surfaces/screens/proposals');
-    const { contextFor, datasetViewer } = await import('../support/dataset');
-    render(await ProposalsScreen(contextFor(datasetViewer('populated'))));
+    const { ProposalsTab } = await import('@/surfaces/screens/proposals');
+    render(await ProposalsTab(contextFor(datasetViewer('populated'))));
 
     expect(screen.getByText(/learns something worth writing down/)).toBeInTheDocument();
   });
@@ -223,9 +144,8 @@ describe('an empty queue that says where a proposal would come from', () => {
       '/v1/setup/checklist': { complete: false },
     });
 
-    const { ProposalsScreen } = await import('@/surfaces/screens/proposals');
-    const { contextFor, datasetViewer } = await import('../support/dataset');
-    render(await ProposalsScreen(contextFor(datasetViewer('populated'))));
+    const { ProposalsTab } = await import('@/surfaces/screens/proposals');
+    render(await ProposalsTab(contextFor(datasetViewer('populated'))));
 
     expect(screen.getByText(/still being set up/)).toBeInTheDocument();
     expect(screen.queryByText(/learns something worth writing down/)).toBeNull();

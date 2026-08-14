@@ -248,7 +248,10 @@ describe('quick actions', () => {
     await dashboard('populated');
 
     const actions = screen.getAllByTestId('quick-action');
-    expect(actions).toHaveLength(3);
+    // Two rather than three: Memory is Knowledge's own "Learned" tab now, so
+    // pointing a second action at the same screen under a second name would
+    // be the same destination offered twice.
+    expect(actions).toHaveLength(2);
     for (const action of actions) {
       const href = action.getAttribute('href') ?? '';
       expect(areaByPath(href), `${href} is not an area`).toBeDefined();

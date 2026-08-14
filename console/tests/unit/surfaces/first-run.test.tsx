@@ -982,15 +982,16 @@ describe('the map from a step name to the screen it leads to', () => {
 
     // "Give it an estate to watch" and "Point your alerts at it" do not say,
     // by themselves, that finishing them means arriving at Resources and
-    // Detectors — this is the map spec.md asks for, read from the same
-    // HANDOVER address the link at the bottom of each step already uses.
+    // Signals — this is read from the same HANDOVER address the link at the
+    // bottom of each step already uses, so the map and the link can never
+    // name two different screens for the same step.
     const mapped = screen.getAllByTestId('wizard-step-screen');
     expect(mapped.map((entry) => entry.getAttribute('data-step'))).toEqual([
       'estate',
       'alerts',
     ]);
     expect(mapped[0]).toHaveTextContent('Resources');
-    expect(mapped[1]).toHaveTextContent('Detectors');
+    expect(mapped[1]).toHaveTextContent('Signals');
   });
 
   it('names no destination for the five steps that stay on this screen', async () => {
@@ -1299,11 +1300,11 @@ describe('the dashboard of a deployment that is not set up', () => {
     );
   });
 
-  it('offers the three quick actions the checklist is asking for', async () => {
+  it('offers the two quick actions the checklist is asking for', async () => {
     await dashboard('first-run');
 
     const actions = screen.getAllByTestId('quick-action');
-    expect(actions).toHaveLength(3);
+    expect(actions).toHaveLength(2);
     for (const action of actions) {
       const href = action.getAttribute('href') ?? '';
       expect(areaByPath(href), `${href} is not an area`).toBeDefined();

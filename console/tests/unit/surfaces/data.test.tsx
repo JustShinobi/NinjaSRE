@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { surfaceContext } from '@/surfaces/context';
-import { DataScreen } from '@/surfaces/screens/data';
+import { DestinationsTab, IntakeTab } from '@/surfaces/screens/data';
 
 import {
   principalHolding,
@@ -57,7 +57,8 @@ function serveWithUnsafeIngressUrl(): void {
 }
 
 /**
- * Where it came from, and where it goes — on one screen, in the order it moves.
+ * Where it came from, and where it goes — the "Intake" and "Destinations"
+ * tabs of Signals, in the order data moves through them.
  *
  * The acceptance criteria this feature is judged on, from the console's side.
  * The one that decides whether the screen is worth having is the quietest:
@@ -80,9 +81,16 @@ beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
 });
 
-async function data(scenario: 'populated' | 'empty' = 'populated'): Promise<void> {
+async function intake(scenario: 'populated' | 'empty' = 'populated'): Promise<void> {
   serveScenario(scenario);
-  render(await DataScreen(await surfaceContext({})));
+  render(await IntakeTab(await surfaceContext({})));
+}
+
+async function destinations(
+  scenario: 'populated' | 'empty' = 'populated',
+): Promise<void> {
+  serveScenario(scenario);
+  render(await DestinationsTab(await surfaceContext({})));
 }
 
 function sourceRow(name: string): HTMLElement | undefined {
@@ -100,21 +108,30 @@ function requireSourceRow(name: string): HTMLElement {
   return row;
 }
 
-describe('the transit screen', () => {
-  it('draws the three columns in the order data moves through them', async () => {
-    await data();
+describe('the intake tab', () => {
+  it('draws what arrives and what happens to it, in that order', async () => {
+    await intake();
 
     const columns = screen.getByTestId('transit-columns');
     expect(columns).toBeInTheDocument();
     expect(screen.getByTestId('ingress-sources')).toBeInTheDocument();
     expect(screen.getByTestId('routing-rules')).toBeInTheDocument();
+  });
+});
+
+describe('the destinations tab', () => {
+  it('draws where the result goes, on its own', async () => {
+    await destinations();
+
     expect(screen.getByTestId('destinations')).toBeInTheDocument();
+    expect(screen.queryByTestId('ingress-sources')).toBeNull();
+    expect(screen.queryByTestId('routing-rules')).toBeNull();
   });
 });
 
 describe('a source that has never delivered', () => {
   it('says so, rather than showing an empty row', async () => {
-    await data();
+    await intake();
 
     const silent = sourceRow('sentry');
     expect(silent?.getAttribute('data-never-delivered')).toBe('true');
@@ -124,14 +141,14 @@ describe('a source that has never delivered', () => {
   it('is drawn before the ones that have', async () => {
     // Ordering is the whole of "without the operator hunting". A silence at the
     // bottom of a list of seven is a silence somebody scrolls past.
-    await data();
+    await intake();
 
     const first = screen.getAllByTestId('ingress-source')[0];
     expect(first?.getAttribute('data-never-delivered')).toBe('true');
   });
 
   it('is every row on a deployment where nothing has arrived at all', async () => {
-    await data('empty');
+    await intake('empty');
 
     const rows = screen.getAllByTestId('ingress-source');
     expect(rows.length).toBe(7);
@@ -144,7 +161,7 @@ describe('a source that has never delivered', () => {
     // A freshly configured deployment where nothing has arrived yet is the
     // ordinary first day, not seven faults — and colour is the one thing a
     // reader takes in before reading a word of the sentence beside it.
-    await data('empty');
+    await intake('empty');
 
     for (const marker of screen.getAllByTestId('never-delivered')) {
       expect(marker.className).not.toContain('text-danger');
@@ -155,7 +172,7 @@ describe('a source that has never delivered', () => {
 
 describe('a source that has delivered', () => {
   it('shows when it last did and how that delivery ended', async () => {
-    await data();
+    await intake();
 
     const live = sourceRow('alertmanager');
     expect(live?.getAttribute('data-never-delivered')).toBe('false');
@@ -164,7 +181,7 @@ describe('a source that has delivered', () => {
   });
 
   it('shows the masked sample beside the policy that produced it', async () => {
-    await data();
+    await intake();
 
     const sample = screen.getByTestId('sample');
     expect(sample).toHaveTextContent('standard');
@@ -172,7 +189,7 @@ describe('a source that has delivered', () => {
   });
 
   it('shows what was refused, with the reason', async () => {
-    await data();
+    await intake();
 
     const refusing = sourceRow('grafana');
     expect(refusing).toHaveTextContent('did not verify');
@@ -181,7 +198,7 @@ describe('a source that has delivered', () => {
 
 describe('the rules', () => {
   it('are numbered in the order they are evaluated', async () => {
-    await data();
+    await intake();
 
     const rules = screen.getByTestId('routing-rules');
     expect(rules).toHaveTextContent('1. critical-to-platform');
@@ -189,7 +206,7 @@ describe('the rules', () => {
   });
 
   it('always draw the one that decides everything nothing else matched', async () => {
-    await data();
+    await intake();
 
     const catchAll = screen.getByTestId('catch-all-rule');
     expect(catchAll).toHaveTextContent('everything-else');
@@ -199,13 +216,13 @@ describe('the rules', () => {
   });
 
   it('draw the catch-all even on a deployment that has configured nothing', async () => {
-    await data('empty');
+    await intake('empty');
 
     expect(screen.getByTestId('catch-all-rule')).toHaveTextContent('catch-all');
   });
 
   it('is drawn as a ranked list only once there is more than the implicit default', async () => {
-    await data();
+    await intake();
 
     expect(screen.getByTestId('catch-all-note')).toBeInTheDocument();
   });
@@ -214,7 +231,7 @@ describe('the rules', () => {
     // "Everything no rule above matched ends here" presupposes a list above
     // it. With nothing an operator declared, there is no "above" — so neither
     // the ordinal nor that sentence should appear.
-    await data('empty');
+    await intake('empty');
 
     const only = screen.getByTestId('catch-all-rule');
     expect(only.textContent).not.toMatch(/^1\./);
@@ -225,7 +242,7 @@ describe('the rules', () => {
 
 describe('the delivery tester', () => {
   it('names itself and says what it tests, rather than presenting as an unlabelled form', async () => {
-    await data();
+    await intake();
 
     const tester = screen.getByTestId('delivery-tester');
     expect(
@@ -242,7 +259,7 @@ describe('the delivery tester', () => {
     // heading naming a feature they cannot reach, teaches them the console is
     // broken rather than that they lack a permission.
     serveScenario('populated', principalHolding(['config.read']));
-    render(await DataScreen(await surfaceContext({})));
+    render(await IntakeTab(await surfaceContext({})));
 
     expect(screen.queryByTestId('delivery-tester')).toBeNull();
   });
@@ -250,7 +267,7 @@ describe('the delivery tester', () => {
 
 describe('the destinations', () => {
   it('declare their events, their channel, their detail and their masking policy', async () => {
-    await data();
+    await destinations();
 
     const destination = screen.getByTestId('destination');
     expect(destination).toHaveTextContent('slack');
@@ -262,7 +279,7 @@ describe('the destinations', () => {
   });
 
   it('say why nothing can be declared on a deployment with no channel', async () => {
-    await data('empty');
+    await destinations('empty');
 
     expect(
       screen.getByText(/No configured integration can deliver a message/),
@@ -272,7 +289,7 @@ describe('the destinations', () => {
 
 describe('a delivery that did not arrive', () => {
   it('is visible with its reason and carries the control that sends it again', async () => {
-    await data();
+    await destinations();
 
     const failed = screen.getByTestId('failed-delivery');
     expect(failed).toHaveTextContent('channel_not_found');
@@ -285,7 +302,7 @@ describe('a webhook address safe to announce', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
-    await data();
+    await intake();
     const row = requireSourceRow('alertmanager');
     await userEvent.click(within(row).getByTestId('ingress-url-copy'));
 
@@ -299,7 +316,7 @@ describe('a webhook address safe to announce', () => {
 describe('a webhook address that is not safe to announce', () => {
   it('never prints an http:// address on this page', async () => {
     serveWithUnsafeIngressUrl();
-    render(await DataScreen(await surfaceContext({})));
+    render(await IntakeTab(await surfaceContext({})));
 
     const row = sourceRow('pagerduty');
     expect(row?.textContent).not.toContain(['http', '://'].join(''));
@@ -310,7 +327,7 @@ describe('a webhook address that is not safe to announce', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
     serveWithUnsafeIngressUrl();
-    render(await DataScreen(await surfaceContext({})));
+    render(await IntakeTab(await surfaceContext({})));
     const row = requireSourceRow('pagerduty');
     await userEvent.click(within(row).getByTestId('ingress-url-copy'));
 
@@ -321,7 +338,7 @@ describe('a webhook address that is not safe to announce', () => {
 
 describe('the delivery token control', () => {
   it('sits beside what it is scoped to, rather than orphaned below the cards', async () => {
-    await data();
+    await intake();
 
     const group = screen.getByTestId('delivery-token-group');
     expect(group).toHaveTextContent('webhook.deliver');
@@ -331,7 +348,7 @@ describe('the delivery token control', () => {
 
 describe('provenance', () => {
   it('answers which rule caught an arrival, which team it went to, and which run', async () => {
-    await data();
+    await intake();
 
     const live = sourceRow('alertmanager');
     const chain = live?.querySelector('[data-testid="provenance-chain"]');
@@ -341,7 +358,7 @@ describe('provenance', () => {
   });
 
   it('links the run, which is where the finding names its query and instant', async () => {
-    await data();
+    await intake();
 
     const live = sourceRow('alertmanager');
     const link = live?.querySelector('[data-testid="provenance-run"]');
@@ -350,7 +367,7 @@ describe('provenance', () => {
   });
 
   it('says plainly when there is nothing to trace', async () => {
-    await data('empty');
+    await intake('empty');
 
     expect(screen.getAllByTestId('provenance-none').length).toBe(7);
   });
@@ -359,7 +376,7 @@ describe('provenance', () => {
     // Seven identical "Where did this go?" links with nothing to tell them
     // apart is seven links an operator opens one at a time to find the one
     // worth reading.
-    await data();
+    await intake();
 
     const live = sourceRow('alertmanager')?.querySelector(
       '[data-testid="provenance"] summary',
@@ -374,28 +391,45 @@ describe('provenance', () => {
 });
 
 describe('a reader who may not change any of it', () => {
-  it('is shown no simulator and no re-send control, rather than disabled ones', async () => {
+  it('is shown no simulator on Intake, rather than a disabled one', async () => {
     // Absent, not disabled: a control a person cannot use is a control that
     // teaches them the console is broken.
     serveScenario('populated', principalHolding(['config.read']));
-    render(await DataScreen(await surfaceContext({})));
+    render(await IntakeTab(await surfaceContext({})));
 
     expect(screen.queryByTestId('rule-simulator')).toBeNull();
-    expect(screen.queryByTestId('resend-action')).toBeNull();
     expect(screen.getAllByTestId('ingress-source').length).toBe(7);
+  });
+
+  it('is shown no re-send control on Destinations, rather than a disabled one', async () => {
+    serveScenario('populated', principalHolding(['config.read']));
+    render(await DestinationsTab(await surfaceContext({})));
+
+    expect(screen.queryByTestId('resend-action')).toBeNull();
   });
 });
 
 describe('a column whose read the deployment refused', () => {
-  it('fails alone, leaving the other two columns standing', async () => {
+  it('fails alone, leaving the ingress column of the same tab standing', async () => {
     serveScenarioExcept('populated', ['/v1/transit/rules']);
-    render(await DataScreen(await surfaceContext({})));
+    render(await IntakeTab(await surfaceContext({})));
 
     const failed = screen
       .getAllByTestId('panel')
       .filter((panel) => panel.getAttribute('data-state') === 'error');
     expect(failed.length).toBe(1);
     expect(screen.getAllByTestId('ingress-source').length).toBe(7);
+  });
+
+  it('leaves the Destinations tab standing, since it never reads the rules at all', async () => {
+    serveScenarioExcept('populated', ['/v1/transit/rules']);
+    render(await DestinationsTab(await surfaceContext({})));
+
     expect(screen.getByTestId('destinations')).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByTestId('panel')
+        .some((panel) => panel.getAttribute('data-state') === 'error'),
+    ).toBe(false);
   });
 });

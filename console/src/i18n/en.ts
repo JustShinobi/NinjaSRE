@@ -21,10 +21,15 @@ export const EN = {
   'nav.group.now': 'Now',
   'nav.group.environment': 'The environment',
   'nav.group.settings': 'Settings',
-  'nav.firstRun': 'First steps',
+  'nav.firstRun': 'Setup',
   'nav.dashboard': 'Dashboard',
   'nav.incidents': 'Incidents',
   'nav.runs': 'Investigations',
+  'nav.decisions': 'Decisions',
+  // Kept for the areas the reorganisation folded into a tab of something
+  // else: the sentence a cross-link renders still needs a name for the
+  // screen it points at, even once that screen no longer has a menu entry
+  // of its own.
   'nav.approvals': 'Actions awaiting approval',
   'nav.proposals': 'Proposed changes',
   'nav.resources': 'Resources',
@@ -32,6 +37,8 @@ export const EN = {
   'nav.detectors': 'Detectors',
   'nav.memory': 'Memory',
   'nav.knowledge': 'Knowledge',
+  'nav.integrations': 'Integrations',
+  'nav.signals': 'Signals',
   // What each autonomy posture actually permits, at the point somebody chooses
   // it. The deployment sends these as slugs — `propose_only`, `act_on_low_risk`
   // — and a `<Select>` offering four slugs is a control whose most consequential
@@ -56,13 +63,16 @@ export const EN = {
   'nav.open': 'Open navigation',
   'nav.close': 'Close navigation',
   'nav.pending': '{count} waiting',
+  // The sum of the two tabs it replaced — a decision waiting is a decision
+  // waiting, whichever tab it would open to.
+  'nav.pending.decisions': '{count} decisions waiting',
   'nav.pending.approvals': '{count} actions awaiting approval',
   'nav.pending.proposals': '{count} proposals waiting',
   'nav.pending.incidents': '{count} open incidents',
   'nav.pending.runs': '{count} failed investigations',
 
   // --- What each area is for ---------------------------------------------------
-  'page.firstRun.title': 'First steps',
+  'page.firstRun.title': 'Setup',
   'page.firstRun.context':
     'What to set up, in order, with the reason for each and the option to stop after any of them.',
   'page.dashboard.title': 'Overview',
@@ -73,6 +83,15 @@ export const EN = {
   'page.runs.title': 'Investigations',
   'page.runs.context':
     'Every investigation this deployment has recorded, newest first.',
+  'page.decisions.title': 'Decisions',
+  'page.decisions.context':
+    'What the agent wants to do now, and what it wants the deployment to become.',
+  'page.integrations.title': 'Integrations',
+  'page.integrations.context':
+    'Every integration this deployment can hold a credential for, its state, and a way to test it.',
+  'page.signals.title': 'Signals',
+  'page.signals.context':
+    'What enters continuous observation, and where an alert ends up once it has.',
   'page.approvals.title': 'Actions awaiting approval',
   'page.approvals.context':
     'Actions the agent wants to take now, waiting for your approval. Each carries its blast radius and rollback plan.',
@@ -116,6 +135,31 @@ export const EN = {
   'page.data.context': 'What arrives, what is done with it, and where the result goes.',
   'page.pending':
     'This surface arrives with the data screens. The shell around it is complete.',
+
+  // --- Tabs on a screen a fusion built ------------------------------------------
+  // One catalogue entry per tab, on the fused screens rather than scattered
+  // beside each donor screen's own block, because a tab label is about the
+  // fusion and not about the content underneath it.
+  'decisions.tabs': 'What needs a decision',
+  'decisions.tab.actions': 'Actions',
+  // Short, like every other tab label in this console — the panel beneath
+  // it already carries the full "Proposed changes" name, and repeating the
+  // same two words in the other order here would read as a typo of it
+  // rather than as a deliberate abbreviation.
+  'decisions.tab.changes': 'Changes',
+  'knowledge.tabs': 'What the agent knows about this environment',
+  'knowledge.tab.learned': 'Learned',
+  'knowledge.tab.documents': 'Documents',
+  'knowledge.tab.topology': 'Topology',
+  'signals.tabs': 'What enters observation and what leaves it',
+  'signals.tab.intake': 'Intake',
+  'signals.tab.observation': 'Continuous observation',
+  'signals.tab.schedules': 'Schedules',
+  'signals.tab.destinations': 'Destinations',
+  'admin.tabs': 'Who may do what, and who did',
+  'admin.tab.people': 'People',
+  'admin.tab.audit': 'Audit',
+  'agent.tab.team': 'Team context',
 
   // --- Where data comes from and where it goes ---------------------------------
   'data.ingress.title': 'What arrives',
@@ -1158,6 +1202,13 @@ export const EN = {
     'A credential is stored, but nothing has checked it yet.',
   'catalogue.credential.state.healthy': 'Verified — the last check passed.',
   'catalogue.credential.state.degraded': 'Failing — the last check found a problem.',
+  // One word each, for the filter's own options — the sentences above say the
+  // same thing at the length a collapsed card affords; the filter needs the
+  // length a dropdown affords instead.
+  'catalogue.integrations.filter.state.unconfigured': 'Not connected',
+  'catalogue.integrations.filter.state.unknown': 'Unchecked',
+  'catalogue.integrations.filter.state.healthy': 'Verified',
+  'catalogue.integrations.filter.state.degraded': 'Failing',
 
   // --- Administration ----------------------------------------------------------------------------
   'admin.principals.title': 'People and machines',
@@ -1343,6 +1394,10 @@ export const EN = {
   'agent.empty.body':
     'The deployment did not answer with the stages an investigation runs. Nothing here is configuration; it is what the build is.',
   'agent.empty.action': 'Edit the configuration',
+  // The catalogue's own read half, absorbed here: every tool and skill this
+  // deployment declares, searchable — the same table `catalogue.tsx` used to
+  // draw, on its own route, before Integrations took the write half.
+  'agent.tools.browse': 'Find a tool or skill',
   'agent.tools.reads': 'Tools that read',
   'agent.tools.reads.body': 'These consult something and change nothing.',
   'agent.tools.writes': 'Tools that write',

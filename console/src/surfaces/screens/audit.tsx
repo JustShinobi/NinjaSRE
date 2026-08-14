@@ -5,8 +5,6 @@ import { Link } from '@/components/action';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
@@ -32,8 +30,15 @@ import {
 } from '../url-state';
 
 /**
- * Who did what, when, and against which resource — filterable and exportable.
+ * The "Audit" tab of Administration: who did what, when, and against which
+ * resource — filterable and exportable.
  *
+ * A tab rather than its own menu entry, because it is read in the context of
+ * "who did what" beside "who may do what" — the same administrator's own
+ * permission gates both, and `screens/administration.tsx` renders this beside
+ * its own content rather than requiring a second navigation to get there.
+ *
+
  * The export is a link to the API's own export endpoint rather than something
  * assembled in a browser, for two reasons. A record the console reformatted is a
  * record whose provenance is the console, and an operator who has to keep their
@@ -64,6 +69,12 @@ import {
  */
 
 export const AUDIT_FILTERS: readonly FilterName[] = [
+  // `tab` first and declared here rather than assumed: every link this tab
+  // regenerates for its own filters and sort goes through `hrefFor`, which
+  // carries only the names a screen declares — a name left off is a name
+  // silently dropped, and dropping `tab` would land a filter click back on
+  // Administration's default tab instead of Audit.
+  'tab',
   'actor',
   'action',
   'audience',
@@ -177,7 +188,7 @@ function groupBursts(records: readonly unknown[]): readonly AuditGroup[] {
   return groups;
 }
 
-export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
+export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone, search } = context;
   const state = readViewState(search, AUDIT_FILTERS);
   const explicitActor = state.filters.actor;
@@ -215,7 +226,7 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
 
   const rows: readonly ListRow[] = groups.map((group) => ({
     id: group.eventId,
-    href: `/audit?${writeViewState(
+    href: `/administration?${writeViewState(
       { ...state, selection: group.eventId },
       AUDIT_FILTERS,
     )}`,
@@ -268,7 +279,11 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
     return {
       id: `days-${String(days)}`,
       since,
-      href: hrefFor('/audit', withFilter(state, 'since', since), AUDIT_FILTERS),
+      href: hrefFor(
+        '/administration',
+        withFilter(state, 'since', since),
+        AUDIT_FILTERS,
+      ),
       label: message(locale, 'run.changes.window', {
         start: timestamp(locale, since, now, zone).absolute,
         end: timestamp(locale, nowIso, now, zone).absolute,
@@ -283,22 +298,21 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
 
   return (
     <>
-      <AreaHeader
-        area={areaFor('audit')}
-        locale={locale}
-        actions={
-          // Absent, not disabled, for a viewer who may not export.
-          may(viewer, EXPORT) ? (
-            <Link href={`/audit/export${suffix}`} data-testid="audit-export">
-              {message(locale, 'surface.export')}
-            </Link>
-          ) : undefined
-        }
-      />
+      {/* Absent, not disabled, for a viewer who may not export. Inline rather
+          than in the page header: the header belongs to Administration as a
+          whole now, and an export control that only means something on this
+          one tab does not belong on every tab beneath it. */}
+      {may(viewer, EXPORT) ? (
+        <p className="flex justify-end mb-3">
+          <Link href={`/audit/export${suffix}`} data-testid="audit-export">
+            {message(locale, 'surface.export')}
+          </Link>
+        </p>
+      ) : null}
 
       {choices.length === 0 ? null : (
         <FilterBar
-          path="/audit"
+          path="/administration"
           state={state}
           filters={AUDIT_FILTERS}
           anyLabel={message(locale, 'surface.filter.any')}
@@ -311,7 +325,11 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
           {
             id: 'any',
             label: message(locale, 'surface.filter.any'),
-            href: hrefFor('/audit', withFilter(state, 'since', ''), AUDIT_FILTERS),
+            href: hrefFor(
+              '/administration',
+              withFilter(state, 'since', ''),
+              AUDIT_FILTERS,
+            ),
           },
           ...periods,
         ]}
@@ -323,7 +341,7 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
         <p className="text-meta text-muted my-3">
           <a
             href={hrefFor(
-              '/audit',
+              '/administration',
               withFilter(state, 'audience', audience === 'all' ? '' : 'all'),
               AUDIT_FILTERS,
             )}
@@ -352,7 +370,7 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
           heading: message(locale, 'audit.empty.heading'),
           body: message(locale, 'audit.empty.body'),
           actionLabel: message(locale, 'audit.empty.action'),
-          href: '/audit',
+          href: '/administration?tab=audit',
         }}
       >
         {events.status === 'ready' && total > records.length ? (
@@ -364,7 +382,7 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
           </p>
         ) : null}
         <RowList
-          path="/audit"
+          path="/administration"
           state={state}
           filters={AUDIT_FILTERS}
           labels={rowLabels(locale, message(locale, 'audit.caption'))}

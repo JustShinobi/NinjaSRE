@@ -55,8 +55,8 @@ const EVERYTHING = [
   'token.manage',
 ];
 
-/** The screens that read an endpoint with a `{node_id}` in it. */
-const NODE_SCOPED = ['catalogue', 'autonomy', 'configuration'] as const;
+/** The screens that read an endpoint with a `{node_id}` in it, unconditionally. */
+const NODE_SCOPED = ['autonomy', 'configuration'] as const;
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
@@ -103,18 +103,32 @@ describe('a node-scoped screen with no node selected', () => {
       ).toEqual([]);
     });
   }
+
+  it('agent (tools tab): renders rather than throwing when no node resolves', async () => {
+    await renderArea('agent', { tab: 'tools' });
+
+    expect(screen.getByTestId('page-header')).toBeInTheDocument();
+    const panels = screen.getAllByTestId('panel');
+    expect(panels.length).toBeGreaterThan(0);
+    expect(
+      panels.filter((panel) => panel.getAttribute('data-state') === 'empty').length,
+    ).toBeGreaterThan(0);
+    expect(
+      panels.filter((panel) => panel.getAttribute('data-state') === 'error'),
+    ).toEqual([]);
+  });
 });
 
 describe('a node-scoped screen resolving which node to read', () => {
-  it('catalogue: reads the node the address names even for a viewer with no team', async () => {
+  it('agent (tools tab): reads the node the address names even for a viewer with no team', async () => {
     serveScenario('populated', principalHolding(EVERYTHING, ''));
-    await renderArea('catalogue', { node: 'org-northwind' });
+    await renderArea('agent', { node: 'org-northwind', tab: 'tools' });
 
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
     // Availability came back, which it only can if the entries read was made
     // with a node in it.
     const availability = screen
-      .getAllByTestId('capability')
+      .getAllByTestId('agent-tool')
       .map((row) => row.textContent);
     expect(availability.length).toBeGreaterThan(0);
     expect(
@@ -147,20 +161,28 @@ describe('a node-scoped screen resolving which node to read', () => {
  * actually reporting. These are the cases that say which.
  */
 describe('a node-scoped read that fails on its own', () => {
-  it('catalogue: says the availability is unknown rather than showing none', async () => {
-    serveScenarioExcept('populated', ['/catalogue'], principalHolding(EVERYTHING));
-    await renderArea('catalogue');
+  it('agent (tools tab): says the availability is unknown rather than showing none', async () => {
+    serveScenarioExcept(
+      'populated',
+      ['/catalogue'],
+      principalHolding(EVERYTHING, 'org-northwind'),
+    );
+    await renderArea('agent', { tab: 'tools' });
 
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
-    // The capability panel, which reads capabilities *and* the entries that say
+    // Every panel this tab draws from the same join — the capability browser
+    // and both risk groups — reads capabilities *and* the entries that say
     // which of them are available here. Rendering the capability rows with a
     // blank availability column would be the screen saying "nothing is
-    // configured" when what happened is that nobody answered.
+    // configured" when what happened is that nobody answered, so all three
+    // fail alone together rather than one of them silently looking empty.
     const failed = screen
       .getAllByTestId('panel')
       .filter((panel) => panel.getAttribute('data-state') === 'error');
-    expect(failed.length).toBe(1);
-    expect(failed[0]?.textContent).toContain('/v1/config/{node_id}/catalogue');
+    expect(failed.length).toBe(3);
+    for (const panel of failed) {
+      expect(panel.textContent).toContain('/v1/config/{node_id}/catalogue');
+    }
   });
 
   it('autonomy: keeps its node when the tree it did not need is unreachable', async () => {

@@ -57,9 +57,22 @@ describe('SC-001: every screen, with no data, says what would be here', () => {
     serveScenario('empty');
   });
 
+  // Signals' default tab, Intake, has nothing that is ever genuinely empty:
+  // the receivers it lists are routes this build serves rather than
+  // something an operator configured, and the rules panel always draws at
+  // least the implicit catch-all — both true on the emptiest deployment
+  // there is, which is the property `ingress.test.tsx`'s own "shows the
+  // receivers on a deployment with nothing connected yet" already pins.
+  // Destinations, on the same screen, empties out exactly like every other
+  // tab does, so this is where the cross-cutting proof is asked instead.
+  const EMPTY_STATE_TAB: Readonly<Record<string, string>> = {
+    signals: 'destinations',
+  };
+
   for (const [index, target] of ALL_SCREENS.entries()) {
     it(`${target.id}: renders an empty state naming the next action`, async () => {
-      await renderScreen(index);
+      const tab = EMPTY_STATE_TAB[target.id];
+      await renderScreen(index, tab === undefined ? {} : { tab });
 
       const wells = screen.getAllByTestId('way-back');
       expect(wells.length).toBeGreaterThan(0);

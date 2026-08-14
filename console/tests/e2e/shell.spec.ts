@@ -11,21 +11,28 @@ import { signIn } from './session';
  * the route it names.
  */
 
-/** Every route the console serves, taken from the same manifest the shell reads. */
+/**
+ * A working subset of the areas the console serves, taken from the same
+ * manifest the shell reads (`console/src/shell/routes.ts`). Not every area —
+ * `agent`, `first-run`, `integrations` and `team-context`'s successor tab are
+ * left out, as they were before the menu reorganisation, because this loop
+ * asserts the sidebar carries the mark for exactly the id it opened, which
+ * does not hold for an area a viewer's own state can hide from the sidebar.
+ * The menu reorganisation folded six of these areas into three: Approvals
+ * became the Decisions area's default tab, Detectors and Data both became
+ * the Signals area, and Audit became a tab of Administration.
+ */
 const AREAS = [
   { id: 'dashboard', path: '/', title: 'Overview' },
   { id: 'incidents', path: '/incidents', title: 'Incidents' },
   { id: 'runs', path: '/runs', title: 'Investigations' },
-  { id: 'approvals', path: '/approvals', title: 'Actions awaiting approval' },
+  { id: 'decisions', path: '/decisions', title: 'Decisions' },
   { id: 'resources', path: '/resources', title: 'Resources' },
-  { id: 'topology', path: '/topology', title: 'Topology' },
-  { id: 'detectors', path: '/detectors', title: 'Detectors' },
-  { id: 'memory', path: '/memory', title: 'Memory' },
   { id: 'knowledge', path: '/knowledge', title: 'Knowledge' },
+  { id: 'signals', path: '/signals', title: 'Signals' },
   { id: 'autonomy', path: '/autonomy', title: 'Autonomy' },
   { id: 'configuration', path: '/configuration', title: 'Configuration' },
-  { id: 'data', path: '/data', title: 'Data' },
-  { id: 'audit', path: '/audit', title: 'Audit' },
+  { id: 'administration', path: '/administration', title: 'Administration' },
 ] as const;
 
 async function currentArea(page: Page): Promise<string | null> {
@@ -147,10 +154,10 @@ test.describe('a signed-in operator', () => {
     await page.goto('/');
     await openPalette(page);
 
-    await page.keyboard.type('audit');
+    await page.keyboard.type('signals');
     await page.keyboard.press('Enter');
 
-    await expect(page).toHaveURL(/\/audit$/);
+    await expect(page).toHaveURL(/\/signals$/);
   });
 
   test('dismisses the palette without changing the page', async ({ page }) => {
@@ -206,7 +213,7 @@ test.describe('a signed-in operator', () => {
     // person at that keyboard types the address and is inside.
     expect(session).toBeUndefined();
 
-    await page.goto('/audit');
+    await page.goto('/administration');
     await expect(page.getByTestId('sign-in')).toBeVisible();
   });
 

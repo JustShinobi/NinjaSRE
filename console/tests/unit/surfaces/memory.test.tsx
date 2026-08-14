@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { surfaceContext } from '@/surfaces/context';
-import { MemoryScreen } from '@/surfaces/screens/memory';
+import { LearnedTab } from '@/surfaces/screens/memory';
 
 import { bodyFor } from '../../../scripts/fixture-server.mjs';
 import { serveScenario } from '../support/dataset';
@@ -82,7 +82,7 @@ function serveMemory(overrides: { episodes?: unknown; checklist?: unknown }): vo
 }
 
 async function renderMemory(): Promise<void> {
-  render(await MemoryScreen(await surfaceContext({})));
+  render(await LearnedTab(await surfaceContext({})));
 }
 
 describe('a deployment where no investigation has ever ended', () => {

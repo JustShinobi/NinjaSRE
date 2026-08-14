@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
 import { surfaceContext } from '@/surfaces/context';
-import { DataScreen } from '@/surfaces/screens/data';
+import { IntakeTab } from '@/surfaces/screens/data';
 
 import { serveScenario, serveScenarioExcept } from '../support/dataset';
 
@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 async function data(): Promise<void> {
-  render(await DataScreen(await surfaceContext({})));
+  render(await IntakeTab(await surfaceContext({})));
 }
 
 function sourceRow(name: string): HTMLElement | undefined {

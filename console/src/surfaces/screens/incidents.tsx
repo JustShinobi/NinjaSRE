@@ -226,7 +226,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
             heading: message(locale, 'incidents.empty.heading'),
             body: message(locale, 'incidents.empty.body'),
             actionLabel: message(locale, 'incidents.empty.action'),
-            href: '/detectors',
+            href: '/signals?tab=observation',
           },
           cause,
         )}

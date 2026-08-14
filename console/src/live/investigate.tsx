@@ -101,7 +101,10 @@ export function InvestigateDrawer({
         ),
         // Refused or not, a start attempt is in the audit trail — which is
         // where somebody looks when they are sure they pressed the button.
-        recordedAt: { href: '/audit', label: message(locale, 'nav.audit') },
+        recordedAt: {
+          href: '/administration?tab=audit',
+          label: message(locale, 'nav.audit'),
+        },
       }),
     );
   }
