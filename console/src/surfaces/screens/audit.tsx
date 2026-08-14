@@ -81,8 +81,14 @@ const SYSTEM_PRINCIPAL = 'default';
  * The audience exclusion below is client-side — there is no "not this
  * principal" query — so a human action has to still be *in* what was fetched
  * for that exclusion to find it, and a hundred rows of polling can be minutes.
+ *
+ * Capped at the gateway's own page bound (`MAX_QUERY_PAGE_SIZE`,
+ * `config/constants/persistence.py`, currently 200) rather than past it: the
+ * repository raises on anything larger instead of quietly shortening the
+ * page, so asking for more than this turns every load of this screen into a
+ * failed one rather than a merely narrower one.
  */
-const EVENT_LIMIT = 500;
+const EVENT_LIMIT = 200;
 
 /** This screen's filter names, mapped to what the gateway's query calls them. */
 const API_PARAM: Readonly<Record<string, string>> = {
@@ -231,7 +237,12 @@ export async function AuditScreen(context: SurfaceContext): Promise<ReactNode> {
       { kind: 'identifier', text: group.actorId },
       { kind: 'text', text: humanize(group.action) },
       { kind: 'identifier', text: group.resourceId },
-      { kind: 'status', text: humanize(group.outcome) },
+      // Raw, like every other screen's status cell — `Badge` already renders
+      // it in upper case, and a humanised label here would not match any of
+      // the design system's own declared, lower-case status words, so it
+      // would silently draw as an unrecognised, neutral chip instead of the
+      // role this outcome actually has.
+      { kind: 'status', text: group.outcome },
     ],
   }));
 

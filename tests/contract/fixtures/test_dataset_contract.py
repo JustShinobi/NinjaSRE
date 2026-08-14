@@ -126,6 +126,56 @@ def test_every_principal_kind_is_one_the_backend_actually_declares() -> None:
     )
 
 
+def test_every_actor_kind_is_one_the_backend_actually_declares() -> None:
+    """``actor_kind`` is a plain ``str`` on the wire too, so schema validation
+    alone never catches a value the real ``ActorKind`` enum does not have — the
+    same gap ``test_every_principal_kind_is_one_the_backend_actually_declares``
+    closes for principals, here for the audit trail's own actor field.
+    """
+    from platform.persistence.ports import ActorKind
+
+    allowed = {member.value for member in ActorKind}
+    offending: list[str] = []
+    for scenario in FIXTURE_SCENARIO_NAMES:
+        for record in scenarios.load(scenario).all_records():
+            if record.slug != "audit-events":
+                continue
+            events = record.body.get("events") if isinstance(record.body, dict) else None
+            for event in events if isinstance(events, list) else []:
+                kind = event.get("actor_kind") if isinstance(event, dict) else None
+                if kind is not None and kind not in allowed:
+                    offending.append(f"{scenario}/{record.slug}: {kind!r}")
+    assert not offending, (
+        f"a fixture serves an actor kind the real backend never emits: {offending}"
+    )
+
+
+def test_every_audit_outcome_is_one_the_backend_actually_declares() -> None:
+    """The same gap, for the audit trail's own outcome field.
+
+    ``outcome`` is a plain ``str`` on the wire too, so schema validation alone
+    never catches a value the real ``AuditOutcome`` enum does not have — the
+    gap that let this dataset serve ``"succeeded"`` for seven of its eight
+    events, a word the real backend never emits for an audit outcome.
+    """
+    from platform.persistence.ports import AuditOutcome
+
+    allowed = {member.value for member in AuditOutcome}
+    offending: list[str] = []
+    for scenario in FIXTURE_SCENARIO_NAMES:
+        for record in scenarios.load(scenario).all_records():
+            if record.slug != "audit-events":
+                continue
+            events = record.body.get("events") if isinstance(record.body, dict) else None
+            for event in events if isinstance(events, list) else []:
+                outcome = event.get("outcome") if isinstance(event, dict) else None
+                if outcome is not None and outcome not in allowed:
+                    offending.append(f"{scenario}/{record.slug}: {outcome!r}")
+    assert not offending, (
+        f"a fixture serves an audit outcome the real backend never emits: {offending}"
+    )
+
+
 def test_a_seeded_contract_change_fails_naming_the_endpoint_and_the_field() -> None:
     # What a route change looks like from here: the document gains a required
     # field the fixture does not carry.

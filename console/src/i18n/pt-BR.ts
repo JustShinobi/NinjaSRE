@@ -1106,14 +1106,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'audit.caption': 'Quem fez o quê, quando e sobre que recurso',
   'audit.column.occurred': 'Quando',
   'audit.column.actor': 'Identidade',
-  'audit.column.action': 'Acção',
+  'audit.column.action': 'Ação',
   'audit.column.subject': 'Assunto',
   'audit.column.outcome': 'Desfecho',
   'audit.filter.actor': 'Identidade',
-  'audit.filter.action': 'Acção',
+  'audit.filter.action': 'Ação',
   'audit.empty.heading': 'Nada foi registado',
   'audit.empty.body':
-    'Todas as acções com consequência são escritas aqui quando acontecem. Nenhuma aconteceu no período que está a ver.',
+    'Todas as ações com consequência são escritas aqui quando acontecem. Nenhuma aconteceu no período que está a ver.',
   'audit.empty.action': 'Alargar o período',
 
   // --- Live -----------------------------------------------------------------------------------------

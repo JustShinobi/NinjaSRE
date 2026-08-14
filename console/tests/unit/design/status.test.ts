@@ -86,6 +86,17 @@ describe('the status mapping', () => {
       'cancelled',
     ]);
   });
+
+  it('recognises the outcomes an audit event can carry', () => {
+    // The audit trail's own vocabulary — not a run's and not a resource's,
+    // and easy to lose exactly because neither of the two loops above walks
+    // it: nothing groups it into a named, exported array the way every other
+    // status family here is grouped.
+    expect(statusPresentation('allowed').known).toBe(true);
+    expect(statusPresentation('allowed').role).toBe('success');
+    expect(statusPresentation('denied').known).toBe(true);
+    expect(statusPresentation('denied').role).toBe('danger');
+  });
 });
 
 describe('shape, so colour is never the only carrier', () => {

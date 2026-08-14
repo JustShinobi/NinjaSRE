@@ -184,6 +184,10 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   reconnecting: { role: 'warning', shape: 'rotated-square' },
   idle: { role: 'neutral', shape: 'dimmed-circle' },
   disconnected: { role: 'danger', shape: 'square' },
+  // An audit event's own outcome. `failed` is already declared above, shared
+  // with runs — the same word means the same thing whichever record it is on.
+  allowed: { role: 'success', shape: 'filled-circle' },
+  denied: { role: 'danger', shape: 'square' },
 };
 
 /** Whether `value` is a run status the gateway is known to report. */

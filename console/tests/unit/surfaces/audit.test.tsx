@@ -50,7 +50,10 @@ function systemEvent(id: string, occurredAt: string): unknown {
     action: 'credential.resolve',
     resource_kind: 'credential',
     resource_id: 'prometheus',
-    outcome: 'ALLOWED',
+    // The real `AuditOutcome` enum's own wire value
+    // (`platform/persistence/ports/audit_repository.py`) — lower case, never
+    // the shouted `ALLOWED` a machine slug would suggest.
+    outcome: 'allowed',
     detail: {},
   };
 }
@@ -65,24 +68,28 @@ function humanEvent(
   return {
     event_id: id,
     occurred_at: occurredAt,
-    actor_kind: 'human',
+    actor_kind: 'user',
     actor_id: actorId,
     action,
     resource_kind: 'config',
     resource_id: 'org-northwind',
-    outcome: 'ALLOWED',
+    outcome: 'allowed',
     detail: {},
   };
 }
 
+/** Every address this test's stub was asked to fetch, in call order. */
+let requests: string[] = [];
+
 function serve(events: readonly unknown[]): void {
   vi.stubGlobal('fetch', (input: unknown) => {
-    const path = new URL(String(input), BASE).pathname;
+    const address = new URL(String(input), BASE);
+    requests.push(address.toString());
     const byPath: Record<string, unknown> = {
       '/auth/me': PRINCIPAL,
       '/audit/events': { events, total: events.length },
     };
-    const body = byPath[path];
+    const body = byPath[address.pathname];
     return Promise.resolve(
       new Response(JSON.stringify(body ?? {}), {
         status: body === undefined ? 404 : 200,
@@ -95,6 +102,7 @@ function serve(events: readonly unknown[]): void {
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
   vi.stubEnv(CLOCK_ENV, NOW);
+  requests = [];
 });
 
 afterEach(() => {
@@ -234,6 +242,21 @@ describe('the period filter', () => {
       links.some((link) => (link.getAttribute('href') ?? '').includes('since=')),
     ).toBe(true);
   });
+
+  it('never asks the gateway for more events than its own page bound allows', async () => {
+    serve([humanEvent('evt-human', '2026-08-13T09:00:00Z')]);
+    await audit();
+
+    const eventsCall = requests.find(
+      (address) => new URL(address).pathname === '/audit/events',
+    );
+    expect(eventsCall).toBeDefined();
+    // The real backend's `MAX_QUERY_PAGE_SIZE` (`config/constants/persistence.py`)
+    // is 200 and rejects anything larger with a 400 — a bound only this stub,
+    // not the deployment, would ever let past silently.
+    const limit = Number(new URL(eventsCall ?? '').searchParams.get('limit'));
+    expect(limit).toBeLessThanOrEqual(200);
+  });
 });
 
 describe('a slug written out in full', () => {
@@ -245,6 +268,23 @@ describe('a slug written out in full', () => {
     expect(within(list).queryByText('config.set')).toBeNull();
     expect(within(list).queryByText('ALLOWED')).toBeNull();
     expect(list).toHaveTextContent('Config Set');
-    expect(list).toHaveTextContent('Allowed');
+    // Lower case, matching the outcome's own wire value — `Badge` draws it in
+    // upper case through CSS alone, the same way every other screen's status
+    // chip does, so nothing here needs to shout it first.
+    expect(list).toHaveTextContent('allowed');
+  });
+
+  it('colours the outcome by the role the design system already has for it', async () => {
+    serve([humanEvent('evt-human', '2026-08-13T09:00:00Z')]);
+    await audit();
+
+    const badge = rowList().querySelector('[data-role]');
+    expect(badge).not.toBeNull();
+    // `allowed` is meant to read as a recognised, positive outcome — not as
+    // the generic neutral chip a status the design system has never heard of
+    // gets, which is what a badge fed the humanised label rather than the raw
+    // API value falls back to.
+    expect(badge).toHaveAttribute('data-role', 'success');
+    expect(badge).toHaveAttribute('data-known', 'true');
   });
 });
