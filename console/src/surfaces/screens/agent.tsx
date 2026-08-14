@@ -592,10 +592,21 @@ export function effectiveBudget(budget: unknown): EffectiveBudget {
  * "Max iterations" rather than "agents.max_iterations" — because that is real
  * data this screen already has, and a better fallback than the dotted path a
  * config author typed.
+ *
+ * The schema's own label is never a translation — it is Pydantic's field name
+ * with the underscores turned to spaces, in English however this console is
+ * being read. `BUDGET_PATHS` is a closed set of four, and every one of them
+ * has words now, so the schema fallback below is reached only by a path a
+ * future schema change adds before this map is updated to match it.
  */
-const BUDGET_LABELS: Readonly<Record<string, MessageKey>> = {};
+const BUDGET_LABELS: Readonly<Record<string, MessageKey>> = {
+  'agents.max_iterations': 'agent.budgets.maxIterations',
+  'agents.max_parallel_subagents': 'agent.budgets.maxParallelSubagents',
+  'agents.max_subagent_depth': 'agent.budgets.maxSubagentDepth',
+  'agents.tool_budget': 'agent.budgets.toolBudget',
+};
 
-function budgetLabel(locale: Locale, path: string, schemaLabel: string): string {
+export function budgetLabel(locale: Locale, path: string, schemaLabel: string): string {
   const key = BUDGET_LABELS[path];
   if (key !== undefined) return message(locale, key);
   return schemaLabel === '' ? path : schemaLabel;

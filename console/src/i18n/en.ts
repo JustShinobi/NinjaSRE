@@ -1325,6 +1325,10 @@ export const EN = {
   'agent.budgets.body':
     'A team may lower any of these and may not raise one past its ceiling. The ceiling is a constant in the deployment, not a setting.',
   'agent.budgets.ceiling': 'ceiling {ceiling}',
+  'agent.budgets.maxIterations': 'Max iterations',
+  'agent.budgets.maxParallelSubagents': 'Max parallel specialists',
+  'agent.budgets.maxSubagentDepth': 'Max specialist depth',
+  'agent.budgets.toolBudget': 'Tool budget',
   'agent.budgets.empty.heading': 'No budget is described here',
   'agent.budgets.empty.body':
     'The deployment did not describe the budget fields for this node, so the ceilings cannot be shown.',

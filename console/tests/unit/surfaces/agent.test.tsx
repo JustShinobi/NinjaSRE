@@ -1,10 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SESSION_COOKIE } from '@/session/cookies';
+import { message } from '@/i18n/messages';
+import { LOCALE_COOKIE, SESSION_COOKIE } from '@/session/cookies';
 import { bridgedServers, capabilityRows } from '@/surfaces/capability-rows';
 import {
   AGENT_TABS,
+  budgetLabel,
   effectiveBudget,
   roleBinding,
   tabFrom,
@@ -25,11 +27,17 @@ import { bodyFor } from '../../../scripts/fixture-server.mjs';
  * is why it is asserted against the page's text.
  */
 
+/** The locale cookie a test may set, read fresh by every `cookies()` call. */
+const cookieJar = new Map<string, string>();
+
 vi.mock('next/headers', () => ({
   cookies: () =>
     Promise.resolve({
-      get: (name: string) =>
-        name === SESSION_COOKIE ? { value: 'a-token' } : undefined,
+      get: (name: string) => {
+        if (name === SESSION_COOKIE) return { value: 'a-token' };
+        const stored = cookieJar.get(name);
+        return stored === undefined ? undefined : { value: stored };
+      },
     }),
   headers: () => Promise.resolve({ get: () => null }),
 }));
@@ -68,6 +76,7 @@ const PROVIDERS = [
 const NODE = 'env-production';
 
 beforeEach(() => {
+  cookieJar.clear();
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
 });
 
@@ -229,6 +238,67 @@ describe('what it is: the stages and the specialists', () => {
     const value = budget?.querySelector('[data-testid="agent-budget-value"]');
     expect(value).not.toBeNull();
     expect(value?.textContent).not.toBe('0');
+  });
+
+  it("labels a budget in the reader's own language, not the schema's English default", async () => {
+    // The screen already translates everything around this row — the panel
+    // title, the ceiling annotation, the provenance sentence. The dotted path
+    // stays as metadata (asserted above); the row's own label must not be the
+    // one thing on it still reading in English to a Portuguese-speaking reader.
+    cookieJar.set(LOCALE_COOKIE, 'pt-BR');
+    await renderAgent({ node: NODE, tab: 'topology' });
+
+    const budget = screen
+      .getAllByTestId('agent-budget')
+      .find((row) => row.getAttribute('data-path') === 'agents.max_iterations');
+    expect(budget).toBeDefined();
+    expect(budget?.textContent).toContain(
+      message('pt-BR', 'agent.budgets.maxIterations'),
+    );
+    expect(budget?.textContent).not.toContain('Max iterations');
+  });
+});
+
+describe("a budget path's own words, once this console has them", () => {
+  it("translates a path this console has words for, in the reader's own language", () => {
+    expect(budgetLabel('en', 'agents.max_iterations', 'Max Iterations')).toBe(
+      message('en', 'agent.budgets.maxIterations'),
+    );
+    expect(budgetLabel('pt-BR', 'agents.max_iterations', 'Max Iterations')).toBe(
+      message('pt-BR', 'agent.budgets.maxIterations'),
+    );
+    // Not merely "a Portuguese sentence" — specifically not the schema's own,
+    // untranslated label, which is the exact defect this function exists to fix.
+    expect(budgetLabel('pt-BR', 'agents.max_iterations', 'Max Iterations')).not.toBe(
+      'Max Iterations',
+    );
+  });
+
+  it('translates every path the budgets panel actually renders', () => {
+    // BUDGET_PATHS names four; every one of them must resolve to a real word,
+    // never fall through to the schema's own English label, in Portuguese.
+    for (const path of [
+      'agents.max_iterations',
+      'agents.max_parallel_subagents',
+      'agents.max_subagent_depth',
+      'agents.tool_budget',
+    ]) {
+      const label = budgetLabel('pt-BR', path, 'Whatever The Schema Says');
+      expect(label).not.toBe('Whatever The Schema Says');
+      expect(label).not.toBe(path);
+    }
+  });
+
+  it('still falls back to the schema label for a path this console has no words for yet', () => {
+    expect(
+      budgetLabel('pt-BR', 'agents.some_future_budget', 'Some Future Budget'),
+    ).toBe('Some Future Budget');
+  });
+
+  it('falls back to the raw path only when the schema has nothing to say either', () => {
+    expect(budgetLabel('en', 'agents.some_future_budget', '')).toBe(
+      'agents.some_future_budget',
+    );
   });
 });
 

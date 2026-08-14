@@ -1195,6 +1195,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.budgets.body':
     'Uma equipe pode baixar qualquer um destes e não pode subir nenhum além do seu teto. O teto é uma constante do deployment, não um ajuste.',
   'agent.budgets.ceiling': 'teto {ceiling}',
+  'agent.budgets.maxIterations': 'Máximo de iterações',
+  'agent.budgets.maxParallelSubagents': 'Máximo de especialistas em paralelo',
+  'agent.budgets.maxSubagentDepth': 'Profundidade máxima de especialistas',
+  'agent.budgets.toolBudget': 'Orçamento de ferramentas',
   'agent.budgets.empty.heading': 'Nenhum orçamento está descrito aqui',
   'agent.budgets.empty.body':
     'O deployment não descreveu os campos de orçamento deste nó, então os tetos não podem ser mostrados.',
