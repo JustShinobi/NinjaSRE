@@ -133,6 +133,9 @@ export const EN = {
   'data.rules.empty.body':
     'Every verified delivery is investigated by the team that verified it.',
   'data.rules.empty.action': 'Open configuration',
+  'data.simulate.title': 'Test a delivery',
+  'data.simulate.purpose':
+    'See which rule would catch a payload and which team it would reach, before anything is saved.',
   'data.simulate.source': 'Receiver',
   'data.simulate.payload': 'Payload',
   'data.simulate.action': 'Simulate',

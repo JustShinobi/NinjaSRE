@@ -108,7 +108,7 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The three columns of transit, in the order data moves through them: what arrives, what happens to it, and where the result goes. No reference is drawn for it; the baseline exists because the one thing this screen has to get right is *emphasis* — a receiver that has never delivered is drawn first and in the danger tone, and a change that quietened it would be invisible to every other check while removing the whole reason the screen is here."
+        "reason": "The three columns of transit, in the order data moves through them: what arrives, what happens to it, and where the result goes. No reference is drawn for it; the baseline exists because the one thing this screen has to get right is *emphasis without alarm* — a receiver that has never delivered is drawn first, in the same neutral tone as everything else, and a change that lost either the ordering or the neutrality would be invisible to every other check while undoing the whole reason the screen reads this way."
       }
     },
     {

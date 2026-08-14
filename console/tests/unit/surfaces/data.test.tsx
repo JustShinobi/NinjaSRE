@@ -224,13 +224,16 @@ describe('the rules', () => {
 });
 
 describe('the delivery tester', () => {
-  it('names itself, rather than presenting as an unlabelled form', async () => {
+  it('names itself and says what it tests, rather than presenting as an unlabelled form', async () => {
     await data();
 
     const tester = screen.getByTestId('delivery-tester');
     expect(
-      within(tester).getByRole('heading', { name: 'Simulate' }),
+      within(tester).getByRole('heading', { name: 'Test a delivery' }),
     ).toBeInTheDocument();
+    expect(tester).toHaveTextContent(
+      'See which rule would catch a payload and which team it would reach',
+    );
     expect(within(tester).getByTestId('rule-simulator')).toBeInTheDocument();
   });
 

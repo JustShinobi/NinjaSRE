@@ -1004,10 +1004,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'ingress.token.issue': 'Emitir um token de entrega',
   'ingress.token.issuing': 'Emitindo\u2026',
   'ingress.token.shownOnce':
-    'Copie agora. \u00c9 mostrado uma vez e nunca mais pode ser lido \u2014 a implanta\u00e7\u00e3o guarda apenas um hash dele.',
-  'ingress.token.failed': 'A implanta\u00e7\u00e3o recusou a emiss\u00e3o.',
-  'ingress.token.unreachable':
-    'N\u00e3o foi poss\u00edvel alcan\u00e7ar a implanta\u00e7\u00e3o.',
+    'Copie agora. \u00c9 mostrado uma vez e nunca mais pode ser lido \u2014 o deployment guarda apenas um hash dele.',
+  'ingress.token.failed': 'O deployment recusou a emiss\u00e3o.',
+  'ingress.token.unreachable': 'N\u00e3o foi poss\u00edvel alcan\u00e7ar o deployment.',
   'firstRun.integrations.foundHere': 'Encontrado no seu estate em',
   'catalogue.integrations.title': 'Integrações',
   'catalogue.integrations.state': 'Ligação',
@@ -1268,6 +1267,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'data.rules.empty.body':
     'Toda entrega verificada vira investiga\u00e7\u00e3o da equipe que a verificou.',
   'data.rules.empty.action': 'Abrir a configura\u00e7\u00e3o',
+  'data.simulate.title': 'Testar uma entrega',
+  'data.simulate.purpose':
+    'Veja qual regra pegaria um payload e qual equipe ele alcan\u00e7aria, antes de salvar qualquer coisa.',
   'data.simulate.source': 'Receptor',
   'data.simulate.payload': 'Payload',
   'data.simulate.action': 'Simular',

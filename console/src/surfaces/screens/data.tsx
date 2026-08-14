@@ -387,9 +387,12 @@ export async function DataScreen(context: SurfaceContext): Promise<ReactNode> {
               className="flex flex-col gap-2 pt-3 mt-1 edge border-border border-b-0 border-x-0"
               data-testid="delivery-tester"
             >
-              {/* An honest name for what this is, rather than a select, a
-                  textarea and two unlabelled buttons. */}
-              <h4 className="text-strong">{message(locale, 'data.simulate.action')}</h4>
+              {/* An honest name and purpose for what this is, rather than a
+                  select, a textarea and two unlabelled buttons. */}
+              <h4 className="text-strong">{message(locale, 'data.simulate.title')}</h4>
+              <p className="text-meta text-muted">
+                {message(locale, 'data.simulate.purpose')}
+              </p>
               <RuleSimulator
                 sources={sources.map((source) => text(source, 'source'))}
                 labels={{
