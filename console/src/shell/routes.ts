@@ -349,6 +349,23 @@ export const AREAS: readonly Area[] = [
     icon: UsersIcon,
     visible: () => false,
   },
+  // The catalogue's own reference page: every vendor this deployment does not
+  // cover, and why. Reached only by a link from the catalogue's footer and
+  // from its own search-empty state, never from the sidebar — the same
+  // `visible: () => false` the other reference-only addresses use. The
+  // permission is the catalogue's own: the data is `known_gaps`, served
+  // alongside `GET /v1/integrations` rather than from a route of its own.
+  {
+    id: 'integrations-not-covered',
+    path: '/integrations/not-covered',
+    group: 'settings',
+    label: 'nav.integrationsNotCovered',
+    title: 'page.integrationsNotCovered.title',
+    context: 'page.integrationsNotCovered.context',
+    permission: 'integration.manage',
+    icon: LayersIcon,
+    visible: () => false,
+  },
 ];
 
 /** Kept so the manifest is a closed list rather than a suggestion. */

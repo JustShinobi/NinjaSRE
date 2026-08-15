@@ -1,5 +1,4 @@
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
@@ -7,15 +6,20 @@ import { surfaceContext } from '@/surfaces/context';
 import { IntegrationsScreen } from '@/surfaces/screens/integrations';
 
 /**
- * What the Catalogue's write half became: 85 credential forms on their own
- * address, each collapsed to its real state until asked for.
+ * The catalogue, rebuilt: connected first, a suggestion the estate already
+ * found, and everything else as a compact, searchable grid rather than a
+ * stack of collapsed forms.
  *
- * Two things this file pins:
+ * Four things this file pins:
  *
- * - every credential form starts collapsed, with nothing about it visible
- *   until an operator asks for it;
- * - each integration's real state — absent, stored, verified, failing — is
- *   legible off the collapsed card alone.
+ * - Connected and Suggested render above the catalogue, in that order, and
+ *   never as an empty section;
+ * - the grid carries a display name, a category and a one-line summary —
+ *   never the raw id — and the raw credential form never appears in it;
+ * - search and the category filter narrow the grid in the address, so a
+ *   filtered view is a link;
+ * - the state a card shows is the one canonical chip, never a second line
+ *   repeating it.
  */
 
 vi.mock('next/headers', () => ({
@@ -42,27 +46,75 @@ function principal(): unknown {
   };
 }
 
+interface FieldSource {
+  readonly name: string;
+  readonly label?: string;
+  readonly minScope?: string;
+  readonly guideUrl?: string;
+}
+
+function field(source: FieldSource): unknown {
+  return {
+    name: source.name,
+    label: source.label ?? source.name,
+    secret: true,
+    required: true,
+    help: '',
+    min_scope: source.minScope ?? '',
+    guide_url: source.guideUrl ?? '',
+  };
+}
+
+interface PermissionSource {
+  readonly name: string;
+  readonly grants: string;
+  readonly where?: string;
+  readonly capabilities?: readonly string[];
+}
+
+function permission(source: PermissionSource): unknown {
+  return {
+    name: source.name,
+    grants: source.grants,
+    where: source.where ?? '',
+    capabilities: source.capabilities ?? [],
+  };
+}
+
 function integration(source: {
   readonly name: string;
   readonly displayName?: string;
+  readonly category?: string;
+  readonly summary?: string;
   readonly health: string;
   readonly healthDetail?: string;
+  readonly fields?: readonly FieldSource[];
+  readonly capabilities?: readonly string[];
+  readonly permissions?: readonly PermissionSource[];
+  readonly suggested?: { readonly address: string; readonly fromResource: string };
 }): unknown {
   return {
     name: source.name,
     display_name: source.displayName ?? source.name,
-    category: 'observability',
-    summary: `What ${source.name} is for.`,
+    category: source.category ?? 'metrics',
+    summary: source.summary ?? `What ${source.name} is for.`,
     hosts: [],
     regions: [],
-    capabilities: [],
-    required_credentials: ['api_key'],
-    required_permissions: [],
+    capabilities: source.capabilities ?? [],
+    fields: (source.fields ?? [{ name: 'api_key' }]).map(field),
+    permissions: (source.permissions ?? []).map(permission),
     health: source.health,
     health_detail: source.healthDetail ?? '',
     parity: 'full',
     missing_artefacts: [],
-    suggested: null,
+    suggested:
+      source.suggested === undefined
+        ? null
+        : {
+            address: source.suggested.address,
+            from_resource: source.suggested.fromResource,
+            because: 'a guest labelled it is reachable on the right port',
+          },
   };
 }
 
@@ -71,24 +123,90 @@ const INTEGRATIONS = {
     integration({
       name: 'prometheus',
       displayName: 'Prometheus',
-      health: 'unconfigured',
-    }),
-    integration({ name: 'datadog', displayName: 'Datadog', health: 'unknown' }),
-    integration({
-      name: 'chat',
-      displayName: 'Team Chat',
+      category: 'metrics',
+      summary: 'PromQL evaluation and firing alerts.',
       health: 'healthy',
       healthDetail: 'verified 3 hours ago',
     }),
     integration({
-      name: 'ticketing',
-      displayName: 'Ticketing Desk',
+      name: 'proxmox',
+      displayName: 'Proxmox VE',
+      category: 'cloud_control_plane',
+      summary: 'Hypervisor and guests.',
+      health: 'healthy',
+      healthDetail: 'verified 3 hours ago',
+    }),
+    integration({
+      name: 'grafana',
+      displayName: 'Grafana',
+      category: 'cloud_control_plane',
+      summary: 'Dashboards and annotations.',
+      health: 'unconfigured',
+      suggested: { address: '192.168.68.159:3000', fromResource: 'monitoring' },
+    }),
+    integration({
+      name: 'datadog',
+      displayName: 'Datadog',
+      category: 'metrics',
+      summary: 'Metrics, logs and monitors.',
       health: 'degraded',
       healthDetail: 'the last verification timed out',
     }),
+    integration({
+      name: 'postgresql',
+      displayName: 'PostgreSQL',
+      category: 'database',
+      summary: 'Query plans and slow queries.',
+      health: 'unconfigured',
+    }),
+    integration({
+      name: 'slack',
+      displayName: 'Slack',
+      category: 'communication',
+      summary: 'Delivers reports and alerts.',
+      health: 'unconfigured',
+      fields: [
+        {
+          name: 'bot_token',
+          label: 'Bot token',
+          minScope: 'chat:write',
+          guideUrl: '/integrations/slack/guide',
+        },
+      ],
+      permissions: [
+        {
+          name: 'chat:write',
+          grants: 'post a message as the bot',
+          where: 'api.slack.com/apps → your app → OAuth & Permissions',
+          capabilities: ['slack_post_message'],
+        },
+      ],
+    }),
   ],
-  known_gaps: [],
+  known_gaps: [
+    {
+      integration: 'newrelic-synthetics',
+      display_name: 'New Relic Synthetics',
+      category: 'monitoring',
+      cause: 'not_reachable',
+      reason: 'the credential proxy speaks only HTTP',
+      resolution: 'a non-HTTP transport for the proxy',
+    },
+  ],
 };
+
+/**
+ * `element`, or a failure naming the absence.
+ *
+ * A test that reaches into an array and asserts on `undefined` reports
+ * "cannot read property of undefined", which says nothing about what the
+ * console did. This says the element was not there.
+ */
+function one(element: HTMLElement | undefined): HTMLElement {
+  if (element === undefined)
+    throw new Error('the element this test is about is not there');
+  return element;
+}
 
 function serve(bodies: { readonly integrations?: unknown }): void {
   vi.stubGlobal('fetch', (input: unknown) => {
@@ -119,15 +237,6 @@ async function integrations(params: Record<string, string> = {}): Promise<void> 
   render(await IntegrationsScreen(await surfaceContext(params)));
 }
 
-/** The collapsed card for one integration, by name. */
-function integrationCard(name: string): HTMLElement {
-  const found = screen
-    .getAllByTestId('integration')
-    .find((card) => card.getAttribute('data-integration') === name);
-  if (found === undefined) throw new Error(`no integration card for ${name}`);
-  return found;
-}
-
 describe('the area header', () => {
   it('names the area Integrations', async () => {
     serve({});
@@ -141,110 +250,316 @@ describe('the area header', () => {
   });
 });
 
-describe('a credential form is collapsed until asked for', () => {
+describe('Connected, first and never empty', () => {
   beforeEach(() => {
     serve({});
   });
 
-  it('shows every integration state without expanding anything', async () => {
+  it('lists every connected integration above every other section, with the canonical chip', async () => {
     await integrations();
 
-    expect(integrationCard('prometheus').getAttribute('data-state')).toBe(
-      'unconfigured',
-    );
-    expect(
-      within(integrationCard('prometheus')).getByText(/No credential is stored/),
-    ).toBeDefined();
-
-    expect(integrationCard('datadog').getAttribute('data-state')).toBe('unknown');
-    expect(
-      within(integrationCard('datadog')).getByText(/nothing has checked it yet/),
-    ).toBeDefined();
-
-    expect(integrationCard('chat').getAttribute('data-state')).toBe('healthy');
-    expect(
-      integrationCard('chat').querySelector('[data-credential-status="verified"]'),
-    ).not.toBeNull();
-    expect(
-      within(integrationCard('chat')).getByText(/verified 3 hours ago/),
-    ).toBeDefined();
-
-    expect(integrationCard('ticketing').getAttribute('data-state')).toBe('degraded');
-    expect(
-      integrationCard('ticketing').querySelector('[data-credential-status="failing"]'),
-    ).not.toBeNull();
-  });
-
-  it('titles every card with the display name, never the raw id', async () => {
-    await integrations();
-
-    expect(within(integrationCard('chat')).getByText('Team Chat')).toBeInTheDocument();
-    expect(within(integrationCard('chat')).queryByText('chat')).toBeNull();
-    expect(
-      within(integrationCard('ticketing')).getByText('Ticketing Desk'),
-    ).toBeInTheDocument();
-  });
-
-  it('renders no credential form and no verify control before anything is expanded', async () => {
-    await integrations();
-
-    expect(screen.queryAllByTestId('credential')).toHaveLength(0);
-    expect(screen.queryAllByTestId('verify-row')).toHaveLength(0);
-  });
-
-  it('reveals the form and the verify control for one card, and only that one, once expanded', async () => {
-    await integrations();
-
-    await userEvent.click(
-      within(integrationCard('prometheus')).getByTestId('integration-toggle'),
-    );
-
-    expect(screen.getAllByTestId('credential')).toHaveLength(1);
-    expect(screen.getByTestId('credential')).toHaveAttribute(
-      'data-integration',
+    const connected = screen.getByTestId('connected-section');
+    const rows = within(connected).getAllByTestId('connected-integration');
+    expect(rows.map((row) => row.getAttribute('data-integration'))).toEqual([
       'prometheus',
-    );
-    expect(screen.getAllByTestId('verify-row')).toHaveLength(1);
-    expect(screen.getByTestId('verify-row')).toHaveAttribute(
-      'data-thing',
-      'prometheus',
-    );
+      'proxmox',
+      'datadog',
+    ]);
+    expect(within(connected).getByText('Prometheus')).toBeInTheDocument();
+    expect(
+      connected.compareDocumentPosition(screen.getByTestId('suggested-section')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('shows a failing connected integration with a critical chip, still inside Connected', async () => {
+    await integrations();
+
+    const datadog = screen
+      .getAllByTestId('connected-integration')
+      .find((row) => row.getAttribute('data-integration') === 'datadog');
+    expect(datadog).toBeDefined();
+    expect(datadog?.querySelector('[data-credential-status="failing"]')).not.toBeNull();
+  });
+
+  it('names the diagnostic beside the critical chip for a failing connected integration', async () => {
+    // The edge case promises a chip *and* a diagnostic. `datadog` in the
+    // fixture above already carries `healthDetail: 'the last verification
+    // timed out'` — this asserts it actually reaches the row, not only the
+    // record.
+    await integrations();
+
+    const datadog = screen
+      .getAllByTestId('connected-integration')
+      .find((row) => row.getAttribute('data-integration') === 'datadog');
+    expect(one(datadog)).toHaveTextContent('the last verification timed out');
+  });
+
+  it('shows a credential nobody has verified yet as Stored, inside Connected, never in the grid', async () => {
+    // A written credential the ledger has not run against yet reports
+    // `health: 'unknown'` — `credentialStatus` maps that to the canonical
+    // "stored", and it belongs beside the other connected integrations, not
+    // back in the catalogue as though nothing had been entered.
+    serve({
+      integrations: {
+        integrations: [
+          integration({
+            name: 'notion',
+            displayName: 'Notion',
+            health: 'unknown',
+          }),
+        ],
+        known_gaps: [],
+      },
+    });
+    await integrations();
+
+    const connected = screen.getByTestId('connected-section');
+    const row = within(connected).getByTestId('connected-integration');
+    expect(row).toHaveAttribute('data-integration', 'notion');
+    expect(row.querySelector('[data-credential-status="stored"]')).not.toBeNull();
+    expect(screen.queryByTestId('catalogue-item')).toBeNull();
+  });
+
+  it('offers a manage action for each connected integration, to its own address', async () => {
+    await integrations();
+
+    const prometheus = screen
+      .getAllByTestId('connected-integration')
+      .find((row) => row.getAttribute('data-integration') === 'prometheus');
+    const manage = within(one(prometheus)).getByTestId('manage-integration');
+    expect(manage).toHaveAttribute('href', '/integrations/prometheus');
+  });
+
+  it('never renders an empty Connected section', async () => {
+    serve({
+      integrations: {
+        integrations: [integration({ name: 'grafana', health: 'unconfigured' })],
+        known_gaps: [],
+      },
+    });
+    await integrations();
+
+    expect(screen.queryByTestId('connected-section')).toBeNull();
   });
 });
 
-describe('a state filter, so eighty-five cards is a search rather than a scroll', () => {
+describe('Suggested by the estate, in front of the catalogue', () => {
   beforeEach(() => {
     serve({});
   });
 
-  it('offers exactly the four states this dataset actually has, and nothing more', async () => {
+  it('shows the evidence the API already computed, and a connect action', async () => {
     await integrations();
 
-    const filter = screen.getByTestId('filter');
-    expect(filter).toHaveAttribute('data-filter', 'state');
-    const options = within(filter)
-      .getAllByRole('option')
-      .map((option) => option.textContent);
-    expect(options).toEqual(['Any', 'Not connected', 'Stored', 'Verified', 'Failing']);
+    const suggested = screen.getByTestId('suggested-section');
+    const row = within(suggested).getByTestId('suggested-integration');
+    expect(row).toHaveAttribute('data-integration', 'grafana');
+    expect(within(row).getByTestId('suggestion-evidence')).toHaveTextContent(
+      '192.168.68.159:3000',
+    );
+    expect(within(row).getByTestId('suggestion-evidence')).toHaveTextContent(
+      'monitoring',
+    );
+    expect(within(row).getByTestId('connect-suggested')).toHaveAttribute(
+      'href',
+      '/integrations/grafana',
+    );
   });
 
-  it('narrows the cards to the state named in the address', async () => {
-    await integrations({ state: 'healthy' });
-
-    expect(screen.getAllByTestId('integration')).toHaveLength(1);
-    expect(integrationCard('chat')).toBeInTheDocument();
-  });
-
-  it('is silent about the state in the address once nothing else needs it', async () => {
-    await integrations({ state: 'degraded' });
-
-    expect(screen.getAllByTestId('integration')).toHaveLength(1);
-    expect(integrationCard('ticketing')).toBeInTheDocument();
-  });
-
-  it('carries the whole set again once the filter is cleared', async () => {
+  it('never renders an empty Suggested section', async () => {
+    serve({
+      integrations: {
+        integrations: [integration({ name: 'prometheus', health: 'healthy' })],
+        known_gaps: [],
+      },
+    });
     await integrations();
 
-    expect(screen.getAllByTestId('integration')).toHaveLength(4);
+    expect(screen.queryByTestId('suggested-section')).toBeNull();
+  });
+
+  it('does not offer a suggestion for an integration already connected', async () => {
+    serve({
+      integrations: {
+        integrations: [
+          integration({
+            name: 'prometheus',
+            health: 'healthy',
+            suggested: { address: '10.0.0.1:9090', fromResource: 'vm-1' },
+          }),
+        ],
+        known_gaps: [],
+      },
+    });
+    await integrations();
+
+    expect(screen.queryByTestId('suggested-section')).toBeNull();
+  });
+});
+
+describe('the summary line', () => {
+  it('counts what the API actually served, never a literal', async () => {
+    serve({});
+    await integrations();
+
+    const summary = screen.getByTestId('catalogue-summary');
+    expect(summary).toHaveTextContent('6 integrations available');
+    expect(summary).toHaveTextContent('3 connected');
+    expect(summary).toHaveTextContent('1 suggested');
+  });
+});
+
+describe('the catalogue grid: compact cards, never the raw id, never the form', () => {
+  beforeEach(() => {
+    serve({});
+  });
+
+  it('shows every not-yet-connected, not-suggested integration by display name, category and summary', async () => {
+    await integrations();
+
+    const grid = screen.getByTestId('catalogue-grid');
+    const cards = within(grid).getAllByTestId('catalogue-item');
+    expect(cards.map((card) => card.getAttribute('data-integration')).sort()).toEqual([
+      'postgresql',
+      'slack',
+    ]);
+    expect(within(grid).getByText('PostgreSQL')).toBeInTheDocument();
+    expect(within(grid).queryByText('postgresql')).toBeNull();
+  });
+
+  it('never shows a connected or suggested integration a second time in the grid', async () => {
+    await integrations();
+
+    const grid = screen.getByTestId('catalogue-grid');
+    expect(within(grid).queryByText('Grafana')).toBeNull();
+    expect(within(grid).queryByText('Prometheus')).toBeNull();
+  });
+
+  it('renders no credential form and no expandable state inside a card', async () => {
+    await integrations();
+
+    expect(screen.queryAllByTestId('credential')).toHaveLength(0);
+  });
+
+  it('links each card to its own deep-linked address', async () => {
+    await integrations();
+
+    const card = screen
+      .getAllByTestId('catalogue-item')
+      .find((each) => each.getAttribute('data-integration') === 'slack');
+    expect(within(one(card)).getByRole('link')).toHaveAttribute(
+      'href',
+      '/integrations/slack',
+    );
+  });
+
+  it('search also matches a capability, not only name, category and summary', async () => {
+    // `point_in_time_restore` appears nowhere in this item's name, category
+    // or summary — only in its capabilities. Seeding the URL's own `q` is
+    // the same mechanism the search box itself writes to, so this exercises
+    // the real filter rather than a second copy of it.
+    serve({
+      integrations: {
+        integrations: [
+          integration({
+            name: 'chronoshift',
+            displayName: 'Chronoshift',
+            category: 'database',
+            summary: 'Backup scheduling for managed clusters.',
+            health: 'unconfigured',
+            capabilities: ['point_in_time_restore'],
+          }),
+        ],
+        known_gaps: [],
+      },
+    });
+    await integrations({ q: 'point_in_time_restore' });
+
+    const grid = screen.getByTestId('catalogue-grid');
+    expect(within(grid).getByText('Chronoshift')).toBeInTheDocument();
+  });
+});
+
+describe('the "not covered" footer link', () => {
+  it('links to the reference page, and does not repeat the prose inline', async () => {
+    serve({});
+    await integrations();
+
+    const link = screen.getByTestId('not-covered-link');
+    expect(link).toHaveAttribute('href', '/integrations/not-covered');
+    expect(link).toHaveTextContent('1');
+    expect(screen.queryByTestId('known-gap')).toBeNull();
+  });
+});
+
+describe('the credential panel, opened by a deep link', () => {
+  it('opens the drawer for the named integration when the address names one', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveTextContent('Slack');
+  });
+
+  it('shows a human label, help and minimum scope per field, and a guide link when one exists', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByLabelText('Bot token')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('credential-field-scope')).toHaveTextContent(
+      'chat:write',
+    );
+    expect(within(dialog).getByTestId('credential-field-guide')).toHaveAttribute(
+      'href',
+      '/integrations/slack/guide',
+    );
+  });
+
+  it('names each required permission with what it grants and where it is turned on', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+
+    const dialog = screen.getByRole('dialog');
+    const permissions = within(dialog).getAllByTestId('required-permission');
+    expect(permissions).toHaveLength(1);
+    expect(permissions[0]).toHaveTextContent('chat:write');
+    expect(permissions[0]).toHaveTextContent('post a message as the bot');
+    expect(permissions[0]).toHaveTextContent('api.slack.com/apps');
+  });
+
+  it('names the one primary action "Save and test"', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: /save and test/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('carries the two-sentence security note', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+
+    expect(
+      within(screen.getByRole('dialog')).getByTestId('credential-security-note'),
+    ).toHaveTextContent('never shown again');
+  });
+
+  it('does not open a drawer when the address names nothing', async () => {
+    serve({});
+    await integrations();
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('says the integration is not in the catalogue for a name that does not resolve', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'not-a-real-vendor'));
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('not in the catalogue');
   });
 });

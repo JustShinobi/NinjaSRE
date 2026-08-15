@@ -198,20 +198,21 @@ describe('a viewer who may act', () => {
     expect(screen.getAllByTestId('capability').length).toBeGreaterThan(0);
   });
 
-  it('is offered the credential field on integrations', async () => {
+  it('is offered the connected and catalogue sections on integrations', async () => {
     serveScenario('populated', principalHolding(['integration.manage']));
     await renderArea('integrations');
 
-    expect(screen.getAllByTestId('integration').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('connected-integration').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('catalogue-item').length).toBeGreaterThan(0);
   });
 
-  it('is told what the catalogue does not cover, and why', async () => {
+  it('is told what the catalogue does not cover, and why, on its own reference page', async () => {
     // An operator evaluating this platform against their own stack otherwise
     // discovers an absence by looking for it and not finding it, which is the
     // worst moment and the worst way. A decision with the reasoning written
     // down is also where the next "should we build X" conversation starts.
     serveScenario('populated', principalHolding(['integration.manage']));
-    await renderArea('integrations');
+    await renderArea('integrations-not-covered');
 
     const gaps = screen.getAllByTestId('known-gap');
     const named = gaps.map((gap) => gap.getAttribute('data-integration'));
@@ -226,7 +227,7 @@ describe('a viewer who may act', () => {
 
   it('tells a decision apart from something the architecture forbids', async () => {
     serveScenario('populated', principalHolding(['integration.manage']));
-    await renderArea('integrations');
+    await renderArea('integrations-not-covered');
 
     const causes = screen
       .getAllByTestId('known-gap')

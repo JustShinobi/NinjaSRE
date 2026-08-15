@@ -51,6 +51,8 @@ export function credentialLabels(locale: Locale): CredentialLabels {
     saved: message(locale, 'credential.saved'),
     refused: message(locale, 'firstRun.refused'),
     unreachable: message(locale, 'firstRun.unreachable'),
+    minScope: message(locale, 'credential.minScope'),
+    guide: message(locale, 'credential.guide'),
   };
 }
 

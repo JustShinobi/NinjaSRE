@@ -114,6 +114,43 @@ class KnownGapView(BaseModel):
     resolution: str
 
 
+class CredentialFieldView(BaseModel):
+    """One credential field, exactly as a form renders it.
+
+    Replaces the bare list of field names this route used to serve. A name
+    alone left the console inventing a label and leaving "where do I get this"
+    and "what permission does it need" unanswered; this is the vendor's own
+    declaration (``platform.credentials.schemas.CredentialField``), read
+    through the gateway rather than copied by the console.
+    """
+
+    name: str
+    label: str
+    secret: bool
+    required: bool
+    help: str
+    min_scope: str = ""
+    guide_url: str = ""
+
+
+class RequiredPermissionView(BaseModel):
+    """One permission the credential has to be allowed, exactly as declared.
+
+    Replaces the bare list of permission names this route used to serve. A
+    name alone left an operator to look up what it grants and where it is
+    turned on; this is the vendor's own declaration
+    (`integrations._verification.permissions.RequiredPermission`), read
+    through the gateway rather than copied by the console. Every one of these
+    is probed, not merely declared — `tools.verify_integrations` makes the
+    call each names.
+    """
+
+    name: str
+    grants: str
+    where: str = ""
+    capabilities: list[str] = Field(default_factory=list)
+
+
 class IntegrationView(BaseModel):
     name: str
     #: What a person calls this vendor — never the raw id above, outside a
@@ -124,8 +161,13 @@ class IntegrationView(BaseModel):
     hosts: list[str]
     regions: list[str]
     capabilities: list[str]
-    required_credentials: list[str]
-    required_permissions: list[str]
+    #: Every field the credential form needs, required and optional alike —
+    #: the same declaration `/v1/config/{node_id}/integration-schemas` reads,
+    #: so the catalogue and the wizard never disagree about a vendor's fields.
+    fields: list[CredentialFieldView]
+    #: Every permission this vendor's capabilities need, each with what it
+    #: grants and where an operator turns it on.
+    permissions: list[RequiredPermissionView]
     health: str
     health_detail: str
     parity: str
@@ -220,6 +262,29 @@ async def _suggestions(
     }
 
 
+def _credential_field_view(declared: Any) -> CredentialFieldView:
+    """Return one declared schema field as the catalogue's own view of it."""
+    return CredentialFieldView(
+        name=declared.name,
+        label=declared.display_label,
+        secret=declared.is_secret,
+        required=declared.required,
+        help=declared.description,
+        min_scope=declared.min_scope,
+        guide_url=declared.guide_url,
+    )
+
+
+def _required_permission_view(declared: Any) -> RequiredPermissionView:
+    """Return one declared permission as the catalogue's own view of it."""
+    return RequiredPermissionView(
+        name=declared.name,
+        grants=declared.grants,
+        where=declared.where,
+        capabilities=list(declared.capabilities),
+    )
+
+
 @router.get("", response_model=IntegrationList)
 async def list_integrations(
     state: GatewayState = Depends(get_state),
@@ -260,8 +325,10 @@ async def list_integrations(
                 hosts=list(entry.descriptor.rule.hosts),
                 regions=list(entry.regions),
                 capabilities=list(entry.capabilities),
-                required_credentials=list(entry.required_credentials),
-                required_permissions=list(entry.required_permissions),
+                fields=[
+                    _credential_field_view(declared) for declared in entry.descriptor.schema.fields
+                ],
+                permissions=[_required_permission_view(declared) for declared in entry.permissions],
                 health=entry.health.value,
                 health_detail=entry.health_detail,
                 parity=entry.parity.status.value,

@@ -35,8 +35,12 @@ from config.constants.first_run import (
 )
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
 from gateway.webhooks.router import PROFILES
+from integrations._catalogue.discovery import catalogue as integration_catalogue
+from integrations._catalogue.entry import CatalogueEntry
 from integrations._catalogue.gaps import gaps
+from integrations._verification.permissions import RequiredPermission
 from platform.config_service.schema.policies import GuardianSettings
+from platform.credentials.schemas import CredentialField
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
 from platform.identity.permissions import Permission
@@ -1389,6 +1393,54 @@ def config_records() -> tuple[CapturedRecord, ...]:
     return tuple(records)
 
 
+def _credential_field_record(declared: CredentialField) -> dict[str, Any]:
+    """Return one declared credential field as the catalogue route serves it."""
+    return {
+        "name": declared.name,
+        "label": declared.display_label,
+        "secret": declared.is_secret,
+        "required": declared.required,
+        "help": declared.description,
+        "min_scope": declared.min_scope,
+        "guide_url": declared.guide_url,
+    }
+
+
+def _required_permission_record(permission: RequiredPermission) -> dict[str, Any]:
+    """Return one declared permission exactly as the gateway serves it."""
+    return {
+        "name": permission.name,
+        "grants": permission.grants,
+        "where": permission.where,
+        "capabilities": list(permission.capabilities),
+    }
+
+
+def _catalogue_integration_record(entry: CatalogueEntry) -> dict[str, Any]:
+    """Return one real, installed integration exactly as the gateway serves it.
+
+    Mirrors ``gateway/http/routes/integrations.py``'s own construction rather
+    than reading ``entry.to_record()``, which is a different, internal shape
+    (docs generation and the CLI's own reader) that has never carried ``hosts``
+    or the structured field list this route serves.
+    """
+    return {
+        "name": entry.name,
+        "display_name": entry.display_name,
+        "category": entry.category.value,
+        "summary": entry.summary,
+        "hosts": list(entry.descriptor.rule.hosts),
+        "regions": list(entry.regions),
+        "capabilities": list(entry.capabilities),
+        "fields": [_credential_field_record(each) for each in entry.descriptor.schema.fields],
+        "permissions": [_required_permission_record(each) for each in entry.permissions],
+        "health": entry.health.value,
+        "health_detail": entry.health_detail,
+        "parity": entry.parity.status.value,
+        "missing_artefacts": [artefact.value for artefact in entry.parity.missing],
+    }
+
+
 def integration_records() -> tuple[CapturedRecord, ...]:
     """Return every installed integration, one of them unhealthy.
 
@@ -1398,6 +1450,17 @@ def integration_records() -> tuple[CapturedRecord, ...]:
     absences discovers them by not finding them. Read from the declaration
     rather than restated here, because a second copy of the reasoning is a copy
     that stops matching the first.
+
+    The catalogue below has two halves for the same reason the deployment does:
+    a handful of hand-authored, fictional vendors carry this scenario's story —
+    two connected and verified, one connected and failing, one only suggested —
+    and every *real* installed integration is layered in beneath them, read
+    from the same declaration the gateway route itself walks
+    (``integrations._catalogue.discovery.catalogue``), so the height this
+    screen renders at is the height eighty-plus real integrations actually
+    produce rather than a guess at what that would look like. The three
+    fictional entries are never replaced by a same-named real one: none of the
+    installed vendors is called ``metrics-store``, ``chat`` or ``ticketing``.
     """
     return (
         _record(
@@ -1416,8 +1479,30 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                         "hosts": ["metrics.example.invalid"],
                         "regions": [],
                         "capabilities": ["metrics.range_query"],
-                        "required_credentials": ["api_token"],
-                        "required_permissions": ["metrics:read"],
+                        "fields": [
+                            {
+                                "name": "api_token",
+                                "label": "API token",
+                                "secret": True,
+                                "required": True,
+                                "help": "Generated from the metrics store's own settings page.",
+                                "min_scope": "read-only",
+                                # Relative, never a third-party origin: nothing this
+                                # deployment serves may point off it, even in a
+                                # fictional demo. No page answers this path yet — it
+                                # exists to prove the link renders when a field
+                                # declares one, not to be followed.
+                                "guide_url": "/integrations/metrics-store/guide",
+                            }
+                        ],
+                        "permissions": [
+                            {
+                                "name": "metrics:read",
+                                "grants": "run range queries against stored series",
+                                "where": "Metrics store → Settings → API tokens → Scopes",
+                                "capabilities": ["metrics.range_query"],
+                            }
+                        ],
                         "parity": "full",
                         "missing_artefacts": [],
                         # The estate found this vendor running on something it
@@ -1440,8 +1525,25 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                         "hosts": ["chat.example.invalid"],
                         "regions": [],
                         "capabilities": ["chat.post_message"],
-                        "required_credentials": ["bot_token"],
-                        "required_permissions": ["chat:write"],
+                        "fields": [
+                            {
+                                "name": "bot_token",
+                                "label": "Bot token",
+                                "secret": True,
+                                "required": True,
+                                "help": "Created from the chat workspace's app management console.",
+                                "min_scope": "chat:write",
+                                "guide_url": "",
+                            }
+                        ],
+                        "permissions": [
+                            {
+                                "name": "chat:write",
+                                "grants": "post a message as the bot",
+                                "where": "Chat workspace → App management → OAuth scopes",
+                                "capabilities": ["chat.post_message"],
+                            }
+                        ],
                         "parity": "full",
                         "missing_artefacts": [],
                     },
@@ -1455,11 +1557,32 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                         "hosts": ["tickets.example.invalid"],
                         "regions": [],
                         "capabilities": ["ticketing.open_ticket"],
-                        "required_credentials": ["api_token"],
-                        "required_permissions": ["issues:write"],
+                        "fields": [
+                            {
+                                "name": "api_token",
+                                "label": "API token",
+                                "secret": True,
+                                "required": True,
+                                "help": "Generated from the ticketing system's integration settings.",
+                                "min_scope": "",
+                                "guide_url": "",
+                            }
+                        ],
+                        "permissions": [
+                            {
+                                "name": "issues:write",
+                                "grants": "create and update tickets from findings",
+                                "where": "Ticketing system → Integration settings → API scopes",
+                                "capabilities": ["ticketing.open_ticket"],
+                            }
+                        ],
                         "parity": "partial",
                         "missing_artefacts": ["synthetic scenario"],
                     },
+                    *[
+                        _catalogue_integration_record(entry)
+                        for entry in integration_catalogue(configured=frozenset())
+                    ],
                 ],
             },
         ),

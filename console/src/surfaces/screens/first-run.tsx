@@ -234,18 +234,12 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
       displayName: schema === undefined ? name : text(schema, 'display_name'),
       summary: text(record, 'summary'),
       category: text(record, 'category'),
-      // The declared schema when the deployment serves one, and the names the
-      // catalogue lists when it does not. A deployment whose node holds no
-      // configuration yet still has to be connectable.
+      // The node's own declared schema when the deployment serves one, and
+      // the catalogue's own structured fields when it does not. A deployment
+      // whose node holds no configuration yet still has to be connectable.
       fields:
         schema === undefined
-          ? list(record, 'required_credentials').map((required) => ({
-              name: String(required),
-              label: String(required),
-              help: '',
-              secret: true,
-              required: true,
-            }))
+          ? fieldsOf(record, 'fields')
           : fieldsOf(schema, 'credential_fields'),
       configured: setup.integrations.some(
         (entry) => entry.name === name && entry.readiness !== 'absent',

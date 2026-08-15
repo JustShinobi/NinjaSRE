@@ -47,6 +47,16 @@ export interface CredentialFieldSpec {
    * same credential. Empty for an integration, which declares none.
    */
   readonly environmentVariable?: string;
+  /**
+   * The least the vendor's own permission model has to grant this field, in
+   * the vendor's own words. Absent where the deployment does not confidently
+   * know the minimum — never a guess, because a guessed scope is a permission
+   * an operator pastes into the vendor's own console and finds wrong during an
+   * incident rather than before one.
+   */
+  readonly minScope?: string;
+  /** A step-by-step guide for obtaining this field's value. Absent is ordinary. */
+  readonly guideUrl?: string;
 }
 
 /** What sits under the input: the field's own help, and where else it can come from. */
@@ -67,6 +77,10 @@ export interface CredentialLabels {
   readonly saved: string;
   readonly refused: string;
   readonly unreachable: string;
+  /** What precedes a field's own minimum permission, when it declares one. */
+  readonly minScope: string;
+  /** What a field's own step-by-step guide link is called, when it has one. */
+  readonly guide: string;
 }
 
 export interface CredentialFieldProps {
@@ -149,21 +163,38 @@ export function CredentialField({
         <p className="text-meta text-muted">{labels.absent}</p>
       ) : (
         fields.map((field) => (
-          <Input
-            key={field.name}
-            label={field.label === '' ? field.name : field.label}
-            name={field.name}
-            // A secret is a password field with the browser's own memory turned
-            // off. An operations credential offered back by autofill on a
-            // shared machine is the failure this one attribute prevents.
-            type={field.secret ? 'password' : 'text'}
-            autoComplete={field.secret ? 'off' : undefined}
-            {...(describe(field) === '' ? {} : { description: describe(field) })}
-            value={values[field.name] ?? ''}
-            onValueChange={(value) => {
-              setValues((held) => ({ ...held, [field.name]: value }));
-            }}
-          />
+          <div key={field.name} className="flex flex-col gap-1">
+            <Input
+              label={field.label === '' ? field.name : field.label}
+              name={field.name}
+              // A secret is a password field with the browser's own memory turned
+              // off. An operations credential offered back by autofill on a
+              // shared machine is the failure this one attribute prevents.
+              type={field.secret ? 'password' : 'text'}
+              autoComplete={field.secret ? 'off' : undefined}
+              {...(describe(field) === '' ? {} : { description: describe(field) })}
+              value={values[field.name] ?? ''}
+              onValueChange={(value) => {
+                setValues((held) => ({ ...held, [field.name]: value }));
+              }}
+            />
+            {field.minScope === undefined || field.minScope === '' ? null : (
+              <p className="text-meta text-muted" data-testid="credential-field-scope">
+                {labels.minScope} <code>{field.minScope}</code>
+              </p>
+            )}
+            {field.guideUrl === undefined || field.guideUrl === '' ? null : (
+              <a
+                href={field.guideUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-meta text-accent underline underline-offset-2 motion-hover hover:opacity-80"
+                data-testid="credential-field-guide"
+              >
+                {labels.guide}
+              </a>
+            )}
+          </div>
         ))
       )}
 

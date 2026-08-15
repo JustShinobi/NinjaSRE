@@ -60,6 +60,7 @@ SHELL_PATHS: Final[tuple[str, ...]] = (
     # release is most likely to break and least likely to be tried in.
     "/first-run",
     "/integrations",
+    "/integrations/not-covered",
     "/signals",
     "/autonomy",
     "/configuration",

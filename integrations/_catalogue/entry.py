@@ -170,6 +170,16 @@ class CatalogueEntry:
         return tuple(permission.name for permission in self.profile.permissions)
 
     @property
+    def permissions(self) -> tuple[RequiredPermission, ...]:
+        """Return every required permission whole — grants and where, not only its name.
+
+        The gateway's own catalogue route reads this rather than
+        ``required_permissions``: a bare vendor scope name is exactly the shape
+        ``RequiredPermission``'s own docstring warns an operator has to look up.
+        """
+        return self.profile.permissions
+
+    @property
     def regions(self) -> tuple[str, ...]:
         """Return every region this vendor can be reached in."""
         return self.profile.regions.names()

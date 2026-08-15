@@ -300,6 +300,8 @@ class CredentialFieldView(BaseModel):
     secret: bool
     required: bool
     help: str
+    min_scope: str = ""
+    guide_url: str = ""
 
 
 class IntegrationSchemaView(BaseModel):
@@ -406,6 +408,8 @@ def _field_view(field_spec: Any) -> CredentialFieldView:
         secret=field_spec.secret,
         required=field_spec.required,
         help=field_spec.help,
+        min_scope=field_spec.min_scope,
+        guide_url=field_spec.guide_url,
     )
 
 

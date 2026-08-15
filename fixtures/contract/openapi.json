@@ -3232,6 +3232,13 @@
             "title": "Display Name",
             "type": "string"
           },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/gateway__http__routes__integrations__CredentialFieldView"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
           "health": {
             "title": "Health",
             "type": "string"
@@ -3262,25 +3269,18 @@
             "title": "Parity",
             "type": "string"
           },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredPermissionView"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
           "regions": {
             "items": {
               "type": "string"
             },
             "title": "Regions",
-            "type": "array"
-          },
-          "required_credentials": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Credentials",
-            "type": "array"
-          },
-          "required_permissions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Permissions",
             "type": "array"
           },
           "suggested": {
@@ -3306,8 +3306,8 @@
           "hosts",
           "regions",
           "capabilities",
-          "required_credentials",
-          "required_permissions",
+          "fields",
+          "permissions",
           "health",
           "health_detail",
           "parity",
@@ -5287,6 +5287,37 @@
           "reason"
         ],
         "title": "RejectRequest",
+        "type": "object"
+      },
+      "RequiredPermissionView": {
+        "description": "One permission the credential has to be allowed, exactly as declared.\n\nReplaces the bare list of permission names this route used to serve. A\nname alone left an operator to look up what it grants and where it is\nturned on; this is the vendor's own declaration\n(`integrations._verification.permissions.RequiredPermission`), read\nthrough the gateway rather than copied by the console. Every one of these\nis probed, not merely declared — `tools.verify_integrations` makes the\ncall each names.",
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "grants": {
+            "title": "Grants",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "where": {
+            "default": "",
+            "title": "Where",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "grants"
+        ],
+        "title": "RequiredPermissionView",
         "type": "object"
       },
       "ResourceChangesView": {
@@ -7473,12 +7504,66 @@
       },
       "gateway__http__routes__config__CredentialFieldView": {
         "properties": {
+          "guide_url": {
+            "default": "",
+            "title": "Guide Url",
+            "type": "string"
+          },
           "help": {
             "title": "Help",
             "type": "string"
           },
           "label": {
             "title": "Label",
+            "type": "string"
+          },
+          "min_scope": {
+            "default": "",
+            "title": "Min Scope",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "secret",
+          "required",
+          "help"
+        ],
+        "title": "CredentialFieldView",
+        "type": "object"
+      },
+      "gateway__http__routes__integrations__CredentialFieldView": {
+        "description": "One credential field, exactly as a form renders it.\n\nReplaces the bare list of field names this route used to serve. A name\nalone left the console inventing a label and leaving \"where do I get this\"\nand \"what permission does it need\" unanswered; this is the vendor's own\ndeclaration (``platform.credentials.schemas.CredentialField``), read\nthrough the gateway rather than copied by the console.",
+        "properties": {
+          "guide_url": {
+            "default": "",
+            "title": "Guide Url",
+            "type": "string"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "min_scope": {
+            "default": "",
+            "title": "Min Scope",
             "type": "string"
           },
           "name": {

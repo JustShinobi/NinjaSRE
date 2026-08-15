@@ -140,6 +140,21 @@ describe('the wizard screen', () => {
     });
   });
 
+  it('offers a real credential field for a node with no schema of its own, from the catalogue payload', async () => {
+    // The `first-run` scenario's node holds no configuration yet, so
+    // `/v1/config/{node_id}/integration-schemas` serves no schema for
+    // `metrics-store` and the integrations step falls back to the catalogue's
+    // own declared fields — the structured list `/v1/integrations` now
+    // serves, not the bare names it used to.
+    await firstRun({ step: 'integrations' });
+
+    const offer = screen
+      .getAllByTestId('integration-offer')
+      .find((each) => each.getAttribute('data-integration') === 'metrics-store');
+    expect(offer).toBeDefined();
+    expect(within(one(offer)).getByLabelText('API token')).toBeInTheDocument();
+  });
+
   it('keeps every step visible, marking exactly one as where you are', async () => {
     await firstRun();
 
@@ -277,6 +292,8 @@ describe('storing the provider credential', () => {
           saved: 'saved',
           refused: 'refused',
           unreachable: 'unreachable',
+          minScope: 'minimum permission',
+          guide: 'guide',
         }}
       />,
     );
@@ -611,6 +628,8 @@ describe('connecting integrations', () => {
       saved: 'saved',
       refused: 'refused',
       unreachable: 'unreachable',
+      minScope: 'minimum permission',
+      guide: 'guide',
     },
   };
 

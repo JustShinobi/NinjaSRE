@@ -69,7 +69,14 @@ describe('SC-001: every screen, with no data, says what would be here', () => {
     signals: 'destinations',
   };
 
+  // `known_gaps` is a catalogue fact the product declares, not a deployment's
+  // own data — identical on the emptiest deployment there is, the same way
+  // Signals' Intake tab above never empties. There is no "nothing here yet"
+  // for this screen to say.
+  const NEVER_EMPTY = new Set(['integrations-not-covered']);
+
   for (const [index, target] of ALL_SCREENS.entries()) {
+    if (NEVER_EMPTY.has(target.id)) continue;
     it(`${target.id}: renders an empty state naming the next action`, async () => {
       const tab = EMPTY_STATE_TAB[target.id];
       await renderScreen(index, tab === undefined ? {} : { tab });

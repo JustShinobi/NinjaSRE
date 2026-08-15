@@ -24,6 +24,10 @@ import Incidents, {
 import Integrations, {
   generateMetadata as integrationsMeta,
 } from '@/app/(shell)/integrations/page';
+import IntegrationDetail from '@/app/(shell)/integrations/[name]/page';
+import NotCovered, {
+  generateMetadata as notCoveredMeta,
+} from '@/app/(shell)/integrations/not-covered/page';
 import Knowledge, {
   generateMetadata as knowledgeMeta,
 } from '@/app/(shell)/knowledge/page';
@@ -94,10 +98,20 @@ async function renderAdministration({
 
 /**
  * Every area the manifest declares and still renders its own screen, whether
- * or not the navigation is showing it — modulo `settings`, the one entry
- * with no screen at all: it only ever redirects, to whichever Settings page
- * is first for the viewer, so there is nothing here for a cross-cutting
- * proof to render.
+ * or not the navigation is showing it — modulo `settings`, the one entry with
+ * no screen at all: it only ever redirects, to whichever Settings page is
+ * first for the viewer, so there is nothing here for a cross-cutting proof to
+ * render.
+ *
+ * `integrations-not-covered` stays on this list — it makes the same
+ * `panelRead('/v1/integrations', …)` every other data screen does, so an
+ * outage takes its panel down exactly the way `outage.test.tsx` proves for
+ * every area — but its content, `known_gaps`, is a catalogue fact the product
+ * declares rather than something a deployment configures, so it never becomes
+ * *empty* the way a deployment's own data can, and it has no write control to
+ * check. `tests/unit/surfaces/screens.test.tsx` and
+ * `tests/unit/surfaces/role-matrix.test.tsx` each name it in their own local
+ * exclusion, with the same reasoning stated where it is used.
  *
  * `first-run` stays, and renders normally under every scenario this suite
  * serves except the one whose checklist is complete
@@ -114,6 +128,11 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'agent', render: Agent, metadata: agentMeta },
   { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
   { id: 'integrations', render: Integrations, metadata: integrationsMeta },
+  {
+    id: 'integrations-not-covered',
+    render: NotCovered,
+    metadata: notCoveredMeta,
+  },
   {
     id: 'signals',
     render: renderSignals,
@@ -132,7 +151,7 @@ export const AREA_SCREENS: readonly Screen[] = [
   },
 ];
 
-/** The two detail screens, which are reached from a list rather than the navigation. */
+/** The detail screens, which are reached from a list rather than the navigation. */
 export const DETAIL_SCREENS: readonly Screen[] = [
   {
     id: 'runs',
@@ -146,6 +165,14 @@ export const DETAIL_SCREENS: readonly Screen[] = [
     id: 'runs-live',
     render: ({ searchParams }) =>
       RunDetail({ params: Promise.resolve({ runId: 'run-0003' }), searchParams }),
+  },
+  {
+    // A connected integration, so the panel's credential form, its state chip
+    // and the "already established" content all render — the same reasoning
+    // `runs-live` follows for a run still in flight.
+    id: 'integrations',
+    render: ({ searchParams }) =>
+      IntegrationDetail({ params: Promise.resolve({ name: 'chat' }), searchParams }),
   },
   {
     id: 'incidents',

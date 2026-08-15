@@ -38,6 +38,7 @@ export const EN = {
   'nav.memory': 'Memory',
   'nav.knowledge': 'Knowledge',
   'nav.integrations': 'Integrations',
+  'nav.integrationsNotCovered': 'Not covered, and why',
   'nav.signals': 'Signals',
   // What each autonomy posture actually permits, at the point somebody chooses
   // it. The deployment sends these as slugs — `propose_only`, `act_on_low_risk`
@@ -89,6 +90,9 @@ export const EN = {
   'page.integrations.title': 'Integrations',
   'page.integrations.context':
     'Every integration this deployment can hold a credential for, its state, and a way to test it.',
+  'page.integrationsNotCovered.title': 'Not covered, and why',
+  'page.integrationsNotCovered.context':
+    'Every vendor this catalogue does not reach, and why — cannot be reached, or was evaluated and decided against.',
   'page.signals.title': 'Signals',
   'page.signals.context':
     'What enters continuous observation, and where an alert ends up once it has.',
@@ -341,6 +345,7 @@ export const EN = {
   'pagination.previous': 'Previous',
   'pagination.next': 'Next',
   'pagination.position': 'Page {page} of {pages}',
+  'pagination.landmark': 'Pagination',
 
   // --- The credential and verification vocabulary --------------------------------
   // The one word `StatusChip` renders for each of the five states declared in
@@ -465,6 +470,8 @@ export const EN = {
   'credential.whereToGetIt': 'Where to get it:',
   'credential.required': 'Every required field needs a value.',
   'credential.saved': 'Stored. Nothing you typed is kept here.',
+  'credential.minScope': 'Minimum permission:',
+  'credential.guide': 'Step-by-step guide',
 
   // --- The guided first run -----------------------------------------------------------
   'firstRun.steps.title': 'What is left',
@@ -1216,6 +1223,56 @@ export const EN = {
   'catalogue.integrations.filter.state.unknown': 'Stored',
   'catalogue.integrations.filter.state.healthy': 'Verified',
   'catalogue.integrations.filter.state.degraded': 'Failing',
+
+  // --- The integrations catalogue: connected first, the rest a search --------------
+  'catalogue.integrations.summary':
+    '{total} integrations available · {connected} connected',
+  'catalogue.integrations.summary.suggested':
+    '{total} integrations available · {connected} connected · {suggested} suggested',
+  'catalogue.integrations.connected.title': 'Connected',
+  'catalogue.integrations.connected.manage': 'Manage',
+  'catalogue.integrations.filter.view.connected': 'Connected · {count}',
+  'catalogue.integrations.filter.view.suggested': 'Suggested · {count}',
+  'catalogue.integrations.suggested.title': 'Suggested by your estate',
+  'catalogue.integrations.suggested.evidence':
+    'Found at {address}, on resource {resource}',
+  'catalogue.integrations.suggested.connect': 'Connect',
+  'catalogue.integrations.search.label': 'Search by name, category or capability',
+  'catalogue.integrations.search.empty.heading': 'Nothing matches that',
+  'catalogue.integrations.search.empty.body':
+    'No integration in the catalogue matches this search or filter.',
+  'catalogue.integrations.search.empty.clear': 'Clear the search',
+  'catalogue.integrations.filter.category': 'Category',
+  'catalogue.integrations.category.logstore': 'Log store',
+  'catalogue.integrations.category.metrics': 'Metrics',
+  'catalogue.integrations.category.tracing': 'Tracing',
+  'catalogue.integrations.category.cloud_control_plane': 'Cloud',
+  'catalogue.integrations.category.database': 'Database',
+  'catalogue.integrations.category.vcs': 'Version control',
+  'catalogue.integrations.category.cicd': 'CI/CD',
+  'catalogue.integrations.category.ticketing': 'Ticketing',
+  'catalogue.integrations.category.incident': 'Incident management',
+  'catalogue.integrations.category.communication': 'Chat & on-call',
+  'catalogue.integrations.category.data_platform': 'Data',
+  'catalogue.integrations.category.model_provider': 'Model provider',
+  'catalogue.integrations.footer.gaps': '{count} vendors not covered, and why',
+  'catalogue.integrations.panel.close': 'Close',
+  'catalogue.integrations.panel.notFound': 'This integration is not in the catalogue.',
+  'catalogue.integrations.panel.notFound.action': 'Back to Integrations',
+  'catalogue.integrations.panel.permissions.heading': 'Required permissions',
+  'catalogue.integrations.panel.permissions.grantedAt': 'Granted at',
+  'catalogue.integrations.panel.readOnly':
+    'You do not hold the permission to change this integration.',
+  'catalogue.integrations.panel.security':
+    'Stored in the vault; never shown again. Testing it makes a real request — stored and working are different states.',
+  'catalogue.integrations.panel.saveAndTest': 'Save and test',
+  'catalogue.integrations.panel.testing': 'Saving and testing…',
+
+  // --- The reference page for vendors this catalogue does not cover ----------------
+  'catalogue.notCovered.title': 'Not covered, and why',
+  'catalogue.notCovered.intro':
+    'Every vendor this catalogue does not reach, and why: some cannot be reached from a credential proxy that speaks only HTTP, and some were evaluated and decided against.',
+  'catalogue.notCovered.back': 'Back to Integrations',
 
   // --- Administration ----------------------------------------------------------------------------
   'admin.principals.title': 'People and machines',

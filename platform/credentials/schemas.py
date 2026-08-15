@@ -39,6 +39,46 @@ from platform.credentials.errors import CredentialSchemaViolation, UnknownIntegr
 #: breaks every query that touches the table.
 MAX_CREDENTIAL_FIELD_CHARS: Final[int] = 16_384
 
+#: Words a field name carries that read as an acronym once capitalised, rather
+#: than as a word once titled. ``_derive_label`` consults this so a fallback
+#: label reads "API Key" and "Access Key ID" rather than "Api key" and "Access
+#: key id" — the same mangling `.capitalize()` on the raw name already produced
+#: before this module declared a label of its own.
+_LABEL_ACRONYMS: Final[frozenset[str]] = frozenset(
+    {
+        "aws",
+        "gcp",
+        "api",
+        "id",
+        "url",
+        "uri",
+        "sso",
+        "sql",
+        "json",
+        "ssh",
+        "jwt",
+        "pem",
+        "sas",
+        "arn",
+        "iam",
+        "sid",
+    }
+)
+
+
+def _derive_label(name: str) -> str:
+    """Return a human label derived from a declared field ``name``.
+
+    The fallback for a field whose vendor package has not (yet) declared a
+    ``label`` of its own — never the source of truth, and never claimed to be
+    one: a derived label is a best-effort reading of the field's own name, not
+    a fact anybody wrote down.
+    """
+    words = [word for word in name.split("_") if word]
+    return " ".join(
+        word.upper() if word.lower() in _LABEL_ACRONYMS else word.capitalize() for word in words
+    )
+
 
 class FieldKind(StrEnum):
     """Whether a field is the secret or the configuration around it."""
@@ -56,6 +96,15 @@ class CredentialField:
     ``AKIA``-prefixed AWS access key id — and worth leaving unset otherwise: a
     pattern that is nearly right rejects the deployment that is using the
     vendor's newer key format, and the operator has no way to override it.
+
+    ``label``, ``min_scope`` and ``guide_url`` are what a credential form needs
+    beyond validation: what a person calls this field, the least the vendor's
+    own permission model has to grant it, and where to read the vendor's own
+    setup steps. All three default to blank, and a blank one is never invented
+    downstream — ``min_scope`` and ``guide_url`` stay blank until a contributor
+    who knows the vendor's real minimum writes it here; ``label`` alone has a
+    derived fallback, through ``display_label``, because a field's own name is
+    always enough to guess *some* human words for it.
     """
 
     name: str
@@ -68,11 +117,30 @@ class CredentialField:
     #: token *or* a username and password, and neither is unconditionally
     #: required.
     alternatives: tuple[str, ...] = ()
+    #: What a person calls this field — "API key", never "api_key". Declared
+    #: beside the vendor that needs it; read this through ``display_label``,
+    #: which is what falls back when a vendor package has not declared one.
+    label: str = ""
+    #: The least the vendor's own permission model has to grant this field —
+    #: "read-only", "BigQuery Data Viewer", a scope name. Blank when the real
+    #: minimum is not confidently known: a guessed scope is a permission an
+    #: operator pastes into the vendor's own console and finds insufficient, or
+    #: excessive, during an incident rather than before one.
+    min_scope: str = ""
+    #: A step-by-step guide for obtaining this field's value, when the
+    #: deployment has one to offer. Blank is the ordinary case.
+    guide_url: str = ""
 
     @property
     def is_secret(self) -> bool:
         """Return whether this field holds material the agent must never see."""
         return self.kind is FieldKind.SECRET
+
+    @property
+    def display_label(self) -> str:
+        """Return ``label``, or a label derived from ``name`` when none is declared."""
+        declared = self.label.strip()
+        return declared if declared else _derive_label(self.name)
 
     def problems(self, value: str | None) -> tuple[str, ...]:
         """Return what is wrong with ``value``, naming the field and never quoting it."""

@@ -208,8 +208,20 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The credential form, collapsed until asked for, extracted from Catalogue into its own dedicated write surface for exactly what this deployment can reach and what a call blocked at the gateway means, with a state filter above it so eighty-five cards is a search rather than a scroll. No reference is drawn for it; the baseline exists because the collapsed-until-asked-for state is the one this screen must never open by default, and a change that did would put a secret-entry form in front of every visitor to this address. First capture at this address: needs recapturing before it protects anything."
+        "reason": "The catalogue, rebuilt: Connected and Suggested above a compact, searchable grid, against the full installed catalogue rather than a handful of mock entries. Reviewed against the catalogue mockup for layout, hierarchy, grouping and vocabulary. Needs a fresh capture — the previous baseline photographed the collapsed-card design this redesign replaces, and comparing against it would report every card in the document as a difference rather than the specific ones that matter."
       }
+    },
+    {
+      "id": "integrations-panel-1440-light",
+      "route": "/integrations/slack",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The credential panel: a slide-over on the catalogue with a human label, help and minimum scope per field, and \"Save and test\" as the one primary action. Reviewed against the credential-panel mockup for layout, hierarchy, grouping and vocabulary. No committed baseline exists yet — this is a new screen this feature adds, and the first capture is a deliberate, reviewed acceptance rather than something a gate should manufacture."
+      },
+      "pending_because": "Registered so the screen is not forgotten, and deliberately left out of the capture set until a person accepts its first baseline. Carrying it as baselined instead would fail the committed-baseline contract on every run, and — worse — each full gate run regenerates the missing PNG as a real-looking 1440x2006 capture that nobody reviewed, which is how an unreviewed baseline gets committed by the next person who stages this directory. It leaves pending the moment someone captures it under review."
     },
     {
       "id": "knowledge-1440-light",

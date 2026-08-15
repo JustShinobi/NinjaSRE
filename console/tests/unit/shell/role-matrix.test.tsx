@@ -35,6 +35,9 @@ const RETIRED_FROM_SIDEBAR = new Set([
   'autonomy',
   'configuration',
   'administration',
+  // Reference-only: reached from the catalogue's own footer and its
+  // search-empty state, never from the sidebar.
+  'integrations-not-covered',
 ]);
 
 function nothing(): void {

@@ -4499,6 +4499,8 @@ export interface components {
             category: string;
             /** Display Name */
             display_name: string;
+            /** Fields */
+            fields: components["schemas"]["gateway__http__routes__integrations__CredentialFieldView"][];
             /** Health */
             health: string;
             /** Health Detail */
@@ -4511,12 +4513,10 @@ export interface components {
             name: string;
             /** Parity */
             parity: string;
+            /** Permissions */
+            permissions: components["schemas"]["RequiredPermissionView"][];
             /** Regions */
             regions: string[];
-            /** Required Credentials */
-            required_credentials: string[];
-            /** Required Permissions */
-            required_permissions: string[];
             suggested?: components["schemas"]["SuggestionView"] | null;
             /** Summary */
             summary: string;
@@ -5542,6 +5542,31 @@ export interface components {
         RejectRequest: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * RequiredPermissionView
+         * @description One permission the credential has to be allowed, exactly as declared.
+         *
+         *     Replaces the bare list of permission names this route used to serve. A
+         *     name alone left an operator to look up what it grants and where it is
+         *     turned on; this is the vendor's own declaration
+         *     (`integrations._verification.permissions.RequiredPermission`), read
+         *     through the gateway rather than copied by the console. Every one of these
+         *     is probed, not merely declared — `tools.verify_integrations` makes the
+         *     call each names.
+         */
+        RequiredPermissionView: {
+            /** Capabilities */
+            capabilities?: string[];
+            /** Grants */
+            grants: string;
+            /** Name */
+            name: string;
+            /**
+             * Where
+             * @default
+             */
+            where: string;
         };
         /**
          * ResourceChangesView
@@ -6602,10 +6627,52 @@ export interface components {
         };
         /** CredentialFieldView */
         gateway__http__routes__config__CredentialFieldView: {
+            /**
+             * Guide Url
+             * @default
+             */
+            guide_url: string;
             /** Help */
             help: string;
             /** Label */
             label: string;
+            /**
+             * Min Scope
+             * @default
+             */
+            min_scope: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Secret */
+            secret: boolean;
+        };
+        /**
+         * CredentialFieldView
+         * @description One credential field, exactly as a form renders it.
+         *
+         *     Replaces the bare list of field names this route used to serve. A name
+         *     alone left the console inventing a label and leaving "where do I get this"
+         *     and "what permission does it need" unanswered; this is the vendor's own
+         *     declaration (``platform.credentials.schemas.CredentialField``), read
+         *     through the gateway rather than copied by the console.
+         */
+        gateway__http__routes__integrations__CredentialFieldView: {
+            /**
+             * Guide Url
+             * @default
+             */
+            guide_url: string;
+            /** Help */
+            help: string;
+            /** Label */
+            label: string;
+            /**
+             * Min Scope
+             * @default
+             */
+            min_scope: string;
             /** Name */
             name: string;
             /** Required */

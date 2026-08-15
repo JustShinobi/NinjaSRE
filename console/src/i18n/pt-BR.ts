@@ -33,6 +33,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'nav.memory': 'Memória',
   'nav.knowledge': 'Conhecimento',
   'nav.integrations': 'Integrações',
+  'nav.integrationsNotCovered': 'Não coberto, e por quê',
   'nav.signals': 'Sinais',
   'autonomy.level.propose_only':
     'Apenas propor — toda ação é registrada para uma pessoa aprovar. Nada roda sem isso.',
@@ -68,6 +69,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'credential.whereToGetIt': 'Onde obter:',
   'credential.required': 'Todo campo obrigatório precisa de um valor.',
   'credential.saved': 'Guardada. Nada do que você digitou fica aqui.',
+  'credential.minScope': 'Permissão mínima:',
+  'credential.guide': 'Guia passo a passo',
 
   'firstRun.steps.title': 'O que falta',
   'firstRun.steps.done': 'Tudo pronto',
@@ -223,6 +226,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'page.integrations.title': 'Integrações',
   'page.integrations.context':
     'Cada integração para a qual este deployment pode salvar uma credencial, seu estado, e uma forma de testá-la.',
+  'page.integrationsNotCovered.title': 'Não coberto, e por quê',
+  'page.integrationsNotCovered.context':
+    'Todo vendor que este catálogo não alcança, e por quê — não é alcançável, ou foi avaliado e decidido contra.',
   'page.signals.title': 'Sinais',
   'page.signals.context':
     'O que entra em observação contínua, e para onde um alerta vai depois de entrar.',
@@ -396,6 +402,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'pagination.previous': 'Anterior',
   'pagination.next': 'Seguinte',
   'pagination.position': 'Página {page} de {pages}',
+  'pagination.landmark': 'Paginação',
 
   'status.credential.notConnected': 'Não conectada',
   'status.credential.stored': 'Armazenada',
@@ -1073,6 +1080,56 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.filter.state.unknown': 'Armazenada',
   'catalogue.integrations.filter.state.healthy': 'Verificada',
   'catalogue.integrations.filter.state.degraded': 'Falhando',
+
+  // --- O catálogo de integrações: conectadas primeiro, o resto é uma busca ---------
+  'catalogue.integrations.summary':
+    '{total} integrações disponíveis · {connected} conectadas',
+  'catalogue.integrations.summary.suggested':
+    '{total} integrações disponíveis · {connected} conectadas · {suggested} sugeridas',
+  'catalogue.integrations.connected.title': 'Conectadas',
+  'catalogue.integrations.connected.manage': 'Gerenciar',
+  'catalogue.integrations.filter.view.connected': 'Conectadas · {count}',
+  'catalogue.integrations.filter.view.suggested': 'Sugeridas · {count}',
+  'catalogue.integrations.suggested.title': 'Sugerida pelo seu ambiente',
+  'catalogue.integrations.suggested.evidence':
+    'Encontrado em {address}, no recurso {resource}',
+  'catalogue.integrations.suggested.connect': 'Conectar',
+  'catalogue.integrations.search.label': 'Buscar por nome, categoria ou capacidade',
+  'catalogue.integrations.search.empty.heading': 'Nada corresponde a isso',
+  'catalogue.integrations.search.empty.body':
+    'Nenhuma integração do catálogo corresponde a esta busca ou filtro.',
+  'catalogue.integrations.search.empty.clear': 'Limpar a busca',
+  'catalogue.integrations.filter.category': 'Categoria',
+  'catalogue.integrations.category.logstore': 'Armazenamento de logs',
+  'catalogue.integrations.category.metrics': 'Métricas',
+  'catalogue.integrations.category.tracing': 'Rastreamento',
+  'catalogue.integrations.category.cloud_control_plane': 'Nuvem',
+  'catalogue.integrations.category.database': 'Banco de dados',
+  'catalogue.integrations.category.vcs': 'Controle de versão',
+  'catalogue.integrations.category.cicd': 'CI/CD',
+  'catalogue.integrations.category.ticketing': 'Emissão de tickets',
+  'catalogue.integrations.category.incident': 'Gestão de incidentes',
+  'catalogue.integrations.category.communication': 'Chat e plantão',
+  'catalogue.integrations.category.data_platform': 'Dados',
+  'catalogue.integrations.category.model_provider': 'Provedor de modelo',
+  'catalogue.integrations.footer.gaps': '{count} vendors não cobertos, e por quê',
+  'catalogue.integrations.panel.close': 'Fechar',
+  'catalogue.integrations.panel.notFound': 'Esta integração não está no catálogo.',
+  'catalogue.integrations.panel.notFound.action': 'Voltar para Integrações',
+  'catalogue.integrations.panel.permissions.heading': 'Permissões exigidas',
+  'catalogue.integrations.panel.permissions.grantedAt': 'Concedida em',
+  'catalogue.integrations.panel.readOnly':
+    'Você não tem a permissão para alterar esta integração.',
+  'catalogue.integrations.panel.security':
+    'Guardada no vault; nunca é exibida de novo. O teste faz uma requisição real — armazenada e funcionando são estados diferentes.',
+  'catalogue.integrations.panel.saveAndTest': 'Salvar e testar',
+  'catalogue.integrations.panel.testing': 'Salvando e testando…',
+
+  // --- A página de referência dos vendors que este catálogo não cobre --------------
+  'catalogue.notCovered.title': 'Não coberto, e por quê',
+  'catalogue.notCovered.intro':
+    'Todo vendor que este catálogo não alcança, e por quê: alguns não são alcançáveis por um proxy de credencial que fala só HTTP, e outros foram avaliados e decididos contra.',
+  'catalogue.notCovered.back': 'Voltar para Integrações',
 
   'admin.principals.title': 'Pessoas e máquinas',
   'admin.principals.serviceAccount': 'Conta de serviço criada no deploy, sem e-mail.',

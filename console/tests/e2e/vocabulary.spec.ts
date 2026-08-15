@@ -44,11 +44,15 @@ test('the integrations catalogue never shows a forbidden phrase', async ({ page 
   }
 });
 
-test('every integration card shows one of the five canonical words, never the raw one', async ({
+test('every catalogue card shows one of the five canonical words, never the raw one', async ({
   page,
 }) => {
   await page.goto('/integrations');
-  const cards = page.getByTestId('integration');
+  // Connected, Suggested and the compact grid are the three shapes a card
+  // takes now; none of them may show a raw backend word anywhere in its text.
+  const cards = page.locator(
+    '[data-testid="connected-integration"], [data-testid="suggested-integration"], [data-testid="catalogue-item"]',
+  );
   const count = await cards.count();
   expect(count, 'no integration card rendered to check').toBeGreaterThan(0);
 
@@ -60,9 +64,24 @@ test('every integration card shows one of the five canonical words, never the ra
         word,
       );
     }
+  }
+});
+
+test('every connected integration carries the chip, never a second line repeating it', async ({
+  page,
+}) => {
+  await page.goto('/integrations');
+  const connected = page.getByTestId('connected-integration');
+  const count = await connected.count();
+  expect(count, 'no connected integration rendered to check').toBeGreaterThan(0);
+
+  for (let index = 0; index < count; index += 1) {
     // Every card carries the chip's own machine-readable state, which is one
-    // of the five canonical keys — never the raw `health` word verbatim.
-    await expect(card.locator('[data-credential-status]')).toHaveCount(1);
+    // of the five canonical keys — never the raw `health` word verbatim, and
+    // never a second line saying the same thing in different words.
+    await expect(connected.nth(index).locator('[data-credential-status]')).toHaveCount(
+      1,
+    );
   }
 });
 
@@ -112,7 +131,9 @@ const SNAKE_CASE_ID = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/;
 
 test('no integration card titles itself with a raw snake_case id', async ({ page }) => {
   await page.goto('/integrations');
-  const titles = page.locator('[data-testid="integration"] .text-strong');
+  const titles = page.locator(
+    '[data-testid="connected-integration"] .text-strong, [data-testid="suggested-integration"] .text-strong, [data-testid="catalogue-item"] .text-strong',
+  );
   const count = await titles.count();
   expect(count, 'no integration card rendered to check').toBeGreaterThan(0);
 

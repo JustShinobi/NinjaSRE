@@ -151,6 +151,8 @@ describe('a credential field', () => {
     saved: 'Stored. Nothing you typed is kept here.',
     refused: 'The deployment refused:',
     unreachable: 'The deployment could not be reached.',
+    minScope: 'Minimum permission:',
+    guide: 'Step-by-step guide',
   };
 
   const FIELDS = [

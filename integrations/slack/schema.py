@@ -26,7 +26,13 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("token", "Slack bot token, which begins xoxb-", min_length=8),
+    secret(
+        "token",
+        "Slack bot token, which begins xoxb-",
+        min_length=8,
+        label="Bot token",
+        min_scope="chat:write",
+    ),
 )
 
 RULE: Final = InjectionRule(

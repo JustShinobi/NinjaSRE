@@ -94,6 +94,7 @@ describe('the route manifest', () => {
       agent: 'environment',
       'first-run': 'settings',
       integrations: 'settings',
+      'integrations-not-covered': 'settings',
       signals: 'settings',
       autonomy: 'settings',
       configuration: 'settings',

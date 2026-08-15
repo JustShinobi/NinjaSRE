@@ -28,11 +28,20 @@ from pathlib import Path
 from typing import Final
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 
 from config.constants.console import NINJASRE_CONSOLE_CLOCK_ENV
+from gateway.http.app import create_app
 from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE
+from platform.identity.permissions import Role
+from tests.unit.gateway.http.conftest import (  # noqa: F401 -- pytest fixture discovery
+    TEAM_PAYMENTS,
+    Deployment,
+    deployment,
+    issue_token,
+)
 from tools.console_toolchain import console_root
 from tools.mockplane.endpoints import CONSOLE_ENDPOINTS, projected_endpoints
 
@@ -136,6 +145,123 @@ def test_a_new_area_takes_the_permission_the_gateway_requires(area: str) -> None
         f"{area} declares {declared[area]}, but the gateway requires "
         f"{declaration.permission.value} on {method} {path}"
     )
+
+
+# --- The credential catalogue's per-field metadata ----------------------------------
+
+
+@pytest.fixture
+async def _catalogue_reader_token(deployment: Deployment) -> str:  # noqa: F811
+    return await issue_token(
+        deployment.gateway,
+        deployment.tokens,
+        user_id="ada",
+        role=Role.OPERATOR,
+        node_id=TEAM_PAYMENTS,
+    )
+
+
+async def test_every_credential_field_the_catalogue_serves_carries_its_own_metadata(
+    deployment: Deployment,  # noqa: F811
+    _catalogue_reader_token: str,
+) -> None:
+    """Every field carries the full shape, and a declared label or scope survives to it.
+
+    The screen that reads this can no longer build ``label: String(field)`` from
+    a bare name, because a bare name is not what this route serves any more —
+    every field always carries a label, declared or derived. ``min_scope`` and
+    ``guide_url`` are present on every field but are mostly blank in this
+    catalogue today, because inventing a scope or a link nobody declared would
+    be worse than leaving it absent; this test also proves that where the
+    schema *does* declare one, the declared value — not a placeholder — is what
+    reaches the payload, so the blankness elsewhere is a fact about the
+    catalogue's content rather than a gap in the plumbing.
+    """
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as client:
+        response = await client.get(
+            "/v1/integrations",
+            headers={"Authorization": f"Bearer {_catalogue_reader_token}"},
+        )
+
+    assert response.status_code == 200
+    entries = response.json()["integrations"]
+    assert entries, "the catalogue served nothing to check"
+    assert "required_credentials" not in entries[0], (
+        "the string-list projection is still being served alongside the structured "
+        "one — the structured list replaces it, it does not grow a second copy beside it"
+    )
+    by_name = {entry["name"]: entry for entry in entries}
+    for entry in entries:
+        assert entry["fields"], f"{entry['name']} declares no credential fields at all"
+        for field in entry["fields"]:
+            assert set(field) >= {
+                "name",
+                "label",
+                "secret",
+                "required",
+                "help",
+                "min_scope",
+                "guide_url",
+            }
+            assert field["label"].strip(), (
+                f"{entry['name']}.{field['name']} has no label, not even a derived one"
+            )
+
+    # The one vendor with a hand-declared label and scope: proves the two
+    # travel from the schema to the payload as the declared value, and not as
+    # an empty string that happens to satisfy the key-set check above.
+    assert "slack" in by_name, "the fixture catalogue no longer carries slack"
+    slack_fields = {field["name"]: field for field in by_name["slack"]["fields"]}
+    assert slack_fields["token"]["label"] == "Bot token"
+    assert slack_fields["token"]["min_scope"] == "chat:write"
+
+
+async def test_every_required_permission_the_catalogue_serves_carries_what_it_grants_and_where(
+    deployment: Deployment,  # noqa: F811
+    _catalogue_reader_token: str,
+) -> None:
+    """Every declared permission travels whole — name, grants, where, capabilities.
+
+    The flattened, name-only projection is exactly what ``RequiredPermission``'s
+    own docstring warns against: an operator reading a bare vendor scope name
+    has to go look it up. The structured list replaces it; it does not grow a
+    second copy beside it.
+    """
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as client:
+        response = await client.get(
+            "/v1/integrations",
+            headers={"Authorization": f"Bearer {_catalogue_reader_token}"},
+        )
+
+    assert response.status_code == 200
+    entries = response.json()["integrations"]
+    assert entries, "the catalogue served nothing to check"
+    assert "required_permissions" not in entries[0], (
+        "the flattened, name-only projection is still being served alongside the "
+        "structured one — the structured list replaces it, it does not grow a "
+        "second copy beside it"
+    )
+    by_name = {entry["name"]: entry for entry in entries}
+    for entry in entries:
+        for permission in entry["permissions"]:
+            assert set(permission) >= {"name", "grants", "where", "capabilities"}
+            assert permission["name"].strip(), f"{entry['name']} declares a permission with no name"
+            assert permission["grants"].strip(), (
+                f"{entry['name']}.{permission['name']} has no description of what it grants"
+            )
+
+    # A real vendor with real, sondada content: proves the values are the
+    # declared ones, not an empty string that happens to satisfy the shape
+    # check above.
+    assert "slack" in by_name, "the fixture catalogue no longer carries slack"
+    slack_permissions = {p["name"]: p for p in by_name["slack"]["permissions"]}
+    assert slack_permissions["chat:write"]["grants"] == "post a message as the bot"
+    assert slack_permissions["chat:write"]["where"] == (
+        "api.slack.com/apps → your app → OAuth & Permissions → Bot User OAuth Token"
+    )
+    assert slack_permissions["chat:write"]["capabilities"] == ["slack_post_message"]
 
 
 # --- The two structural claims ------------------------------------------------------

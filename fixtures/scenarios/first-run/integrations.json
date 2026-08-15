@@ -10,6 +10,17 @@
             ],
             "category": "observability",
             "display_name": "Metrics store",
+            "fields": [
+              {
+                "guide_url": "/integrations/metrics-store/guide",
+                "help": "Generated from the metrics store's own settings page.",
+                "label": "API token",
+                "min_scope": "read-only",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
             "health": "unconfigured",
             "health_detail": "no credential is stored anywhere in this deployment",
             "hosts": [
@@ -18,13 +29,17 @@
             "missing_artefacts": [],
             "name": "metrics-store",
             "parity": "full",
+            "permissions": [
+              {
+                "capabilities": [
+                  "metrics.range_query"
+                ],
+                "grants": "run range queries against stored series",
+                "name": "metrics:read",
+                "where": "Metrics store → Settings → API tokens → Scopes"
+              }
+            ],
             "regions": [],
-            "required_credentials": [
-              "api_token"
-            ],
-            "required_permissions": [
-              "metrics:read"
-            ],
             "summary": "Range queries against the metrics store."
           }
         ],

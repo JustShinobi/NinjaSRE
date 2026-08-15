@@ -209,8 +209,26 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
                     "hosts": ["metrics.example.invalid"],
                     "regions": [],
                     "capabilities": ["metrics.range_query"],
-                    "required_credentials": ["api_token"],
-                    "required_permissions": ["metrics:read"],
+                    "fields": [
+                        {
+                            "name": "api_token",
+                            "label": "API token",
+                            "secret": True,
+                            "required": True,
+                            "help": "Generated from the metrics store's own settings page.",
+                            "min_scope": "read-only",
+                            # Relative, for the same reason served.py's copy is.
+                            "guide_url": "/integrations/metrics-store/guide",
+                        }
+                    ],
+                    "permissions": [
+                        {
+                            "name": "metrics:read",
+                            "grants": "run range queries against stored series",
+                            "where": "Metrics store → Settings → API tokens → Scopes",
+                            "capabilities": ["metrics.range_query"],
+                        }
+                    ],
                     "parity": "full",
                     "missing_artefacts": [],
                 }
