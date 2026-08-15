@@ -13,9 +13,9 @@
     comment says which token they are.
   -->
   <style>
-    path { fill: #0f6f5c; }
+    path { fill: #0a7452; }
     @media (prefers-color-scheme: dark) {
-      path { fill: #4fd6b0; }
+      path { fill: #3ad195; }
     }
   </style>
   <path fill-rule="evenodd"
