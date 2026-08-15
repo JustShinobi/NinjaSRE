@@ -17,7 +17,7 @@ immutable once accepted — a reversal is a new ADR that supersedes it.
 | [0010](0010-english-only.md) | English-only codebase and documentation | Accepted | XIII |
 | [0011](0011-attribution-in-readme-only.md) | Attribution lives in README and NOTICE only | Accepted | XIII |
 | [0012](0012-design-fidelity-expires.md) | A design-fidelity acceptance expires | Proposed | XII |
-| [0013](0013-palette-revisions-keep-the-role-vocabulary.md) | A palette revision changes values, never the role vocabulary | Proposed | XII |
+| [0013](0013-palette-revisions-keep-the-role-vocabulary.md) | A palette revision changes values, never the role vocabulary | Accepted | XII |
 | [0014](0014-a-design-reference-is-committed.md) | A design reference is committed, and need not be a picture | Proposed | XII, XIII |
 
 ## Writing a new ADR

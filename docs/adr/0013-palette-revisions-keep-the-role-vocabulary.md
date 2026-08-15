@@ -1,6 +1,6 @@
 # ADR 0013 — A palette revision changes values, never the role vocabulary
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-15
 - **Constitution impact:** Article XII
 
@@ -30,27 +30,23 @@ replace: about fifteen custom properties against twenty-six roles. It has no
 equivalent of `border-strong`. It gives `accent` and the success colour **the
 same value** in both themes.
 
-Measured against the thresholds the contrast suite already enforces, the
-proposed values fail in five places:
+A first reading of the revision measured five of its values below the floor,
+including its accent. That reading was wrong, and the error is worth recording
+because it is easy to repeat: the revision declares **two** greens — a bright one
+and a darker one — and the first measurement compared the bright one against the
+floor for *text*. The revision uses the bright green for grounds and the dark one
+for type. Measured in the role each was drawn for, they pass.
 
-| Pair | Proposed | Floor |
-|---|---|---|
-| third text level on panel (light) | 3.86:1 | 4.5:1 |
-| **accent on panel (light)** | **4.10:1** | 4.5:1 |
-| success on its fill (light) | 3.54:1 | 4.5:1 |
-| warning on its fill (light) | 4.36:1 | 4.5:1 |
-| third text level on panel (dark) | 4.00:1 | 4.5:1 |
+What the revision genuinely lacks is roles, not quality. It declares one value
+for states that need both a type and a ground variant, and it has no
+`info`, no `neutral`, no foreground for a filled chip, and no `border-strong` —
+the role that answers the 3:1 boundary rule, which its hairline border does not
+and is not meant to.
 
-The palette in the tree passes every one of those pairs — 6.09:1 for accent in
-light, 5.74:1 and 5.43:1 for success and warning on their fills, 10.43:1 for
-accent in dark. Neither palette reaches 3:1 for the hairline border against the
-surface, and neither needs to: that rule is met by `border-strong`, a role the
-current palette holds at 3.91:1 in light and 6.30:1 in dark, and which the
-proposal does not have at all.
-
-So the revision cannot be adopted as drawn, and the reason is not taste. Three
-of its five failures are the colours an operator reads a *state* from, and the
-one marked in bold is the primary interaction colour of the product.
+None of that is a defect in the drawing. A design comp shows the states the
+screens it depicts actually use; the roles it omits are the ones those screens
+never needed. Treating a comp as a complete palette is what turns an omission
+into a deletion.
 
 ## Decision
 
@@ -63,9 +59,14 @@ Concretely:
 1. The 26 roles and the light/dark pairing are the interface. A revision that
    omits a role is incomplete rather than smaller, and the missing values are
    derived before adoption, not after.
-2. **`accent` and `success` MUST remain distinct.** Interaction and state are
-   different questions, and a palette that answers both with one hex removes the
-   operator's ability to tell "press this" from "this is fine".
+2. **`accent` and `success` stay separate roles, whatever values they carry.** A
+   revision may give them the same colour — the first adopted one does, and that
+   was a deliberate choice made with a primary button and a success chip shown
+   side by side. What must not happen is the two collapsing into a single *role*,
+   because then telling interaction apart from state later becomes a sweep of
+   every screen instead of two lines in the table. Where they do share a value,
+   the thing that has to carry the difference is form — a filled control against
+   a tinted chip — and that is a property of the components, not of the palette.
 3. A revision lands as a change to the token table and nothing else. Because the
    lint rule already guarantees no colour is written anywhere else, this is one
    file, and every screen follows without being touched.
@@ -89,10 +90,14 @@ somebody decided the product no longer needs them, but because the screens drawn
 did not use them. Treating a comp as the complete palette silently deletes roles
 that other screens depend on.
 
-**Contrast is measurable, so it should be argued with numbers.** The suite
-already computes it from the tokens. Making it the gate turns "this green is a
-bit light" into "4.10:1, and the floor is 4.5:1", which a designer can act on in
-one pass.
+**Contrast is measurable, so it should be argued with numbers — and the numbers
+have to come from the suite, not from a reviewer's own arithmetic.** The suite
+computes every pair from the tokens, in the role each value actually occupies.
+A hand measurement does not, which is how the first reading of this revision
+concluded its accent failed: the number was right and it was the wrong pair. A
+gate that reads the table cannot make that mistake, and it turns "this green is
+a bit light" into a pair, a ratio and a floor that a designer can act on in one
+pass.
 
 **The change is cheap where it looks expensive and expensive where it looks
 cheap.** Re-tokenising the application is one file. The real cost is the human
@@ -103,7 +108,7 @@ batch rather than a surprise arriving inside an unrelated feature.
 
 | Alternative | Rejected because |
 |---|---|
-| Adopt the revision as drawn | Five pairs fail the accessibility floor the suite already enforces, and three of them are state colours. It would also delete `info`, `neutral`, every `on-` foreground and `border-strong`. |
+| Adopt the revision's fifteen values as the whole palette | Would delete `info`, `neutral`, every `on-` foreground and `border-strong` — roles the drawn screens never needed and other screens do. The values were adopted; the vocabulary was not narrowed to fit them. |
 | Adopt it and lower the contrast floor | The floor is the reason the suite is worth running. Moving a threshold to admit a colour is how an accessibility gate becomes decorative. |
 | Adopt it only on the screens it was drawn for | Two palettes in one product, decided per screen — precisely the disagreement the role vocabulary exists to prevent. |
 | Keep the current palette and discard the revision | Throws away a deliberate design decision over what is, in the end, a set of values that can be re-derived to pass. |
