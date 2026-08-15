@@ -74,6 +74,10 @@ export function verifyLabels(locale: Locale): VerifyStepLabels {
     nothing: message(locale, 'firstRun.verify.nothing'),
     remedy: message(locale, 'firstRun.verify.remedy'),
     findings: message(locale, 'firstRun.verify.findings'),
+    fixProvider: message(locale, 'firstRun.verify.fix.provider'),
+    fixIntegration: message(locale, 'firstRun.verify.fix.integration'),
+    fullDiagnosis: message(locale, 'firstRun.verify.fullDiagnosis'),
+    fullDiagnosisSummary: message(locale, 'firstRun.verify.fullDiagnosis.summary'),
   };
 }
 

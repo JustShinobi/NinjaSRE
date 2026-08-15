@@ -222,6 +222,29 @@ export function hrefFor(step: WizardStep): string {
   return `/first-run?step=${step}`;
 }
 
+/**
+ * Whether `step`, left unfinished, stops the wizard rather than merely
+ * slowing it down.
+ *
+ * Declared per step, and answered from the same fact `stepDone` already
+ * reads for `verify` — not from which *kind* of thing is failing a check.
+ * The mockup's own worked example fails the model provider's own
+ * verification (a real model that answers without calling a tool) and still
+ * offers to continue, because a provider that exists and answers badly is a
+ * different fact from no provider existing at all: the first has something
+ * to explore with, the second has nothing a re-check could ever be about.
+ * Every other step has no blocking rule of its own yet.
+ */
+export function stepBlocking(step: WizardStep, setup: DeploymentSetup): boolean {
+  if (step === 'verify') return setup.provider === 'absent';
+  return false;
+}
+
+/** The step that comes after `step`, or `undefined` past the last one. */
+export function nextStep(step: WizardStep): WizardStep | undefined {
+  return WIZARD_STEPS[WIZARD_STEPS.indexOf(step) + 1];
+}
+
 /** One row of the step list the screen keeps visible. */
 export interface PlannedStep {
   readonly step: WizardStep;

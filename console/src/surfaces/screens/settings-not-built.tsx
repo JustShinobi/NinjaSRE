@@ -6,6 +6,8 @@ import { message } from '@/i18n/messages';
 import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor, type SettingsGroup } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { readSetupState } from '../emptiness';
+import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 
 /**
  * The honest stand-in for a Settings page nothing has built yet.
@@ -25,13 +27,31 @@ const GROUP_LABEL: Readonly<Record<SettingsGroup, MessageKey>> = {
   data: 'settings.group.data',
 };
 
-/** The page named `id`, rendered as not built yet. */
-export function NotBuiltSettingsPage(id: string, context: SurfaceContext): ReactNode {
-  const { locale } = context;
+/**
+ * The page named `id`, rendered as not built yet.
+ *
+ * Async solely for the setup wizard's own handover: its last step points
+ * here until the domain that owns this page ships, and while it does, this
+ * is the one place that has to say "the guided setup sent you here, and it
+ * is not finished" — read independently of the rest of the page, so a
+ * failure to read the checklist degrades to no banner rather than to a
+ * broken page.
+ */
+export async function NotBuiltSettingsPage(
+  id: string,
+  context: SurfaceContext,
+): Promise<ReactNode> {
+  const { credential, locale, search } = context;
   const page = settingsPageFor(id);
+  const setup = await readSetupState(credential);
   return (
     <>
       <SettingsPageHeader page={page} locale={locale} />
+      <SetupReturnBanner
+        locale={locale}
+        setup={setup}
+        requested={requestedSetupReturn(search.get('return'))}
+      />
       <EmptyState
         heading={message(locale, page.label)}
         body={message(locale, 'settings.notBuilt.body', {

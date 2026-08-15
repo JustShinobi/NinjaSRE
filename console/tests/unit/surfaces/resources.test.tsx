@@ -90,6 +90,34 @@ async function resources(query: Record<string, string> = {}): Promise<void> {
   render(await ResourcesScreen(await surfaceContext(query)));
 }
 
+/** `serve`, with the setup checklist answering `complete` rather than 404. */
+function serveWithChecklist(complete: boolean): void {
+  serve({ resources: [ALPHA] });
+  const scenario = global.fetch;
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const path = new URL(String(input), BASE).pathname;
+    if (path === '/v1/setup/checklist') {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            complete,
+            provider: complete ? 'verified' : 'absent',
+            integrations: [],
+            steps: [
+              {
+                name: 'model-provider',
+                state: complete ? 'done' : 'ready',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    }
+    return scenario(input as Parameters<typeof fetch>[0]);
+  });
+}
+
 function resourceRow(id: string): HTMLElement {
   const found = screen
     .getAllByTestId('row')
@@ -337,5 +365,32 @@ describe('resources: a filter by health', () => {
     expect(ids).not.toContain('r-alpha');
     expect(screen.getByText('bravo')).toBeInTheDocument();
     expect(screen.getByText('charlie')).toBeInTheDocument();
+  });
+});
+
+describe('resources: the way back to the wizard', () => {
+  it('offers it when the wizard sent the operator here and setup is not finished', async () => {
+    serveWithChecklist(false);
+    await resources({ return: 'setup' });
+
+    const link = screen.getByTestId('setup-return-link');
+    expect(link).toHaveAttribute('href', '/first-run?step=provider');
+  });
+
+  it('says nothing when the address did not ask for it', async () => {
+    serveWithChecklist(false);
+    await resources();
+
+    expect(screen.queryByTestId('setup-return-banner')).toBeNull();
+  });
+
+  it('says nothing once setup is already finished, even though the address asked', async () => {
+    // A banner promising to resume a wizard with nothing left to resume
+    // would be a control that lies, so it is absent rather than shown and
+    // pointless.
+    serveWithChecklist(true);
+    await resources({ return: 'setup' });
+
+    expect(screen.queryByTestId('setup-return-banner')).toBeNull();
   });
 });

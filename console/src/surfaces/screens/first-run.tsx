@@ -6,7 +6,7 @@ import { cx } from '@/design/cx';
 import { message, type Locale } from '@/i18n/messages';
 import { formatNumber } from '@/i18n/format';
 import { AreaHeader } from '@/shell/area';
-import { areaByPath, areaFor } from '@/shell/routes';
+import { areaByPath, areaFor, settingsPageByPath } from '@/shell/routes';
 import { may } from '@/session/viewer';
 import { checklistTitle } from './first-run-heading';
 import { credentialLabels, panelLabels, verifyLabels } from '../labels';
@@ -15,7 +15,6 @@ import { CredentialField, type CredentialFieldSpec } from '../credential';
 import { EstateStep } from '../first-run/estate';
 import { IntegrationsStep, type IntegrationOffer } from '../first-run/integrations';
 import { ModelStep } from '../first-run/model';
-import { VerifyStep, type VerifiableThing } from '../first-run/verify';
 import {
   INVESTIGATION_STEP,
   RUNTIME_STEP,
@@ -23,12 +22,18 @@ import {
   WIZARD_STEPS,
   configuredIntegrations,
   currentStep,
+  hrefFor,
+  nextStep,
   outstanding,
   planFor,
   readSetup,
+  stepBlocking,
+  stepDone,
   type DeploymentSetup,
   type WizardStep,
 } from '../first-run/plan';
+import { VerifyStep, type VerifiableThing } from '../first-run/verify';
+import { withSetupReturn } from '../first-run/return-banner';
 import {
   authorised,
   dataOf,
@@ -74,25 +79,42 @@ import type { SurfaceContext } from '../context';
 /** The catalogue category an estate is discovered from. */
 const ESTATE_CATEGORY = 'cloud_control_plane';
 
+// Alert intake, not Signals: the hybrid navigation retired /signals to a
+// redirect that depends on the checklist being closed nowhere it can read,
+// and a handover that named the retired address would keep working only for
+// as long as that redirect exists to catch it. Naming the final address
+// directly means the next cleanup that removes the redirect table breaks
+// nothing here.
 const HANDOVER: Readonly<Record<'estate' | 'alerts', string>> = {
   estate: '/resources',
-  alerts: '/signals',
+  alerts: '/settings/alert-intake',
 };
 
+/** `step`'s handover address, with the parameter its screen offers a way back for. */
+function handoverHref(step: 'estate' | 'alerts'): string {
+  return withSetupReturn(HANDOVER[step]);
+}
+
 /**
- * The screen `step` hands over to, in the sidebar's own words for it — or
- * `''` for a step that has none.
+ * The screen `step` hands over to, in its own words for it — or `''` for a
+ * step that has none.
  *
  * Five of the seven steps have no screen to name: they are sub-steps of this
  * one wizard, and a "continues on" label on them would invent a destination
  * that does not exist. Read from `HANDOVER`, the same address the link at
  * the bottom of the step already navigates to, so the map and the link can
  * never name two different screens for the same step.
+ *
+ * Checked against both route manifests, because a handover can land on a
+ * top-level area (Resources) or on a Settings subnav page (Alert intake),
+ * and only one of the two lists knows either.
  */
 function handoverScreen(locale: Locale, step: WizardStep): string {
   if (step !== 'estate' && step !== 'alerts') return '';
   const area = areaByPath(HANDOVER[step]);
-  return area === undefined ? '' : message(locale, area.label);
+  if (area !== undefined) return message(locale, area.label);
+  const page = settingsPageByPath(HANDOVER[step]);
+  return page === undefined ? '' : message(locale, page.label);
 }
 
 /**
@@ -318,10 +340,15 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
     message(locale, `firstRun.step.${step}`);
 
   // A heading is a claim about the list under it, so it changes when the list
-  // does: "What is left" over "7 of 7 done" is two claims disagreeing.
+  // does: "What is left" over "7 of 7 done" is two claims disagreeing. Picked
+  // from outstanding(setup) and setup.steps.length — the exact numbers the
+  // progress line below already reads — rather than from a tally of the
+  // console's own seven screens, which is a second count with a different
+  // denominator (the checklist route's own steps) and can disagree with the
+  // first by construction.
   const checklistHeading = message(
     locale,
-    checklistTitle(plan.filter((entry) => entry.done).length, WIZARD_STEPS.length),
+    checklistTitle(setup.steps.length - outstanding(setup), setup.steps.length),
   );
 
   // What the seven steps above have no page of their own for: whether this
@@ -347,6 +374,19 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   return (
     <>
       <AreaHeader area={areaFor('first-run')} locale={locale} />
+
+      {/* A position, not a count: which of the console's own seven screens
+          this is, and by name. The progress line inside the steps panel below
+          states a different, checklist-sourced count and the two are allowed
+          to cite different numbers because they measure different things —
+          this is the wizard's own denominator, said as what it is. */}
+      <p className="mb-4 text-meta text-muted" data-testid="wizard-position">
+        {message(locale, 'firstRun.wizard.position', {
+          n: formatNumber(locale, WIZARD_STEPS.indexOf(here) + 1),
+          total: formatNumber(locale, WIZARD_STEPS.length),
+          name: stepTitle(here),
+        })}
+      </p>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="flex flex-col gap-5 min-w-0">
@@ -612,6 +652,40 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                 />
               ) : null}
 
+              {/* "Continue anyway": available whenever verification is not
+                  done and nothing about it blocks moving on. The pending
+                  count is read from `verifiable` — the same single-source
+                  list VerifyStep itself renders — never from what this
+                  browser session has or has not tried checking, which is
+                  what keeps this a fourth reading of one fact rather than a
+                  count of its own. */}
+              {here === 'verify' &&
+              verifiable.length > 0 &&
+              !stepDone('verify', setup) &&
+              !stepBlocking('verify', setup) ? (
+                <div
+                  data-testid="verify-continue-anyway"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-3 edge border-border p-3"
+                >
+                  <p className="text-meta text-muted" data-testid="verify-pending">
+                    {message(locale, 'firstRun.verify.pending', {
+                      count: formatNumber(
+                        locale,
+                        verifiable.filter((thing) => thing.readiness !== 'verified')
+                          .length,
+                      ),
+                      total: formatNumber(locale, verifiable.length),
+                    })}
+                  </p>
+                  <Link
+                    href={hrefFor(nextStep('verify') ?? 'estate')}
+                    data-testid="continue-anyway"
+                  >
+                    {message(locale, 'firstRun.verify.continueAnyway')}
+                  </Link>
+                </div>
+              ) : null}
+
               {here === 'estate' && estateSource !== '' ? (
                 <EstateStep
                   integration={estateSource}
@@ -692,6 +766,25 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                         : 'firstRun.complete.body.noPermission',
                     )}
                   </p>
+                  {/* What the conclusion resumes: what got configured, by
+                      display name and by the canonical state — the same
+                      claim `established` already makes, reused rather than
+                      restated in different words. */}
+                  <ul
+                    className="flex flex-col gap-1 text-small"
+                    data-testid="setup-complete-summary"
+                  >
+                    {established.map((entry) => (
+                      <li key={entry.name} className="flex items-center gap-2">
+                        <span className="min-w-0 truncate">
+                          {entry.displayName === '' ? entry.name : entry.displayName}
+                        </span>
+                        <span className="ml-auto">
+                          <StatusChip locale={locale} status={entry.readiness} />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
 
@@ -718,7 +811,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                       ).action
                     }
                   </p>
-                  <Link href={HANDOVER[here]} data-testid="handover-link">
+                  <Link href={handoverHref(here)} data-testid="handover-link">
                     {message(locale, `firstRun.handover.${here}`)}
                   </Link>
                 </div>

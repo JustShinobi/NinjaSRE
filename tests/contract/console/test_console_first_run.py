@@ -203,6 +203,34 @@ def test_the_progress_count_is_not_recomputed_from_the_console_s_own_wizard_step
     )
 
 
+def test_the_checklist_heading_is_not_a_second_tally_beside_outstanding() -> None:
+    """The heading and the progress line are one claim, not two.
+
+    `outstanding()` above is the single source the progress line reads. The
+    heading beside it picked its label — "What is left" versus "Every step is
+    done" — by comparing the console's own seven-screen tally against
+    `WIZARD_STEPS.length`, a second count with a different denominator than
+    `outstanding()`'s (the checklist route's own steps, five today). The two
+    can disagree by construction, which is the "2 of 7" and "3 outstanding"
+    shown together that this feature exists to end. The heading has to be
+    picked from the same numbers the progress line already reads.
+    """
+    source = _source(SCREEN)
+    marker = "checklistTitle("
+    start = source.find(marker)
+    assert start != -1, "first-run.tsx no longer heads the checklist panel with checklistTitle"
+    call = source[start : source.find(";", start)]
+    assert "WIZARD_STEPS" not in call, (
+        "checklistTitle() is still called with WIZARD_STEPS.length — the console's own "
+        "seven-screen tally — rather than with the numbers outstanding() and the progress "
+        "line already read from setup.steps"
+    )
+    assert "outstanding(" in call, (
+        "checklistTitle() is not called with outstanding(setup), so its label is not drawn "
+        "from the single source of progress"
+    )
+
+
 # --- One source, and no second one ----------------------------------------------------
 
 

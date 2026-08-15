@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   WIZARD_STEPS,
   currentStep,
+  nextStep,
   outstanding,
   planFor,
   readSetup,
   stepAt,
+  stepBlocking,
   type DeploymentSetup,
 } from '@/surfaces/first-run/plan';
 
@@ -227,6 +229,38 @@ describe('the list of steps the screen draws', () => {
         }),
       ),
     ).toBe(2);
+  });
+});
+
+describe('what is blocking, declared per step', () => {
+  it('blocks the verify step when there is no provider at all', () => {
+    expect(stepBlocking('verify', setup())).toBe(true);
+  });
+
+  it('does not block verify for a provider that exists and merely fails its check', () => {
+    // The mockup's own worked example: a configured provider whose model
+    // answers without calling a tool. There is something to continue past,
+    // so this is not the same fact as no provider existing at all.
+    expect(stepBlocking('verify', setup({ provider: 'configured' }))).toBe(false);
+    expect(stepBlocking('verify', setup({ provider: 'verified' }))).toBe(false);
+  });
+
+  it('never blocks a step that has no blocking rule of its own', () => {
+    for (const step of WIZARD_STEPS) {
+      if (step === 'verify') continue;
+      expect(stepBlocking(step, setup())).toBe(false);
+    }
+  });
+});
+
+describe('the step after a step', () => {
+  it('is the next of the seven, in order', () => {
+    expect(nextStep('provider')).toBe('credential');
+    expect(nextStep('verify')).toBe('estate');
+  });
+
+  it('is undefined after the last one', () => {
+    expect(nextStep('alerts')).toBeUndefined();
   });
 });
 

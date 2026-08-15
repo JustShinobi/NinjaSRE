@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EN } from '@/i18n/en';
-import { AREAS, areaByPath } from '@/shell/routes';
+import { AREAS, areaByPath, settingsPageByPath } from '@/shell/routes';
 import { WIZARD_STEPS } from '@/surfaces/first-run/plan';
 import { SLIDES, Tutorial } from '@/surfaces/first-run/tutorial';
 import { IntegrationsStep } from '@/surfaces/first-run/integrations';
@@ -208,6 +208,107 @@ describe('the wizard screen', () => {
     // "N of 7 done" instead — the same fact in a different framing, so a reader
     // comparing the two had to do arithmetic to tell they agreed.
     expect(screen.getByTestId('first-run-progress')).toHaveTextContent('left');
+  });
+
+  it('says which of the seven this is, and by which name, not only how many are left', async () => {
+    // "Passo N de 7 — <nome>" is a position, and `firstRun.progress` is a
+    // count of what the deployment's own checklist has left — two different
+    // measures that may cite different numbers (five checklist steps, seven
+    // screens) and must not read as the same one disagreeing with itself.
+    await firstRun();
+
+    expect(screen.getByTestId('wizard-position')).toHaveTextContent('1 of 7');
+    expect(screen.getByTestId('wizard-position')).toHaveTextContent(
+      'Choose a model provider',
+    );
+  });
+
+  it('moves the position to the step an address names, not only to the first unfinished one', async () => {
+    await firstRun({ step: 'verify' });
+
+    expect(screen.getByTestId('wizard-position')).toHaveTextContent('5 of 7');
+    expect(screen.getByTestId('wizard-position')).toHaveTextContent(
+      'Check that each of them works',
+    );
+  });
+
+  it('heads the panel from the deployment’s own steps, not from a tally of the seven screens', async () => {
+    // The heading and the progress line under it are one claim about one
+    // list. The deployment here reports every step of its own as done while
+    // the seven screens above would tally otherwise — a provider it holds
+    // nothing for. Headed from the screens, the panel says "What is left"
+    // directly above a line reading nothing is, which is the two counts
+    // disagreeing that this panel exists to stop.
+    //
+    // Asserted against the rendered heading rather than against the call
+    // that picks it: a heading picked correctly through a local variable
+    // reads identically here and is invisible to a check on the source text.
+    serveScenario('first-run');
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: false,
+              provider: '',
+              integrations: [],
+              steps: [
+                { name: 'infrastructure-source', state: 'done' },
+                { name: 'first-investigation', state: 'done' },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+    render(await FirstRunScreen(await surfaceContext({})));
+
+    expect(
+      screen.getByRole('heading', { name: EN['firstRun.steps.done'] }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: EN['firstRun.steps.title'] }),
+    ).toBeNull();
+  });
+});
+
+// --- The checklist read can fail without losing where the operator is ----------------------
+
+describe('a gateway that cannot answer the checklist mid-wizard', () => {
+  it('names the panel that failed rather than going blank, without moving the operator off their own step', async () => {
+    serveScenario('first-run');
+    const scenario = global.fetch;
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), ['http:', '//fixtures.invalid'].join(''))
+        .pathname;
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(new Response('', { status: 503 }));
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+
+    render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
+
+    // The address is still honoured: a gateway hiccup on the checklist read
+    // did not reset the operator to the first step. The position line is
+    // drawn from the address, never from the failed read, so it is what
+    // already-persisted progress surviving the outage looks like from here
+    // — the current step's own panel is a different claim (see below).
+    expect(screen.getByTestId('wizard-position')).toHaveTextContent('5 of 7');
+    // The panels that actually depend on the failed read say so by name,
+    // rather than rendering blank — every one of the three here does, since
+    // the current step is 'verify' rather than 'provider' and so its own
+    // body panel reads the checklist too.
+    const panels = screen.getAllByTestId('panel');
+    expect(panels.every((panel) => panel.getAttribute('data-state') === 'error')).toBe(
+      true,
+    );
+    expect(screen.queryByTestId('wizard-body')).toBeNull();
   });
 });
 
@@ -775,6 +876,10 @@ describe('verifying what is configured', () => {
     nothing: 'nothing to check',
     remedy: 'What to do:',
     findings: 'What it found that cannot be relied on:',
+    fixProvider: 'Choose another model',
+    fixIntegration: 'Review the credential',
+    fullDiagnosis: 'Full diagnosis',
+    fullDiagnosisSummary: 'The rest of what the deployment reported.',
   };
 
   const THINGS = [
@@ -800,6 +905,19 @@ describe('verifying what is configured', () => {
     for (const row of rows) {
       expect(row.getAttribute('data-verdict')).toBe('unchecked');
     }
+  });
+
+  it('reads the canonical "Stored", never a sentence about nobody having checked yet', () => {
+    // Confirmed against `credentialStatus`: an unchecked but configured thing
+    // maps to the canonical word 'stored', whose label is "Stored" — not a
+    // bespoke sentence invented for this one screen.
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    const rows = screen.getAllByTestId('verify-row');
+    for (const row of rows) {
+      expect(row).toHaveTextContent('Stored');
+    }
+    expect(screen.queryByText(/nobody has checked/i)).toBeNull();
   });
 
   it('checks one at a time and lets that one be tried again', async () => {
@@ -840,6 +958,90 @@ describe('verifying what is configured', () => {
     await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
 
     expect(screen.getByTestId('verify-remedy')).toHaveTextContent('ANTHROPIC_API_KEY');
+  });
+
+  it('lands a failed model provider on the field that corrects it, named as what it is', async () => {
+    // The mockup's own worked example: gemini-2.5-flash answers without
+    // calling the tool investigations require. The fix is another model of
+    // the same provider's, not a parked sentence about it.
+    vi.stubGlobal(
+      'fetch',
+      answerWith({
+        verified: false,
+        reason:
+          'gemini-2.5-flash answered without calling the tool — investigations require tool calling.',
+      }),
+    );
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+
+    const fix = screen.getByTestId('verify-fix');
+    expect(fix).toHaveTextContent('Choose another model');
+    expect(fix).toHaveAttribute('href', '/first-run?step=model');
+  });
+
+  it('lands a failed integration on its own step, not on the model step', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({ verified: false, reason: 'it refused the key' }),
+    );
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[1]));
+
+    const fix = screen.getByTestId('verify-fix');
+    expect(fix).toHaveTextContent('Review the credential');
+    expect(fix).toHaveAttribute('href', '/first-run?step=integrations');
+  });
+
+  it('shows at most two sentences of a failure, with the rest one press away', async () => {
+    const long =
+      'The first sentence. The second sentence. The third sentence nobody sees unless they ask.';
+    vi.stubGlobal('fetch', answerWith({ verified: false, reason: long }));
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+
+    const visible = screen.getByTestId('verify-detail');
+    expect(visible).toHaveTextContent('The first sentence. The second sentence.');
+    expect(visible).not.toHaveTextContent('third sentence');
+
+    const reference = screen.getByTestId('reference');
+    expect(reference).toHaveAttribute('data-expanded', 'false');
+    expect(screen.queryByText(/third sentence/)).toBeNull();
+
+    await userEvent.click(within(reference).getByRole('button'));
+    expect(screen.getByText(/third sentence/)).toBeInTheDocument();
+  });
+
+  it('offers no expansion when a short failure has nothing left to hide', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({ verified: false, reason: 'it refused the key' }),
+    );
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+
+    expect(screen.getByTestId('verify-detail')).toHaveTextContent('it refused the key');
+    expect(screen.queryByTestId('reference')).toBeNull();
+  });
+
+  it('offers no fix CTA for an unreachable deployment: there is no field to blame', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+    );
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+
+    expect(screen.getAllByTestId('verify-row')[0]).toHaveAttribute(
+      'data-verdict',
+      'unreachable',
+    );
+    expect(screen.queryByTestId('verify-fix')).toBeNull();
   });
 
   it('names what makes a source that answered unusable anyway', async () => {
@@ -917,6 +1119,112 @@ describe('verifying what is configured', () => {
   });
 });
 
+// --- Continuing past a verification that has not passed yet ------------------------------------------
+
+describe('continuing past verification', () => {
+  /** A provider that is configured but has never been checked, nothing else. */
+  function serveUnverifiedProvider(): void {
+    serveScenario('first-run');
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: false,
+              provider: 'configured',
+              integrations: [],
+              steps: [],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+  }
+
+  it('offers to continue past a provider that is stored but unverified, to the next step', async () => {
+    serveUnverifiedProvider();
+    render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
+
+    const link = screen.getByTestId('continue-anyway');
+    expect(link).toHaveAttribute('href', '/first-run?step=estate');
+    // The pending count is the single source's own — the same `verifiable`
+    // list VerifyStep renders — never a second tally of what this browser
+    // session happened to test.
+    expect(screen.getByTestId('verify-pending')).toHaveTextContent('1');
+  });
+
+  it('does not offer it once the deployment has no provider at all', async () => {
+    // An integration configured ahead of any provider choice — a plausible
+    // order, and the one case that blocks rather than slows: nothing here
+    // could ever be run against, so there is nothing to explore by continuing.
+    serveScenario('first-run');
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: false,
+              provider: 'absent',
+              integrations: [{ name: 'metrics-store', readiness: 'configured' }],
+              steps: [],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+
+    render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
+
+    expect(screen.getByTestId('verify-step')).toBeInTheDocument();
+    expect(screen.queryByTestId('continue-anyway')).toBeNull();
+  });
+
+  it('does not offer it once every verifiable thing has actually passed', async () => {
+    serveScenario('first-run');
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: false,
+              provider: 'verified',
+              integrations: [{ name: 'metrics-store', readiness: 'verified' }],
+              steps: [],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+
+    render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
+
+    expect(screen.queryByTestId('continue-anyway')).toBeNull();
+  });
+
+  it('does not offer it while nothing at all is configured yet', async () => {
+    await firstRun({ step: 'verify' });
+    // The default first-run fixture holds nothing configured at all, so there
+    // is nothing to continue past either — the ordinary early state, not the
+    // one this control is for.
+    expect(screen.queryByTestId('continue-anyway')).toBeNull();
+  });
+});
+
 // --- What is established, once, however many places record it -------------------------------------
 
 describe('what is established', () => {
@@ -988,7 +1296,16 @@ describe('the steps this feature does not own', () => {
       expect(screen.getByTestId('handover-detail').textContent).toBeTruthy();
       expect(screen.getByTestId('handover-action').textContent).toBeTruthy();
       const href = screen.getByTestId('handover-link').getAttribute('href') ?? '';
-      expect(areaByPath(href), `${href} is not an area of this console`).toBeDefined();
+      const [path, query] = href.split('?');
+      expect(
+        areaByPath(path ?? '') ?? settingsPageByPath(path ?? ''),
+        `${href} is not a route of this console`,
+      ).toBeDefined();
+      // The destination has to offer the way back, and it can only do that
+      // if the address it was handed says the wizard sent it — a link that
+      // just happened to be incomplete would be indistinguishable from an
+      // ordinary visit to Resources or Alert intake.
+      expect(query).toBe('return=setup');
     },
   );
 });
@@ -1001,16 +1318,20 @@ describe('the map from a step name to the screen it leads to', () => {
 
     // "Give it an estate to watch" and "Point your alerts at it" do not say,
     // by themselves, that finishing them means arriving at Resources and
-    // Signals — this is read from the same HANDOVER address the link at the
-    // bottom of each step already uses, so the map and the link can never
-    // name two different screens for the same step.
+    // Alert intake — this is read from the same HANDOVER address the link at
+    // the bottom of each step already uses, so the map and the link can
+    // never name two different screens for the same step.
     const mapped = screen.getAllByTestId('wizard-step-screen');
     expect(mapped.map((entry) => entry.getAttribute('data-step'))).toEqual([
       'estate',
       'alerts',
     ]);
     expect(mapped[0]).toHaveTextContent('Resources');
-    expect(mapped[1]).toHaveTextContent('Signals');
+    // Alert intake, not Signals: the retired address still answers (through
+    // a redirect the hybrid navigation put there for a transition), but a
+    // link that names it survives that redirect being removed later and a
+    // link that does not does not.
+    expect(mapped[1]).toHaveTextContent('Alert intake');
   });
 
   it('names no destination for the five steps that stay on this screen', async () => {
@@ -1157,6 +1478,20 @@ describe('a checklist with nothing left but the first investigation', () => {
     // the guided investigation" in duller words, and showing both repeats
     // the one thing this state has to say.
     expect(screen.queryByTestId('handover')).toBeNull();
+  });
+
+  it('resumes what got configured, by display name and canonical state, right where it closes', async () => {
+    // The same claim `established` already makes, reused rather than
+    // reinvented: a second list of the same facts in different words would
+    // be exactly the duplicated state this feature exists to remove.
+    serveReadyForFirstInvestigation();
+    render(await FirstRunScreen(await surfaceContext({ step: 'alerts' })));
+
+    const summary = screen.getByTestId('setup-complete-summary');
+    expect(summary).toHaveTextContent('Anthropic');
+    expect(within(summary).getByText('Verified')).toBeInTheDocument();
+    // The raw id never leaks into the summary a stranger reads at the door.
+    expect(summary).not.toHaveTextContent('anthropic');
   });
 
   it('does not point at a control this viewer may not use', async () => {

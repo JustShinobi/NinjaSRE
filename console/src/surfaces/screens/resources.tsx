@@ -8,7 +8,9 @@ import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { readSetupState } from '../emptiness';
 import { FilterBar } from '../filters';
+import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
 import {
@@ -153,31 +155,39 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
 
   const init = authorised(credential);
   const selection = state.selection;
-  const [resources, summary, discovery, unresolved, selected] = await Promise.all([
-    panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
-    panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
-    // Optional: a deployment that has never swept anything has no report, and
-    // that is the ordinary state of one nothing is pointed at yet.
-    optionalRead('/v1/estate/discovery/report', () =>
-      read('/v1/estate/discovery/report', init),
-    ),
-    // Optional for the same reason, and one more: a deployment nothing has
-    // alerted has no findings, which is the ordinary state rather than a fault.
-    optionalRead('/v1/estate/unresolved-alert-targets', () =>
-      read('/v1/estate/unresolved-alert-targets', init),
-    ),
-    // Only when a row is selected. The detail read is per resource, and making
-    // it on every render of the list would be one request per page view for a
-    // panel nobody has opened.
-    selection === null
-      ? Promise.resolve(undefined)
-      : optionalRead('/v1/estate/resources/{resource_id}', () =>
-          read('/v1/estate/resources/{resource_id}', {
-            ...init,
-            params: { resource_id: selection },
-          }),
-        ),
-  ]);
+  const [resources, summary, discovery, unresolved, selected, setup] =
+    await Promise.all([
+      panelRead('/v1/estate/resources', () => read('/v1/estate/resources', init)),
+      panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
+      // Optional: a deployment that has never swept anything has no report, and
+      // that is the ordinary state of one nothing is pointed at yet.
+      optionalRead('/v1/estate/discovery/report', () =>
+        read('/v1/estate/discovery/report', init),
+      ),
+      // Optional for the same reason, and one more: a deployment nothing has
+      // alerted has no findings, which is the ordinary state rather than a fault.
+      optionalRead('/v1/estate/unresolved-alert-targets', () =>
+        read('/v1/estate/unresolved-alert-targets', init),
+      ),
+      // Only when a row is selected. The detail read is per resource, and making
+      // it on every render of the list would be one request per page view for a
+      // panel nobody has opened.
+      selection === null
+        ? Promise.resolve(undefined)
+        : optionalRead('/v1/estate/resources/{resource_id}', () =>
+            read('/v1/estate/resources/{resource_id}', {
+              ...init,
+              params: { resource_id: selection },
+            }),
+          ),
+      // Whether this deployment still has a wizard worth returning to — read
+      // independently of the rest of this screen's own data, the same way
+      // `knowledge.tsx`'s empty-state cause already reads it, so a failure to
+      // read the checklist degrades to "nothing to return to" rather than to a
+      // broken page.
+      readSetupState(credential),
+    ]);
+  const returnRequested = requestedSetupReturn(search.get('return'));
   const signals =
     selected === undefined ? undefined : field(dataOf(selected), 'signals');
   // The corpus's own answer to "what do we already know about this". Empty for
@@ -379,6 +389,8 @@ export async function ResourcesScreen(context: SurfaceContext): Promise<ReactNod
           </span>
         }
       />
+
+      <SetupReturnBanner locale={locale} setup={setup} requested={returnRequested} />
 
       {/* A plain GET form rather than a client filter: the address is still
           the whole of what a view is, so a search survives a reload and a

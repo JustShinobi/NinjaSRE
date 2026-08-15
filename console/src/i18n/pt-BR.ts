@@ -72,6 +72,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'credential.minScope': 'Permissão mínima:',
   'credential.guide': 'Guia passo a passo',
 
+  'firstRun.wizard.position': 'Passo {n} de {total} — {name}',
   'firstRun.steps.title': 'O que falta',
   'firstRun.steps.done': 'Tudo pronto',
   'firstRun.progress': '{left} de {total} passos faltando',
@@ -140,6 +141,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Nada está configurado ainda, então não há o que verificar. Guarde primeiro uma credencial de provider.',
   'firstRun.verify.remedy': 'O que fazer:',
   'firstRun.verify.findings': 'O que foi encontrado e n\u00e3o \u00e9 confi\u00e1vel:',
+  'firstRun.verify.fix.provider': 'Escolher outro modelo',
+  'firstRun.verify.fix.integration': 'Revisar a credencial',
+  'firstRun.verify.fullDiagnosis': 'Diagn\u00f3stico completo',
+  'firstRun.verify.fullDiagnosis.summary':
+    'O resto do que o deployment relatou sobre esta verifica\u00e7\u00e3o.',
+  'firstRun.verify.pending': '{count} de {total} ainda sem verifica\u00e7\u00e3o',
+  'firstRun.verify.continueAnyway': 'Continuar mesmo assim',
 
   'firstRun.established.title': 'O que já está configurado',
   'firstRun.established.empty.heading': 'Nada está configurado ainda',
@@ -162,7 +170,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.estate.preview': 'Ver o que seria descoberto',
   'firstRun.estate.previewing': 'Vendo…',
   'firstRun.estate.found':
-    '{nodes} nós, {guests} convidados, {running} em execução, {zones} zonas. Nada foi gravado.',
+    '{nodes} nós, {guests} convidados, {running} em execução, {zones} zonas. Nada foi guardado.',
   'firstRun.estate.unplaced':
     '{count} deles estão em nenhuma rede declarada, então não carregam zona.',
   'firstRun.estate.incomplete':
@@ -180,6 +188,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Todos os passos acima estão concluídos, e este deployment já consegue conduzir uma investigação de verdade. Aperte Investigar, no topo de qualquer tela, para rodar a primeira.',
   'firstRun.complete.body.noPermission':
     'Todos os passos acima estão concluídos, e este deployment já consegue conduzir uma investigação de verdade. Peça a alguém que possa iniciar uma para rodar a primeira.',
+
+  'firstRun.return.body':
+    'A configuração guiada te mandou aqui para terminar este passo.',
+  'firstRun.return.cta': 'Continuar a configuração',
 
   'setup.noProvider.heading': 'Nenhum provider de modelo está configurado',
   'setup.noProvider.body':
@@ -380,8 +392,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'signIn.username': 'Utilizador',
   'signIn.password': 'Palavra-passe',
   'signIn.submit': 'Entrar',
-  'signIn.rejected': 'Esse utilizador e essa palavra-passe não foram aceites.',
-  'signIn.unreachable': 'Não foi possível contactar a instalação.',
+  'signIn.rejected': 'Esse usuário e essa senha não foram aceitos.',
+  'signIn.unreachable': 'Não foi possível contatar a instalação.',
   'signIn.expired':
     'A sua sessão terminou. Entre de novo para voltar ao ponto onde estava.',
   'session.expiring': 'Esta sessão termina em {duration}.',
@@ -400,7 +412,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'breadcrumb.label': 'Trilho',
   'avatar.unknown': 'Pessoa desconhecida',
   'pagination.previous': 'Anterior',
-  'pagination.next': 'Seguinte',
+  'pagination.next': 'Próximo',
   'pagination.position': 'Página {page} de {pages}',
   'pagination.landmark': 'Paginação',
 
@@ -440,8 +452,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'transcript.kind.recall': 'Recuperação de memória',
   'transcript.kind.dispatch': 'Sub-agente despachado',
   'transcript.kind.return': 'Sub-agente devolveu',
-  'transcript.kind.guardrail': 'Salvaguarda — acção retida',
-  'transcript.kind.interaction': 'Interacção humana',
+  'transcript.kind.guardrail': 'Salvaguarda — ação retida',
+  'transcript.kind.interaction': 'Interação humana',
   'transcript.kind.report': 'Relatório',
   'transcript.position': 'A mostrar os eventos {first} a {last} de {total}.',
   'transcript.earlier': 'Eventos anteriores',
@@ -486,7 +498,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'dashboard.activity.empty.action': 'Ligar uma fonte',
   'dashboard.hero.title': 'Continuar a configuração',
   'dashboard.hero.remaining': '{count} de {total} passos por fazer',
-  'dashboard.hero.next': 'Seguinte',
+  'dashboard.hero.next': 'Próximo',
   'dashboard.hero.action': 'Continuar a configuração',
   'dashboard.hero.empty.heading': 'O estado da configuração não pôde ser lido',
   'dashboard.hero.empty.body':
@@ -622,7 +634,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'A regra ativa pede aprovação para ações em {threshold} e acima.',
   'approvals.empty.rule.default': 'Esse é o padrão do deployment.',
   'approvals.empty.rule.setAt': 'Está definido em {node}.',
-  'proposal.title': 'Acção proposta — à espera da sua decisão',
+  'proposal.title': 'Ação proposta — aguardando a sua decisão',
   'proposal.risk': 'Risco {level} de 5',
   'proposal.target': 'Alvo',
   'proposal.current': 'Estado actual',
@@ -1427,7 +1439,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'proposals.effect.show': 'Mostrar o que isto faria',
   'proposals.effect.loading': 'Perguntando à instalação',
   'proposals.effect.failed': 'A instalação não respondeu. Nada foi alterado.',
-  'proposals.effect.text': 'O texto como seria gravado',
+  'proposals.effect.text': 'O texto como seria salvo',
   'proposals.effect.preview': 'A configuração que isto resolveria',
   'proposals.effect.dryRun': 'O que este detector teria encontrado',
   'proposals.effect.dryRun.quiet': 'Não teria encontrado nada no histórico armazenado.',

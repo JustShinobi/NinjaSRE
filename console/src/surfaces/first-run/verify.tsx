@@ -3,9 +3,11 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 
-import { Button } from '@/components/action';
+import { Button, Link } from '@/components/action';
 import { StatusChip } from '@/components/status';
+import { Reference } from '@/design/reference';
 import type { Locale } from '@/i18n/messages';
+import { hrefFor } from './plan';
 
 /**
  * Checking each configured thing for real, one row at a time.
@@ -50,6 +52,12 @@ export interface VerifyStepLabels {
   readonly nothing: string;
   readonly remedy: string;
   readonly findings: string;
+  /** Where a failed provider's own check sends somebody: another model. */
+  readonly fixProvider: string;
+  /** Where a failed integration's own check sends somebody: its credential. */
+  readonly fixIntegration: string;
+  readonly fullDiagnosis: string;
+  readonly fullDiagnosisSummary: string;
 }
 
 export interface VerifyStepProps {
@@ -59,6 +67,43 @@ export interface VerifyStepProps {
 }
 
 export const VERIFY_ENDPOINT = '/api/verify';
+
+/**
+ * How much of a failure's own prose shows before the rest is one press away.
+ *
+ * Presentation, not a backend-enforced cap — the deployment's diagnosis
+ * arrives as one string and this only decides how much of it a row shows
+ * before folding the rest behind `Reference`. Local for the same reason
+ * `FEED_LENGTH` is local to the dashboard's activity feed: nothing outside
+ * this row enforces it.
+ */
+const DIAGNOSIS_SENTENCE_LIMIT = 2;
+
+const SENTENCE_BOUNDARY = /(?<=[.!?])\s+/;
+
+/** `text`, split at up to `max` sentences, and whatever is left over. */
+function capSentences(
+  text: string,
+  max: number,
+): { readonly visible: string; readonly overflow: string } {
+  if (text === '') return { visible: '', overflow: '' };
+  const sentences = text.split(SENTENCE_BOUNDARY).filter((sentence) => sentence !== '');
+  if (sentences.length <= max) return { visible: text, overflow: '' };
+  return {
+    visible: sentences.slice(0, max).join(' '),
+    overflow: sentences.slice(max).join(' '),
+  };
+}
+
+/** The step a failure of `kind` sends somebody to, and the label for going there. */
+function fixOf(
+  kind: VerifiableThing['kind'],
+  labels: VerifyStepLabels,
+): { readonly href: string; readonly label: string } {
+  return kind === 'provider'
+    ? { href: hrefFor('model'), label: labels.fixProvider }
+    : { href: hrefFor('integrations'), label: labels.fixIntegration };
+}
 
 interface Verdict {
   readonly state: 'passed' | 'failed' | 'unreachable';
@@ -136,6 +181,15 @@ export function VerifyStep({ locale, things, labels }: VerifyStepProps): ReactNo
         const key = keyOf(thing);
         const verdict = verdicts[key];
         const busy = running.includes(key);
+        // A field to blame exists only once a verdict actually came back: an
+        // unreachable deployment failed to answer at all, and a CTA pointed
+        // at a "fix" for that would send somebody to change a field that was
+        // never the problem.
+        const fix = verdict?.state === 'failed' ? fixOf(thing.kind, labels) : undefined;
+        const capped =
+          verdict === undefined || verdict.detail === ''
+            ? undefined
+            : capSentences(verdict.detail, DIAGNOSIS_SENTENCE_LIMIT);
         return (
           <li
             key={key}
@@ -169,9 +223,24 @@ export function VerifyStep({ locale, things, labels }: VerifyStepProps): ReactNo
                     ? labels.check
                     : labels.retry}
               </Button>
+              {fix === undefined ? null : (
+                <Link href={fix.href} data-testid="verify-fix">
+                  {fix.label}
+                </Link>
+              )}
             </span>
-            {verdict === undefined || verdict.detail === '' ? null : (
-              <span className="text-meta text-muted">{verdict.detail}</span>
+            {capped === undefined ? null : (
+              <span className="text-meta text-muted" data-testid="verify-detail">
+                {capped.visible}
+              </span>
+            )}
+            {capped === undefined || capped.overflow === '' ? null : (
+              <Reference
+                title={labels.fullDiagnosis}
+                summary={labels.fullDiagnosisSummary}
+              >
+                {capped.overflow}
+              </Reference>
             )}
             {verdict?.remedy === undefined || verdict.remedy === '' ? null : (
               <span className="text-meta text-warning" data-testid="verify-remedy">

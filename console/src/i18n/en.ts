@@ -474,6 +474,11 @@ export const EN = {
   'credential.guide': 'Step-by-step guide',
 
   // --- The guided first run -----------------------------------------------------------
+  // Where the operator is, by position and by name — distinct from the count
+  // below, which is how much of the deployment's own checklist is left. "7"
+  // here is this console's own seven-screen sequencing; the progress line's
+  // numbers are the checklist route's. Both are honest; neither is the other.
+  'firstRun.wizard.position': 'Step {n} of {total} — {name}',
   'firstRun.steps.title': 'What is left',
   'firstRun.steps.done': 'Every step is done',
   // The dashboard's own hero says "{count} of {total} steps left" for this
@@ -551,6 +556,20 @@ export const EN = {
     'Nothing is configured yet, so there is nothing to check. Store a provider credential first.',
   'firstRun.verify.remedy': 'What to do:',
   'firstRun.verify.findings': 'What it found that cannot be relied on:',
+  // Which field a failure sends somebody to. The provider one is the mockup's
+  // own worked example — a real model that answered without calling a tool —
+  // and the correction is another model of the same provider's, not a
+  // different provider necessarily.
+  'firstRun.verify.fix.provider': 'Choose another model',
+  'firstRun.verify.fix.integration': 'Review the credential',
+  'firstRun.verify.fullDiagnosis': 'Full diagnosis',
+  'firstRun.verify.fullDiagnosis.summary':
+    'The rest of what the deployment reported about this check.',
+  // "{count} of {total}" rather than a bare count, matching the progress
+  // line above it: a number with nothing to compare it against reads as more
+  // definite than it is.
+  'firstRun.verify.pending': '{count} of {total} not yet verified',
+  'firstRun.verify.continueAnyway': 'Continue anyway',
 
   'firstRun.established.title': 'What is set up so far',
   'firstRun.established.empty.heading': 'Nothing is set up yet',
@@ -597,6 +616,11 @@ export const EN = {
     'Every step above is done, and this deployment can drive a real investigation. Press Investigate, at the top of any screen, to run the first one.',
   'firstRun.complete.body.noPermission':
     'Every step above is done, and this deployment can drive a real investigation. Ask somebody who may start one to run the first.',
+
+  // The banner a step that hands over shows, while the wizard sent it there
+  // has anything still to finish.
+  'firstRun.return.body': 'The guided setup sent you here to finish this step.',
+  'firstRun.return.cta': 'Continue setup',
 
   // --- Setup and the tutorial, where an operator is already working ---------------------
   // The checklist panel and the quick-action list that used to live here went

@@ -256,3 +256,52 @@ test('the dashboard invites the wizard while there is something left to do', asy
   await page.getByTestId('setup-hero-cta').click();
   await expect(page).toHaveURL(/\/first-run/);
 });
+
+test('names the position by number and by name, distinct from how many the checklist has left', async ({
+  page,
+}) => {
+  await page.goto('/first-run');
+  await expect(page.getByTestId('wizard-position')).toContainText('1 of 7');
+  await expect(page.getByTestId('wizard-position')).toContainText(
+    'Choose a model provider',
+  );
+
+  await page.goto('/first-run?step=verify');
+  await expect(page.getByTestId('wizard-position')).toContainText('5 of 7');
+  await expect(page.getByTestId('wizard-position')).toContainText(
+    'Check that each of them works',
+  );
+});
+
+test('a step that hands over carries the way back, and the destination offers it while the wizard is not done', async ({
+  page,
+}) => {
+  await page.goto('/first-run?step=estate');
+  const link = page.getByTestId('handover-link');
+  await expect(link).toHaveAttribute('href', '/resources?return=setup');
+  await link.click();
+
+  await expect(page).toHaveURL(/\/resources\?return=setup/);
+  await expect(page.getByTestId('setup-return-banner')).toBeVisible();
+
+  await page.getByTestId('setup-return-link').click();
+  // Back in the wizard, at whichever step the deployment itself says is
+  // next — derived the same way every other entry into this wizard is,
+  // never a step this banner remembered on its own.
+  await expect(page).toHaveURL(/\/first-run\?step=/);
+  await expect(page.getByTestId('page-header')).toHaveAttribute(
+    'data-area',
+    'first-run',
+  );
+});
+
+// "Continue anyway" is not exercised here. It needs a provider or an
+// integration the checklist reports as configured-but-unverified, and this
+// project's mock plane serves `/v1/setup/checklist` as one fixed document per
+// scenario — storing a credential through the real write endpoints during the
+// test does not move it, unlike the real gateway (proved against one in
+// `tests/contract/console/test_console_first_run.py::test_a_credential_written_the_way_the_console_writes_it_verifies`).
+// The control itself, its pending count, and its destination are covered at
+// the component level instead, in `tests/unit/surfaces/first-run.test.tsx`'s
+// "continuing past verification" suite, against a checklist this session
+// controls directly.
