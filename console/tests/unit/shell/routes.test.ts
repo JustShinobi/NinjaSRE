@@ -7,8 +7,16 @@ import {
   areaFor,
   groupsFor,
   NAV_GROUPS,
+  SETTINGS_GROUPS,
+  SETTINGS_PAGES,
+  SETTINGS_REDIRECTS,
+  settingsGroupsFor,
+  settingsPageByPath,
+  settingsPageFor,
+  settingsRedirectTarget,
   trailFor,
   visibleAreas,
+  visibleSettingsPages,
 } from '@/shell/routes';
 import type { Viewer } from '@/session/viewer';
 
@@ -46,6 +54,12 @@ const OWNER = viewerHolding([
   'identity.read',
   'integration.manage',
   'impersonation.use',
+  // The two the Settings subnav's own pages needed that no area ever had —
+  // sso.manage and token.manage gate no top-level area, only the Single
+  // sign-on and Machine tokens subnav pages, so an owner fixture built
+  // before they existed had never needed either.
+  'sso.manage',
+  'token.manage',
 ]);
 
 describe('the route manifest', () => {
@@ -84,6 +98,7 @@ describe('the route manifest', () => {
       autonomy: 'settings',
       configuration: 'settings',
       administration: 'settings',
+      settings: 'settings',
     };
     for (const area of AREAS) {
       expect(zones[area.id], `${area.id} is in no declared zone`).toBeDefined();
@@ -144,16 +159,39 @@ describe('what a viewer may see', () => {
     expect(visible).not.toContain('autonomy');
   });
 
-  it('shows an owner every area there is', () => {
-    expect(visibleAreas(OWNER)).toHaveLength(AREAS.length);
+  it('shows an owner every area whose own rule does not retire it', () => {
+    // The subnav pages that replace autonomy/signals/administration/configuration
+    // in the sidebar carry their own rule that hides them unconditionally — an
+    // owner sees them only by their new, addressed-by-Settings-page presence, not
+    // as sidebar areas any more.
+    const retired = AREAS.filter(
+      (area) => area.visible?.({ checklistComplete: false }) === false,
+    ).length;
+    expect(visibleAreas(OWNER)).toHaveLength(AREAS.length - retired);
   });
 
   it('drops a whole group when nothing in it is permitted', () => {
-    const viewer = viewerHolding(['investigation.read']);
+    // knowledge.read reaches only the Knowledge area, in `environment` — not
+    // `now` (every one of its four areas wants investigation.read or
+    // approval.read) and not `settings` (the hub itself wants
+    // investigation.read, same as dashboard, and nothing else in the group
+    // is knowledge-gated).
+    const viewer = viewerHolding(['knowledge.read']);
     const groups = groupsFor(viewer).map((group) => group.group);
 
-    expect(groups).toContain('now');
+    expect(groups).toContain('environment');
+    expect(groups).not.toContain('now');
     expect(groups).not.toContain('settings');
+  });
+
+  it('keeps the Settings hub itself present when every subnav page is retired for this viewer', () => {
+    // investigation.read is the hub's own gate, the same one dashboard uses,
+    // so a viewer holding it always finds Settings in the sidebar even when
+    // none of the nine subnav pages are theirs to open.
+    const viewer = viewerHolding(['investigation.read']);
+    const settings = groupsFor(viewer).find((group) => group.group === 'settings');
+
+    expect(settings?.areas.map((area) => area.id)).toEqual(['settings']);
   });
 
   it('keeps the groups in the documented order', () => {
@@ -161,43 +199,56 @@ describe('what a viewer may see', () => {
   });
 });
 
-describe('an area whose presence depends on the deployment rather than the viewer', () => {
-  it('is absent when its own rule says so, and present when it does not', () => {
-    const closed = visibleAreas(OWNER, { checklistComplete: true });
-    const open = visibleAreas(OWNER, { checklistComplete: false });
+describe('the areas the Settings subnav replaced', () => {
+  // first-run, integrations' former siblings (signals, autonomy, configuration,
+  // administration) are retired from the sidebar by the hybrid navigation: the
+  // sidebar's Settings group now carries only Integrations and Settings itself.
+  // Each of the four is still a real area — `areaFor`/`areaByPath` still resolve
+  // it, because its route is still served (a redirect, or, for first-run and
+  // configuration, its own unchanged content) — it is only offered nowhere in
+  // the navigation any more.
+  const RETIRED = [
+    'first-run',
+    'signals',
+    'autonomy',
+    'configuration',
+    'administration',
+  ];
 
-    expect(closed.map((area) => area.id)).not.toContain('first-run');
-    expect(open.map((area) => area.id)).toContain('first-run');
-  });
-
-  it('is shown when nobody said, because a checklist that could not be read is not a finished one', () => {
-    // The shell reads the checklist for its own frame and degrades rather than
-    // failing. Defaulting to hidden would take the one route that fixes a
-    // half-configured deployment out of the navigation of exactly that
-    // deployment.
-    expect(visibleAreas(OWNER).map((area) => area.id)).toContain('first-run');
-  });
-
-  it('still answers to permission, whatever its own rule says', () => {
-    const viewer = viewerHolding(['investigation.read']);
-    expect(
-      visibleAreas(viewer, { checklistComplete: false }).map((a) => a.id),
-    ).not.toContain('first-run');
+  it('is absent from every viewer, in every deployment state', () => {
+    for (const id of RETIRED) {
+      expect(
+        visibleAreas(OWNER, { checklistComplete: true }).map((area) => area.id),
+        id,
+      ).not.toContain(id);
+      expect(
+        visibleAreas(OWNER, { checklistComplete: false }).map((area) => area.id),
+        id,
+      ).not.toContain(id);
+    }
   });
 
   it('drops out of the navigation groups too, not only out of the list', () => {
     const groups = groupsFor(OWNER, { checklistComplete: true });
     const settings = groups.find((group) => group.group === 'settings');
 
-    expect(settings?.areas.map((area) => area.id)).not.toContain('first-run');
-    // The zone itself survives: it holds more than this one entry.
-    expect(settings?.areas.length).toBeGreaterThan(0);
+    for (const id of RETIRED) {
+      expect(settings?.areas.map((area) => area.id)).not.toContain(id);
+    }
+    // The zone itself survives: Integrations and Settings still hold it open.
+    expect(settings?.areas.map((area) => area.id)).toEqual([
+      'integrations',
+      'settings',
+    ]);
   });
 
   it('is still reachable by address once it leaves the navigation', () => {
     // "Appears and disappears" is about the sidebar. A route that stopped
-    // resolving would make the settings link to it a dead end.
-    expect(areaByPath('/first-run')?.id).toBe('first-run');
+    // resolving would make a link to it — or an internal `areaFor` call the
+    // screen it still renders depends on — a dead end.
+    for (const id of RETIRED) {
+      expect(areaByPath(areaFor(id).path)?.id, id).toBe(id);
+    }
   });
 });
 
@@ -212,5 +263,145 @@ describe('the trail a page header carries', () => {
     expect(trail.map((crumb) => crumb.label)).toEqual(['page.runs.title', 'run-0001']);
     expect(trail[0]?.href).toBe('/runs');
     expect(trail[1]?.href).toBeUndefined();
+  });
+});
+
+describe('the Settings subnav manifest', () => {
+  it('carries the nine pages the subnav needs, each with a path of its own', () => {
+    const paths = SETTINGS_PAGES.map((page) => page.path);
+    expect(new Set(paths).size).toBe(SETTINGS_PAGES.length);
+    expect(SETTINGS_PAGES.length).toBe(9);
+    for (const page of SETTINGS_PAGES) {
+      expect(page.path.startsWith('/settings/'), page.id).toBe(true);
+    }
+  });
+
+  it('gives every settings page an identifier of its own', () => {
+    const ids = SETTINGS_PAGES.map((page) => page.id);
+    expect(new Set(ids).size).toBe(SETTINGS_PAGES.length);
+  });
+
+  it('names only groups the subnav declares, in the documented order', () => {
+    expect([...SETTINGS_GROUPS]).toEqual(['organization', 'agent', 'data']);
+    for (const page of SETTINGS_PAGES) {
+      expect(SETTINGS_GROUPS, page.id).toContain(page.group);
+    }
+  });
+
+  it('puts every page in the group the mockup assigns it, in the mockup order', () => {
+    expect(
+      SETTINGS_PAGES.filter((p) => p.group === 'organization').map((p) => p.id),
+    ).toEqual([
+      'settings-members-roles',
+      'settings-single-sign-on',
+      'settings-machine-tokens',
+      'settings-audit-log',
+    ]);
+    expect(SETTINGS_PAGES.filter((p) => p.group === 'agent').map((p) => p.id)).toEqual([
+      'settings-models-providers',
+      'settings-autonomy-guardrails',
+      'settings-notifications',
+    ]);
+    expect(SETTINGS_PAGES.filter((p) => p.group === 'data').map((p) => p.id)).toEqual([
+      'settings-alert-intake',
+      'settings-schedules-destinations',
+    ]);
+  });
+
+  it('takes every string it renders from the catalogue', () => {
+    for (const page of SETTINGS_PAGES) {
+      expect(EN[page.label], page.id).toBeDefined();
+      expect(EN[page.context], page.id).toBeDefined();
+    }
+    for (const group of SETTINGS_GROUPS) {
+      expect(EN[`settings.group.${group}` as const], group).toBeDefined();
+    }
+  });
+
+  it('declares a permission for every page, and never invents one — the same contract as an area', () => {
+    for (const page of SETTINGS_PAGES) {
+      expect(page.permission, page.id).toMatch(/^[a-z]+\.[a-z]+$/);
+    }
+  });
+
+  it('finds a settings page by identifier, and refuses one it does not have', () => {
+    expect(settingsPageFor('settings-audit-log').path).toBe('/settings/audit-log');
+    expect(() => settingsPageFor('nowhere')).toThrow('nowhere');
+  });
+
+  it('finds a settings page by path, and answers nothing for a path it does not serve', () => {
+    expect(settingsPageByPath('/settings/audit-log')?.id).toBe('settings-audit-log');
+    expect(settingsPageByPath('/settings/audit-log/')?.id).toBe('settings-audit-log');
+    expect(settingsPageByPath('/settings/no-such-page')).toBeUndefined();
+  });
+
+  it('drops the pages the viewer has no permission for', () => {
+    const viewer = viewerHolding(['config.read']);
+    const visible = visibleSettingsPages(viewer).map((page) => page.id);
+
+    expect(visible).toContain('settings-alert-intake');
+    expect(visible).not.toContain('settings-audit-log');
+    expect(visible).not.toContain('settings-autonomy-guardrails');
+  });
+
+  it('shows an owner every settings page there is', () => {
+    expect(visibleSettingsPages(OWNER)).toHaveLength(SETTINGS_PAGES.length);
+  });
+
+  it('drops a whole subnav group when nothing in it is permitted, the same rule groupsFor follows', () => {
+    // A viewer holding only what every role holds (config.read) reaches both
+    // Data pages and nothing in Organization or Agent — so the subnav offers
+    // exactly one group, not three with two of them empty.
+    const viewer = viewerHolding(['config.read']);
+    const groups = settingsGroupsFor(viewer).map((group) => group.group);
+
+    expect(groups).toEqual(['data']);
+  });
+
+  it('keeps the groups in the documented order, for a viewer who reaches all three', () => {
+    expect(settingsGroupsFor(OWNER).map((group) => group.group)).toEqual([
+      ...SETTINGS_GROUPS,
+    ]);
+  });
+});
+
+describe('the redirect table from a retired route to its settings equivalent', () => {
+  it('carries at least one destination for every retired route the acceptance scenarios name', () => {
+    const from = new Set(SETTINGS_REDIRECTS.map((entry) => entry.from));
+    expect(from).toContain('/autonomy');
+    expect(from).toContain('/administration');
+    expect(from).toContain('/signals');
+  });
+
+  it('sends every redirect to a page this console actually serves', () => {
+    for (const entry of SETTINGS_REDIRECTS) {
+      expect(
+        areaByPath(entry.to) ?? settingsPageByPath(entry.to),
+        `${entry.from}${entry.tab === undefined ? '' : `?tab=${entry.tab}`}`,
+      ).toBeDefined();
+    }
+  });
+
+  it('resolves a bare old route to its new address', () => {
+    expect(settingsRedirectTarget('/autonomy', null)).toBe(
+      '/settings/autonomy-guardrails',
+    );
+  });
+
+  it('resolves a query-of-tab variant to a different address than the bare route', () => {
+    expect(settingsRedirectTarget('/signals', null)).toBe('/settings/alert-intake');
+    expect(settingsRedirectTarget('/signals', 'destinations')).toBe(
+      '/settings/schedules-destinations',
+    );
+    expect(settingsRedirectTarget('/administration', 'audit')).toBe(
+      '/settings/audit-log',
+    );
+    expect(settingsRedirectTarget('/administration', 'people')).toBe(
+      '/settings/members-roles',
+    );
+  });
+
+  it('answers nothing for a route the table does not retire', () => {
+    expect(settingsRedirectTarget('/incidents', null)).toBeUndefined();
   });
 });

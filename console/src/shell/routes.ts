@@ -218,10 +218,14 @@ export const AREAS: readonly Area[] = [
     icon: ActivityIcon,
   },
   {
-    // First in its zone, and the one entry with a `visible` rule: this is a
-    // task rather than a place. It sits *inside* the shell — nothing redirects
-    // to it, so an operator still deciding whether to keep this product can
-    // look at the whole of it before filling in a form.
+    // The one entry whose `visible` rule is unconditional rather than a
+    // question about the deployment: the hybrid navigation retired this from
+    // the sidebar outright, because setting a deployment up is a task rather
+    // than a place and it is rebuilt as a wizard of its own. The route
+    // stays served — nothing redirects away from it while there is a
+    // checklist left to finish — so an operator still deciding whether to
+    // keep this product can look at the whole of it before filling in a
+    // form, and a link into it from anywhere in the product still resolves.
     id: 'first-run',
     path: '/first-run',
     group: 'settings',
@@ -230,7 +234,7 @@ export const AREAS: readonly Area[] = [
     context: 'page.firstRun.context',
     permission: 'config.read',
     icon: CompassIcon,
-    visible: (context) => !context.checklistComplete,
+    visible: () => false,
   },
   // What the Catalogue used to be, once its browsing half moved to The
   // agent: 85 integrations as cards with a real state (absent, stored,
@@ -252,10 +256,34 @@ export const AREAS: readonly Area[] = [
     permission: 'integration.manage',
     icon: LayersIcon,
   },
+  // The hybrid navigation's other sidebar entry: Settings opens a subnav of
+  // its own (`SETTINGS_PAGES`, below) rather than a screen. Gated on the one
+  // permission every signed-in principal holds — the same one `dashboard`
+  // uses — because the hub itself reads nothing; what a viewer's own
+  // permissions narrow is which of the nine pages the subnav offers once
+  // they are inside, exactly the way an empty incidents list still opens.
+  {
+    id: 'settings',
+    path: '/settings',
+    group: 'settings',
+    label: 'nav.settings',
+    title: 'page.settings.title',
+    context: 'page.settings.context',
+    permission: 'investigation.read',
+    icon: SettingsIcon,
+  },
   // Fuses Detectors and Data: two halves of the one pipe an alert travels
   // through, entrada and saída, that used to sit in different zones of the
   // menu for no reason a reader could see. Both already needed
   // `config.read`.
+  //
+  // Retired from the sidebar by the hybrid navigation (its own `visible`
+  // rule, below) — two of its four tabs now have Settings pages of their own
+  // (`settings-alert-intake`, `settings-schedules-destinations`) and the old
+  // address redirects to whichever the query names. The area entry itself
+  // stays: `/signals?tab=observation` keeps rendering this screen, because
+  // nothing in the nine Settings pages replaces continuous observation yet,
+  // and `emptiness.ts`'s `watchingCause` still points there by address.
   {
     id: 'signals',
     path: '/signals',
@@ -265,7 +293,11 @@ export const AREAS: readonly Area[] = [
     context: 'page.signals.context',
     permission: 'config.read',
     icon: DatabaseIcon,
+    visible: () => false,
   },
+  // Retired from the sidebar by the hybrid navigation; `/settings/autonomy-
+  // guardrails` renders this same screen. The area entry stays because the
+  // screen's own header still resolves it by this id.
   {
     id: 'autonomy',
     path: '/autonomy',
@@ -275,7 +307,13 @@ export const AREAS: readonly Area[] = [
     context: 'page.autonomy.context',
     permission: 'config.write',
     icon: ShieldIcon,
+    visible: () => false,
   },
+  // The one exception to the hybrid navigation's redirect table: the raw
+  // editor is not retired until the schema-parity migration replaces it, so
+  // its own address keeps serving it unredirected. It leaves the sidebar
+  // like its former siblings — reachable, not offered — because none of the
+  // nine Settings pages is it yet.
   {
     id: 'configuration',
     path: '/configuration',
@@ -285,6 +323,7 @@ export const AREAS: readonly Area[] = [
     context: 'page.configuration.context',
     permission: 'config.read',
     icon: SettingsIcon,
+    visible: () => false,
   },
   // Audit is a tab here rather than its own entry: it is read in the context
   // of "who did what", the neighbouring question to "who may do what", and
@@ -294,6 +333,11 @@ export const AREAS: readonly Area[] = [
   // parses this file with a regular expression that reads `id` immediately
   // after the brace, so a comment inside makes an area invisible to the check
   // that every declared route is walked.
+  //
+  // Retired from the sidebar by the hybrid navigation; `settings-members-
+  // roles` and `settings-audit-log` carry this screen's two tabs onward as
+  // their own addresses. The area entry stays because this screen's own
+  // header still resolves it by this id.
   {
     id: 'administration',
     path: '/administration',
@@ -303,6 +347,7 @@ export const AREAS: readonly Area[] = [
     context: 'page.administration.context',
     permission: 'identity.read',
     icon: UsersIcon,
+    visible: () => false,
   },
 ];
 
@@ -415,4 +460,245 @@ export function trailFor(
     );
   });
   return trail;
+}
+
+/**
+ * The Settings subnav.
+ *
+ * A page here is a sibling of `Area` rather than one: it has no place in the
+ * top-level sidebar and no icon (the subnav draws it as plain text, the way
+ * the mockup does), and it is reached through exactly one address, the
+ * Settings area's own. What it shares with `Area` is everything that matters
+ * for the same reasons — a route, a permission copied from the gateway by
+ * name, and the same absence-not-disabled rule `groupsFor` already applies —
+ * so the shape below mirrors `Area` deliberately rather than by coincidence.
+ */
+
+/** The three groups the subnav draws, in the order the mockup draws them. */
+export const SETTINGS_GROUPS = ['organization', 'agent', 'data'] as const;
+
+export type SettingsGroup = (typeof SETTINGS_GROUPS)[number];
+
+/** One page of the Settings subnav: a route, a group, a gate. */
+export interface SettingsPage {
+  readonly id: string;
+  readonly path: string;
+  readonly group: SettingsGroup;
+  /** Doubles as the subnav's own link text and the page's title — the mockup
+   * draws them as the same word, and a separate title key would only ever
+   * hold the same string a second time. */
+  readonly label: MessageKey;
+  readonly context: MessageKey;
+  /** The permission the API requires on the data this page reads. */
+  readonly permission: string;
+}
+
+/**
+ * The nine pages, in the three groups the mockup draws them in.
+ *
+ * None of the nine has a screen purpose-built for it yet; the work that
+ * builds each domain's own screen is still ahead.
+ * Four of the nine (Members & roles, Audit log, Models & providers,
+ * Autonomy & guardrails) render a screen this console already has, because
+ * an equivalent screen already exists; the remaining five render the shared
+ * empty state, naming the page that arrives with the work that builds it,
+ * because a route that exists and says so is worth more than a screen
+ * invented to fill the gap.
+ *
+ * The comment below is outside every object literal deliberately, for the
+ * same reason `administration`'s comment above is: the contract suite parses
+ * this file with a regular expression that reads `id` immediately after the
+ * brace, and a comment inside would make that entry invisible to the check
+ * that every declared route is covered.
+ */
+export const SETTINGS_PAGES: readonly SettingsPage[] = [
+  {
+    id: 'settings-members-roles',
+    path: '/settings/members-roles',
+    group: 'organization',
+    label: 'settings.page.membersRoles',
+    context: 'settings.page.membersRoles.context',
+    permission: 'identity.read',
+  },
+  {
+    id: 'settings-single-sign-on',
+    path: '/settings/single-sign-on',
+    group: 'organization',
+    label: 'settings.page.singleSignOn',
+    context: 'settings.page.singleSignOn.context',
+    permission: 'sso.manage',
+  },
+  {
+    id: 'settings-machine-tokens',
+    path: '/settings/machine-tokens',
+    group: 'organization',
+    label: 'settings.page.machineTokens',
+    context: 'settings.page.machineTokens.context',
+    permission: 'token.manage',
+  },
+  {
+    id: 'settings-audit-log',
+    path: '/settings/audit-log',
+    group: 'organization',
+    label: 'settings.page.auditLog',
+    context: 'settings.page.auditLog.context',
+    permission: 'audit.read',
+  },
+  // Models & providers has no screen of its own yet — the raw editor and the
+  // setup wizard are the only places a provider is chosen today, and neither
+  // is what this page becomes. `config.write` because choosing what drives
+  // an investigation is a change to configuration, the same reasoning
+  // `autonomy`'s own gate already applies.
+  {
+    id: 'settings-models-providers',
+    path: '/settings/models-providers',
+    group: 'agent',
+    label: 'settings.page.modelsProviders',
+    context: 'settings.page.modelsProviders.context',
+    permission: 'config.write',
+  },
+  {
+    id: 'settings-autonomy-guardrails',
+    path: '/settings/autonomy-guardrails',
+    group: 'agent',
+    label: 'settings.page.autonomyGuardrails',
+    context: 'settings.page.autonomyGuardrails.context',
+    permission: 'config.write',
+  },
+  // No screen anywhere in the console reads or writes notification policy
+  // today. `config.write` for the same reason `settings-models-providers`
+  // takes it: the domain is a configuration change, not a read.
+  {
+    id: 'settings-notifications',
+    path: '/settings/notifications',
+    group: 'agent',
+    label: 'settings.page.notifications',
+    context: 'settings.page.notifications.context',
+    permission: 'config.write',
+  },
+  // `config.read`, copied from the permission the retired `signals` area
+  // already declared for this exact domain (the gateway's own
+  // `/v1/transit/ingress` and `/v1/transit/destinations` both take it too).
+  {
+    id: 'settings-alert-intake',
+    path: '/settings/alert-intake',
+    group: 'data',
+    label: 'settings.page.alertIntake',
+    context: 'settings.page.alertIntake.context',
+    permission: 'config.read',
+  },
+  {
+    id: 'settings-schedules-destinations',
+    path: '/settings/schedules-destinations',
+    group: 'data',
+    label: 'settings.page.schedulesDestinations',
+    context: 'settings.page.schedulesDestinations.context',
+    permission: 'config.read',
+  },
+];
+
+/** Kept so the subnav is a closed list rather than a suggestion. */
+const SETTINGS_PAGES_BY_ID: ReadonlyMap<string, SettingsPage> = new Map(
+  SETTINGS_PAGES.map((page) => [page.id, page]),
+);
+
+/** The settings page called `id`, or an error naming what was asked for. */
+export function settingsPageFor(id: string): SettingsPage {
+  const page = SETTINGS_PAGES_BY_ID.get(id);
+  if (page === undefined) {
+    throw new Error(`${id} is not a page of the Settings subnav`);
+  }
+  return page;
+}
+
+/**
+ * The settings page a path names, ignoring a trailing slash.
+ *
+ * `undefined` rather than a throw, for the reason `areaByPath` gives: an
+ * address a person typed is not a defect.
+ */
+export function settingsPageByPath(path: string): SettingsPage | undefined {
+  const trimmed = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
+  return SETTINGS_PAGES.find((page) => page.path === trimmed);
+}
+
+/** The settings pages `viewer` may reach. Absence, not disabled — the same rule `visibleAreas` follows. */
+export function visibleSettingsPages(viewer: Viewer): readonly SettingsPage[] {
+  return SETTINGS_PAGES.filter((page) => may(viewer, page.permission));
+}
+
+/** One group of the subnav, with the pages of it this viewer may reach. */
+export interface SettingsPageGroup {
+  readonly group: SettingsGroup;
+  readonly pages: readonly SettingsPage[];
+}
+
+/**
+ * The subnav, grouped and in order, with empty groups dropped entirely.
+ *
+ * The same construction as `groupsFor`, over the sibling list: a group
+ * nothing in it is reachable is omitted rather than shown open and empty.
+ */
+export function settingsGroupsFor(viewer: Viewer): readonly SettingsPageGroup[] {
+  const visible = visibleSettingsPages(viewer);
+  return SETTINGS_GROUPS.map((group) => ({
+    group,
+    pages: visible.filter((page) => page.group === group),
+  })).filter((entry) => entry.pages.length > 0);
+}
+
+/**
+ * One old address the hybrid navigation retires, and the new one it sends a
+ * visitor to instead.
+ *
+ * `tab` absent is the entry `settingsRedirectTarget` falls back to when the
+ * query names no tab this table recognises — the same address the retired
+ * screen itself used to default to, so a visitor who bookmarked the bare
+ * route or an unrecognised variant of it still lands somewhere true to what
+ * they had.
+ */
+export interface LegacySettingsRedirect {
+  readonly from: string;
+  readonly tab?: string;
+  readonly to: string;
+}
+
+/**
+ * Every redirect the hybrid navigation ships with.
+ *
+ * `/first-run` is not here: its redirect depends on whether the checklist is
+ * complete, a fact this table cannot hold, so its own route file reads it
+ * directly. `/configuration` is not here at all — it is the one address the
+ * migration does not retire yet.
+ *
+ * `/signals?tab=observation` is deliberately absent too: nothing in the nine
+ * Settings pages replaces continuous observation, so that one variant keeps
+ * rendering the screen it always has rather than redirecting to a page that
+ * would say the wrong thing about why nothing is here.
+ */
+export const SETTINGS_REDIRECTS: readonly LegacySettingsRedirect[] = [
+  { from: '/autonomy', to: '/settings/autonomy-guardrails' },
+  { from: '/administration', to: '/settings/members-roles' },
+  { from: '/administration', tab: 'people', to: '/settings/members-roles' },
+  { from: '/administration', tab: 'audit', to: '/settings/audit-log' },
+  { from: '/signals', to: '/settings/alert-intake' },
+  { from: '/signals', tab: 'intake', to: '/settings/alert-intake' },
+  { from: '/signals', tab: 'destinations', to: '/settings/schedules-destinations' },
+  { from: '/signals', tab: 'schedules', to: '/settings/schedules-destinations' },
+];
+
+/**
+ * Where `path` (with `tab`, when the caller has one) redirects to, or
+ * `undefined` when nothing retires it.
+ */
+export function settingsRedirectTarget(
+  path: string,
+  tab: string | null,
+): string | undefined {
+  const candidates = SETTINGS_REDIRECTS.filter((entry) => entry.from === path);
+  if (tab !== null) {
+    const named = candidates.find((entry) => entry.tab === tab);
+    if (named !== undefined) return named.to;
+  }
+  return candidates.find((entry) => entry.tab === undefined)?.to;
 }

@@ -16,7 +16,7 @@ import { message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
 import { readFailure } from '@/surfaces/failures';
 import { TUTORIAL_REPLAY_HREF } from '@/surfaces/first-run/tutorial-setting';
-import { visibleAreas, type AreaContext } from './routes';
+import { visibleAreas, visibleSettingsPages, type AreaContext } from './routes';
 import type { Found } from './search';
 
 /** The sections the palette groups by, in the order it shows them.
@@ -70,6 +70,31 @@ export function navigationCommands(
     hint: area.path,
     href: area.path,
     permission: area.permission,
+  }));
+}
+
+/**
+ * The pages under Settings, each offered by the words written on it.
+ *
+ * Separate from the areas rather than folded into them, because they are
+ * reached differently: an area is one click from the sidebar, and these sit
+ * behind a second navigation. That is exactly why they belong here — somebody
+ * who knows the phrase "Single sign-on" should not have to also know it lives
+ * under Settings, then under Organization, to get to it. The palette is what
+ * makes the name enough.
+ *
+ * Each carries the permission its own page declares, so the registry drops the
+ * ones the viewer cannot reach by the same rule it drops an area — absent, not
+ * offered-and-refusing.
+ */
+export function settingsCommands(viewer: Viewer, locale: Locale): readonly Command[] {
+  return visibleSettingsPages(viewer).map((page) => ({
+    id: `go:${page.id}`,
+    group: 'navigate' as const,
+    label: message(locale, page.label),
+    hint: page.path,
+    href: page.path,
+    permission: page.permission,
   }));
 }
 
@@ -176,6 +201,7 @@ export function commandsFor(
 ): readonly Command[] {
   const everything = [
     ...navigationCommands(viewer, locale, context),
+    ...settingsCommands(viewer, locale),
     ...runCommands(runs, locale),
     ...actionCommands(locale),
   ];

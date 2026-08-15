@@ -1383,4 +1383,49 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'proposals.prior.heading': 'Recusada antes',
   'proposals.prior.entry': '{who} em {when}: {reason}',
   'attention.proposal': 'Mudança proposta',
+
+  // --- O hub de Settings: sua própria entrada, e os grupos e páginas da subnav -
+  // Os nomes dos grupos da subnav e de cada página abaixo ficam em inglês em
+  // todo idioma — são o vocabulário do próprio produto para esses lugares, do
+  // mesmo jeito que o nome de uma integração nunca é traduzido.
+  'nav.settings': 'Ajustes',
+  'settings.subnav.label': 'Páginas de ajustes',
+  'page.settings.title': 'Ajustes',
+  'page.settings.context':
+    'Tudo sobre esta instalação que não é trabalho de incidente: quem tem acesso, como o agente se comporta e de onde os dados vêm.',
+  'settings.group.organization': 'Organization',
+  'settings.group.agent': 'Agent',
+  'settings.group.data': 'Data',
+  'settings.page.membersRoles': 'Members & roles',
+  'settings.page.membersRoles.context':
+    'Quem existe nesta instalação, os papéis que cada um tem e as sessões abertas.',
+  'settings.page.singleSignOn': 'Single sign-on',
+  'settings.page.singleSignOn.context': 'Como as pessoas entram sem uma senha local.',
+  'settings.page.machineTokens': 'Machine tokens',
+  'settings.page.machineTokens.context':
+    'Credenciais emitidas para um script ou serviço, agrupadas pelo que as criou.',
+  'settings.page.auditLog': 'Audit log',
+  'settings.page.auditLog.context': 'Quem fez o quê, quando, e contra qual recurso.',
+  'settings.page.modelsProviders': 'Models & providers',
+  'settings.page.modelsProviders.context':
+    'Qual modelo conduz as investigações, e a credencial em que ele roda.',
+  'settings.page.autonomyGuardrails': 'Autonomy & guardrails',
+  'settings.page.autonomyGuardrails.context':
+    'O que esta instalação pode fazer por conta própria, e sobre o que precisa perguntar.',
+  'settings.page.notifications': 'Notifications',
+  'settings.page.notifications.context':
+    'Para onde um relatório vai quando uma investigação termina, e quando ficar em silêncio.',
+  'settings.page.alertIntake': 'Alert intake',
+  'settings.page.alertIntake.context':
+    'O que chega, e as regras que decidem o que acontece com aquilo.',
+  'settings.page.schedulesDestinations': 'Schedules & destinations',
+  'settings.page.schedulesDestinations.context':
+    'As investigações que rodam por horário, e para onde um alerta vai depois de chegar.',
+  // Compartilhada por toda página que a subnav lista antes de a funcionalidade
+  // dona dela ser entregue — nomeada com honestidade em vez de deixada de fora
+  // da subnav, porque uma rota que existe e diz isso vale mais que uma tela
+  // inventada só para preencher o espaço.
+  'settings.notBuilt.body':
+    'Esta tela faz parte da reformulação de {group}, que ainda não foi lançada.',
+  'settings.notBuilt.action': 'Voltar para Ajustes',
 };

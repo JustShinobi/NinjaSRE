@@ -259,6 +259,12 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
 
   return (
     <>
+      {/* Renders the area's own header rather than the Settings breadcrumb
+          `SettingsPageHeader` gives every other Settings page: this screen is
+          reused whole, unmodified, at `/settings/autonomy-guardrails`, and is
+          also still rendered directly by its own extensive test suite. A
+          named, accepted gap against the full "Settings → Agent → Autonomy &
+          guardrails" trail, to be closed when this screen is rebuilt. */}
       <AreaHeader
         area={areaFor('autonomy')}
         locale={locale}

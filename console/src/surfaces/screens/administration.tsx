@@ -79,8 +79,16 @@ export function principalIdentity(locale: Locale, person: unknown): string {
     : text(person, 'user_id');
 }
 
-/** The "People" tab of Administration: who exists, and what they hold. */
-async function PeopleTab(context: SurfaceContext): Promise<ReactNode> {
+/**
+ * Who exists, and what they hold.
+ *
+ * Exported as well as used by `AdministrationScreen` below: `/settings/
+ * members-roles` renders this same body under its own Settings header rather
+ * than `AdministrationScreen`'s own — the hybrid navigation's page and this
+ * screen's People tab are the same content at two addresses during the
+ * transition, and only this function needs to be shared for that to be true.
+ */
+export async function PeopleTab(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone } = context;
   const init = authorised(credential);
 

@@ -235,16 +235,24 @@ test('killing the browser mid-flow loses nothing, because nothing was kept', asy
   await second.close();
 });
 
-test('the navigation entry appears while there is something left to do', async ({
+test('the dashboard invites the wizard while there is something left to do', async ({
   page,
 }) => {
+  // The hybrid navigation retired the sidebar entry this
+  // used to click: the wizard is a task, not a place, and the rule that
+  // decided whether to show it moved to the dashboard's own invite
+  // (`SetupHero`) rather than to a nav entry that appeared and disappeared.
   await page.goto('/');
   // The tutorial is over the whole page on purpose, so it is dismissed before
   // anything behind it is clicked — which is itself the overlay working.
   await page.getByTestId('tutorial-skip').click();
 
-  const entry = page.locator('[data-testid="nav-entry"][data-area="first-run"]');
-  await expect(entry).toBeVisible();
-  await entry.click();
+  await expect(
+    page.locator('[data-testid="nav-entry"][data-area="first-run"]'),
+  ).toHaveCount(0);
+
+  const hero = page.getByTestId('setup-hero');
+  await expect(hero).toBeVisible();
+  await page.getByTestId('setup-hero-cta').click();
   await expect(page).toHaveURL(/\/first-run/);
 });

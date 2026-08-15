@@ -8,8 +8,9 @@ import {
   navigationCommands,
   type SearchAnswer,
 } from '@/shell/commands';
+import { message } from '@/i18n/messages';
 import { isPaletteShortcut, Palette } from '@/shell/palette';
-import { visibleAreas } from '@/shell/routes';
+import { visibleAreas, visibleSettingsPages } from '@/shell/routes';
 
 import { owner, ROLE_ORDER, viewerAt } from './support';
 
@@ -35,6 +36,32 @@ describe('the registry areas contribute to', () => {
   it('offers every area the viewer may reach, and no other', () => {
     const offered = navigationCommands(VIEWER, 'en').map((command) => command.href);
     expect(offered).toEqual(visibleAreas(VIEWER).map((area) => area.path));
+  });
+
+  it('offers every Settings page by its display name, not only the areas', () => {
+    // A page reached by opening Settings and then picking from a second
+    // navigation is two steps away from somebody who already knows its name.
+    // The palette is what makes the name enough, so every page the viewer may
+    // reach is offered by the words on it — "Single sign-on", not "Settings".
+    const offered = commandsFor(VIEWER, 'en');
+    const reachable = visibleSettingsPages(VIEWER);
+
+    expect(reachable.length).toBeGreaterThan(0);
+    for (const page of reachable) {
+      const found = offered.find((command) => command.href === page.path);
+      expect(found, `no palette command reaches ${page.path}`).toBeDefined();
+      expect(found?.label).toBe(message('en', page.label));
+    }
+  });
+
+  it('drops a Settings page command the viewer may not reach', () => {
+    const least = ROLE_ORDER[0];
+    if (least === undefined) throw new Error('the role catalogue is empty');
+    const offered = commandsFor(viewerAt(least), 'en').map((command) => command.href);
+
+    // Absent, not disabled — the same rule the subnav and the sidebar keep.
+    expect(offered).not.toContain('/settings/members-roles');
+    expect(offered).not.toContain('/settings/audit-log');
   });
 
   it('drops an area command the viewer may not run', () => {
@@ -73,7 +100,7 @@ describe('the registry areas contribute to', () => {
   });
 
   it('matches without regard to case, because nobody types the case', () => {
-    expect(matching(commands(), 'SIGNALS').length).toBeGreaterThan(0);
+    expect(matching(commands(), 'KNOWLEDGE').length).toBeGreaterThan(0);
   });
 });
 
@@ -113,12 +140,12 @@ describe('the palette, from the keyboard alone', () => {
 
   it('filters as somebody types', async () => {
     open();
-    await userEvent.keyboard('signals');
+    await userEvent.keyboard('knowledge');
 
     const shown = screen
       .getAllByTestId('palette-command')
       .map((command) => command.getAttribute('data-command'));
-    expect(shown).toEqual(['go:signals']);
+    expect(shown).toEqual(['go:knowledge']);
   });
 
   it('says nothing matches rather than showing an empty list', async () => {
@@ -148,10 +175,10 @@ describe('the palette, from the keyboard alone', () => {
 
   it('runs the highlighted command on Enter', async () => {
     const { onRun } = open();
-    await userEvent.keyboard('signals{Enter}');
+    await userEvent.keyboard('knowledge{Enter}');
 
     expect(onRun).toHaveBeenCalledOnce();
-    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/signals' });
+    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/knowledge' });
   });
 
   it('runs nothing at all when nothing matches', async () => {
@@ -325,7 +352,7 @@ describe('searching the deployment from the palette', () => {
       />,
     );
 
-    await person.type(screen.getByTestId('palette-query'), 'signals');
+    await person.type(screen.getByTestId('palette-query'), 'knowledge');
 
     expect(screen.getAllByTestId('palette-command').length).toBeGreaterThan(0);
   });
@@ -369,16 +396,16 @@ describe('the palette with a pointer, which people also use', () => {
       />,
     );
 
-    const signals = screen
+    const knowledge = screen
       .getAllByTestId('palette-command')
-      .find((node) => node.getAttribute('data-command') === 'go:signals');
-    if (signals === undefined) {
-      throw new Error('the palette did not offer the signals row');
+      .find((node) => node.getAttribute('data-command') === 'go:knowledge');
+    if (knowledge === undefined) {
+      throw new Error('the palette did not offer the knowledge row');
     }
-    await person.click(signals);
+    await person.click(knowledge);
 
     expect(onRun).toHaveBeenCalledOnce();
-    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/signals' });
+    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/knowledge' });
   });
 
   it('follows the pointer with the highlight, so Enter runs what is under it', async () => {

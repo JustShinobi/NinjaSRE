@@ -21,6 +21,14 @@ import { signIn } from './session';
  * The menu reorganisation folded six of these areas into three: Approvals
  * became the Decisions area's default tab, Detectors and Data both became
  * the Signals area, and Audit became a tab of Administration.
+ *
+ * The hybrid navigation removed four more for the identical
+ * reason: `signals`, `autonomy`, `administration` now redirect from their own
+ * address (`tests/e2e/settings-nav.spec.ts` covers each redirect and the
+ * Settings pages that replace them), and `configuration`, though still
+ * served unredirected, left the sidebar along with them, so this loop's own
+ * "the sidebar marks the id it opened" assertion no longer holds for it
+ * either.
  */
 const AREAS = [
   { id: 'dashboard', path: '/', title: 'Overview' },
@@ -29,10 +37,6 @@ const AREAS = [
   { id: 'decisions', path: '/decisions', title: 'Decisions' },
   { id: 'resources', path: '/resources', title: 'Resources' },
   { id: 'knowledge', path: '/knowledge', title: 'Knowledge' },
-  { id: 'signals', path: '/signals', title: 'Signals' },
-  { id: 'autonomy', path: '/autonomy', title: 'Autonomy' },
-  { id: 'configuration', path: '/configuration', title: 'Configuration' },
-  { id: 'administration', path: '/administration', title: 'Administration' },
 ] as const;
 
 async function currentArea(page: Page): Promise<string | null> {
@@ -154,10 +158,13 @@ test.describe('a signed-in operator', () => {
     await page.goto('/');
     await openPalette(page);
 
-    await page.keyboard.type('signals');
+    // Not `signals`: the hybrid navigation removed that area from
+    // `navigationCommands` along with the sidebar, so the palette no longer
+    // offers it either — `knowledge` is a still-current area instead.
+    await page.keyboard.type('knowledge');
     await page.keyboard.press('Enter');
 
-    await expect(page).toHaveURL(/\/signals$/);
+    await expect(page).toHaveURL(/\/knowledge$/);
   });
 
   test('dismisses the palette without changing the page', async ({ page }) => {

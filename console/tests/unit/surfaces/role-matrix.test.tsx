@@ -49,7 +49,15 @@ const WRITE_CONTROLS = [
   { testId: 'answer', permission: 'investigation.run' },
 ] as const;
 
-const SCREENS = [...AREA_SCREENS, ...DETAIL_SCREENS];
+// `first-run` is excluded: this file serves `populated` throughout, whose
+// checklist is complete (`fixtures/scenarios/populated/setup-checklist.json`
+// carries `"complete": true`), and a complete checklist sends that route to
+// the dashboard instead of rendering it — a `redirect()` call has no write
+// controls to assert about. `tests/unit/shell/route-files.test.tsx` covers
+// both of its states.
+const SCREENS = [...AREA_SCREENS, ...DETAIL_SCREENS].filter(
+  (each) => each.id !== 'first-run',
+);
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');

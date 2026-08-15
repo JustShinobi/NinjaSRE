@@ -143,6 +143,37 @@ def test_every_declared_permission_is_one_the_platform_has() -> None:
         assert permission in catalogue, f"{identifier} names {permission}, which does not exist"
 
 
+#: Settings-page identifiers, as `declared_areas` reads them — every one of
+#: them regex-visible the same way an `Area` is, because the hybrid
+#: navigation's `SettingsPage` entries in `routes.ts` follow the identical
+#: "`id:` right after the brace" contract. That is what makes every check
+#: above this line already cover the nine Settings pages without change: the
+#: parser does not distinguish an `Area` from a `SettingsPage`, so a
+#: permission it declares is already checked against the platform's own
+#: catalogue, and a duplicate id is already refused.
+def declared_settings_page_ids() -> frozenset[str]:
+    """Return the ids `declared_areas` finds that belong to the Settings subnav."""
+    return frozenset(
+        identifier for identifier, _, _ in declared_areas() if identifier.startswith("settings")
+    )
+
+
+def test_the_console_declares_the_nine_settings_pages_the_subnav_needs() -> None:
+    """Nine pages, none of them invisible to the parser every other check reads."""
+    assert declared_settings_page_ids() == {
+        "settings",
+        "settings-members-roles",
+        "settings-single-sign-on",
+        "settings-machine-tokens",
+        "settings-audit-log",
+        "settings-models-providers",
+        "settings-autonomy-guardrails",
+        "settings-notifications",
+        "settings-alert-intake",
+        "settings-schedules-destinations",
+    }
+
+
 #: Which route each area reads, for the areas whose data the gateway already
 #: serves *and* whose route is declared in the table this file composes below
 #: (`ROUTE_TABLE` extended with `GATEWAY_ROUTES` and `CONSOLE_ROUTES` — not
@@ -192,6 +223,35 @@ def test_an_area_takes_the_permission_the_gateway_requires_of_its_data(area: str
     )
 
 
+#: The same walk as `AREA_ROUTE`, over the four Settings pages whose data the
+#: gateway already serves at a route this composition reaches. The other five
+#: (Models & providers, Autonomy & guardrails, Notifications, Alert intake,
+#: Schedules & destinations) render the shared empty state rather
+#: than reading anything yet — `test_every_declared_permission_is_one_the_
+#: platform_has` is what holds those, the same way it holds `autonomy` and
+#: `signals` above.
+SETTINGS_PAGE_ROUTE: Final[dict[str, tuple[str, str]]] = {
+    "settings-members-roles": ("GET", "/identity/principals"),
+    "settings-single-sign-on": ("GET", "/identity/sso"),
+    "settings-machine-tokens": ("GET", "/identity/tokens"),
+    "settings-audit-log": ("GET", "/audit/events"),
+}
+
+
+@pytest.mark.parametrize("page", sorted(SETTINGS_PAGE_ROUTE))
+def test_a_settings_page_takes_the_permission_the_gateway_requires_of_its_data(
+    page: str,
+) -> None:
+    """The console reads the permission the server enforces, by name — same contract as an area."""
+    declared = {identifier: permission for identifier, _, permission in declared_areas()}
+    method, path = SETTINGS_PAGE_ROUTE[page]
+
+    assert declared[page] == _server_permission(method, path), (
+        f"{page} declares {declared[page]}, but the gateway requires "
+        f"{_server_permission(method, path)} on {method} {path}"
+    )
+
+
 def test_the_deploy_walk_covers_exactly_the_areas_the_console_declares() -> None:
     """One fact, two holders, and this is what forces them to agree.
 
@@ -200,8 +260,20 @@ def test_the_deploy_walk_covers_exactly_the_areas_the_console_declares() -> None
     So the walk restates the paths and this holds the restatement level. A
     fifteenth area whose route nobody walks would otherwise be promoted the same
     way the two broken ones were.
+
+    The nine Settings pages plus their own hub are read by `declared_areas`
+    (their ids follow the identical id-after-brace contract an `Area` does)
+    but are deliberately absent from this comparison: the hybrid navigation
+    gave four of the areas this walk already covered a
+    redirect at their own address instead of a second, separate render, and
+    `SHELL_PATHS` — `tools/console_smoke.py`'s own restatement — walks each of
+    those at the one address that still answers 200, not at both. Extending
+    the deploy walk itself to the ten Settings addresses is that tool's own
+    change to make, not this contract's.
     """
-    declared = {path for _, path, _ in declared_areas()}
+    declared = {
+        path for identifier, path, _ in declared_areas() if not identifier.startswith("settings")
+    }
 
     assert set(SHELL_PATHS) == declared, {
         "walked but not declared": sorted(set(SHELL_PATHS) - declared),

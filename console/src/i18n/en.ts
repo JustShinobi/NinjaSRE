@@ -1484,6 +1484,50 @@ export const EN = {
   'proposals.prior.heading': 'Refused before',
   'proposals.prior.entry': '{who} on {when}: {reason}',
   'attention.proposal': 'Proposed change',
+
+  // --- The Settings hub: its own entry, and the subnav's groups and pages ------
+  // The subnav's group names and every page name below stay in English in
+  // every locale — they are the product's own vocabulary for these places,
+  // the same way an integration's own name is never translated.
+  'nav.settings': 'Settings',
+  'settings.subnav.label': 'Settings pages',
+  'page.settings.title': 'Settings',
+  'page.settings.context':
+    'Everything about this deployment that is not incident work: who has access, how the agent behaves, and where data comes from.',
+  'settings.group.organization': 'Organization',
+  'settings.group.agent': 'Agent',
+  'settings.group.data': 'Data',
+  'settings.page.membersRoles': 'Members & roles',
+  'settings.page.membersRoles.context':
+    'Who exists in this deployment, the roles they hold, and the sessions they have open.',
+  'settings.page.singleSignOn': 'Single sign-on',
+  'settings.page.singleSignOn.context': 'How people sign in without a local password.',
+  'settings.page.machineTokens': 'Machine tokens',
+  'settings.page.machineTokens.context':
+    'Credentials issued for a script or a service, grouped by what created them.',
+  'settings.page.auditLog': 'Audit log',
+  'settings.page.auditLog.context': 'Who did what, when, and against which resource.',
+  'settings.page.modelsProviders': 'Models & providers',
+  'settings.page.modelsProviders.context':
+    'Which model drives investigations, and the credential it runs on.',
+  'settings.page.autonomyGuardrails': 'Autonomy & guardrails',
+  'settings.page.autonomyGuardrails.context':
+    'What this deployment may do on its own, and what it must ask about.',
+  'settings.page.notifications': 'Notifications',
+  'settings.page.notifications.context':
+    'Where a report goes once an investigation finishes, and when to stay quiet.',
+  'settings.page.alertIntake': 'Alert intake',
+  'settings.page.alertIntake.context':
+    'What arrives, and the rules that decide what happens to it.',
+  'settings.page.schedulesDestinations': 'Schedules & destinations',
+  'settings.page.schedulesDestinations.context':
+    'The investigations that run on a clock, and where an alert ends up once it has one.',
+  // Shared by every page the subnav lists before the feature that owns it has
+  // shipped — named honestly rather than left off the subnav, because a route
+  // that exists and says so is worth more than one invented to fill the gap.
+  'settings.notBuilt.body':
+    'This page is part of the {group} rework, which has not shipped yet.',
+  'settings.notBuilt.action': 'Back to Settings',
 } as const;
 
 /** Every key the console may render. Derived, so a typo is a type error. */

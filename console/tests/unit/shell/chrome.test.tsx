@@ -64,11 +64,16 @@ function renderSidebar(current = '/'): void {
 describe('the sidebar', () => {
   it('draws the four groups the design draws, in the documented order', () => {
     renderSidebar();
+    // Scoped to the heading elements themselves: the Settings hub's own nav
+    // entry is now labelled "Settings" too (the hybrid navigation's own
+    // entry, not the zone it sits in), and an unscoped query would count that
+    // label a second time.
     const headings = screen
       .getAllByText(
         new RegExp(
           `^(${NAV_GROUPS.map((group) => message('en', `nav.group.${group}`)).join('|')})$`,
         ),
+        { selector: 'p' },
       )
       .map((element) => element.textContent);
 
@@ -95,13 +100,16 @@ describe('the sidebar', () => {
   });
 
   it('marks exactly one entry as current, and marks the right one', () => {
-    renderSidebar('/administration');
+    // `/administration` no longer names a sidebar entry — the hybrid
+    // navigation retired it — so this exercises an entry the sidebar still
+    // carries; `integrations` keeps its own place next to Settings.
+    renderSidebar('/integrations');
     const marked = screen
       .getAllByTestId('nav-entry')
       .filter((entry) => entry.getAttribute('aria-current') === 'page');
 
     expect(marked).toHaveLength(1);
-    expect(marked[0]?.getAttribute('data-area')).toBe('administration');
+    expect(marked[0]?.getAttribute('data-area')).toBe('integrations');
   });
 
   it('marks the area a nested route belongs to, not nothing at all', () => {
@@ -191,10 +199,16 @@ describe('the sidebar', () => {
   it('renders every label from the catalogue, in whichever language the viewer reads', () => {
     render(<Sidebar viewer={owner()} locale="pt-BR" guardian={GUARDIAN} />);
 
+    // `nav.administration` is no longer a sidebar label — the hybrid
+    // navigation retired the entry it named — so `nav.settings` (the Settings
+    // hub that replaced it) carries this proof instead. Scoped to the nav
+    // entry's own element: the Settings zone heading (`nav.group.settings`)
+    // translates to the same Portuguese word, and an unscoped query would
+    // find both and throw on the ambiguity.
     expect(
-      screen.getByText(message('pt-BR', 'nav.administration')),
+      screen.getByText(message('pt-BR', 'nav.settings'), { selector: 'span' }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(EN['nav.administration'])).toBeNull();
+    expect(screen.queryByText(EN['nav.settings'], { selector: 'span' })).toBeNull();
   });
 });
 

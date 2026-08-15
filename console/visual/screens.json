@@ -3,7 +3,7 @@
   "screens": [
     {
       "id": "administration-1440-light",
-      "route": "/administration",
+      "route": "/settings/members-roles",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
@@ -14,7 +14,7 @@
     },
     {
       "id": "administration-audit-1440-light",
-      "route": "/administration?tab=audit",
+      "route": "/settings/audit-log",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
@@ -69,7 +69,7 @@
     },
     {
       "id": "autonomy-1440-light",
-      "route": "/autonomy",
+      "route": "/settings/autonomy-guardrails",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
@@ -114,13 +114,14 @@
     {
       "id": "first-run-1440-light",
       "route": "/first-run",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The path somebody walks once, on the day nothing works yet. It is the least exercised screen in the product and the one whose breakage is discovered by a stranger."
-      }
+      },
+      "pending_because": "The guided run is reached only while the checklist is open, and this suite captures a deployment whose checklist is closed, so the route now answers with the dashboard. Photographing that would be a second copy of the dashboard baseline wearing the wizard's name, and it would never fail again whatever happened to the wizard. The first-day Playwright project is what covers the wizard until it has an address of its own that survives a finished checklist."
     },
     {
       "id": "gallery-1440-dark",
@@ -356,13 +357,14 @@
     {
       "id": "signals-1440-light",
       "route": "/signals",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Intake tab, and the default one now that ingress, routing, continuous observation and destinations are four tabs of a single screen: what arrives and what happens to it, in the order data moves through them. No reference is drawn for it; the baseline exists because the one thing this tab has to get right is *emphasis without alarm* — a receiver that has never delivered is drawn first, in the same neutral tone as everything else, and a change that lost either the ordering or the neutrality would be invisible to every other check while undoing the whole reason the tab reads this way."
-      }
+      },
+      "pending_because": "Alert intake has no screen of its own yet, so this address answers with the honest stand-in rather than the intake it is named after."
     },
     {
       "id": "signals-observation-1440-light",
@@ -378,24 +380,26 @@
     {
       "id": "signals-schedules-1440-light",
       "route": "/signals?tab=schedules",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Schedules tab: investigations that run on a clock rather than a detector, absent rather than disabled for a viewer who may not manage them. First capture at this address: needs recapturing before it protects anything."
-      }
+      },
+      "pending_because": "Schedules and destinations became one page that nothing has built yet; this and the destinations entry would capture the same stand-in."
     },
     {
       "id": "signals-destinations-1440-light",
       "route": "/signals?tab=destinations",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Destinations tab: where the result goes, and which outbound deliveries failed and can be resent. First capture at this address: needs recapturing before it protects anything."
-      }
+      },
+      "pending_because": "Schedules and destinations became one page that nothing has built yet; this and the schedules entry would capture the same stand-in."
     }
   ],
   "mockups": [

@@ -1,15 +1,13 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
-import type { SearchParams } from '@/surfaces/context';
+import { areaMetadata } from '@/shell/area';
+import { AdministrationScreen } from '@/surfaces/screens/administration';
+import { AutonomyScreen } from '@/surfaces/screens/autonomy';
+import { SignalsScreen } from '@/surfaces/screens/signals';
+import { surfaceContext, type SearchParams } from '@/surfaces/context';
 
-import Administration, {
-  generateMetadata as administrationMeta,
-} from '@/app/(shell)/administration/page';
 import Agent, { generateMetadata as agentMeta } from '@/app/(shell)/agent/page';
-import Autonomy, {
-  generateMetadata as autonomyMeta,
-} from '@/app/(shell)/autonomy/page';
 import Configuration, {
   generateMetadata as configurationMeta,
 } from '@/app/(shell)/configuration/page';
@@ -35,7 +33,6 @@ import Resources, {
 } from '@/app/(shell)/resources/page';
 import RunDetail from '@/app/(shell)/runs/[runId]/page';
 import Runs, { generateMetadata as runsMeta } from '@/app/(shell)/runs/page';
-import Signals, { generateMetadata as signalsMeta } from '@/app/(shell)/signals/page';
 
 /**
  * Every screen this console has, in one list.
@@ -59,7 +56,54 @@ export interface Screen {
   readonly metadata?: () => Promise<Metadata>;
 }
 
-/** Every area the manifest declares, whether or not the navigation is showing it. */
+/**
+ * `signals`, `autonomy`, `administration`, rendered directly.
+ *
+ * The hybrid navigation retired all three from their own address — that
+ * address now redirects to a Settings page instead of rendering
+ * (`tests/unit/shell/route-files.test.tsx` covers the redirect) — but every
+ * cross-cutting proof this list feeds is about the *screen*, not the address
+ * it used to answer at, and the screen itself is unchanged: it is the same
+ * function, reused whole at its new Settings address. Calling it here the
+ * same way its own route file used to is what keeps every proof that already
+ * existed for these three screens covering them still.
+ */
+async function renderSignals({
+  searchParams,
+}: {
+  readonly searchParams: Promise<SearchParams>;
+}): Promise<ReactNode> {
+  return SignalsScreen(await surfaceContext(await searchParams));
+}
+
+async function renderAutonomy({
+  searchParams,
+}: {
+  readonly searchParams: Promise<SearchParams>;
+}): Promise<ReactNode> {
+  return AutonomyScreen(await surfaceContext(await searchParams));
+}
+
+async function renderAdministration({
+  searchParams,
+}: {
+  readonly searchParams: Promise<SearchParams>;
+}): Promise<ReactNode> {
+  return AdministrationScreen(await surfaceContext(await searchParams));
+}
+
+/**
+ * Every area the manifest declares and still renders its own screen, whether
+ * or not the navigation is showing it — modulo `settings`, the one entry
+ * with no screen at all: it only ever redirects, to whichever Settings page
+ * is first for the viewer, so there is nothing here for a cross-cutting
+ * proof to render.
+ *
+ * `first-run` stays, and renders normally under every scenario this suite
+ * serves except the one whose checklist is complete
+ * (`serveScenario('populated')`, in `tests/unit/shell/route-files.test.tsx`,
+ * which excludes it from its own render loop rather than from this list).
+ */
 export const AREA_SCREENS: readonly Screen[] = [
   { id: 'dashboard', render: Overview, metadata: overviewMeta },
   { id: 'incidents', render: Incidents, metadata: incidentsMeta },
@@ -70,10 +114,22 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'agent', render: Agent, metadata: agentMeta },
   { id: 'first-run', render: FirstRun, metadata: firstRunMeta },
   { id: 'integrations', render: Integrations, metadata: integrationsMeta },
-  { id: 'signals', render: Signals, metadata: signalsMeta },
-  { id: 'autonomy', render: Autonomy, metadata: autonomyMeta },
+  {
+    id: 'signals',
+    render: renderSignals,
+    metadata: () => areaMetadata('signals'),
+  },
+  {
+    id: 'autonomy',
+    render: renderAutonomy,
+    metadata: () => areaMetadata('autonomy'),
+  },
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
-  { id: 'administration', render: Administration, metadata: administrationMeta },
+  {
+    id: 'administration',
+    render: renderAdministration,
+    metadata: () => areaMetadata('administration'),
+  },
 ];
 
 /** The two detail screens, which are reached from a list rather than the navigation. */

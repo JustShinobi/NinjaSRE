@@ -1,6 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { surfaceContext } from '@/surfaces/context';
+import { AutonomyScreen } from '@/surfaces/screens/autonomy';
+
 import { serveScenario } from '../support/dataset';
 
 /**
@@ -41,8 +44,11 @@ afterEach(() => {
 async function renderAutonomy(
   query: Readonly<Record<string, string>> = {},
 ): Promise<void> {
-  const { default: Page } = await import('@/app/(shell)/autonomy/page');
-  render(await Page({ searchParams: Promise.resolve(query) }));
+  // The screen itself, not `/autonomy`'s own route file: that address now
+  // redirects to `/settings/autonomy-guardrails`, which renders this same
+  // screen — `console/tests/unit/shell/route-files.test.tsx` covers the
+  // redirect, and this file is about the screen's own content.
+  render(await AutonomyScreen(await surfaceContext(query)));
 }
 
 function respond(body: unknown, status = 200): Response {

@@ -142,7 +142,14 @@ describe('SC-007: every screen’s filter and selection state round-trips', () =
     expect(readViewState(written, ['status'])).toEqual(VIEW);
   });
 
-  for (const [index, target] of AREA_SCREENS.entries()) {
+  // `first-run` is served `populated`'s checklist here too, which is complete
+  // (`fixtures/scenarios/populated/setup-checklist.json`), so this route
+  // redirects rather than rendering with the address's own filters — nothing
+  // this describe block is about. `tests/unit/shell/route-files.test.tsx`
+  // covers both of its states.
+  const ROUND_TRIP_SCREENS = AREA_SCREENS.filter((each) => each.id !== 'first-run');
+
+  for (const [index, target] of ROUND_TRIP_SCREENS.entries()) {
     it(`${target.id}: renders whatever its address carries without throwing`, async () => {
       // The address is the input. A screen that could only be reached by
       // clicking would pass every other test in this file and fail this one.
@@ -154,7 +161,7 @@ describe('SC-007: every screen’s filter and selection state round-trips', () =
           selected: 'run-0004',
           sort: '-started_at',
         },
-        AREA_SCREENS,
+        ROUND_TRIP_SCREENS,
       );
 
       expect(screen.getByTestId('page-header')).toBeInTheDocument();
@@ -167,9 +174,13 @@ describe('the populated dataset', () => {
     serveScenario('populated');
   });
 
-  for (const [index, target] of ALL_SCREENS.entries()) {
+  // `first-run` redirects under this scenario's complete checklist rather
+  // than rendering — see the comment on `ROUND_TRIP_SCREENS` above.
+  const POPULATED_SCREENS = ALL_SCREENS.filter((each) => each.id !== 'first-run');
+
+  for (const [index, target] of POPULATED_SCREENS.entries()) {
     it(`${target.id}: renders against the capture the design was drawn from`, async () => {
-      await renderScreen(index);
+      await renderScreen(index, {}, POPULATED_SCREENS);
 
       expect(screen.getByTestId('page-header')).toBeInTheDocument();
       // Nothing on a populated deployment may fail: every read in this suite is
