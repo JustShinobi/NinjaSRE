@@ -60,6 +60,17 @@ const HAS_NO_SCREEN = new Set(['settings']);
  */
 const RENDERS_COLD_UNDER_A_DIFFERENT_SCENARIO = new Set(['first-run']);
 
+/**
+ * `autonomy` renders normally under this file's own scenario, but the loop's
+ * assertion — `data-area` equals the area id, and the metadata title is the
+ * *area's* title — stopped being its own shape the day it was rebuilt as the
+ * Settings page's own screen. Its header is `SettingsPageHeader`, which
+ * carries the *Settings page's* id and title rather than the area's.
+ * `describe('the autonomy Settings page, cold')` below covers it with the
+ * assertion that is actually true of it now.
+ */
+const HEADER_IS_NOT_THE_AREAS_OWN = new Set(['autonomy']);
+
 vi.mock('next/headers', () => ({
   cookies: () =>
     Promise.resolve({
@@ -105,7 +116,9 @@ describe('the route files and the manifest', () => {
 describe('a deep link to every route', () => {
   it.each(
     AREA_SCREENS.filter(
-      (file) => !RENDERS_COLD_UNDER_A_DIFFERENT_SCENARIO.has(file.id),
+      (file) =>
+        !RENDERS_COLD_UNDER_A_DIFFERENT_SCENARIO.has(file.id) &&
+        !HEADER_IS_NOT_THE_AREAS_OWN.has(file.id),
     ).map((file) => [file.id, file] as const),
   )('%s renders cold, with its own title', async (id, file) => {
     // Awaited, because a route file is an async server component: what a cold
@@ -116,6 +129,24 @@ describe('a deep link to every route', () => {
     if (file.metadata === undefined) throw new Error(`${id} declares no metadata`);
     expect(await file.metadata()).toMatchObject({
       title: `${message('en', areaFor(id).title)} · HAL9000`,
+    });
+  });
+});
+
+describe('the autonomy Settings page, cold', () => {
+  it('renders cold, with the Settings page’s own id and title rather than the area’s', async () => {
+    const target = AREA_SCREENS.find((file) => file.id === 'autonomy');
+    if (target === undefined) throw new Error('no autonomy screen in AREA_SCREENS');
+
+    render(await target.render({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.getByTestId('page-header')).toHaveAttribute(
+      'data-area',
+      'settings-autonomy-guardrails',
+    );
+    if (target.metadata === undefined) throw new Error('autonomy declares no metadata');
+    expect(await target.metadata()).toMatchObject({
+      title: `Autonomy & guardrails · HAL9000`,
     });
   });
 });

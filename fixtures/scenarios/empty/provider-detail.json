@@ -22,6 +22,20 @@
         "guidance": "Hosted. Requests leave your infrastructure for Anthropic's API.",
         "install_hint": "pip install 'ninjasre[anthropic]'",
         "local": false,
+        "model_capabilities": [
+          {
+            "model_id": "claude-opus-5",
+            "supports_tools": true
+          },
+          {
+            "model_id": "claude-sonnet-5",
+            "supports_tools": true
+          },
+          {
+            "model_id": "claude-haiku-4-5",
+            "supports_tools": true
+          }
+        ],
         "models": [
           "claude-opus-5",
           "claude-sonnet-5",
@@ -96,6 +110,7 @@
         "guidance": "Hosted in your own AWS account. Model access has to be enabled on the account before a request will succeed.",
         "install_hint": "pip install 'ninjasre[bedrock]'",
         "local": false,
+        "model_capabilities": [],
         "models": [],
         "provider_id": "aws_bedrock",
         "verified": false,
@@ -158,6 +173,7 @@
         "guidance": "Hosted in your own Azure tenant. Requests stay inside the region the resource is deployed to.",
         "install_hint": "pip install 'ninjasre[azure]'",
         "local": false,
+        "model_capabilities": [],
         "models": [],
         "provider_id": "azure_openai",
         "verified": false,
@@ -196,6 +212,32 @@
         "guidance": "Hosted. Requests leave your infrastructure for Google's API.",
         "install_hint": "pip install 'ninjasre[google]'",
         "local": false,
+        "model_capabilities": [
+          {
+            "model_id": "gemini-pro-latest",
+            "supports_tools": true
+          },
+          {
+            "model_id": "gemini-flash-latest",
+            "supports_tools": true
+          },
+          {
+            "model_id": "gemini-3.1-pro-preview",
+            "supports_tools": true
+          },
+          {
+            "model_id": "gemini-3.6-flash",
+            "supports_tools": true
+          },
+          {
+            "model_id": "gemini-2.5-pro",
+            "supports_tools": true
+          },
+          {
+            "model_id": "gemini-2.5-flash",
+            "supports_tools": true
+          }
+        ],
         "models": [
           "gemini-pro-latest",
           "gemini-flash-latest",
@@ -257,6 +299,7 @@
         "guidance": "Hosted in your own Google Cloud project. Requests stay inside the location the endpoint is in.",
         "install_hint": "pip install 'ninjasre[google]'",
         "local": false,
+        "model_capabilities": [],
         "models": [],
         "provider_id": "google_vertex_ai",
         "verified": false,
@@ -303,6 +346,7 @@
         "guidance": "Runs wherever you deploy it. Pointed at your own NIM container, nothing leaves your infrastructure.",
         "install_hint": "pip install 'ninjasre[nvidia]'",
         "local": false,
+        "model_capabilities": [],
         "models": [],
         "provider_id": "nvidia_nim",
         "verified": false,
@@ -341,6 +385,7 @@
         "guidance": "Runs entirely on infrastructure you control. A deployment configured this way emits no model traffic off-host at all, which is the whole point of the option being here rather than in a footnote.",
         "install_hint": "pip install 'ninjasre[ollama]'",
         "local": true,
+        "model_capabilities": [],
         "models": [],
         "provider_id": "ollama",
         "verified": false,
@@ -387,6 +432,20 @@
         "guidance": "Hosted. Requests leave your infrastructure for OpenAI's API.",
         "install_hint": "pip install 'ninjasre[openai]'",
         "local": false,
+        "model_capabilities": [
+          {
+            "model_id": "gpt-5",
+            "supports_tools": null
+          },
+          {
+            "model_id": "gpt-5-mini",
+            "supports_tools": null
+          },
+          {
+            "model_id": "o4",
+            "supports_tools": null
+          }
+        ],
         "models": [
           "gpt-5",
           "gpt-5-mini",
@@ -437,6 +496,7 @@
         "guidance": "Hosted, and it routes onward to whichever provider serves the model you name. Two hops rather than one, which is worth knowing before you point it at anything sensitive.",
         "install_hint": "pip install 'ninjasre[openrouter]'",
         "local": false,
+        "model_capabilities": [],
         "models": [],
         "provider_id": "openrouter",
         "verified": false,

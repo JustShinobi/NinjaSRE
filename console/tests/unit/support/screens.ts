@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
-import { areaMetadata } from '@/shell/area';
+import { areaMetadata, settingsPageMetadata } from '@/shell/area';
 import { AdministrationScreen } from '@/surfaces/screens/administration';
-import { AutonomyScreen } from '@/surfaces/screens/autonomy';
 import { SignalsScreen } from '@/surfaces/screens/signals';
+import { AutonomyScreen } from '@/surfaces/settings/autonomy';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 
 import Agent, { generateMetadata as agentMeta } from '@/app/(shell)/agent/page';
@@ -65,12 +65,13 @@ export interface Screen {
  *
  * The hybrid navigation retired all three from their own address — that
  * address now redirects to a Settings page instead of rendering
- * (`tests/unit/shell/route-files.test.tsx` covers the redirect) — but every
- * cross-cutting proof this list feeds is about the *screen*, not the address
- * it used to answer at, and the screen itself is unchanged: it is the same
- * function, reused whole at its new Settings address. Calling it here the
- * same way its own route file used to is what keeps every proof that already
- * existed for these three screens covering them still.
+ * (`tests/unit/shell/route-files.test.tsx` covers the redirect). `signals`
+ * and `administration` are unchanged, reused whole at their new Settings
+ * address; `autonomy` was rebuilt as the Settings page's own screen
+ * (`@/surfaces/settings/autonomy`), which absorbed rule/freeze/budget
+ * creation and the guardrails domain, and this old id keeps pointing at it so
+ * every cross-cutting proof this list feeds — about the *screen*, not the
+ * address it used to answer at — keeps covering it.
  */
 async function renderSignals({
   searchParams,
@@ -141,7 +142,11 @@ export const AREA_SCREENS: readonly Screen[] = [
   {
     id: 'autonomy',
     render: renderAutonomy,
-    metadata: () => areaMetadata('autonomy'),
+    // The Settings page's own metadata, not the retired area's: the real
+    // route file (`app/(shell)/settings/autonomy-guardrails/page.tsx`) calls
+    // `settingsPageMetadata`, and this entry has to match what it actually
+    // produces.
+    metadata: () => settingsPageMetadata('settings-autonomy-guardrails'),
   },
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
   {

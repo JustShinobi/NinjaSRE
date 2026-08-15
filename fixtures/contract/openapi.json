@@ -3911,6 +3911,31 @@
         "title": "MissingSignalView",
         "type": "object"
       },
+      "ModelCapabilityView": {
+        "description": "One model a provider's onboarding lists, and what the registry knows about it.\n\n``supports_tools`` is ``None`` when the registry holds no row for this model\nat all — a name the onboarding lists that nothing has described yet. That is\nnever presented as \"does not support\": a console reading it that way would\nsend an operator away from a model that might work perfectly well, on the\nstrength of a gap in this build's own catalogue rather than a fact about the\nmodel.",
+        "properties": {
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "supports_tools": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supports Tools"
+          }
+        },
+        "required": [
+          "model_id"
+        ],
+        "title": "ModelCapabilityView",
+        "type": "object"
+      },
       "ObservationListView": {
         "properties": {
           "observations": {
@@ -5038,6 +5063,13 @@
             "title": "Local",
             "type": "boolean"
           },
+          "model_capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCapabilityView"
+            },
+            "title": "Model Capabilities",
+            "type": "array"
+          },
           "models": {
             "items": {
               "type": "string"
@@ -5067,7 +5099,8 @@
           "verified",
           "default_model",
           "fields",
-          "models"
+          "models",
+          "model_capabilities"
         ],
         "title": "ProviderDetailView",
         "type": "object"

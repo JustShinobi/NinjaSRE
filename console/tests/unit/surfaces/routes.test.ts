@@ -145,6 +145,28 @@ describe('previewing a configuration change', () => {
     expect(sent).toBeNull();
   });
 
+  it('forwards which paths would be cleared, beside the patch', async () => {
+    // `ConfigEditor` posts `{ nodeId, patch, remove }` — a path in `remove`
+    // is a pending "return to inheritance", and the deployment's own preview
+    // is the only honest answer to what that resolves to. A courier that
+    // forwarded only `patch` would preview a change that leaves every
+    // cleared override exactly as it was, and 040's own "revert to default"
+    // controls for Models & providers depend on this same courier.
+    await preview(
+      request('/api/preview', {
+        nodeId: 'org-northwind',
+        patch: {},
+        remove: ['models.subagent.provider', 'models.subagent.model'],
+      }),
+    );
+
+    const forwarded: unknown = JSON.parse(bodySent());
+    expect(Reflect.get(Object(forwarded), 'remove')).toEqual([
+      'models.subagent.provider',
+      'models.subagent.model',
+    ]);
+  });
+
   it('names what was missing when it refuses, so the screen has words to show', async () => {
     // "The deployment refused:" with nothing after the colon was this body:
     // a 400 whose JSON carried no reason at all.
@@ -213,5 +235,23 @@ describe('writing a configuration change', () => {
     expect(answer.status).toBe(400);
     const body: unknown = await answer.json();
     expect(String(Reflect.get(Object(body), 'reason') ?? '')).not.toBe('');
+  });
+
+  it('forwards which paths to clear, beside the patch', async () => {
+    // The save half of the same pairing the preview test above proves: a
+    // save that dropped `remove` would leave a cleared override in place
+    // while the preview it was approved against said it would be gone.
+    await write(
+      request('/api/config', {
+        nodeId: 'org-northwind',
+        patch: {},
+        remove: ['models.subagent.provider'],
+      }),
+    );
+
+    const forwarded: unknown = JSON.parse(bodySent());
+    expect(Reflect.get(Object(forwarded), 'remove')).toEqual([
+      'models.subagent.provider',
+    ]);
   });
 });

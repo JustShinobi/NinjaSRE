@@ -2,18 +2,28 @@ import type { ReactNode } from 'react';
 
 import { Badge } from '@/components/status';
 import { formatNumber } from '@/i18n/format';
+import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
 import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
+import { SettingsPageHeader } from '@/shell/area';
+import { settingsPageFor } from '@/shell/routes';
 import { KillSwitchControl } from '@/shell/stop';
 import type { SurfaceContext } from '../context';
-import { AutonomyEditor, type EditableRule } from '../autonomy-editor';
+import {
+  AutonomyEditor,
+  type EditableBound,
+  type EditableRule,
+} from '../autonomy-editor';
+import { editableFields } from '../editable';
+import { readSetupState } from '../emptiness';
+import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { panelLabels } from '../labels';
 import { OverrideEditor, type ActiveOverride } from '../override-editor';
 import { Panel } from '../panel';
+import { ConfigEditor } from '../preview';
 import { postureLabels } from '../postures';
+import { provenanceLabel } from '../screens/configuration';
 import {
   authorised,
   dataOf,
@@ -22,76 +32,33 @@ import {
   flag,
   list,
   number,
+  pairs,
   panelRead,
   read,
   stateOf,
   text,
 } from '../read';
+import { EffectiveFieldsTable } from './resolution-preview';
+import { valueAt } from './values';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
- * What this deployment may do on its own, and why.
+ * The single surface that edits what this deployment may do on its own: the
+ * rules, the freeze windows, the spend caps, the overrides, and the
+ * guardrails (masking, secret detection, approval) — absorbing the tela
+ * Autonomy atual whole, at its Settings address.
  *
- * The rules table is the whole screen and it is read in **resolution order** —
- * least specific first — because that is the order the deployment reads them in
- * and an operator checking "which of these wins" should not have to reconstruct
- * the precedence from the scopes.
- *
- * The footer is not decoration and stays whatever the table holds. Absence of a
- * rule resolves to propose-only, and an operator reading an empty table has to
- * know whether empty means "anything goes" or "nothing happens without me".
- * Guessing the permissive answer is the one direction this must never be wrong
- * in, so the screen says it rather than implying it.
- *
- * The bounds beside it are the four no level overrides. They are shown even
- * when the table is full, because "restarting is autonomous here" and "and
- * nothing runs between 01:00 and 04:00" are both true and an operator who read
- * only the first would be surprised at two in the morning.
- *
- * Every one of those readings is *at a node*, so the node is resolved before
- * anything is asked for. A deployment with no organisation tree yet resolves to
- * none, and then nothing is asked at all: a policy request with no subject is a
- * path with a brace still in it, which the client refuses and which used to take
- * this route down before an operator had any way to choose a node.
- *
- * **One empty state, not three.** Reading no rules and reading no bounds used to
- * be reported by three panels in the same words, and a reader could not tell
- * from that repetition whether the deployment held nothing or the console had
- * asked three times and heard the same "nothing" three times. Now the rules
- * table's own panel is the one place that says so, in the panel's ordinary
- * empty state — and directly beneath it, for a viewer who may write, sits the
- * same editor a real rule would use, seeded with one deployment-wide row at the
- * safest level. Creating the first rule is choosing that row's level and
- * saving it, not a trip to Configuration to work out how. The bounds panel,
- * which would otherwise say the identical "nothing recorded" a second time,
- * is left out of the page entirely when both it and the rules table are
- * genuinely empty — it still appears, as it always did, the moment either one
- * holds something, including a failure of its own read.
- *
- * **The same stop, in the place that governs it.** The topbar's emergency stop
- * and this screen's bounds are one axis, not two: what the switch does *is* a
- * bound, reported here from the same `bounds.stopped` the switch sets. Rather
- * than restate that in the screen's own words, the stopped row renders the
- * shell's own kill-switch control, so resuming automation is available exactly
- * where an operator is already looking at what automation may do.
- *
- * **The vocabulary is stated, not assumed.** A rule, a bound and an override
- * are used throughout this page before anything else on it explains them, so
- * three lines at the top say what each one is — the same three words the rest
- * of the screen already uses, not a fourth set invented for the glossary.
- *
- * **An override is revoked by clicking it, never by typing its name.** Every
- * override this node's bounds report — the informational row above and the
- * revocable one beside it — is resolved once, here, into `activeOverrides`,
- * so a reader sees the same expiry either place and a click always names
- * something the deployment can actually find; there is nothing to remember
- * or mistype.
+ * **The loop this page exists to end.** The screen this replaces sent every
+ * empty state to `/configuration` — the raw editor, edited by a different
+ * path than this one. Every one of those links now goes to the section of
+ * this same page that resolves it: creating the first rule, a freeze, a
+ * budget, or an override never leaves this document again.
  */
 
 export const AUTONOMY_FILTERS: readonly FilterName[] = ['node'];
 
-/** The permission that decides whether the editor is on the page at all. */
+/** The permission that decides whether any editor is on the page at all. */
 const WRITE = 'config.write';
 
 /** The levels the deployment declares, least autonomous first. */
@@ -121,8 +88,7 @@ const DEFAULT_RISK_BOUND = 'low';
 /**
  * What an operator edits when there is no rule yet: one row, scoped to the
  * whole deployment, at the safest level. Saving it *is* creating the first
- * rule — there is no separate "add a rule" affordance to reach for, because
- * this row already is the form.
+ * rule.
  */
 const FIRST_RULE: EditableRule = {
   ruleId: 'deployment',
@@ -161,10 +127,71 @@ function specificityOf(rule: unknown): number {
   return found === -1 ? SCOPE_ORDER.length : found;
 }
 
+/** The three schema groups this page's guardrails section absorbs. */
+const GUARDRAIL_PREFIXES = [
+  'policies.masking.',
+  'policies.guardrails.',
+  'policies.approvals.',
+];
+
+/**
+ * The guardrail scalar fields shown to every viewer, whether or not they may
+ * write — the other half of FR-006, which holds regardless of `config.write`.
+ * The array-shaped fields (`custom_patterns`, `disabled_rules`,
+ * `autonomous_capabilities`) are left off this summary and are still fully
+ * editable below, through `ConfigEditor`.
+ */
+const GUARDRAIL_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'policies.masking.enabled',
+    label: 'settings.autonomy.guardrails.masking.enabled',
+  },
+  {
+    path: 'policies.masking.level',
+    label: 'settings.autonomy.guardrails.masking.level',
+  },
+  { path: 'policies.guardrails.mode', label: 'settings.autonomy.guardrails.mode' },
+  {
+    path: 'policies.guardrails.ruleset',
+    label: 'settings.autonomy.guardrails.ruleset',
+  },
+  {
+    path: 'policies.approvals.threshold',
+    label: 'settings.autonomy.guardrails.threshold',
+  },
+  {
+    path: 'policies.approvals.expiry_hours',
+    label: 'settings.autonomy.guardrails.expiryHours',
+  },
+];
+
+/** The catalogue key for one scope kind, in the order `SCOPE_ORDER` declares them. */
+const SCOPE_LABEL: Readonly<Record<string, MessageKey>> = {
+  deployment: 'autonomy.scope.deployment',
+  team: 'autonomy.scope.team',
+  resource_kind: 'autonomy.scope.resource_kind',
+  labels: 'autonomy.scope.labels',
+  capability: 'autonomy.scope.capability',
+  resource: 'autonomy.scope.resource',
+  capability_resource: 'autonomy.scope.capability_resource',
+};
+
+function displayValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return JSON.stringify(value);
+}
+
 export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search, now, zone } = context;
   const state = readViewState(search, AUTONOMY_FILTERS);
   const init = authorised(credential);
+  const writable = may(viewer, WRITE);
 
   const tree = await panelRead('/v1/config', () => read('/v1/config', init));
   const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
@@ -192,6 +219,19 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
           }),
         );
 
+  const effective =
+    nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
+        );
+  const guardrailFields =
+    !writable || nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
+        );
+
   const rules = [...list(dataOf(policy), 'rules')].sort(
     (left, right) => specificityOf(left) - specificityOf(right),
   );
@@ -200,12 +240,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const freezes = list(dataOf(bounds), 'freezes');
   const budgets = list(dataOf(bounds), 'budgets');
   const overrides = list(dataOf(bounds), 'overrides');
-  const writable = may(viewer, WRITE);
 
-  // Resolved once, here, where the locale and the clock are — the override
-  // editor is a client component with neither. Feeds both the read-only row
-  // below and the revoke list beside it, so the two can never format the same
-  // override's expiry two different ways.
   const activeOverrides: readonly ActiveOverride[] = overrides.map((override) => {
     const expires = timestamp(locale, text(override, 'expires_at'), now, zone);
     return {
@@ -222,20 +257,12 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const rulesEmpty = rules.length === 0;
   const boundsEmpty =
     !stopped && freezes.length === 0 && budgets.length === 0 && overrides.length === 0;
-  // The bounds panel drops out of the page only when it would otherwise repeat
-  // the rules panel's own "nothing recorded" — never when it is reporting a
-  // failure of its own, which is worth a reader's attention on its own terms.
   const showBounds =
     nodeId !== '' &&
     (policy.status === 'error' ||
       bounds.status === 'error' ||
       !(rulesEmpty && boundsEmpty));
 
-  // Every rule carried back as the deployment sent it, so a save changes the
-  // level and nothing else. A console that rebuilt the record from the columns
-  // it renders would drop whatever it does not render. With no rule recorded
-  // yet, the editor is seeded with one deployment-wide row instead of an empty
-  // list, so there is something to choose a level for and save.
   const editable: readonly EditableRule[] =
     rules.length > 0
       ? rules.map((rule, position) => {
@@ -252,30 +279,58 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
         })
       : [FIRST_RULE];
 
-  const configurationHref =
-    nodeId === ''
-      ? '/configuration'
-      : `/configuration?node=${encodeURIComponent(nodeId)}`;
+  const editableFreezes: readonly EditableBound[] = freezes.map((freeze) => ({
+    name: text(freeze, 'name'),
+    record: freeze as Readonly<Record<string, unknown>>,
+  }));
+  const editableBudgets: readonly EditableBound[] = budgets.map((budget) => ({
+    name: text(budget, 'name'),
+    record: budget as Readonly<Record<string, unknown>>,
+  }));
+
+  // The loop this page exists to end: every empty state that used to send an
+  // operator to the raw editor now points at the section of this same page
+  // that creates the thing it was missing. That section only exists on the
+  // page for a writer at a resolved node — the same gate the editor itself
+  // is behind — so an anchor into it is offered only then; anyone else is
+  // sent to the Settings hub, a real place rather than a dangling fragment
+  // or the raw editor either way.
+  const canCreateHere = writable && nodeId !== '';
+  const ruleEditorHref = canCreateHere ? '#new-rule' : '/settings';
+  const boundsEditorHref = canCreateHere ? '#new-freeze' : '/settings';
+  const overrideEditorHref = canCreateHere ? '#override-grant' : '/settings';
+
+  const values = field(dataOf(effective), 'values');
+  const provenance = new Map(pairs(dataOf(effective), 'provenance'));
+  const guardrailRows = GUARDRAIL_FIELD_LIST.map(({ path, label }) => ({
+    path,
+    label: message(locale, label),
+    value: displayValue(valueAt(values, path)),
+    origin: provenanceLabel(locale, path, provenance),
+  }));
+  const guardrailEditable = editableFields(dataOf(guardrailFields)).filter((entry) =>
+    GUARDRAIL_PREFIXES.some((prefix) => entry.path.startsWith(prefix)),
+  );
+
+  const setup = await readSetupState(credential);
+  const page = settingsPageFor('settings-autonomy-guardrails');
 
   return (
     <>
-      {/* Renders the area's own header rather than the Settings breadcrumb
-          `SettingsPageHeader` gives every other Settings page: this screen is
-          reused whole, unmodified, at `/settings/autonomy-guardrails`, and is
-          also still rendered directly by its own extensive test suite. A
-          named, accepted gap against the full "Settings → Agent → Autonomy &
-          guardrails" trail, to be closed when this screen is rebuilt. */}
-      <AreaHeader
-        area={areaFor('autonomy')}
+      <SettingsPageHeader
+        page={page}
         locale={locale}
         // No crumb for a deployment that resolved to no node: a breadcrumb
         // whose last step is blank reads as a page that lost its subject.
         nested={nodeId === '' ? [] : [{ label: nodeId }]}
       />
+      <SetupReturnBanner
+        locale={locale}
+        setup={setup}
+        requested={requestedSetupReturn(search.get('return'))}
+      />
 
-      {/* What the rest of the page assumes an operator already knows. Three
-          lines, one per term, because the page uses all three below without
-          ever pausing to define them otherwise. */}
+      {/* What the rest of the page assumes an operator already knows. */}
       <div
         data-testid="autonomy-glossary"
         className="flex flex-col gap-1 text-meta text-muted mb-5 max-w-prose"
@@ -296,7 +351,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               heading: message(locale, 'autonomy.empty.heading'),
               body: message(locale, 'autonomy.empty.body'),
               actionLabel: message(locale, 'autonomy.empty.action'),
-              href: configurationHref,
+              href: ruleEditorHref,
             }}
           >
             <div className="w-full overflow-x-auto">
@@ -374,7 +429,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   heading: message(locale, 'autonomy.empty.heading'),
                   body: message(locale, 'autonomy.empty.body'),
                   actionLabel: message(locale, 'autonomy.empty.action'),
-                  href: configurationHref,
+                  href: ruleEditorHref,
                 }}
               >
                 <AutonomyEditor
@@ -382,7 +437,15 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   rules={editable}
                   levels={LEVELS}
                   levelLabels={postureLabels(locale, LEVELS)}
+                  scopeKindLabels={Object.fromEntries(
+                    SCOPE_ORDER.map((kind) => [
+                      kind,
+                      message(locale, SCOPE_LABEL[kind] ?? 'autonomy.scope.deployment'),
+                    ]),
+                  )}
                   dryRun={simulated}
+                  freezes={editableFreezes}
+                  budgets={editableBudgets}
                   labels={{
                     level: message(locale, 'autonomy.editor.level'),
                     preview: message(locale, 'autonomy.editor.preview'),
@@ -406,11 +469,123 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     dryRunBanner: message(locale, 'autonomy.editor.dryRunBanner'),
                     decision: message(locale, 'autonomy.editor.decision'),
                     winningRule: message(locale, 'autonomy.editor.winningRule'),
+                    newRuleTitle: message(locale, 'autonomy.editor.newRule.title'),
+                    newRuleScope: message(locale, 'autonomy.editor.newRule.scope'),
+                    newRuleLevel: message(locale, 'autonomy.editor.newRule.level'),
+                    newRuleTeam: message(locale, 'autonomy.editor.newRule.team'),
+                    newRuleResourceKind: message(
+                      locale,
+                      'autonomy.editor.newRule.resourceKind',
+                    ),
+                    newRuleResourceId: message(
+                      locale,
+                      'autonomy.editor.newRule.resourceId',
+                    ),
+                    newRuleCapability: message(
+                      locale,
+                      'autonomy.editor.newRule.capability',
+                    ),
+                    newRuleLabelName: message(
+                      locale,
+                      'autonomy.editor.newRule.labelName',
+                    ),
+                    newRuleLabelValue: message(
+                      locale,
+                      'autonomy.editor.newRule.labelValue',
+                    ),
+                    addRule: message(locale, 'autonomy.editor.newRule.add'),
+                    freezesTitle: message(locale, 'autonomy.freezes.title'),
+                    freezeName: message(locale, 'autonomy.freeze.name'),
+                    freezeStart: message(locale, 'autonomy.freeze.start'),
+                    freezeEnd: message(locale, 'autonomy.freeze.end'),
+                    freezeReason: message(locale, 'autonomy.freeze.reason'),
+                    addFreeze: message(locale, 'autonomy.freeze.add'),
+                    budgetsTitle: message(locale, 'autonomy.budgets.title'),
+                    budgetName: message(locale, 'autonomy.budget.name'),
+                    budgetLimit: message(locale, 'autonomy.budget.limit'),
+                    budgetCountedBy: message(locale, 'autonomy.budget.countedBy'),
+                    addBudget: message(locale, 'autonomy.budget.add'),
                   }}
                 />
               </Panel>
             </div>
           ) : null}
+
+          {/* Guardrails: masking, secret detection and approval — the same
+              document a save here writes, never a second registration. */}
+          <div id="guardrails" className="mt-5 flex flex-col gap-3">
+            <h3 className="text-strong">
+              {message(locale, 'settings.autonomy.guardrails.title')}
+            </h3>
+            <p className="text-meta text-muted max-w-prose">
+              {message(locale, 'settings.autonomy.guardrails.lead')}
+            </p>
+            <ul className="text-meta text-muted list-disc pl-5">
+              <li data-testid="guardrail-invariant">
+                {message(locale, 'settings.autonomy.guardrails.invariant.secret')}
+              </li>
+              <li data-testid="guardrail-invariant">
+                {message(locale, 'settings.autonomy.guardrails.invariant.approval')}
+              </li>
+            </ul>
+            {nodeId === '' ? null : (
+              <EffectiveFieldsTable
+                rows={guardrailRows}
+                labels={{
+                  setting: message(locale, 'configuration.column.setting'),
+                  value: message(locale, 'configuration.column.value'),
+                  origin: message(locale, 'configuration.column.provenance'),
+                }}
+              />
+            )}
+            {writable && nodeId !== '' ? (
+              <ConfigEditor
+                nodeId={nodeId}
+                fields={guardrailEditable}
+                labels={{
+                  setting: message(locale, 'configuration.column.setting'),
+                  value: message(locale, 'configuration.column.value'),
+                  submit: message(locale, 'configuration.editor.submit'),
+                  save: message(locale, 'configuration.editor.save'),
+                  saving: message(locale, 'configuration.editor.saving'),
+                  saved: message(locale, 'configuration.editor.saved'),
+                  failed: message(locale, 'configuration.editor.failed'),
+                  unreachable: message(locale, 'configuration.editor.unreachable'),
+                  before: message(locale, 'configuration.preview.before'),
+                  after: message(locale, 'configuration.preview.after'),
+                  locked: message(locale, 'configuration.locked'),
+                  lockedDetail: message(locale, 'configuration.locked.detail'),
+                  gated: message(locale, 'configuration.gated'),
+                  gatedDetail: message(locale, 'configuration.gated.detail'),
+                  provenance: message(locale, 'configuration.column.provenance'),
+                  setAt: message(locale, 'configuration.editor.setAt'),
+                  usingDefault: message(locale, 'configuration.editor.usingDefault'),
+                  toc: message(locale, 'configuration.editor.toc'),
+                  search: message(locale, 'configuration.editor.search'),
+                  searchEmpty: message(locale, 'configuration.editor.searchEmpty'),
+                  generalSection: message(
+                    locale,
+                    'configuration.editor.generalSection',
+                  ),
+                  empty: message(locale, 'configuration.preview.empty.heading'),
+                  previewFirst: message(locale, 'configuration.editor.previewFirst'),
+                  clear: message(locale, 'configuration.editor.clear'),
+                  cleared: message(locale, 'configuration.editor.cleared'),
+                  redundant: message(locale, 'configuration.editor.redundant'),
+                  reverts: message(locale, 'configuration.editor.reverts'),
+                  notEditable: message(locale, 'configuration.editor.notEditable'),
+                  inherited: message(locale, 'configuration.editor.inherited'),
+                  useSuggested: message(locale, 'configuration.editor.useSuggested'),
+                  addEntry: message(locale, 'configuration.editor.addEntry'),
+                  removeEntry: message(locale, 'configuration.editor.removeEntry'),
+                  moveUp: message(locale, 'configuration.editor.moveUp'),
+                  moveDown: message(locale, 'configuration.editor.moveDown'),
+                  entryPosition: message(locale, 'configuration.editor.entryPosition'),
+                  emptyList: message(locale, 'configuration.editor.emptyList'),
+                }}
+              />
+            ) : null}
+          </div>
         </div>
 
         <div className="min-w-0 flex flex-col gap-5">
@@ -424,7 +599,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 heading: message(locale, 'autonomy.empty.heading'),
                 body: message(locale, 'autonomy.empty.body'),
                 actionLabel: message(locale, 'autonomy.empty.action'),
-                href: configurationHref,
+                href: boundsEditorHref,
               }}
             >
               <dl className="flex flex-col gap-2 text-small">
@@ -440,11 +615,6 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                       <span className="min-w-0 truncate">
                         {text(dataOf(bounds), 'stop_reason')}
                       </span>
-                      {/* The same control the topbar carries, not a second one
-                          this screen invented: what stops automation and what
-                          this screen bounds are one axis, and resuming it
-                          belongs where an operator is already looking at what
-                          automation may do. */}
                       <KillSwitchControl
                         viewer={viewer}
                         locale={locale}
@@ -485,44 +655,37 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     </dd>
                   </div>
                 ))}
-                {activeOverrides.map((override) => {
-                  // Duration and reason in the row itself. An override is a
-                  // deliberate, temporary widening of what may happen without a
-                  // person, and a list that showed only its name would make
-                  // "until when, and who said so" a second lookup nobody makes.
-                  return (
-                    <div
-                      key={override.name}
-                      className="flex flex-wrap items-center gap-3"
-                      data-testid="bound"
-                      data-bound="override"
-                    >
-                      <dt className="font-mono min-w-0 truncate">{override.name}</dt>
-                      <dd className="flex flex-wrap items-center gap-2">
-                        <Badge status={override.level} />
-                        <span
-                          className="text-meta text-muted"
-                          data-testid="override-duration"
+                {activeOverrides.map((override) => (
+                  <div
+                    key={override.name}
+                    className="flex flex-wrap items-center gap-3"
+                    data-testid="bound"
+                    data-bound="override"
+                  >
+                    <dt className="font-mono min-w-0 truncate">{override.name}</dt>
+                    <dd className="flex flex-wrap items-center gap-2">
+                      <Badge status={override.level} />
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="override-duration"
+                      >
+                        {message(locale, 'autonomy.override.duration')}{' '}
+                        <time
+                          dateTime={override.expiresIso}
+                          title={override.expiresAbsolute}
                         >
-                          {message(locale, 'autonomy.override.duration')}{' '}
-                          <time
-                            dateTime={override.expiresIso}
-                            title={override.expiresAbsolute}
-                          >
-                            {override.expiresRelative}
-                          </time>
-                        </span>
-                        <span
-                          className="text-meta text-muted"
-                          data-testid="override-reason"
-                        >
-                          {message(locale, 'autonomy.override.reason')}{' '}
-                          {override.reason}
-                        </span>
-                      </dd>
-                    </div>
-                  );
-                })}
+                          {override.expiresRelative}
+                        </time>
+                      </span>
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="override-reason"
+                      >
+                        {message(locale, 'autonomy.override.reason')} {override.reason}
+                      </span>
+                    </dd>
+                  </div>
+                ))}
               </dl>
             </Panel>
           ) : null}
@@ -541,7 +704,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 heading: message(locale, 'autonomy.empty.heading'),
                 body: message(locale, 'autonomy.empty.body'),
                 actionLabel: message(locale, 'autonomy.empty.action'),
-                href: configurationHref,
+                href: overrideEditorHref,
               }}
             >
               <OverrideEditor

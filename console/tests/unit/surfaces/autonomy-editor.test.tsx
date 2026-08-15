@@ -2,7 +2,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AutonomyEditor, type EditableRule } from '@/surfaces/autonomy-editor';
+import {
+  AutonomyEditor,
+  type EditableBound,
+  type EditableRule,
+} from '@/surfaces/autonomy-editor';
 
 /**
  * Changing what can happen without a person, and the order it has to be read in.
@@ -100,6 +104,27 @@ const LABELS = {
   dryRunBanner: 'Simulating: every action is decided and none of them is performed.',
   decision: 'Decision',
   winningRule: 'Winning rule',
+  newRuleTitle: 'Create a rule',
+  newRuleScope: 'New rule scope',
+  newRuleLevel: 'New rule level',
+  newRuleTeam: 'Team',
+  newRuleResourceKind: 'Resource kind',
+  newRuleResourceId: 'New rule resource',
+  newRuleCapability: 'New rule capability',
+  newRuleLabelName: 'Label name',
+  newRuleLabelValue: 'Label value',
+  addRule: 'Add rule',
+  freezesTitle: 'Freeze windows',
+  freezeName: 'Freeze name',
+  freezeStart: 'Starts',
+  freezeEnd: 'Ends',
+  freezeReason: 'Reason',
+  addFreeze: 'Add freeze',
+  budgetsTitle: 'Budgets',
+  budgetName: 'Budget name',
+  budgetLimit: 'Limit',
+  budgetCountedBy: 'Counted by',
+  addBudget: 'Add budget',
 };
 
 const RULES: readonly EditableRule[] = [
@@ -235,6 +260,177 @@ describe('the dry-run boundary', () => {
 
     expect(sent.at(-1)?.operation).toBe('dry-run');
     expect(await screen.findByTestId('dry-run-banner')).toBeInTheDocument();
+  });
+});
+
+describe('creating a rule with a scope, rather than only levelling an existing one', () => {
+  it('adds a deployment-wide row when no scope narrower than that is chosen', async () => {
+    editor();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText('New rule level'),
+      'act_and_report',
+    );
+    await userEvent.click(screen.getByTestId('add-rule'));
+
+    const added = screen.getAllByTestId('rule-editor');
+    expect(added).toHaveLength(2);
+  });
+
+  it('scopes the new rule to one capability when that kind is chosen', async () => {
+    editor();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText('New rule scope'),
+      'capability',
+    );
+    await userEvent.type(
+      screen.getByLabelText('New rule capability'),
+      'estate.enable_backup_job',
+    );
+    await userEvent.click(screen.getByTestId('add-rule'));
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+
+    const previewed = sent.find((each) => each.operation === 'preview')?.payload;
+    const rules: unknown = Reflect.get(Object(previewed), 'rules');
+    const added = (rules as readonly unknown[]).find(
+      (rule) =>
+        Reflect.get(Object(Reflect.get(Object(rule), 'scope')), 'kind') ===
+        'capability',
+    );
+    expect(Reflect.get(Object(Reflect.get(Object(added), 'scope')), 'capability')).toBe(
+      'estate.enable_backup_job',
+    );
+  });
+
+  it('shows the matching field for every other scope kind, and none of the fields no kind needs', async () => {
+    editor();
+    const scope = screen.getByLabelText('New rule scope');
+
+    await userEvent.selectOptions(scope, 'team');
+    expect(screen.getByLabelText('Team')).toBeInTheDocument();
+    expect(screen.queryByLabelText('New rule resource')).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(scope, 'resource_kind');
+    expect(screen.getByLabelText('Resource kind')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Team')).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(scope, 'labels');
+    expect(screen.getByLabelText('Label name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Label value')).toBeInTheDocument();
+
+    await userEvent.selectOptions(scope, 'resource');
+    expect(screen.getByLabelText('New rule resource')).toBeInTheDocument();
+    expect(screen.queryByLabelText('New rule capability')).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(scope, 'capability_resource');
+    expect(screen.getByLabelText('New rule capability')).toBeInTheDocument();
+    expect(screen.getByLabelText('New rule resource')).toBeInTheDocument();
+  });
+
+  it('scopes a new rule to one team, one resource kind, and a label pair, each carried into the saved document', async () => {
+    editor();
+
+    await userEvent.selectOptions(screen.getByLabelText('New rule scope'), 'team');
+    await userEvent.type(screen.getByLabelText('Team'), 'team-payments');
+    await userEvent.click(screen.getByTestId('add-rule'));
+
+    await userEvent.selectOptions(screen.getByLabelText('New rule scope'), 'resource');
+    await userEvent.type(screen.getByLabelText('New rule resource'), 'vm-201');
+    await userEvent.click(screen.getByTestId('add-rule'));
+
+    await userEvent.selectOptions(screen.getByLabelText('New rule scope'), 'labels');
+    await userEvent.type(screen.getByLabelText('Label name'), 'tier');
+    await userEvent.type(screen.getByLabelText('Label value'), 'critical');
+    await userEvent.click(screen.getByTestId('add-rule'));
+
+    await userEvent.selectOptions(
+      screen.getByLabelText('New rule scope'),
+      'capability_resource',
+    );
+    await userEvent.type(
+      screen.getByLabelText('New rule capability'),
+      'estate.restart',
+    );
+    await userEvent.type(screen.getByLabelText('New rule resource'), 'vm-9');
+    await userEvent.click(screen.getByTestId('add-rule'));
+
+    expect(screen.getAllByTestId('rule-editor')).toHaveLength(5);
+
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+    const previewed = sent.find((each) => each.operation === 'preview')?.payload;
+    const rules = Reflect.get(Object(previewed), 'rules') as readonly unknown[];
+    const kinds = rules.map((rule): unknown =>
+      Reflect.get(Object(Reflect.get(Object(rule), 'scope')), 'kind'),
+    );
+    expect(kinds).toEqual(
+      expect.arrayContaining(['team', 'resource', 'labels', 'capability_resource']),
+    );
+    const labelled = rules.find(
+      (rule) =>
+        Reflect.get(Object(Reflect.get(Object(rule), 'scope')), 'kind') === 'labels',
+    );
+    expect(
+      Reflect.get(Object(Reflect.get(Object(labelled), 'scope')), 'labels'),
+    ).toEqual([{ name: 'tier', value: 'critical' }]);
+  });
+});
+
+describe('freezes and budgets, carried through and created', () => {
+  const FREEZES: readonly EditableBound[] = [
+    {
+      name: 'nightly-backups',
+      record: { name: 'nightly-backups', start: '01:00', end: '04:00' },
+    },
+  ];
+
+  it('carries an existing freeze through a save that only changed a rule level, rather than wiping it', async () => {
+    render(
+      <AutonomyEditor
+        nodeId="team-platform"
+        rules={RULES}
+        levels={LEVELS}
+        dryRun={false}
+        freezes={FREEZES}
+        labels={LABELS}
+      />,
+    );
+    await raiseTheLevel();
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+    await userEvent.click(await screen.findByTestId('save-autonomy'));
+
+    const written = sent.find((each) => each.operation === 'save')?.payload;
+    const freezes: unknown = Reflect.get(Object(written), 'freezes');
+    expect(freezes).toEqual([FREEZES[0]?.record]);
+  });
+
+  it('adds a new freeze window to the document a save carries', async () => {
+    editor();
+
+    await userEvent.type(screen.getByLabelText('Freeze name'), 'nightly-backups');
+    await userEvent.type(screen.getByLabelText('Starts'), '01:00');
+    await userEvent.type(screen.getByLabelText('Ends'), '04:00');
+    await userEvent.click(screen.getByTestId('add-freeze'));
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+
+    const previewed = sent.find((each) => each.operation === 'preview')?.payload;
+    const freezes = Reflect.get(Object(previewed), 'freezes') as readonly unknown[];
+    const names = freezes.map((each): unknown => Reflect.get(Object(each), 'name'));
+    expect(names).toContain('nightly-backups');
+  });
+
+  it('adds a new budget to the document a save carries', async () => {
+    editor();
+
+    await userEvent.type(screen.getByLabelText('Budget name'), 'restart-cap');
+    await userEvent.type(screen.getByLabelText('Limit'), '5');
+    await userEvent.click(screen.getByTestId('add-budget'));
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+
+    const previewed = sent.find((each) => each.operation === 'preview')?.payload;
+    const budgets = Reflect.get(Object(previewed), 'budgets') as readonly unknown[];
+    const names = budgets.map((each): unknown => Reflect.get(Object(each), 'name'));
+    expect(names).toContain('restart-cap');
   });
 });
 

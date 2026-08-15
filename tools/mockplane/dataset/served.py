@@ -34,6 +34,7 @@ from config.constants.first_run import (
     SETUP_STEP_MODEL_PROVIDER,
 )
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
+from core.llm.registry import default_registry
 from gateway.webhooks.router import PROFILES
 from integrations._catalogue.discovery import catalogue as integration_catalogue
 from integrations._catalogue.entry import CatalogueEntry
@@ -1639,6 +1640,27 @@ def provider_records(
             ),
         }
 
+    registry = default_registry()
+
+    def capabilities(onboarding: ProviderOnboarding) -> list[dict[str, Any]]:
+        """Return what the registry knows about tool calling, per model.
+
+        Read from the same registry the route itself joins against
+        (`gateway/http/routes/providers.py`'s own `_model_capabilities`), so
+        the fixture cannot say something the real endpoint would not: a model
+        the registry has no row for reports `None` here too, never `False`.
+        """
+        found = []
+        for model_id in onboarding.models:
+            descriptor = registry.find(onboarding.provider_id, model_id)
+            found.append(
+                {
+                    "model_id": model_id,
+                    "supports_tools": descriptor.supports_tools if descriptor is not None else None,
+                }
+            )
+        return found
+
     onboardings = all_onboardings()
     records = [_record("providers", {}, {"providers": [listing(one) for one in onboardings]})]
     for onboarding in onboardings:
@@ -1652,6 +1674,7 @@ def provider_records(
                     "guidance": onboarding.guidance,
                     "where_to_get_it": onboarding.where_to_get_it,
                     "models": list(onboarding.models),
+                    "model_capabilities": capabilities(onboarding),
                     "install_hint": onboarding.install_hint,
                 },
             )

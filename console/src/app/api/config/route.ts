@@ -62,6 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const body: unknown = await request.json().catch(() => null);
   const nodeId = String(Reflect.get(Object(body), 'nodeId') ?? '');
   const patch: unknown = Reflect.get(Object(body), 'patch');
+  const remove: unknown = Reflect.get(Object(body), 'remove');
   if (nodeId === '' || typeof patch !== 'object' || patch === null) {
     // Named, not just numbered: the screen prints this after "refused:", and
     // a 400 whose body carried no words rendered as a colon and nothing.
@@ -86,7 +87,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           'content-type': 'application/json',
           accept: 'application/json',
         },
-        body: JSON.stringify({ patch }),
+        // Beside the patch, never folded into it — the same pairing
+        // `../preview/route.ts` forwards, so a save always writes exactly
+        // what the preview it was approved against described.
+        body: JSON.stringify({ patch, remove: Array.isArray(remove) ? remove : [] }),
         cache: 'no-store',
       },
     );

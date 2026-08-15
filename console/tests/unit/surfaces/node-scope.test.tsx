@@ -204,12 +204,14 @@ describe('a node-scoped read that fails on its own', () => {
 /**
  * The breadcrumb, which is where a screen says which node it is showing.
  *
- * A trail whose last step is blank reads as a page that lost its subject, and
- * `trailFor` already draws no breadcrumb at all for a trail of one — so the
- * absence is the designed shape rather than a missing crumb.
+ * Autonomy renders `SettingsPageHeader` rather than the bare `AreaHeader` the
+ * rest of this describe block used to assume: its own trail is never a trail
+ * of one (Settings → Agent → Autonomy & guardrails, always), so the property
+ * to hold is that the *node* appears as an extra step when one resolved,
+ * rather than that the whole breadcrumb disappears when none did.
  */
 describe('the crumb naming the node', () => {
-  it('autonomy: names the node it resolved', async () => {
+  it('autonomy: names the node it resolved, after the Settings trail', async () => {
     serveScenario('populated', principalHolding(EVERYTHING));
     await renderArea('autonomy', { node: 'team-storage' });
 
@@ -217,13 +219,18 @@ describe('the crumb naming the node', () => {
     const trail = header.querySelector('nav ol');
     expect(trail).not.toBeNull();
     expect(trail?.textContent).toContain('team-storage');
+    expect(trail?.textContent).toContain('Autonomy & guardrails');
   });
 
-  it('autonomy: draws no breadcrumb at all when it resolved none', async () => {
+  it('autonomy: still carries the Settings trail when it resolved no node, with no blank last step', async () => {
     serveScenario('empty', principalHolding(EVERYTHING, ''));
     await renderArea('autonomy');
 
     const header = screen.getByTestId('page-header');
-    expect(header.querySelector('nav ol')).toBeNull();
+    const trail = header.querySelector('nav ol');
+    expect(trail).not.toBeNull();
+    // The trail ends at "Autonomy & guardrails" — never at an empty step for
+    // the node this render found none of.
+    expect(trail?.textContent.trim()).toMatch(/Autonomy & guardrails$/);
   });
 });

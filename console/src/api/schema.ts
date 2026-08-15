@@ -4781,6 +4781,23 @@ export interface components {
             /** Why */
             why: string;
         };
+        /**
+         * ModelCapabilityView
+         * @description One model a provider's onboarding lists, and what the registry knows about it.
+         *
+         *     ``supports_tools`` is ``None`` when the registry holds no row for this model
+         *     at all — a name the onboarding lists that nothing has described yet. That is
+         *     never presented as "does not support": a console reading it that way would
+         *     send an operator away from a model that might work perfectly well, on the
+         *     strength of a gap in this build's own catalogue rather than a fact about the
+         *     model.
+         */
+        ModelCapabilityView: {
+            /** Model Id */
+            model_id: string;
+            /** Supports Tools */
+            supports_tools?: boolean | null;
+        };
         /** ObservationListView */
         ObservationListView: {
             /** Observations */
@@ -5431,6 +5448,8 @@ export interface components {
             install_hint: string;
             /** Local */
             local: boolean;
+            /** Model Capabilities */
+            model_capabilities: components["schemas"]["ModelCapabilityView"][];
             /** Models */
             models: string[];
             /** Provider Id */

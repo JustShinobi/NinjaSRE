@@ -46,6 +46,32 @@ export interface EditableRule {
   readonly record: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * A freeze window or a budget, exactly as the deployment sent it.
+ *
+ * Neither is edited in place here — only carried through unchanged on every
+ * save, and added to. Sending only `rules` and `dry_run` on a save that also
+ * has freezes or budgets recorded would `PUT` a document with no `freezes` or
+ * `budgets` key, and the write path treats a missing key as an empty list:
+ * the level of one rule would silently clear every freeze and every budget
+ * this node holds.
+ */
+export interface EditableBound {
+  readonly name: string;
+  readonly record: Readonly<Record<string, unknown>>;
+}
+
+/** The scope kinds a rule, a freeze or a budget may be given, least specific first. */
+export const SCOPE_KINDS = [
+  'deployment',
+  'team',
+  'resource_kind',
+  'labels',
+  'capability',
+  'resource',
+  'capability_resource',
+] as const;
+
 export interface AutonomyLabels {
   readonly level: string;
   readonly preview: string;
@@ -69,6 +95,27 @@ export interface AutonomyLabels {
   readonly dryRunBanner: string;
   readonly decision: string;
   readonly winningRule: string;
+  readonly newRuleTitle: string;
+  readonly newRuleScope: string;
+  readonly newRuleLevel: string;
+  readonly newRuleTeam: string;
+  readonly newRuleResourceKind: string;
+  readonly newRuleResourceId: string;
+  readonly newRuleCapability: string;
+  readonly newRuleLabelName: string;
+  readonly newRuleLabelValue: string;
+  readonly addRule: string;
+  readonly freezesTitle: string;
+  readonly freezeName: string;
+  readonly freezeStart: string;
+  readonly freezeEnd: string;
+  readonly freezeReason: string;
+  readonly addFreeze: string;
+  readonly budgetsTitle: string;
+  readonly budgetName: string;
+  readonly budgetLimit: string;
+  readonly budgetCountedBy: string;
+  readonly addBudget: string;
 }
 
 export interface AutonomyEditorProps {
@@ -84,7 +131,12 @@ export interface AutonomyEditorProps {
    * which is what every control here did before and is still usable.
    */
   readonly levelLabels?: Readonly<Record<string, string>>;
+  /** What each scope kind is, in words, keyed by the deployment's own slug. */
+  readonly scopeKindLabels?: Readonly<Record<string, string>>;
   readonly dryRun: boolean;
+  /** This node's own freezes and budgets, carried through unchanged on every save. */
+  readonly freezes?: readonly EditableBound[];
+  readonly budgets?: readonly EditableBound[];
   readonly labels: AutonomyLabels;
 }
 
@@ -149,13 +201,70 @@ function explainedFrom(body: unknown): Explained {
   };
 }
 
+/** A rule scope built from the "create a rule" form's own fields. */
+function scopeRecordOf(
+  kind: string,
+  team: string,
+  resourceKind: string,
+  resourceId: string,
+  capability: string,
+  labelName: string,
+  labelValue: string,
+): Record<string, unknown> {
+  switch (kind) {
+    case 'team':
+      return { kind, team_node_id: team };
+    case 'resource_kind':
+      return { kind, resource_kind: resourceKind };
+    case 'labels':
+      return labelName === ''
+        ? { kind, labels: [] }
+        : { kind, labels: [{ name: labelName, value: labelValue }] };
+    case 'capability':
+      return { kind, capability };
+    case 'resource':
+      return { kind, resource_id: resourceId };
+    case 'capability_resource':
+      return { kind, capability, resource_id: resourceId };
+    default:
+      return { kind: 'deployment' };
+  }
+}
+
+/** The phrase a new rule's own scope reads as, for the same row the read-only table would show. */
+function matcherFor(
+  kind: string,
+  team: string,
+  resourceKind: string,
+  resourceId: string,
+  capability: string,
+): string {
+  switch (kind) {
+    case 'team':
+      return team;
+    case 'resource_kind':
+      return resourceKind;
+    case 'capability':
+      return capability;
+    case 'resource':
+      return resourceId;
+    case 'capability_resource':
+      return `${capability} on ${resourceId}`;
+    default:
+      return '—';
+  }
+}
+
 /** Edit the posture, see what it would have decided differently, then save it. */
 export function AutonomyEditor({
   nodeId,
   rules,
   levels,
   levelLabels,
+  scopeKindLabels,
   dryRun,
+  freezes = [],
+  budgets = [],
   labels,
 }: AutonomyEditorProps): ReactNode {
   const [levelFor, setLevelFor] = useState<Readonly<Record<string, string>>>({});
@@ -169,17 +278,129 @@ export function AutonomyEditor({
   const [saved, setSaved] = useState(false);
   const [failure, setFailure] = useState('');
 
+  // Rows added this session — appended to the deployment's own rows rather
+  // than replacing them, and rendered through the identical per-row editor so
+  // a newly created rule's level is changed the same way an existing one's is.
+  const [addedRules, setAddedRules] = useState<readonly EditableRule[]>([]);
+  const [addedFreezes, setAddedFreezes] = useState<readonly Record<string, unknown>[]>(
+    [],
+  );
+  const [addedBudgets, setAddedBudgets] = useState<readonly Record<string, unknown>[]>(
+    [],
+  );
+
+  // The "create a rule" form's own fields. Reset after each add, because the
+  // row it just created is now edited through the ordinary per-row control.
+  const [newScopeKind, setNewScopeKind] = useState('deployment');
+  const [newLevel, setNewLevel] = useState(levels[0] ?? '');
+  const [newTeam, setNewTeam] = useState('');
+  const [newResourceKind, setNewResourceKind] = useState('');
+  const [newResourceId, setNewResourceId] = useState('');
+  const [newCapability, setNewCapability] = useState('');
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelValue, setNewLabelValue] = useState('');
+
+  const [freezeName, setFreezeName] = useState('');
+  const [freezeStart, setFreezeStart] = useState('');
+  const [freezeEnd, setFreezeEnd] = useState('');
+  const [freezeReason, setFreezeReason] = useState('');
+
+  const [budgetName, setBudgetName] = useState('');
+  const [budgetLimit, setBudgetLimit] = useState('');
+  const [budgetCountedBy, setBudgetCountedBy] = useState('');
+
+  const allRules = [...rules, ...addedRules];
+
+  function addRule(): void {
+    const scope = scopeRecordOf(
+      newScopeKind,
+      newTeam,
+      newResourceKind,
+      newResourceId,
+      newCapability,
+      newLabelName,
+      newLabelValue,
+    );
+    const ruleId = `new-rule-${String(addedRules.length)}`;
+    setAddedRules((was) => [
+      ...was,
+      {
+        ruleId,
+        scope: newScopeKind,
+        matcher: matcherFor(
+          newScopeKind,
+          newTeam,
+          newResourceKind,
+          newResourceId,
+          newCapability,
+        ),
+        level: newLevel,
+        riskBound: 'low',
+        record: { scope, level: newLevel, risk_bound: 'low' },
+      },
+    ]);
+    setSaved(false);
+    setNewScopeKind('deployment');
+    setNewTeam('');
+    setNewResourceKind('');
+    setNewResourceId('');
+    setNewCapability('');
+    setNewLabelName('');
+    setNewLabelValue('');
+  }
+
+  function addFreezeRow(): void {
+    if (freezeName === '' || freezeStart === '' || freezeEnd === '') return;
+    setAddedFreezes((was) => [
+      ...was,
+      {
+        name: freezeName,
+        start: freezeStart,
+        end: freezeEnd,
+        scope: { kind: 'deployment' },
+        ...(freezeReason === '' ? {} : { reason: freezeReason }),
+      },
+    ]);
+    setSaved(false);
+    setFreezeName('');
+    setFreezeStart('');
+    setFreezeEnd('');
+    setFreezeReason('');
+  }
+
+  function addBudgetRow(): void {
+    if (budgetName === '' || budgetLimit === '') return;
+    setAddedBudgets((was) => [
+      ...was,
+      {
+        name: budgetName,
+        limit: Number.parseInt(budgetLimit, 10),
+        ...(budgetCountedBy === '' ? {} : { counted_by: budgetCountedBy }),
+      },
+    ]);
+    setSaved(false);
+    setBudgetName('');
+    setBudgetLimit('');
+    setBudgetCountedBy('');
+  }
+
   const document = {
     dry_run: simulated,
-    rules: rules.map((rule) => ({
+    rules: allRules.map((rule) => ({
       ...rule.record,
       level: levelFor[rule.ruleId] ?? rule.level,
     })),
+    // Carried through unchanged: a save here must never be the reason a
+    // freeze or a budget this node already holds stops existing.
+    freezes: [...freezes.map((each) => each.record), ...addedFreezes],
+    budgets: [...budgets.map((each) => each.record), ...addedBudgets],
   };
   const serialised = JSON.stringify(document);
-  const edited = rules.some(
-    (rule) => (levelFor[rule.ruleId] ?? rule.level) !== rule.level,
-  );
+  const edited =
+    rules.some((rule) => (levelFor[rule.ruleId] ?? rule.level) !== rule.level) ||
+    addedRules.length > 0 ||
+    addedFreezes.length > 0 ||
+    addedBudgets.length > 0;
   const current = answer !== null && serialised === previewedDocument;
 
   async function ask(operation: string, payload: unknown): Promise<unknown> {
@@ -256,7 +477,7 @@ export function AutonomyEditor({
       ) : null}
 
       <div className="flex flex-col gap-3">
-        {rules.map((rule) => (
+        {allRules.map((rule) => (
           <div
             key={rule.ruleId}
             data-testid="rule-editor"
@@ -283,6 +504,180 @@ export function AutonomyEditor({
             />
           </div>
         ))}
+      </div>
+
+      {/* Creating a rule is choosing its scope and its level, here — never a
+          trip to the raw editor to work out what a scope object looks like.
+          Least-specific field first, matching the resolution order the table
+          above already reads in. */}
+      <div
+        id="new-rule"
+        data-testid="new-rule"
+        className="flex flex-col gap-3 edge border-border rounded-2 px-3 py-3"
+      >
+        <h4 className="text-strong">{labels.newRuleTitle}</h4>
+        <div className="flex flex-wrap items-end gap-3">
+          <Select
+            label={labels.newRuleScope}
+            name="new-rule-scope"
+            value={newScopeKind}
+            options={SCOPE_KINDS.map((kind) => ({
+              value: kind,
+              label: scopeKindLabels?.[kind] ?? kind,
+            }))}
+            onValueChange={setNewScopeKind}
+          />
+          {newScopeKind === 'team' ? (
+            <Input
+              label={labels.newRuleTeam}
+              name="new-rule-team"
+              value={newTeam}
+              onValueChange={setNewTeam}
+            />
+          ) : null}
+          {newScopeKind === 'resource_kind' ? (
+            <Input
+              label={labels.newRuleResourceKind}
+              name="new-rule-resource-kind"
+              value={newResourceKind}
+              onValueChange={setNewResourceKind}
+            />
+          ) : null}
+          {newScopeKind === 'capability' || newScopeKind === 'capability_resource' ? (
+            <Input
+              label={labels.newRuleCapability}
+              name="new-rule-capability"
+              value={newCapability}
+              onValueChange={setNewCapability}
+            />
+          ) : null}
+          {newScopeKind === 'resource' || newScopeKind === 'capability_resource' ? (
+            <Input
+              label={labels.newRuleResourceId}
+              name="new-rule-resource"
+              value={newResourceId}
+              onValueChange={setNewResourceId}
+            />
+          ) : null}
+          {newScopeKind === 'labels' ? (
+            <>
+              <Input
+                label={labels.newRuleLabelName}
+                name="new-rule-label-name"
+                value={newLabelName}
+                onValueChange={setNewLabelName}
+              />
+              <Input
+                label={labels.newRuleLabelValue}
+                name="new-rule-label-value"
+                value={newLabelValue}
+                onValueChange={setNewLabelValue}
+              />
+            </>
+          ) : null}
+          <Select
+            label={labels.newRuleLevel}
+            name="new-rule-level"
+            value={newLevel}
+            options={levels.map((each) => ({
+              value: each,
+              label: levelLabels?.[each] ?? each,
+            }))}
+            onValueChange={setNewLevel}
+          />
+          <Button
+            data-testid="add-rule"
+            onClick={() => {
+              addRule();
+            }}
+          >
+            {labels.addRule}
+          </Button>
+        </div>
+      </div>
+
+      <div
+        id="new-freeze"
+        data-testid="new-freeze"
+        className="flex flex-col gap-3 edge border-border rounded-2 px-3 py-3"
+      >
+        <h4 className="text-strong">{labels.freezesTitle}</h4>
+        <div className="flex flex-wrap items-end gap-3">
+          <Input
+            label={labels.freezeName}
+            name="freeze-name"
+            value={freezeName}
+            onValueChange={setFreezeName}
+          />
+          <Input
+            label={labels.freezeStart}
+            name="freeze-start"
+            value={freezeStart}
+            onValueChange={setFreezeStart}
+          />
+          <Input
+            label={labels.freezeEnd}
+            name="freeze-end"
+            value={freezeEnd}
+            onValueChange={setFreezeEnd}
+          />
+          <Input
+            label={labels.freezeReason}
+            name="freeze-reason"
+            value={freezeReason}
+            onValueChange={setFreezeReason}
+          />
+          <Button
+            data-testid="add-freeze"
+            state={
+              freezeName === '' || freezeStart === '' || freezeEnd === ''
+                ? 'disabled'
+                : 'default'
+            }
+            onClick={() => {
+              addFreezeRow();
+            }}
+          >
+            {labels.addFreeze}
+          </Button>
+        </div>
+      </div>
+
+      <div
+        data-testid="new-budget"
+        className="flex flex-col gap-3 edge border-border rounded-2 px-3 py-3"
+      >
+        <h4 className="text-strong">{labels.budgetsTitle}</h4>
+        <div className="flex flex-wrap items-end gap-3">
+          <Input
+            label={labels.budgetName}
+            name="budget-name"
+            value={budgetName}
+            onValueChange={setBudgetName}
+          />
+          <Input
+            label={labels.budgetLimit}
+            name="budget-limit"
+            type="number"
+            value={budgetLimit}
+            onValueChange={setBudgetLimit}
+          />
+          <Input
+            label={labels.budgetCountedBy}
+            name="budget-counted-by"
+            value={budgetCountedBy}
+            onValueChange={setBudgetCountedBy}
+          />
+          <Button
+            data-testid="add-budget"
+            state={budgetName === '' || budgetLimit === '' ? 'disabled' : 'default'}
+            onClick={() => {
+              addBudgetRow();
+            }}
+          >
+            {labels.addBudget}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">

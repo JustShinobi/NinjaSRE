@@ -1926,8 +1926,24 @@ describe('what a half-configured deployment is allowed to do to a reader', () =>
       });
       const { container } = render(rendered);
       for (const link of container.querySelectorAll('[data-testid="way-back"]')) {
-        const href = (link.getAttribute('href') ?? '').split('?')[0] ?? '';
-        expect(paths.has(href), `${target.id} sends somebody to ${href}`).toBe(true);
+        const href = link.getAttribute('href') ?? '';
+        // A same-page anchor is a real place too — arguably a stronger one:
+        // it is verified against this very render rather than against the
+        // route manifest, so a fragment with nothing at the other end fails
+        // exactly as loudly as a path this console does not have. Autonomy &
+        // guardrails uses this for every empty state that used to send an
+        // operator to the raw editor, in the same gesture that kills that
+        // loop (an anchor is only ever offered where its target is also on
+        // the page — see `settings/autonomy.tsx`'s own `canCreateHere`).
+        if (href.startsWith('#')) {
+          expect(
+            container.querySelector(href),
+            `${target.id} sends somebody to ${href}, which nothing on this render carries`,
+          ).not.toBeNull();
+          continue;
+        }
+        const path = href.split('?')[0] ?? '';
+        expect(paths.has(path), `${target.id} sends somebody to ${href}`).toBe(true);
       }
     }
   });

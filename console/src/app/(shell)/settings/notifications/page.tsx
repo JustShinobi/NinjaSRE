@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { settingsPageMetadata } from '@/shell/area';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
-import { NotBuiltSettingsPage } from '@/surfaces/screens/settings-not-built';
+import { NotificationsSettingsScreen } from '@/surfaces/settings/notifications';
 
 const ID = 'settings-notifications';
 
@@ -16,5 +16,5 @@ export default async function Page({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }): Promise<ReactNode> {
-  return NotBuiltSettingsPage(ID, await surfaceContext(await searchParams));
+  return NotificationsSettingsScreen(await surfaceContext(await searchParams));
 }

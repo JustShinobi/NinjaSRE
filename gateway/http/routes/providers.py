@@ -42,6 +42,7 @@ from core.llm.onboarding import (
     onboarding_for,
     provider_names,
 )
+from core.llm.registry import ModelRegistry, default_registry
 from core.llm.verification import ModelVerdict, verify_model
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
@@ -105,6 +106,21 @@ class ProviderList(BaseModel):
     providers: list[ProviderView]
 
 
+class ModelCapabilityView(BaseModel):
+    """One model a provider's onboarding lists, and what the registry knows about it.
+
+    ``supports_tools`` is ``None`` when the registry holds no row for this model
+    at all — a name the onboarding lists that nothing has described yet. That is
+    never presented as "does not support": a console reading it that way would
+    send an operator away from a model that might work perfectly well, on the
+    strength of a gap in this build's own catalogue rather than a fact about the
+    model.
+    """
+
+    model_id: str
+    supports_tools: bool | None = None
+
+
 class ProviderDetailView(ProviderView):
     """One provider in full: everything a form or a prompt needs to set it up."""
 
@@ -112,6 +128,11 @@ class ProviderDetailView(ProviderView):
     guidance: str = ""
     where_to_get_it: str = ""
     models: list[str]
+    #: `models`, joined to what the registry knows about tool calling. Kept
+    #: beside `models` rather than in place of it: `models` is names only, and
+    #: a caller that only wants the list a provider serves — the guided setup's
+    #: model step — should not have to unpack a richer shape to get it.
+    model_capabilities: list[ModelCapabilityView]
     install_hint: str = ""
 
 
@@ -132,6 +153,31 @@ class ProviderVerificationView(BaseModel):
     #: could be asked. Empty when it could not, which is honest rather than
     #: encouraging.
     alternatives: list[str]
+
+
+def _model_capabilities(
+    onboarding: ProviderOnboarding, registry: ModelRegistry
+) -> list[ModelCapabilityView]:
+    """Return what the registry knows about tool calling for every model this
+    provider's onboarding lists, in the same order.
+
+    Read from `core.llm.registry`, never from the onboarding list alone: that
+    list is names only (`ProviderOnboarding.models: tuple[str, ...]`), and the
+    capability that decides what badge a console draws lives on the model
+    registry's own `ModelDescriptor.supports_tools`, keyed by the same
+    `(provider_id, model_id)` pair.
+    """
+    return [
+        ModelCapabilityView(
+            model_id=model_id,
+            supports_tools=(
+                descriptor.supports_tools
+                if (descriptor := registry.find(onboarding.provider_id, model_id)) is not None
+                else None
+            ),
+        )
+        for model_id in onboarding.models
+    ]
 
 
 def _onboarding(provider_id: str) -> ProviderOnboarding:
@@ -260,6 +306,7 @@ async def show_provider(
         guidance=onboarding.guidance,
         where_to_get_it=onboarding.where_to_get_it,
         models=list(onboarding.models),
+        model_capabilities=_model_capabilities(onboarding, default_registry()),
         install_hint=onboarding.install_hint,
     )
 

@@ -264,8 +264,10 @@ describe('the configuration courier', () => {
     expect(sent[0]?.url).toBe(`${API}/v1/config/team-a`);
     expect(sent[0]?.init.method).toBe('PUT');
     // Wrapped in `patch` and otherwise untouched. A handler that merged or
-    // reordered would make the preview a preview of something else.
-    expect(JSON.parse(bodyOf(sent[0]))).toEqual({ patch });
+    // reordered would make the preview a preview of something else. `remove`
+    // travels beside it, empty when the caller named nothing to clear — see
+    // `console/tests/unit/surfaces/routes.test.ts` for the non-empty case.
+    expect(JSON.parse(bodyOf(sent[0]))).toEqual({ patch, remove: [] });
   });
 
   it('refuses a patch with no node, and a request with no session', async () => {

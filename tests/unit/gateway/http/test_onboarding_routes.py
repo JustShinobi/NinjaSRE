@@ -365,6 +365,66 @@ async def test_one_provider_comes_back_with_its_fields_guidance_and_models(
     assert body["fields"][0]["label"]
 
 
+async def test_the_detail_names_which_of_its_models_support_tool_calling(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """The console's tool-calling badge reads this, never the onboarding list alone.
+
+    `ProviderOnboarding.models` is names only; the capability lives in the model
+    registry, keyed by the same `(provider_id, model_id)` pair. A console that
+    read only the names would have nothing to badge with.
+    """
+    response = await client.get("/v1/providers/anthropic", headers=_headers(operator_token))
+
+    assert response.status_code == 200
+    body = response.json()
+    capabilities = {
+        entry["model_id"]: entry["supports_tools"] for entry in body["model_capabilities"]
+    }
+    # Every model the onboarding lists gets a row, in the same order.
+    assert list(capabilities) == body["models"]
+    # The registry's Anthropic rows all declare tool calling.
+    assert capabilities["claude-sonnet-5"] is True
+
+
+def test_a_model_the_registry_has_no_row_for_reports_unknown_not_unsupported() -> None:
+    """'We don't know' and 'it does not support this' must never be the same badge.
+
+    Reporting `False` for a model nothing has described would send an operator
+    away from a model that might work perfectly well — the exact misdiagnosis
+    this feature exists to correct. Every provider onboarding this build ships
+    happens to list only models the registry also describes, so the gap is
+    exercised directly against the pure mapping function rather than leaning on
+    that agreement staying accidentally true.
+    """
+    from core.llm.onboarding import ProviderOnboarding
+    from core.llm.registry import ModelDescriptor, ModelRegistry
+    from gateway.http.routes.providers import _model_capabilities
+
+    onboarding = ProviderOnboarding(
+        provider_id="acme",
+        display_name="Acme",
+        default_model="acme-known",
+        models=("acme-known", "acme-not-yet-described"),
+    )
+    registry = ModelRegistry()
+    registry.register(
+        ModelDescriptor(
+            model_id="acme-known",
+            provider_id="acme",
+            context_window=1,
+            max_output_tokens=1,
+            supports_tools=True,
+        )
+    )
+
+    found = {
+        entry.model_id: entry.supports_tools for entry in _model_capabilities(onboarding, registry)
+    }
+
+    assert found == {"acme-known": True, "acme-not-yet-described": None}
+
+
 async def test_a_provider_descriptor_carries_no_field_a_value_could_sit_in(
     client: AsyncClient, operator_token: str
 ) -> None:

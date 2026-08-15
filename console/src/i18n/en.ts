@@ -1079,6 +1079,34 @@ export const EN = {
     'A bound is a limit no rule can raise — the emergency stop, a freeze window, a spend cap — checked after a rule decides, and able to refuse it.',
   'autonomy.glossary.override':
     "An override is a temporary, reasoned raise of one scope's level, granted on the record and gone the moment it expires or is revoked.",
+  'autonomy.editor.newRule.title': 'Create a rule',
+  'autonomy.editor.newRule.scope': 'Scope',
+  'autonomy.editor.newRule.level': 'Level',
+  'autonomy.editor.newRule.team': 'Team',
+  'autonomy.editor.newRule.resourceKind': 'Resource kind',
+  'autonomy.editor.newRule.resourceId': 'Resource',
+  'autonomy.editor.newRule.capability': 'Capability',
+  'autonomy.editor.newRule.labelName': 'Label name',
+  'autonomy.editor.newRule.labelValue': 'Label value',
+  'autonomy.editor.newRule.add': 'Add rule',
+  'autonomy.scope.deployment': 'The whole deployment',
+  'autonomy.scope.team': 'One team',
+  'autonomy.scope.resource_kind': 'One kind of resource',
+  'autonomy.scope.labels': 'Resources carrying a label',
+  'autonomy.scope.capability': 'One capability',
+  'autonomy.scope.resource': 'One resource',
+  'autonomy.scope.capability_resource': 'One capability on one resource',
+  'autonomy.freezes.title': 'Create a freeze window',
+  'autonomy.freeze.name': 'Name',
+  'autonomy.freeze.start': 'Starts',
+  'autonomy.freeze.end': 'Ends',
+  'autonomy.freeze.reason': 'Reason',
+  'autonomy.freeze.add': 'Add freeze',
+  'autonomy.budgets.title': 'Create a budget',
+  'autonomy.budget.name': 'Name',
+  'autonomy.budget.limit': 'Limit',
+  'autonomy.budget.countedBy': 'Counted by',
+  'autonomy.budget.add': 'Add budget',
 
   // --- Configuration --------------------------------------------------------------------------
   'configuration.tree.title': 'Organisation',
@@ -1609,6 +1637,69 @@ export const EN = {
   'settings.notBuilt.body':
     'This page is part of the {group} rework, which has not shipped yet.',
   'settings.notBuilt.action': 'Back to Settings',
+
+  // --- Settings: Models & providers -----------------------------------------
+  'settings.models.role.investigator': 'Investigator',
+  'settings.models.role.subagent': 'Subagent',
+  'settings.models.role.intake': 'Intake',
+  'settings.models.role.diagnose': 'Diagnose',
+  'settings.models.role.extraction': 'Extraction',
+  'settings.models.role.embedding': 'Embedding',
+  'settings.models.role.selection': 'Selection',
+  'settings.models.role.summarisation': 'Summarisation',
+  'settings.models.empty.body':
+    'No provider answered. Connect one from the integrations catalogue to choose what drives an investigation.',
+  'settings.models.empty.action': 'Open the integrations catalogue',
+  'settings.models.provider': 'Provider',
+  'settings.models.model.known': 'Model',
+  'settings.models.model.free': 'Model',
+  'settings.models.toolCalling.supported': ' — supports tool calling',
+  'settings.models.toolCalling.unsupported': ' — does not support tool calling',
+  'settings.models.toolCalling.unknown': ' — tool calling not confirmed',
+  'settings.models.verificationNote': 'Last verification:',
+  'settings.models.notConnected': 'No credential is stored for this provider.',
+  'settings.models.connectCredential': 'Connect a credential',
+  'settings.models.advanced.title': 'Advanced roles',
+  'settings.models.advanced.lead':
+    'Subagent, intake, diagnose, extraction, embedding, selection and summarisation inherit the investigator’s default unless fixed here.',
+  'settings.models.advanced.inherits': 'Inherits the default',
+  'settings.models.revert': 'Return to inheriting the default',
+  'settings.models.reverted': 'Will inherit the default once saved',
+  'settings.models.saveAndVerify': 'Save and verify',
+  'settings.models.saving': 'Saving…',
+  'settings.models.testWithoutSaving': 'Test without saving',
+  'settings.models.verifying': 'Verifying…',
+  'settings.models.verified': 'A check reached this provider and it answered.',
+  'settings.models.verificationFailed': 'The check did not pass.',
+  'settings.models.saved': 'Saved. This is what the agent now runs on.',
+  'settings.models.failed': 'The deployment refused this change.',
+  'settings.models.unreachable': 'The deployment could not be reached.',
+  'settings.models.nothingChanges': 'Nothing would change.',
+
+  // --- Settings: Notifications -----------------------------------------------
+  'settings.notifications.contractNote':
+    'Every value here can only make the platform ceiling stricter.',
+  'settings.notifications.field.quiet_hours_enabled': 'Quiet hours',
+  'settings.notifications.field.quiet_hours_start': 'Quiet hours start',
+  'settings.notifications.field.quiet_hours_end': 'Quiet hours end',
+  'settings.notifications.field.timezone': 'Timezone',
+  'settings.notifications.field.cooldown_seconds': 'Repeat suppression',
+  'settings.notifications.field.notifications_per_hour': 'Notifications per hour',
+
+  // --- Settings: Autonomy & guardrails — the guardrails section --------------
+  'settings.autonomy.guardrails.title': 'Guardrails',
+  'settings.autonomy.guardrails.lead':
+    'Masking, secret detection and approval — edited here, in the same document a rule or a bound is.',
+  'settings.autonomy.guardrails.invariant.secret':
+    'A match for a secret is always looked at. This cannot be switched off; enforcing or observing decides only whether a match is blocked or only recorded.',
+  'settings.autonomy.guardrails.invariant.approval':
+    'A write always needs a person to approve it, whatever the threshold below is set to.',
+  'settings.autonomy.guardrails.masking.enabled': 'Masking enabled',
+  'settings.autonomy.guardrails.masking.level': 'Masking level',
+  'settings.autonomy.guardrails.mode': 'Guardrail mode',
+  'settings.autonomy.guardrails.ruleset': 'Ruleset',
+  'settings.autonomy.guardrails.threshold': 'Approval threshold',
+  'settings.autonomy.guardrails.expiryHours': 'Approval request expiry (hours)',
 } as const;
 
 /** Every key the console may render. Derived, so a typo is a type error. */

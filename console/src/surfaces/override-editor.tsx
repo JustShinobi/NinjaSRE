@@ -233,7 +233,11 @@ export function OverrideEditor({
 
   return (
     <div data-testid="override-editor" className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2" data-testid="override-grant">
+      <div
+        id="override-grant"
+        className="flex flex-col gap-2"
+        data-testid="override-grant"
+      >
         <h4 className="text-strong">{labels.grantTitle}</h4>
         <div className="flex flex-wrap items-end gap-3">
           <Input
