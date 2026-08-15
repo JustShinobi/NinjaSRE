@@ -215,3 +215,6 @@ Every spec cross-references:
 | [0009](adr/0009-full-integration-parity.md) | Full parity across all ~85 integrations |
 | [0010](adr/0010-english-only.md) | English-only codebase and documentation |
 | [0011](adr/0011-attribution-in-readme-only.md) | Attribution lives in README and NOTICE only |
+| [0012](adr/0012-design-fidelity-expires.md) | A design-fidelity acceptance expires when the design or the address moves |
+| [0013](adr/0013-palette-revisions-keep-the-role-vocabulary.md) | A palette revision supplies values for the existing roles and passes the contrast gate |
+| [0014](adr/0014-a-design-reference-is-committed.md) | A design reference is a committed artefact and need not be a picture |
