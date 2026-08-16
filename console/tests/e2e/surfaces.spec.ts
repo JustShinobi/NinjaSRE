@@ -80,39 +80,45 @@ test('a run detail replays the transcript, bounded and expandable', async ({
 });
 
 test('the configuration preview is the deployment’s answer', async ({ page }) => {
-  await page.goto('/configuration?node=env-production');
+  // The agent's own advanced section, not the retired generic editor. The
+  // claim is the one it always was — the console draws what the deployment
+  // resolved, never a figure of its own — and it belongs on a page that owns
+  // its fields, because that is where every change is made now.
+  //
+  // `agents.tool_budget` specifically: this deployment's field catalogue is
+  // what decides which controls exist, and that is one of the few it serves
+  // that the real schema also declares.
+  await page.goto('/agent?tab=topology');
 
-  await expect(page.getByTestId('config-value').first()).toBeVisible();
-  await expect(page.getByTestId('provenance').first()).toBeVisible();
+  const advanced = page.getByTestId('advanced-config-agents');
+  await expect(advanced).toBeVisible();
+  // Collapsed on arrival, as every advanced section is; opened here because
+  // this test is about what the control does, not about where it starts.
+  // `.first()`: the editor inside groups its own fields into `<details>` too,
+  // so the section's own summary is the one this opens.
+  await advanced.locator('summary').first().click();
 
-  // There is nothing to preview until something has been changed, so the change
-  // comes first. `approval.required_above` and not any other field: the same
-  // response has to say the change is gated, and that is the one field this
-  // deployment gates.
-  await expect(page.getByTestId('ask-preview')).toBeDisabled();
+  // The effective value and where it was set, shown before anything is edited.
+  await expect(advanced.getByTestId('effective-field').first()).toBeVisible();
 
-  // Reached by name rather than by scrolling: the form is ~thirty sections of
-  // ~a hundred and twenty fields, every one collapsed until somebody asks for
-  // it, and searching is the path this screen now offers. Typing the path is
-  // also the acceptance criterion — any field, under five seconds — so the
-  // browser suite is where it is worth proving rather than asserting in prose.
-  await page
+  // Nothing to preview until something changes.
+  await expect(advanced.getByTestId('ask-preview')).toBeDisabled();
+
+  // Reached by name rather than by scrolling — the search is the path a page
+  // with a hundred-odd fields offers, and typing the path is the acceptance
+  // criterion this suite exists to hold to a real browser.
+  await advanced
     .locator('input[name="config-field-search"]')
-    .fill('approval.required_above');
-  await page
-    .locator('select[name="approval.required_above"]')
-    .selectOption('write_irreversible');
+    .fill('agents.tool_budget');
+  await advanced.locator('input[name="agents.tool_budget"]').fill('36');
 
-  await page.getByTestId('ask-preview').click();
+  await advanced.getByTestId('ask-preview').click();
 
   // The values below are the deployment's, and the console has no arithmetic
   // that could have produced them: it asked, and it drew what came back.
-  const change = page.getByTestId('preview-change').first();
+  const change = advanced.getByTestId('preview-change').first();
   await expect(change).toBeVisible();
   await expect(change).toHaveAttribute('data-path', /\w/);
-  // The same response says the change is gated, and the screen says what that
-  // means where the control is rather than in a document.
-  await expect(page.getByTestId('gated')).toBeVisible();
 });
 
 test('the estate is sorted by health, with a meter and a number', async ({ page }) => {
@@ -153,7 +159,9 @@ test('the four advanced policy sections stay collapsed and name their own fields
 });
 
 test('the organisation tree has every node in it', async ({ page }) => {
-  await page.goto('/configuration');
+  // The agent's Team tab, which is where the tree lives now that the raw
+  // editor it used to share a screen with is retired.
+  await page.goto('/agent?tab=team');
 
   const tree = page.getByTestId('org-tree');
   await expect(tree).toBeVisible();

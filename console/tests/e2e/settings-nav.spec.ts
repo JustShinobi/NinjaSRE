@@ -197,14 +197,24 @@ test.describe('an old address, after the hybrid navigation', () => {
     );
   });
 
-  test('/configuration is not redirected: the raw editor keeps its own address until it is retired', async ({
+  test('/configuration is retired: its address forwards rather than rendering an editor', async ({
     page,
   }) => {
     await page.goto('/configuration');
-    await expect(page).toHaveURL(/\/configuration$/);
-    await expect(page.getByTestId('page-header')).toHaveAttribute(
-      'data-area',
-      'configuration',
-    );
+
+    // The forward is made in the browser, not by the server, because the group
+    // a bookmark wanted was in the fragment and a fragment is never sent with
+    // the request. So this waits for the URL to settle rather than reading the
+    // one the first response carried.
+    await expect(page).toHaveURL(/\/settings/);
+    await expect(page.getByTestId('config-editor')).toHaveCount(0);
+  });
+
+  test('a bookmark into one of the old editor’s sections lands on the page that owns it', async ({
+    page,
+  }) => {
+    await page.goto('/configuration#config-section-policies-observation');
+
+    await expect(page).toHaveURL(/\/settings\/alert-intake/);
   });
 });
