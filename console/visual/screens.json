@@ -368,7 +368,7 @@
     },
     {
       "id": "signals-1440-light",
-      "route": "/signals",
+      "route": "/settings/alert-intake",
       "status": "pending",
       "viewport": 1440,
       "theme": "light",
@@ -376,7 +376,7 @@
         "against": null,
         "reason": "The Intake tab, and the default one now that ingress, routing, continuous observation and destinations are four tabs of a single screen: what arrives and what happens to it, in the order data moves through them. No reference is drawn for it; the baseline exists because the one thing this tab has to get right is *emphasis without alarm* — a receiver that has never delivered is drawn first, in the same neutral tone as everything else, and a change that lost either the ordering or the neutrality would be invisible to every other check while undoing the whole reason the tab reads this way."
       },
-      "pending_because": "Alert intake has no screen of its own yet, so this address answers with the honest stand-in rather than the intake it is named after."
+      "pending_because": "The page now exists at this address and is no longer a stand-in, but the committed baseline predates both this rebuild and the palette change, so it is awaiting the same single review the other divergent baselines are held for. Repointing the address is a factual correction; accepting the pixels is not, and is not made here."
     },
     {
       "id": "signals-observation-1440-light",
@@ -391,7 +391,7 @@
     },
     {
       "id": "signals-schedules-1440-light",
-      "route": "/signals?tab=schedules",
+      "route": "/settings/schedules-destinations",
       "status": "pending",
       "viewport": 1440,
       "theme": "light",
@@ -399,11 +399,11 @@
         "against": null,
         "reason": "The Schedules tab: investigations that run on a clock rather than a detector, absent rather than disabled for a viewer who may not manage them. First capture at this address: needs recapturing before it protects anything."
       },
-      "pending_because": "Schedules and destinations became one page that nothing has built yet; this and the destinations entry would capture the same stand-in."
+      "pending_because": "Schedules and destinations are now one built page, which is why this entry and the destinations one below it name the same address. Two ids on one route would photograph one screen twice, so consolidating them into a single entry belongs to the review that accepts these pixels — not to the feature that repointed the address."
     },
     {
       "id": "signals-destinations-1440-light",
-      "route": "/signals?tab=destinations",
+      "route": "/settings/schedules-destinations",
       "status": "pending",
       "viewport": 1440,
       "theme": "light",
@@ -411,7 +411,7 @@
         "against": null,
         "reason": "The Destinations tab: where the result goes, and which outbound deliveries failed and can be resent. First capture at this address: needs recapturing before it protects anything."
       },
-      "pending_because": "Schedules and destinations became one page that nothing has built yet; this and the schedules entry would capture the same stand-in."
+      "pending_because": "The other half of the page the schedules entry above names, and pending for the same reason: one built address, two ids, and the consolidation is the reviewer's to make rather than this feature's."
     }
   ],
   "mockups": [

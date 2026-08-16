@@ -2008,7 +2008,27 @@ def transit_records() -> tuple[CapturedRecord, ...]:
                         "enabled": True,
                         "masking_policy": "standard",
                         "unconfigurable_reason": "",
-                    }
+                    },
+                    # A destination declared for a channel this deployment has
+                    # not wired — the one other way `unconfigurable_reason`
+                    # comes back non-empty (`platform/delivery/destinations.py`),
+                    # distinct from the "nothing at all can deliver" case
+                    # `empty_transit_records` below covers. The wording mirrors
+                    # what that module actually produces, so a screen reading
+                    # this fixture is reading the same sentence the gateway
+                    # would compose.
+                    {
+                        "destination_id": "oncall-teams",
+                        "channel": "microsoft_teams",
+                        "events": ["approval_pending", "source_degraded"],
+                        "detail": "summary_with_link",
+                        "enabled": True,
+                        "masking_policy": "standard",
+                        "unconfigurable_reason": (
+                            "No configured channel carries 'microsoft_teams'. "
+                            "This deployment delivers over slack."
+                        ),
+                    },
                 ],
                 "events": [
                     "investigation_concluded",

@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react';
 
-import { Link } from '@/components/action';
 import { Badge } from '@/components/status';
 import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
-import { may } from '@/session/viewer';
 import type { SurfaceContext } from '../context';
 import { DetectorControls } from '../detector-controls';
 import {
@@ -27,14 +25,11 @@ import {
   read,
   stateOf,
   text,
-  type PanelData,
 } from '../read';
-import { Schedules, type ScheduleRecord } from '../schedules';
 
 /**
- * The "Continuous observation" and "Schedules" tabs of Signals: what is
- * being watched for, how well it is covered, and what it last found — and,
- * beside it, what is watched for on a clock rather than by a detector.
+ * The "Continuous observation" tab of Signals: what is being watched for,
+ * how well it is covered, and what it last found.
  *
  * Each row carries its own description rather than pointing at documentation:
  * the rationale for a threshold is what somebody needs at the moment they are
@@ -43,16 +38,6 @@ import { Schedules, type ScheduleRecord } from '../schedules';
  *
  * Coverage is the column that turns "this detector exists" into "this detector
  * is looking at 84 of 92 things", which are very different claims.
- *
- * A scheduled investigation is its own tab rather than folded into continuous
- * observation: it is the other mechanism by which something runs without a
- * person starting it, but it does not watch anything, so grouping it with
- * detectors would answer the wrong question for whichever of the two an
- * operator actually came to check.
- *
- * `GET /v1/schedules` itself takes `schedule.manage` — there is no read-only
- * view of a schedule — so the whole tab, not only its writes, is fetched and
- * shown only for a viewer who holds it. Absent, not disabled.
  *
  * **An empty table here is not "no source connected".** Sources answer before
  * a single detector ever appears — what is missing when this panel is empty
@@ -67,15 +52,13 @@ import { Schedules, type ScheduleRecord } from '../schedules';
  * unfinished checklist also reads as zero live detectors, and "turn on
  * continuous observation" is not the next step for somebody who has not
  * finished the wizard yet.
+ *
+ * The scheduled-investigation half of this file moved to the Settings
+ * surface that absorbed it (`surfaces/settings/schedules-destinations.tsx`):
+ * a recurring investigation runs on a clock rather than a detector, so it now
+ * sits beside where its results end up rather than beside what watches the
+ * estate on its own.
  */
-
-/** Who may see or change this team's scheduled investigations. */
-const SCHEDULE_MANAGE = 'schedule.manage';
-
-/** `data` read as a bare array, and an empty one when it is not. */
-function rowsOf(data: unknown): readonly unknown[] {
-  return Array.isArray(data) ? data : [];
-}
 
 /** The "Continuous observation" tab: what fires, and what covers it. */
 export async function ObservationTab(context: SurfaceContext): Promise<ReactNode> {
@@ -239,124 +222,6 @@ export async function ObservationTab(context: SurfaceContext): Promise<ReactNode
             })}
           </tbody>
         </table>
-      </div>
-    </Panel>
-  );
-}
-
-/** The "Schedules" tab: investigations that run on a clock, not a detector. */
-export async function SchedulesTab(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, now, viewer, zone } = context;
-  const init = authorised(credential);
-
-  if (!may(viewer, SCHEDULE_MANAGE)) return null;
-
-  const schedules: PanelData<unknown> = await panelRead('/v1/schedules', () =>
-    read('/v1/schedules', init),
-  );
-  const scheduleRows = rowsOf(dataOf(schedules));
-  const scheduleRecords: readonly ScheduleRecord[] = scheduleRows.map(
-    (row): ScheduleRecord => {
-      const nextRunAt = text(row, 'next_run_at');
-      return {
-        jobId: text(row, 'job_id'),
-        name: text(row, 'name'),
-        cron: text(row, 'cron'),
-        objective: text(row, 'objective'),
-        timezone: text(row, 'timezone'),
-        enabled: flag(row, 'enabled'),
-        nextRun: nextRunAt === '' ? null : timestamp(locale, nextRunAt, now, zone),
-      };
-    },
-  );
-
-  return (
-    <Panel
-      title={message(locale, 'schedules.title')}
-      state={stateOf(schedules, false)}
-      dependency={dependencyOf(schedules)}
-      labels={panelLabels(locale, message(locale, 'schedules.title'))}
-      empty={{
-        heading: message(locale, 'schedules.empty.heading'),
-        body: message(locale, 'schedules.empty.body'),
-        actionLabel: message(locale, 'schedules.empty.action'),
-        href: '#schedule-create',
-      }}
-    >
-      <p className="text-meta text-muted mb-3">
-        {message(locale, 'schedules.caption')}
-      </p>
-
-      {scheduleRecords.length === 0 ? (
-        // The table this wraps renders only its header for zero rows — it
-        // has no empty row of its own to draw, and is not a file this tab
-        // owns. This notice is the empty state the table itself is missing:
-        // what is missing, why, and a link to the create form, which stays
-        // on the page beneath it rather than replacing it the way a
-        // panel-level empty state would.
-        <div
-          data-testid="schedules-empty"
-          className="mb-4 flex flex-col items-start gap-1 rounded-2 edge border-border bg-sunken px-3 py-2 text-small"
-        >
-          <p className="text-strong">{message(locale, 'schedules.empty.heading')}</p>
-          <p className="text-muted">{message(locale, 'schedules.empty.body')}</p>
-          <Link href="#schedule-create">
-            {message(locale, 'schedules.empty.action')}
-          </Link>
-        </div>
-      ) : null}
-
-      <div id="schedule-create">
-        <Schedules
-          schedules={scheduleRecords}
-          viewer={viewer}
-          locale={locale}
-          zone={zone}
-          now={now}
-          labels={{
-            column: {
-              name: message(locale, 'schedules.column.name'),
-              cron: message(locale, 'schedules.column.cron'),
-              objective: message(locale, 'schedules.column.objective'),
-              timezone: message(locale, 'schedules.column.timezone'),
-              nextRun: message(locale, 'schedules.column.nextRun'),
-              enabled: message(locale, 'schedules.column.enabled'),
-            },
-            never: message(locale, 'schedules.never'),
-            enable: message(locale, 'schedules.enable'),
-            enabling: message(locale, 'schedules.enabling'),
-            disable: message(locale, 'schedules.disable'),
-            disabling: message(locale, 'schedules.disabling'),
-            save: message(locale, 'schedules.save'),
-            saving: message(locale, 'schedules.saving'),
-            delete: message(locale, 'schedules.delete'),
-            deleteConsequence: message(locale, 'schedules.deleteConsequence'),
-            deleteCancel: message(locale, 'schedules.deleteCancel'),
-            deleteClose: message(locale, 'schedules.deleteClose'),
-            create: {
-              title: message(locale, 'schedules.create.title'),
-              jobId: message(locale, 'schedules.create.jobId'),
-              help: {
-                jobId: message(locale, 'schedules.create.jobIdHelp'),
-                name: message(locale, 'schedules.create.nameHelp'),
-                cron: message(locale, 'schedules.create.cronHelp'),
-                objective: message(locale, 'schedules.create.objectiveHelp'),
-                timezone: message(locale, 'schedules.create.timezoneHelp'),
-              },
-              name: message(locale, 'schedules.create.name'),
-              cron: message(locale, 'schedules.create.cron'),
-              objective: message(locale, 'schedules.create.objective'),
-              timezone: message(locale, 'schedules.create.timezone'),
-              submit: message(locale, 'schedules.create.submit'),
-              submitting: message(locale, 'schedules.create.submitting'),
-              created: message(locale, 'schedules.create.created'),
-              previewing: message(locale, 'schedules.create.previewing'),
-              previewLabel: message(locale, 'schedules.create.previewLabel'),
-            },
-            failed: message(locale, 'schedules.failed'),
-            unreachable: message(locale, 'schedules.unreachable'),
-          }}
-        />
       </div>
     </Panel>
   );

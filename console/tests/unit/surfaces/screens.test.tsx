@@ -57,22 +57,9 @@ describe('SC-001: every screen, with no data, says what would be here', () => {
     serveScenario('empty');
   });
 
-  // Signals' default tab, Intake, has nothing that is ever genuinely empty:
-  // the receivers it lists are routes this build serves rather than
-  // something an operator configured, and the rules panel always draws at
-  // least the implicit catch-all — both true on the emptiest deployment
-  // there is, which is the property `ingress.test.tsx`'s own "shows the
-  // receivers on a deployment with nothing connected yet" already pins.
-  // Destinations, on the same screen, empties out exactly like every other
-  // tab does, so this is where the cross-cutting proof is asked instead.
-  const EMPTY_STATE_TAB: Readonly<Record<string, string>> = {
-    signals: 'destinations',
-  };
-
   // `known_gaps` is a catalogue fact the product declares, not a deployment's
-  // own data — identical on the emptiest deployment there is, the same way
-  // Signals' Intake tab above never empties. There is no "nothing here yet"
-  // for this screen to say.
+  // own data — identical on the emptiest deployment there is. There is no
+  // "nothing here yet" for this screen to say.
   //
   // `settings-single-sign-on` reads one document, not a collection: an
   // unconfigured provider is still a settings form with blank fields, never a
@@ -85,17 +72,32 @@ describe('SC-001: every screen, with no data, says what would be here', () => {
   // says why — the deployment with none is exactly the one that needs the
   // issue form in front of it), so its own empty state is inline prose beside
   // a working form rather than a `way-back` link to nowhere new.
+  //
+  // `settings-alert-intake` has nothing that is ever genuinely empty: the
+  // receivers it lists are routes this build serves rather than something an
+  // operator configured, and the routing-rules panel always draws at least
+  // the implicit catch-all — both true on the emptiest deployment there is,
+  // the same property the old combined Signals screen's Intake tab pinned
+  // before this feature split it onto its own address. Destinations, once
+  // its own sibling tab of that same screen, now empties out on the address
+  // that absorbed it (`settings-schedules-destinations`) exactly like every
+  // other screen does, so the cross-cutting proof still runs there.
+  //
+  // `signals` — what is left of the old four-tab screen once Intake,
+  // Schedules and Destinations moved to Settings pages of their own — is not
+  // excluded: continuous observation genuinely empties on a deployment with
+  // no detector switched on, which the emptiest scenario is.
   const NEVER_EMPTY = new Set([
     'integrations-not-covered',
     'settings-single-sign-on',
     'settings-machine-tokens',
+    'settings-alert-intake',
   ]);
 
   for (const [index, target] of ALL_SCREENS.entries()) {
     if (NEVER_EMPTY.has(target.id)) continue;
     it(`${target.id}: renders an empty state naming the next action`, async () => {
-      const tab = EMPTY_STATE_TAB[target.id];
-      await renderScreen(index, tab === undefined ? {} : { tab });
+      await renderScreen(index);
 
       const wells = screen.getAllByTestId('way-back');
       expect(wells.length).toBeGreaterThan(0);

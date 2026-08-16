@@ -94,6 +94,12 @@ const LABELS = {
     nextRun: 'Next run',
     enabled: 'Enabled',
   },
+  frequencyText: {
+    daily: 'Every day at {time}',
+    weekdays: 'Every weekday at {time}',
+    weekly: 'Every {weekday} at {time}',
+    monthly: 'The 1st of each month, at {time}',
+  },
   never: 'Not scheduled',
   enable: 'Enable',
   enabling: 'Enabling…',
@@ -120,6 +126,26 @@ const LABELS = {
       objective: 'the instruction',
       timezone: 'the zone it is read in',
     },
+    frequency: 'Frequency',
+    frequencyHelp: 'A readable frequency, generating the cron field below.',
+    frequencyOptions: {
+      custom: 'Custom cron',
+      daily: 'Every day',
+      weekdays: 'Every weekday (Monday to Friday)',
+      weekly: 'Every week, on a chosen day',
+      monthly: 'Every month, on the 1st',
+    },
+    weekday: 'Day of week',
+    weekdayOptions: {
+      monday: 'Monday',
+      tuesday: 'Tuesday',
+      wednesday: 'Wednesday',
+      thursday: 'Thursday',
+      friday: 'Friday',
+      saturday: 'Saturday',
+      sunday: 'Sunday',
+    },
+    time: 'Time',
     created: 'Schedule created: {name}.',
     submit: 'Create schedule',
     submitting: 'Creating…',
@@ -465,5 +491,175 @@ describe('editing a cron expression', () => {
         payload: { cron: '0 8 * * 1', timezone: 'Europe/Lisbon' },
       },
     ]);
+  });
+});
+
+describe('choosing a frequency preset', () => {
+  it('writes the generated cron onto the field, which stays editable', async () => {
+    schedules([]);
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(LABELS.create.frequency),
+      'weekly',
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText(LABELS.create.weekday),
+      'monday',
+    );
+    await userEvent.clear(screen.getByLabelText(LABELS.create.time));
+    await userEvent.type(screen.getByLabelText(LABELS.create.time), '08:00');
+
+    expect(screen.getByLabelText(LABELS.create.cron)).toHaveValue('0 8 * * 1');
+
+    // Still an ordinary text field: nothing about the preset locks it.
+    await userEvent.clear(screen.getByLabelText(LABELS.create.cron));
+    await userEvent.type(screen.getByLabelText(LABELS.create.cron), '0 9 * * 2');
+    expect(screen.getByLabelText(LABELS.create.cron)).toHaveValue('0 9 * * 2');
+  });
+
+  it('previews the generated cron in the same gesture that writes it', async () => {
+    schedules([]);
+    answerWith({ firings: [{ at: '2026-08-17T08:00:00+00:00', shifted: false }] });
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(LABELS.create.frequency),
+      'daily',
+    );
+    await userEvent.clear(screen.getByLabelText(LABELS.create.time));
+    await userEvent.type(screen.getByLabelText(LABELS.create.time), '08:00');
+
+    expect(await screen.findByTestId('cron-preview')).toBeInTheDocument();
+    expect(sent).toContainEqual({
+      jobId: '',
+      operation: 'preview',
+      payload: { cron: '0 8 * * *', timezone: 'UTC' },
+    });
+  });
+
+  it('offers a day-of-week choice only for the weekly preset', async () => {
+    schedules([]);
+
+    expect(screen.queryByLabelText(LABELS.create.weekday)).toBeNull();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(LABELS.create.frequency),
+      'weekly',
+    );
+    expect(screen.getByLabelText(LABELS.create.weekday)).toBeInTheDocument();
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(LABELS.create.frequency),
+      'monthly',
+    );
+    expect(screen.queryByLabelText(LABELS.create.weekday)).toBeNull();
+  });
+
+  it('offers no time field at all for custom, the form’s own default', () => {
+    schedules([]);
+
+    expect(screen.getByLabelText(LABELS.create.frequency)).toHaveValue('custom');
+    expect(screen.queryByLabelText(LABELS.create.time)).toBeNull();
+  });
+
+  it('clears back to custom once a schedule is created', async () => {
+    schedules([]);
+    answerWith({
+      job_id: 'new-check',
+      name: 'New check',
+      cron: '0 8 * * *',
+      objective: 'Watch something new.',
+      timezone: 'UTC',
+      enabled: true,
+      next_run_at: '2026-08-12T08:00:00+00:00',
+    });
+
+    await userEvent.selectOptions(
+      screen.getByLabelText(LABELS.create.frequency),
+      'daily',
+    );
+    await userEvent.clear(screen.getByLabelText(LABELS.create.time));
+    await userEvent.type(screen.getByLabelText(LABELS.create.time), '08:00');
+    await userEvent.type(screen.getByLabelText(LABELS.create.jobId), 'new-check');
+    await userEvent.type(screen.getByLabelText(LABELS.create.name), 'New check');
+    await userEvent.type(
+      screen.getByLabelText(LABELS.create.objective),
+      'Watch something new.',
+    );
+    await userEvent.click(screen.getByTestId('submit-create-schedule'));
+
+    await screen.findAllByTestId('schedule');
+    expect(screen.getByLabelText(LABELS.create.frequency)).toHaveValue('custom');
+    expect(screen.queryByLabelText(LABELS.create.time)).toBeNull();
+  });
+});
+
+/**
+ * The list answers "when does this run" in words.
+ *
+ * The column carried only the five-field expression, which is the syntax that
+ * encodes the answer rather than the answer. These assert the rendered line,
+ * not the helper that composes it: a correct generator wired to nothing looks
+ * identical to a correct screen from the unit test's side, and only one of
+ * those is worth shipping.
+ */
+describe('the frequency each schedule runs on, in the list', () => {
+  it('reads a weekly expression as the day and the clock it stands for', async () => {
+    schedules();
+    await screen.findAllByTestId('schedule');
+
+    expect(
+      within(rowFor('weekly-storage-review')).getByTestId('schedule-frequency'),
+    ).toHaveTextContent('Every Monday at 07:00');
+  });
+
+  it('reads a nightly expression as every day at its clock', async () => {
+    schedules();
+    await screen.findAllByTestId('schedule');
+
+    expect(
+      within(rowFor('nightly-quorum-check')).getByTestId('schedule-frequency'),
+    ).toHaveTextContent('Every day at 03:00');
+  });
+
+  it('keeps the expression editable beside the sentence, never replacing it', async () => {
+    schedules();
+    await screen.findAllByTestId('schedule');
+
+    const row = rowFor('weekly-storage-review');
+    expect(within(row).getByTestId('schedule-frequency')).toBeInTheDocument();
+    expect(within(row).getByDisplayValue('0 7 * * 1')).toBeEnabled();
+  });
+
+  it('says nothing at all about an expression no preset could have written', async () => {
+    schedules([
+      {
+        ...WEEKLY,
+        jobId: 'every-fifteen-minutes',
+        // Legal cron, and outside the vocabulary the presets cover. Silence
+        // here is the requirement: a guessed sentence about when an
+        // investigation runs is worse than the expression it replaced.
+        cron: '*/15 * * * *',
+      },
+    ]);
+    await screen.findAllByTestId('schedule');
+
+    expect(
+      within(rowFor('every-fifteen-minutes')).queryByTestId('schedule-frequency'),
+    ).toBeNull();
+  });
+
+  it('follows the draft while it is being edited, not the stored expression', async () => {
+    schedules();
+    await screen.findAllByTestId('schedule');
+
+    const row = rowFor('nightly-quorum-check');
+    await userEvent.clear(within(row).getByDisplayValue('0 3 * * *'));
+    await userEvent.type(within(row).getByLabelText(LABELS.column.cron), '0 9 * * 1-5');
+
+    // Reassuring somebody about the schedule they are replacing is the one
+    // thing this line must not do.
+    expect(within(row).getByTestId('schedule-frequency')).toHaveTextContent(
+      'Every weekday at 09:00',
+    );
   });
 });

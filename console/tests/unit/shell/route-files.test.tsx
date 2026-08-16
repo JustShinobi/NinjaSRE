@@ -76,6 +76,11 @@ const RENDERS_COLD_UNDER_A_DIFFERENT_SCENARIO = new Set(['first-run']);
  * `administration` itself renders the identical `MembersScreen` one of the
  * four already does (`settings-members-roles`), so that same assertion
  * already proves it true at this old id too, without a second, redundant one.
+ *
+ * `settings-alert-intake` and `settings-schedules-destinations` carry the
+ * same shape again: both render under `SettingsPageHeader`, in the Data
+ * group of the same subnav, never under `AREAS`.
+ * `describe('the Data Settings pages, cold')` covers them.
  */
 const HEADER_IS_NOT_THE_AREAS_OWN = new Set([
   'autonomy',
@@ -84,6 +89,8 @@ const HEADER_IS_NOT_THE_AREAS_OWN = new Set([
   'settings-single-sign-on',
   'settings-machine-tokens',
   'settings-audit-log',
+  'settings-alert-intake',
+  'settings-schedules-destinations',
 ]);
 
 vi.mock('next/headers', () => ({
@@ -178,6 +185,24 @@ describe('the Organization Settings pages, cold', () => {
     'settings-machine-tokens',
     'settings-audit-log',
   ] as const)(
+    '%s renders cold, with the Settings page’s own id and title',
+    async (id) => {
+      const target = AREA_SCREENS.find((file) => file.id === id);
+      if (target === undefined) throw new Error(`no ${id} screen in AREA_SCREENS`);
+
+      render(await target.render({ searchParams: Promise.resolve({}) }));
+
+      expect(screen.getByTestId('page-header')).toHaveAttribute('data-area', id);
+      if (target.metadata === undefined) throw new Error(`${id} declares no metadata`);
+      expect(await target.metadata()).toMatchObject({
+        title: `${message('en', settingsPageFor(id).label)} · HAL9000`,
+      });
+    },
+  );
+});
+
+describe('the Data Settings pages, cold', () => {
+  it.each(['settings-alert-intake', 'settings-schedules-destinations'] as const)(
     '%s renders cold, with the Settings page’s own id and title',
     async (id) => {
       const target = AREA_SCREENS.find((file) => file.id === id);

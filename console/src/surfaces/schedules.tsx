@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { Button } from '@/components/action';
-import { Input } from '@/components/form';
+import { Input, Select } from '@/components/form';
 import { Badge } from '@/components/status';
 import { ConfirmDestructive } from '@/components/overlay';
 import { timestamp, type Timestamp } from '@/i18n/format';
@@ -38,6 +38,178 @@ export const SCHEDULE_ENDPOINT = '/api/schedules';
 /** Who may see or change this team's scheduled investigations. */
 const MANAGE = 'schedule.manage';
 
+/**
+ * A readable frequency, standing in for a cron expression.
+ *
+ * `'custom'` is not a fifth kind of schedule — it is "generate nothing", the
+ * state that leaves the cron field exactly as the operator typed it. The other
+ * four are the shapes an investigation is actually scheduled on: every day,
+ * every weekday, once a week on a chosen day, once a month.
+ */
+export const SCHEDULE_FREQUENCIES = [
+  'custom',
+  'daily',
+  'weekdays',
+  'weekly',
+  'monthly',
+] as const;
+
+export type ScheduleFrequency = (typeof SCHEDULE_FREQUENCIES)[number];
+
+/** The seven days a weekly preset can land on, Monday first — a calendar week. */
+export const WEEKDAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** The cron day-of-week digit each name stands for — the ordinary crontab numbering, Sunday is 0. */
+const WEEKDAY_CRON_DAY: Readonly<Record<Weekday, number>> = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
+/**
+ * The cron expression `frequency` stands for, at `time` (`HH:MM`) — or `null`
+ * for `'custom'`, and for a time this cannot parse.
+ *
+ * A pure function rather than a piece of the form's own state, because the
+ * question it answers — what does "every Monday at 08:00" mean, in five
+ * fields — has nothing to do with a browser and everything to do with being
+ * checked without one. What it never touches is whether the deployment
+ * *accepts* the expression: that answer still comes only from the preview
+ * this generates a value for, never from a second opinion written here.
+ */
+export function cronFromPreset(
+  frequency: ScheduleFrequency,
+  weekday: Weekday,
+  time: string,
+): string | null {
+  if (frequency === 'custom') return null;
+  const [hourText = '', minuteText = ''] = time.split(':');
+  const hour = Number.parseInt(hourText, 10);
+  const minute = Number.parseInt(minuteText, 10);
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+  switch (frequency) {
+    case 'daily':
+      return `${String(minute)} ${String(hour)} * * *`;
+    case 'weekdays':
+      return `${String(minute)} ${String(hour)} * * 1-5`;
+    case 'weekly':
+      return `${String(minute)} ${String(hour)} * * ${String(WEEKDAY_CRON_DAY[weekday])}`;
+    case 'monthly':
+      return `${String(minute)} ${String(hour)} 1 * *`;
+  }
+}
+
+/** What a stored cron expression says, when a preset could have written it. */
+export interface CronFrequency {
+  readonly frequency: Exclude<ScheduleFrequency, 'custom'>;
+  /** The day a weekly schedule lands on; `null` for every other shape. */
+  readonly weekday: Weekday | null;
+  /** `HH:MM`, zero-padded, so a column of these lines up. */
+  readonly time: string;
+}
+
+/** The weekday a cron day-of-week digit names, or `undefined` for anything else. */
+const CRON_DAY_WEEKDAY: ReadonlyMap<string, Weekday> = new Map(
+  WEEKDAYS.map((weekday) => [String(WEEKDAY_CRON_DAY[weekday]), weekday]),
+);
+
+/** `value` as a clock field, or `null` unless it is a plain integer in `[0, bound]`. */
+function clockField(value: string, bound: number): number | null {
+  // Anchored and digits-only: `Number.parseInt` alone would read `9-17` as 9
+  // and `*/15` as NaN-then-something, and reading a range as its first hour is
+  // precisely the wrong sentence this function exists to refuse.
+  if (!/^\d{1,2}$/.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  return parsed >= 0 && parsed <= bound ? parsed : null;
+}
+
+/**
+ * `cron` read back as the sentence a preset would have generated it from, or
+ * `null` when nothing in the preset vocabulary produces it.
+ *
+ * `cronFromPreset` run backwards, and deliberately partial. Cron says far more
+ * than four shapes — steps, ranges, lists, named months — and this recognises
+ * only what the four presets can write. Everything else is refused rather than
+ * approximated, because the list this feeds is where somebody checks *when an
+ * investigation runs*, and a confidently wrong sentence there is worse than
+ * the raw expression it replaced: the expression can at least be looked up.
+ *
+ * What it never claims is whether the deployment accepts the expression. That
+ * answer comes from the preview, which asks the deployment, and from nowhere
+ * else.
+ */
+export function frequencyOfCron(cron: string): CronFrequency | null {
+  const fields = cron.trim().split(/\s+/);
+  if (fields.length !== 5) return null;
+  const [
+    minuteField = '',
+    hourField = '',
+    dayField = '',
+    monthField = '',
+    weekField = '',
+  ] = fields;
+
+  const minute = clockField(minuteField, 59);
+  const hour = clockField(hourField, 23);
+  if (minute === null || hour === null) return null;
+  // Every shape the presets write leaves the month alone.
+  if (monthField !== '*') return null;
+
+  const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+  if (dayField === '1' && weekField === '*') {
+    return { frequency: 'monthly', weekday: null, time };
+  }
+  if (dayField !== '*') return null;
+  if (weekField === '*') return { frequency: 'daily', weekday: null, time };
+  if (weekField === '1-5') return { frequency: 'weekdays', weekday: null, time };
+
+  const weekday = CRON_DAY_WEEKDAY.get(weekField);
+  return weekday === undefined ? null : { frequency: 'weekly', weekday, time };
+}
+
+/**
+ * `cron` as one readable line, or `null` when no preset shape recognises it.
+ *
+ * Kept beside `frequencyOfCron` rather than inside the component for the
+ * reason every pure function here is: what "every Monday at 08:00" reads as is
+ * checkable without a browser, and a rendering bug and a vocabulary bug should
+ * not have to be told apart in the same place.
+ */
+export function readableFrequency(cron: string, labels: ScheduleLabels): string | null {
+  const read = frequencyOfCron(cron);
+  if (read === null) return null;
+  return labels.frequencyText[read.frequency]
+    .replace('{time}', read.time)
+    .replace(
+      '{weekday}',
+      read.weekday === null ? '' : labels.create.weekdayOptions[read.weekday],
+    );
+}
+
 export interface ScheduleLabels {
   readonly column: {
     readonly name: string;
@@ -47,6 +219,18 @@ export interface ScheduleLabels {
     readonly nextRun: string;
     readonly enabled: string;
   };
+  /**
+   * How a recognised expression reads in the list, one template per shape.
+   *
+   * Templates rather than finished sentences, because the clock and the day
+   * differ per row and the catalogue is read once for the whole table.
+   * `{time}` and `{weekday}` are filled here; the weekday words come from the
+   * create form's own list, so the list and the form cannot drift into calling
+   * Monday two different things.
+   */
+  readonly frequencyText: Readonly<
+    Record<Exclude<ScheduleFrequency, 'custom'>, string>
+  >;
   readonly never: string;
   readonly enable: string;
   readonly enabling: string;
@@ -81,6 +265,16 @@ export interface ScheduleLabels {
       readonly objective: string;
       readonly timezone: string;
     };
+    /** The frequency preset field: readable in, a cron expression out. */
+    readonly frequency: string;
+    readonly frequencyHelp: string;
+    /** Every preset's own word, `'custom'` included. */
+    readonly frequencyOptions: Readonly<Record<ScheduleFrequency, string>>;
+    /** Shown only once `frequency` is `'weekly'` — a day means nothing otherwise. */
+    readonly weekday: string;
+    readonly weekdayOptions: Readonly<Record<Weekday, string>>;
+    /** Shown once `frequency` names anything but `'custom'`. */
+    readonly time: string;
     readonly submit: string;
     readonly submitting: string;
     /**
@@ -126,6 +320,16 @@ function text(record: unknown, name: string): string {
   return typeof found === 'string' ? found : '';
 }
 
+/** Whether `value` is one of the frequencies this form declares presets for. */
+function isFrequency(value: string): value is ScheduleFrequency {
+  return (SCHEDULE_FREQUENCIES as readonly string[]).includes(value);
+}
+
+/** Whether `value` is one of the seven days a weekly preset can name. */
+function isWeekday(value: string): value is Weekday {
+  return (WEEKDAYS as readonly string[]).includes(value);
+}
+
 const BLANK_CREATE = { jobId: '', name: '', cron: '', objective: '', timezone: 'UTC' };
 
 /**
@@ -168,6 +372,13 @@ export function Schedules({
   const [failure, setFailure] = useState('');
   const [cronPreview, setCronPreview] = useState<CronPreview | null>(null);
   const [previewingCron, setPreviewingCron] = useState(false);
+  // The preset selector's own state, apart from `create`: a preset is a way
+  // of *writing* the cron field, not a second source of truth for it. Once
+  // written, the cron field is what the deployment reads, and it stays fully
+  // editable whether a preset wrote it or a person typed it.
+  const [presetFrequency, setPresetFrequency] = useState<ScheduleFrequency>('custom');
+  const [presetWeekday, setPresetWeekday] = useState<Weekday>('monday');
+  const [presetTime, setPresetTime] = useState('08:00');
 
   /**
    * `body`, as the deployment answers a write — formatted the same way the
@@ -195,10 +406,13 @@ export function Schedules({
    * banner every write shares would either clear a write's own refusal the
    * moment a preview runs, or leave a preview's refusal sitting under a
    * button it has nothing to do with.
+   *
+   * Takes `cron` and `timezone` rather than reading `create` itself, so a
+   * preset can preview the value it just generated in the same gesture that
+   * writes it — `setCreate` has not necessarily re-rendered yet, and reading
+   * `create.cron` here would ask about the field's previous content instead.
    */
-  async function requestCronPreview(): Promise<void> {
-    const cron = create.cron;
-    const timezone = create.timezone;
+  async function requestCronPreview(cron: string, timezone: string): Promise<void> {
     if (cron.trim() === '') return;
     setPreviewingCron(true);
     let response: Response;
@@ -236,6 +450,26 @@ export function Schedules({
       .filter((at) => at !== '')
       .map((at) => timestamp(locale, at, now, zone));
     setCronPreview({ cron, timezone, status: 'ready', firings });
+  }
+
+  /**
+   * `frequency`/`weekday`/`time`, turned into a cron expression and written
+   * onto the field an operator would otherwise have typed by hand — then
+   * previewed immediately, the same courtesy a manual edit gets on blur.
+   *
+   * A no-op for `'custom'` and for a time nothing can parse yet (the control
+   * mid-edit): the cron field is not cleared or overwritten with nothing just
+   * because the preset selector changed first.
+   */
+  function applyPreset(
+    frequency: ScheduleFrequency,
+    weekday: Weekday,
+    time: string,
+  ): void {
+    const generated = cronFromPreset(frequency, weekday, time);
+    if (generated === null) return;
+    setCreate((was) => ({ ...was, cron: generated }));
+    void requestCronPreview(generated, create.timezone);
   }
 
   async function ask(
@@ -322,6 +556,9 @@ export function Schedules({
     const record = scheduleFrom(found);
     setRecords((was) => [...was, record]);
     setCreate(BLANK_CREATE);
+    setPresetFrequency('custom');
+    setPresetWeekday('monday');
+    setPresetTime('08:00');
     setCreated(record);
   }
 
@@ -371,6 +608,10 @@ export function Schedules({
             {records.map((schedule) => {
               const draft = cronDraft[schedule.jobId] ?? schedule.cron;
               const changed = draft !== schedule.cron;
+              // Read from the draft, not from the stored expression: while
+              // somebody is editing, the sentence has to describe what they
+              // are about to save, or it is reassuring them about the old one.
+              const readable = readableFrequency(draft, labels);
               return (
                 <tr
                   key={schedule.jobId}
@@ -381,6 +622,18 @@ export function Schedules({
                     {schedule.name}
                   </td>
                   <td className="px-3 py-2 edge border-border border-t-0 border-x-0 min-w-0">
+                    {readable === null ? null : (
+                      // The answer to "when does this run", above the syntax
+                      // that encodes it. Absent rather than approximated when
+                      // the expression is one no preset writes.
+                      <p
+                        className="text-meta text-muted mb-1"
+                        data-testid="schedule-frequency"
+                        data-job={schedule.jobId}
+                      >
+                        {readable}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2">
                       <Input
                         label={labels.column.cron}
@@ -504,6 +757,49 @@ export function Schedules({
               setCreate((was) => ({ ...was, name: value }));
             }}
           />
+          <Select
+            label={labels.create.frequency}
+            description={labels.create.frequencyHelp}
+            name="create-frequency"
+            value={presetFrequency}
+            options={SCHEDULE_FREQUENCIES.map((frequency) => ({
+              value: frequency,
+              label: labels.create.frequencyOptions[frequency],
+            }))}
+            onValueChange={(value) => {
+              if (!isFrequency(value)) return;
+              setPresetFrequency(value);
+              applyPreset(value, presetWeekday, presetTime);
+            }}
+          />
+          {presetFrequency === 'weekly' ? (
+            <Select
+              label={labels.create.weekday}
+              name="create-weekday"
+              value={presetWeekday}
+              options={WEEKDAYS.map((weekday) => ({
+                value: weekday,
+                label: labels.create.weekdayOptions[weekday],
+              }))}
+              onValueChange={(value) => {
+                if (!isWeekday(value)) return;
+                setPresetWeekday(value);
+                applyPreset(presetFrequency, value, presetTime);
+              }}
+            />
+          ) : null}
+          {presetFrequency === 'custom' ? null : (
+            <Input
+              label={labels.create.time}
+              type="time"
+              name="create-preset-time"
+              value={presetTime}
+              onValueChange={(value) => {
+                setPresetTime(value);
+                applyPreset(presetFrequency, presetWeekday, value);
+              }}
+            />
+          )}
           <Input
             label={labels.create.cron}
             description={labels.create.help.cron}
@@ -513,7 +809,7 @@ export function Schedules({
               setCreate((was) => ({ ...was, cron: value }));
             }}
             onBlur={() => {
-              void requestCronPreview();
+              void requestCronPreview(create.cron, create.timezone);
             }}
           />
           <Input
@@ -537,7 +833,7 @@ export function Schedules({
               // The preview is of the pair, not of the cron field alone —
               // a zone changed after the cron already settled makes the
               // firings shown wrong for the pair now on the form.
-              void requestCronPreview();
+              void requestCronPreview(create.cron, create.timezone);
             }}
           />
           <Button

@@ -174,6 +174,12 @@ export const EN = {
   'data.ingress.empty.body':
     'Point an alert router at one of this deployment\u2019s webhook addresses and its deliveries appear here.',
   'data.ingress.empty.action': 'Open the catalogue',
+  // The receiver's own collapsed detail (Reference): what stays out of the
+  // compact row until it is asked for.
+  'data.ingress.detail.title': 'Format & test',
+  'data.ingress.detail.summary':
+    'Expected format, trust mechanism, and a delivery test.',
+  'data.ingress.detail.format': 'Expects:',
   'data.rules.title': 'What happens to it',
   'data.rules.action': 'Action:',
   'data.rules.catchAll': 'Everything no rule above matched ends here.',
@@ -203,6 +209,15 @@ export const EN = {
   'data.delivery.empty.heading': 'No destination is declared',
   'data.delivery.empty.body': 'Nothing is told when an investigation concludes.',
   'data.delivery.empty.action': 'Open configuration',
+  // The CTA contract applied to the one case the empty state names a more
+  // specific reason than "declare a destination": nothing configured can
+  // carry a message at all, so the action lands in the catalogue, filtered
+  // to the category that fixes it — never on the schema editor the sentence
+  // does not mention.
+  'data.delivery.unconfigurable.action': 'Connect an integration',
+  // Beside a degraded destination's own reason, linking to the credential
+  // that would resolve it.
+  'data.delivery.unusable.link': 'Check the credential',
   'data.provenance.open': 'Where did this go?',
   'data.provenance.source': 'Arrived by',
   'data.provenance.rule': 'Rule',
@@ -895,6 +910,13 @@ export const EN = {
   'schedules.column.nextRun': 'Next investigation',
   'schedules.column.enabled': 'Enabled',
   'schedules.never': 'Not scheduled',
+  // What a stored expression says, for the list. Only the shapes the presets
+  // can write are named here; anything else keeps the expression alone rather
+  // than being described approximately.
+  'schedules.frequency.daily': 'Every day at {time}',
+  'schedules.frequency.weekdays': 'Every weekday at {time}',
+  'schedules.frequency.weekly': 'Every {weekday} at {time}',
+  'schedules.frequency.monthly': 'The 1st of each month, at {time}',
   'schedules.enable': 'Enable',
   'schedules.enabling': 'Enabling…',
   'schedules.disable': 'Disable',
@@ -926,6 +948,26 @@ export const EN = {
     'The instruction the investigation runs with, exactly as if somebody had typed it to start one by hand.',
   'schedules.create.timezoneHelp':
     'The zone the cron expression is read in. An IANA name, such as Europe/Lisbon.',
+  // The presets: a readable frequency that generates the cron field above
+  // rather than replacing it, so "toda segunda às 08:00" and a hand-written
+  // expression are two ways to arrive at the same field.
+  'schedules.create.frequency': 'Frequency',
+  'schedules.create.frequencyHelp':
+    'A readable frequency, which writes the cron field above rather than replacing it.',
+  'schedules.create.frequency.custom': 'Custom cron',
+  'schedules.create.frequency.daily': 'Every day',
+  'schedules.create.frequency.weekdays': 'Every weekday (Monday to Friday)',
+  'schedules.create.frequency.weekly': 'Every week, on a chosen day',
+  'schedules.create.frequency.monthly': 'Every month, on the 1st',
+  'schedules.create.weekday': 'Day of week',
+  'schedules.create.weekday.monday': 'Monday',
+  'schedules.create.weekday.tuesday': 'Tuesday',
+  'schedules.create.weekday.wednesday': 'Wednesday',
+  'schedules.create.weekday.thursday': 'Thursday',
+  'schedules.create.weekday.friday': 'Friday',
+  'schedules.create.weekday.saturday': 'Saturday',
+  'schedules.create.weekday.sunday': 'Sunday',
+  'schedules.create.time': 'Time',
   'schedules.create.submit': 'Create schedule',
   'schedules.create.submitting': 'Creating…',
   'schedules.create.created': 'Schedule created: {name}.',

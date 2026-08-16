@@ -99,7 +99,7 @@ export interface InputProps extends FieldProps {
    * `password` is here for one reason: a credential typed in plain sight is a
    * credential the person at the next desk has read.
    */
-  readonly type?: 'text' | 'search' | 'number' | 'date' | 'password';
+  readonly type?: 'text' | 'search' | 'number' | 'date' | 'time' | 'password';
   /**
    * What the browser may remember and offer back.
    *

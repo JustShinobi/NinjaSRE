@@ -137,16 +137,19 @@ test.describe('opening Settings', () => {
     }
   });
 
-  test('names an unbuilt page honestly, with a way back, rather than inventing a screen', async ({
+  test('none of the nine Settings pages is the honest stand-in any more', async ({
     page,
   }) => {
-    // Single sign-on and Machine tokens are no longer unbuilt (the
-    // Organização desmembramento); Alert intake still is, owned by a later
-    // feature in this wave.
+    // Alert intake and Schedules & destinations were the last two — every
+    // Settings page the subnav lists now renders its own screen rather than
+    // the generic "not built yet" placeholder.
     await page.goto('/settings/alert-intake');
 
-    await expect(page.getByTestId('way-back')).toHaveAttribute('href', '/settings');
-    // The page's own title still says what it is, even with nothing behind it.
+    await expect(page.getByTestId('way-back')).toHaveCount(0);
+    await expect(page.getByTestId('page-header')).toHaveAttribute(
+      'data-area',
+      'settings-alert-intake',
+    );
     await expect(page.locator('h1')).toHaveText('Alert intake');
   });
 });

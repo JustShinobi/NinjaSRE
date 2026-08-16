@@ -40,6 +40,12 @@ import Resources, {
 } from '@/app/(shell)/resources/page';
 import RunDetail from '@/app/(shell)/runs/[runId]/page';
 import Runs, { generateMetadata as runsMeta } from '@/app/(shell)/runs/page';
+import AlertIntake, {
+  generateMetadata as alertIntakeMeta,
+} from '@/app/(shell)/settings/alert-intake/page';
+import SchedulesDestinations, {
+  generateMetadata as schedulesDestinationsMeta,
+} from '@/app/(shell)/settings/schedules-destinations/page';
 
 /**
  * Every screen this console has, in one list.
@@ -208,6 +214,16 @@ export const AREA_SCREENS: readonly Screen[] = [
     id: 'settings-audit-log',
     render: renderAuditLog,
     metadata: () => settingsPageMetadata('settings-audit-log'),
+  },
+  {
+    id: 'settings-alert-intake',
+    render: AlertIntake,
+    metadata: alertIntakeMeta,
+  },
+  {
+    id: 'settings-schedules-destinations',
+    render: SchedulesDestinations,
+    metadata: schedulesDestinationsMeta,
   },
 ];
 

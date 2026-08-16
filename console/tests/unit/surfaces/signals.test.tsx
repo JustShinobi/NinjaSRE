@@ -8,9 +8,13 @@ import { SignalsScreen } from '@/surfaces/screens/signals';
 import { principalHolding, serveScenario } from '../support/dataset';
 
 /**
- * Signals: the fusion of Detectors and Data into one screen, four tabs — what
- * enters continuous observation and where an alert ends up once it has, which
- * used to sit in different zones of the menu for no reason a reader could see.
+ * Signals, after the dissolution: one tab left standing.
+ *
+ * Intake, Schedules and Destinations carried on as Settings pages of their
+ * own (`settings-alert-intake.test.tsx`,
+ * `settings-schedules-destinations.test.tsx`); nothing replaces continuous
+ * observation yet, so this address keeps rendering exactly that, with no tab
+ * chrome around a tab bar of one.
  */
 
 vi.mock('next/headers', () => ({
@@ -36,7 +40,7 @@ async function render_(search: Record<string, string> = {}): Promise<void> {
 }
 
 describe('the area header', () => {
-  it('names the area Signals, whichever tab is open', async () => {
+  it('names the area Signals', async () => {
     await render_();
 
     expect(screen.getByTestId('page-header')).toHaveAttribute('data-area', 'signals');
@@ -44,53 +48,29 @@ describe('the area header', () => {
   });
 });
 
-describe('the tab bar', () => {
-  it('offers all four tabs, in the order data moves through them', async () => {
-    await render_();
-
-    const tabs = screen.getAllByTestId('tab-link');
-    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).toEqual([
-      'intake',
-      'observation',
-      'schedules',
-      'destinations',
-    ]);
-  });
-
-  it('defaults to Intake', async () => {
-    await render_();
-
-    expect(screen.getByTestId('ingress-sources')).toBeInTheDocument();
-  });
-
-  it('shows continuous observation — the detector table — on its own tab', async () => {
+describe('what renders at this address now', () => {
+  it('shows continuous observation — the detector table — with no tab bar around it', async () => {
     await render_({ tab: 'observation' });
 
     expect(screen.getAllByTestId('detector').length).toBeGreaterThan(0);
-    expect(screen.queryByTestId('ingress-sources')).toBeNull();
+    expect(screen.queryByTestId('tab-links')).toBeNull();
   });
 
-  it('shows destinations on its own tab', async () => {
-    await render_({ tab: 'destinations' });
-
-    expect(screen.getByTestId('destinations')).toBeInTheDocument();
-    expect(screen.queryByTestId('ingress-sources')).toBeNull();
-  });
-});
-
-describe('a viewer who may not manage schedules', () => {
-  it('offers no Schedules tab at all, rather than one whose content is blank', async () => {
-    serveScenario('populated', principalHolding(['config.read']));
+  it('shows the same thing whether or not the address still carries a tab', async () => {
+    // The redirect that used to send every other variant of this address
+    // elsewhere is `signals/page.tsx`'s own concern, not this screen's — by
+    // the time `SignalsScreen` renders at all, there is only one tab left to
+    // show, so it is what renders regardless of what the query still names.
     await render_();
 
-    const tabs = screen.getAllByTestId('tab-link');
-    expect(tabs.map((tab) => tab.getAttribute('data-tab'))).not.toContain('schedules');
+    expect(screen.getAllByTestId('detector').length).toBeGreaterThan(0);
   });
 
-  it('falls back to Intake for a schedules tab requested directly in the address', async () => {
-    serveScenario('populated', principalHolding(['config.read']));
-    await render_({ tab: 'schedules' });
+  it('carries none of what moved to Settings pages of its own', async () => {
+    await render_();
 
-    expect(screen.getByTestId('ingress-sources')).toBeInTheDocument();
+    expect(screen.queryByTestId('ingress-sources')).toBeNull();
+    expect(screen.queryByTestId('destinations')).toBeNull();
+    expect(screen.queryByTestId('schedules')).toBeNull();
   });
 });

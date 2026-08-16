@@ -15,6 +15,18 @@
             ],
             "masking_policy": "standard",
             "unconfigurable_reason": ""
+          },
+          {
+            "channel": "microsoft_teams",
+            "destination_id": "oncall-teams",
+            "detail": "summary_with_link",
+            "enabled": true,
+            "events": [
+              "approval_pending",
+              "source_degraded"
+            ],
+            "masking_policy": "standard",
+            "unconfigurable_reason": "No configured channel carries 'microsoft_teams'. This deployment delivers over slack."
           }
         ],
         "events": [

@@ -79,6 +79,12 @@ const SCREENS: readonly ConfigScreen[] = [
   { route: '/settings/single-sign-on' },
   { route: '/settings/machine-tokens' },
   { route: '/settings/audit-log' },
+  // The two pages the old Signals screen's Intake, Schedules and
+  // Destinations tabs dissolved into. Both are held to this budget with the
+  // receivers and the schedules this dataset carries and nothing expanded by
+  // default — the collapsed reference is the whole reason they fit.
+  { route: '/settings/alert-intake' },
+  { route: '/settings/schedules-destinations' },
 ];
 
 for (const screen of SCREENS) {
