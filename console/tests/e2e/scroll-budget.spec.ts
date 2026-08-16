@@ -71,7 +71,17 @@ const SCREENS: readonly ConfigScreen[] = [
   { route: '/first-run' },
   { route: '/integrations' },
   { route: '/signals' },
-  { route: '/autonomy' },
+  {
+    route: '/autonomy',
+    expectedOverBudget:
+      'Measured 2208px against 2160. The screen absorbed the standalone autonomy ' +
+      'page — a glossary, the resolution-order table, four bounds panels, override ' +
+      'grant and revoke — and carries three creation forms open inline: a rule, a ' +
+      'freeze window, a budget. Whether those collapse or the budget moves is a ' +
+      'design decision nobody has taken yet. Declared rather than left red so that a ' +
+      'NEW screen going over budget is still visible; this entry keeps the screen ' +
+      'measured, and turns into a failure the moment it fits again.',
+  },
   { route: '/configuration' },
   // The four pages Administration desmembered into, each measured at its own
   // address now rather than as one screen carrying all five subjects.
