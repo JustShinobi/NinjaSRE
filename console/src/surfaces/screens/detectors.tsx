@@ -72,13 +72,10 @@ export async function ObservationTab(context: SurfaceContext): Promise<ReactNode
   const records = list(dataOf(detectors), 'detectors');
   const liveDetectors = records.filter((record) => flag(record, 'enabled')).length;
 
-  // Where the guardian toggle actually lives: the viewer's own node when the
-  // session names one, the tree's root otherwise — the same fallback
-  // Configuration itself applies when nothing has chosen a node yet.
-  const configurationHref =
-    viewer.teamNodeId === ''
-      ? '/configuration'
-      : `/configuration?node=${encodeURIComponent(viewer.teamNodeId)}`;
+  // Where the guardian toggle actually lives now: Alert intake's own advanced
+  // section, which resolves the viewer's own node itself — the same node the
+  // retired editor's fallback used to compute here by hand.
+  const configurationHref = '/settings/alert-intake';
   const watching = watchingCause(locale, liveDetectors);
   const cause = firstCause(
     setupCause(locale, setup),
@@ -96,7 +93,7 @@ export async function ObservationTab(context: SurfaceContext): Promise<ReactNode
           heading: message(locale, 'detectors.empty.heading'),
           body: message(locale, 'detectors.empty.body'),
           actionLabel: message(locale, 'detectors.empty.action'),
-          href: '/configuration',
+          href: configurationHref,
         },
         cause,
       )}

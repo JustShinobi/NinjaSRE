@@ -5,12 +5,12 @@ import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
+import { provenanceLabel } from '@/design/provenance-label';
 import type { SurfaceContext } from '../context';
 import { readSetupState } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
-import { provenanceLabel } from '../screens/configuration';
 import {
   authorised,
   dataOf,

@@ -129,6 +129,29 @@ test('the topology draws a picture and a list of the same graph', async ({ page 
   await expect(page.getByTestId('graph-list')).toBeVisible();
 });
 
+test('the four advanced policy sections stay collapsed and name their own fields', async ({
+  page,
+}) => {
+  // A real production build, not a component render: this is exactly the
+  // terrain where a server component consuming a `'use client'` module's
+  // export has broken before — passing every unit test and only failing here.
+  await page.goto('/knowledge');
+
+  const changes = page.getByTestId('advanced-config-policies-changes');
+  const access = page.getByTestId('advanced-config-policies-knowledge');
+  const memory = page.getByTestId('advanced-config-policies-memory');
+  const strategy = page.getByTestId('advanced-config-policies-strategy');
+
+  for (const details of [changes, access, memory, strategy]) {
+    await expect(details).toBeVisible();
+    await expect(details).not.toHaveAttribute('open', '');
+  }
+
+  await changes.locator('summary').click();
+  await expect(changes).toHaveAttribute('open', '');
+  await expect(changes.getByText('Repository path')).toBeVisible();
+});
+
 test('the organisation tree has every node in it', async ({ page }) => {
   await page.goto('/configuration');
 

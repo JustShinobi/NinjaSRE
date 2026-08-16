@@ -196,6 +196,135 @@ describe('the fusion of Memory, Knowledge and Topology into one screen', () => {
   });
 });
 
+const CONFIG_NODE = 'org-northwind';
+
+interface PolicyConfigStub {
+  readonly values?: unknown;
+  readonly provenance?: Readonly<Record<string, string>>;
+  readonly fields?: readonly unknown[];
+}
+
+/**
+ * `serveScenario('populated')`, with the configuration-service reads the
+ * four advanced policy sections make answered directly — the shared dataset
+ * carries no `policies.changes/knowledge/memory/strategy.*` values yet.
+ */
+function serveWithPolicyConfig(config: PolicyConfigStub = {}): void {
+  serveScenario('populated');
+  const base = globalThis.fetch;
+  vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), BASE).pathname;
+    if (path === `/v1/config/${CONFIG_NODE}` && config.values !== undefined) {
+      return new Response(
+        JSON.stringify({
+          node_id: CONFIG_NODE,
+          values: config.values,
+          provenance: config.provenance ?? {},
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    if (path === `/v1/config/${CONFIG_NODE}/fields` && config.fields !== undefined) {
+      return new Response(JSON.stringify({ fields: config.fields }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return base(input as string, init);
+  });
+}
+
+describe('the four advanced policy sections', () => {
+  it('are collapsed on arrival, one per schema group, each naming its own fields', async () => {
+    serveWithPolicyConfig({
+      values: {
+        policies: {
+          changes: { repository_path: '/srv/infra', git_host: { vendor: 'github' } },
+          knowledge: { topology_enabled: true, knowledge_base_enabled: false },
+          memory: { read_enabled: true, write_enabled: false },
+          strategy: { enabled: true },
+        },
+      },
+    });
+
+    await renderKnowledge();
+
+    const changes = screen.getByTestId('advanced-config-policies-changes');
+    const access = screen.getByTestId('advanced-config-policies-knowledge');
+    const memory = screen.getByTestId('advanced-config-policies-memory');
+    const strategy = screen.getByTestId('advanced-config-policies-strategy');
+    for (const details of [changes, access, memory, strategy]) {
+      expect(details.tagName).toBe('DETAILS');
+      expect((details as HTMLDetailsElement).open).toBe(false);
+    }
+
+    const paths = screen
+      .getAllByTestId('effective-field')
+      .map((row) => row.getAttribute('data-path'));
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'policies.changes.repository_path',
+        'policies.changes.git_host.vendor',
+        'policies.changes.git_host.repository',
+        'policies.knowledge.topology_enabled',
+        'policies.knowledge.knowledge_base_enabled',
+        'policies.memory.read_enabled',
+        'policies.memory.write_enabled',
+        'policies.strategy.enabled',
+      ]),
+    );
+  });
+
+  it("scopes each section's editor to its own prefix only", async () => {
+    serveWithPolicyConfig({
+      values: { policies: { memory: { read_enabled: true } } },
+      fields: [
+        {
+          path: 'policies.memory.read_enabled',
+          label: 'Recall past incidents',
+          type: 'boolean',
+          section: 'Memory',
+          value: true,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.strategy.enabled',
+          label: 'Offer distilled playbooks',
+          type: 'boolean',
+          section: 'Strategy',
+          value: true,
+          provenance: '',
+          set_here: false,
+        },
+      ],
+    });
+
+    await renderKnowledge();
+
+    const memorySection = screen.getByTestId('advanced-config-policies-memory');
+    const memoryFields = [
+      ...memorySection.querySelectorAll('[data-testid="config-field"]'),
+    ].map((el) => el.getAttribute('data-path'));
+    expect(memoryFields).toEqual(['policies.memory.read_enabled']);
+
+    const strategySection = screen.getByTestId('advanced-config-policies-strategy');
+    const strategyFields = [
+      ...strategySection.querySelectorAll('[data-testid="config-field"]'),
+    ].map((el) => el.getAttribute('data-path'));
+    expect(strategyFields).toEqual(['policies.strategy.enabled']);
+  });
+
+  it('are on the page whichever tab is open', async () => {
+    serveWithPolicyConfig();
+
+    const { default: Page } = await import('@/app/(shell)/knowledge/page');
+    render(await Page({ searchParams: Promise.resolve({ tab: 'learned' }) }));
+
+    expect(screen.getByTestId('advanced-config-policies-changes')).toBeInTheDocument();
+  });
+});
+
 describe('a filter with nothing behind it but "Any"', () => {
   it('is hidden when no document in the corpus has a kind', async () => {
     serveScenario('empty');

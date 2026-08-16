@@ -10,6 +10,7 @@ import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
 import { KillSwitchControl } from '@/shell/stop';
 import type { SurfaceContext } from '../context';
+import { AdvancedConfigSection } from '../advanced-config-section';
 import {
   AutonomyEditor,
   type EditableBound,
@@ -23,7 +24,7 @@ import { OverrideEditor, type ActiveOverride } from '../override-editor';
 import { Panel } from '../panel';
 import { ConfigEditor } from '../preview';
 import { postureLabels } from '../postures';
-import { provenanceLabel } from '../screens/configuration';
+import { provenanceLabel } from '@/design/provenance-label';
 import {
   authorised,
   dataOf,
@@ -38,7 +39,7 @@ import {
   stateOf,
   text,
 } from '../read';
-import { EffectiveFieldsTable } from './resolution-preview';
+import { EffectiveFieldsTable } from '@/design/resolution-preview';
 import { valueAt } from './values';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
@@ -136,7 +137,7 @@ const GUARDRAIL_PREFIXES = [
 
 /**
  * The guardrail scalar fields shown to every viewer, whether or not they may
- * write — the other half of FR-006, which holds regardless of `config.write`.
+ * write — origin display holds regardless of `config.write`.
  * The array-shaped fields (`custom_patterns`, `disabled_rules`,
  * `autonomous_capabilities`) are left off this summary and are still fully
  * editable below, through `ConfigEditor`.
@@ -165,6 +166,35 @@ const GUARDRAIL_FIELD_LIST: readonly {
   {
     path: 'policies.approvals.expiry_hours',
     label: 'settings.autonomy.guardrails.expiryHours',
+  },
+];
+
+/**
+ * The four `policies.autonomy` scalars with no control of their own — the
+ * array-shaped siblings (`rules`, `freezes`, `budgets`, `overrides`) already
+ * have one, above, through `AutonomyEditor` and `OverrideEditor`.
+ */
+const AUTONOMY_ADVANCED_PREFIX = 'policies.autonomy.';
+
+const AUTONOMY_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'policies.autonomy.allow_unverifiable_actions',
+    label: 'settings.autonomy.advanced.field.allowUnverifiableActions',
+  },
+  {
+    path: 'policies.autonomy.dry_run',
+    label: 'settings.autonomy.advanced.field.dryRun',
+  },
+  {
+    path: 'policies.autonomy.recurrence_threshold',
+    label: 'settings.autonomy.advanced.field.recurrenceThreshold',
+  },
+  {
+    path: 'policies.autonomy.recurrence_window_seconds',
+    label: 'settings.autonomy.advanced.field.recurrenceWindowSeconds',
   },
 ];
 
@@ -585,6 +615,23 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 }}
               />
             ) : null}
+          </div>
+
+          <div className="mt-5">
+            <AdvancedConfigSection
+              title={message(locale, 'settings.autonomy.advanced.title')}
+              prefix={AUTONOMY_ADVANCED_PREFIX}
+              nodeId={nodeId}
+              locale={locale}
+              writable={writable}
+              fields={AUTONOMY_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+                path,
+                label: message(locale, label),
+              }))}
+              values={values}
+              provenance={provenance}
+              rawFields={dataOf(guardrailFields)}
+            />
           </div>
         </div>
 

@@ -104,14 +104,6 @@ describe('a screen reached through its address', () => {
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
   });
 
-  it('reads a configuration node the address names', async () => {
-    serveScenario('populated', principalHolding(['config.read', 'config.write']));
-    await renderArea('configuration', { node: 'org-northwind' });
-
-    expect(screen.getAllByTestId('config-value').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('provenance').length).toBeGreaterThan(0);
-  });
-
   it('centres the topology on the node the address names', async () => {
     serveScenario('populated', principalHolding(['memory.read', 'knowledge.read']));
     await renderArea('knowledge', { tab: 'topology', node: 'svc-checkout' });

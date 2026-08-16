@@ -416,3 +416,176 @@ describe('the setup wizard handover', () => {
     expect(screen.queryByTestId('setup-return-banner')).toBeNull();
   });
 });
+
+const CONFIG_NODE = 'org-northwind';
+
+interface ObservationConfigStub {
+  readonly values?: unknown;
+  readonly provenance?: Readonly<Record<string, string>>;
+  readonly fields?: readonly unknown[];
+}
+
+/**
+ * `serveScenario('populated')`, with the configuration-service reads the
+ * advanced observation section makes answered directly — the shared dataset
+ * carries no `policies.observation.*` values or fields yet.
+ */
+function serveWithObservationConfig(
+  config: ObservationConfigStub = {},
+  principal?: unknown,
+): void {
+  serveScenario('populated', principal);
+  const base = globalThis.fetch;
+  vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURE_BASE).pathname;
+    if (path === `/v1/config/${CONFIG_NODE}` && config.values !== undefined) {
+      return new Response(
+        JSON.stringify({
+          node_id: CONFIG_NODE,
+          values: config.values,
+          provenance: config.provenance ?? {},
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    if (path === `/v1/config/${CONFIG_NODE}/fields` && config.fields !== undefined) {
+      return new Response(JSON.stringify({ fields: config.fields }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return base(input as string, init);
+  });
+}
+
+describe('the advanced observation-settings section', () => {
+  it('is collapsed on arrival and names the observation fields with no other control', async () => {
+    serveWithObservationConfig({
+      values: {
+        policies: {
+          observation: {
+            paused: true,
+            pause_reason: 'planned migration',
+            bridge: { enabled: false },
+            guardian: { enabled: false },
+          },
+        },
+      },
+      provenance: { 'policies.observation.paused': CONFIG_NODE },
+    });
+
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const details = screen.getByTestId('advanced-config-policies-observation');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    const rows = screen.getAllByTestId('effective-field');
+    const paths = rows.map((row) => row.getAttribute('data-path'));
+    expect(paths).toContain('policies.observation.paused');
+    expect(paths).toContain('policies.observation.pause_reason');
+    expect(paths).toContain('policies.observation.bridge.enabled');
+    expect(paths).toContain('policies.observation.guardian.enabled');
+  });
+
+  it('scopes its editor to policies.observation fields only, never a different section', async () => {
+    serveWithObservationConfig({
+      values: { policies: { observation: { paused: false } } },
+      fields: [
+        {
+          path: 'policies.observation.paused',
+          label: 'Watching paused',
+          type: 'boolean',
+          section: 'Observation',
+          value: false,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.sso.provider',
+          label: 'Provider',
+          type: 'string',
+          section: 'Single sign-on',
+          value: 'keycloak',
+          provenance: CONFIG_NODE,
+          set_here: true,
+        },
+      ],
+    });
+
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const section = screen.getByTestId('advanced-config-policies-observation');
+    const fields = section.querySelectorAll('[data-testid="config-field"]');
+    const paths = [...fields].map((field) => field.getAttribute('data-path'));
+    expect(paths).toEqual(['policies.observation.paused']);
+  });
+
+  it('leaves the editor out, keeping the read-only rows, for a viewer who may not write', async () => {
+    serveWithObservationConfig(
+      { values: { policies: { observation: { paused: false } } } },
+      principalHolding(['config.read']),
+    );
+
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
+  });
+
+  // The bridge's own lists and the detector list have no purpose-built
+  // add/remove/reorder control of their own — they draw through this same
+  // prefixed `ConfigEditor` as an `ObjectList`, the moment the schema
+  // describes what one entry looks like. This is the proof that they do,
+  // pinning the capability rather than a purpose-built screen for it.
+  const OBSERVATION_LIST_PATHS = [
+    'policies.observation.detectors',
+    'policies.observation.bridge.dashboards',
+    'policies.observation.bridge.label_rules',
+    'policies.observation.bridge.log_selectors',
+    'policies.observation.bridge.precedence',
+    'policies.observation.guardian.overrides',
+  ] as const;
+
+  function listField(path: string): unknown {
+    return {
+      path,
+      label: path,
+      type: 'array',
+      section: 'Observation',
+      value: [],
+      provenance: '',
+      set_here: false,
+      item_fields: [
+        {
+          path: 'name',
+          label: 'Name',
+          type: 'string',
+          help: '',
+          allowed_values: null,
+          minimum: null,
+          maximum: null,
+          default: '',
+        },
+      ],
+    };
+  }
+
+  it('draws every observation list — the detector set and the bridge’s own — as an editable, reorderable list', async () => {
+    serveWithObservationConfig({
+      values: { policies: { observation: {} } },
+      fields: OBSERVATION_LIST_PATHS.map((path) => listField(path)),
+    });
+
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const section = screen.getByTestId('advanced-config-policies-observation');
+    for (const path of OBSERVATION_LIST_PATHS) {
+      const field = section.querySelector(
+        `[data-testid="config-field"][data-path="${path}"]`,
+      );
+      expect(field).not.toBeNull();
+      expect(field?.querySelector('[data-testid="object-list"]')).toBeInTheDocument();
+    }
+  });
+});

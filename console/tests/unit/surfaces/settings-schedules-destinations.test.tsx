@@ -207,3 +207,173 @@ describe('a column whose read the deployment refused', () => {
     expect(screen.getByTestId('destinations')).toBeInTheDocument();
   });
 });
+
+/** A base for parsing a path-only address. Never contacted, and built rather
+ * than written — the same convention `support/dataset.ts` uses. */
+const FIXTURE_BASE = ['http:', '//fixtures.invalid'].join('');
+
+/** The node the shared dataset's own populated principal resolves to. */
+const CONFIG_NODE = 'org-northwind';
+
+interface ListFieldStub {
+  readonly path: string;
+}
+
+/** One array field, drawn as an editable, reorderable `ObjectList`. */
+function listField(path: string): unknown {
+  return {
+    path,
+    label: path,
+    type: 'array',
+    section: 'Destinations',
+    value: [],
+    provenance: '',
+    set_here: false,
+    item_fields: [
+      {
+        path: 'name',
+        label: 'Name',
+        type: 'string',
+        help: '',
+        allowed_values: null,
+        minimum: null,
+        maximum: null,
+        default: '',
+      },
+    ],
+  };
+}
+
+/**
+ * `serveScenario('populated')`, with the configuration-service reads the two
+ * advanced sections below make answered directly — the shared dataset
+ * carries no `surfaces.*`/`transit.*` fields yet.
+ */
+function serveWithDestinationsConfig(
+  fields: readonly ListFieldStub[],
+  principal?: unknown,
+): void {
+  serveScenario('populated', principal);
+  const base = globalThis.fetch;
+  vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURE_BASE).pathname;
+    if (path === `/v1/config/${CONFIG_NODE}/fields`) {
+      return new Response(
+        JSON.stringify({ fields: fields.map((f) => listField(f.path)) }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+    }
+    return base(input as string, init);
+  });
+}
+
+describe('the advanced transit-routing section', () => {
+  it('is collapsed on arrival and draws rules and destinations as editable, reorderable lists', async () => {
+    serveWithDestinationsConfig([
+      { path: 'transit.rules' },
+      { path: 'transit.destinations' },
+    ]);
+
+    render(await SchedulesDestinationsScreen(await surfaceContext({})));
+
+    const details = screen.getByTestId('advanced-config-transit');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    for (const path of ['transit.rules', 'transit.destinations']) {
+      const field = details.querySelector(
+        `[data-testid="config-field"][data-path="${path}"]`,
+      );
+      expect(field).not.toBeNull();
+      expect(field?.querySelector('[data-testid="object-list"]')).toBeInTheDocument();
+    }
+  });
+
+  it('offers no editor to a viewer who may not write configuration', async () => {
+    serveWithDestinationsConfig(
+      [{ path: 'transit.rules' }],
+      principalHolding(['config.read']),
+    );
+
+    render(await SchedulesDestinationsScreen(await surfaceContext({})));
+
+    const details = screen.getByTestId('advanced-config-transit');
+    expect(within(details).queryByTestId('ask-preview')).toBeNull();
+  });
+});
+
+describe('the advanced surfaces-destinations section', () => {
+  it('draws channels, report destinations and notification sinks as editable, reorderable lists', async () => {
+    serveWithDestinationsConfig([
+      { path: 'surfaces.channels' },
+      { path: 'surfaces.report_destinations' },
+      { path: 'surfaces.notification_sinks' },
+    ]);
+
+    render(await SchedulesDestinationsScreen(await surfaceContext({})));
+
+    const details = screen.getByTestId('advanced-config-surfaces-destinations');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    for (const path of [
+      'surfaces.channels',
+      'surfaces.report_destinations',
+      'surfaces.notification_sinks',
+    ]) {
+      const field = details.querySelector(
+        `[data-testid="config-field"][data-path="${path}"]`,
+      );
+      expect(field).not.toBeNull();
+      expect(field?.querySelector('[data-testid="object-list"]')).toBeInTheDocument();
+    }
+  });
+
+  it('never draws a control for surfaces.notification_policy or surfaces.console fields — those belong to other pages', async () => {
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      if (path === `/v1/config/${CONFIG_NODE}/fields`) {
+        return new Response(
+          JSON.stringify({
+            fields: [
+              listField('surfaces.channels'),
+              {
+                path: 'surfaces.notification_policy.timezone',
+                label: 'Timezone',
+                type: 'string',
+                section: 'Notifications',
+                value: 'UTC',
+                provenance: '',
+                set_here: false,
+              },
+              {
+                path: 'surfaces.console.tutorial_dismissed',
+                label: 'Tutorial dismissed',
+                type: 'boolean',
+                section: 'Console',
+                value: false,
+                provenance: '',
+                set_here: false,
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      return base(input as string, init);
+    });
+
+    render(await SchedulesDestinationsScreen(await surfaceContext({})));
+
+    const details = screen.getByTestId('advanced-config-surfaces-destinations');
+    const paths = [...details.querySelectorAll('[data-testid="config-field"]')].map(
+      (field) => field.getAttribute('data-path'),
+    );
+    expect(paths).toEqual(['surfaces.channels']);
+  });
+});

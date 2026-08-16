@@ -107,11 +107,18 @@ describe('the write controls, per role', () => {
     if (most === undefined) throw new Error('the role catalogue is empty');
     serveScenario('populated', principalHolding(ROLES.roles[most] ?? []));
 
-    const configuration = AREA_SCREENS.find((each) => each.id === 'configuration');
-    if (configuration === undefined)
-      throw new Error('there is no configuration screen');
-    render(await configuration.render({ searchParams: Promise.resolve({}) }));
+    // Autonomy & guardrails rather than the retired raw editor: the editor is
+    // gone, but the control it was asked about is not — the same
+    // `ConfigEditor` now draws the guardrail fields on the page that owns
+    // them, which is what this direction of the matrix is actually about.
+    const autonomy = AREA_SCREENS.find((each) => each.id === 'autonomy');
+    if (autonomy === undefined) throw new Error('there is no autonomy screen');
+    render(await autonomy.render({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByTestId('config-editor')).toBeInTheDocument();
+    // `getAll`, because this page now draws two: the guardrail fields it
+    // always had, and the advanced section holding the autonomy scalars the
+    // retired editor used to be the only home for. The claim is "at least
+    // one", and it would be a worse test if a second one broke it.
+    expect(screen.getAllByTestId('config-editor').length).toBeGreaterThan(0);
   });
 });

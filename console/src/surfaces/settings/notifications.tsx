@@ -12,7 +12,7 @@ import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-ban
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { ConfigEditor } from '../preview';
-import { provenanceLabel } from '../screens/configuration';
+import { provenanceLabel } from '@/design/provenance-label';
 import {
   authorised,
   dataOf,
@@ -25,7 +25,7 @@ import {
 } from '../read';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
-import { EffectiveFieldsTable } from './resolution-preview';
+import { EffectiveFieldsTable } from '@/design/resolution-preview';
 import { valueAt } from './values';
 
 /**

@@ -849,6 +849,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'knowledge.proposals.empty.body':
     'Quando uma investigação aprende algo que vale a pena escrever, propõe a mudança aqui em vez de a fazer.',
   'knowledge.proposals.empty.action': 'Ver os documentos',
+  'knowledge.advanced.changes.title': 'Avançado: origem das mudanças',
+  'knowledge.advanced.field.repositoryPath': 'Caminho do repositório',
+  'knowledge.advanced.field.gitHostVendor': 'Provedor do git host',
+  'knowledge.advanced.field.gitHostRepository': 'Repositório do git host',
+  'knowledge.advanced.knowledge.title': 'Avançado: acesso ao conhecimento',
+  'knowledge.advanced.field.topologyEnabled': 'Seguir a topologia de recursos',
+  'knowledge.advanced.field.knowledgeBaseEnabled': 'Buscar na base de conhecimento',
+  'knowledge.advanced.memory.title': 'Avançado: memória episódica',
+  'knowledge.advanced.field.memoryReadEnabled': 'Recuperar incidentes anteriores',
+  'knowledge.advanced.field.memoryWriteEnabled': 'Registrar investigações concluídas',
+  'knowledge.advanced.strategy.title': 'Avançado: estratégia',
+  'knowledge.advanced.field.strategyEnabled': 'Oferecer playbooks destilados',
 
   'topology.graph.title': 'Vizinhança',
   'topology.list.title': 'O mesmo grafo, em lista',
@@ -1113,6 +1125,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'ingress.token.unreachable': 'N\u00e3o foi poss\u00edvel alcan\u00e7ar o deployment.',
   'firstRun.integrations.foundHere': 'Encontrado no seu estate em',
   'catalogue.integrations.title': 'Integrações',
+  'catalogue.integrations.advanced.title': 'Avançado: vendors configurados',
   'catalogue.integrations.state': 'Ligação',
   'catalogue.integrations.verified': 'Última verificação',
   'catalogue.integrations.verify': 'Verificar agora',
@@ -1369,6 +1382,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.budgets.empty.body':
     'O deployment não descreveu os campos de orçamento deste nó, então os tetos não podem ser mostrados.',
   'agent.budgets.empty.action': 'Editar a configuração',
+  'agent.advanced.title': 'Configurações avançadas do agente',
+  'agent.advanced.field.promptInvestigator': 'Substituição do prompt do investigador',
+  'agent.advanced.field.promptIntake': 'Substituição do prompt de admissão',
+  'agent.advanced.field.promptDiagnose': 'Substituição do prompt de diagnóstico',
+  'agent.advanced.field.operatingContextEnabled': 'Enviar contexto operacional',
+  'agent.advanced.field.maxSubagentIterations': 'Máximo de iterações do especialista',
   'agent.document.title': 'A mesma topologia, como documento',
   'agent.empty.heading': 'Não foi possível descrever o pipeline',
   'agent.empty.body':
@@ -1388,6 +1407,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.tools.empty.body':
     'Nenhuma capacidade deste build cai neste grupo, ou não foi possível perguntar ao deployment.',
   'agent.tools.empty.action': 'Editar a configuração',
+  'agent.tools.advanced.title': 'Configurações avançadas de capacidades',
   'agent.bridged.title': 'Servidores fora deste deployment',
   'agent.bridged.body':
     'Uma ferramenta vinda de um destes veio de onde o operador não manda. Suas ferramentas são enumeradas quando o deployment alcança o servidor, e uma que ninguém classificou não pode executar.',
@@ -1452,6 +1472,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'data.simulate.unreachable': 'N\u00e3o foi poss\u00edvel alcan\u00e7ar o deployment.',
   'data.simulate.malformed': 'Isso n\u00e3o \u00e9 JSON v\u00e1lido.',
   'data.delivery.title': 'Para onde vai o resultado',
+  'settings.schedulesDestinations.advanced.transit.title':
+    'Avan\u00e7ado: regras de roteamento e destinos de entrega',
+  'settings.schedulesDestinations.advanced.surfaces.title':
+    'Avan\u00e7ado: canais de chat, destinos de relat\u00f3rio e alvos de notifica\u00e7\u00e3o',
+  'settings.schedulesDestinations.advanced.field.transitRules': 'Regras de roteamento',
+  'settings.schedulesDestinations.advanced.field.transitDestinations':
+    'Destinos de entrega',
+  'settings.schedulesDestinations.advanced.field.channels': 'Canais de chat',
+  'settings.schedulesDestinations.advanced.field.reportDestinations':
+    'Destinos de relat\u00f3rio',
+  'settings.schedulesDestinations.advanced.field.notificationSinks':
+    'Alvos de notifica\u00e7\u00e3o',
   'data.delivery.masking': 'Pol\u00edtica de mascaramento:',
   'data.delivery.resend': 'Enviar de novo',
   'data.delivery.resending': 'Enviando\u2026',
@@ -1621,6 +1653,61 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.autonomy.guardrails.ruleset': 'Conjunto de regras',
   'settings.autonomy.guardrails.threshold': 'Limiar de aprovação',
   'settings.autonomy.guardrails.expiryHours': 'Validade do pedido de aprovação (horas)',
+
+  'settings.autonomy.advanced.title': 'Configurações avançadas de autonomia',
+  'settings.autonomy.advanced.field.allowUnverifiableActions':
+    'Permitir ações não verificáveis',
+  'settings.autonomy.advanced.field.dryRun': 'Simular tudo para esta equipe',
+  'settings.autonomy.advanced.field.recurrenceThreshold': 'Limiar de recorrência',
+  'settings.autonomy.advanced.field.recurrenceWindowSeconds':
+    'Janela de recorrência (segundos)',
+
+  'settings.sso.advanced.title': 'Mapeamento avançado de claims',
+  'settings.sso.advanced.field.claimsSubject': 'Claim de assunto',
+  'settings.sso.advanced.field.claimsEmail': 'Claim de e-mail',
+  'settings.sso.advanced.field.claimsDisplayName': 'Claim de nome de exibição',
+  'settings.sso.advanced.field.claimsGroups': 'Claim de grupos',
+
+  'settings.alertIntake.advanced.title': 'Configurações avançadas de observação',
+  'settings.alertIntake.advanced.field.paused': 'Observação pausada',
+  'settings.alertIntake.advanced.field.pauseReason':
+    'Por que a observação está pausada',
+  'settings.alertIntake.advanced.field.bridgeEnabled': 'Usar o monitoramento existente',
+  'settings.alertIntake.advanced.field.bridgeDashboardBaseUrl':
+    'URL base dos dashboards',
+  'settings.alertIntake.advanced.field.bridgeMappingIntervalSeconds':
+    'Intervalo de correspondência (segundos)',
+  'settings.alertIntake.advanced.field.bridgeHistoryLookbackSeconds':
+    'Retrospecto do histórico (segundos)',
+  'settings.alertIntake.advanced.field.bridgeLogWindowSeconds':
+    'Janela de logs (segundos)',
+  'settings.alertIntake.advanced.field.bridgeLogLineLimit': 'Limite de linhas de log',
+  'settings.alertIntake.advanced.field.bridgeUseShippedRules':
+    'Usar os mapeamentos de exportador prontos',
+  'settings.alertIntake.advanced.field.bridgeUseShippedLogSelectors':
+    'Usar as consultas de log prontas',
+  'settings.alertIntake.advanced.field.bridgeLogsEnabled': 'Ler logs deste sistema',
+  'settings.alertIntake.advanced.field.bridgeLogsName': 'Nome do sistema de logs',
+  'settings.alertIntake.advanced.field.bridgeLogsEndpoint':
+    'Endereço do sistema de logs',
+  'settings.alertIntake.advanced.field.bridgeLogsIntegration':
+    'Integração do sistema de logs',
+  'settings.alertIntake.advanced.field.bridgeMetricsEnabled':
+    'Ler métricas deste sistema',
+  'settings.alertIntake.advanced.field.bridgeMetricsName':
+    'Nome do sistema de métricas',
+  'settings.alertIntake.advanced.field.bridgeMetricsEndpoint':
+    'Endereço do sistema de métricas',
+  'settings.alertIntake.advanced.field.bridgeMetricsIntegration':
+    'Integração do sistema de métricas',
+  'settings.alertIntake.advanced.field.guardianEnabled':
+    'Executar o conjunto de detectores prontos',
+  'settings.alertIntake.advanced.field.guardianClusterShape':
+    'Formato de cluster detectado',
+  'settings.alertIntake.advanced.field.guardianHeartbeatDestination':
+    'Destino do heartbeat',
+  'settings.alertIntake.advanced.field.guardianDeclaredIntentSource':
+    'Origem da intenção declarada',
 
   // --- Ajustes: Log de auditoria ----------------------------------------------
   'settings.auditLog.period.label': 'Período',

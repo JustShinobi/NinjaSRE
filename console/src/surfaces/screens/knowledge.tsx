@@ -1,11 +1,14 @@
 import type { ReactNode } from 'react';
 
+import type { MessageKey } from '@/i18n/en';
 import { TabLinks } from '@/components';
 import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
+import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { AdvancedConfigSection } from '../advanced-config-section';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
@@ -16,6 +19,7 @@ import {
   dependencyOf,
   field,
   list,
+  pairs,
   panelRead,
   read,
   stateOf,
@@ -23,7 +27,13 @@ import {
   type PanelData,
 } from '../read';
 import { RowList, type ListRow } from '../rows';
-import { readViewState, type FilterName } from '../url-state';
+import { placedTree } from '../tree';
+import {
+  DEFAULT_VIEW_STATE,
+  readViewState,
+  resolveNode,
+  type FilterName,
+} from '../url-state';
 import { LearnedTab } from './memory';
 import { TopologyTab } from './topology';
 
@@ -222,21 +232,132 @@ export function tabFrom(value: string): KnowledgeAreaTab {
   return KNOWLEDGE_TABS.find((tab) => tab === value) ?? 'documents';
 }
 
+/** The permission the gateway requires to change this deployment's configuration. */
+const WRITE = 'config.write';
+
+/**
+ * Four schema groups this page owns that the raw editor drew but no screen
+ * ever did: where change history comes from, whether topology and the
+ * knowledge base are consulted, and whether memory and strategy are. Four
+ * separate disclosures rather than one, because the schema keeps them as
+ * four unrelated sections and a single heading over all of them would claim
+ * a relationship the schema does not — and each stays on the page whichever
+ * of the three tabs above is open, since none of the four is specific to one
+ * of them.
+ */
+const CHANGES_ADVANCED_PREFIX = 'policies.changes.';
+const CHANGES_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'policies.changes.repository_path',
+    label: 'knowledge.advanced.field.repositoryPath',
+  },
+  {
+    path: 'policies.changes.git_host.vendor',
+    label: 'knowledge.advanced.field.gitHostVendor',
+  },
+  {
+    path: 'policies.changes.git_host.repository',
+    label: 'knowledge.advanced.field.gitHostRepository',
+  },
+];
+
+/** The schema's own `policies.knowledge` section — access to topology and the knowledge base. */
+const ACCESS_ADVANCED_PREFIX = 'policies.knowledge.';
+const ACCESS_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'policies.knowledge.topology_enabled',
+    label: 'knowledge.advanced.field.topologyEnabled',
+  },
+  {
+    path: 'policies.knowledge.knowledge_base_enabled',
+    label: 'knowledge.advanced.field.knowledgeBaseEnabled',
+  },
+];
+
+const MEMORY_ADVANCED_PREFIX = 'policies.memory.';
+const MEMORY_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'policies.memory.read_enabled',
+    label: 'knowledge.advanced.field.memoryReadEnabled',
+  },
+  {
+    path: 'policies.memory.write_enabled',
+    label: 'knowledge.advanced.field.memoryWriteEnabled',
+  },
+];
+
+const STRATEGY_ADVANCED_PREFIX = 'policies.strategy.';
+const STRATEGY_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'policies.strategy.enabled',
+    label: 'knowledge.advanced.field.strategyEnabled',
+  },
+];
+
 export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNode> {
-  const { locale, search } = context;
+  const { credential, locale, viewer, search } = context;
   const tab = tabFrom(search.get('tab') ?? '');
   // Only the Topology tab carries a node in its own breadcrumb — see this
   // file's own note on why that decision moved up here rather than staying
   // inside `topology.tsx`.
   const node = tab === 'topology' ? (search.get('node') ?? '') : '';
 
-  // Only the selected tab reads anything.
-  const content =
+  const init = authorised(credential);
+  const writable = may(viewer, WRITE);
+
+  // Only the selected tab reads anything of its own; the tree read below is
+  // this page's, for the four advanced sections beneath every tab.
+  const [content, tree] = await Promise.all([
     tab === 'learned'
-      ? await LearnedTab(context)
+      ? LearnedTab(context)
       : tab === 'topology'
-        ? await TopologyTab(context)
-        : await DocumentsTab(context);
+        ? TopologyTab(context)
+        : DocumentsTab(context),
+    panelRead('/v1/config', () => read('/v1/config', init)),
+  ]);
+
+  // Deliberately not `search`'s own `node` — that parameter already names an
+  // estate resource on the Topology tab above, not a configuration node. The
+  // advanced sections show the viewer's own team's configuration, the same
+  // node a page with no selector of its own would resolve to.
+  const configNodeId = resolveNode(
+    DEFAULT_VIEW_STATE,
+    viewer,
+    placedTree(dataOf(tree)),
+  );
+
+  const nothing = { status: 'ready' as const, data: {} as unknown };
+  const effective =
+    configNodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: configNodeId } }),
+        );
+  const configFields =
+    !writable || configNodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', {
+            ...init,
+            params: { node_id: configNodeId },
+          }),
+        );
+
+  const policyValues = field(dataOf(effective), 'values');
+  const policyProvenance = new Map(pairs(dataOf(effective), 'provenance'));
+  const rawPolicyFields = dataOf(configFields);
 
   return (
     <>
@@ -257,6 +378,65 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
       />
 
       <div className="mt-4">{content}</div>
+
+      <div className="flex flex-col gap-3 mt-5">
+        <AdvancedConfigSection
+          title={message(locale, 'knowledge.advanced.changes.title')}
+          prefix={CHANGES_ADVANCED_PREFIX}
+          nodeId={configNodeId}
+          locale={locale}
+          writable={writable}
+          fields={CHANGES_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+            path,
+            label: message(locale, label),
+          }))}
+          values={policyValues}
+          provenance={policyProvenance}
+          rawFields={rawPolicyFields}
+        />
+        <AdvancedConfigSection
+          title={message(locale, 'knowledge.advanced.knowledge.title')}
+          prefix={ACCESS_ADVANCED_PREFIX}
+          nodeId={configNodeId}
+          locale={locale}
+          writable={writable}
+          fields={ACCESS_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+            path,
+            label: message(locale, label),
+          }))}
+          values={policyValues}
+          provenance={policyProvenance}
+          rawFields={rawPolicyFields}
+        />
+        <AdvancedConfigSection
+          title={message(locale, 'knowledge.advanced.memory.title')}
+          prefix={MEMORY_ADVANCED_PREFIX}
+          nodeId={configNodeId}
+          locale={locale}
+          writable={writable}
+          fields={MEMORY_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+            path,
+            label: message(locale, label),
+          }))}
+          values={policyValues}
+          provenance={policyProvenance}
+          rawFields={rawPolicyFields}
+        />
+        <AdvancedConfigSection
+          title={message(locale, 'knowledge.advanced.strategy.title')}
+          prefix={STRATEGY_ADVANCED_PREFIX}
+          nodeId={configNodeId}
+          locale={locale}
+          writable={writable}
+          fields={STRATEGY_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+            path,
+            label: message(locale, label),
+          }))}
+          values={policyValues}
+          provenance={policyProvenance}
+          rawFields={rawPolicyFields}
+        />
+      </div>
     </>
   );
 }

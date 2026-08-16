@@ -11,9 +11,6 @@ import { SingleSignOnScreen } from '@/surfaces/settings/sso';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 
 import Agent, { generateMetadata as agentMeta } from '@/app/(shell)/agent/page';
-import Configuration, {
-  generateMetadata as configurationMeta,
-} from '@/app/(shell)/configuration/page';
 import Decisions, {
   generateMetadata as decisionsMeta,
 } from '@/app/(shell)/decisions/page';
@@ -189,7 +186,6 @@ export const AREA_SCREENS: readonly Screen[] = [
     // produces.
     metadata: () => settingsPageMetadata('settings-autonomy-guardrails'),
   },
-  { id: 'configuration', render: Configuration, metadata: configurationMeta },
   {
     id: 'administration',
     render: renderMembers,

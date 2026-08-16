@@ -56,7 +56,7 @@ const EVERYTHING = [
 ];
 
 /** The screens that read an endpoint with a `{node_id}` in it, unconditionally. */
-const NODE_SCOPED = ['autonomy', 'configuration'] as const;
+const NODE_SCOPED = ['autonomy'] as const;
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');

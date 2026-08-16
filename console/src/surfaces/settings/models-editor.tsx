@@ -8,7 +8,11 @@ import { Input, Select } from '@/components/form';
 import { StatusChip } from '@/components/status';
 import type { Locale } from '@/i18n/messages';
 
-import { patchOf, ResolutionPreview, useConfigWrite } from './resolution-preview';
+import {
+  patchOf,
+  ResolutionPreview,
+  useConfigWrite,
+} from '@/design/resolution-preview';
 
 /**
  * Choosing what drives an investigation, role by role, without opening the

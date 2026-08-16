@@ -2,11 +2,12 @@ import type { ReactNode } from 'react';
 
 import { Link } from '@/components/action';
 import { resolveCta } from '@/design/empty-state';
-import { message } from '@/i18n/messages';
+import { message, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { AdvancedConfigSection } from '../advanced-config-section';
 import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { panelLabels } from '../labels';
 import { Panel, type PanelEmpty } from '../panel';
@@ -14,7 +15,9 @@ import {
   authorised,
   dataOf,
   dependencyOf,
+  field,
   list,
+  pairs,
   panelRead,
   read,
   stateOf,
@@ -27,6 +30,8 @@ import {
   type ScheduleRecord,
   type Weekday,
 } from '../schedules';
+import { placedTree } from '../tree';
+import { readViewState, resolveNode, type FilterName } from '../url-state';
 import { timestamp } from '@/i18n/format';
 
 /**
@@ -55,6 +60,70 @@ const WRITE = 'config.write';
 
 /** Who may see or change this team's scheduled investigations. */
 const SCHEDULE_MANAGE = 'schedule.manage';
+
+const DESTINATIONS_FILTERS: readonly FilterName[] = ['node'];
+
+/**
+ * The `transit` section is exactly two fields — `rules` and `destinations` —
+ * so the shared advanced section's own path-prefix filter covers both with
+ * no risk of also drawing a control for a field this page does not own.
+ */
+const TRANSIT_ADVANCED_PREFIX = 'transit.';
+
+/**
+ * The three `surfaces` fields this page owns — its own chat channels, report
+ * destinations and notification sinks. Deliberately *not* the bare
+ * `surfaces.` prefix: that would also reach `surfaces.notification_policy.*`
+ * (owned by Notifications) and `surfaces.console.tutorial_dismissed` (a
+ * machine field with no form by decision) — two fields this page does not
+ * own and must not offer a second, competing control for.
+ */
+const SURFACES_DESTINATIONS_PREFIXES: readonly string[] = [
+  'surfaces.channels',
+  'surfaces.report_destinations',
+  'surfaces.notification_sinks',
+];
+
+/**
+ * The five list fields this page owns, named so the effective-value table can
+ * show what each one resolves to and where it was set.
+ *
+ * Every one is an array the schema describes an entry shape for, so the
+ * `ConfigEditor` inside the section draws it as an `ObjectList` — the same
+ * control the raw editor used, on the page that owns the subject rather than
+ * in a generic list of the whole schema.
+ */
+const TRANSIT_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'transit.rules',
+    label: 'settings.schedulesDestinations.advanced.field.transitRules',
+  },
+  {
+    path: 'transit.destinations',
+    label: 'settings.schedulesDestinations.advanced.field.transitDestinations',
+  },
+];
+
+const SURFACES_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'surfaces.channels',
+    label: 'settings.schedulesDestinations.advanced.field.channels',
+  },
+  {
+    path: 'surfaces.report_destinations',
+    label: 'settings.schedulesDestinations.advanced.field.reportDestinations',
+  },
+  {
+    path: 'surfaces.notification_sinks',
+    label: 'settings.schedulesDestinations.advanced.field.notificationSinks',
+  },
+];
 
 /** `data` read as a bare array, and an empty one when it is not. */
 function rowsOf(data: unknown): readonly unknown[] {
@@ -349,6 +418,87 @@ async function destinationsSection(context: SurfaceContext): Promise<ReactNode> 
   );
 }
 
+/**
+ * The two configuration-schema groups this page owns but had no control for:
+ * the routing rules and delivery destinations `transit` declares, and the
+ * chat channels, report destinations and notification sinks `surfaces`
+ * declares. Both are arrays the schema describes an entry shape for, so the
+ * same `ConfigEditor` every advanced section already uses draws them as an
+ * `ObjectList` — add, remove, reorder — the moment a page scopes itself to
+ * the right prefix. Collapsed by default, like every advanced section.
+ *
+ * Does its own read of `/v1/config`, `/v1/config/{node_id}` and (only when
+ * writable) `/v1/config/{node_id}/fields`, exactly as every other advanced
+ * section on this console already does — this page had none of that
+ * machinery before, because everything else on it reads its own endpoint
+ * (`/v1/schedules`, `/v1/transit/destinations`) rather than the
+ * configuration document.
+ */
+async function advancedDestinationsSection(
+  context: SurfaceContext,
+): Promise<ReactNode> {
+  const { credential, locale, viewer, search } = context;
+  const state = readViewState(search, DESTINATIONS_FILTERS);
+  const init = authorised(credential);
+  const configWritable = may(viewer, WRITE);
+
+  const tree = await panelRead('/v1/config', () => read('/v1/config', init));
+  const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
+
+  const nothing = { status: 'ready' as const, data: {} as unknown };
+  const effective =
+    nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
+        );
+  const configFields =
+    !configWritable || nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
+        );
+
+  const values = field(dataOf(effective), 'values');
+  const provenance = new Map(pairs(dataOf(effective), 'provenance'));
+  const named = (
+    entries: readonly { readonly path: string; readonly label: MessageKey }[],
+  ): readonly { readonly path: string; readonly label: string }[] =>
+    entries.map(({ path, label }) => ({ path, label: message(locale, label) }));
+
+  return (
+    <div className="flex flex-col gap-3">
+      <AdvancedConfigSection
+        title={message(locale, 'settings.schedulesDestinations.advanced.transit.title')}
+        prefix={TRANSIT_ADVANCED_PREFIX}
+        nodeId={nodeId}
+        locale={locale}
+        writable={configWritable}
+        fields={named(TRANSIT_ADVANCED_FIELD_LIST)}
+        values={values}
+        provenance={provenance}
+        rawFields={dataOf(configFields)}
+      />
+
+      <AdvancedConfigSection
+        title={message(
+          locale,
+          'settings.schedulesDestinations.advanced.surfaces.title',
+        )}
+        prefix={SURFACES_DESTINATIONS_PREFIXES}
+        testId="advanced-config-surfaces-destinations"
+        nodeId={nodeId}
+        locale={locale}
+        writable={configWritable}
+        fields={named(SURFACES_ADVANCED_FIELD_LIST)}
+        values={values}
+        provenance={provenance}
+        rawFields={dataOf(configFields)}
+      />
+    </div>
+  );
+}
+
 /** The whole `/settings/schedules-destinations` page. */
 export async function SchedulesDestinationsScreen(
   context: SurfaceContext,
@@ -359,6 +509,7 @@ export async function SchedulesDestinationsScreen(
       <SettingsPageHeader page={settingsPageFor(ID)} locale={locale} />
       {await schedulesSection(context)}
       <div className="mt-4">{await destinationsSection(context)}</div>
+      <div className="mt-5">{await advancedDestinationsSection(context)}</div>
     </>
   );
 }

@@ -563,3 +563,116 @@ describe('the credential panel, opened by a deep link', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('not in the catalogue');
   });
 });
+
+describe('the advanced integrations-config section', () => {
+  const CONFIG_NODE = 'org-northwind';
+
+  const WRITER = {
+    principal_id: 'user-operator',
+    display_name: 'Avery Lockhart',
+    email: 'avery.lockhart@example.invalid',
+    kind: 'person',
+    roles: ['owner'],
+    permissions: ['integration.manage', 'config.read', 'config.write'],
+    team_node_id: CONFIG_NODE,
+    impersonated_by: null,
+    impersonating: false,
+  };
+
+  function respond(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  function serveIntegrationsConfig(principal: unknown = WRITER): void {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), BASE).pathname;
+      if (path === '/auth/me') return Promise.resolve(respond(principal));
+      if (path === '/v1/integrations') return Promise.resolve(respond(INTEGRATIONS));
+      if (path === '/v1/config') {
+        return Promise.resolve(
+          respond({
+            nodes: [
+              {
+                kind: 'organisation',
+                name: 'Northwind',
+                node_id: CONFIG_NODE,
+                parent_id: null,
+              },
+            ],
+          }),
+        );
+      }
+      if (path === `/v1/config/${CONFIG_NODE}`) {
+        return Promise.resolve(
+          respond({
+            node_id: CONFIG_NODE,
+            values: { integrations: {} },
+            provenance: {},
+          }),
+        );
+      }
+      if (path === `/v1/config/${CONFIG_NODE}/fields`) {
+        return Promise.resolve(
+          respond({
+            fields: [
+              {
+                path: 'integrations.active',
+                label: 'Configured vendors',
+                type: 'array',
+                section: 'Integrations',
+                value: [],
+                provenance: '',
+                set_here: false,
+                item_fields: [
+                  {
+                    path: 'name',
+                    label: 'Name',
+                    type: 'string',
+                    help: '',
+                    allowed_values: null,
+                    minimum: null,
+                    maximum: null,
+                    default: '',
+                  },
+                ],
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.resolve(respond({}, 404));
+    });
+  }
+
+  it('is collapsed on arrival and draws integrations.active as an editable, reorderable list', async () => {
+    serveIntegrationsConfig();
+
+    await integrations();
+
+    const details = screen.getByTestId('advanced-config-integrations');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    const field = details.querySelector(
+      '[data-testid="config-field"][data-path="integrations.active"]',
+    );
+    expect(field).not.toBeNull();
+    expect(field?.querySelector('[data-testid="object-list"]')).toBeInTheDocument();
+  });
+
+  it('offers no editor to a viewer who may not write configuration', async () => {
+    serveIntegrationsConfig({
+      ...WRITER,
+      principal_id: 'user-viewer',
+      permissions: ['integration.manage', 'config.read'],
+    });
+
+    await integrations();
+
+    const details = screen.getByTestId('advanced-config-integrations');
+    expect(within(details).queryByTestId('ask-preview')).toBeNull();
+  });
+});

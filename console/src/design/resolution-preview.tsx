@@ -271,8 +271,8 @@ export interface EffectiveFieldsTableProps {
 
 /**
  * The effective value and origin of every field a page covers, for a viewer
- * who may only read configuration — the half of FR-006 that holds regardless
- * of `config.write`, shown here whether or not the editor beneath it is.
+ * who may only read configuration — origin display holds regardless of
+ * `config.write`, shown here whether or not the editor beneath it is.
  */
 export function EffectiveFieldsTable({
   rows,

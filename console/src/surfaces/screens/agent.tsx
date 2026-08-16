@@ -6,6 +6,10 @@ import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import {
+  AdvancedConfigSection,
+  advancedConfigSectionId,
+} from '../advanced-config-section';
+import {
   CapabilityBrowser,
   type BrowsableSkill,
   type BrowsableTool,
@@ -25,6 +29,7 @@ import {
   list,
   number,
   optionalRead,
+  pairs,
   panelRead,
   read,
   stateOf,
@@ -91,6 +96,67 @@ const SPECIALISTS = 'specialists';
 /** The permission the policy editor needs, so the link is absent without it. */
 const WRITE = 'config.write';
 
+/**
+ * The agent's own configuration group, and the nine fields in it that no
+ * control on this screen reaches.
+ *
+ * Four are the budgets the panel below already *shows*: it reads them from the
+ * same catalogue and prints what one investigation may spend, but printing is
+ * not editing, and its own empty state used to send the reader to the raw
+ * editor to change one. The other five — the three per-role prompt overrides
+ * and the operating-context switch — had no surface here at all.
+ *
+ * The labels are the ones this screen already uses for the budgets it prints,
+ * so the same number is not called two different things a scroll apart.
+ */
+const AGENT_ADVANCED_PREFIX = 'agents.';
+
+/**
+ * The capabilities group: the allow-list, the deny-list, the per-capability
+ * parameters, and the bridged protocol servers a team has registered.
+ *
+ * `protocol_servers` is the only field here of a type this console draws a
+ * control for — the rest are open-ended mappings or plain string lists the
+ * raw editor never offered a form for either, so they are on this page's
+ * `capabilities.` prefix too (read-only, correctly, rather than absent), but
+ * this is the only one that flips a page from "sem dona" to a real control.
+ */
+const CAPABILITIES_ADVANCED_PREFIX = 'capabilities.';
+
+/**
+ * Where an empty state whose field already lives on this same page sends the
+ * operator, instead of the retired editor: down to the section that draws it.
+ */
+const AGENT_ADVANCED_HREF = `#${advancedConfigSectionId(AGENT_ADVANCED_PREFIX)}`;
+const CAPABILITIES_ADVANCED_HREF = `#${advancedConfigSectionId(CAPABILITIES_ADVANCED_PREFIX)}`;
+
+const AGENT_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  { path: 'agents.max_iterations', label: 'agent.budgets.maxIterations' },
+  {
+    path: 'agents.max_parallel_subagents',
+    label: 'agent.budgets.maxParallelSubagents',
+  },
+  { path: 'agents.max_subagent_depth', label: 'agent.budgets.maxSubagentDepth' },
+  {
+    path: 'agents.max_subagent_iterations',
+    label: 'agent.advanced.field.maxSubagentIterations',
+  },
+  {
+    path: 'agents.operating_context.enabled',
+    label: 'agent.advanced.field.operatingContextEnabled',
+  },
+  { path: 'agents.prompts.diagnose', label: 'agent.advanced.field.promptDiagnose' },
+  { path: 'agents.prompts.intake', label: 'agent.advanced.field.promptIntake' },
+  {
+    path: 'agents.prompts.investigator',
+    label: 'agent.advanced.field.promptInvestigator',
+  },
+  { path: 'agents.tool_budget', label: 'agent.budgets.toolBudget' },
+];
+
 function nothing(): PanelData<unknown> {
   return { status: 'ready', data: {} };
 }
@@ -146,7 +212,7 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
         : optionalRead<unknown>('/v1/config/{node_id}', () =>
             read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
           ),
-      node === '' || tab !== 'topology'
+      node === '' || (tab !== 'topology' && tab !== 'tools')
         ? nothing()
         : optionalRead<unknown>('/v1/config/{node_id}/fields', () =>
             read('/v1/config/{node_id}/fields', { ...init, params: { node_id: node } }),
@@ -217,6 +283,8 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             pipeline={pipeline}
             effective={effective}
             fields={fields}
+            nodeId={node}
+            writable={may(viewer, WRITE)}
           />
         ) : null}
         {tab === 'tools' ? (
@@ -225,7 +293,9 @@ export async function AgentScreen(context: SurfaceContext): Promise<ReactNode> {
             capabilities={capabilities}
             entries={entries}
             effective={effective}
+            fields={fields}
             node={node}
+            writable={may(viewer, WRITE)}
           />
         ) : null}
         {tab === 'autonomy' ? (
@@ -272,11 +342,15 @@ function TopologyTab({
   pipeline,
   effective,
   fields,
+  nodeId,
+  writable,
 }: {
   readonly locale: Locale;
   readonly pipeline: PanelData<unknown>;
   readonly effective: PanelData<unknown>;
   readonly fields: PanelData<unknown>;
+  readonly nodeId: string;
+  readonly writable: boolean;
 }): ReactNode {
   const stages = list(dataOf(pipeline), 'stages');
   const roles = list(dataOf(pipeline), 'model_roles').map(String);
@@ -315,7 +389,7 @@ function TopologyTab({
         id: specialist.name,
         name: specialist.name,
         kind: SPECIALISTS,
-        href: `/configuration?node=`,
+        href: AGENT_ADVANCED_HREF,
         disabled: !specialist.enabled,
       })),
     },
@@ -332,7 +406,10 @@ function TopologyTab({
           heading: message(locale, 'agent.empty.heading'),
           body: message(locale, 'agent.empty.body'),
           actionLabel: message(locale, 'agent.empty.action'),
-          href: '/configuration',
+          // The body says outright that nothing here is configuration, so
+          // there is no owning page to send anyone to; the area's own
+          // address is the only honest destination left.
+          href: '/agent',
         }}
       >
         <div className="flex flex-col gap-4" id="agent-stages">
@@ -388,7 +465,7 @@ function TopologyTab({
           heading: message(locale, 'agent.specialists.empty.heading'),
           body: message(locale, 'agent.specialists.empty.body'),
           actionLabel: message(locale, 'agent.specialists.empty.action'),
-          href: '/configuration',
+          href: AGENT_ADVANCED_HREF,
         }}
       >
         <ul className="flex flex-col gap-3">
@@ -420,7 +497,7 @@ function TopologyTab({
         </ul>
         <p className="text-meta text-muted pt-3">
           {message(locale, 'agent.specialists.edit')}{' '}
-          <Link href="/configuration">
+          <Link href={AGENT_ADVANCED_HREF}>
             {message(locale, 'agent.specialists.editLink')}
           </Link>
         </p>
@@ -434,6 +511,21 @@ function TopologyTab({
       />
       <BudgetPanel locale={locale} fields={fields} declared={declared} />
       <DocumentPanel locale={locale} effective={effective} values={values} />
+
+      <AdvancedConfigSection
+        title={message(locale, 'agent.advanced.title')}
+        prefix={AGENT_ADVANCED_PREFIX}
+        nodeId={nodeId}
+        locale={locale}
+        writable={writable}
+        fields={AGENT_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+          path,
+          label: message(locale, label),
+        }))}
+        values={values}
+        provenance={new Map(pairs(dataOf(effective), 'provenance'))}
+        rawFields={dataOf(fields)}
+      />
     </>
   );
 }
@@ -505,7 +597,7 @@ function ModelRolePanel({
         heading: message(locale, 'agent.models.empty.heading'),
         body: message(locale, 'agent.models.empty.body'),
         actionLabel: message(locale, 'agent.models.empty.action'),
-        href: '/configuration',
+        href: '/settings/models-providers',
       }}
     >
       <p className="text-meta text-muted pb-3">
@@ -654,7 +746,7 @@ function BudgetPanel({
         heading: message(locale, 'agent.budgets.empty.heading'),
         body: message(locale, 'agent.budgets.empty.body'),
         actionLabel: message(locale, 'agent.budgets.empty.action'),
-        href: '/configuration',
+        href: AGENT_ADVANCED_HREF,
       }}
     >
       <ul className="flex flex-col gap-2">
@@ -754,7 +846,7 @@ function DocumentPanel({
         heading: message(locale, 'agent.specialists.empty.heading'),
         body: message(locale, 'agent.specialists.empty.body'),
         actionLabel: message(locale, 'agent.specialists.empty.action'),
-        href: '/configuration',
+        href: AGENT_ADVANCED_HREF,
       }}
     >
       <pre
@@ -816,13 +908,17 @@ function ToolsTab({
   capabilities,
   entries,
   effective,
+  fields,
   node,
+  writable,
 }: {
   readonly locale: Locale;
   readonly capabilities: PanelData<unknown>;
   readonly entries: PanelData<unknown>;
   readonly effective: PanelData<unknown>;
+  readonly fields: PanelData<unknown>;
   readonly node: string;
+  readonly writable: boolean;
 }): ReactNode {
   const rows = capabilityRows(dataOf(capabilities), dataOf(entries));
   const tools = rows.filter((row) => row.kind === 'tool');
@@ -848,8 +944,10 @@ function ToolsTab({
     enabled: enabledCount,
     total: tools.length,
   });
-  const configurationHref =
-    node === '' ? '/configuration' : `/configuration?node=${encodeURIComponent(node)}`;
+  // Named for what it actually does: a blocked tool's own reason names the
+  // integration that would unblock it, and connecting one has always been
+  // the catalogue's job, never the retired editor's.
+  const blockedIntegrationHref = '/integrations';
 
   return (
     <>
@@ -862,14 +960,14 @@ function ToolsTab({
           heading: message(locale, 'agent.tools.empty.heading'),
           body: message(locale, 'agent.tools.empty.body'),
           actionLabel: message(locale, 'agent.tools.empty.action'),
-          href: '/configuration',
+          href: CAPABILITIES_ADVANCED_HREF,
         }}
       >
         <CapabilityBrowser
           tools={browsableTools(rows, locale, none)}
           skills={skills}
           count={count}
-          configurationHref={configurationHref}
+          configurationHref={blockedIntegrationHref}
           labels={{
             tableCaption: message(locale, 'agent.tools.browse'),
             search: message(locale, 'catalogue.search'),
@@ -912,7 +1010,7 @@ function ToolsTab({
           heading: message(locale, 'agent.bridged.empty.heading'),
           body: message(locale, 'agent.bridged.empty.body'),
           actionLabel: message(locale, 'agent.bridged.empty.action'),
-          href: '/configuration',
+          href: CAPABILITIES_ADVANCED_HREF,
         }}
       >
         <p className="text-meta text-muted pb-3">
@@ -935,6 +1033,20 @@ function ToolsTab({
           ))}
         </ul>
       </Panel>
+
+      <div className="mt-5">
+        <AdvancedConfigSection
+          title={message(locale, 'agent.tools.advanced.title')}
+          prefix={CAPABILITIES_ADVANCED_PREFIX}
+          nodeId={node}
+          locale={locale}
+          writable={writable}
+          fields={[]}
+          values={field(dataOf(effective), 'values')}
+          provenance={new Map(pairs(dataOf(effective), 'provenance'))}
+          rawFields={dataOf(fields)}
+        />
+      </div>
     </>
   );
 }
@@ -965,7 +1077,7 @@ function ToolGroup({
         heading: message(locale, 'agent.tools.empty.heading'),
         body: message(locale, 'agent.tools.empty.body'),
         actionLabel: message(locale, 'agent.tools.empty.action'),
-        href: '/configuration',
+        href: CAPABILITIES_ADVANCED_HREF,
       }}
     >
       <p className="text-meta text-muted pb-3">{body}</p>

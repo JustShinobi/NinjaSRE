@@ -129,7 +129,10 @@ export async function TeamTab(context: SurfaceContext): Promise<ReactNode> {
               // point at.
               body: `${message(locale, 'teamContext.empty.body')} ${message(locale, 'teamContext.factNotInstruction')}`,
               actionLabel: message(locale, 'teamContext.empty.action'),
-              href: '/configuration',
+              // The org tree this same tab already draws above, not the
+              // retired editor: browsing to a parent node is how an operator
+              // finds what is already written elsewhere in the organisation.
+              href: '/agent?tab=team',
             }}
           >
             <p className="text-meta text-muted mb-3">

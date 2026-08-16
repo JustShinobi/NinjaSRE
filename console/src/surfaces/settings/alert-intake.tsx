@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import type { MessageKey } from '@/i18n/en';
 import { Reference } from '@/design/reference';
 import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
@@ -8,6 +9,7 @@ import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import { AdvancedConfigSection } from '../advanced-config-section';
 import { CopyValue } from '../screens/data-copy';
 import { emptyBecause, readSetupState, setupCause, type Cause } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
@@ -23,6 +25,7 @@ import {
   flag,
   list,
   optionalRead,
+  pairs,
   panelRead,
   read,
   stateOf,
@@ -30,6 +33,8 @@ import {
 } from '../read';
 import { Provenance, type ProvenanceChain } from '../provenance';
 import { RuleSimulator } from '../simulation';
+import { placedTree } from '../tree';
+import { readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
  * Alert intake: what arrives, and the rules that decide what happens to it.
@@ -67,6 +72,113 @@ const ID = 'settings-alert-intake';
 
 /** The permission the gateway requires to change what this screen shows. */
 const WRITE = 'config.write';
+
+const ALERT_INTAKE_FILTERS: readonly FilterName[] = ['node'];
+
+/**
+ * The observation policy's own scalar fields, with no control of their own
+ * before this: whether this team is watching at all, and the scalar settings
+ * of its own monitoring bridge and the shipped detector guardian. The
+ * bridge's own lists (label rules, log selectors, dashboards, precedence) and
+ * the detector list stay off this page's control — they already draw through
+ * the same prefixed editor below, but a purpose-built add/remove/reorder
+ * control for them is separate work this page does not do.
+ */
+const ALERT_INTAKE_ADVANCED_PREFIX = 'policies.observation.';
+
+const ALERT_INTAKE_ADVANCED_FIELD_LIST: readonly {
+  readonly path: string;
+  readonly label: MessageKey;
+}[] = [
+  {
+    path: 'policies.observation.paused',
+    label: 'settings.alertIntake.advanced.field.paused',
+  },
+  {
+    path: 'policies.observation.pause_reason',
+    label: 'settings.alertIntake.advanced.field.pauseReason',
+  },
+  {
+    path: 'policies.observation.bridge.enabled',
+    label: 'settings.alertIntake.advanced.field.bridgeEnabled',
+  },
+  {
+    path: 'policies.observation.bridge.dashboard_base_url',
+    label: 'settings.alertIntake.advanced.field.bridgeDashboardBaseUrl',
+  },
+  {
+    path: 'policies.observation.bridge.mapping_interval_seconds',
+    label: 'settings.alertIntake.advanced.field.bridgeMappingIntervalSeconds',
+  },
+  {
+    path: 'policies.observation.bridge.history_lookback_seconds',
+    label: 'settings.alertIntake.advanced.field.bridgeHistoryLookbackSeconds',
+  },
+  {
+    path: 'policies.observation.bridge.log_window_seconds',
+    label: 'settings.alertIntake.advanced.field.bridgeLogWindowSeconds',
+  },
+  {
+    path: 'policies.observation.bridge.log_line_limit',
+    label: 'settings.alertIntake.advanced.field.bridgeLogLineLimit',
+  },
+  {
+    path: 'policies.observation.bridge.use_shipped_rules',
+    label: 'settings.alertIntake.advanced.field.bridgeUseShippedRules',
+  },
+  {
+    path: 'policies.observation.bridge.use_shipped_log_selectors',
+    label: 'settings.alertIntake.advanced.field.bridgeUseShippedLogSelectors',
+  },
+  {
+    path: 'policies.observation.bridge.logs.enabled',
+    label: 'settings.alertIntake.advanced.field.bridgeLogsEnabled',
+  },
+  {
+    path: 'policies.observation.bridge.logs.name',
+    label: 'settings.alertIntake.advanced.field.bridgeLogsName',
+  },
+  {
+    path: 'policies.observation.bridge.logs.endpoint',
+    label: 'settings.alertIntake.advanced.field.bridgeLogsEndpoint',
+  },
+  {
+    path: 'policies.observation.bridge.logs.integration',
+    label: 'settings.alertIntake.advanced.field.bridgeLogsIntegration',
+  },
+  {
+    path: 'policies.observation.bridge.metrics.enabled',
+    label: 'settings.alertIntake.advanced.field.bridgeMetricsEnabled',
+  },
+  {
+    path: 'policies.observation.bridge.metrics.name',
+    label: 'settings.alertIntake.advanced.field.bridgeMetricsName',
+  },
+  {
+    path: 'policies.observation.bridge.metrics.endpoint',
+    label: 'settings.alertIntake.advanced.field.bridgeMetricsEndpoint',
+  },
+  {
+    path: 'policies.observation.bridge.metrics.integration',
+    label: 'settings.alertIntake.advanced.field.bridgeMetricsIntegration',
+  },
+  {
+    path: 'policies.observation.guardian.enabled',
+    label: 'settings.alertIntake.advanced.field.guardianEnabled',
+  },
+  {
+    path: 'policies.observation.guardian.cluster_shape',
+    label: 'settings.alertIntake.advanced.field.guardianClusterShape',
+  },
+  {
+    path: 'policies.observation.guardian.heartbeat_destination',
+    label: 'settings.alertIntake.advanced.field.guardianHeartbeatDestination',
+  },
+  {
+    path: 'policies.observation.guardian.declared_intent_source',
+    label: 'settings.alertIntake.advanced.field.guardianDeclaredIntentSource',
+  },
+];
 
 /** A list endpoint's body, or an empty list when the read failed. */
 function rowsOf(body: unknown): readonly unknown[] {
@@ -119,15 +231,40 @@ async function content(
   context: SurfaceContext,
   cause: Cause | null,
 ): Promise<ReactNode> {
-  const { credential, locale, viewer, now, zone } = context;
+  const { credential, locale, viewer, search, now, zone } = context;
   const init = authorised(credential);
+  const writable = may(viewer, WRITE);
+  const state = readViewState(search, ALERT_INTAKE_FILTERS);
 
-  const [ingress, rules, deliveries, receivers] = await Promise.all([
+  const [ingress, rules, deliveries, receivers, tree] = await Promise.all([
     panelRead('/v1/transit/ingress', () => read('/v1/transit/ingress', init)),
     panelRead('/v1/transit/rules', () => read('/v1/transit/rules', init)),
     panelRead('/v1/transit/deliveries', () => read('/v1/transit/deliveries', init)),
     optionalRead('/v1/ingress/sources', () => read('/v1/ingress/sources', init)),
+    panelRead('/v1/config', () => read('/v1/config', init)),
   ]);
+
+  const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
+
+  // Nothing empty, ready: the advanced section below renders its rows with
+  // nothing set, which is the honest state for a node this deployment has
+  // not configured any observation policy at yet.
+  const nothing = { status: 'ready' as const, data: {} as unknown };
+  const effective =
+    nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
+        );
+  const configFields =
+    !writable || nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
+        );
+
+  const observationValues = field(dataOf(effective), 'values');
+  const observationProvenance = new Map(pairs(dataOf(effective), 'provenance'));
 
   const sources = list(dataOf(ingress), 'sources');
   const paste = new Map(
@@ -373,7 +510,9 @@ async function content(
             heading: message(locale, 'data.rules.empty.heading'),
             body: message(locale, 'data.rules.empty.body'),
             actionLabel: message(locale, 'data.rules.empty.action'),
-            href: '/configuration',
+            // The routing rules this panel reads are declared on Schedules &
+            // destinations, not on the retired editor.
+            href: '/settings/schedules-destinations',
           },
           cause,
         )}
@@ -433,6 +572,23 @@ async function content(
           </ul>
         )}
       </Panel>
+
+      <div className="mt-5">
+        <AdvancedConfigSection
+          title={message(locale, 'settings.alertIntake.advanced.title')}
+          prefix={ALERT_INTAKE_ADVANCED_PREFIX}
+          nodeId={nodeId}
+          locale={locale}
+          writable={writable}
+          fields={ALERT_INTAKE_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+            path,
+            label: message(locale, label),
+          }))}
+          values={observationValues}
+          provenance={observationProvenance}
+          rawFields={dataOf(configFields)}
+        />
+      </div>
     </>
   );
 }

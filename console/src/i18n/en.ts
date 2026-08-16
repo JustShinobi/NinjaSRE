@@ -201,6 +201,18 @@ export const EN = {
   'data.simulate.unreachable': 'The deployment could not be reached.',
   'data.simulate.malformed': 'That is not valid JSON.',
   'data.delivery.title': 'Where the result goes',
+  'settings.schedulesDestinations.advanced.transit.title':
+    'Advanced: routing rules and delivery destinations',
+  'settings.schedulesDestinations.advanced.surfaces.title':
+    'Advanced: chat channels, report destinations and notification sinks',
+  'settings.schedulesDestinations.advanced.field.transitRules': 'Routing rules',
+  'settings.schedulesDestinations.advanced.field.transitDestinations':
+    'Delivery destinations',
+  'settings.schedulesDestinations.advanced.field.channels': 'Chat channels',
+  'settings.schedulesDestinations.advanced.field.reportDestinations':
+    'Report destinations',
+  'settings.schedulesDestinations.advanced.field.notificationSinks':
+    'Notification sinks',
   'data.delivery.masking': 'Masking policy:',
   'data.delivery.resend': 'Send again',
   'data.delivery.resending': 'Sending\u2026',
@@ -1025,6 +1037,21 @@ export const EN = {
   'knowledge.proposals.empty.body':
     'When an investigation learns something worth writing down it proposes the change here rather than making it.',
   'knowledge.proposals.empty.action': 'Look at the documents',
+  // Advanced, collapsed sections on the Documents tab: policy switches for
+  // what an investigation may consult, and where the change source reads
+  // from — technical groups the raw configuration editor used to carry.
+  'knowledge.advanced.changes.title': 'Advanced: change source',
+  'knowledge.advanced.field.repositoryPath': 'Repository path',
+  'knowledge.advanced.field.gitHostVendor': 'Git host vendor',
+  'knowledge.advanced.field.gitHostRepository': 'Git host repository',
+  'knowledge.advanced.knowledge.title': 'Advanced: knowledge access',
+  'knowledge.advanced.field.topologyEnabled': 'Follow resource topology',
+  'knowledge.advanced.field.knowledgeBaseEnabled': 'Search the knowledge base',
+  'knowledge.advanced.memory.title': 'Advanced: episodic memory',
+  'knowledge.advanced.field.memoryReadEnabled': 'Recall past incidents',
+  'knowledge.advanced.field.memoryWriteEnabled': 'Record finished investigations',
+  'knowledge.advanced.strategy.title': 'Advanced: strategy',
+  'knowledge.advanced.field.strategyEnabled': 'Offer distilled playbooks',
 
   // --- Topology ---------------------------------------------------------------------------
   'topology.graph.title': 'Neighbourhood',
@@ -1291,6 +1318,7 @@ export const EN = {
   'ingress.token.unreachable': 'The deployment could not be reached.',
   'firstRun.integrations.foundHere': 'Found in your estate at',
   'catalogue.integrations.title': 'Integrations',
+  'catalogue.integrations.advanced.title': 'Advanced: configured vendors',
   'catalogue.integrations.state': 'Connection',
   'catalogue.integrations.verified': 'Last verified',
   'catalogue.integrations.verify': 'Verify now',
@@ -1551,6 +1579,15 @@ export const EN = {
   'agent.budgets.empty.body':
     'The deployment did not describe the budget fields for this node, so the ceilings cannot be shown.',
   'agent.budgets.empty.action': 'Edit the configuration',
+  // Advanced, collapsed section of the Topology tab: the per-role prompt
+  // overrides, the operating-context ablation switch, and the one budget
+  // (max_subagent_iterations) the read-only panel above does not name.
+  'agent.advanced.title': 'Advanced agent settings',
+  'agent.advanced.field.promptInvestigator': 'Investigator prompt override',
+  'agent.advanced.field.promptIntake': 'Intake prompt override',
+  'agent.advanced.field.promptDiagnose': 'Diagnose prompt override',
+  'agent.advanced.field.operatingContextEnabled': 'Send operating context',
+  'agent.advanced.field.maxSubagentIterations': 'Max specialist iterations',
   'agent.document.title': 'The same topology, as the document',
   'agent.empty.heading': 'The pipeline could not be described',
   'agent.empty.body':
@@ -1573,6 +1610,7 @@ export const EN = {
   'agent.tools.empty.body':
     'No capability of this build falls in this group, or the deployment could not be asked.',
   'agent.tools.empty.action': 'Edit the configuration',
+  'agent.tools.advanced.title': 'Advanced capability settings',
   'agent.bridged.title': 'Servers outside this deployment',
   'agent.bridged.body':
     'A tool from one of these came from somewhere the operator does not run. Its tools are enumerated when the deployment reaches the server, and one nobody classified cannot execute.',
@@ -1746,6 +1784,55 @@ export const EN = {
   'settings.autonomy.guardrails.ruleset': 'Ruleset',
   'settings.autonomy.guardrails.threshold': 'Approval threshold',
   'settings.autonomy.guardrails.expiryHours': 'Approval request expiry (hours)',
+
+  // --- Settings: Autonomy & guardrails — the autonomy scalars, advanced ------
+  'settings.autonomy.advanced.title': 'Advanced autonomy settings',
+  'settings.autonomy.advanced.field.allowUnverifiableActions':
+    'Allow unverifiable actions',
+  'settings.autonomy.advanced.field.dryRun': 'Simulate everything for this team',
+  'settings.autonomy.advanced.field.recurrenceThreshold': 'Recurrence threshold',
+  'settings.autonomy.advanced.field.recurrenceWindowSeconds':
+    'Recurrence window (seconds)',
+
+  // --- Settings: Single sign-on — advanced claim mapping ----------------------
+  'settings.sso.advanced.title': 'Advanced claim mapping',
+  'settings.sso.advanced.field.claimsSubject': 'Subject claim',
+  'settings.sso.advanced.field.claimsEmail': 'Email claim',
+  'settings.sso.advanced.field.claimsDisplayName': 'Display name claim',
+  'settings.sso.advanced.field.claimsGroups': 'Groups claim',
+
+  // --- Settings: Alert intake — advanced observation settings -----------------
+  'settings.alertIntake.advanced.title': 'Advanced observation settings',
+  'settings.alertIntake.advanced.field.paused': 'Watching paused',
+  'settings.alertIntake.advanced.field.pauseReason': 'Why watching is paused',
+  'settings.alertIntake.advanced.field.bridgeEnabled': 'Use existing monitoring',
+  'settings.alertIntake.advanced.field.bridgeDashboardBaseUrl': 'Dashboard base URL',
+  'settings.alertIntake.advanced.field.bridgeMappingIntervalSeconds':
+    'Re-match interval (seconds)',
+  'settings.alertIntake.advanced.field.bridgeHistoryLookbackSeconds':
+    'History lookback (seconds)',
+  'settings.alertIntake.advanced.field.bridgeLogWindowSeconds': 'Log window (seconds)',
+  'settings.alertIntake.advanced.field.bridgeLogLineLimit': 'Log line limit',
+  'settings.alertIntake.advanced.field.bridgeUseShippedRules':
+    'Use shipped exporter mappings',
+  'settings.alertIntake.advanced.field.bridgeUseShippedLogSelectors':
+    'Use shipped log queries',
+  'settings.alertIntake.advanced.field.bridgeLogsEnabled': 'Read logs from this system',
+  'settings.alertIntake.advanced.field.bridgeLogsName': 'Log system name',
+  'settings.alertIntake.advanced.field.bridgeLogsEndpoint': 'Log system address',
+  'settings.alertIntake.advanced.field.bridgeLogsIntegration': 'Log system integration',
+  'settings.alertIntake.advanced.field.bridgeMetricsEnabled':
+    'Read metrics from this system',
+  'settings.alertIntake.advanced.field.bridgeMetricsName': 'Metrics system name',
+  'settings.alertIntake.advanced.field.bridgeMetricsEndpoint': 'Metrics system address',
+  'settings.alertIntake.advanced.field.bridgeMetricsIntegration':
+    'Metrics system integration',
+  'settings.alertIntake.advanced.field.guardianEnabled': 'Run the shipped detector set',
+  'settings.alertIntake.advanced.field.guardianClusterShape': 'Detected cluster shape',
+  'settings.alertIntake.advanced.field.guardianHeartbeatDestination':
+    'Heartbeat destination',
+  'settings.alertIntake.advanced.field.guardianDeclaredIntentSource':
+    'Declared intent source',
 
   // --- Settings: Audit log ----------------------------------------------------
   'settings.auditLog.period.label': 'Period',

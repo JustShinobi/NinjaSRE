@@ -405,7 +405,9 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
               heading: message(locale, 'dashboard.activity.empty.heading'),
               body: message(locale, 'dashboard.activity.empty.body'),
               actionLabel: message(locale, 'dashboard.activity.empty.action'),
-              href: '/configuration',
+              // "Connect a source" is the catalogue's own job, not the
+              // retired editor's.
+              href: '/integrations',
             }}
           >
             <ActivityFeed entries={recent} />

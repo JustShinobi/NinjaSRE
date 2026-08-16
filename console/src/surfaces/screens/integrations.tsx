@@ -8,6 +8,10 @@ import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
+import {
+  AdvancedConfigSection,
+  advancedConfigSectionId,
+} from '../advanced-config-section';
 import { FilterBar, type FilterChoice } from '../filters';
 import type { CredentialFieldSpec } from '../credential';
 import {
@@ -26,12 +30,20 @@ import {
   field,
   flag,
   list,
+  pairs,
   panelRead,
   read,
   stateOf,
   text,
 } from '../read';
-import { hrefFor, readViewState, writeViewState, type FilterName } from '../url-state';
+import { placedTree } from '../tree';
+import {
+  hrefFor,
+  readViewState,
+  resolveNode,
+  writeViewState,
+  type FilterName,
+} from '../url-state';
 
 /**
  * What the Catalogue became: connected first, a suggestion the estate already
@@ -80,7 +92,18 @@ function categoryLabel(locale: Locale, category: string): string {
     : message(locale, key as Parameters<typeof message>[1]);
 }
 
-export const INTEGRATIONS_FILTERS: readonly FilterName[] = ['view', 'category', 'q'];
+export const INTEGRATIONS_FILTERS: readonly FilterName[] = [
+  'view',
+  'category',
+  'q',
+  'node',
+];
+
+/** The permission the gateway requires to change the `integrations.active` list itself. */
+const CONFIG_WRITE = 'config.write';
+
+/** The one field this section owns: the configured-vendor list, as the schema declares it. */
+const INTEGRATIONS_ADVANCED_PREFIX = 'integrations.';
 
 interface CatalogueItem {
   readonly name: string;
@@ -174,12 +197,33 @@ export async function IntegrationsScreen(
   const state = readViewState(search, INTEGRATIONS_FILTERS);
   const init = authorised(credential);
   const writable = may(viewer, 'integration.manage');
+  const configWritable = may(viewer, CONFIG_WRITE);
 
   const integrations = await panelRead<unknown>('/v1/integrations', () =>
     read('/v1/integrations', init),
   );
   const installed = list(dataOf(integrations), 'integrations').map(itemOf);
   const gaps = list(dataOf(integrations), 'known_gaps');
+
+  // The configured-vendor list (`integrations.active`) is a field of the same
+  // hierarchical configuration every Settings page edits — read the same way
+  // every one of them does, so its advanced section below can offer the same
+  // preview-before-save `ConfigEditor` rather than a second write path.
+  const tree = await panelRead('/v1/config', () => read('/v1/config', init));
+  const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
+  const nothing = { status: 'ready' as const, data: {} as unknown };
+  const effective =
+    nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}', () =>
+          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
+        );
+  const configFields =
+    !configWritable || nodeId === ''
+      ? nothing
+      : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
+          read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
+        );
 
   // Connected is every health but `unconfigured` — `unknown` (stored, never
   // checked) and `degraded` (failing) both count. A stored-but-unverified or
@@ -299,7 +343,9 @@ export async function IntegrationsScreen(
           heading: message(locale, 'catalogue.integrations.empty.heading'),
           body: message(locale, 'catalogue.integrations.empty.body'),
           actionLabel: message(locale, 'catalogue.integrations.empty.action'),
-          href: '/configuration',
+          // The raw list this same page now owns, below, rather than the
+          // retired editor.
+          href: `#${advancedConfigSectionId(INTEGRATIONS_ADVANCED_PREFIX)}`,
         }}
       >
         <div className="flex flex-col gap-5">
@@ -443,6 +489,20 @@ export async function IntegrationsScreen(
           )}
         </div>
       </Panel>
+
+      <div className="mt-5">
+        <AdvancedConfigSection
+          title={message(locale, 'catalogue.integrations.advanced.title')}
+          prefix={INTEGRATIONS_ADVANCED_PREFIX}
+          nodeId={nodeId}
+          locale={locale}
+          writable={configWritable}
+          fields={[]}
+          values={field(dataOf(effective), 'values')}
+          provenance={new Map(pairs(dataOf(effective), 'provenance'))}
+          rawFields={dataOf(configFields)}
+        />
+      </div>
 
       {name === undefined ? null : (
         <IntegrationPanel

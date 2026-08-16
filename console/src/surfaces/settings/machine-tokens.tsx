@@ -40,8 +40,7 @@ const ID = 'settings-machine-tokens';
  * (`settings-machine-tokens`'s permission, enforced before this ever
  * renders): the whole panel is absent rather than merely un-writable for a
  * viewer who somehow reaches this screen without it — the same rule
- * `PeopleTab`'s own token panel already followed, and `screens/autonomy.tsx`
- * and `screens/configuration.tsx` follow it for their own write controls.
+ * `PeopleTab`'s own token panel already follows for its own write control.
  */
 const TOKENS = 'token.manage';
 

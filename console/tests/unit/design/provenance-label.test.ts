@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { provenanceLabel } from '@/surfaces/screens/configuration';
+import { provenanceLabel } from '@/design/provenance-label';
 
 /**
  * The vocabulary that tells "nothing overrides this" from "an override is

@@ -22,7 +22,7 @@ import { principalHolding, serveOutage } from '../support/dataset';
  * them also get a second, direct proof at their new Settings address, in
  * `describe('the Settings pages that reuse a retired screen')`.
  */
-const HAS_NO_SCREEN = new Set(['settings']);
+const HAS_NO_SCREEN = new Set(['settings', 'configuration']);
 
 /**
  * Every route of the shell, with nothing behind it.

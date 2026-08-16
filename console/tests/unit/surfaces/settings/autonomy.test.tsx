@@ -467,7 +467,9 @@ describe('the guardrails section', () => {
     // The two constitutional invariants are stated as facts, never as a toggle.
     const invariants = screen.getAllByTestId('guardrail-invariant');
     expect(invariants).toHaveLength(2);
-    expect(screen.getByTestId('config-editor')).toBeInTheDocument();
+    // Two editors now share the page: the guardrails one above, and the
+    // advanced autonomy-scalars one this same test dataset also feeds.
+    expect(screen.getAllByTestId('config-editor')).toHaveLength(2);
   });
 
   it('leaves the editor out, keeping the read-only rows, for a viewer who may not write', async () => {
@@ -482,6 +484,144 @@ describe('the guardrails section', () => {
 
     expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
+  });
+});
+
+describe('the advanced autonomy-scalars section', () => {
+  it('is collapsed on arrival and names the four fields with no other control', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: EMPTY_BOUNDS,
+      values: {
+        policies: {
+          autonomy: {
+            allow_unverifiable_actions: false,
+            dry_run: true,
+            recurrence_threshold: 2,
+            recurrence_window_seconds: 3600,
+          },
+        },
+      },
+      provenance: { 'policies.autonomy.dry_run': NODE },
+      fields: [
+        {
+          path: 'policies.autonomy.dry_run',
+          label: 'Dry run',
+          type: 'boolean',
+          section: 'Autonomy',
+          value: true,
+          provenance: NODE,
+          set_here: true,
+        },
+      ],
+    });
+
+    await renderAutonomy();
+
+    const details = screen.getByTestId('advanced-config-policies-autonomy');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    const rows = screen.getAllByTestId('effective-field');
+    const paths = rows.map((row) => row.getAttribute('data-path'));
+    expect(paths).toContain('policies.autonomy.allow_unverifiable_actions');
+    expect(paths).toContain('policies.autonomy.dry_run');
+    expect(paths).toContain('policies.autonomy.recurrence_threshold');
+    expect(paths).toContain('policies.autonomy.recurrence_window_seconds');
+  });
+
+  it('scopes its editor to policies.autonomy fields only, never the guardrail ones', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: EMPTY_BOUNDS,
+      values: { policies: { autonomy: { dry_run: false } } },
+      provenance: {},
+      fields: [
+        {
+          path: 'policies.autonomy.dry_run',
+          label: 'Dry run',
+          type: 'boolean',
+          section: 'Autonomy',
+          value: false,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.masking.enabled',
+          label: 'Masking enabled',
+          type: 'boolean',
+          section: 'Masking',
+          value: true,
+          provenance: NODE,
+          set_here: true,
+        },
+      ],
+    });
+
+    await renderAutonomy();
+
+    const section = screen.getByTestId('advanced-config-policies-autonomy');
+    const fieldsInSection = section.querySelectorAll('[data-testid="config-field"]');
+    const pathsInSection = [...fieldsInSection].map((field) =>
+      field.getAttribute('data-path'),
+    );
+    expect(pathsInSection).toEqual(['policies.autonomy.dry_run']);
+  });
+
+  // The four array-shaped autonomy fields have a purpose-built form of their
+  // own (`AutonomyEditor`, `OverrideEditor`, above) — but they also draw
+  // through this same prefixed `ConfigEditor` as an `ObjectList`, because the
+  // schema describes what one entry of each looks like. This pins that the
+  // second, generic route is a genuine answer too, not merely an assumption.
+  const AUTONOMY_LIST_PATHS = [
+    'policies.autonomy.rules',
+    'policies.autonomy.freezes',
+    'policies.autonomy.budgets',
+    'policies.autonomy.overrides',
+  ] as const;
+
+  function listField(path: string): unknown {
+    return {
+      path,
+      label: path,
+      type: 'array',
+      section: 'Autonomy',
+      value: [],
+      provenance: '',
+      set_here: false,
+      item_fields: [
+        {
+          path: 'name',
+          label: 'Name',
+          type: 'string',
+          help: '',
+          allowed_values: null,
+          minimum: null,
+          maximum: null,
+          default: '',
+        },
+      ],
+    };
+  }
+
+  it('draws every autonomy list — rules, freezes, budgets and overrides — as an editable, reorderable list too', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: EMPTY_BOUNDS,
+      values: { policies: { autonomy: {} } },
+      fields: AUTONOMY_LIST_PATHS.map((path) => listField(path)),
+    });
+
+    await renderAutonomy();
+
+    const section = screen.getByTestId('advanced-config-policies-autonomy');
+    for (const path of AUTONOMY_LIST_PATHS) {
+      const field = section.querySelector(
+        `[data-testid="config-field"][data-path="${path}"]`,
+      );
+      expect(field).not.toBeNull();
+      expect(field?.querySelector('[data-testid="object-list"]')).toBeInTheDocument();
+    }
   });
 });
 

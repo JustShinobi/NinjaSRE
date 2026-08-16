@@ -120,6 +120,22 @@ test.describe('alert intake, action first and reference behind it', () => {
     await expect(page.getByTestId('routing-rules')).toBeVisible();
     await expect(page.getByTestId('catch-all-rule')).toHaveCount(1);
   });
+
+  test('keeps the advanced observation section collapsed, naming its own fields once opened', async ({
+    page,
+  }) => {
+    // A real production build, not a component render: the class of defect
+    // this directory exists to catch breaks only here, never in a unit test.
+    await page.goto('/settings/alert-intake');
+
+    const advanced = page.getByTestId('advanced-config-policies-observation');
+    await expect(advanced).toBeVisible();
+    await expect(advanced).not.toHaveAttribute('open', '');
+
+    await advanced.locator('summary').click();
+    await expect(advanced).toHaveAttribute('open', '');
+    await expect(advanced.getByText('Watching paused')).toBeVisible();
+  });
 });
 
 test.describe('schedules and destinations, on one page', () => {

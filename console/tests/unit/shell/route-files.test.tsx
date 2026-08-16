@@ -40,12 +40,16 @@ import { serveScenario } from '../support/dataset';
  */
 
 /**
- * The one area with no screen at all: `settings` only ever redirects, to
- * whichever Settings page is first for the viewer, so `AREA_SCREENS` carries
- * no entry for it (`screens.ts` explains why) and it is excluded from the
- * bijection below for the same reason.
+ * The areas with no screen at all, both of which only ever redirect, so
+ * `AREA_SCREENS` carries no entry for either (`screens.ts` explains why) and
+ * both are excluded from the bijection below for the same reason.
+ *
+ * `settings` redirects to whichever Settings page is first for the viewer.
+ * `configuration` is the retired raw editor: every field it could reach is
+ * now edited on the page that owns its subject, and its address forwards to
+ * that page rather than rendering anything of its own.
  */
-const HAS_NO_SCREEN = new Set(['settings']);
+const HAS_NO_SCREEN = new Set(['settings', 'configuration']);
 
 /**
  * `first-run` renders normally under every scenario `AREA_SCREENS`'s other

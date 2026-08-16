@@ -152,7 +152,7 @@ describe('sources are connected and nothing is switched on', () => {
     const action = screen.getByRole('link', {
       name: 'Turn on continuous observation',
     });
-    expect(action).toHaveAttribute('href', '/configuration?node=org-northwind');
+    expect(action).toHaveAttribute('href', '/settings/alert-intake');
   });
 });
 

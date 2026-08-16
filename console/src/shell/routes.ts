@@ -309,11 +309,13 @@ export const AREAS: readonly Area[] = [
     icon: ShieldIcon,
     visible: () => false,
   },
-  // The one exception to the hybrid navigation's redirect table: the raw
-  // editor is not retired until the schema-parity migration replaces it, so
-  // its own address keeps serving it unredirected. It leaves the sidebar
-  // like its former siblings — reachable, not offered — because none of the
-  // nine Settings pages is it yet.
+  // Retired: the raw editor is gone, and every field it could reach is now
+  // edited on the page that owns its subject. The address stays, like the
+  // other retired ones, so an old bookmark still lands somewhere — but it
+  // redirects rather than renders, and it redirects per *section*, because
+  // the group a visitor wanted is in the URL fragment. The entry is kept
+  // rather than deleted so the deploy walk still opens the address and finds
+  // it answering; the page behind it is a forwarder, not a screen.
   {
     id: 'configuration',
     path: '/configuration',

@@ -82,17 +82,6 @@
       "pending_because": "This screen more than doubled in height absorbing the standalone autonomy page, exceeds the scroll budget, and is where the uncovered policy fields land next. Held until both the height and the remaining fields are settled, so one review covers the finished screen."
     },
     {
-      "id": "configuration-1440-light",
-      "route": "/configuration",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The organisation tree beside the effective configuration, with a provenance chip on every value naming the level that set it. No reference is drawn for it; the baseline exists because 'where is this set' is the question this screen answers and a change that dropped the chip would otherwise be invisible."
-      }
-    },
-    {
       "id": "decisions-1440-light",
       "route": "/decisions?tab=actions",
       "status": "baselined",

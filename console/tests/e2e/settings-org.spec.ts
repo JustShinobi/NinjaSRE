@@ -116,6 +116,22 @@ test.describe('single sign-on, as a flow', () => {
     // The local fallback, declared on the page rather than assumed.
     await expect(page.getByTestId('sso-fallback')).toBeVisible();
   });
+
+  test('keeps the advanced claim-mapping section collapsed, naming the four claims once opened', async ({
+    page,
+  }) => {
+    // A real production build, not a component render: the class of defect
+    // this directory exists to catch breaks only here, never in a unit test.
+    await page.goto('/settings/single-sign-on');
+
+    const advanced = page.getByTestId('advanced-config-policies-sso-claims');
+    await expect(advanced).toBeVisible();
+    await expect(advanced).not.toHaveAttribute('open', '');
+
+    await advanced.locator('summary').click();
+    await expect(advanced).toHaveAttribute('open', '');
+    await expect(advanced.getByText('Subject claim')).toBeVisible();
+  });
 });
 
 test.describe('members and roles, without tokens or sign-on crowding it', () => {

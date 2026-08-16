@@ -6,7 +6,7 @@ import {
   patchOf,
   ResolutionPreview,
   useConfigWrite,
-} from '@/surfaces/settings/resolution-preview';
+} from '@/design/resolution-preview';
 
 /**
  * The shared patch → preview → apply machinery every settings page in this

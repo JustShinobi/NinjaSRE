@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { message } from '@/i18n/messages';
 import { LOCALE_COOKIE, SESSION_COOKIE } from '@/session/cookies';
+import { surfaceContext } from '@/surfaces/context';
 import { bridgedServers, capabilityRows } from '@/surfaces/capability-rows';
 import {
   AGENT_TABS,
+  AgentScreen,
   budgetLabel,
   effectiveBudget,
   roleBinding,
@@ -735,7 +737,7 @@ describe("what it can do: the catalogue's own read half", () => {
       );
       expect(blocked).toHaveTextContent('Requires the chat integration');
       const link = within(blocked).getByRole('link', { name: 'Connect it' });
-      expect(link).toHaveAttribute('href', '/configuration?node=org-northwind');
+      expect(link).toHaveAttribute('href', '/integrations');
     });
 
     it('shows a refusal that is not about a missing integration as-is, with no link', async () => {
@@ -979,5 +981,251 @@ describe('reading a capability payload', () => {
     // The schema's default is on, so a server that says nothing is enabled —
     // and the console must not draw it as switched off.
     expect(servers[0]?.enabled).toBe(false);
+  });
+});
+
+describe('the advanced agent-settings section', () => {
+  const AGENT_NODE = 'org-northwind';
+
+  const WRITER = {
+    principal_id: 'user-operator',
+    display_name: 'Avery Lockhart',
+    email: 'avery.lockhart@example.invalid',
+    kind: 'person',
+    roles: ['owner'],
+    permissions: ['config.read', 'config.write'],
+    team_node_id: AGENT_NODE,
+    impersonated_by: null,
+    impersonating: false,
+  };
+
+  function respond(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  function serveAgentAdvanced(principal: unknown = WRITER): void {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), ['http:', '//fixtures.invalid'].join(''))
+        .pathname;
+      if (path === '/auth/me') return Promise.resolve(respond(principal));
+      if (path === '/v1/config') {
+        return Promise.resolve(
+          respond({
+            nodes: [
+              {
+                kind: 'organisation',
+                name: 'Northwind',
+                node_id: AGENT_NODE,
+                parent_id: null,
+              },
+            ],
+          }),
+        );
+      }
+      if (path === '/v1/agent/pipeline') {
+        return Promise.resolve(respond({ stages: [], model_roles: [] }));
+      }
+      if (path === `/v1/config/${AGENT_NODE}`) {
+        return Promise.resolve(
+          respond({
+            node_id: AGENT_NODE,
+            values: {
+              agents: { tool_budget: 40, prompts: { investigator: 'Look closer.' } },
+            },
+            provenance: { 'agents.tool_budget': AGENT_NODE },
+          }),
+        );
+      }
+      if (path === `/v1/config/${AGENT_NODE}/fields`) {
+        return Promise.resolve(
+          respond({
+            fields: [
+              {
+                path: 'agents.tool_budget',
+                label: 'Tool budget',
+                type: 'integer',
+                section: 'Agents',
+                value: 40,
+                provenance: AGENT_NODE,
+                set_here: true,
+              },
+              {
+                path: 'agents.prompts.investigator',
+                label: 'Investigator prompt override',
+                type: 'string',
+                section: 'Prompts',
+                value: 'Look closer.',
+                provenance: AGENT_NODE,
+                set_here: true,
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.resolve(respond({}, 404));
+    });
+  }
+
+  async function renderAgentTopology(): Promise<void> {
+    render(await AgentScreen(await surfaceContext({ node: AGENT_NODE })));
+  }
+
+  it('is collapsed on arrival, on the Topology tab, and names the nine fields with no other control', async () => {
+    serveAgentAdvanced();
+
+    await renderAgentTopology();
+
+    const details = screen.getByTestId('advanced-config-agents');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    const rows = screen.getAllByTestId('effective-field');
+    const paths = rows.map((row) => row.getAttribute('data-path'));
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'agents.max_iterations',
+        'agents.max_parallel_subagents',
+        'agents.max_subagent_depth',
+        'agents.max_subagent_iterations',
+        'agents.operating_context.enabled',
+        'agents.prompts.diagnose',
+        'agents.prompts.intake',
+        'agents.prompts.investigator',
+        'agents.tool_budget',
+      ]),
+    );
+  });
+
+  it('offers no editor to a viewer who may not write configuration', async () => {
+    serveAgentAdvanced({
+      ...WRITER,
+      principal_id: 'user-viewer',
+      permissions: ['config.read'],
+    });
+
+    await renderAgentTopology();
+
+    const section = screen.getByTestId('advanced-config-agents');
+    expect(within(section).queryByTestId('ask-preview')).toBeNull();
+  });
+});
+
+describe('the advanced capabilities section, on the Tools tab', () => {
+  const AGENT_NODE = 'org-northwind';
+
+  const WRITER = {
+    principal_id: 'user-operator',
+    display_name: 'Avery Lockhart',
+    email: 'avery.lockhart@example.invalid',
+    kind: 'person',
+    roles: ['owner'],
+    permissions: ['config.read', 'config.write'],
+    team_node_id: AGENT_NODE,
+    impersonated_by: null,
+    impersonating: false,
+  };
+
+  function respond(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
+  function serveAgentCapabilities(principal: unknown = WRITER): void {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), ['http:', '//fixtures.invalid'].join(''))
+        .pathname;
+      if (path === '/auth/me') return Promise.resolve(respond(principal));
+      if (path === '/v1/config') {
+        return Promise.resolve(
+          respond({
+            nodes: [
+              {
+                kind: 'organisation',
+                name: 'Northwind',
+                node_id: AGENT_NODE,
+                parent_id: null,
+              },
+            ],
+          }),
+        );
+      }
+      if (path === `/v1/config/${AGENT_NODE}`) {
+        return Promise.resolve(
+          respond({
+            node_id: AGENT_NODE,
+            values: { capabilities: {} },
+            provenance: {},
+          }),
+        );
+      }
+      if (path === `/v1/config/${AGENT_NODE}/fields`) {
+        return Promise.resolve(
+          respond({
+            fields: [
+              {
+                path: 'capabilities.protocol_servers',
+                label: 'Bridged servers',
+                type: 'array',
+                section: 'Capabilities',
+                value: [],
+                provenance: '',
+                set_here: false,
+                item_fields: [
+                  {
+                    path: 'name',
+                    label: 'Name',
+                    type: 'string',
+                    help: '',
+                    allowed_values: null,
+                    minimum: null,
+                    maximum: null,
+                    default: '',
+                  },
+                ],
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.resolve(respond({}, 404));
+    });
+  }
+
+  async function renderAgentTools(): Promise<void> {
+    render(await AgentScreen(await surfaceContext({ node: AGENT_NODE, tab: 'tools' })));
+  }
+
+  it('is collapsed on arrival, on the Tools tab, and draws protocol_servers as an editable, reorderable list', async () => {
+    serveAgentCapabilities();
+
+    await renderAgentTools();
+
+    const details = screen.getByTestId('advanced-config-capabilities');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    const field = details.querySelector(
+      '[data-testid="config-field"][data-path="capabilities.protocol_servers"]',
+    );
+    expect(field).not.toBeNull();
+    expect(field?.querySelector('[data-testid="object-list"]')).toBeInTheDocument();
+  });
+
+  it('offers no editor to a viewer who may not write configuration', async () => {
+    serveAgentCapabilities({
+      ...WRITER,
+      principal_id: 'user-viewer',
+      permissions: ['config.read'],
+    });
+
+    await renderAgentTools();
+
+    const details = screen.getByTestId('advanced-config-capabilities');
+    expect(within(details).queryByTestId('ask-preview')).toBeNull();
   });
 });

@@ -155,3 +155,131 @@ describe('an unconfigured deployment', () => {
     expect(screen.queryByTestId('activate-sso')).toBeNull();
   });
 });
+
+const CONFIG_NODE = 'org-northwind';
+
+const CONFIG_TREE = [
+  { kind: 'organisation', name: 'Northwind', node_id: CONFIG_NODE, parent_id: null },
+];
+
+interface ClaimsConfigStub {
+  readonly principal?: unknown;
+  readonly values?: unknown;
+  readonly provenance?: Readonly<Record<string, string>>;
+  readonly fields?: readonly unknown[];
+}
+
+function respond(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/** The `/identity/sso` flow plus the configuration-service reads the advanced claim-mapping section makes. */
+function serveWithClaimsConfig(sso: unknown, config: ClaimsConfigStub = {}): void {
+  const { principal = PRINCIPAL, values, provenance = {}, fields = [] } = config;
+  vi.stubGlobal('fetch', (input: unknown) => {
+    const path = new URL(String(input), BASE).pathname;
+    if (path === '/auth/me') return Promise.resolve(respond(principal));
+    if (path === '/identity/sso') return Promise.resolve(respond(sso));
+    if (path === '/v1/config') return Promise.resolve(respond({ nodes: CONFIG_TREE }));
+    if (path === `/v1/config/${CONFIG_NODE}`) {
+      return values === undefined
+        ? Promise.resolve(respond({}, 404))
+        : Promise.resolve(respond({ node_id: CONFIG_NODE, values, provenance }));
+    }
+    if (path === `/v1/config/${CONFIG_NODE}/fields`) {
+      return Promise.resolve(respond({ fields }));
+    }
+    return Promise.resolve(respond({}, 404));
+  });
+}
+
+/** `PRINCIPAL`, with the permission the advanced section's editor is gated by. */
+const WRITER = {
+  ...PRINCIPAL,
+  permissions: [...PRINCIPAL.permissions, 'config.write'],
+};
+
+describe('the advanced claim-mapping section', () => {
+  it('is collapsed on arrival and names the four claim fields with no other control', async () => {
+    serveWithClaimsConfig(CONFIGURED, {
+      principal: WRITER,
+      values: {
+        policies: {
+          sso: {
+            claims: {
+              subject: 'sub',
+              email: 'email',
+              display_name: 'name',
+              groups: 'groups',
+            },
+          },
+        },
+      },
+      provenance: { 'policies.sso.claims.subject': CONFIG_NODE },
+    });
+
+    await sso();
+
+    const details = screen.getByTestId('advanced-config-policies-sso-claims');
+    expect(details.tagName).toBe('DETAILS');
+    expect((details as HTMLDetailsElement).open).toBe(false);
+
+    const rows = screen.getAllByTestId('effective-field');
+    const paths = rows.map((row) => row.getAttribute('data-path'));
+    expect(paths).toEqual([
+      'policies.sso.claims.subject',
+      'policies.sso.claims.email',
+      'policies.sso.claims.display_name',
+      'policies.sso.claims.groups',
+    ]);
+  });
+
+  it('scopes its editor to policies.sso.claims fields only, never a provider field', async () => {
+    serveWithClaimsConfig(CONFIGURED, {
+      principal: WRITER,
+      values: { policies: { sso: { claims: { subject: 'sub' } } } },
+      fields: [
+        {
+          path: 'policies.sso.claims.subject',
+          label: 'Subject claim',
+          type: 'string',
+          section: 'Claims',
+          value: 'sub',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.sso.provider',
+          label: 'Provider',
+          type: 'string',
+          section: 'Single sign-on',
+          value: 'keycloak',
+          provenance: CONFIG_NODE,
+          set_here: true,
+        },
+      ],
+    });
+
+    await sso();
+
+    const section = screen.getByTestId('advanced-config-policies-sso-claims');
+    const fields = section.querySelectorAll('[data-testid="config-field"]');
+    const paths = [...fields].map((field) => field.getAttribute('data-path'));
+    expect(paths).toEqual(['policies.sso.claims.subject']);
+  });
+
+  it('leaves the editor out for a viewer who may not write configuration', async () => {
+    serveWithClaimsConfig(CONFIGURED, {
+      principal: { ...PRINCIPAL, permissions: ['identity.read'] },
+      values: { policies: { sso: { claims: { subject: 'sub' } } } },
+    });
+
+    await sso();
+
+    expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
+  });
+});
