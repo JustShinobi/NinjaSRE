@@ -1,0 +1,602 @@
+<title>NinjaSRE Settings v5</title>
+<style>
+  :root {
+    --bg: #f2f5f4;
+    --panel: #ffffff;
+    --panel-2: #e9eeec;
+    --ink: #1a2420;
+    --ink-2: #4c5a55;
+    --ink-3: #77857f;
+    --line: #d8e0dd;
+    --accent: #0c8f63;
+    --accent-ink: #0a7452;
+    --crit: #b42323;
+    --crit-bg: #f9e9e9;
+    --warn: #9a6414;
+    --warn-bg: #f7efdd;
+    --ok: #0c8f63;
+    --ok-bg: #e2f2ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1311;
+      --panel: #141b18;
+      --panel-2: #1a2320;
+      --ink: #e4ebe8;
+      --ink-2: #a3b2ac;
+      --ink-3: #6d7c76;
+      --line: #24302b;
+      --accent: #3ad195;
+      --accent-ink: #3ad195;
+      --crit: #ef7070;
+      --crit-bg: #2a1616;
+      --warn: #e0a84e;
+      --warn-bg: #2a2214;
+      --ok: #3ad195;
+      --ok-bg: #12271f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1311;
+    --panel: #141b18;
+    --panel-2: #1a2320;
+    --ink: #e4ebe8;
+    --ink-2: #a3b2ac;
+    --ink-3: #6d7c76;
+    --line: #24302b;
+    --accent: #3ad195;
+    --accent-ink: #3ad195;
+    --crit: #ef7070;
+    --crit-bg: #2a1616;
+    --warn: #e0a84e;
+    --warn-bg: #2a2214;
+    --ok: #3ad195;
+    --ok-bg: #12271f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 "Segoe UI Variable Text", "Seravek", -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 48px 28px 96px; }
+  .prose { max-width: 760px; }
+  h1, h2, h3 { line-height: 1.2; text-wrap: balance; font-family: "Avenir Next", "Segoe UI Variable Display", -apple-system, "Segoe UI", system-ui, sans-serif; }
+  h1 { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.02em; margin: 8px 0 10px; }
+  h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+  h3 { font-size: 1.06rem; font-weight: 650; margin: 0 0 4px; }
+  section { margin-top: 72px; }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  p strong, li strong { color: var(--ink); font-weight: 650; }
+  .eyebrow {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent-ink);
+  }
+  .lede { font-size: 1.12rem; color: var(--ink-2); }
+  code, .key {
+    font-family: "SF Mono", "Cascadia Code", ui-monospace, Consolas, monospace;
+    font-size: 0.86em; background: var(--panel-2); border-radius: 4px; padding: 1px 5px;
+  }
+  .figures { display: flex; flex-wrap: wrap; gap: 12px; margin: 26px 0 0; }
+  .figure {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; min-width: 150px; flex: 1;
+  }
+  .figure b { display: block; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .figure span { font-size: 0.84rem; color: var(--ink-3); }
+  .figure.bad b { color: var(--crit); }
+
+  table.diag { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.95rem; }
+  table.diag th {
+    text-align: left; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 650; padding: 8px 12px; border-bottom: 1px solid var(--line);
+  }
+  table.diag td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.diag td:first-child { white-space: nowrap; font-weight: 650; }
+  .diag-scroll { overflow-x: auto; }
+  .sev { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 99px; padding: 2px 10px; }
+  .sev.crit { color: var(--crit); background: var(--crit-bg); }
+  .sev.warn { color: var(--warn); background: var(--warn-bg); }
+  .sev.ok { color: var(--ok); background: var(--ok-bg); }
+  ul.tight { margin: 0; padding-left: 18px; color: var(--ink-2); }
+  ul.tight li { margin: 3px 0; }
+
+  /* ---------- before / after IA ---------- */
+  .ia { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px; }
+  @media (max-width: 860px) { .ia { grid-template-columns: 1fr; } }
+  .ia-col { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+  .ia-col h3 { display: flex; align-items: baseline; gap: 10px; }
+  .ia-col h3 small { font-weight: 500; color: var(--ink-3); font-size: 0.8rem; }
+  .ia-item { padding: 7px 0 7px 14px; border-left: 2px solid var(--line); margin: 6px 0; }
+  .ia-item b { font-weight: 650; }
+  .ia-item span { display: block; font-size: 0.84rem; color: var(--ink-3); }
+  .ia-item.pain { border-left-color: var(--crit); }
+  .ia-group { margin-top: 14px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-ink); }
+
+  /* ---------- mockup frames (committed dark, like screenshots) ---------- */
+  .shot {
+    --s-bg: #0c1210; --s-panel: #131a17; --s-panel2: #182220; --s-line: #253029;
+    --s-ink: #dfe8e4; --s-ink2: #93a49d; --s-ink3: #5f7069;
+    --s-acc: #35d399; --s-acc-dim: #1d5f45;
+    --s-crit: #f07373; --s-warn: #e2a955;
+    background: var(--s-bg); color: var(--s-ink);
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    margin-top: 22px; font-size: 13.5px; line-height: 1.45;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.18);
+  }
+  .shot-bar {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+    background: var(--s-panel); border-bottom: 1px solid var(--s-line);
+  }
+  .shot-bar i { width: 10px; height: 10px; border-radius: 99px; background: var(--s-line); }
+  .shot-bar span { margin-left: 8px; font-size: 0.78rem; color: var(--s-ink3); font-family: ui-monospace, monospace; }
+  .shot-body { display: flex; min-height: 430px; }
+  .shot .mnav {
+    width: 148px; flex: none; border-right: 1px solid var(--s-line); padding: 14px 8px; background: var(--s-bg);
+    font-size: 0.82rem;
+  }
+  .shot .mnav .g { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--s-ink3); margin: 12px 8px 4px; }
+  .shot .mnav .g:first-child { margin-top: 0; }
+  .shot .mnav a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--s-ink2); text-decoration: none; }
+  .shot .mnav a.on { background: var(--s-panel2); color: var(--s-acc); font-weight: 600; }
+  .shot .snav {
+    width: 218px; flex: none; border-right: 1px solid var(--s-line); padding: 16px 10px; background: var(--s-bg);
+  }
+  .shot .snav .g { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--s-ink3); margin: 14px 10px 5px; }
+  .shot .snav .g:first-child { margin-top: 0; }
+  .shot .snav a { display: block; padding: 5px 10px; border-radius: 7px; color: var(--s-ink2); text-decoration: none; }
+  .shot .snav a.on { background: var(--s-panel2); color: var(--s-acc); font-weight: 600; }
+  .shot .scontent { flex: 1; padding: 22px 26px; min-width: 0; }
+  .shot h4 { margin: 0 0 2px; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; color: var(--s-ink); }
+  .shot .sub { color: var(--s-ink3); font-size: 0.85rem; margin-bottom: 18px; }
+  .shot .card { background: var(--s-panel); border: 1px solid var(--s-line); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
+  .shot label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--s-ink2); margin: 10px 0 3px; }
+  .shot .help { font-size: 0.76rem; color: var(--s-ink3); margin-top: 2px; }
+  .shot .help a { color: var(--s-acc); text-decoration: none; }
+  .shot .input, .shot select.input {
+    width: 100%; background: var(--s-bg); border: 1px solid var(--s-line); border-radius: 7px;
+    color: var(--s-ink); padding: 7px 10px; font: inherit;
+  }
+  .shot .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .shot .btn {
+    display: inline-block; background: var(--s-acc); color: #06120d; font-weight: 650;
+    border-radius: 7px; padding: 7px 14px; font-size: 0.85rem;
+  }
+  .shot .btn.ghost { background: transparent; color: var(--s-ink2); border: 1px solid var(--s-line); }
+  .shot .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; font-weight: 650; border-radius: 99px; padding: 2px 9px; }
+  .shot .chip i { width: 7px; height: 7px; border-radius: 99px; }
+  .chip.c-ok { color: var(--s-acc); background: rgba(53,211,153,0.12); } .chip.c-ok i { background: var(--s-acc); }
+  .chip.c-off { color: var(--s-ink3); background: rgba(147,164,157,0.1); } .chip.c-off i { background: var(--s-ink3); }
+  .chip.c-bad { color: var(--s-crit); background: rgba(240,115,115,0.12); } .chip.c-bad i { background: var(--s-crit); }
+  .chip.c-warn { color: var(--s-warn); background: rgba(226,169,85,0.13); } .chip.c-warn i { background: var(--s-warn); }
+  .shot .pin {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 99px; background: var(--accent);
+    color: #06120d; font-size: 0.7rem; font-weight: 800; vertical-align: 2px; margin-left: 6px;
+  }
+  .callouts { margin: 14px 0 0; padding: 0; list-style: none; max-width: 860px; }
+  .callouts li { display: flex; gap: 10px; margin: 8px 0; color: var(--ink-2); font-size: 0.94rem; }
+  .callouts b.n {
+    flex: none; width: 20px; height: 20px; border-radius: 99px; background: var(--accent);
+    color: #06120d; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; margin-top: 3px;
+  }
+
+  /* integrations mock */
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 900px) { .cat-grid { grid-template-columns: 1fr 1fr; } }
+  .cat {
+    background: var(--s-panel); border: 1px solid var(--s-line); border-radius: 10px; padding: 11px 13px;
+  }
+  .cat .t { display: flex; align-items: center; gap: 9px; }
+  .cat .logo {
+    width: 26px; height: 26px; border-radius: 7px; background: var(--s-panel2);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.8rem; color: var(--s-acc); flex: none;
+  }
+  .cat b { font-weight: 650; }
+  .cat .d { font-size: 0.76rem; color: var(--s-ink3); margin: 5px 0 0; }
+  .conn-row { display: flex; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--s-line); }
+  .conn-row:last-child { border-bottom: 0; }
+  .conn-row .logo { width: 24px; height: 24px; border-radius: 6px; background: var(--s-panel2); display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.72rem; color: var(--s-acc); }
+  .conn-row .grow { flex: 1; min-width: 0; }
+  .conn-row small { color: var(--s-ink3); }
+  .fchips { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0 16px; }
+  .fchip { font-size: 0.76rem; border: 1px solid var(--s-line); color: var(--s-ink2); border-radius: 99px; padding: 3px 11px; }
+  .fchip.on { background: var(--s-acc); border-color: var(--s-acc); color: #06120d; font-weight: 650; }
+
+  /* wizard mock */
+  .steps { display: flex; gap: 0; margin-bottom: 20px; overflow-x: auto; }
+  .step { flex: 1; min-width: 96px; text-align: center; position: relative; padding-top: 22px; font-size: 0.72rem; color: var(--s-ink3); }
+  .step::before {
+    content: ""; position: absolute; top: 7px; left: 0; right: 0; height: 2px; background: var(--s-line);
+  }
+  .step i {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 15px; height: 15px; border-radius: 99px; background: var(--s-bg); border: 2px solid var(--s-line);
+  }
+  .step.done i { background: var(--s-acc); border-color: var(--s-acc); }
+  .step.done::before { background: var(--s-acc-dim); }
+  .step.now { color: var(--s-ink); font-weight: 650; }
+  .step.now i { border-color: var(--s-acc); }
+  .vrow { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--s-line); }
+  .vrow:last-child { border-bottom: 0; }
+  .vrow .grow { flex: 1; }
+  .vrow .fix { font-size: 0.8rem; color: var(--s-acc); }
+  .vrow small { display: block; color: var(--s-ink3); font-size: 0.78rem; }
+
+  .princ { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+  @media (max-width: 780px) { .princ { grid-template-columns: 1fr; } }
+  .princ .p { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .princ .p b { display: block; margin-bottom: 4px; }
+  .princ .p span { font-size: 0.9rem; color: var(--ink-2); }
+  hr.sp { border: 0; border-top: 1px solid var(--line); margin: 56px 0 0; }
+  .footnote { font-size: 0.84rem; color: var(--ink-3); margin-top: 40px; }
+</style>
+
+<div class="wrap">
+  <header class="prose">
+    <div class="eyebrow">NinjaSRE · área Settings · 14 ago 2026</div>
+    <h1>Rework da área de Settings</h1>
+    <p class="lede">Diagnóstico das seis telas de configuração percorridas de ponta a ponta em Full HD, e a proposta de reorganização — navegação, catálogo de integrações, onboarding e o destino do editor de configuração cru.</p>
+    <p><strong>Este documento é a referência visual da área Settings.</strong> Ele registra duas decisões: navegação híbrida — Integrations permanece entrada própria na barra lateral e o restante vira uma entrada Settings com navegação secundária — e a substituição integral do editor de configuração cru por telas humanas. Âncoras <code>#mockup-1</code> a <code>#mockup-4</code> nomeiam cada tela; as telas que os implementam citam este arquivo no registro visual.</p>
+    <div class="figures">
+      <div class="figure bad"><b>13&times;</b><span>telas de rolagem em /integrations</span></div>
+      <div class="figure bad"><b>82 / 84</b><span>cards "unconfigured" sem filtro padrão</span></div>
+      <div class="figure bad"><b>38</b><span>acordeões de schema cru em /configuration</span></div>
+      <div class="figure bad"><b>3</b><span>CTAs que levam ao lugar errado ou a nada</span></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="prose">
+      <div class="eyebrow">Parte 1</div>
+      <h2>Diagnóstico, tela por tela</h2>
+      <p>O padrão que se repete: <strong>cada tela mistura três coisas</strong> — o formulário que muda o sistema, a documentação que explica o conceito, e o estado atual — num único fluxo vertical sem hierarquia. E quando uma tela precisa apontar para outra, ela aponta para <code>/configuration</code>, que é um editor de schema, não uma tela de produto.</p>
+    </div>
+    <div class="diag-scroll">
+    <table class="diag">
+      <tr><th>Tela</th><th>Gravidade</th><th>Problemas observados</th></tr>
+      <tr>
+        <td>/integrations</td>
+        <td><span class="sev crit">Crítica</span></td>
+        <td><ul class="tight">
+          <li>84 cards em lista plana alfabética; 11.730px de altura (13 telas). Os 2 configurados somem no meio de 82 vazios.</li>
+          <li>Sem busca, sem categorias, sem logos. Único filtro ("Connection: Any / Not connected / Unchecked / Verified") não cobre a pergunta principal — "o que eu uso?".</li>
+          <li>Nomes crus (<code>azure_monitor</code>, <code>better_stack</code>) e duas linhas redundantes de estado por card ("No credential is stored…" + "no credential is stored for this node").</li>
+          <li>A API já devolve <code>category</code>, <code>summary</code>, <code>capabilities</code> e <code>suggested</code> — a UI ignora tudo isso.</li>
+          <li>Formulário de credencial inline com labels cruas ("token", "project"), sem link de onde obter a credencial.</li>
+          <li>No rodapé, "Not covered, and why": nove parágrafos densos de documentação dentro da tela de configuração.</li>
+        </ul></td>
+      </tr>
+      <tr>
+        <td>/configuration</td>
+        <td><span class="sev crit">Crítica</span></td>
+        <td><ul class="tight">
+          <li>É um editor de schema: tabela "Effective configuration" com JSON bruto e 38 acordeões nomeados por chave pontilhada em monospace (<code>policies.observation.bridge.metrics</code>).</li>
+          <li>É também o destino dos CTAs das outras telas — o caminho "feliz" do produto termina num despejo de schema.</li>
+          <li>Autonomy, integrações e notificações são editáveis aqui <em>e</em> nas telas próprias: dois lugares para a mesma verdade.</li>
+        </ul></td>
+      </tr>
+      <tr>
+        <td>/first-run (Setup)</td>
+        <td><span class="sev warn">Média</span></td>
+        <td><ul class="tight">
+          <li>Conceito bom (checklist com "You are here"), mas três painéis mostram o mesmo estado com vocabulários diferentes: "2 of 7 steps left", "stored, unchecked", "it answered", "Nobody has checked this one".</li>
+          <li>Ids crus (<code>google_gemini</code>) ao lado de nomes próprios ("Google Gemini").</li>
+          <li>O check funciona e o diagnóstico é excelente ("o modelo respondeu sem chamar a ferramenta — escolha um modelo com tool calling"), mas vem como parágrafo denso sem ação clicável.</li>
+        </ul></td>
+      </tr>
+      <tr>
+        <td>/signals</td>
+        <td><span class="sev warn">Média</span></td>
+        <td><ul class="tight">
+          <li>Aba Intake mistura documentação de webhook (payload, headers, assinatura) com ferramenta de teste — texto técnico denso por receptor.</li>
+          <li>Aba Destinations: o texto manda conectar integração "in the catalogue", mas o botão diz "Open configuration" e joga no editor de schema.</li>
+          <li>Contagem divergente: Setup diz "2 of 7 steps left"; a aba Continuous observation diz "3 step(s) are outstanding".</li>
+        </ul></td>
+      </tr>
+      <tr>
+        <td>/autonomy</td>
+        <td><span class="sev warn">Média</span></td>
+        <td><ul class="tight">
+          <li>Empty state "No policy recorded" aponta "Look at the configuration" — loop entre as duas telas que editam a mesma coisa.</li>
+          <li>Painel "Save this posture" com label crua (<code>deployment · —</code>) e três botões sem hierarquia ("Explain one action", "Simulate everything", "What would this decide differently?").</li>
+          <li>Três parágrafos conceituais (rule / bound / override) antes de qualquer controle.</li>
+        </ul></td>
+      </tr>
+      <tr>
+        <td>/administration</td>
+        <td><span class="sev warn">Média</span></td>
+        <td><ul class="tight">
+          <li>Machine tokens: ~15 linhas idênticas "bootstrap — investigation.read, token.manage — HEALTHY" sem agrupamento nem explicação do acúmulo.</li>
+          <li>Formulário de SSO (8 campos OIDC) enterrado no fim da aba People.</li>
+          <li>Aba Audit contradiz a si mesma: o link diz "default — 200 events", o painel diz "Nothing has been recorded".</li>
+          <li>Botão "Widen the period" não faz nada (opção quebrada confirmada).</li>
+        </ul></td>
+      </tr>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="prose">
+      <div class="eyebrow">Parte 2</div>
+      <h2>A causa raiz é a arquitetura de informação</h2>
+      <p>Os seis itens do grupo "Settings" estão organizados <strong>pela arquitetura interna do software</strong> (catálogo, pipeline, política, schema, identidade), não pelas perguntas de quem configura. A proposta: uma única entrada <strong>Settings</strong> com navegação secundária própria — o padrão de Linear, Vercel e Stripe — organizada por intenção, onde cada página é <em>a</em> dona do seu domínio e o editor cru vira uma saída de emergência em "Advanced".</p>
+    </div>
+    <div class="ia">
+      <div class="ia-col">
+        <h3>Hoje <small>6 entradas na sidebar principal</small></h3>
+        <div class="ia-item pain"><b>Setup</b><span>some ao terminar; conta passos diferente do resto</span></div>
+        <div class="ia-item pain"><b>Integrations</b><span>84 cards planos, 13 telas de scroll</span></div>
+        <div class="ia-item pain"><b>Signals</b><span>4 abas: docs + config + teste misturados</span></div>
+        <div class="ia-item pain"><b>Autonomy</b><span>aponta para Configuration para editar</span></div>
+        <div class="ia-item pain"><b>Configuration</b><span>schema cru; destino de todos os CTAs</span></div>
+        <div class="ia-item pain"><b>Administration</b><span>pessoas + tokens + SSO + audit numa página</span></div>
+      </div>
+      <div class="ia-col">
+        <h3>Proposta <small>híbrida: 2 entradas na sidebar</small></h3>
+        <div class="ia-group">Sidebar · grupo Settings</div>
+        <div class="ia-item"><b>Integrations</b><span>entrada própria (uso frequente) — busca + categorias + conectadas primeiro</span></div>
+        <div class="ia-item"><b>Settings</b><span>entrada única; abre a subnav abaixo</span></div>
+        <div class="ia-group">Settings › Organization</div>
+        <div class="ia-item"><b>Members &amp; roles</b><span>pessoas, grants e sessões</span></div>
+        <div class="ia-item"><b>Single sign-on</b><span>página própria, com teste guiado</span></div>
+        <div class="ia-item"><b>Machine tokens</b><span>agrupados por origem, com expurgo</span></div>
+        <div class="ia-item"><b>Audit log</b><span>filtros nomeados e período que funciona</span></div>
+        <div class="ia-group">Settings › Agent</div>
+        <div class="ia-item"><b>Models &amp; providers</b><span>formulário humano; badge "tool calling"</span></div>
+        <div class="ia-item"><b>Autonomy &amp; guardrails</b><span>única dona do domínio — sem loop</span></div>
+        <div class="ia-item"><b>Notifications</b><span>hoje escondido em <code>surfaces.notification_policy</code></span></div>
+        <div class="ia-group">Settings › Data</div>
+        <div class="ia-item"><b>Alert intake</b><span>config à frente, referência recolhível</span></div>
+        <div class="ia-item"><b>Schedules &amp; destinations</b><span>o pipe completo numa página</span></div>
+      </div>
+    </div>
+    <p style="margin-top:14px"><strong>Setup</strong> deixa de ser página irmã e vira um <em>wizard</em> de primeira execução fora da sidebar, apontando para essas páginas — a única fonte da contagem de passos. <strong>O editor de configuração cru não sobrevive</strong>: substituição 100% por telas humanas, com mapa de paridade verificado (spec 070) — não há grupo "Advanced".</p>
+  </section>
+
+  <section>
+    <div class="prose">
+      <div class="eyebrow">Mockup 1 · DoD das specs 010 e 040</div>
+      <h2 id="mockup-1">Settings shell — navegação híbrida</h2>
+      <p>A sidebar principal fica com o operacional mais <strong>duas</strong> entradas no grupo Settings: <strong>Integrations</strong> (uso frequente, decisão híbrida) e <strong>Settings</strong>, que abre a subnav agrupada por intenção — Organization, Agent, Data. Não existe grupo "Advanced": o editor cru é substituído por completo. A página mostrada é <strong>Models &amp; providers</strong>.</p>
+    </div>
+    <div class="shot">
+      <div class="shot-bar"><i></i><i></i><i></i><span>ninjasre.local/settings/models</span></div>
+      <div class="shot-body">
+        <nav class="mnav">
+          <div class="g">Now</div>
+          <a>Dashboard</a><a>Incidents</a><a>Investigations</a><a>Decisions</a>
+          <div class="g">Environment</div>
+          <a>Resources</a><a>Knowledge</a><a>The agent</a>
+          <div class="g">Settings</div>
+          <a>Integrations</a><a class="on">Settings</a>
+        </nav>
+        <nav class="snav">
+          <div class="g">Organization</div>
+          <a>Members &amp; roles</a><a>Single sign-on</a><a>Machine tokens</a><a>Audit log</a>
+          <div class="g">Agent</div>
+          <a class="on">Models &amp; providers</a><a>Autonomy &amp; guardrails</a><a>Notifications</a>
+          <div class="g">Data</div>
+          <a>Alert intake</a><a>Schedules &amp; destinations</a>
+        </nav>
+        <div class="scontent">
+          <h4>Models &amp; providers<span class="pin">1</span></h4>
+          <div class="card">
+            <div class="row" style="justify-content:space-between">
+              <b>Provider</b>
+              <span class="chip c-ok"><i></i>Credencial verificada</span>
+            </div>
+            <label>Provider</label>
+            <select class="input"><option>Google Gemini</option></select>
+            <label>Modelo padrão (investigator)</label>
+            <select class="input"><option>gemini-2.5-pro — suporta tool calling ✓</option></select>
+            <div class="help">gemini-2.5-flash foi reprovado na verificação: respondeu sem chamar a ferramenta. <a>Ver o diagnóstico</a></div>
+            <div class="row" style="margin-top:12px">
+              <span class="btn">Salvar e verificar</span>
+              <span class="btn ghost">Testar sem salvar</span>
+              <span class="pin">2</span>
+            </div>
+          </div>
+          <div class="card">
+            <b>Papéis avançados</b>
+            <div class="help" style="margin-top:4px">subagent, intake, diagnose, extraction, embedding, selection e summarisation herdam o padrão. <a>Configurar por papel</a><span class="pin">3</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="callouts">
+      <li><b class="n">1</b><span>Título humano, sem subtítulo de prosa: quando a descrição só repete o título, ela é mobília. A ajuda vive ao lado do controle (o schema já declara <code>field_help</code> por campo e <code>section_help</code> por seção exatamente para isso); a chave <code>models.investigator</code> nunca aparece como título.</span></li>
+      <li><b class="n">2</b><span>Verificação embutida no salvar — o resultado do check do Setup aparece aqui, como estado do campo, com a correção a um clique.</span></li>
+      <li><b class="n">3</b><span>Divulgação progressiva: os cinco papéis avançados existem, mas não custam rolagem de quem só quer escolher o modelo principal.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="prose">
+      <div class="eyebrow">Mockup 2 · DoD da spec 020</div>
+      <h2 id="mockup-2">Integrations — catálogo navegável</h2>
+      <p>Integrations é <strong>entrada própria da sidebar</strong> (decisão híbrida), na rota <code>/integrations</code> atual. Três mudanças matam a barra de rolagem gigante: <strong>o que está conectado vem primeiro</strong>, o restante vira um <strong>grid compacto filtrável por busca e categoria</strong>, e o formulário de credencial sai do fluxo da lista para um <strong>painel lateral</strong>. Tudo que o mockup mostra a API já fornece (<code>category</code>, <code>summary</code>, <code>suggested</code>, <code>health</code>).</p>
+    </div>
+    <div class="shot">
+      <div class="shot-bar"><i></i><i></i><i></i><span>ninjasre.local/integrations</span></div>
+      <div class="shot-body">
+        <nav class="mnav">
+          <div class="g">Now</div>
+          <a>Dashboard</a><a>Incidents</a><a>Investigations</a><a>Decisions</a>
+          <div class="g">Environment</div>
+          <a>Resources</a><a>Knowledge</a><a>The agent</a>
+          <div class="g">Settings</div>
+          <a class="on">Integrations</a><a>Settings</a>
+        </nav>
+        <div class="scontent">
+          <h4>Integrations</h4>
+          <div class="sub">84 integrações disponíveis · 2 conectadas · 1 sugerida pelo seu ambiente</div>
+          <div class="row">
+            <input class="input" style="max-width:340px" placeholder="Buscar por nome, categoria ou capacidade…"/>
+            <span class="pin">1</span>
+          </div>
+          <div class="fchips">
+            <span class="fchip on">Todas</span><span class="fchip">Conectadas · 2</span><span class="fchip">Sugeridas · 1</span>
+            <span class="fchip">Observability</span><span class="fchip">Cloud</span><span class="fchip">Incident</span><span class="fchip">Data</span><span class="fchip">Chat &amp; on-call</span><span class="fchip">Dev</span>
+            <span class="pin">2</span>
+          </div>
+          <div class="card">
+            <b style="font-size:0.8rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--s-ink3)">Conectadas</b>
+            <div class="conn-row">
+              <span class="logo">P</span>
+              <div class="grow"><b>Prometheus</b> <small>· Observability · métricas do estate</small></div>
+              <span class="chip c-ok"><i></i>Verificada</span>
+              <span style="color:var(--s-ink3)">Gerenciar</span>
+            </div>
+            <div class="conn-row">
+              <span class="logo">Px</span>
+              <div class="grow"><b>Proxmox VE</b> <small>· Cloud · hypervisor e guests</small></div>
+              <span class="chip c-ok"><i></i>Verificada</span>
+              <span style="color:var(--s-ink3)">Gerenciar</span>
+            </div>
+          </div>
+          <div class="card" style="border-color:var(--s-acc-dim)">
+            <b style="font-size:0.8rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--s-acc)">Sugerida pelo seu ambiente<span class="pin">3</span></b>
+            <div class="conn-row">
+              <span class="logo">G</span>
+              <div class="grow"><b>Grafana</b> <small>· encontrado rodando em 192.168.68.159:3000 (guest "monitoring")</small></div>
+              <span class="btn" style="padding:4px 12px">Conectar</span>
+            </div>
+          </div>
+          <div class="cat-grid">
+            <div class="cat"><div class="t"><span class="logo">A</span><b>Alertmanager</b></div><div class="d">Observability · rotas e silêncios de alerta</div></div>
+            <div class="cat"><div class="t"><span class="logo">D</span><b>Datadog</b></div><div class="d">Observability · métricas, logs e monitores</div></div>
+            <div class="cat"><div class="t"><span class="logo">S</span><b>Sentry</b></div><div class="d">Dev · erros e releases de aplicação</div></div>
+            <div class="cat"><div class="t"><span class="logo">Aw</span><b>AWS CloudWatch</b></div><div class="d">Cloud · métricas e logs da AWS</div></div>
+            <div class="cat"><div class="t"><span class="logo">Pd</span><b>PagerDuty</b></div><div class="d">Incident · escalonamento e plantões</div></div>
+            <div class="cat"><div class="t"><span class="logo">Sl</span><b>Slack</b></div><div class="d">Chat · entrega de relatórios e alertas</div></div>
+          </div>
+          <div class="help" style="margin-top:10px">…mais 75 integrações <span class="pin">4</span> · <a>9 não cobertas, e por quê</a><span class="pin">5</span></div>
+        </div>
+      </div>
+    </div>
+    <ul class="callouts">
+      <li><b class="n">1</b><span>Busca imediata por nome, categoria ou capacidade — a primeira coisa que a tela oferece, porque é a primeira coisa que o operador quer.</span></li>
+      <li><b class="n">2</b><span>Categorias vêm do <code>category</code> que a API já devolve. "Conectadas" e "Sugeridas" são filtros de estado, não seções perdidas no meio da lista.</span></li>
+      <li><b class="n">3</b><span>A sugestão do estate (<code>suggested</code> na API) ganha o lugar de destaque que o backend já calculou — hoje ela só reordena a lista silenciosamente.</span></li>
+      <li><b class="n">4</b><span>O grid mostra uma dobra e paginação/virtualização faz o resto — nunca 84 cards de 105px empilhados.</span></li>
+      <li><b class="n">5</b><span>O texto "Not covered, and why" vira uma página de referência linkada, não o rodapé da tela de configuração.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="prose">
+      <div class="eyebrow">Mockup 3 · DoD da spec 020</div>
+      <h2 id="mockup-3">Credencial em painel lateral</h2>
+      <p>Conectar uma integração abre um slide-over sobre o catálogo — o operador não perde a posição na lista, e o formulário ganha espaço para o que hoje falta: instruções de obtenção da credencial e o teste como parte do fluxo.</p>
+    </div>
+    <div class="shot">
+      <div class="shot-bar"><i></i><i></i><i></i><span>ninjasre.local/integrations/bigquery</span></div>
+      <div class="shot-body">
+        <div class="scontent" style="opacity:0.35; flex:1">
+          <h4>Integrations</h4>
+          <div class="sub">84 integrações disponíveis · 2 conectadas</div>
+          <div class="cat-grid">
+            <div class="cat"><div class="t"><span class="logo">A</span><b>Alertmanager</b></div><div class="d">Observability</div></div>
+            <div class="cat"><div class="t"><span class="logo">D</span><b>Datadog</b></div><div class="d">Observability</div></div>
+          </div>
+        </div>
+        <div style="width:400px; flex:none; border-left:1px solid var(--s-line); background:var(--s-panel); padding:20px 22px">
+          <div class="row" style="justify-content:space-between">
+            <div class="t" style="display:flex; align-items:center; gap:9px"><span class="logo" style="width:28px;height:28px;border-radius:7px;background:var(--s-panel2);display:inline-flex;align-items:center;justify-content:center;font-weight:800;color:var(--s-acc)">Bq</span><b style="font-size:1.05rem">Google BigQuery</b></div>
+            <span style="color:var(--s-ink3)">✕</span>
+          </div>
+          <div class="help" style="margin:6px 0 4px">Data · consulta datasets durante investigações</div>
+          <span class="chip c-off"><i></i>Não conectada</span>
+          <label>Service account token<span class="pin">1</span></label>
+          <input class="input" placeholder="Cole o JSON da service account"/>
+          <div class="help">IAM &amp; Admin → Service accounts → Keys. Precisa do papel <code>BigQuery Data Viewer</code>. <a>Guia passo a passo</a></div>
+          <label>Project ID</label>
+          <input class="input" placeholder="meu-projeto-123"/>
+          <div class="row" style="margin-top:14px">
+            <span class="btn">Salvar e testar<span class="pin">2</span></span>
+            <span class="btn ghost">Cancelar</span>
+          </div>
+          <div class="help" style="margin-top:12px">Guardada no vault; nunca é exibida de novo. O teste faz uma requisição real — armazenada e funcionando são estados diferentes.<span class="pin">3</span></div>
+        </div>
+      </div>
+    </div>
+    <ul class="callouts">
+      <li><b class="n">1</b><span>Labels humanas com instrução de obtenção e o papel IAM mínimo — a diferença entre um formulário e uma adivinhação.</span></li>
+      <li><b class="n">2</b><span>Salvar e testar é uma ação só: elimina o estado intermediário "stored, unchecked" como fim de fluxo silencioso.</span></li>
+      <li><b class="n">3</b><span>A boa prosa de segurança que o produto já tem, resumida a duas frases no lugar onde importa.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="prose">
+      <div class="eyebrow">Mockup 4 · DoD da spec 030</div>
+      <h2 id="mockup-4">Setup como wizard, com uma só contagem</h2>
+      <p>O checklist vira um stepper com fonte única de verdade (hoje "2 of 7" e "3 outstanding" convivem). Cada verificação que falha traz a correção como ação, não como parágrafo.</p>
+    </div>
+    <div class="shot">
+      <div class="shot-bar"><i></i><i></i><i></i><span>ninjasre.local/setup</span></div>
+      <div class="shot-body">
+        <div class="scontent">
+          <h4>Configurar o NinjaSRE</h4>
+          <div class="sub">Passo 5 de 7 — verificar as conexões</div>
+          <div class="steps">
+            <div class="step done"><i></i>Provider</div>
+            <div class="step done"><i></i>Credencial</div>
+            <div class="step done"><i></i>Modelo</div>
+            <div class="step done"><i></i>Acessos</div>
+            <div class="step now"><i></i>Verificação</div>
+            <div class="step"><i></i>Estate</div>
+            <div class="step"><i></i>Alertas</div>
+          </div>
+          <div class="card">
+            <div class="vrow">
+              <span class="chip c-bad"><i></i>Falhou</span>
+              <div class="grow"><b>Google Gemini</b><small>gemini-2.5-flash respondeu sem chamar a ferramenta — investigações exigem tool calling.</small></div>
+              <span class="fix">Escolher outro modelo →<span class="pin">1</span></span>
+            </div>
+            <div class="vrow">
+              <span class="chip c-ok"><i></i>Verificada</span>
+              <div class="grow"><b>Prometheus</b><small>Respondeu em 240 ms.</small></div>
+            </div>
+            <div class="vrow">
+              <span class="chip c-ok"><i></i>Verificada</span>
+              <div class="grow"><b>Proxmox VE</b><small>Respondeu em 180 ms.</small></div>
+            </div>
+          </div>
+          <div class="row" style="justify-content:space-between">
+            <span class="btn ghost">Voltar</span>
+            <div class="row"><span class="help">1 verificação pendente<span class="pin">2</span></span><span class="btn ghost">Continuar mesmo assim</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="callouts">
+      <li><b class="n">1</b><span>A falha aponta a correção e leva direto ao campo certo em Models &amp; providers — o diagnóstico rico que o backend já produz, com destino.</span></li>
+      <li><b class="n">2</b><span>Uma contagem, calculada num lugar só, exibida em todos. "Continuar mesmo assim" respeita quem quer explorar antes de terminar.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="prose">
+      <div class="eyebrow">Parte 3</div>
+      <h2>Regras transversais para a spec</h2>
+    </div>
+    <div class="princ">
+      <div class="p"><b>Um domínio, uma dona</b><span>Cada domínio tem exatamente uma tela que o edita. O editor cru é substituído por completo: um mapa de paridade grupo-do-schema → tela dona, verificado automaticamente, garante que nenhum campo fica órfão (spec 070).</span></div>
+      <div class="p"><b>Vocabulário único de estado</b><span>Quatro palavras para credenciais em todo o produto: Não conectada · Armazenada · Verificada · Falhando. Fim de "it answered", "HEALTHY", "stored, unchecked" convivendo.</span></div>
+      <div class="p"><b>Nome de exibição obrigatório</b><span>Todo id de catálogo tem display name e categoria visíveis; o id cru (<code>google_gemini</code>) aparece só em contexto técnico (API, audit).</span></div>
+      <div class="p"><b>CTA aterrissa no alvo</b><span>Todo empty state aponta para a tela + âncora que resolve, com o verbo certo ("Conectar uma integração de chat"), e nunca para o editor cru.</span></div>
+      <div class="p"><b>Documentação recolhida</b><span>Referência (payloads de webhook, "not covered") vive em painéis recolhíveis ou páginas de referência — nunca no fluxo entre o operador e o formulário.</span></div>
+      <div class="p"><b>Ajuda mora no campo</b><span>Nada de subtítulo de prosa sob o título da página (subtítulo de dado — contagens, "Passo N de 7" — pode). A frase de ajuda aparece sob o controle que ela explica, vinda do <code>field_help</code>/<code>section_help</code> que o schema já declara. Tooltip nunca carrega informação essencial.</span></div>
+      <div class="p"><b>Rolagem é bug</b><span>Nenhuma tela de configuração passa de ~2 viewports em 1080p. Listas longas ganham busca, filtro e paginação por construção.</span></div>
+    </div>
+    <p class="footnote">Correções pontuais que a spec deve absorver: consertar "Widen the period" (hoje é no-op), reconciliar "200 events" × "Nothing recorded" no Audit, unificar a contagem de passos do Setup, e agrupar os machine tokens repetidos do bootstrap com expurgo em massa.</p>
+  </section>
+
+  <hr class="sp"/>
+  <p class="footnote">Análise feita em 14 ago 2026 sobre o front local (preview 3101) em 1920×1080, com o backend do repositório. HTML estático, sem interação: layout, hierarquia, agrupamento e vocabulário são normativos; pixels exatos não.</p>
+</div>

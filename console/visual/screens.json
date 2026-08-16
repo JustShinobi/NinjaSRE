@@ -4,24 +4,26 @@
     {
       "id": "administration-1440-light",
       "route": "/settings/members-roles",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "Who may do what — the People tab, and the default one. A screen where a change of emphasis is a change of meaning."
-      }
+      },
+      "pending_because": "Members and roles, once the other three subjects moved to their own addresses. Held with the audit log below it: both are organisation screens the migration still has fields to place on."
     },
     {
       "id": "administration-audit-1440-light",
       "route": "/settings/audit-log",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "Who did what, when, and against which resource — Audit's own tab now, on the same administrator's permission People already needed. First capture: this is the menu reorganisation's own fusion, and needs recapturing before it protects anything."
-      }
+      },
+      "pending_because": "The audit log at its own address, with named filters and a count that answers the same query the list does. Held alongside members and roles for the same reason."
     },
     {
       "id": "agent-1440-light",
@@ -70,13 +72,14 @@
     {
       "id": "autonomy-1440-light",
       "route": "/settings/autonomy-guardrails",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "06-screen-autonomy.png",
         "reason": "The autonomy screen at the reference's two-thirds/one-third split: the rules table in resolution order, the permanent footer stating that the absence of a rule resolves to propose-only, and the bounds no level overrides in the context rail. Re-accepted when the policy engine landed and the rules table stopped being empty; the frame, the split and the footer are unchanged from the first acceptance."
-      }
+      },
+      "pending_because": "This screen more than doubled in height absorbing the standalone autonomy page, exceeds the scroll budget, and is where the uncovered policy fields land next. Held until both the height and the remaining fields are settled, so one review covers the finished screen."
     },
     {
       "id": "configuration-1440-light",
@@ -203,13 +206,14 @@
     {
       "id": "integrations-1440-light",
       "route": "/integrations",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The catalogue, rebuilt: Connected and Suggested above a compact, searchable grid, against the full installed catalogue rather than a handful of mock entries. Reviewed against the catalogue mockup for layout, hierarchy, grouping and vocabulary. Needs a fresh capture — the previous baseline photographed the collapsed-card design this redesign replaces, and comparing against it would report every card in the document as a difference rather than the specific ones that matter."
-      }
+      },
+      "pending_because": "The catalogue rework changed this screen substantially and the migration that retires the raw configuration editor will change it again. Its baseline is the pre-rework one, deliberately: reviewing these pixels now buys a second review of the same screen a feature later."
     },
     {
       "id": "integrations-panel-1440-light",
@@ -381,13 +385,14 @@
     {
       "id": "signals-observation-1440-light",
       "route": "/signals?tab=observation",
-      "status": "baselined",
+      "status": "pending",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
         "reason": "The Continuous observation tab, absorbed whole from its own former address: what this deployment watches for, and the threshold each check reads. An operator deciding whether to change one has to see the measurement beside it. First capture at this address: needs recapturing before it protects anything."
-      }
+      },
+      "pending_because": "What is left of the four-tab screen once intake, schedules and destinations moved out. Continuous observation has no Settings page yet; when it gets one this address changes again, so the baseline is held until then."
     },
     {
       "id": "signals-schedules-1440-light",
@@ -412,6 +417,50 @@
         "reason": "The Destinations tab: where the result goes, and which outbound deliveries failed and can be resent. First capture at this address: needs recapturing before it protects anything."
       },
       "pending_because": "The other half of the page the schedules entry above names, and pending for the same reason: one built address, two ids, and the consolidation is the reviewer's to make rather than this feature's."
+    },
+    {
+      "id": "single-sign-on-1440-light",
+      "route": "/settings/single-sign-on",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "09-area-settings.html",
+        "reason": "Single sign-on as a flow rather than a form: configure, test, then activate, with activation refused until a test has passed. The page carries the local fallback statement, because an operator turning on SSO is entitled to know how they get back in if it breaks."
+      }
+    },
+    {
+      "id": "machine-tokens-1440-light",
+      "route": "/settings/machine-tokens",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "09-area-settings.html",
+        "reason": "Machine tokens grouped by what they are for, with a count and the last use, so fifteen accumulated bring-up credentials read as one group with a history rather than as fifteen unexplained rows. Scopes are chosen from a list, never typed."
+      }
+    },
+    {
+      "id": "models-providers-1440-light",
+      "route": "/settings/models-providers",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "09-area-settings.html",
+        "reason": "Which model answers each role, and what each provider is verified to support. The tri-state matters here: a provider whose tool-calling support is unknown must not read as one that lacks it."
+      }
+    },
+    {
+      "id": "notifications-1440-light",
+      "route": "/settings/notifications",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "09-area-settings.html",
+        "reason": "Where the deployment tells somebody something, and how often it is allowed to. Quiet hours and the per-hour ceiling are the two controls an operator reaches for after being paged too much, and they sit together."
+      }
     }
   ],
   "mockups": [
@@ -462,6 +511,12 @@
       "status": "baselined",
       "surface": "the console design system",
       "note": "The dark theme: the same token names at different values and identical geometry. Reviewed against the gallery in dark rather than against a product screen, because what it documents is the token set."
+    },
+    {
+      "file": "09-area-settings.html",
+      "status": "baselined",
+      "surface": "the Settings area",
+      "note": "The Settings area as it was designed: the hybrid navigation that leaves Integrations its own sidebar entry and folds the rest into one Settings entry with a subnav of its own, the nine pages that subnav lists, and the browsable integrations catalogue beside the credential panel. Committed as HTML rather than exported to an image because it carries both themes and the states a still frame cannot, and because it is what the area was actually drawn as. Self-contained: nothing it renders is fetched."
     }
   ]
 }
