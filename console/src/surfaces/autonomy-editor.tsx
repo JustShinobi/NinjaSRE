@@ -510,13 +510,15 @@ export function AutonomyEditor({
           trip to the raw editor to work out what a scope object looks like.
           Least-specific field first, matching the resolution order the table
           above already reads in. */}
-      <div
+      <details
         id="new-rule"
         data-testid="new-rule"
-        className="flex flex-col gap-3 edge border-border rounded-2 px-3 py-3"
+        className="edge border-border rounded-2 px-3 py-3"
       >
-        <h4 className="text-strong">{labels.newRuleTitle}</h4>
-        <div className="flex flex-wrap items-end gap-3">
+        <summary className="text-strong motion-hover hover:opacity-80">
+          {labels.newRuleTitle}
+        </summary>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
           <Select
             label={labels.newRuleScope}
             name="new-rule-scope"
@@ -594,15 +596,17 @@ export function AutonomyEditor({
             {labels.addRule}
           </Button>
         </div>
-      </div>
+      </details>
 
-      <div
+      <details
         id="new-freeze"
         data-testid="new-freeze"
-        className="flex flex-col gap-3 edge border-border rounded-2 px-3 py-3"
+        className="edge border-border rounded-2 px-3 py-3"
       >
-        <h4 className="text-strong">{labels.freezesTitle}</h4>
-        <div className="flex flex-wrap items-end gap-3">
+        <summary className="text-strong motion-hover hover:opacity-80">
+          {labels.freezesTitle}
+        </summary>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
           <Input
             label={labels.freezeName}
             name="freeze-name"
@@ -641,14 +645,16 @@ export function AutonomyEditor({
             {labels.addFreeze}
           </Button>
         </div>
-      </div>
+      </details>
 
-      <div
+      <details
         data-testid="new-budget"
-        className="flex flex-col gap-3 edge border-border rounded-2 px-3 py-3"
+        className="edge border-border rounded-2 px-3 py-3"
       >
-        <h4 className="text-strong">{labels.budgetsTitle}</h4>
-        <div className="flex flex-wrap items-end gap-3">
+        <summary className="text-strong motion-hover hover:opacity-80">
+          {labels.budgetsTitle}
+        </summary>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
           <Input
             label={labels.budgetName}
             name="budget-name"
@@ -678,7 +684,7 @@ export function AutonomyEditor({
             {labels.addBudget}
           </Button>
         </div>
-      </div>
+      </details>
 
       <div className="flex flex-wrap items-end gap-3">
         <Input
