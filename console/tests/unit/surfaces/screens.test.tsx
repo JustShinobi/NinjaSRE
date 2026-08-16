@@ -73,7 +73,23 @@ describe('SC-001: every screen, with no data, says what would be here', () => {
   // own data — identical on the emptiest deployment there is, the same way
   // Signals' Intake tab above never empties. There is no "nothing here yet"
   // for this screen to say.
-  const NEVER_EMPTY = new Set(['integrations-not-covered']);
+  //
+  // `settings-single-sign-on` reads one document, not a collection: an
+  // unconfigured provider is still a settings form with blank fields, never a
+  // zero-item list, so there is no "nothing here yet" to say either — the
+  // same reasoning `integrations-not-covered` gets, for a different reason.
+  //
+  // `settings-machine-tokens` genuinely can be a zero-item collection, and is
+  // excluded on purpose rather than by omission: this panel is never empty
+  // for somebody who may issue a token (`machine-token-groups.tsx`'s own doc
+  // says why — the deployment with none is exactly the one that needs the
+  // issue form in front of it), so its own empty state is inline prose beside
+  // a working form rather than a `way-back` link to nowhere new.
+  const NEVER_EMPTY = new Set([
+    'integrations-not-covered',
+    'settings-single-sign-on',
+    'settings-machine-tokens',
+  ]);
 
   for (const [index, target] of ALL_SCREENS.entries()) {
     if (NEVER_EMPTY.has(target.id)) continue;

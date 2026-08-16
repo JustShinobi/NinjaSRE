@@ -62,14 +62,22 @@ class FakeAuditRepository:
     async def count(
         self,
         *,
+        actor_id: str | None = None,
+        action: str | None = None,
+        resource_kind: str | None = None,
+        resource_id: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
     ) -> int:
-        """Return how many events fall in the window."""
+        """Return how many events match the same filters ``query`` would apply."""
         return sum(
             1
             for event in self.state.audit_events.values()
-            if _within(event.occurred_at, since, until)
+            if (actor_id is None or event.actor_id == actor_id)
+            and (action is None or event.action == action)
+            and (resource_kind is None or event.resource_kind == resource_kind)
+            and (resource_id is None or event.resource_id == resource_id)
+            and _within(event.occurred_at, since, until)
         )
 
 

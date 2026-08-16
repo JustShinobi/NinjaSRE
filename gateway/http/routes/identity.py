@@ -154,6 +154,11 @@ class IssuedTokenView(BaseModel):
     #: Returned exactly once, at creation. There is no route that reads it back,
     #: because the store holds a hash and nothing else.
     secret: str
+    #: The ids of any tokens this issuance revoked because they shared its
+    #: owner and purpose. Empty when nothing was superseded. Carried on the
+    #: response so the substitution is declared and visible at the point it
+    #: happens, not only discoverable afterwards in the audit trail.
+    superseded: list[str] = Field(default_factory=list)
 
 
 class BulkRevokeRequest(BaseModel):
@@ -496,7 +501,12 @@ async def issue_token(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> IssuedTokenView:
-    """Issue a machine token and return its secret exactly once."""
+    """Issue a machine token and return its secret exactly once.
+
+    A second issuance for the same owner and the same purpose — the name a
+    token was given, at the same node — supersedes the one it replaces rather
+    than accumulating beside it.
+    """
     issued = await state.tokens.issue(
         auth.scope,
         _audit_context(auth),
@@ -506,8 +516,11 @@ async def issue_token(
         description=body.description,
         lifetime_days=body.lifetime_days,
         permissions=_permissions(body.permissions),
+        supersede=True,
     )
-    return IssuedTokenView(token=_token_view(issued.token), secret=issued.secret)
+    return IssuedTokenView(
+        token=_token_view(issued.token), secret=issued.secret, superseded=list(issued.superseded)
+    )
 
 
 @identity_router.delete("/tokens/{token_id}", response_model=RevocationResult)

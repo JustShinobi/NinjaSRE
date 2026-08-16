@@ -1187,6 +1187,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.grant.removeConsequence': 'A pessoa perde este papel imediatamente.',
   'admin.grant.removeClose': 'Fechar',
   'admin.grant.removeCancel': 'Manter a atribuição',
+  'admin.grant.addAction': 'Atribuir este papel administrativo',
+  'admin.grant.addConsequence':
+    'A pessoa pode fazer tudo que este papel permite, imediatamente.',
+  'admin.grant.addClose': 'Fechar',
+  'admin.grant.addCancel': 'Não atribuir',
   'admin.column.role': 'Papel',
   'admin.column.node': 'Nó',
   'admin.tokens.title': 'Tokens de máquina',
@@ -1589,4 +1594,56 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.autonomy.guardrails.ruleset': 'Conjunto de regras',
   'settings.autonomy.guardrails.threshold': 'Limiar de aprovação',
   'settings.autonomy.guardrails.expiryHours': 'Validade do pedido de aprovação (horas)',
+
+  // --- Ajustes: Log de auditoria ----------------------------------------------
+  'settings.auditLog.period.label': 'Período',
+  'settings.auditLog.period.days': 'Últimos {days} dias',
+
+  // --- Ajustes: Tokens de máquina ----------------------------------------------
+  'settings.machineTokens.purposeHelp':
+    'Emitir outro token para uma finalidade que já tem um substitui o anterior — a troca fica registrada no log de auditoria.',
+  'settings.machineTokens.detail': 'Tokens individuais',
+  'settings.machineTokens.superseded':
+    'Substituiu {count} token(s) anterior(es) emitido(s) para a mesma finalidade.',
+  'settings.machineTokens.revokeOlder': 'Revogar todos menos o mais recente',
+  'settings.machineTokens.revokingOlder': 'Revogando…',
+  'settings.machineTokens.revokeOlderConsequence':
+    'Todo token mais antigo dessa finalidade para de autenticar agora.',
+  'settings.machineTokens.revokeOlderConfirm': 'Revogar',
+  'settings.machineTokens.revokeOlderCancel': 'Manter funcionando',
+  'settings.machineTokens.count': '{count} tokens',
+  'settings.machineTokens.lastUsed': 'Último uso',
+  'settings.machineTokens.neverUsed': 'Nunca usado',
+  'settings.machineTokens.empty.heading': 'Nenhum token de máquina ainda',
+  'settings.machineTokens.empty.body':
+    'Tokens emitidos para um script ou serviço aparecem aqui, agrupados pela finalidade com que foram emitidos.',
+  'settings.machineTokens.empty.action': 'Emitir um token',
+
+  // --- Ajustes: Single sign-on --------------------------------------------------
+  'settings.sso.step.configure': 'Configurar',
+  'settings.sso.step.test': 'Testar',
+  'settings.sso.step.activate': 'Ativar',
+  'settings.sso.field.provider.help':
+    'Como você chama esse provedor de identidade — não aparece em nenhum outro lugar.',
+  'settings.sso.field.issuer.help':
+    'A URL do issuer que seu provedor documenta, exatamente como aparece lá. Geralmente na própria página de configuração OpenID do provedor.',
+  'settings.sso.field.clientId.help':
+    'O client id que este deployment registrou junto ao provedor quando foi configurado como aplicação.',
+  'settings.sso.field.authorisation.help':
+    "Onde fica a própria tela de login do provedor — geralmente chamada de 'authorization_endpoint' na configuração OpenID dele.",
+  'settings.sso.field.token.help':
+    "Onde um código de login é trocado por um token — geralmente chamado de 'token_endpoint'.",
+  'settings.sso.field.jwks.help':
+    "Onde o provedor publica as chaves que assinam os tokens dele — geralmente chamado de 'jwks_uri'.",
+  'settings.sso.field.redirect.help':
+    'Para onde o provedor manda alguém de volta depois do login. Registre esse endereço exato junto ao provedor.',
+  'settings.sso.field.defaultNode.help':
+    'Onde alguém cai quando os grupos dela não mapeiam para nenhum time em particular — obrigatório, porque um diretório que não retorna grupos ainda precisa mandar para algum lugar.',
+  'settings.sso.result.subject': 'Assunto',
+  'settings.sso.result.email': 'E-mail',
+  'settings.sso.result.team': 'Time',
+  'settings.sso.result.team.default': 'o time padrão, nenhum grupo casou',
+  'settings.sso.result.failed': 'Este conjunto de claims reprovou no teste:',
+  'settings.sso.fallback':
+    'O login local continua disponível como alternativa, seja qual for o estado deste provedor — ninguém fica trancado para fora só porque um provedor de identidade quebrou.',
 };

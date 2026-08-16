@@ -5,6 +5,8 @@ import { Link } from '@/components/action';
 import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
+import { SettingsPageHeader } from '@/shell/area';
+import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { FilterBar, type FilterChoice } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
@@ -21,60 +23,44 @@ import {
   text,
 } from '../read';
 import { RowList, type ListRow } from '../rows';
-import {
-  hrefFor,
-  readViewState,
-  withFilter,
-  writeViewState,
-  type FilterName,
-} from '../url-state';
+import { hrefFor, readViewState, withFilter, type FilterName } from '../url-state';
 
 /**
- * The "Audit" tab of Administration: who did what, when, and against which
- * resource — filterable and exportable.
+ * Audit log, on its own address.
  *
- * A tab rather than its own menu entry, because it is read in the context of
- * "who did what" beside "who may do what" — the same administrator's own
- * permission gates both, and `screens/administration.tsx` renders this beside
- * its own content rather than requiring a second navigation to get there.
+ * The Settings page that replaces the Administration screen's old "Audit"
+ * tab, and the two reasons it exists as its own module rather than a thin
+ * wrapper around that tab.
  *
-
- * The export is a link to the API's own export endpoint rather than something
- * assembled in a browser, for two reasons. A record the console reformatted is a
- * record whose provenance is the console, and an operator who has to keep their
- * own data does not want a CSV of the page they happened to be looking at.
+ * **Every link here addresses this page.** The tab this absorbs built every
+ * navigational control — the period presets, the "Any" link, a row's own
+ * href, the audience toggle, the empty state's action — from a path literal
+ * naming `/administration`. That was harmless while this content only ever
+ * rendered there; it stopped being harmless the day this same function began
+ * rendering at `/settings/audit-log` too, an address whose own query carries
+ * no `tab`. A period preset built that way still pointed at
+ * `/administration?since=…`, and the retired route's own redirect table reads
+ * a request with no `tab` as the *default* tab — Members & roles — so
+ * clicking "the next 30 days" from this page ejected the operator onto a
+ * different one. Building every link from this module's own path removes the
+ * hazard rather than papering over one call site of it.
  *
- * The filters are pushed to the server, because an audit log is the one
- * collection here that is genuinely unbounded.
- *
- * The one thing that arrives unbounded from the deployment itself is its own
- * polling: `default / credential.resolve / <integration> / ALLOWED`, written
- * every few seconds by the platform resolving a credential it already holds.
- * Two things below exist only because of that record, and both are load-bearing
- * rather than decorative:
- *
- * - **Bursts collapse.** A run of consecutive, identical events — same
- *   principal, action, resource and outcome — becomes one row carrying a count
- *   and the window it spans, so a burst does not cost the reader one scroll per
- *   event.
- * - **The system principal is excluded by default.** `default` is what the
- *   deployment calls itself; a human session carries its own principal. The
- *   reading a viewer lands on shows people, and a link — carrying how many
- *   events it is hiding — reaches the rest.
- *
- * Both apply to whatever was fetched, not to the whole table: the gateway has
- * no "not this principal" query, so the exclusion above happens here, against a
- * page pulled well past the ordinary default specifically so a human action
- * does not fall out of the window before this screen ever sees it.
+ * **The empty state answers what was fetched, not what survived a client-side
+ * filter.** The system principal's own polling is excluded from the reading a
+ * viewer lands on by default (see below), and that exclusion happens after
+ * the fetch. A window whose only activity was that polling therefore fetched
+ * something and displays nothing — which is a true, ordinary state this
+ * screen already has a sentence for elsewhere (the audience toggle says
+ * exactly how many events are hidden and why), and is not the same state as a
+ * window that recorded nothing at all. Conflating the two is what let a page
+ * say "Nothing has been recorded" beside a link offering to show the very
+ * events that contradicted it.
  */
 
-export const AUDIT_FILTERS: readonly FilterName[] = [
-  // `tab` first and declared here rather than assumed: every link this tab
-  // regenerates for its own filters and sort goes through `hrefFor`, which
-  // carries only the names a screen declares — a name left off is a name
-  // silently dropped, and dropping `tab` would land a filter click back on
-  // Administration's default tab instead of Audit.
-  'tab',
+const PATH = '/settings/audit-log';
+const ID = 'settings-audit-log';
+
+export const AUDIT_LOG_FILTERS: readonly FilterName[] = [
   'actor',
   'action',
   'audience',
@@ -87,11 +73,13 @@ const EXPORT = 'audit.export';
 /** What the deployment calls itself. Every other principal is somebody's session. */
 const SYSTEM_PRINCIPAL = 'default';
 
-/** How many events a page pulls, well past the gateway's own default of 100.
+/**
+ * How many events a page pulls, well past the gateway's own default of 100.
  *
  * The audience exclusion below is client-side — there is no "not this
  * principal" query — so a human action has to still be *in* what was fetched
- * for that exclusion to find it, and a hundred rows of polling can be minutes.
+ * for that exclusion to find it, and a hundred rows of polling can be
+ * minutes.
  *
  * Capped at the gateway's own page bound (`MAX_QUERY_PAGE_SIZE`,
  * `config/constants/persistence.py`, currently 200) rather than past it: the
@@ -116,10 +104,10 @@ const PERIOD_PRESET_DAYS: readonly number[] = [7, 30];
 /**
  * `value`, with its separators opened into spaces and each word capitalised.
  *
- * `credential.resolve` and `ALLOWED` are exact and machine-shaped, which is
- * exactly what makes them unreadable to somebody who does not carry the
- * internal glossary. This does not invent meaning the record does not carry —
- * it only stops asking the reader to parse punctuation and casing.
+ * `credential.resolve` is exact and machine-shaped, which is exactly what
+ * makes it unreadable to somebody who does not carry the internal glossary.
+ * This does not invent meaning the record does not carry — it only stops
+ * asking the reader to parse punctuation and casing.
  */
 function humanize(value: string): string {
   const words = value.split(/[._-]+/).filter((word) => word.length > 0);
@@ -188,9 +176,10 @@ function groupBursts(records: readonly unknown[]): readonly AuditGroup[] {
   return groups;
 }
 
-export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
+/** The page's own body: filters, presets, the list, and the export. */
+async function content(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone, search } = context;
-  const state = readViewState(search, AUDIT_FILTERS);
+  const state = readViewState(search, AUDIT_LOG_FILTERS);
   const explicitActor = state.filters.actor;
 
   const query = new URLSearchParams();
@@ -226,9 +215,10 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
 
   const rows: readonly ListRow[] = groups.map((group) => ({
     id: group.eventId,
-    href: `/administration?${writeViewState(
+    href: `${PATH}${hrefFor(
+      '',
       { ...state, selection: group.eventId },
-      AUDIT_FILTERS,
+      AUDIT_LOG_FILTERS,
     )}`,
     cells: [
       {
@@ -257,9 +247,6 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
     ],
   }));
 
-  // A choice with nothing beside "Any" narrows nothing — every record already
-  // carries the one value it has — so it is left out rather than shown as a
-  // control with nothing to control.
   const choices: readonly FilterChoice[] = [
     {
       name: 'actor',
@@ -271,23 +258,18 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
       label: message(locale, 'audit.filter.action'),
       options: actions.map((value) => ({ value, label: humanize(value) })),
     },
+    // A choice with nothing beside "Any" narrows nothing — every record
+    // already carries the one value it has — so it is left out rather than
+    // shown as a control with nothing to control.
   ].filter((choice) => choice.options.length > 1);
 
-  const nowIso = now.toISOString();
   const periods = PERIOD_PRESET_DAYS.map((days) => {
     const since = new Date(now.getTime() - days * DAY_MS).toISOString();
     return {
       id: `days-${String(days)}`,
       since,
-      href: hrefFor(
-        '/administration',
-        withFilter(state, 'since', since),
-        AUDIT_FILTERS,
-      ),
-      label: message(locale, 'run.changes.window', {
-        start: timestamp(locale, since, now, zone).absolute,
-        end: timestamp(locale, nowIso, now, zone).absolute,
-      }),
+      href: `${PATH}${hrefFor('', withFilter(state, 'since', since), AUDIT_LOG_FILTERS)}`,
+      label: message(locale, 'settings.auditLog.period.days', { days: String(days) }),
     };
   });
   const currentSince = state.filters.since;
@@ -299,9 +281,9 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
   return (
     <>
       {/* Absent, not disabled, for a viewer who may not export. Inline rather
-          than in the page header: the header belongs to Administration as a
-          whole now, and an export control that only means something on this
-          one tab does not belong on every tab beneath it. */}
+          than in the page header: an export control that only means
+          something on this one panel does not belong beside the page's own
+          title. */}
       {may(viewer, EXPORT) ? (
         <p className="flex justify-end mb-3">
           <Link href={`/audit/export${suffix}`} data-testid="audit-export">
@@ -312,9 +294,9 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
 
       {choices.length === 0 ? null : (
         <FilterBar
-          path="/administration"
+          path={PATH}
           state={state}
-          filters={AUDIT_FILTERS}
+          filters={AUDIT_LOG_FILTERS}
           anyLabel={message(locale, 'surface.filter.any')}
           choices={choices}
         />
@@ -325,26 +307,22 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
           {
             id: 'any',
             label: message(locale, 'surface.filter.any'),
-            href: hrefFor(
-              '/administration',
-              withFilter(state, 'since', ''),
-              AUDIT_FILTERS,
-            ),
+            href: `${PATH}${hrefFor('', withFilter(state, 'since', ''), AUDIT_LOG_FILTERS)}`,
           },
           ...periods,
         ]}
         selected={selectedPeriod}
-        label={message(locale, 'audit.column.occurred')}
+        label={message(locale, 'settings.auditLog.period.label')}
       />
 
       {systemRecords.length > 0 && explicitActor === undefined ? (
         <p className="text-meta text-muted my-3">
           <a
-            href={hrefFor(
-              '/administration',
+            href={`${PATH}${hrefFor(
+              '',
               withFilter(state, 'audience', audience === 'all' ? '' : 'all'),
-              AUDIT_FILTERS,
-            )}
+              AUDIT_LOG_FILTERS,
+            )}`}
             data-testid="audit-audience-toggle"
             aria-current={audience === 'all' ? 'true' : undefined}
             className="text-accent underline underline-offset-2 motion-hover hover:opacity-80"
@@ -363,14 +341,19 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
 
       <Panel
         title={message(locale, 'audit.title')}
-        state={stateOf(events, rows.length === 0)}
+        // What was fetched decides whether anything happened, never what
+        // survived the audience exclusion above: a window full of nothing but
+        // the deployment's own polling still fetched something, and "Nothing
+        // has been recorded" must not appear beside a toggle offering to
+        // show the very events it just claimed did not exist.
+        state={stateOf(events, records.length === 0)}
         dependency={dependencyOf(events)}
         labels={panelLabels(locale, message(locale, 'audit.title'))}
         empty={{
           heading: message(locale, 'audit.empty.heading'),
           body: message(locale, 'audit.empty.body'),
           actionLabel: message(locale, 'audit.empty.action'),
-          href: '/administration?tab=audit',
+          href: `${PATH}${hrefFor('', withFilter(state, 'since', ''), AUDIT_LOG_FILTERS)}`,
         }}
       >
         {events.status === 'ready' && total > records.length ? (
@@ -382,9 +365,9 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
           </p>
         ) : null}
         <RowList
-          path="/administration"
+          path={PATH}
           state={state}
-          filters={AUDIT_FILTERS}
+          filters={AUDIT_LOG_FILTERS}
           labels={rowLabels(locale, message(locale, 'audit.caption'))}
           columns={[
             {
@@ -404,6 +387,22 @@ export async function AuditTab(context: SurfaceContext): Promise<ReactNode> {
           rows={rows}
         />
       </Panel>
+    </>
+  );
+}
+
+/**
+ * The whole `/settings/audit-log` page: the Settings header, then this
+ * screen's own body.
+ *
+ * Exported separately from `content` so a future page that only wants the
+ * body — a drill-down, a print view — is not stuck re-deriving the header.
+ */
+export async function AuditLogScreen(context: SurfaceContext): Promise<ReactNode> {
+  return (
+    <>
+      <SettingsPageHeader page={settingsPageFor(ID)} locale={context.locale} />
+      {await content(context)}
     </>
   );
 }

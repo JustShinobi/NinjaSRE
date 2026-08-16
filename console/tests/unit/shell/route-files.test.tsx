@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { message } from '@/i18n/messages';
-import { AREAS, areaFor } from '@/shell/routes';
+import { AREAS, areaFor, settingsPageFor } from '@/shell/routes';
 import { SESSION_COOKIE } from '@/session/cookies';
 
 import AdministrationPage from '@/app/(shell)/administration/page';
@@ -68,8 +68,23 @@ const RENDERS_COLD_UNDER_A_DIFFERENT_SCENARIO = new Set(['first-run']);
  * carries the *Settings page's* id and title rather than the area's.
  * `describe('the autonomy Settings page, cold')` below covers it with the
  * assertion that is actually true of it now.
+ *
+ * The four `settings-*` ids Administration desmembered into carry the same
+ * shape, for the same reason: each renders under `SettingsPageHeader`, with
+ * its own Settings page id and title rather than any area's.
+ * `describe('the Organization Settings pages, cold')` below covers them —
+ * `administration` itself renders the identical `MembersScreen` one of the
+ * four already does (`settings-members-roles`), so that same assertion
+ * already proves it true at this old id too, without a second, redundant one.
  */
-const HEADER_IS_NOT_THE_AREAS_OWN = new Set(['autonomy']);
+const HEADER_IS_NOT_THE_AREAS_OWN = new Set([
+  'autonomy',
+  'administration',
+  'settings-members-roles',
+  'settings-single-sign-on',
+  'settings-machine-tokens',
+  'settings-audit-log',
+]);
 
 vi.mock('next/headers', () => ({
   cookies: () =>
@@ -93,11 +108,16 @@ afterEach(() => {
 });
 
 describe('the route files and the manifest', () => {
-  it('are the same set, once the screen-less area is set aside', () => {
-    const renders = AREAS.map((area) => area.id)
-      .sort()
-      .filter((id) => !HAS_NO_SCREEN.has(id));
-    expect(AREA_SCREENS.map((file) => file.id).sort()).toEqual(renders);
+  it('covers every area once the screen-less one is set aside', () => {
+    // A subset check rather than an equal set: `AREA_SCREENS` also carries
+    // the four `settings-*` entries Administration desmembered into, which
+    // have no area of their own — the completeness this guards is "every
+    // area renders", not "AREA_SCREENS contains nothing else".
+    const renders = new Set(AREA_SCREENS.map((file) => file.id));
+    for (const area of AREAS) {
+      if (HAS_NO_SCREEN.has(area.id)) continue;
+      expect(renders.has(area.id), `${area.id} has no matching screen`).toBe(true);
+    }
   });
 
   it('never sets an id aside that the manifest does not still declare', () => {
@@ -149,6 +169,29 @@ describe('the autonomy Settings page, cold', () => {
       title: `Autonomy & guardrails · HAL9000`,
     });
   });
+});
+
+describe('the Organization Settings pages, cold', () => {
+  it.each([
+    'settings-members-roles',
+    'settings-single-sign-on',
+    'settings-machine-tokens',
+    'settings-audit-log',
+  ] as const)(
+    '%s renders cold, with the Settings page’s own id and title',
+    async (id) => {
+      const target = AREA_SCREENS.find((file) => file.id === id);
+      if (target === undefined) throw new Error(`no ${id} screen in AREA_SCREENS`);
+
+      render(await target.render({ searchParams: Promise.resolve({}) }));
+
+      expect(screen.getByTestId('page-header')).toHaveAttribute('data-area', id);
+      if (target.metadata === undefined) throw new Error(`${id} declares no metadata`);
+      expect(await target.metadata()).toMatchObject({
+        title: `${message('en', settingsPageFor(id).label)} · HAL9000`,
+      });
+    },
+  );
 });
 
 describe('a retired route file', () => {

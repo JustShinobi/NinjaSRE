@@ -197,6 +197,7 @@ class TokenService:
         description: str | None = None,
         lifetime_days: int | None = None,
         lifetime: timedelta | None = None,
+        supersede: bool = False,
     ) -> IssuedToken:
         """Return a new token, its plaintext included exactly once.
 
@@ -209,6 +210,16 @@ class TokenService:
         for an hour: expressing that as a fraction of a day would have meant
         either rounding it up to a day or teaching every caller that
         ``lifetime_days`` is sometimes not days. The ceiling applies to both.
+
+        ``supersede`` revokes every live token already held by ``user_id`` under
+        this same ``name`` and ``node_id`` — this issuance's *purpose* — instead
+        of leaving them beside the new one. It defaults to ``False`` and has to
+        be asked for, because "the same name" is also how a browser sign-in is
+        issued (``platform/identity/local_accounts.py``'s ``CREDENTIAL_NAME``),
+        and a second tab or a second device signing in must not revoke the
+        first. Machine-token issuance (the console's own route) and the
+        bootstrap credential (whose unrevoked, merely-expired rows are exactly
+        what accumulated before this existed) both ask for it.
         """
         if lifetime is not None:
             span = lifetime
@@ -237,8 +248,29 @@ class TokenService:
             expires_at=now + span,
         )
 
+        superseded: tuple[str, ...] = ()
         async with self.gateway.begin(scope) as uow:
+            if supersede:
+                existing = await uow.identity.tokens_for_user(user_id)
+                superseded = tuple(
+                    token.token_id
+                    for token in existing
+                    if not token.is_revoked and token.name == name and token.team_node_id == node_id
+                )
+                if superseded:
+                    await uow.identity.revoke_tokens(superseded, revoked_at=now)
             stored = await uow.identity.store_token(record)
+
+        if superseded:
+            self.cache.forget_all(superseded)
+            for token_id in superseded:
+                await self._audit(
+                    scope,
+                    context,
+                    action=TOKEN_AUDIT_ACTION_REVOKE,
+                    resource_id=token_id,
+                    detail={"reason": f"superseded by a new token issued for {name!r}"},
+                )
 
         await self._audit(
             scope,
@@ -250,9 +282,10 @@ class TokenService:
                 "team_node_id": node_id,
                 "scopes": list(stored.scopes),
                 "expires_at": stored.expires_at.isoformat() if stored.expires_at else None,
+                **({"superseded": list(superseded)} if superseded else {}),
             },
         )
-        return IssuedToken(token=stored, secret=secret)
+        return IssuedToken(token=stored, secret=secret, superseded=superseded)
 
     # --- Verifying ------------------------------------------------------------
 

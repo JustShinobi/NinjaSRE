@@ -73,7 +73,12 @@ const SCREENS: readonly ConfigScreen[] = [
   { route: '/signals' },
   { route: '/autonomy' },
   { route: '/configuration' },
-  { route: '/administration' },
+  // The four pages Administration desmembered into, each measured at its own
+  // address now rather than as one screen carrying all five subjects.
+  { route: '/settings/members-roles' },
+  { route: '/settings/single-sign-on' },
+  { route: '/settings/machine-tokens' },
+  { route: '/settings/audit-log' },
 ];
 
 for (const screen of SCREENS) {

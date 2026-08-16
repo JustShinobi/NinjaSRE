@@ -1344,6 +1344,10 @@ export const EN = {
   'admin.grant.removeConsequence': 'They lose this role immediately.',
   'admin.grant.removeClose': 'Close',
   'admin.grant.removeCancel': 'Leave it granted',
+  'admin.grant.addAction': 'Grant this administrative role',
+  'admin.grant.addConsequence': 'They can do everything this role allows, immediately.',
+  'admin.grant.addClose': 'Close',
+  'admin.grant.addCancel': 'Do not grant it',
   'admin.column.role': 'Role',
   'admin.column.node': 'Node',
   'admin.tokens.title': 'Machine tokens',
@@ -1700,6 +1704,58 @@ export const EN = {
   'settings.autonomy.guardrails.ruleset': 'Ruleset',
   'settings.autonomy.guardrails.threshold': 'Approval threshold',
   'settings.autonomy.guardrails.expiryHours': 'Approval request expiry (hours)',
+
+  // --- Settings: Audit log ----------------------------------------------------
+  'settings.auditLog.period.label': 'Period',
+  'settings.auditLog.period.days': 'Last {days} days',
+
+  // --- Settings: Machine tokens ------------------------------------------------
+  'settings.machineTokens.purposeHelp':
+    'Issuing another token for a purpose that already has one replaces it — the change is recorded in the audit log.',
+  'settings.machineTokens.detail': 'Individual tokens',
+  'settings.machineTokens.superseded':
+    'Replaced {count} earlier token(s) issued for the same purpose.',
+  'settings.machineTokens.revokeOlder': 'Revoke all but the newest',
+  'settings.machineTokens.revokingOlder': 'Revoking…',
+  'settings.machineTokens.revokeOlderConsequence':
+    'Every older token for this purpose stops authenticating now.',
+  'settings.machineTokens.revokeOlderConfirm': 'Revoke them',
+  'settings.machineTokens.revokeOlderCancel': 'Leave them working',
+  'settings.machineTokens.count': '{count} tokens',
+  'settings.machineTokens.lastUsed': 'Last used',
+  'settings.machineTokens.neverUsed': 'Never used',
+  'settings.machineTokens.empty.heading': 'No machine tokens yet',
+  'settings.machineTokens.empty.body':
+    'Tokens issued for a script or a service appear here, grouped by what they were issued for.',
+  'settings.machineTokens.empty.action': 'Issue a token',
+
+  // --- Settings: Single sign-on -------------------------------------------------
+  'settings.sso.step.configure': 'Configure',
+  'settings.sso.step.test': 'Test',
+  'settings.sso.step.activate': 'Activate',
+  'settings.sso.field.provider.help':
+    'What you call this identity provider — shown nowhere but here.',
+  'settings.sso.field.issuer.help':
+    "The issuer URL your provider documents, exactly as it appears there. Usually under the provider's own OpenID configuration page.",
+  'settings.sso.field.clientId.help':
+    'The client id this deployment registered with the provider when it was set up as an application.',
+  'settings.sso.field.authorisation.help':
+    "Where the provider's own sign-in page lives — usually named 'authorization_endpoint' in its OpenID configuration.",
+  'settings.sso.field.token.help':
+    "Where a sign-in code is exchanged for a token — usually named 'token_endpoint'.",
+  'settings.sso.field.jwks.help':
+    "Where the provider publishes the keys that sign its tokens — usually named 'jwks_uri'.",
+  'settings.sso.field.redirect.help':
+    'Where the provider sends somebody back to once they have signed in. Register this exact address with the provider.',
+  'settings.sso.field.defaultNode.help':
+    'Where somebody lands when their groups map to no team in particular — required, because a directory that returns no groups still has to go somewhere.',
+  'settings.sso.result.subject': 'Subject',
+  'settings.sso.result.email': 'Email',
+  'settings.sso.result.team': 'Team',
+  'settings.sso.result.team.default': 'the default team, no group matched',
+  'settings.sso.result.failed': 'This claim set failed the test:',
+  'settings.sso.fallback':
+    'Local sign-in stays available as a fallback, whatever this provider is set to — nobody is locked out by a broken identity provider alone.',
 } as const;
 
 /** Every key the console may render. Derived, so a typo is a type error. */

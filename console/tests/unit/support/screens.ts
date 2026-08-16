@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import { areaMetadata, settingsPageMetadata } from '@/shell/area';
-import { AdministrationScreen } from '@/surfaces/screens/administration';
 import { SignalsScreen } from '@/surfaces/screens/signals';
+import { AuditLogScreen } from '@/surfaces/settings/audit';
 import { AutonomyScreen } from '@/surfaces/settings/autonomy';
+import { MachineTokensScreen } from '@/surfaces/settings/machine-tokens';
+import { MembersScreen } from '@/surfaces/settings/members';
+import { SingleSignOnScreen } from '@/surfaces/settings/sso';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
 
 import Agent, { generateMetadata as agentMeta } from '@/app/(shell)/agent/page';
@@ -61,17 +64,25 @@ export interface Screen {
 }
 
 /**
- * `signals`, `autonomy`, `administration`, rendered directly.
+ * `signals`, `autonomy`, `administration`, rendered directly under their own
+ * retired area id.
  *
  * The hybrid navigation retired all three from their own address — that
  * address now redirects to a Settings page instead of rendering
- * (`tests/unit/shell/route-files.test.tsx` covers the redirect). `signals`
- * and `administration` are unchanged, reused whole at their new Settings
- * address; `autonomy` was rebuilt as the Settings page's own screen
- * (`@/surfaces/settings/autonomy`), which absorbed rule/freeze/budget
- * creation and the guardrails domain, and this old id keeps pointing at it so
- * every cross-cutting proof this list feeds — about the *screen*, not the
- * address it used to answer at — keeps covering it.
+ * (`tests/unit/shell/route-files.test.tsx` covers the redirect). `signals` is
+ * unchanged, reused whole at its new Settings address; `autonomy` was rebuilt
+ * as the Settings page's own screen (`@/surfaces/settings/autonomy`), which
+ * absorbed rule/freeze/budget creation and the guardrails domain. Both old
+ * ids keep pointing at their successor so every cross-cutting proof this list
+ * feeds — about the *screen*, not the address it used to answer at — keeps
+ * covering it.
+ *
+ * `administration` desmembered into four pages rather than one, so its old
+ * id cannot stand for all of them the way `autonomy`'s can for one — it now
+ * points at Members & roles, the page nearest its old default (a bare
+ * `/administration` already redirected to `/settings/members-roles`). The
+ * other three successors are covered under their own `settings-*` id below,
+ * each with its own permission, rather than falsely under the retired one.
  */
 async function renderSignals({
   searchParams,
@@ -89,12 +100,36 @@ async function renderAutonomy({
   return AutonomyScreen(await surfaceContext(await searchParams));
 }
 
-async function renderAdministration({
+async function renderMembers({
   searchParams,
 }: {
   readonly searchParams: Promise<SearchParams>;
 }): Promise<ReactNode> {
-  return AdministrationScreen(await surfaceContext(await searchParams));
+  return MembersScreen(await surfaceContext(await searchParams));
+}
+
+async function renderSingleSignOn({
+  searchParams,
+}: {
+  readonly searchParams: Promise<SearchParams>;
+}): Promise<ReactNode> {
+  return SingleSignOnScreen(await surfaceContext(await searchParams));
+}
+
+async function renderMachineTokens({
+  searchParams,
+}: {
+  readonly searchParams: Promise<SearchParams>;
+}): Promise<ReactNode> {
+  return MachineTokensScreen(await surfaceContext(await searchParams));
+}
+
+async function renderAuditLog({
+  searchParams,
+}: {
+  readonly searchParams: Promise<SearchParams>;
+}): Promise<ReactNode> {
+  return AuditLogScreen(await surfaceContext(await searchParams));
 }
 
 /**
@@ -151,8 +186,28 @@ export const AREA_SCREENS: readonly Screen[] = [
   { id: 'configuration', render: Configuration, metadata: configurationMeta },
   {
     id: 'administration',
-    render: renderAdministration,
+    render: renderMembers,
     metadata: () => areaMetadata('administration'),
+  },
+  {
+    id: 'settings-members-roles',
+    render: renderMembers,
+    metadata: () => settingsPageMetadata('settings-members-roles'),
+  },
+  {
+    id: 'settings-single-sign-on',
+    render: renderSingleSignOn,
+    metadata: () => settingsPageMetadata('settings-single-sign-on'),
+  },
+  {
+    id: 'settings-machine-tokens',
+    render: renderMachineTokens,
+    metadata: () => settingsPageMetadata('settings-machine-tokens'),
+  },
+  {
+    id: 'settings-audit-log',
+    render: renderAuditLog,
+    metadata: () => settingsPageMetadata('settings-audit-log'),
   },
 ];
 

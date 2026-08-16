@@ -24,6 +24,13 @@ import { Badge } from '@/components/status';
  * confirmation names the principal and the role, not "this grant" — the same
  * reason `ConfirmDestructive` takes a `target` rather than assuming one.
  *
+ * **Granting an administrative role confirms through the same modal.** The
+ * two roles that carry the widest reach — `admin` and `owner` — are
+ * consequential the moment they land, not only when they are taken away, so
+ * the confirmation this component already has for removal applies to their
+ * grant too. Every other role still grants on the first click: a confirmation
+ * on a role that changes little is a step nobody reads before dismissing.
+ *
  * **A role is a slug until something says what it does.** `viewer`,
  * `responder`, `operator`, `admin`, `owner` name nothing on their own, and the
  * point somebody needs to know what granting one does is the point they are
@@ -42,6 +49,17 @@ import { Badge } from '@/components/status';
 
 /** Where both writes go. The console's own process, forwarding once. */
 export const GRANT_ENDPOINT = '/api/grants';
+
+/**
+ * The roles whose grant asks for confirmation before it is sent.
+ *
+ * The platform's own two most-privileged roles (`platform/identity/permissions.py`'s
+ * `Role.ADMIN` and `Role.OWNER`, least-to-most-privileged in `ROLE_ORDER`) —
+ * matched by their wire value, the same string `/identity/roles` already
+ * answers with, so this needs no catalogue of its own to stay level with the
+ * deployment's.
+ */
+const ADMINISTRATIVE_ROLES: readonly string[] = ['admin', 'owner'];
 
 export interface Grant {
   readonly grantId: string;
@@ -70,6 +88,11 @@ export interface GrantLabels {
   readonly removeConsequence: string;
   readonly removeClose: string;
   readonly removeCancel: string;
+  /** The confirmation an administrative role's own grant asks for. */
+  readonly addAction: string;
+  readonly addConsequence: string;
+  readonly addClose: string;
+  readonly addCancel: string;
   readonly failed: string;
   readonly unreachable: string;
 }
@@ -161,6 +184,10 @@ export function GrantPanel({
   const [gone, setGone] = useState<readonly string[]>([]);
   const [busy, setBusy] = useState('');
   const [confirming, setConfirming] = useState('');
+  // A grant of `viewer` and a grant of `owner` are not the same weight of
+  // decision, so this is its own flag rather than reusing `confirming` (which
+  // names a grant already on the list — there is no grant to name yet here).
+  const [confirmingAdd, setConfirmingAdd] = useState(false);
   const [failure, setFailure] = useState('');
   // Kept apart from `failure` on purpose: the last-owner refusal is a
   // different message in its own region, not a colour on the same one.
@@ -201,6 +228,19 @@ export function GrantPanel({
       ]);
     }
     setNodeId('');
+  }
+
+  /**
+   * Where the "Grant this role" button actually leads: straight to `grant()`
+   * for an ordinary role, or to the confirmation first for an administrative
+   * one. Nothing is sent until this decides.
+   */
+  function requestGrant(): void {
+    if (ADMINISTRATIVE_ROLES.includes(role)) {
+      setConfirmingAdd(true);
+      return;
+    }
+    void grant();
   }
 
   async function remove(grantId: string): Promise<void> {
@@ -308,13 +348,28 @@ export function GrantPanel({
                   ? 'disabled'
                   : 'default'
             }
-            onClick={() => {
-              void grant();
-            }}
+            onClick={requestGrant}
           >
             {busy === 'add' ? labels.adding : labels.add}
           </Button>
         </div>
+      )}
+
+      {!canWrite ? null : (
+        <ConfirmDestructive
+          open={confirmingAdd}
+          target={`${principalLabel(principals, principalId)} — ${role}`}
+          action={labels.addAction}
+          consequence={labels.addConsequence}
+          labels={{ close: labels.addClose, cancel: labels.addCancel }}
+          onConfirm={() => {
+            setConfirmingAdd(false);
+            void grant();
+          }}
+          onCancel={() => {
+            setConfirmingAdd(false);
+          }}
+        />
       )}
 
       {!canWrite ? null : (

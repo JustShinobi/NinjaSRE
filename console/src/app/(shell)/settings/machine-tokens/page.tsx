@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { settingsPageMetadata } from '@/shell/area';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
-import { NotBuiltSettingsPage } from '@/surfaces/screens/settings-not-built';
+import { MachineTokensScreen } from '@/surfaces/settings/machine-tokens';
 
 const ID = 'settings-machine-tokens';
 
@@ -16,5 +16,5 @@ export default async function Page({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }): Promise<ReactNode> {
-  return NotBuiltSettingsPage(ID, await surfaceContext(await searchParams));
+  return MachineTokensScreen(await surfaceContext(await searchParams));
 }

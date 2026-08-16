@@ -16,7 +16,8 @@ import pytest
 from httpx import AsyncClient
 
 from platform.identity.permissions import Role
-from tests.unit.gateway.http.conftest import Deployment, issue_token
+from platform.persistence.ports.transaction import TenantScope
+from tests.unit.gateway.http.conftest import ORG, Deployment, issue_token
 
 pytestmark = pytest.mark.anyio
 
@@ -229,6 +230,26 @@ async def test_an_unusable_configuration_cannot_be_activated_however_it_was_test
     answer = await client.post("/identity/sso/activate", headers=headers)
 
     assert answer.status_code == 400
+
+
+async def test_activation_is_recorded_in_the_audit_trail(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    headers = await _owner(deployment)
+    await _configured(client, headers)
+    await client.post("/identity/sso/test", headers=headers, json={"claims": CLAIMS})
+
+    await client.post("/identity/sso/activate", headers=headers)
+
+    async with deployment.gateway.begin(TenantScope(org_id=ORG)) as uow:
+        events = await uow.audit.query()
+    activation = [
+        event for event in events if event.detail.get("field") == "policies.sso.is_active"
+    ]
+    assert activation, [event.detail for event in events]
+    # Most recent first: the activation is the latest change to this field,
+    # after the earlier save that first set it to `False`.
+    assert activation[0].detail["new_value"] is True
 
 
 async def test_a_viewer_cannot_read_or_change_the_identity_provider(

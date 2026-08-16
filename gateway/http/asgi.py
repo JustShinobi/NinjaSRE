@@ -189,7 +189,11 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
         load_investigator(reference) if reference else UnconfiguredInvestigator()
     )
 
-    tokens = TokenService(gateway=store)
+    # Without a recorder, `TokenService._audit` is a no-op — every issuance,
+    # revocation and rejection stays out of the audit trail regardless of what
+    # a caller asks it to record. `LocalSignIn` below already gets one; the
+    # service issuing and revoking every machine token needs the same one.
+    tokens = TokenService(gateway=store, recorder=AuditRecorder(gateway=store))
 
     # Resolved here rather than per request, so a deployment that still carries
     # the shipped passphrase fails to come up instead of failing at the first

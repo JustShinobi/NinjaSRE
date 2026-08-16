@@ -53,12 +53,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const issued: unknown = await answer.json().catch(() => ({}));
     const secret: unknown = Reflect.get(Object(issued), 'secret');
     const detail: unknown = Reflect.get(Object(issued), 'detail');
+    const superseded: unknown = Reflect.get(Object(issued), 'superseded');
     return NextResponse.json(
       {
         ok: answer.ok,
         reachable: true,
         reason: typeof detail === 'string' ? detail : '',
         secret: typeof secret === 'string' ? secret : '',
+        // Which live tokens this issuance replaced, so a purpose that already
+        // had one substitutes rather than accumulates beside it, declared and
+        // visible rather than only discoverable afterwards in the audit trail.
+        superseded: Array.isArray(superseded) ? superseded.map(String) : [],
       },
       { status: answer.status },
     );

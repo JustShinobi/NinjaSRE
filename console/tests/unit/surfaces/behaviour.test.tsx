@@ -132,9 +132,8 @@ describe('a screen reached through its address', () => {
   });
 
   it('filters the audit record by principal and action', async () => {
-    serveScenario('populated', principalHolding(['identity.read', 'audit.export']));
-    await renderArea('administration', {
-      tab: 'audit',
+    serveScenario('populated', principalHolding(['audit.read', 'audit.export']));
+    await renderArea('settings-audit-log', {
       actor: 'user-avery',
       action: 'run.start',
     });
@@ -235,16 +234,35 @@ describe('a viewer who may act', () => {
     expect(new Set(causes)).toEqual(new Set(['not_built', 'unreachable']));
   });
 
-  it('is offered the token list and the sign-on panel on administration', async () => {
+  it('is offered the principals and grants on administration, desmembered from tokens and sign-on', async () => {
+    // The property the desmembramento exists to establish: `administration`
+    // (now Members & roles) reads only what it shows — people and their
+    // grants — and machine tokens and single sign-on moved to their own
+    // pages, covered separately below.
     serveScenario(
       'populated',
       principalHolding(['identity.read', 'token.manage', 'sso.manage']),
     );
     await renderArea('administration');
 
-    expect(screen.getAllByTestId('token').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('principal').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('grant').length).toBeGreaterThan(0);
+    expect(screen.queryAllByTestId('token')).toEqual([]);
+    expect(screen.queryByTestId('sso-setup-flow')).toBeNull();
+  });
+
+  it('is offered the machine token list on its own page', async () => {
+    serveScenario('populated', principalHolding(['token.manage']));
+    await renderArea('settings-machine-tokens');
+
+    expect(screen.getAllByTestId('token').length).toBeGreaterThan(0);
+  });
+
+  it('is offered the sign-on flow on its own page', async () => {
+    serveScenario('populated', principalHolding(['sso.manage']));
+    await renderArea('settings-single-sign-on');
+
+    expect(screen.getByTestId('sso-setup-flow')).toBeInTheDocument();
   });
 });
 

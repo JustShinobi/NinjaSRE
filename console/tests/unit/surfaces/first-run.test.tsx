@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EN } from '@/i18n/en';
-import { AREAS, areaByPath, settingsPageByPath } from '@/shell/routes';
+import { AREAS, SETTINGS_PAGES, areaByPath, settingsPageByPath } from '@/shell/routes';
 import { WIZARD_STEPS } from '@/surfaces/first-run/plan';
 import { SLIDES, Tutorial } from '@/surfaces/first-run/tutorial';
 import { IntegrationsStep } from '@/surfaces/first-run/integrations';
@@ -1919,7 +1919,13 @@ describe('what a half-configured deployment is allowed to do to a reader', () =>
   it('gives every empty state an action that names a place this console has', async () => {
     serveScenario('empty');
 
-    const paths = new Set(AREAS.map((area) => area.path));
+    // Both manifests: `administration`'s own empty states now send an
+    // operator to a Settings page rather than back to the retired area's own
+    // address, and a Settings path is exactly as real a place as an area's.
+    const paths = new Set([
+      ...AREAS.map((area) => area.path),
+      ...SETTINGS_PAGES.map((page) => page.path),
+    ]);
     for (const [index, target] of ALL_SCREENS.entries()) {
       const rendered = await ALL_SCREENS[index]?.render({
         searchParams: Promise.resolve({}),

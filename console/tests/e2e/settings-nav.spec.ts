@@ -140,11 +140,14 @@ test.describe('opening Settings', () => {
   test('names an unbuilt page honestly, with a way back, rather than inventing a screen', async ({
     page,
   }) => {
-    await page.goto('/settings/single-sign-on');
+    // Single sign-on and Machine tokens are no longer unbuilt (the
+    // Organização desmembramento); Alert intake still is, owned by a later
+    // feature in this wave.
+    await page.goto('/settings/alert-intake');
 
     await expect(page.getByTestId('way-back')).toHaveAttribute('href', '/settings');
     // The page's own title still says what it is, even with nothing behind it.
-    await expect(page.locator('h1')).toHaveText('Single sign-on');
+    await expect(page.locator('h1')).toHaveText('Alert intake');
   });
 });
 

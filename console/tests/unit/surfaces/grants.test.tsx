@@ -90,6 +90,10 @@ const LABELS: GrantLabels = {
   removeConsequence: 'They lose this role immediately.',
   removeClose: 'Close',
   removeCancel: 'Leave it granted',
+  addAction: 'Grant this administrative role',
+  addConsequence: 'They can do everything this role allows, immediately.',
+  addClose: 'Close',
+  addCancel: 'Do not grant it',
   failed: 'The deployment refused this.',
   unreachable: 'The deployment could not be reached.',
 };
@@ -283,6 +287,71 @@ describe('granting a role', () => {
     expect(await screen.findByTestId('grant-failure')).toHaveTextContent(
       LABELS.unreachable,
     );
+  });
+});
+
+describe('granting an administrative role asks first', () => {
+  it('does not send anything until an administrative grant is confirmed', async () => {
+    panel();
+
+    await userEvent.selectOptions(screen.getByLabelText(LABELS.role), 'owner');
+    await userEvent.click(screen.getByTestId('add-grant'));
+
+    expect(sent).toHaveLength(0);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Avery Lockhart — owner')).toBeInTheDocument();
+    expect(within(dialog).getByText(LABELS.addConsequence)).toBeInTheDocument();
+  });
+
+  it('grants nothing when the confirmation is dismissed', async () => {
+    panel();
+
+    await userEvent.selectOptions(screen.getByLabelText(LABELS.role), 'owner');
+    await userEvent.click(screen.getByTestId('add-grant'));
+    const dialog = screen.getByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: LABELS.addCancel }),
+    );
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(sent).toHaveLength(0);
+    expect(screen.getAllByTestId('grant')).toHaveLength(2);
+  });
+
+  it('sends the grant once the confirmation is accepted', async () => {
+    panel();
+
+    await userEvent.selectOptions(screen.getByLabelText(LABELS.role), 'owner');
+    await userEvent.click(screen.getByTestId('add-grant'));
+    const dialog = screen.getByRole('dialog');
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: new RegExp(LABELS.addAction) }),
+    );
+
+    expect(sent.at(-1)?.operation).toBe('add');
+    expect(field(sent.at(-1)?.payload, 'principal_id')).toBe('user-avery');
+    expect(field(sent.at(-1)?.payload, 'role')).toBe('owner');
+  });
+
+  it('asks again for admin, the other role this deployment treats as administrative', async () => {
+    panel({ roles: ['viewer', 'admin'] });
+
+    await userEvent.selectOptions(screen.getByLabelText(LABELS.role), 'admin');
+    await userEvent.click(screen.getByTestId('add-grant'));
+
+    expect(sent).toHaveLength(0);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('grants a non-administrative role immediately, with no confirmation step', async () => {
+    panel();
+    // The default selection is `roles[0]`, `'viewer'` for this fixture's own
+    // `ROLE_OPTIONS` — not administrative.
+
+    await userEvent.click(screen.getByTestId('add-grant'));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(sent.at(-1)?.operation).toBe('add');
   });
 });
 

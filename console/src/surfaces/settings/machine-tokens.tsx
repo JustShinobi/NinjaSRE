@@ -1,0 +1,149 @@
+import type { ReactNode } from 'react';
+
+import { timestamp } from '@/i18n/format';
+import { message } from '@/i18n/messages';
+import { may } from '@/session/viewer';
+import { SettingsPageHeader } from '@/shell/area';
+import { settingsPageFor } from '@/shell/routes';
+import type { SurfaceContext } from '../context';
+import { MachineTokenGroups, type MachineToken } from '../machine-token-groups';
+import { panelLabels } from '../labels';
+import { Panel } from '../panel';
+import {
+  authorised,
+  dataOf,
+  dependencyOf,
+  flag,
+  list,
+  panelRead,
+  read,
+  stateOf,
+  text,
+} from '../read';
+import { isConsoleSession } from '../token-identity';
+
+/**
+ * Machine tokens, grouped by purpose, with the causes of accumulation treated
+ * rather than only the symptom.
+ *
+ * This page reads `/identity/tokens` and shows only what is not a browser
+ * session — see `token-identity.ts`'s own doc for why a session and a
+ * machine token share one store and one shape, and why telling them apart
+ * happens here rather than in the deployment. Members & roles reads the same
+ * endpoint for the opposite half of it.
+ */
+
+const ID = 'settings-machine-tokens';
+
+/**
+ * Belt and braces alongside the Settings page's own gate
+ * (`settings-machine-tokens`'s permission, enforced before this ever
+ * renders): the whole panel is absent rather than merely un-writable for a
+ * viewer who somehow reaches this screen without it — the same rule
+ * `PeopleTab`'s own token panel already followed, and `screens/autonomy.tsx`
+ * and `screens/configuration.tsx` follow it for their own write controls.
+ */
+const TOKENS = 'token.manage';
+
+function machineToken(
+  record: unknown,
+  locale: Parameters<typeof timestamp>[0],
+  now: Date,
+  zone: string,
+): MachineToken {
+  const createdAt = text(record, 'created_at');
+  const lastUsedAt = text(record, 'last_used_at');
+  const expiresAt = text(record, 'expires_at');
+  return {
+    tokenId: text(record, 'token_id'),
+    name: text(record, 'name'),
+    description: text(record, 'description'),
+    scopes: list(record, 'scopes').map(String),
+    createdAt,
+    lastUsed:
+      lastUsedAt === '' ? '' : timestamp(locale, lastUsedAt, now, zone).relative,
+    expires: expiresAt === '' ? '' : timestamp(locale, expiresAt, now, zone).relative,
+    revoked: flag(record, 'revoked'),
+  };
+}
+
+async function content(context: SurfaceContext): Promise<ReactNode> {
+  const { credential, locale, viewer, now, zone } = context;
+
+  const answer = await panelRead('/identity/tokens', () =>
+    read('/identity/tokens', authorised(credential)),
+  );
+  const records = list(dataOf(answer), 'tokens').filter(
+    (record) => !isConsoleSession({ name: text(record, 'name') }),
+  );
+  const tokens = records.map((record) => machineToken(record, locale, now, zone));
+
+  const labels = {
+    purpose: message(locale, 'admin.tokens.name'),
+    purposeHelp: message(locale, 'settings.machineTokens.purposeHelp'),
+    description: message(locale, 'settings.machineTokens.detail'),
+    scopes: message(locale, 'admin.column.scopes'),
+    issue: message(locale, 'admin.tokens.issue'),
+    issuing: message(locale, 'admin.tokens.issuing'),
+    shownOnce: message(locale, 'admin.tokens.shownOnce'),
+    superseded: message(locale, 'settings.machineTokens.superseded'),
+    revoke: message(locale, 'admin.tokens.revoke'),
+    revoking: message(locale, 'admin.tokens.revoking'),
+    revokeConsequence: message(locale, 'admin.tokens.revokeConsequence'),
+    revokeConfirm: message(locale, 'admin.tokens.revokeConfirm'),
+    revokeCancel: message(locale, 'admin.tokens.revokeCancel'),
+    revokeOlder: message(locale, 'settings.machineTokens.revokeOlder'),
+    revokingOlder: message(locale, 'settings.machineTokens.revokingOlder'),
+    revokeOlderConsequence: message(
+      locale,
+      'settings.machineTokens.revokeOlderConsequence',
+    ),
+    revokeOlderConfirm: message(locale, 'settings.machineTokens.revokeOlderConfirm'),
+    revokeOlderCancel: message(locale, 'settings.machineTokens.revokeOlderCancel'),
+    failed: message(locale, 'admin.tokens.failed'),
+    unreachable: message(locale, 'admin.tokens.unreachable'),
+    none: message(locale, 'surface.none'),
+    count: message(locale, 'settings.machineTokens.count'),
+    lastUsedLabel: message(locale, 'settings.machineTokens.lastUsed'),
+    neverUsed: message(locale, 'settings.machineTokens.neverUsed'),
+    revokedGroup: message(locale, 'admin.tokens.revokedGroup'),
+    empty: message(locale, 'settings.machineTokens.empty.body'),
+  };
+
+  return (
+    // Never Panel's own empty state: a deployment with no machine tokens yet
+    // is exactly the deployment that needs the issue form in front of it, and
+    // `MachineTokenGroups` already says so inline (`labels.empty`) below the
+    // form rather than in place of it — the same reason `TokenPanel` (the
+    // panel this absorbs) was never empty for somebody who may manage tokens.
+    <Panel
+      title={message(locale, 'admin.tokens.title')}
+      state={stateOf(answer, false)}
+      dependency={dependencyOf(answer)}
+      labels={panelLabels(locale, message(locale, 'admin.tokens.title'))}
+      empty={{
+        heading: message(locale, 'settings.machineTokens.empty.heading'),
+        body: message(locale, 'settings.machineTokens.empty.body'),
+        actionLabel: message(locale, 'settings.machineTokens.empty.action'),
+        href: '/settings/machine-tokens',
+      }}
+    >
+      {may(viewer, TOKENS) ? (
+        <MachineTokenGroups
+          tokens={tokens}
+          issuedScopes={viewer.permissions}
+          labels={labels}
+        />
+      ) : null}
+    </Panel>
+  );
+}
+
+export async function MachineTokensScreen(context: SurfaceContext): Promise<ReactNode> {
+  return (
+    <>
+      <SettingsPageHeader page={settingsPageFor(ID)} locale={context.locale} />
+      {await content(context)}
+    </>
+  );
+}

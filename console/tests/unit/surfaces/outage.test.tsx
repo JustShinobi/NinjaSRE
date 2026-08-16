@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuditLogPage from '@/app/(shell)/settings/audit-log/page';
 import AutonomyGuardrailsPage from '@/app/(shell)/settings/autonomy-guardrails/page';
+import MachineTokensPage from '@/app/(shell)/settings/machine-tokens/page';
 import MembersRolesPage from '@/app/(shell)/settings/members-roles/page';
+import SingleSignOnPage from '@/app/(shell)/settings/single-sign-on/page';
 import { SESSION_COOKIE } from '@/session/cookies';
 import { AREAS } from '@/shell/routes';
 
@@ -87,12 +89,15 @@ async function renderArea(id: string): Promise<void> {
 describe('the shell with its gateway unreachable', () => {
   it('has a screen for every area the manifest declares, once the screen-less one is set aside', () => {
     // The guard on the walk below: an area nothing renders would otherwise be
-    // silently skipped by it.
-    expect(AREA_SCREENS.map((each) => each.id).sort()).toEqual(
-      AREAS.map((area) => area.id)
-        .filter((id) => !HAS_NO_SCREEN.has(id))
-        .sort(),
-    );
+    // silently skipped by it. A subset check rather than an equal set,
+    // because `AREA_SCREENS` also carries entries with no area of their own
+    // — the four Settings pages Administration desmembered into, covered
+    // under their own `settings-*` id rather than a retired area's.
+    const screenIds = new Set(AREA_SCREENS.map((each) => each.id));
+    for (const area of AREAS) {
+      if (HAS_NO_SCREEN.has(area.id)) continue;
+      expect(screenIds.has(area.id), `${area.id} has no matching screen`).toBe(true);
+    }
   });
 
   for (const area of AREAS.filter((each) => !HAS_NO_SCREEN.has(each.id))) {
@@ -117,16 +122,19 @@ describe('the shell with its gateway unreachable', () => {
 });
 
 /**
- * The same property, at the addresses that carry it onward: three of the
- * Settings pages render a screen the hybrid navigation retired from its own
- * address, unchanged, so a gateway that stopped answering still has to fail
- * inside a panel there rather than take the whole page down.
+ * The same property, at the addresses that carry it onward: the Settings
+ * pages that render a screen the hybrid navigation retired from its own
+ * address (three of them) or that a screen this feature built from scratch
+ * now answers (the other two), so a gateway that stopped answering still has
+ * to fail inside a panel there rather than take the whole page down.
  */
 describe('the Settings pages that reuse a retired screen', () => {
   const PAGES = [
     { id: 'settings-autonomy-guardrails', render: AutonomyGuardrailsPage },
     { id: 'settings-members-roles', render: MembersRolesPage },
     { id: 'settings-audit-log', render: AuditLogPage },
+    { id: 'settings-single-sign-on', render: SingleSignOnPage },
+    { id: 'settings-machine-tokens', render: MachineTokensPage },
   ] as const;
 
   for (const page of PAGES) {
