@@ -16,6 +16,15 @@
  * **The unowned list is a burndown, and it only shrinks.** Moving a path out
  * of it is the last step of building the screen that owns it, never the first.
  *
+ * **What "full parity" was decided to mean.** The raw editor draws a control
+ * only for a string, an integer, a number or a boolean, so the thirty array and
+ * object fields below are not editable through it either — they are not
+ * editable anywhere, and never have been. Retiring that editor therefore has to
+ * clear the eighty-six fields it can reach, and nothing more: no operator loses
+ * a place to change a value they had. Giving a list or an object a control is a
+ * capability this console has never had, and it belongs to a feature that
+ * chooses to build it rather than arriving inside a migration.
+ *
  * Ownership is about where a *person* edits a value, not which HTTP route
  * carries the write — several pages here write through their own endpoint
  * rather than the configuration service, and that is an implementation detail
