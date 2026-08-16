@@ -114,6 +114,10 @@ test.describe('Autonomy & guardrails', () => {
 
     const newRule = page.getByTestId('new-rule');
     await expect(newRule).toBeVisible();
+    // Closed on arrival, which is what keeps this page inside its scroll
+    // budget: somebody reading the posture does not scroll past three empty
+    // forms to do it. Creating a rule therefore starts by asking for the form.
+    await newRule.locator('summary').click();
     // Scoped to `newRule`: the explain form elsewhere on this same editor
     // also has a field called "Capability", and the per-row editors also
     // each have one called "Level" — scoping to this section is what keeps
