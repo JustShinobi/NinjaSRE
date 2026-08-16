@@ -335,6 +335,10 @@ export interface paths {
         /**
          * Issue Token
          * @description Issue a machine token and return its secret exactly once.
+         *
+         *     A second issuance for the same owner and the same purpose — the name a
+         *     token was given, at the same node — supersedes the one it replaces rather
+         *     than accumulating beside it.
          */
         post: operations["issue_token_identity_tokens_post"];
         delete?: never;
@@ -4588,6 +4592,8 @@ export interface components {
         IssuedTokenView: {
             /** Secret */
             secret: string;
+            /** Superseded */
+            superseded?: string[];
             token: components["schemas"]["TokenView"];
         };
         /**
