@@ -3514,6 +3514,13 @@
             "title": "Secret",
             "type": "string"
           },
+          "superseded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Superseded",
+            "type": "array"
+          },
           "token": {
             "$ref": "#/components/schemas/TokenView"
           }
@@ -8588,7 +8595,7 @@
         ]
       },
       "post": {
-        "description": "Issue a machine token and return its secret exactly once.",
+        "description": "Issue a machine token and return its secret exactly once.\n\nA second issuance for the same owner and the same purpose — the name a\ntoken was given, at the same node — supersedes the one it replaces rather\nthan accumulating beside it.",
         "operationId": "issue_token_identity_tokens_post",
         "parameters": [
           {

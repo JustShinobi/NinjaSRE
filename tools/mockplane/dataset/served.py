@@ -103,6 +103,65 @@ def at(*, days: int = 0, hours: int = 0, minutes: int = 0) -> str:
     return (_CAPTURED - timedelta(days=days, hours=hours, minutes=minutes)).isoformat()
 
 
+#: How long before the survey each superseded first-run credential was issued.
+#:
+#: Fifteen of them, because a deployment brought up repeatedly accumulates one
+#: per bring-up: each lived an hour and none was ever revoked, so the list grows
+#: and the screen that groups them by purpose is what has to make fifteen rows
+#: readable. Offsets rather than instants, like every other time in this module,
+#: so they move with the survey instead of drifting away from it — the previous
+#: hand-written set had already drifted far enough that its last entry was
+#: issued *after* the moment the dataset was captured. Irregularly spaced on
+#: purpose: a bring-up happens when somebody runs one, not on a schedule.
+_BOOTSTRAP_ISSUED: Final = (
+    (15, 6, 31),
+    (14, 23, 56),
+    (13, 19, 21),
+    (12, 15, 36),
+    (11, 2, 11),
+    (10, 22, 26),
+    (9, 16, 51),
+    (8, 7, 1),
+    (7, 0, 36),
+    (6, 20, 6),
+    (5, 13, 16),
+    (4, 3, 26),
+    (3, 20, 51),
+    (2, 16, 36),
+    (1, 9, 46),
+)
+
+#: How long a first-run credential lives before it expires on its own.
+_BOOTSTRAP_LIFETIME: Final = timedelta(hours=1)
+
+
+def _bootstrap_tokens() -> list[dict[str, Any]]:
+    """Return the superseded first-run credentials, one per bring-up.
+
+    Generated rather than written out fifteen times: the rows differ only in
+    their identifier and their instant, and a hand-kept list of near-identical
+    records is a list that drifts from the screen it exists to exercise.
+    """
+    return [
+        {
+            "token_id": f"tok-{1001 + index}",
+            "name": "bootstrap",
+            "user_id": "bootstrap-administrator",
+            "team_node_id": None,
+            "scopes": ["investigation.read", "token.manage"],
+            "created_at": at(days=days, hours=hours, minutes=minutes),
+            "expires_at": (
+                datetime.fromisoformat(at(days=days, hours=hours, minutes=minutes))
+                + _BOOTSTRAP_LIFETIME
+            ).isoformat(),
+            "last_used_at": None,
+            "revoked": False,
+            "description": "First-run credential. Establishes a durable one, then expires.",
+        }
+        for index, (days, hours, minutes) in enumerate(_BOOTSTRAP_ISSUED)
+    ]
+
+
 def _record(
     slug: str, arguments: Mapping[str, str], body: Any, *, method: str = "GET"
 ) -> CapturedRecord:
@@ -2410,6 +2469,7 @@ def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
                         "revoked": False,
                         "description": None,
                     },
+                    *_bootstrap_tokens(),
                 ]
             },
         ),
