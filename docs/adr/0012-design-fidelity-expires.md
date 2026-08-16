@@ -1,6 +1,6 @@
 # ADR 0012 — A design-fidelity acceptance expires
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-15
 - **Constitution impact:** Article XII
 

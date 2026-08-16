@@ -1,6 +1,6 @@
 # ADR 0014 — A design reference is a committed artefact, and need not be a picture
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-08-15
 - **Constitution impact:** Article XII, Article XIII
 
