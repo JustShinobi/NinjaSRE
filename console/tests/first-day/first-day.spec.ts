@@ -209,6 +209,16 @@ test('killing the browser mid-flow loses nothing, because nothing was kept', asy
   const derived = await page
     .goto('/first-run')
     .then(() => page.getByTestId('wizard-body').getAttribute('data-step'));
+  // The deployment's own checklist, drawn complete on this first, genuinely
+  // fresh visit — the reference "nothing missing, nothing extra" is measured
+  // against below, rather than a number written down here that a later
+  // fixture change would make wrong without making the claim it stands for
+  // wrong.
+  const expectedSteps = await page.getByTestId('checklist-step').count();
+  expect(
+    expectedSteps,
+    'the checklist drew no rows to compare a reload against',
+  ).toBeGreaterThan(0);
   await page.goto('/first-run?step=credential&provider=anthropic');
   await page.getByTestId('credential').locator('input').first().fill(SENTINEL);
   await page.getByTestId('store-credential').click();
@@ -240,7 +250,13 @@ test('killing the browser mid-flow loses nothing, because nothing was kept', asy
     'data-step',
     derived ?? '',
   );
-  await expect(reopened.getByTestId('wizard-step')).toHaveCount(7);
+  // And the wizard came back in its full, unpersisted state: the deployment's
+  // own checklist draws exactly the rows a genuinely fresh visit drew above —
+  // not fewer (a render stuck on leftover state), not more (a duplicate from
+  // a stale re-hydration), and specifically not the seven wizard screens,
+  // which this list has not drawn since the checklist and the pending count
+  // beside it became one list (see `plan.ts`'s own doc on `outstanding`).
+  await expect(reopened.getByTestId('checklist-step')).toHaveCount(expectedSteps);
   await second.close();
 });
 

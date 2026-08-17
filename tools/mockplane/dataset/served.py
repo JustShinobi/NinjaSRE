@@ -1117,6 +1117,193 @@ _CONFIG_FIELDS: Final[tuple[Mapping[str, Any], ...]] = (
     },
 )
 
+#: Fields the two advanced-configuration sections on Autonomy & guardrails and
+#: on Notifications draw an effective-value row for, and that this dataset
+#: leaves on the schema's own default everywhere — no node in the chain sets
+#: any of them. Unlike ``_CONFIG_FIELDS`` above, which pairs every entry with
+#: an owner in ``_config_fields``'s ``source``/``values``, a field named here
+#: and nowhere else in that mapping is exactly the state those two screens'
+#: own suite needs: a value with no override, resolved from the schema's
+#: default alone, with an empty ``provenance`` rather than a level that never
+#: set it. The value each carries below *is* its schema default
+#: (``platform/config_service/schema/policies.py``,
+#: ``platform/config_service/schema/surfaces.py``) — kept in one place, not
+#: retyped, so a schema default that moves is a failing contract test here
+#: rather than a fixture silently describing a default nothing enforces.
+_CONFIG_FIELDS_DEFAULTED: Final[tuple[Mapping[str, Any], ...]] = (
+    {
+        "path": "policies.masking.enabled",
+        "label": "Masking enabled",
+        "type": "boolean",
+        "help": "Hide identifying values before they are sent to a model.",
+        "section": "policies.masking",
+        "section_summary": "How much of the estate may reach a model you do not host.",
+        "section_help": "How much of the estate may reach a model you do not host.",
+        "default": True,
+    },
+    {
+        "path": "policies.masking.level",
+        "label": "Masking level",
+        "type": "string",
+        "help": "How much is hidden. A stricter level covers more kinds of value.",
+        "section": "policies.masking",
+        "section_summary": "How much of the estate may reach a model you do not host.",
+        "section_help": "How much of the estate may reach a model you do not host.",
+        "default": "standard",
+    },
+    {
+        "path": "policies.guardrails.mode",
+        "label": "Guardrail mode",
+        "type": "string",
+        "help": "Enforcing blocks or redacts a match. Observing only records it.",
+        "section": "policies.guardrails",
+        "section_summary": "What happens when something that looks like a secret is spotted.",
+        "section_help": "What happens when something that looks like a secret is spotted.",
+        "default": "enforcing",
+        "allowed_values": ["enforcing", "observing"],
+    },
+    {
+        "path": "policies.guardrails.ruleset",
+        "label": "Ruleset",
+        "type": "string",
+        "help": "Which named set of rules to use. Empty means the shipped set.",
+        "section": "policies.guardrails",
+        "section_summary": "What happens when something that looks like a secret is spotted.",
+        "section_help": "What happens when something that looks like a secret is spotted.",
+        "default": None,
+    },
+    {
+        "path": "policies.approvals.threshold",
+        "label": "Approval threshold",
+        "type": "string",
+        "help": "The lowest kind of action that needs a person to say yes.",
+        "section": "policies.approvals",
+        "section_summary": "Where the line sits between acting alone and asking first.",
+        "section_help": "Where the line sits between acting alone and asking first.",
+        "default": "write_reversible",
+    },
+    {
+        "path": "policies.approvals.expiry_hours",
+        "label": "Approval expiry",
+        "type": "number",
+        "help": "How long a request waits for an answer before it lapses.",
+        "section": "policies.approvals",
+        "section_summary": "Where the line sits between acting alone and asking first.",
+        "section_help": "Where the line sits between acting alone and asking first.",
+        "default": 4.0,
+        "minimum": 0.25,
+        "maximum": 168.0,
+    },
+    {
+        "path": "surfaces.notification_policy.quiet_hours_enabled",
+        "label": "Quiet hours enabled",
+        "type": "boolean",
+        "help": "Hold non-urgent notifications during the hours set below.",
+        "section": "surfaces.notification_policy",
+        "section_summary": "How much of a team's attention a notification may take.",
+        "section_help": "How much of a team's attention a notification may take.",
+        "default": False,
+    },
+    {
+        "path": "surfaces.notification_policy.quiet_hours_start",
+        "label": "Quiet hours start",
+        "type": "integer",
+        "help": "The hour of the day quiet hours begin, 0 to 23.",
+        "section": "surfaces.notification_policy",
+        "section_summary": "How much of a team's attention a notification may take.",
+        "section_help": "How much of a team's attention a notification may take.",
+        "default": 22,
+        "minimum": 0,
+        "maximum": 23,
+    },
+    {
+        "path": "surfaces.notification_policy.quiet_hours_end",
+        "label": "Quiet hours end",
+        "type": "integer",
+        "help": "The hour of the day quiet hours end, 0 to 23.",
+        "section": "surfaces.notification_policy",
+        "section_summary": "How much of a team's attention a notification may take.",
+        "section_help": "How much of a team's attention a notification may take.",
+        "default": 7,
+        "minimum": 0,
+        "maximum": 23,
+    },
+    {
+        "path": "surfaces.notification_policy.timezone",
+        "label": "Timezone",
+        "type": "string",
+        "help": "The team's own timezone, so quiet hours mean this team's night.",
+        "section": "surfaces.notification_policy",
+        "section_summary": "How much of a team's attention a notification may take.",
+        "section_help": "How much of a team's attention a notification may take.",
+        "default": "UTC",
+    },
+    {
+        "path": "surfaces.notification_policy.cooldown_seconds",
+        "label": "Cooldown",
+        "type": "number",
+        "help": "How long to wait before notifying about the same thing again.",
+        "section": "surfaces.notification_policy",
+        "section_summary": "How much of a team's attention a notification may take.",
+        "section_help": "How much of a team's attention a notification may take.",
+        "default": 900.0,
+        "minimum": 0,
+    },
+    {
+        "path": "surfaces.notification_policy.notifications_per_hour",
+        "label": "Notifications per hour",
+        "type": "integer",
+        "help": "The most notifications this team receives in an hour.",
+        "section": "surfaces.notification_policy",
+        "section_summary": "How much of a team's attention a notification may take.",
+        "section_help": "How much of a team's attention a notification may take.",
+        "default": 20,
+        "minimum": 0,
+    },
+    {
+        "path": "policies.autonomy.allow_unverifiable_actions",
+        "label": "Allow unverifiable actions",
+        "type": "boolean",
+        "help": "Let an action run unattended even when nothing can confirm it worked.",
+        "section": "policies.autonomy",
+        "section_summary": "How much this team may do without asking, and the bounds on the answer.",
+        "section_help": "How much this team may do without asking, and the bounds on the answer.",
+        "default": False,
+    },
+    {
+        "path": "policies.autonomy.dry_run",
+        "label": "Dry run",
+        "type": "boolean",
+        "help": "Simulate every action for this team, whatever any rule says.",
+        "section": "policies.autonomy",
+        "section_summary": "How much this team may do without asking, and the bounds on the answer.",
+        "section_help": "How much this team may do without asking, and the bounds on the answer.",
+        "default": False,
+    },
+    {
+        "path": "policies.autonomy.recurrence_threshold",
+        "label": "Recurrence threshold",
+        "type": "integer",
+        "help": "How many times the same fix may repeat before it is a recurring problem.",
+        "section": "policies.autonomy",
+        "section_summary": "How much this team may do without asking, and the bounds on the answer.",
+        "section_help": "How much this team may do without asking, and the bounds on the answer.",
+        "default": 0,
+        "minimum": 0,
+    },
+    {
+        "path": "policies.autonomy.recurrence_window_seconds",
+        "label": "Recurrence window",
+        "type": "integer",
+        "help": "How long that window is, in seconds. Zero uses the deployment default.",
+        "section": "policies.autonomy",
+        "section_summary": "How much this team may do without asking, and the bounds on the answer.",
+        "section_help": "How much this team may do without asking, and the bounds on the answer.",
+        "default": 0,
+        "minimum": 0,
+    },
+)
+
 
 def _config_fields(node_id: str, *, inherited: bool) -> list[dict[str, Any]]:
     """Return the field catalogue as one node stands on it.
@@ -1124,6 +1311,11 @@ def _config_fields(node_id: str, *, inherited: bool) -> list[dict[str, Any]]:
     The provenance mirrors the effective record beside it, so the editor and the
     values table above it cannot disagree about which level set what — which is
     the one thing a configuration screen must never do.
+
+    Every field in ``_CONFIG_FIELDS_DEFAULTED`` is deliberately absent from
+    ``source``/``values`` below: a path with no entry in either resolves to its
+    own ``default`` with an empty provenance, exactly the "nothing has ever
+    overridden this" state those two mappings have no other way to say.
     """
     source = {
         "investigation.max_loops": ORG_NODE if inherited else node_id,
@@ -1148,14 +1340,14 @@ def _config_fields(node_id: str, *, inherited: bool) -> list[dict[str, Any]]:
     return [
         {
             **dict(declared),
-            "value": values[str(declared["path"])],
-            "provenance": source[str(declared["path"])],
-            "set_here": source[str(declared["path"])] == node_id,
+            "value": values.get(str(declared["path"]), declared["default"]),
+            "provenance": source.get(str(declared["path"]), ""),
+            "set_here": source.get(str(declared["path"])) == node_id,
             "locked_by": "",
             "approval_gated": str(declared["path"]) == "approval.required_above",
             "required": False,
         }
-        for declared in _CONFIG_FIELDS
+        for declared in (*_CONFIG_FIELDS, *_CONFIG_FIELDS_DEFAULTED)
     ]
 
 
@@ -2427,32 +2619,42 @@ def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
             },
         ),
         _record("principals", {}, {"users": list(USERS)}),
-        # Configured, tested, and not yet the way in — the state an operator is
-        # in for exactly as long as it takes them to read the consequence, and
-        # the only one where every control on the panel is worth photographing.
+        # Not configured at all — every field genuinely empty, nothing tested,
+        # nothing active. `restricted_records` never returns this record (it
+        # takes only "principal" from a viewer's own `identity_records`), so
+        # this is the one place this state lives, and it is the state the
+        # single-sign-on screen's own suite needs: a virgin form must draw with
+        # no error and no accusation, which only holds if the deployment it is
+        # reading really has nothing set yet. The eight required fields below
+        # mirror `SSO_FIELDS` (`console/src/surfaces/sso-fields.ts`) — the same
+        # eight the deployment's own validation names as missing.
         _record(
             "sso",
             {},
             {
-                "provider": "keycloak",
-                "issuer": "https://id.northwind.invalid/realms/main",
-                "client_id": "ninjasre",
-                "authorisation_endpoint": "https://id.northwind.invalid/auth",
-                "token_endpoint": "https://id.northwind.invalid/token",
-                "jwks_uri": "https://id.northwind.invalid/certs",
-                "redirect_uri": "https://ninjasre.northwind.invalid/auth/callback",
-                "scopes": ["openid", "email", "profile"],
-                "claims": {
-                    "subject": "sub",
-                    "email": "email",
-                    "display_name": "name",
-                    "groups": "groups",
-                },
-                "group_to_node": {"sre": PLATFORM_TEAM_NODE},
-                "default_node_id": ORG_NODE,
+                "provider": "",
+                "issuer": "",
+                "client_id": "",
+                "authorisation_endpoint": "",
+                "token_endpoint": "",
+                "jwks_uri": "",
+                "redirect_uri": "",
+                "scopes": [],
+                "claims": {"subject": "", "email": "", "display_name": "", "groups": ""},
+                "group_to_node": {},
+                "default_node_id": "",
                 "is_active": False,
-                "verified": True,
-                "problems": [],
+                "verified": False,
+                "problems": [
+                    "provider is required",
+                    "issuer is required",
+                    "client_id is required",
+                    "authorisation_endpoint is required",
+                    "token_endpoint is required",
+                    "jwks_uri is required",
+                    "redirect_uri is required",
+                    "default_node_id is required",
+                ],
             },
         ),
         _record("grants", {}, {"grants": list(GRANTS)}),

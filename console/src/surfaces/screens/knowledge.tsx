@@ -19,7 +19,6 @@ import {
   dependencyOf,
   field,
   list,
-  pairs,
   panelRead,
   read,
   stateOf,
@@ -339,14 +338,11 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
   );
 
   const nothing = { status: 'ready' as const, data: {} as unknown };
-  const effective =
-    configNodeId === ''
-      ? nothing
-      : await panelRead<unknown>('/v1/config/{node_id}', () =>
-          read('/v1/config/{node_id}', { ...init, params: { node_id: configNodeId } }),
-        );
+  // Read regardless of `writable`: the advanced sections' own effective-value
+  // tables show every viewer of this page what a field resolves to, not only
+  // one who may change it.
   const configFields =
-    !writable || configNodeId === ''
+    configNodeId === ''
       ? nothing
       : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
           read('/v1/config/{node_id}/fields', {
@@ -355,8 +351,6 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
           }),
         );
 
-  const policyValues = field(dataOf(effective), 'values');
-  const policyProvenance = new Map(pairs(dataOf(effective), 'provenance'));
   const rawPolicyFields = dataOf(configFields);
 
   return (
@@ -390,8 +384,6 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             path,
             label: message(locale, label),
           }))}
-          values={policyValues}
-          provenance={policyProvenance}
           rawFields={rawPolicyFields}
         />
         <AdvancedConfigSection
@@ -404,8 +396,6 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             path,
             label: message(locale, label),
           }))}
-          values={policyValues}
-          provenance={policyProvenance}
           rawFields={rawPolicyFields}
         />
         <AdvancedConfigSection
@@ -418,8 +408,6 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             path,
             label: message(locale, label),
           }))}
-          values={policyValues}
-          provenance={policyProvenance}
           rawFields={rawPolicyFields}
         />
         <AdvancedConfigSection
@@ -432,8 +420,6 @@ export async function KnowledgeScreen(context: SurfaceContext): Promise<ReactNod
             path,
             label: message(locale, label),
           }))}
-          values={policyValues}
-          provenance={policyProvenance}
           rawFields={rawPolicyFields}
         />
       </div>

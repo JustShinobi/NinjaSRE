@@ -13,8 +13,7 @@ import { dependencyOf, stateOf } from './read';
 import {
   currentStep,
   hrefFor,
-  outstanding,
-  planFor,
+  setupProgress,
   type DeploymentSetup,
 } from './first-run/plan';
 
@@ -39,10 +38,12 @@ export interface SetupHeroProps {
 
 /** The whole remaining plan, the next step highlighted, one way forward. */
 export function SetupHero({ locale, setup, source }: SetupHeroProps): ReactNode {
-  const left = outstanding(setup);
-  if (source.status === 'ready' && left === 0) return null;
+  // The same derivation the wizard's own header and steps panel read, so
+  // this card can never cite a different total or a different pending count
+  // than either of them.
+  const progress = setupProgress(setup);
+  if (source.status === 'ready' && progress.pending === 0) return null;
 
-  const plan = planFor(setup);
   const here = currentStep(setup);
 
   return (
@@ -60,35 +61,44 @@ export function SetupHero({ locale, setup, source }: SetupHeroProps): ReactNode 
         }}
       >
         <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <p className="text-muted text-small">
+          <p className="text-muted text-small" data-testid="setup-hero-progress">
             {message(locale, 'dashboard.hero.remaining', {
-              count: formatNumber(locale, left),
-              total: formatNumber(locale, setup.steps.length),
+              count: formatNumber(locale, progress.pending),
+              total: formatNumber(locale, progress.total),
             })}
           </p>
+          {/* The deployment's own checklist, `setup.steps` — the same array
+              `outstanding(setup)` counts. Drawing the seven wizard screens
+              here instead is exactly how a stated pending count stopped
+              matching what a person could count in this list. */}
           <ol className="flex w-full max-w-md flex-col gap-1 text-left text-small">
-            {plan.map((entry) => (
-              <li
-                key={entry.step}
-                data-testid="setup-hero-step"
-                data-step={entry.step}
-                data-current={entry.current}
-                className={cx(
-                  'flex items-center gap-2 rounded-2 px-3 py-2',
-                  entry.current ? 'bg-sunken edge border-border-strong' : '',
-                )}
-              >
-                <StatusDot status={entry.done ? 'healthy' : 'unknown'} />
-                <span className="min-w-0 flex-1 truncate">
-                  {message(locale, `firstRun.step.${entry.step}`)}
-                </span>
-                {entry.current ? (
-                  <span className="text-micro text-accent">
-                    {message(locale, 'dashboard.hero.next')}
+            {setup.steps.map((step) => {
+              const done = step.state === 'done';
+              const current = step.name === setup.next;
+              return (
+                <li
+                  key={step.name}
+                  data-testid="setup-hero-step"
+                  data-name={step.name}
+                  data-done={done}
+                  data-current={current}
+                  className={cx(
+                    'flex items-center gap-2 rounded-2 px-3 py-2',
+                    current ? 'bg-sunken edge border-border-strong' : '',
+                  )}
+                >
+                  <StatusDot status={done ? 'healthy' : 'unknown'} />
+                  <span className="min-w-0 flex-1 truncate">
+                    {step.title === '' ? step.name : step.title}
                   </span>
-                ) : null}
-              </li>
-            ))}
+                  {current ? (
+                    <span className="text-micro text-accent">
+                      {message(locale, 'dashboard.hero.next')}
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
           </ol>
           <a
             href={hrefFor(here)}

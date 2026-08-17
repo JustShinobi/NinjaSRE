@@ -30,7 +30,6 @@ import {
   field,
   flag,
   list,
-  pairs,
   panelRead,
   read,
   stateOf,
@@ -212,14 +211,11 @@ export async function IntegrationsScreen(
   const tree = await panelRead('/v1/config', () => read('/v1/config', init));
   const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
   const nothing = { status: 'ready' as const, data: {} as unknown };
-  const effective =
-    nodeId === ''
-      ? nothing
-      : await panelRead<unknown>('/v1/config/{node_id}', () =>
-          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
-        );
+  // Read regardless of `configWritable`: the advanced section's own
+  // effective-value table shows every viewer of this page what a field
+  // resolves to, not only one who may change it.
   const configFields =
-    !configWritable || nodeId === ''
+    nodeId === ''
       ? nothing
       : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
           read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
@@ -498,8 +494,6 @@ export async function IntegrationsScreen(
           locale={locale}
           writable={configWritable}
           fields={[]}
-          values={field(dataOf(effective), 'values')}
-          provenance={new Map(pairs(dataOf(effective), 'provenance'))}
           rawFields={dataOf(configFields)}
         />
       </div>

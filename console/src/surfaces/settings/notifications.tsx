@@ -1,32 +1,22 @@
 import type { ReactNode } from 'react';
 
 import type { MessageKey } from '@/i18n/en';
-import { message } from '@/i18n/messages';
+import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { editableFields } from '../editable';
+import { effectiveRows, formatSeconds } from '../effective-fields';
 import { readSetupState } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { ConfigEditor } from '../preview';
-import { provenanceLabel } from '@/design/provenance-label';
-import {
-  authorised,
-  dataOf,
-  dependencyOf,
-  field,
-  pairs,
-  panelRead,
-  read,
-  stateOf,
-} from '../read';
+import { authorised, dataOf, dependencyOf, panelRead, read, stateOf } from '../read';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 import { EffectiveFieldsTable } from '@/design/resolution-preview';
-import { valueAt } from './values';
 
 /**
  * The attention policy, as controls with names — instead of the schema
@@ -44,7 +34,13 @@ const WRITE = 'config.write';
 const SECTION_PREFIX = 'surfaces.notification_policy.';
 
 /** The six fields, in the order the schema declares them, and their catalogue keys. */
-const FIELDS: readonly { readonly name: string; readonly label: MessageKey }[] = [
+const FIELDS: readonly {
+  readonly name: string;
+  readonly label: MessageKey;
+  /** Overrides the type-driven formatting for a field the schema's own type
+   * ('integer') does not say is a duration. */
+  readonly format?: ((value: unknown, locale: Locale) => string) | undefined;
+}[] = [
   {
     name: 'quiet_hours_enabled',
     label: 'settings.notifications.field.quiet_hours_enabled',
@@ -55,20 +51,16 @@ const FIELDS: readonly { readonly name: string; readonly label: MessageKey }[] =
   },
   { name: 'quiet_hours_end', label: 'settings.notifications.field.quiet_hours_end' },
   { name: 'timezone', label: 'settings.notifications.field.timezone' },
-  { name: 'cooldown_seconds', label: 'settings.notifications.field.cooldown_seconds' },
+  {
+    name: 'cooldown_seconds',
+    label: 'settings.notifications.field.cooldown_seconds',
+    format: formatSeconds,
+  },
   {
     name: 'notifications_per_hour',
     label: 'settings.notifications.field.notifications_per_hour',
   },
 ];
-
-function displayValue(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  return JSON.stringify(value);
-}
 
 export async function NotificationsSettingsScreen(
   context: SurfaceContext,
@@ -89,29 +81,27 @@ export async function NotificationsSettingsScreen(
           read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
         );
 
+  // Read regardless of `writable`, exactly like the guardrails table this
+  // mirrors — see `settings/autonomy.tsx`'s own note on the same read.
   const fields =
-    !writable || nodeId === ''
+    nodeId === ''
       ? nothing
       : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
           read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
         );
 
-  const values = field(dataOf(effective), 'values');
-  const provenance = new Map(pairs(dataOf(effective), 'provenance'));
-
-  const rows = FIELDS.map(({ name, label }) => {
-    const path = `${SECTION_PREFIX}${name}`;
-    return {
-      path,
+  const catalogue = editableFields(dataOf(fields));
+  const rows = effectiveRows(
+    FIELDS.map(({ name, label, format }) => ({
+      path: `${SECTION_PREFIX}${name}`,
       label: message(locale, label),
-      value: displayValue(valueAt(values, path)),
-      origin: provenanceLabel(locale, path, provenance),
-    };
-  });
-
-  const editable = editableFields(dataOf(fields)).filter((entry) =>
-    entry.path.startsWith(SECTION_PREFIX),
+      format,
+    })),
+    catalogue,
+    locale,
   );
+
+  const editable = catalogue.filter((entry) => entry.path.startsWith(SECTION_PREFIX));
 
   const setup = await readSetupState(credential);
   const page = settingsPageFor('settings-notifications');

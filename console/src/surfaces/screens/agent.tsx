@@ -29,7 +29,6 @@ import {
   list,
   number,
   optionalRead,
-  pairs,
   panelRead,
   read,
   stateOf,
@@ -522,8 +521,6 @@ function TopologyTab({
           path,
           label: message(locale, label),
         }))}
-        values={values}
-        provenance={new Map(pairs(dataOf(effective), 'provenance'))}
         rawFields={dataOf(fields)}
       />
     </>
@@ -1042,8 +1039,6 @@ function ToolsTab({
           locale={locale}
           writable={writable}
           fields={[]}
-          values={field(dataOf(effective), 'values')}
-          provenance={new Map(pairs(dataOf(effective), 'provenance'))}
           rawFields={dataOf(fields)}
         />
       </div>

@@ -12,16 +12,6 @@ import { AdvancedConfigSection } from '@/surfaces/advanced-config-section';
 
 const NODE = 'org-northwind';
 
-const VALUES = {
-  policies: {
-    observation: {
-      paused: true,
-    },
-  },
-};
-
-const PROVENANCE = new Map([['policies.observation.paused', NODE]]);
-
 const FIELDS = [{ path: 'policies.observation.paused', label: 'Paused' }];
 
 function rawFieldsWith(paths: readonly string[]): unknown {
@@ -57,9 +47,7 @@ describe('AdvancedConfigSection', () => {
         locale="en"
         writable={false}
         fields={FIELDS}
-        values={VALUES}
-        provenance={PROVENANCE}
-        rawFields={null}
+        rawFields={rawFieldsWith(['policies.observation.paused'])}
       />,
     );
 
@@ -77,16 +65,14 @@ describe('AdvancedConfigSection', () => {
         locale="en"
         writable={false}
         fields={FIELDS}
-        values={VALUES}
-        provenance={PROVENANCE}
-        rawFields={null}
+        rawFields={rawFieldsWith(['policies.observation.paused'])}
       />,
     );
 
     const row = screen.getByTestId('effective-field');
     expect(row).toHaveAttribute('data-path', 'policies.observation.paused');
     expect(row).toHaveTextContent('Paused');
-    expect(row).toHaveTextContent('true');
+    expect(row).toHaveTextContent('On');
     const origin = screen.getByTestId('effective-field-origin');
     expect(origin).toHaveTextContent(NODE);
   });
@@ -100,8 +86,6 @@ describe('AdvancedConfigSection', () => {
         locale="en"
         writable={false}
         fields={FIELDS}
-        values={VALUES}
-        provenance={PROVENANCE}
         rawFields={rawFieldsWith(['policies.observation.paused'])}
       />,
     );
@@ -118,8 +102,6 @@ describe('AdvancedConfigSection', () => {
         locale="en"
         writable
         fields={FIELDS}
-        values={VALUES}
-        provenance={PROVENANCE}
         rawFields={rawFieldsWith(['policies.observation.paused'])}
       />,
     );
@@ -136,8 +118,6 @@ describe('AdvancedConfigSection', () => {
         locale="en"
         writable
         fields={FIELDS}
-        values={VALUES}
-        provenance={PROVENANCE}
         rawFields={rawFieldsWith([
           'policies.observation.paused',
           'policies.autonomy.dry_run',

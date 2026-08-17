@@ -85,7 +85,6 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
     issue: message(locale, 'admin.tokens.issue'),
     issuing: message(locale, 'admin.tokens.issuing'),
     shownOnce: message(locale, 'admin.tokens.shownOnce'),
-    superseded: message(locale, 'settings.machineTokens.superseded'),
     revoke: message(locale, 'admin.tokens.revoke'),
     revoking: message(locale, 'admin.tokens.revoking'),
     revokeConsequence: message(locale, 'admin.tokens.revokeConsequence'),
@@ -102,10 +101,8 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
     failed: message(locale, 'admin.tokens.failed'),
     unreachable: message(locale, 'admin.tokens.unreachable'),
     none: message(locale, 'surface.none'),
-    count: message(locale, 'settings.machineTokens.count'),
     lastUsedLabel: message(locale, 'settings.machineTokens.lastUsed'),
     neverUsed: message(locale, 'settings.machineTokens.neverUsed'),
-    revokedGroup: message(locale, 'admin.tokens.revokedGroup'),
     empty: message(locale, 'settings.machineTokens.empty.body'),
   };
 
@@ -132,6 +129,7 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
           tokens={tokens}
           issuedScopes={viewer.permissions}
           labels={labels}
+          locale={locale}
         />
       ) : null}
     </Panel>

@@ -83,6 +83,7 @@ FIXTURE_SCENARIO_NAMES: Final = (
     "degraded",
     "incident-live",
     "restricted",
+    "audit-flooded",
     "scale",
 )
 

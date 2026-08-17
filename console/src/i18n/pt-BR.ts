@@ -73,6 +73,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'credential.guide': 'Guia passo a passo',
 
   'firstRun.wizard.position': 'Passo {n} de {total} — {name}',
+  'firstRun.wizard.pending.one': '{count} passo faltando',
+  'firstRun.wizard.pending': '{count} passos faltando',
   'firstRun.steps.title': 'O que falta',
   'firstRun.steps.done': 'Tudo pronto',
   'firstRun.progress': '{left} de {total} passos faltando',
@@ -1095,6 +1097,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.provenance.default': 'Padrão do deployment',
   'configuration.provenance.setAt': 'Definido em: {node}',
   'configuration.provenance.mixed': 'Definido em mais de um nó',
+  'configuration.value.on': 'Ativado',
+  'configuration.value.off': 'Desativado',
+  'configuration.value.notSet': 'Não definido',
+  'configuration.value.hours.one': '{count} hora',
+  'configuration.value.hours': '{count} horas',
+  'configuration.value.seconds.one': '{count} segundo',
+  'configuration.value.seconds': '{count} segundos',
   'configuration.empty.heading': 'Nenhuma configuração aqui',
   'configuration.empty.body':
     'Cada nó herda do nó acima. Este não define nada de seu, por isso o que se aplica é o que o pai aplica.',
@@ -1252,6 +1261,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.tokens.revokeCancel': 'Deixar a funcionar',
   'admin.tokens.failed': 'O deployment recusou isto.',
   'admin.tokens.unreachable': 'Não foi possível alcançar o deployment.',
+  'admin.tokens.revokedGroup.one': '{count} revogado',
   'admin.tokens.revokedGroup': '{count} revogados',
   'admin.column.token': 'Token',
   'admin.column.scopes': 'Âmbitos',
@@ -1283,6 +1293,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.sso.failed': 'O deployment recusou isto.',
   'admin.sso.unreachable': 'Não foi possível alcançar o deployment.',
   'admin.sso.problems': 'Esta configuração não pode ser usada:',
+  'admin.sso.notConfigured': 'Ainda não configurado',
   'admin.sso.configure': 'Configurar o início de sessão único',
   'admin.sso.state': 'Estado',
   'admin.empty.heading': 'Ninguém além de si',
@@ -1752,14 +1763,17 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.machineTokens.purposeHelp':
     'Emitir outro token para uma finalidade que já tem um substitui o anterior — a troca fica registrada no log de auditoria.',
   'settings.machineTokens.detail': 'Tokens individuais',
+  'settings.machineTokens.superseded.one':
+    'Substituiu {count} token anterior emitido para a mesma finalidade.',
   'settings.machineTokens.superseded':
-    'Substituiu {count} token(s) anterior(es) emitido(s) para a mesma finalidade.',
+    'Substituiu {count} tokens anteriores emitidos para a mesma finalidade.',
   'settings.machineTokens.revokeOlder': 'Revogar todos menos o mais recente',
   'settings.machineTokens.revokingOlder': 'Revogando…',
   'settings.machineTokens.revokeOlderConsequence':
     'Todo token mais antigo dessa finalidade para de autenticar agora.',
   'settings.machineTokens.revokeOlderConfirm': 'Revogar',
   'settings.machineTokens.revokeOlderCancel': 'Manter funcionando',
+  'settings.machineTokens.count.one': '{count} token',
   'settings.machineTokens.count': '{count} tokens',
   'settings.machineTokens.lastUsed': 'Último uso',
   'settings.machineTokens.neverUsed': 'Nunca usado',

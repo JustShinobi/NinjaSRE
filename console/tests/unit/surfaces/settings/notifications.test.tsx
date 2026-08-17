@@ -178,4 +178,27 @@ describe('the notification policy page', () => {
     expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
   });
+
+  it('shows the panel empty, drawing neither the table nor the editor, when no node resolves', async () => {
+    // A deployment with no organisation tree yet and a viewer tied to none of
+    // it — `resolveNode` returns `''`, and both the field catalogue and the
+    // effective-configuration read are skipped rather than built into a path
+    // with an empty brace in it.
+    serveNotifications({
+      principal: { ...WRITER, team_node_id: '' },
+    });
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), BASE).pathname;
+      if (path === '/auth/me')
+        return Promise.resolve(respond({ ...WRITER, team_node_id: '' }));
+      if (path === '/v1/config') return Promise.resolve(respond({ nodes: [] }));
+      if (path === '/v1/setup/checklist') return Promise.resolve(respond({}, 404));
+      return Promise.resolve(respond({}, 404));
+    });
+
+    await renderNotifications();
+
+    expect(screen.queryByTestId('effective-field')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
+  });
 });

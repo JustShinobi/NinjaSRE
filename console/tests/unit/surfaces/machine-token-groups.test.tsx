@@ -19,7 +19,6 @@ const LABELS = {
   issue: 'Issue a token',
   issuing: 'Issuing…',
   shownOnce: 'This is the only time this value is shown. Nothing can read it back.',
-  superseded: 'Replaced {count} earlier token(s) issued for the same purpose.',
   revoke: 'Revoke',
   revoking: 'Revoking…',
   revokeConsequence: 'Clients using this token stop authenticating now.',
@@ -34,12 +33,18 @@ const LABELS = {
   failed: 'The deployment refused this.',
   unreachable: 'The deployment could not be reached.',
   none: 'Not recorded',
-  count: '{count} tokens',
   lastUsedLabel: 'Last used',
   neverUsed: 'Never used',
-  revokedGroup: '{count} revoked',
   empty: 'No machine tokens have been issued yet.',
 };
+
+// The three counted sentences ("N token(s)", "Replaced N earlier token(s)…",
+// "N revoked") are no longer part of `labels` — a function is not a value a
+// server component may hand a client component, so this panel computes them
+// itself from a `locale` prop, against the real catalogue (`en.ts`). Every
+// render below passes `locale="en"`, and the assertions that read one of
+// these three sentences are checking the shipped English text, not a
+// test-only stand-in for it.
 
 function token(
   over: Partial<MachineToken> & { readonly tokenId: string },
@@ -91,7 +96,14 @@ describe('grouping by purpose', () => {
         createdAt: `2026-08-0${String((index % 9) + 1)}T00:00:00Z`,
       }),
     );
-    render(<MachineTokenGroups tokens={tokens} issuedScopes={[]} labels={LABELS} />);
+    render(
+      <MachineTokenGroups
+        tokens={tokens}
+        issuedScopes={[]}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
 
     expect(screen.getAllByTestId('token-group')).toHaveLength(1);
     expect(
@@ -108,6 +120,7 @@ describe('grouping by purpose', () => {
         ]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -120,6 +133,7 @@ describe('grouping by purpose', () => {
         tokens={[token({ tokenId: 'tok-1', scopes: ['investigation.read'] })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -136,12 +150,14 @@ describe('grouping by purpose', () => {
         ]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
+    // The singular form, not "1 tokens" — the count is exactly one.
     expect(
       within(screen.getByTestId('token-group')).getByTestId('token-group-count'),
-    ).toHaveTextContent('1 tokens');
+    ).toHaveTextContent('1 token');
     expect(screen.getByTestId('revoked-tokens')).toHaveTextContent('1 revoked');
   });
 });
@@ -153,6 +169,7 @@ describe('revoking all but the newest', () => {
         tokens={[token({ tokenId: 'tok-1' })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     expect(screen.queryByTestId('revoke-older')).toBeNull();
@@ -162,6 +179,7 @@ describe('revoking all but the newest', () => {
         tokens={[token({ tokenId: 'tok-1' }), token({ tokenId: 'tok-2' })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     expect(screen.getByTestId('revoke-older')).toBeInTheDocument();
@@ -178,6 +196,7 @@ describe('revoking all but the newest', () => {
         ]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -190,14 +209,15 @@ describe('revoking all but the newest', () => {
     expect(new Set(body.token_ids)).toEqual(new Set(['tok-old', 'tok-mid']));
 
     // The most recent token stays a group of one; the two older ones are gone.
+    // The singular form, not "1 tokens".
     expect(
       within(screen.getByTestId('token-group')).getByTestId('token-group-count'),
-    ).toHaveTextContent('1 tokens');
+    ).toHaveTextContent('1 token');
   });
 });
 
 describe('issuing declares and shows the substitution', () => {
-  it('names how many earlier tokens were replaced', async () => {
+  it('names a single replaced token in the singular, not "token(s)"', async () => {
     answerWith({
       ok: true,
       reachable: true,
@@ -205,19 +225,45 @@ describe('issuing declares and shows the substitution', () => {
       superseded: ['tok-old'],
     });
     const user = userEvent.setup();
-    render(<MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} />);
+    render(
+      <MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} locale="en" />,
+    );
+
+    await user.type(screen.getByLabelText(LABELS.purpose), 'ci-runner');
+    await user.click(screen.getByTestId('issue-token'));
+
+    const notice = await screen.findByTestId('token-superseded-notice');
+    expect(notice).toHaveTextContent(
+      'Replaced 1 earlier token issued for the same purpose.',
+    );
+    expect(notice).not.toHaveTextContent('token(s)');
+  });
+
+  it('names several replaced tokens in the plural', async () => {
+    answerWith({
+      ok: true,
+      reachable: true,
+      secret: 'nsre-sentinel',
+      superseded: ['tok-old', 'tok-mid'],
+    });
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} locale="en" />,
+    );
 
     await user.type(screen.getByLabelText(LABELS.purpose), 'ci-runner');
     await user.click(screen.getByTestId('issue-token'));
 
     expect(await screen.findByTestId('token-superseded-notice')).toHaveTextContent(
-      'Replaced 1 earlier token(s)',
+      'Replaced 2 earlier tokens issued for the same purpose.',
     );
   });
 
   it('says nothing was replaced when nothing was', async () => {
     const user = userEvent.setup();
-    render(<MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} />);
+    render(
+      <MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} locale="en" />,
+    );
 
     await user.type(screen.getByLabelText(LABELS.purpose), 'ci-runner');
     await user.click(screen.getByTestId('issue-token'));
@@ -232,6 +278,7 @@ describe('issuing declares and shows the substitution', () => {
         tokens={[]}
         issuedScopes={['investigation.read', 'token.manage']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -246,6 +293,7 @@ describe('issuing declares and shows the substitution', () => {
         tokens={[]}
         issuedScopes={['investigation.read', 'token.manage']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -265,6 +313,7 @@ describe('issuing declares and shows the substitution', () => {
         tokens={[]}
         issuedScopes={['investigation.read', 'token.manage']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -286,7 +335,9 @@ describe('issuing declares and shows the substitution', () => {
       400,
     );
     const user = userEvent.setup();
-    render(<MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} />);
+    render(
+      <MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} locale="en" />,
+    );
 
     await user.type(screen.getByLabelText(LABELS.purpose), 'Console sign-in');
     await user.click(screen.getByTestId('issue-token'));
@@ -299,7 +350,9 @@ describe('issuing declares and shows the substitution', () => {
   it('reports an unreachable deployment as its own message', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new Error('network down')));
     const user = userEvent.setup();
-    render(<MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} />);
+    render(
+      <MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} locale="en" />,
+    );
 
     await user.type(screen.getByLabelText(LABELS.purpose), 'ci-runner');
     await user.click(screen.getByTestId('issue-token'));
@@ -318,6 +371,7 @@ describe('revoking one token', () => {
         tokens={[token({ tokenId: 'tok-1', name: 'ci-runner' })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -340,6 +394,7 @@ describe('revoking one token', () => {
         tokens={[token({ tokenId: 'tok-1', name: 'ci-runner' })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -363,6 +418,7 @@ describe('revoking one token', () => {
         tokens={[token({ tokenId: 'tok-1', name: 'ci-runner' })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -384,6 +440,7 @@ describe('revoking all but the newest fails honestly too', () => {
         tokens={[token({ tokenId: 'tok-1' }), token({ tokenId: 'tok-2' })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -404,6 +461,7 @@ describe('revoking all but the newest fails honestly too', () => {
         tokens={[token({ tokenId: 'tok-1' }), token({ tokenId: 'tok-2' })]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -425,6 +483,7 @@ describe('what a group shows about itself', () => {
         ]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -443,6 +502,7 @@ describe('what a group shows about itself', () => {
         ]}
         issuedScopes={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -450,7 +510,9 @@ describe('what a group shows about itself', () => {
   });
 
   it('says nothing has been issued when no live token exists', () => {
-    render(<MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} />);
+    render(
+      <MachineTokenGroups tokens={[]} issuedScopes={[]} labels={LABELS} locale="en" />,
+    );
 
     expect(screen.queryAllByTestId('token-group')).toHaveLength(0);
     expect(screen.getByText(LABELS.empty)).toBeInTheDocument();

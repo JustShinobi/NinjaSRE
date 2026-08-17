@@ -89,8 +89,8 @@ const INVALID = 'border-danger';
 export interface FieldProps {
   readonly label: string;
   readonly name: string;
-  readonly description?: string;
-  readonly error?: string;
+  readonly description?: string | undefined;
+  readonly error?: string | undefined;
   readonly disabled?: boolean;
   /** A hook for a test to find this control by, never read by the control itself. */
   readonly 'data-testid'?: string | undefined;

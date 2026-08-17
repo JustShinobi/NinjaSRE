@@ -134,12 +134,31 @@ describe('the setup hero', () => {
 
     const hero = screen.getByTestId('setup-hero');
     expect(hero).toBeInTheDocument();
-    expect(within(hero).getAllByTestId('setup-hero-step')).toHaveLength(7);
+    // Five — the deployment's own checklist (`setup.steps`), not the seven
+    // wizard screens: the row count has to be the same list `outstanding()`
+    // counts, or the pending number beside it stops matching what is drawn.
+    expect(within(hero).getAllByTestId('setup-hero-step')).toHaveLength(5);
     // Exactly one step is where the deployment actually is.
     const current = within(hero)
       .getAllByTestId('setup-hero-step')
       .filter((step) => step.getAttribute('data-current') === 'true');
     expect(current).toHaveLength(1);
+  });
+
+  it('the number of rows drawn as not-done is the number the card states as remaining', async () => {
+    // Not a stated number compared to another stated number: a stated
+    // number compared to what a person could actually count in the list.
+    await dashboard('first-run');
+
+    const hero = screen.getByTestId('setup-hero');
+    const notDone = within(hero)
+      .getAllByTestId('setup-hero-step')
+      .filter((step) => step.getAttribute('data-done') === 'false');
+    const stated = /(\d+)\s+of\s+\d+/.exec(
+      within(hero).getByTestId('setup-hero-progress').textContent,
+    );
+    expect(stated?.[1]).toBeDefined();
+    expect(notDone).toHaveLength(Number(stated?.[1]));
   });
 
   it('offers exactly one action: the next step', async () => {

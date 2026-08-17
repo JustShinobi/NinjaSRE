@@ -13,10 +13,8 @@ import {
   authorised,
   dataOf,
   dependencyOf,
-  field,
   flag,
   list,
-  pairs,
   panelRead,
   read,
   stateOf,
@@ -97,23 +95,16 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
   const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
 
   // Nothing empty, ready: the claim rows still render, blank, for a node this
-  // deployment has not overridden any claim mapping at.
+  // deployment has not overridden any claim mapping at. Read regardless of
+  // `writable` — the effective-value table shows every viewer of this page
+  // what each claim resolves to, not only one who may change it.
   const nothing = { status: 'ready' as const, data: {} as unknown };
-  const effective =
-    nodeId === ''
-      ? nothing
-      : await panelRead<unknown>('/v1/config/{node_id}', () =>
-          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
-        );
   const configFields =
-    !writable || nodeId === ''
+    nodeId === ''
       ? nothing
       : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
           read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
         );
-
-  const claimValues = field(dataOf(effective), 'values');
-  const claimProvenance = new Map(pairs(dataOf(effective), 'provenance'));
 
   return (
     <>
@@ -172,6 +163,7 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
             active: message(locale, 'admin.sso.active'),
             verified: message(locale, 'admin.sso.verified'),
             notVerified: message(locale, 'admin.sso.notVerified'),
+            notConfigured: message(locale, 'admin.sso.notConfigured'),
             testFirst: message(locale, 'admin.sso.testFirst'),
             pendingEdit: message(locale, 'admin.sso.pendingEdit'),
             failed: message(locale, 'admin.sso.failed'),
@@ -198,8 +190,6 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
             path,
             label: message(locale, label),
           }))}
-          values={claimValues}
-          provenance={claimProvenance}
           rawFields={dataOf(configFields)}
         />
       </div>

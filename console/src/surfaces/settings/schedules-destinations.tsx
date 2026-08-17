@@ -15,9 +15,7 @@ import {
   authorised,
   dataOf,
   dependencyOf,
-  field,
   list,
-  pairs,
   panelRead,
   read,
   stateOf,
@@ -446,21 +444,16 @@ async function advancedDestinationsSection(
   const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
 
   const nothing = { status: 'ready' as const, data: {} as unknown };
-  const effective =
-    nodeId === ''
-      ? nothing
-      : await panelRead<unknown>('/v1/config/{node_id}', () =>
-          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
-        );
+  // Read regardless of `configWritable`: the advanced sections' own
+  // effective-value tables show every viewer of this page what a field
+  // resolves to, not only one who may change it.
   const configFields =
-    !configWritable || nodeId === ''
+    nodeId === ''
       ? nothing
       : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
           read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
         );
 
-  const values = field(dataOf(effective), 'values');
-  const provenance = new Map(pairs(dataOf(effective), 'provenance'));
   const named = (
     entries: readonly { readonly path: string; readonly label: MessageKey }[],
   ): readonly { readonly path: string; readonly label: string }[] =>
@@ -475,8 +468,6 @@ async function advancedDestinationsSection(
         locale={locale}
         writable={configWritable}
         fields={named(TRANSIT_ADVANCED_FIELD_LIST)}
-        values={values}
-        provenance={provenance}
         rawFields={dataOf(configFields)}
       />
 
@@ -491,8 +482,6 @@ async function advancedDestinationsSection(
         locale={locale}
         writable={configWritable}
         fields={named(SURFACES_ADVANCED_FIELD_LIST)}
-        values={values}
-        provenance={provenance}
         rawFields={dataOf(configFields)}
       />
     </div>

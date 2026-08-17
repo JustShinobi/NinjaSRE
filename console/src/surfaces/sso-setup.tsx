@@ -43,6 +43,10 @@ export interface SsoSetupLabels {
   readonly active: string;
   readonly verified: string;
   readonly notVerified: string;
+  /** Shown instead of `notVerified` while nothing is configured and nobody
+   * has touched or submitted the form yet — "nothing recorded" is a
+   * different fact from "recorded and not yet tested". */
+  readonly notConfigured: string;
   readonly testFirst: string;
   readonly pendingEdit: string;
   readonly failed: string;
@@ -67,6 +71,24 @@ export interface SsoSetupProps {
 function text(record: unknown, name: string): string {
   const found: unknown = Reflect.get(Object(record), name);
   return typeof found === 'string' ? found : '';
+}
+
+/**
+ * The field `problem` is about, read from its own leading word — the
+ * deployment names the field it is complaining about first, before the rest
+ * of the sentence. `undefined` for a problem naming no field this form
+ * declares, which stays unanchored rather than guessed at.
+ */
+function problemField(problem: string): SsoField | undefined {
+  const token = problem.split(' ')[0] ?? '';
+  return SSO_FIELDS.find((field) => field === token);
+}
+
+/** `problem`, with the payload key at its head replaced by the field's own label. */
+function humanised(problem: string, labels: SsoSetupLabels): string {
+  const field = problemField(problem);
+  if (field === undefined) return problem;
+  return `${labels.field[field]}${problem.slice(field.length)}`;
 }
 
 interface TestOutcome {
@@ -96,9 +118,40 @@ export function SsoSetupFlow({
   const [busy, setBusy] = useState('');
   const [failure, setFailure] = useState('');
   const [result, setResult] = useState<TestOutcome | null>(null);
+  // Virgin, touched by field, or submitted — what decides whether a problem
+  // the deployment already reported may be shown. A field this operator has
+  // not reached yet, on a form nobody has submitted, shows nothing: the
+  // deployment's own verdict is true, and it is still not an accusation
+  // until the operator had a chance to answer it.
+  const [touched, setTouched] = useState<ReadonlySet<SsoField>>(new Set());
+  const [submitted, setSubmitted] = useState(false);
 
   const current = (field: SsoField): string => values[field] ?? settings[field];
   const edited = SSO_FIELDS.some((field) => current(field) !== settings[field]);
+
+  /** Whether `problem` may be shown yet, given what has been touched or submitted. */
+  function visible(problem: string): boolean {
+    if (submitted) return true;
+    const field = problemField(problem);
+    return field !== undefined && touched.has(field);
+  }
+
+  const shown = state.problems.filter(visible);
+  /** `field`'s own first visible problem, humanised — `undefined` once it has none. */
+  function errorFor(field: SsoField): string | undefined {
+    const found = shown.find((problem) => problemField(problem) === field);
+    return found === undefined ? undefined : humanised(found, labels);
+  }
+  // A problem naming no field this form declares has nowhere to be anchored
+  // beside, so it falls back to a list of its own — shown only once
+  // submission means every pending problem is fair to show.
+  const unanchored = shown.filter((problem) => problemField(problem) === undefined);
+
+  // Genuinely nothing recorded, and nobody has asked yet: the neutral
+  // summary, not the ordinary "not tested" wording, which would read as a
+  // deployment that tried and failed rather than one nobody has configured.
+  const nothingConfigured = SSO_FIELDS.every((field) => settings[field] === '');
+  const unconfigured = nothingConfigured && touched.size === 0 && !submitted;
 
   async function ask(operation: string, payload: unknown): Promise<unknown> {
     setBusy(operation);
@@ -135,6 +188,10 @@ export function SsoSetupFlow({
   }
 
   async function save(): Promise<void> {
+    // Submission itself, not the answer it eventually gets: a save the
+    // deployment goes on to refuse is still the moment every pending problem
+    // becomes fair to show.
+    setSubmitted(true);
     const payload: Record<string, unknown> = {};
     for (const field of SSO_FIELDS) payload[field] = current(field);
     const answered = await ask('save', payload);
@@ -176,7 +233,9 @@ export function SsoSetupFlow({
     ? labels.active
     : state.verified
       ? labels.verified
-      : labels.notVerified;
+      : unconfigured
+        ? labels.notConfigured
+        : labels.notVerified;
 
   return (
     <div data-testid="sso-setup-flow" className="flex flex-col gap-6">
@@ -187,13 +246,13 @@ export function SsoSetupFlow({
         </span>
       </div>
 
-      {state.problems.length === 0 ? null : (
+      {unanchored.length === 0 ? null : (
         <ul
           data-testid="sso-problems"
           className="flex flex-col gap-1 text-meta text-danger"
         >
           <li>{labels.problems}</li>
-          {state.problems.map((problem) => (
+          {unanchored.map((problem) => (
             <li key={problem}>{problem}</li>
           ))}
         </ul>
@@ -208,9 +267,13 @@ export function SsoSetupFlow({
               label={labels.field[field]}
               name={field}
               description={labels.fieldHelp[field]}
+              error={errorFor(field)}
               value={current(field)}
               onValueChange={(next) => {
                 setValues((was) => ({ ...was, [field]: next }));
+              }}
+              onBlur={() => {
+                setTouched((was) => (was.has(field) ? was : new Set(was).add(field)));
               }}
             />
           ))}

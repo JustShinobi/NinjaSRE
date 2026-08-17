@@ -1,14 +1,10 @@
 import type { ReactNode } from 'react';
 
 import { message, type Locale } from '@/i18n/messages';
-import {
-  EffectiveFieldsTable,
-  type EffectiveFieldRow,
-} from '@/design/resolution-preview';
-import { provenanceLabel } from '@/design/provenance-label';
+import { EffectiveFieldsTable } from '@/design/resolution-preview';
 import { editableFields } from './editable';
+import { effectiveRows } from './effective-fields';
 import { ConfigEditor, type EditorLabels } from './preview';
-import { valueAt } from './settings/values';
 
 /**
  * A technical group of a domain's own configuration, folded into that
@@ -27,16 +23,20 @@ import { valueAt } from './settings/values';
  * scroll budget.
  *
  * A page using this still does its own fetch of `/v1/config`,
- * `/v1/config/{node_id}` and — only when `writable` — `/v1/config/{node_id}/
- * fields`, exactly as every page in this group already does for its own
- * primary content; this component starts from what that fetch already
- * produced rather than issuing a second, competing read.
+ * `/v1/config/{node_id}/fields` (regardless of `writable` — the effective
+ * value and its origin are shown to every viewer of the page, not only one
+ * who may change them), exactly as every page in this group already does for
+ * its own primary content; this component starts from what that fetch
+ * already produced rather than issuing a second, competing read.
  */
 
 /** One field this section shows: its full schema path, and its already-localised label. */
 export interface AdvancedConfigSectionField {
   readonly path: string;
   readonly label: string;
+  /** Overrides the type-driven formatting below for a field the schema's own
+   * type ('integer') does not say is a duration. */
+  readonly format?: ((value: unknown, locale: Locale) => string) | undefined;
 }
 
 export interface AdvancedConfigSectionProps {
@@ -65,24 +65,15 @@ export interface AdvancedConfigSectionProps {
   readonly writable: boolean;
   /** Every field this section shows in the effective-value table, in display order. */
   readonly fields: readonly AdvancedConfigSectionField[];
-  /** The node's effective values, nested exactly as `/v1/config/{node_id}` answers. */
-  readonly values: unknown;
-  readonly provenance: ReadonlyMap<string, string>;
   /**
    * The `/v1/config/{node_id}/fields` answer's own data, already unwrapped
    * from its envelope the way every page in this group already unwraps it
-   * with `dataOf`. Read only when `writable` — a viewer who may not write
-   * has no reason to have fetched it, so this may be `null` in that case.
+   * with `dataOf`. This is the one source both the effective-value table and
+   * the editor below it read — the value, the schema default and the
+   * per-field origin all come from here, so the two can never disagree about
+   * what a field currently resolves to.
    */
   readonly rawFields: unknown;
-}
-
-function displayValue(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  return JSON.stringify(value);
 }
 
 /** Every prefix this section scopes to, whether one was given or several. */
@@ -166,19 +157,13 @@ export function AdvancedConfigSection({
   locale,
   writable,
   fields,
-  values,
-  provenance,
   rawFields,
 }: AdvancedConfigSectionProps): ReactNode {
-  const rows: readonly EffectiveFieldRow[] = fields.map(({ path, label }) => ({
-    path,
-    label,
-    value: displayValue(valueAt(values, path)),
-    origin: provenanceLabel(locale, path, provenance),
-  }));
+  const catalogue = editableFields(rawFields);
+  const rows = effectiveRows(fields, catalogue, locale);
 
   const scopes = prefixesOf(prefix);
-  const editable = editableFields(rawFields).filter((entry) =>
+  const editable = catalogue.filter((entry) =>
     scopes.some((scope) => entry.path.startsWith(scope)),
   );
 

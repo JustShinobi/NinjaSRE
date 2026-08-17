@@ -155,16 +155,42 @@ describe('the wizard screen', () => {
     expect(within(one(offer)).getByLabelText('API token')).toBeInTheDocument();
   });
 
-  it('keeps every step visible, marking exactly one as where you are', async () => {
+  it('keeps every step of the deployment’s own checklist visible, marking exactly one as where you are', async () => {
     await firstRun();
 
-    const steps = screen.getAllByTestId('wizard-step');
-    expect(steps.map((step) => step.getAttribute('data-step'))).toEqual([
-      ...WIZARD_STEPS,
+    // The deployment's own checklist (`setup.steps`) — five entries under
+    // this scenario — never the seven wizard screens: the row count has to
+    // be the same list `outstanding()` counts.
+    const steps = screen.getAllByTestId('checklist-step');
+    expect(steps).toHaveLength(5);
+    expect(steps.map((step) => step.getAttribute('data-name'))).toEqual([
+      'durable-credential',
+      'model-provider',
+      'infrastructure-source',
+      'investigation-runtime',
+      'first-investigation',
     ]);
     expect(
       steps.filter((step) => step.getAttribute('data-current') === 'true'),
     ).toHaveLength(1);
+  });
+
+  it('the number of rows drawn as not-done is the number the panel states as pending', async () => {
+    // The assertion every other claim about this panel was missing: not a
+    // stated number compared to another stated number, but a stated number
+    // compared to what a person could actually count in the list under it.
+    // A screen where these two disagree is the original defect, drawn
+    // rather than described.
+    await firstRun();
+
+    const notDone = screen
+      .getAllByTestId('checklist-step')
+      .filter((step) => step.getAttribute('data-done') === 'false');
+    const stated = /(\d+)\s+of\s+\d+/.exec(
+      screen.getByTestId('first-run-progress').textContent,
+    );
+    expect(stated?.[1]).toBeDefined();
+    expect(notDone).toHaveLength(Number(stated?.[1]));
   });
 
   it('derives the current step from the checklist rather than remembering one', async () => {
@@ -183,13 +209,18 @@ describe('the wizard screen', () => {
     expect(screen.getByTestId('wizard-body')).toHaveAttribute('data-step', 'verify');
   });
 
-  it('makes every step a link, which is what makes reopening survive a reload', async () => {
+  it('draws the checklist as status, not as navigation — the deployment’s own steps have no wizard screen to jump to one for one', async () => {
+    // Five checklist steps and seven wizard screens are not the same list —
+    // `durable-credential` alone answers two wizard screens (`provider` and
+    // `credential`), and `integrations`/`verify` answer no checklist step
+    // at all — so a checklist row cannot honestly link to "the" wizard
+    // screen it stands for. Reopening a specific wizard screen (covered by
+    // "reopens a completed step from its own address" above) still works
+    // through the address bar; this list only states what is done.
     await firstRun();
 
-    for (const step of screen.getAllByTestId('wizard-step')) {
-      expect(step.getAttribute('href')).toBe(
-        `/first-run?step=${String(step.getAttribute('data-step'))}`,
-      );
+    for (const step of screen.getAllByTestId('checklist-step')) {
+      expect(step.querySelector('a')).toBeNull();
     }
   });
 
@@ -234,13 +265,14 @@ describe('the wizard screen', () => {
     );
   });
 
-  it('heads the panel from the deployment’s own steps, not from a tally of the seven screens', async () => {
-    // The heading and the progress line under it are one claim about one
-    // list. The deployment here reports every step of its own as done while
-    // the seven screens above would tally otherwise — a provider it holds
-    // nothing for. Headed from the screens, the panel says "What is left"
-    // directly above a line reading nothing is, which is the two counts
-    // disagreeing that this panel exists to stop.
+  it('heads the panel from the deployment’s own checklist, not from how far the wizard’s seven screens have got', async () => {
+    // Two of the deployment's own three checklist steps are done and one is
+    // not — genuinely partial, by `setup.steps` alone. The wizard above it is
+    // nowhere near finished either (no provider stored at all), but that is
+    // not what this heading reads any more: it is picked from the same
+    // `outstanding(setup)` the progress line beneath it states, over
+    // `setup.steps`, and nothing here compares that against the seven wizard
+    // screens.
     //
     // Asserted against the rendered heading rather than against the call
     // that picks it: a heading picked correctly through a local variable
@@ -258,8 +290,44 @@ describe('the wizard screen', () => {
               provider: '',
               integrations: [],
               steps: [
+                { name: 'durable-credential', state: 'done' },
                 { name: 'infrastructure-source', state: 'done' },
-                { name: 'first-investigation', state: 'done' },
+                { name: 'first-investigation', state: 'ready' },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return scenario(input as Parameters<typeof fetch>[0], init);
+    });
+    render(await FirstRunScreen(await surfaceContext({})));
+
+    expect(
+      screen.getByRole('heading', { name: EN['firstRun.steps.title'] }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: EN['firstRun.steps.done'] }),
+    ).toBeNull();
+    expect(screen.getByTestId('first-run-progress')).toHaveTextContent('1');
+  });
+
+  it('heads the panel "Every step is done" once the deployment’s own checklist has nothing left', async () => {
+    serveScenario('first-run');
+    const scenario = global.fetch;
+    const base = ['http:', '//fixtures.invalid'].join('');
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), base).pathname;
+      if (path === '/v1/setup/checklist') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              complete: true,
+              provider: 'verified',
+              integrations: [],
+              steps: [
+                { name: 'durable-credential', state: 'done' },
+                { name: 'infrastructure-source', state: 'done' },
               ],
             }),
             { status: 200, headers: { 'content-type': 'application/json' } },
@@ -273,9 +341,6 @@ describe('the wizard screen', () => {
     expect(
       screen.getByRole('heading', { name: EN['firstRun.steps.done'] }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('heading', { name: EN['firstRun.steps.title'] }),
-    ).toBeNull();
   });
 });
 
@@ -1430,18 +1495,21 @@ describe('the steps this feature does not own', () => {
 // --- The step list names which screen a poetic step name actually leads to --------------------------
 
 describe('the map from a step name to the screen it leads to', () => {
-  it('names the real screen for the two steps that hand over to one', async () => {
+  it('names the real screen for the two checklist steps that hand over to one', async () => {
     await firstRun();
 
-    // "Give it an estate to watch" and "Point your alerts at it" do not say,
-    // by themselves, that finishing them means arriving at Resources and
-    // Alert intake — this is read from the same HANDOVER address the link at
-    // the bottom of each step already uses, so the map and the link can
-    // never name two different screens for the same step.
+    // "Give it something to look at" and "Run your first investigation" do
+    // not say, by themselves, that finishing them means arriving at
+    // Resources and Alert intake — this is read from the same HANDOVER
+    // address the link the handed-over step itself uses, so the map and the
+    // link can never name two different screens for the same step. Keyed by
+    // the deployment's own checklist step name (`infrastructure-source`,
+    // `first-investigation`), not by a wizard screen: `setup.steps` is the
+    // list this map now walks.
     const mapped = screen.getAllByTestId('wizard-step-screen');
     expect(mapped.map((entry) => entry.getAttribute('data-step'))).toEqual([
-      'estate',
-      'alerts',
+      'infrastructure-source',
+      'first-investigation',
     ]);
     expect(mapped[0]).toHaveTextContent('Resources');
     // Alert intake, not Signals: the retired address still answers (through
@@ -1451,18 +1519,16 @@ describe('the map from a step name to the screen it leads to', () => {
     expect(mapped[1]).toHaveTextContent('Alert intake');
   });
 
-  it('names no destination for the five steps that stay on this screen', async () => {
+  it('names no destination for the three checklist steps that stay on this screen', async () => {
     await firstRun();
 
-    // provider/credential/model/integrations/verify are sub-steps of this
-    // one wizard, not a handover to somewhere else — a "leads to" label on
-    // them would be inventing a screen that does not exist.
+    // durable-credential/model-provider/investigation-runtime are resolved
+    // inside this one wizard, not a handover to somewhere else — a "leads
+    // to" label on them would be inventing a screen that does not exist.
     const withoutAScreen = [
-      'provider',
-      'credential',
-      'model',
-      'integrations',
-      'verify',
+      'durable-credential',
+      'model-provider',
+      'investigation-runtime',
     ];
     const mappedSteps = screen
       .getAllByTestId('wizard-step-screen')

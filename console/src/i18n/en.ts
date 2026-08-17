@@ -502,17 +502,16 @@ export const EN = {
   'credential.guide': 'Step-by-step guide',
 
   // --- The guided first run -----------------------------------------------------------
-  // Where the operator is, by position and by name — distinct from the count
-  // below, which is how much of the deployment's own checklist is left. "7"
-  // here is this console's own seven-screen sequencing; the progress line's
-  // numbers are the checklist route's. Both are honest; neither is the other.
+  // Where the operator is, by position and by name, with what is left on the
+  // same line — one denominator, the same seven-screen sequencing the steps
+  // panel and the dashboard's own card both read their own numbers from.
   'firstRun.wizard.position': 'Step {n} of {total} — {name}',
+  'firstRun.wizard.pending.one': '{count} step left',
+  'firstRun.wizard.pending': '{count} steps left',
   'firstRun.steps.title': 'What is left',
   'firstRun.steps.done': 'Every step is done',
   // The dashboard's own hero says "{count} of {total} steps left" for this
-  // same fact; this line used to say "done" instead, which made the two
-  // screens state one number in two framings a reader had to reconcile by
-  // hand.
+  // same fact, from the same source.
   'firstRun.progress': '{left} of {total} steps left',
   'firstRun.steps.empty.heading': 'This deployment did not say what is left',
   'firstRun.steps.empty.body':
@@ -1240,6 +1239,17 @@ export const EN = {
   'configuration.provenance.default': 'Deployment default',
   'configuration.provenance.setAt': 'Set at: {node}',
   'configuration.provenance.mixed': 'Set across more than one node',
+  // An effective-configuration table's own Value column: a boolean as a
+  // state a reader can act on, a genuinely absent value marked as such, and
+  // the two durations this screen group actually shows — never the payload
+  // literal, and never a blank cell standing in for any of them.
+  'configuration.value.on': 'On',
+  'configuration.value.off': 'Off',
+  'configuration.value.notSet': 'Not set',
+  'configuration.value.hours.one': '{count} hour',
+  'configuration.value.hours': '{count} hours',
+  'configuration.value.seconds.one': '{count} second',
+  'configuration.value.seconds': '{count} seconds',
   'configuration.empty.heading': 'No configuration here',
   'configuration.empty.body':
     'Every node inherits from the one above it. This one sets nothing of its own, so what applies is what its parent applies.',
@@ -1442,6 +1452,7 @@ export const EN = {
   'admin.tokens.revokeCancel': 'Leave it working',
   'admin.tokens.failed': 'The deployment refused this.',
   'admin.tokens.unreachable': 'The deployment could not be reached.',
+  'admin.tokens.revokedGroup.one': '{count} revoked',
   'admin.tokens.revokedGroup': '{count} revoked',
   'admin.column.token': 'Token',
   'admin.column.scopes': 'Scopes',
@@ -1473,6 +1484,11 @@ export const EN = {
   'admin.sso.failed': 'The deployment refused this.',
   'admin.sso.unreachable': 'The deployment could not be reached.',
   'admin.sso.problems': 'This configuration cannot be used:',
+  // Shown in place of the not-tested state, and only while every field is
+  // still exactly as the deployment answered it and nobody has touched or
+  // submitted the form — the deployment has not been asked to configure
+  // this, as opposed to having tried and not yet passed a check.
+  'admin.sso.notConfigured': 'Not configured yet',
   'admin.sso.configure': 'Configure single sign-on',
   'admin.sso.state': 'State',
   'admin.empty.heading': 'Nobody but you',
@@ -1876,14 +1892,17 @@ export const EN = {
   'settings.machineTokens.purposeHelp':
     'Issuing another token for a purpose that already has one replaces it — the change is recorded in the audit log.',
   'settings.machineTokens.detail': 'Individual tokens',
+  'settings.machineTokens.superseded.one':
+    'Replaced {count} earlier token issued for the same purpose.',
   'settings.machineTokens.superseded':
-    'Replaced {count} earlier token(s) issued for the same purpose.',
+    'Replaced {count} earlier tokens issued for the same purpose.',
   'settings.machineTokens.revokeOlder': 'Revoke all but the newest',
   'settings.machineTokens.revokingOlder': 'Revoking…',
   'settings.machineTokens.revokeOlderConsequence':
     'Every older token for this purpose stops authenticating now.',
   'settings.machineTokens.revokeOlderConfirm': 'Revoke them',
   'settings.machineTokens.revokeOlderCancel': 'Leave them working',
+  'settings.machineTokens.count.one': '{count} token',
   'settings.machineTokens.count': '{count} tokens',
   'settings.machineTokens.lastUsed': 'Last used',
   'settings.machineTokens.neverUsed': 'Never used',

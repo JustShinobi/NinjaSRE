@@ -25,7 +25,6 @@ import {
   flag,
   list,
   optionalRead,
-  pairs,
   panelRead,
   read,
   stateOf,
@@ -248,23 +247,16 @@ async function content(
 
   // Nothing empty, ready: the advanced section below renders its rows with
   // nothing set, which is the honest state for a node this deployment has
-  // not configured any observation policy at yet.
+  // not configured any observation policy at yet. Read regardless of
+  // `writable`: the effective-value table shows every viewer of this page
+  // what a field resolves to, not only one who may change it.
   const nothing = { status: 'ready' as const, data: {} as unknown };
-  const effective =
-    nodeId === ''
-      ? nothing
-      : await panelRead<unknown>('/v1/config/{node_id}', () =>
-          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
-        );
   const configFields =
-    !writable || nodeId === ''
+    nodeId === ''
       ? nothing
       : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
           read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
         );
-
-  const observationValues = field(dataOf(effective), 'values');
-  const observationProvenance = new Map(pairs(dataOf(effective), 'provenance'));
 
   const sources = list(dataOf(ingress), 'sources');
   const paste = new Map(
@@ -584,8 +576,6 @@ async function content(
             path,
             label: message(locale, label),
           }))}
-          values={observationValues}
-          provenance={observationProvenance}
           rawFields={dataOf(configFields)}
         />
       </div>

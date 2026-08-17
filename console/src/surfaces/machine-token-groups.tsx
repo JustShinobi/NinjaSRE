@@ -6,6 +6,8 @@ import { useState } from 'react';
 import { Button } from '@/components/action';
 import { Checkbox, Input } from '@/components/form';
 import { Badge } from '@/components/status';
+import { formatCount } from '@/i18n/format';
+import type { Locale } from '@/i18n/messages';
 import { TOKEN_ENDPOINT } from './tokens';
 
 /**
@@ -59,7 +61,6 @@ export interface MachineTokenLabels {
   readonly issue: string;
   readonly issuing: string;
   readonly shownOnce: string;
-  readonly superseded: string;
   readonly revoke: string;
   readonly revoking: string;
   readonly revokeConsequence: string;
@@ -73,10 +74,8 @@ export interface MachineTokenLabels {
   readonly failed: string;
   readonly unreachable: string;
   readonly none: string;
-  readonly count: string;
   readonly lastUsedLabel: string;
   readonly neverUsed: string;
-  readonly revokedGroup: string;
   readonly empty: string;
 }
 
@@ -85,6 +84,14 @@ export interface MachineTokenGroupsProps {
   /** The viewer's own permissions — the ceiling a new token may hold. */
   readonly issuedScopes: readonly string[];
   readonly labels: MachineTokenLabels;
+  /**
+   * The viewer's own language, for the three counted sentences below whose
+   * singular or plural form depends on a number this client component only
+   * learns once it has grouped the tokens itself (`labels` cannot carry
+   * these pre-resolved: a function is not a value a server component may
+   * hand a client component — the client boundary can only cross data).
+   */
+  readonly locale: Locale;
 }
 
 /** `value`, with its separators opened into spaces and each word capitalised. */
@@ -143,6 +150,7 @@ export function MachineTokenGroups({
   tokens,
   issuedScopes,
   labels,
+  locale,
 }: MachineTokenGroupsProps): ReactNode {
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<ReadonlySet<string>>(new Set(issuedScopes));
@@ -306,7 +314,12 @@ export function MachineTokenGroups({
                 data-testid="token-superseded-notice"
                 className="text-meta text-muted"
               >
-                {labels.superseded.replace('{count}', String(supersededCount))}
+                {formatCount(
+                  locale,
+                  supersededCount,
+                  'settings.machineTokens.superseded.one',
+                  'settings.machineTokens.superseded',
+                )}
               </span>
             )}
           </div>
@@ -339,7 +352,12 @@ export function MachineTokenGroups({
                     data-testid="token-group-count"
                     className="text-meta text-muted tabular-nums"
                   >
-                    {labels.count.replace('{count}', String(group.tokens.length))}
+                    {formatCount(
+                      locale,
+                      group.tokens.length,
+                      'settings.machineTokens.count.one',
+                      'settings.machineTokens.count',
+                    )}
                   </span>
                   <span className="ml-auto flex items-center gap-2">
                     {group.tokens.length > 1 ? (
@@ -473,7 +491,12 @@ export function MachineTokenGroups({
       {revokedTokens.length === 0 ? null : (
         <details data-testid="revoked-tokens">
           <summary className="cursor-pointer text-meta text-muted">
-            {labels.revokedGroup.replace('{count}', String(revokedTokens.length))}
+            {formatCount(
+              locale,
+              revokedTokens.length,
+              'admin.tokens.revokedGroup.one',
+              'admin.tokens.revokedGroup',
+            )}
           </summary>
           <ul className="flex flex-col gap-2 pt-2 text-small">
             {revokedTokens.map((token) => (

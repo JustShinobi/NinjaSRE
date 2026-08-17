@@ -21,7 +21,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
-from config.constants.first_run import SETUP_READINESS_CONFIGURED, SETUP_READINESS_VERIFIED
+from config.constants.first_run import (
+    DEFAULT_ORGANISATION_ID,
+    SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_VERIFIED,
+)
 from integrations._catalogue.gaps import gaps
 from tools.mockplane.anonymise.pipeline import ProcessedCapture, process
 from tools.mockplane.anonymise.pseudonyms import PseudonymBook
@@ -41,6 +45,7 @@ BUILT_SCENARIOS: Final[tuple[str, ...]] = (
     "first-run",
     "restricted",
     "incident-live",
+    "audit-flooded",
 )
 
 #: The key the committed dataset is pseudonymised under. The values in
@@ -566,6 +571,72 @@ def incident_live_records() -> tuple[CapturedRecord, ...]:
     return stream_records(long=True)
 
 
+#: (action, resource_kind, resource_id) — five triples already valid in
+#: ``populated`` (each ``resource_id`` is one ``AUDIT_EVENTS`` above already
+#: references, so it resolves against runs, approvals, the config tree and
+#: tokens ``audit-flooded`` inherits unchanged from it), cycled across the
+#: flood below rather than inventing two hundred identities that would have
+#: to resolve on their own.
+_FLOOD_ACTIONS: Final[tuple[tuple[str, str, str], ...]] = (
+    ("investigation.start", "run", "run-0003"),
+    ("investigation.finish", "run", "run-0001"),
+    ("approval.request", "approval", "apr-0001"),
+    ("config.write", "config-node", "env-production"),
+    ("token.create", "token", "tok-0002"),
+)
+
+#: Far larger than what any page ever fetches — the shape of the defect this
+#: scenario exists to reproduce: a header allowed to state a population the
+#: table underneath it never draws.
+_FLOOD_TOTAL: Final = 156735
+
+
+def audit_flooded_records() -> tuple[CapturedRecord, ...]:
+    """Return the one endpoint that differs: an audit trail one actor floods.
+
+    Two hundred entries, every one of them the deployment's own automation
+    principal, against a total two orders of magnitude larger still. The rest
+    of the scenario is ``populated`` — same estate, same runs, same everyone
+    else's audit history, because the point of this scenario is that the
+    flood is the only thing that changed.
+    """
+    events = [
+        {
+            "event_id": f"aud-flood-{index:04d}",
+            "occurred_at": served.at(minutes=index),
+            # What the deployment calls itself, on an agent-initiated audit
+            # line — the same sentinel `platform/credentials/proxy/audit.py`
+            # writes as `actor_id` for a deployment whose organisation is
+            # still the bootstrap default, and what the console's own
+            # `SYSTEM_PRINCIPAL` (`settings/audit.tsx`) compares against.
+            # Deliberately not `served.AUTOMATION`: that is a named,
+            # granted service-account principal with its own identity (see
+            # `AUDIT_EVENTS` above), a different fact from "the deployment,
+            # unattributed".
+            "actor_id": DEFAULT_ORGANISATION_ID,
+            "actor_kind": "agent",
+            "action": action,
+            "resource_kind": resource_kind,
+            "resource_id": resource_id,
+            "outcome": "allowed",
+            "detail": {"flood_index": index},
+        }
+        for index, (action, resource_kind, resource_id) in enumerate(
+            (_FLOOD_ACTIONS * 40)[:200], start=1
+        )
+    ]
+    return (
+        CapturedRecord(
+            slug="audit-events",
+            arguments={},
+            status=200,
+            body={"events": events, "total": _FLOOD_TOTAL},
+            provenance=Provenance.GATEWAY,
+            request=Request(method="GET", path="audit-events"),
+        ),
+    )
+
+
 def _absent_detail_records() -> tuple[CapturedRecord, ...]:
     """Return a 404 for every templated read, for a scenario that holds nothing.
 
@@ -834,6 +905,7 @@ def records_for(scenario: str) -> tuple[CapturedRecord, ...]:
         "first-run": first_run_records,
         "restricted": restricted_records,
         "incident-live": incident_live_records,
+        "audit-flooded": audit_flooded_records,
     }
     return builders[scenario]()
 
@@ -899,6 +971,7 @@ def uncovered_slugs() -> tuple[str, ...]:
 __all__ = [
     "BUILD_KEY",
     "BUILT_SCENARIOS",
+    "audit_flooded_records",
     "covered_slugs",
     "empty_records",
     "first_run_records",

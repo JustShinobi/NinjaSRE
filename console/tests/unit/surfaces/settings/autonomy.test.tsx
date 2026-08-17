@@ -420,17 +420,17 @@ describe('the rules table, over every scope kind the deployment may send', () =>
 
 describe('the guardrails section', () => {
   it('shows masking, guardrail and approval fields with their effective value and origin', async () => {
+    // Every row's value and origin now come from the deployment's own field
+    // catalogue (`/v1/config/{node}/fields`) rather than from the effective-
+    // configuration document's `values`/`provenance` — the source that used
+    // to leave a row blank whenever nothing had overridden it, because that
+    // document does not carry a field's schema default. `masking.enabled` is
+    // overridden at this node; the rest resolve to their own schema default,
+    // and `ruleset` has none declared at all.
     serveAutonomy({
       policy: EMPTY_POLICY,
       bounds: EMPTY_BOUNDS,
-      values: {
-        policies: {
-          masking: { enabled: true, level: 'strict' },
-          guardrails: { mode: 'enforcing', ruleset: null },
-          approvals: { threshold: 'write_reversible', expiry_hours: 4.5 },
-        },
-      },
-      provenance: { 'policies.masking.enabled': NODE },
+      values: {},
       fields: [
         {
           path: 'policies.masking.enabled',
@@ -438,8 +438,59 @@ describe('the guardrails section', () => {
           type: 'boolean',
           section: 'Masking',
           value: true,
+          default: false,
           provenance: NODE,
           set_here: true,
+        },
+        {
+          path: 'policies.masking.level',
+          label: 'Masking level',
+          type: 'string',
+          section: 'Masking',
+          value: 'strict',
+          default: 'strict',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.guardrails.mode',
+          label: 'Secret detection',
+          type: 'string',
+          section: 'Guardrails',
+          value: 'enforcing',
+          default: 'enforcing',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.guardrails.ruleset',
+          label: 'Detection ruleset',
+          type: 'string',
+          section: 'Guardrails',
+          value: null,
+          default: null,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.approvals.threshold',
+          label: 'Approval threshold',
+          type: 'string',
+          section: 'Approvals',
+          value: 'write_reversible',
+          default: 'write_reversible',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.approvals.expiry_hours',
+          label: 'Approval expiry',
+          type: 'integer',
+          section: 'Approvals',
+          value: 4.5,
+          default: 4.5,
+          provenance: '',
+          set_here: false,
         },
       ],
     });
@@ -454,16 +505,23 @@ describe('the guardrails section', () => {
       return row;
     }
 
-    expect(rowFor('policies.masking.enabled')).toHaveTextContent('true');
+    // A boolean reads as a state a reader can act on, never the payload
+    // literal — "On", not "true".
+    expect(rowFor('policies.masking.enabled')).toHaveTextContent('On');
+    expect(rowFor('policies.masking.enabled')).not.toHaveTextContent('true');
+    expect(rowFor('policies.masking.enabled')).toHaveTextContent(NODE);
     expect(rowFor('policies.masking.level')).toHaveTextContent('strict');
+    expect(rowFor('policies.masking.level')).toHaveTextContent('Deployment default');
     expect(rowFor('policies.guardrails.mode')).toHaveTextContent('enforcing');
-    // `ruleset` is unset (`null`) — the row still exists, naming the field, with
-    // no value cell text of its own.
-    expect(rowFor('policies.guardrails.ruleset')).toBeInTheDocument();
+    // `ruleset` has no override and no schema default — the row still exists,
+    // naming the field, with an explicit "not set" marker rather than a
+    // blank cell, which the component itself refuses to render.
+    expect(rowFor('policies.guardrails.ruleset')).toHaveTextContent('Not set');
     expect(rowFor('policies.approvals.threshold')).toHaveTextContent(
       'write_reversible',
     );
-    expect(rowFor('policies.approvals.expiry_hours')).toHaveTextContent('4.5');
+    // A duration is said as one — "4.5 hours" — never the bare number alone.
+    expect(rowFor('policies.approvals.expiry_hours')).toHaveTextContent('4.5 hours');
     // The two constitutional invariants are stated as facts, never as a toggle.
     const invariants = screen.getAllByTestId('guardrail-invariant');
     expect(invariants).toHaveLength(2);

@@ -4,7 +4,7 @@ import { Link } from '@/components/action';
 import { StatusChip, StatusDot } from '@/components/status';
 import { cx } from '@/design/cx';
 import { message, type Locale } from '@/i18n/messages';
-import { formatNumber } from '@/i18n/format';
+import { formatCount, formatNumber } from '@/i18n/format';
 import { AreaHeader } from '@/shell/area';
 import { areaByPath, areaFor, settingsPageByPath } from '@/shell/routes';
 import { may } from '@/session/viewer';
@@ -25,8 +25,8 @@ import {
   hrefFor,
   nextStep,
   outstanding,
-  planFor,
   readSetup,
+  setupProgress,
   type DeploymentSetup,
   type WizardStep,
 } from '../first-run/plan';
@@ -83,35 +83,42 @@ const ESTATE_CATEGORY = 'cloud_control_plane';
 // as long as that redirect exists to catch it. Naming the final address
 // directly means the next cleanup that removes the redirect table breaks
 // nothing here.
-const HANDOVER: Readonly<Record<'estate' | 'alerts', string>> = {
-  estate: '/resources',
-  alerts: '/settings/alert-intake',
+//
+// Keyed by the deployment's own checklist step name (`SOURCE_STEP`,
+// `INVESTIGATION_STEP`) rather than by `WizardStep`: the panel below draws
+// `setup.steps`, not the seven wizard screens, and these are the two
+// checklist steps that hand over to a screen outside this wizard at all —
+// the other three stay inside it and have no handover to name.
+const HANDOVER: Readonly<Record<string, string>> = {
+  [SOURCE_STEP]: '/resources',
+  [INVESTIGATION_STEP]: '/settings/alert-intake',
 };
 
-/** `step`'s handover address, with the parameter its screen offers a way back for. */
-function handoverHref(step: 'estate' | 'alerts'): string {
-  return withSetupReturn(HANDOVER[step]);
+/** `name`'s handover address, with the parameter its screen offers a way back for. */
+function handoverHref(name: string): string {
+  return withSetupReturn(HANDOVER[name] ?? '');
 }
 
 /**
- * The screen `step` hands over to, in its own words for it — or `''` for a
- * step that has none.
+ * The screen the checklist step `name` hands over to, in its own words — or
+ * `''` for a step that has none.
  *
- * Five of the seven steps have no screen to name: they are sub-steps of this
+ * Three of the five have no screen to name: they are resolved inside this
  * one wizard, and a "continues on" label on them would invent a destination
- * that does not exist. Read from `HANDOVER`, the same address the link at
- * the bottom of the step already navigates to, so the map and the link can
- * never name two different screens for the same step.
+ * that does not exist. Read from `HANDOVER`, the same address the link
+ * below already navigates to, so the map and the link can never name two
+ * different screens for the same step.
  *
  * Checked against both route manifests, because a handover can land on a
  * top-level area (Resources) or on a Settings subnav page (Alert intake),
  * and only one of the two lists knows either.
  */
-function handoverScreen(locale: Locale, step: WizardStep): string {
-  if (step !== 'estate' && step !== 'alerts') return '';
-  const area = areaByPath(HANDOVER[step]);
+function handoverScreen(locale: Locale, name: string): string {
+  const address = HANDOVER[name];
+  if (address === undefined) return '';
+  const area = areaByPath(address);
   if (area !== undefined) return message(locale, area.label);
-  const page = settingsPageByPath(HANDOVER[step]);
+  const page = settingsPageByPath(address);
   return page === undefined ? '' : message(locale, page.label);
 }
 
@@ -183,7 +190,6 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   const setup = readSetup(dataOf(checklist), field(dataOf(effective), 'values'));
   const requested = search.get('step');
   const here = currentStep(setup, requested);
-  const plan = planFor(setup, requested);
 
   const providerRecords = list(dataOf(providers), 'providers');
   // Which provider the credential and model steps are about: the one the
@@ -337,13 +343,15 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   const stepTitle = (step: WizardStep): string =>
     message(locale, `firstRun.step.${step}`);
 
+  // Where this deployment is against its own checklist: the same derivation
+  // the panel below and the dashboard's own card both read, so a heading
+  // built from it can never cite a different denominator than either. The
+  // wizard position beneath ("Step N of 7") is a different fact — which of
+  // the seven *screens* is showing — and reads `WIZARD_STEPS` on its own.
+  const progress = setupProgress(setup);
+
   // A heading is a claim about the list under it, so it changes when the list
-  // does: "What is left" over "7 of 7 done" is two claims disagreeing. Picked
-  // from outstanding(setup) and setup.steps.length — the exact numbers the
-  // progress line below already reads — rather than from a tally of the
-  // console's own seven screens, which is a second count with a different
-  // denominator (the checklist route's own steps) and can disagree with the
-  // first by construction.
+  // does: "What is left" over "7 of 7 done" is two claims disagreeing.
   const checklistHeading = message(
     locale,
     checklistTitle(setup.steps.length - outstanding(setup), setup.steps.length),
@@ -364,7 +372,8 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
   // *has* finished — this is the moment right before that, and the only one
   // where "you are ready to run your first one" is actually true rather
   // than stale.
-  const alertsStepDone = plan.find((entry) => entry.step === 'alerts')?.done ?? false;
+  const alertsStepDone =
+    setup.steps.find((step) => step.name === INVESTIGATION_STEP)?.state === 'done';
   const readyForFirstInvestigation =
     here === 'alerts' && runtimeGap === undefined && !alertsStepDone;
   const mayInvestigate = may(viewer, 'investigation.run');
@@ -373,17 +382,23 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
     <>
       <AreaHeader area={areaFor('first-run')} locale={locale} />
 
-      {/* A position, not a count: which of the console's own seven screens
-          this is, and by name. The progress line inside the steps panel below
-          states a different, checklist-sourced count and the two are allowed
-          to cite different numbers because they measure different things —
-          this is the wizard's own denominator, said as what it is. */}
+      {/* Position, step name and what is left, on the one line: the position
+          is which of the seven wizard screens this is; the pending count
+          beside it is the same one the steps panel and the dashboard's own
+          card state below, from the same source. */}
       <p className="mb-4 text-meta text-muted" data-testid="wizard-position">
         {message(locale, 'firstRun.wizard.position', {
           n: formatNumber(locale, WIZARD_STEPS.indexOf(here) + 1),
           total: formatNumber(locale, WIZARD_STEPS.length),
           name: stepTitle(here),
         })}
+        {' · '}
+        {formatCount(
+          locale,
+          progress.pending,
+          'firstRun.wizard.pending.one',
+          'firstRun.wizard.pending',
+        )}
       </p>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -402,62 +417,67 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
           >
             <p className="mb-3 text-meta text-muted" data-testid="first-run-progress">
               {message(locale, 'firstRun.progress', {
-                left: formatNumber(locale, outstanding(setup)),
-                total: formatNumber(locale, setup.steps.length),
+                left: formatNumber(locale, progress.pending),
+                total: formatNumber(locale, progress.total),
               })}
             </p>
+            {/* The deployment's own checklist, `setup.steps` — the same array
+                `outstanding(setup)` counts and the same one `ninjasre onboard`
+                reads. Drawing anything else here (the seven wizard screens,
+                say) is exactly how a stated pending count stopped matching
+                what a person could count in this list — see `plan.ts`'s own
+                doc on `outstanding`. */}
             <ol className="flex flex-col gap-1">
-              {plan.map((entry) => (
-                <li
-                  key={entry.step}
-                  // The current step is the one carrier of "you are here" this
-                  // panel has: a done/pending status dot says what has happened,
-                  // never where somebody is now, and without this every entry
-                  // that is not yet done looked the same as every other one.
-                  className={cx(
-                    'flex items-center gap-2 rounded-2 px-2 py-1',
-                    entry.current ? 'bg-sunken edge border-border-strong' : '',
-                  )}
-                >
-                  {/* Every step is a link, including the ones already done:
-                      reopening a completed step is a navigation rather than a
-                      mode, so it survives a reload and can be sent to a
-                      colleague. */}
-                  <Link
-                    href={entry.href}
-                    data-testid="wizard-step"
-                    data-step={entry.step}
-                    data-done={entry.done}
-                    data-current={entry.current}
+              {setup.steps.map((step) => {
+                const done = step.state === 'done';
+                const current = step.name === setup.next;
+                return (
+                  <li
+                    key={step.name}
+                    data-testid="checklist-step"
+                    data-name={step.name}
+                    data-done={done}
+                    data-current={current}
+                    // The current step is the one carrier of "you are here"
+                    // this panel has: a done/pending status dot says what has
+                    // happened, never where somebody is now, and without this
+                    // every entry that is not yet done looked the same as
+                    // every other one.
+                    className={cx(
+                      'flex items-center gap-2 rounded-2 px-2 py-1',
+                      current ? 'bg-sunken edge border-border-strong' : '',
+                    )}
                   >
-                    <StatusDot status={entry.done ? 'healthy' : 'unknown'} />
-                    {stepTitle(entry.step)}
-                  </Link>
-                  {/* The map spec.md asks for: which screen a step that hands
-                      over actually leads to, named beside the step rather
-                      than discovered by finishing it. Absent for the five
-                      steps that stay on this one wizard. */}
-                  {handoverScreen(locale, entry.step) === '' ? null : (
-                    <span
-                      className="text-meta text-muted"
-                      data-testid="wizard-step-screen"
-                      data-step={entry.step}
-                    >
-                      {message(locale, 'firstRun.step.onScreen', {
-                        screen: handoverScreen(locale, entry.step),
-                      })}
+                    <StatusDot status={done ? 'healthy' : 'unknown'} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {step.title === '' ? step.name : step.title}
                     </span>
-                  )}
-                  {entry.current ? (
-                    <span
-                      data-testid="wizard-step-here"
-                      className="ml-auto text-micro text-accent"
-                    >
-                      {message(locale, 'firstRun.step.here')}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
+                    {/* The map spec.md asks for: which screen a step that
+                        hands over actually leads to, named beside the step
+                        rather than discovered by finishing it. Absent for
+                        the three steps that stay inside this one wizard. */}
+                    {handoverScreen(locale, step.name) === '' ? null : (
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="wizard-step-screen"
+                        data-step={step.name}
+                      >
+                        {message(locale, 'firstRun.step.onScreen', {
+                          screen: handoverScreen(locale, step.name),
+                        })}
+                      </span>
+                    )}
+                    {current ? (
+                      <span
+                        data-testid="wizard-step-here"
+                        className="ml-auto text-micro text-accent"
+                      >
+                        {message(locale, 'firstRun.step.here')}
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ol>
           </Panel>
 
@@ -785,7 +805,12 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                       ).action
                     }
                   </p>
-                  <Link href={handoverHref(here)} data-testid="handover-link">
+                  <Link
+                    href={handoverHref(
+                      here === 'estate' ? SOURCE_STEP : INVESTIGATION_STEP,
+                    )}
+                    data-testid="handover-link"
+                  >
                     {message(locale, `firstRun.handover.${here}`)}
                   </Link>
                 </div>

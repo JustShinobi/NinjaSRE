@@ -45,16 +45,18 @@ import { hrefFor, readViewState, withFilter, type FilterName } from '../url-stat
  * different one. Building every link from this module's own path removes the
  * hazard rather than papering over one call site of it.
  *
- * **The empty state answers what was fetched, not what survived a client-side
- * filter.** The system principal's own polling is excluded from the reading a
- * viewer lands on by default (see below), and that exclusion happens after
- * the fetch. A window whose only activity was that polling therefore fetched
- * something and displays nothing — which is a true, ordinary state this
- * screen already has a sentence for elsewhere (the audience toggle says
- * exactly how many events are hidden and why), and is not the same state as a
- * window that recorded nothing at all. Conflating the two is what let a page
- * say "Nothing has been recorded" beside a link offering to show the very
- * events that contradicted it.
+ * **Every count on this page describes the population it actually draws, not
+ * the population it fetched.** The system principal's own polling is excluded
+ * from the reading a viewer lands on by default (see below), and that
+ * exclusion happens after the fetch — so a window whose only activity was
+ * that polling has fetched something and drawn nothing. The panel's own empty
+ * state is decided by what survived the exclusion, exactly like the
+ * truncation notice above it: both used to be computed from the raw fetch,
+ * which is how a screen ended up stating "Showing 200 of 156,735" over a
+ * table with zero rows in it. The audience toggle is what makes the resulting
+ * empty state honest rather than mute — it says how many events are hidden
+ * and offers to show them — and it renders outside the panel, so it is never
+ * itself hidden by the panel's own empty state.
  */
 
 const PATH = '/settings/audit-log';
@@ -273,10 +275,23 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
     };
   });
   const currentSince = state.filters.since;
+  // Matched by how many whole days back `currentSince` lands from the
+  // request's own clock, not by exact millisecond equality against a
+  // preset's own `since` — a preset's link is built from an instant that
+  // keeps moving with the wall clock, so a URL clicked even a second after
+  // the page that offered it was rendered carries a `since` no later render
+  // can ever equal exactly. Rounding is what makes yesterday's link for "the
+  // last 7 days" still read as the last 7 days today.
+  const impliedDays =
+    currentSince === undefined
+      ? undefined
+      : Math.round((now.getTime() - Date.parse(currentSince)) / DAY_MS);
   const selectedPeriod =
     currentSince === undefined
       ? 'any'
-      : (periods.find((preset) => preset.since === currentSince)?.id ?? '');
+      : impliedDays !== undefined && PERIOD_PRESET_DAYS.includes(impliedDays)
+        ? `days-${String(impliedDays)}`
+        : '';
 
   return (
     <>
@@ -341,12 +356,12 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
 
       <Panel
         title={message(locale, 'audit.title')}
-        // What was fetched decides whether anything happened, never what
-        // survived the audience exclusion above: a window full of nothing but
-        // the deployment's own polling still fetched something, and "Nothing
-        // has been recorded" must not appear beside a toggle offering to
-        // show the very events it just claimed did not exist.
-        state={stateOf(events, records.length === 0)}
+        // Decided by what the page actually draws — the rows below, after
+        // the audience exclusion — never by what was merely fetched. A
+        // window whose whole fetch is the deployment's own polling now draws
+        // nothing and says so, honestly, with the toggle above already
+        // saying why and offering the way out.
+        state={stateOf(events, rows.length === 0)}
         dependency={dependencyOf(events)}
         labels={panelLabels(locale, message(locale, 'audit.title'))}
         empty={{
@@ -356,10 +371,15 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
           href: `${PATH}${hrefFor('', withFilter(state, 'since', ''), AUDIT_LOG_FILTERS)}`,
         }}
       >
-        {events.status === 'ready' && total > records.length ? (
+        {events.status === 'ready' && total > visible.length ? (
           <p className="text-meta text-muted mb-3" data-testid="audit-truncated">
             {message(locale, 'surface.showing', {
-              shown: formatNumber(locale, records.length),
+              // The population this page actually draws — every event
+              // visible.length accounts for is represented in the rows
+              // below, individually or folded into a burst's own count —
+              // never `records.length`, which can count events the audience
+              // exclusion above already took back out.
+              shown: formatNumber(locale, visible.length),
               total: formatNumber(locale, total),
             })}
           </p>

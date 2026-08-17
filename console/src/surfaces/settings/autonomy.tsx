@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/status';
 import { formatNumber } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
-import { message } from '@/i18n/messages';
+import { message, type Locale } from '@/i18n/messages';
 import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
@@ -17,6 +17,7 @@ import {
   type EditableRule,
 } from '../autonomy-editor';
 import { editableFields } from '../editable';
+import { effectiveRows, formatHours, formatSeconds } from '../effective-fields';
 import { readSetupState } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { panelLabels } from '../labels';
@@ -24,7 +25,6 @@ import { OverrideEditor, type ActiveOverride } from '../override-editor';
 import { Panel } from '../panel';
 import { ConfigEditor } from '../preview';
 import { postureLabels } from '../postures';
-import { provenanceLabel } from '@/design/provenance-label';
 import {
   authorised,
   dataOf,
@@ -33,14 +33,12 @@ import {
   flag,
   list,
   number,
-  pairs,
   panelRead,
   read,
   stateOf,
   text,
 } from '../read';
 import { EffectiveFieldsTable } from '@/design/resolution-preview';
-import { valueAt } from './values';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode, type FilterName } from '../url-state';
 
@@ -145,6 +143,9 @@ const GUARDRAIL_PREFIXES = [
 const GUARDRAIL_FIELD_LIST: readonly {
   readonly path: string;
   readonly label: MessageKey;
+  /** Overrides the type-driven formatting for a field the schema's own type
+   * ('integer') does not say is a duration. */
+  readonly format?: ((value: unknown, locale: Locale) => string) | undefined;
 }[] = [
   {
     path: 'policies.masking.enabled',
@@ -166,6 +167,7 @@ const GUARDRAIL_FIELD_LIST: readonly {
   {
     path: 'policies.approvals.expiry_hours',
     label: 'settings.autonomy.guardrails.expiryHours',
+    format: formatHours,
   },
 ];
 
@@ -179,6 +181,7 @@ const AUTONOMY_ADVANCED_PREFIX = 'policies.autonomy.';
 const AUTONOMY_ADVANCED_FIELD_LIST: readonly {
   readonly path: string;
   readonly label: MessageKey;
+  readonly format?: ((value: unknown, locale: Locale) => string) | undefined;
 }[] = [
   {
     path: 'policies.autonomy.allow_unverifiable_actions',
@@ -195,6 +198,7 @@ const AUTONOMY_ADVANCED_FIELD_LIST: readonly {
   {
     path: 'policies.autonomy.recurrence_window_seconds',
     label: 'settings.autonomy.advanced.field.recurrenceWindowSeconds',
+    format: formatSeconds,
   },
 ];
 
@@ -208,14 +212,6 @@ const SCOPE_LABEL: Readonly<Record<string, MessageKey>> = {
   resource: 'autonomy.scope.resource',
   capability_resource: 'autonomy.scope.capability_resource',
 };
-
-function displayValue(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  return JSON.stringify(value);
-}
 
 export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search, now, zone } = context;
@@ -249,14 +245,12 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
           }),
         );
 
-  const effective =
-    nodeId === ''
-      ? nothing
-      : await panelRead<unknown>('/v1/config/{node_id}', () =>
-          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
-        );
+  // Read regardless of `writable`: the guardrail summary table below shows
+  // the effective value and its origin to any viewer of this page, and every
+  // viewer who can reach it already holds `config.write` (the page's own
+  // gate), so this only changes behaviour for a future viewer who does not.
   const guardrailFields =
-    !writable || nodeId === ''
+    nodeId === ''
       ? nothing
       : await panelRead<unknown>('/v1/config/{node_id}/fields', () =>
           read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
@@ -330,15 +324,17 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const boundsEditorHref = canCreateHere ? '#new-freeze' : '/settings';
   const overrideEditorHref = canCreateHere ? '#override-grant' : '/settings';
 
-  const values = field(dataOf(effective), 'values');
-  const provenance = new Map(pairs(dataOf(effective), 'provenance'));
-  const guardrailRows = GUARDRAIL_FIELD_LIST.map(({ path, label }) => ({
-    path,
-    label: message(locale, label),
-    value: displayValue(valueAt(values, path)),
-    origin: provenanceLabel(locale, path, provenance),
-  }));
-  const guardrailEditable = editableFields(dataOf(guardrailFields)).filter((entry) =>
+  const guardrailCatalogue = editableFields(dataOf(guardrailFields));
+  const guardrailRows = effectiveRows(
+    GUARDRAIL_FIELD_LIST.map(({ path, label, format }) => ({
+      path,
+      label: message(locale, label),
+      format,
+    })),
+    guardrailCatalogue,
+    locale,
+  );
+  const guardrailEditable = guardrailCatalogue.filter((entry) =>
     GUARDRAIL_PREFIXES.some((prefix) => entry.path.startsWith(prefix)),
   );
 
@@ -624,12 +620,11 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               nodeId={nodeId}
               locale={locale}
               writable={writable}
-              fields={AUTONOMY_ADVANCED_FIELD_LIST.map(({ path, label }) => ({
+              fields={AUTONOMY_ADVANCED_FIELD_LIST.map(({ path, label, format }) => ({
                 path,
                 label: message(locale, label),
+                format,
               }))}
-              values={values}
-              provenance={provenance}
               rawFields={dataOf(guardrailFields)}
             />
           </div>

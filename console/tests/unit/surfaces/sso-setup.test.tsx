@@ -47,6 +47,7 @@ const LABELS: SsoSetupLabels = {
   active: 'Active. People sign in through this provider.',
   verified: 'Tested. It has not been made the way in yet.',
   notVerified: 'Not tested. It cannot be made the way in until it is.',
+  notConfigured: 'Not configured yet',
   testFirst: 'Test this configuration before making it the way in.',
   pendingEdit: 'Save this change, then test it again.',
   failed: 'The deployment refused this.',
@@ -162,7 +163,7 @@ describe('the three steps', () => {
 });
 
 describe('an unconfigured deployment', () => {
-  it('shows the not-tested state and no way to activate', () => {
+  it('shows a neutral summary rather than the not-tested state, and no way to activate', () => {
     render(
       <SsoSetupFlow
         settings={SETTINGS}
@@ -173,7 +174,9 @@ describe('an unconfigured deployment', () => {
       />,
     );
 
-    expect(screen.getByTestId('sso-state')).toHaveTextContent(LABELS.notVerified);
+    // Genuinely nothing recorded and nothing touched: "Not configured yet",
+    // not "Not tested" — the two are different facts about the deployment.
+    expect(screen.getByTestId('sso-state')).toHaveTextContent(LABELS.notConfigured);
     expect(screen.queryByTestId('activate-sso')).toBeNull();
     expect(screen.getByTestId('sso-test-first')).toHaveTextContent(LABELS.testFirst);
   });
@@ -484,22 +487,6 @@ describe('activation is blocked until a test on these exact settings has passed'
 });
 
 describe('a deployment already carrying problems', () => {
-  it('lists every one of them at once', () => {
-    render(
-      <SsoSetupFlow
-        settings={SETTINGS}
-        isActive={false}
-        verified={false}
-        problems={['issuer is required', 'default_node_id is required']}
-        labels={LABELS}
-      />,
-    );
-
-    const list = screen.getByTestId('sso-problems');
-    expect(list).toHaveTextContent('issuer is required');
-    expect(list).toHaveTextContent('default_node_id is required');
-  });
-
   it('shows nothing when there is nothing wrong', () => {
     render(
       <SsoSetupFlow
@@ -512,6 +499,129 @@ describe('a deployment already carrying problems', () => {
     );
 
     expect(screen.queryByTestId('sso-problems')).toBeNull();
+  });
+
+  it('shows none of them on a virgin form — no field is marked, no list appears', () => {
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={['issuer is required', 'default_node_id is required']}
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.queryByTestId('sso-problems')).toBeNull();
+    expect(screen.queryByText(/is required/)).toBeNull();
+  });
+
+  it('reveals only the problem of the field a person actually left, humanised', async () => {
+    const user = userEvent.setup();
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={['issuer is required', 'default_node_id is required']}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(LABELS.field.issuer));
+    await user.tab();
+
+    expect(screen.getByText('Issuer is required')).toBeInTheDocument();
+    // The label's own words, never the payload key.
+    expect(screen.queryByText('issuer is required')).toBeNull();
+    // The field nobody left yet stays quiet.
+    expect(screen.queryByText(/default_node_id/)).toBeNull();
+    expect(screen.queryByText(/Default team is required/)).toBeNull();
+  });
+
+  it('leaving a second field reveals that field’s own problem too, without hiding the first', async () => {
+    const user = userEvent.setup();
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={['issuer is required', 'default_node_id is required']}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(LABELS.field.issuer));
+    await user.tab();
+    await user.click(screen.getByLabelText(LABELS.field.default_node_id));
+    await user.tab();
+
+    expect(screen.getByText('Issuer is required')).toBeInTheDocument();
+    expect(screen.getByText('Default team is required')).toBeInTheDocument();
+  });
+
+  it('leaving the same field a second time keeps it exactly as touched, not touched twice', async () => {
+    const user = userEvent.setup();
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={['issuer is required']}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByLabelText(LABELS.field.issuer));
+    await user.tab();
+    await user.click(screen.getByLabelText(LABELS.field.issuer));
+    await user.tab();
+
+    // Still shown exactly once — leaving an already-touched field a second
+    // time neither drops it nor duplicates its problem.
+    expect(screen.getAllByText('Issuer is required')).toHaveLength(1);
+  });
+
+  it('submitting reveals every pending problem at once, humanised', async () => {
+    const user = userEvent.setup();
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={['issuer is required', 'default_node_id is required']}
+        labels={LABELS}
+      />,
+    );
+
+    // An edit is what makes the save control clickable at all.
+    await user.type(screen.getByLabelText(LABELS.field.provider), 'keycloak');
+    await user.click(screen.getByTestId('save-sso'));
+
+    expect(screen.getByText('Issuer is required')).toBeInTheDocument();
+    expect(screen.getByText('Default team is required')).toBeInTheDocument();
+  });
+
+  it('a problem naming no field this form declares only appears once the form is submitted', async () => {
+    const user = userEvent.setup();
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={['the issuer and the token endpoint must share a host']}
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.queryByTestId('sso-problems')).toBeNull();
+
+    await user.type(screen.getByLabelText(LABELS.field.provider), 'keycloak');
+    await user.click(screen.getByTestId('save-sso'));
+
+    expect(screen.getByTestId('sso-problems')).toHaveTextContent(
+      'the issuer and the token endpoint must share a host',
+    );
   });
 });
 
@@ -579,5 +689,60 @@ describe('testing rejects a claim set that is not valid JSON', () => {
 
     expect(await screen.findByTestId('sso-failure')).toHaveTextContent(LABELS.failed);
     expect(sent).toHaveLength(0);
+  });
+
+  it('leaves the previous test result alone when the deployment cannot be reached', async () => {
+    answerWith({
+      ok: true,
+      answer: { succeeded: true, mapped_node_id: 'team-platform' },
+    });
+    const user = userEvent.setup();
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={[]}
+        labels={LABELS}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText(LABELS.claims), { target: { value: '{}' } });
+    await user.click(screen.getByTestId('test-sso'));
+    await screen.findByTestId('sso-result-team');
+
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('fetch failed')));
+    await user.click(screen.getByTestId('test-sso'));
+
+    expect(await screen.findByTestId('sso-failure')).toHaveTextContent(
+      LABELS.unreachable,
+    );
+    // The result from the successful test a moment ago is still what shows —
+    // an unreachable retry does not blank out an answer already on screen.
+    expect(screen.getByTestId('sso-result-team')).toBeInTheDocument();
+  });
+});
+
+describe('the shared machinery underneath save and activate', () => {
+  it('adopts an answer that omits its problems list as carrying none, not as a crash', async () => {
+    answerWith({ ok: true, answer: { is_active: true, verified: true } });
+    const user = userEvent.setup();
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={true}
+        problems={['issuer is required']}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByTestId('activate-sso'));
+
+    expect(await screen.findByTestId('sso-state')).toHaveTextContent(LABELS.active);
+    // The activation answered with no problems field at all — adopted as
+    // empty, so the stale pre-activation problem does not linger.
+    await user.click(screen.getByLabelText(LABELS.field.issuer));
+    await user.tab();
+    expect(screen.queryByText(/is required/)).toBeNull();
   });
 });

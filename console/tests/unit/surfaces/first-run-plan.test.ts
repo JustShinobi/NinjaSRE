@@ -7,6 +7,7 @@ import {
   outstanding,
   planFor,
   readSetup,
+  setupProgress,
   stepAt,
   stepBlocking,
   type DeploymentSetup,
@@ -31,6 +32,7 @@ function setup(over: Partial<DeploymentSetup> = {}): DeploymentSetup {
     steps: [],
     modelChosen: false,
     providerName: '',
+    next: '',
     ...over,
   };
 }
@@ -209,26 +211,72 @@ describe('the list of steps the screen draws', () => {
 
     expect(provider?.href).toBe('/first-run?step=provider');
   });
+});
 
-  it('counts what the deployment itself reports as not done, never a client tally', () => {
-    // Deliberately not built from WIZARD_STEPS or from stepDone: a client-only
-    // count of the seven UI screens is exactly the recomputation this function
-    // must not do. `provider` and `modelChosen` below are irrelevant to it —
-    // only `steps[].state` is.
-    expect(outstanding(setup())).toBe(0);
-    expect(
-      outstanding(
-        setup({
-          provider: 'configured',
-          modelChosen: true,
-          steps: [
-            { name: 'durable-credential', state: 'done' },
-            { name: 'model-provider', state: 'ready' },
-            { name: 'infrastructure-source', state: 'blocked' },
-          ],
-        }),
-      ),
-    ).toBe(2);
+describe('setup progress: one source for the steps panel and the dashboard card', () => {
+  it('derives total and pending from setup.steps, the document the checklist route actually serves', () => {
+    // Five entries, two `'done'`, three not — a real, differently-sized list
+    // than the seven wizard screens, and the one `outstanding`/`setupProgress`
+    // read: the checklist route is what `ninjasre onboard` also reads, and a
+    // pending count built from the wizard's own seven-screen sequence instead
+    // would be a number the CLI has no way to reproduce.
+    const progress = setupProgress(
+      setup({
+        provider: 'configured',
+        modelChosen: false,
+        integrations: [{ name: 'metrics-store', readiness: 'verified' }],
+        steps: [
+          { name: 'durable-credential', state: 'done' },
+          { name: 'model-provider', state: 'ready' },
+          { name: 'infrastructure-source', state: 'done' },
+          { name: 'investigation-runtime', state: 'ready' },
+          { name: 'first-investigation', state: 'ready' },
+        ],
+      }),
+    );
+
+    expect(progress.total).toBe(5);
+    expect(progress.pending).toBe(3);
+  });
+
+  it('the pending count is never the seven wizard screens filtered by stepDone', () => {
+    // Every one of the seven wizard steps is undone by this setup (no
+    // provider, nothing chosen, nothing configured) — a WIZARD_STEPS-based
+    // count would answer seven. `setup.steps` here has one entry, done, so
+    // the deployment's own checklist reports zero left, and that is the
+    // number this derivation has to answer.
+    const progress = setupProgress(
+      setup({ steps: [{ name: 'infrastructure-source', state: 'done' }] }),
+    );
+
+    expect(progress.total).toBe(1);
+    expect(progress.pending).toBe(0);
+  });
+
+  it('is zero pending once the deployment says setup is complete, whatever its own step rows say', () => {
+    const progress = setupProgress(
+      setup({
+        complete: true,
+        steps: [{ name: 'infrastructure-source', state: 'ready' }],
+      }),
+    );
+
+    expect(progress.pending).toBe(0);
+  });
+
+  it('outstanding() answers the same pending count setupProgress derives — one source, one number', () => {
+    const built = setup({
+      provider: 'configured',
+      modelChosen: true,
+      integrations: [{ name: 'metrics-store', readiness: 'configured' }],
+      steps: [
+        { name: 'infrastructure-source', state: 'done' },
+        { name: 'first-investigation', state: 'ready' },
+      ],
+    });
+
+    expect(outstanding(built)).toBe(setupProgress(built).pending);
+    expect(outstanding(built)).toBe(1);
   });
 });
 

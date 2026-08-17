@@ -3,6 +3,7 @@ import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  EffectiveFieldsTable,
   patchOf,
   ResolutionPreview,
   useConfigWrite,
@@ -286,5 +287,72 @@ describe('useConfigWrite', () => {
       'must be a known configuration field',
     );
     expect(screen.getByTestId('write-requires-approval')).toHaveTextContent('true');
+  });
+});
+
+describe('EffectiveFieldsTable', () => {
+  const LABELS = { setting: 'Setting', value: 'Value', origin: 'Set at' };
+
+  it('draws a legible value and its origin for every row it is given', () => {
+    render(
+      <EffectiveFieldsTable
+        rows={[
+          {
+            path: 'policies.masking.enabled',
+            label: 'Masking',
+            value: 'On',
+            origin: 'Deployment default',
+          },
+          {
+            path: 'policies.approvals.expiry_hours',
+            label: 'Approval expiry',
+            value: '2 hours',
+            origin: 'org-northwind',
+          },
+        ]}
+        labels={LABELS}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('effective-field');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent('On');
+    expect(rows[1]).toHaveTextContent('2 hours');
+  });
+
+  it('refuses to render a row with no renderable value, rather than drawing a blank cell', () => {
+    expect(() =>
+      render(
+        <EffectiveFieldsTable
+          rows={[
+            {
+              path: 'policies.masking.enabled',
+              label: 'Masking',
+              value: '',
+              origin: 'Deployment default',
+            },
+          ]}
+          labels={LABELS}
+        />,
+      ),
+    ).toThrow(/policies\.masking\.enabled/);
+  });
+
+  it('refuses to render a row with no renderable origin, rather than drawing a blank cell', () => {
+    expect(() =>
+      render(
+        <EffectiveFieldsTable
+          rows={[
+            {
+              path: 'policies.masking.enabled',
+              label: 'Masking',
+              value: 'On',
+              origin: '',
+            },
+          ]}
+          labels={LABELS}
+        />,
+      ),
+    ).toThrow(/policies\.masking\.enabled/);
   });
 });

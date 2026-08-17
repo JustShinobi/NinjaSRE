@@ -69,6 +69,15 @@ export interface DeploymentSetup {
    * provider, and the verification step asks for one thing to be checked twice.
    */
   readonly providerName: string;
+  /**
+   * The name of the checklist step the deployment itself points at next, or
+   * `''` once none is left. The route's own `next` field — read here for the
+   * first time and the reason it is read at all: it is what tells the
+   * checklist panel and the dashboard card which of `steps` to highlight,
+   * without either inventing that answer from `WIZARD_STEPS`, a list
+   * `setup.steps` has no entry-for-entry correspondence with.
+   */
+  readonly next: string;
 }
 
 /** The checklist step that says an estate exists. */
@@ -187,17 +196,42 @@ export function stepDone(step: WizardStep, setup: DeploymentSetup): boolean {
  * How many of the deployment's own checklist steps still need something.
  *
  * Read from `setup.steps` — the array `GET /v1/setup/checklist` actually
- * serves — rather than filtered from `WIZARD_STEPS`, the console's own
- * seven-screen sequencing, against `stepDone`'s client-only rules. The seven
- * screens are a UI concept the checklist route has never heard of, so a count
- * built from them was a count only this console could reproduce; a CLI
- * reading the same document had no way to arrive at the same number. This one
- * counts what the document itself reports as not done, which is the property
- * that makes "the same count everywhere it is cited" true by construction
- * rather than by every surface happening to call the same function.
+ * carries, the same one `ninjasre onboard` reads — never from `WIZARD_STEPS`,
+ * which is a client-only sequencing concept the checklist route has no
+ * counterpart for and the CLI has no way to reproduce. This is the one
+ * number every surface that states "how much setup is left" reads: the
+ * checklist panel's own heading and progress line, and the dashboard card.
+ * The wizard header's "Step N of 7" is a different fact — which of the seven
+ * *screens* is showing — and keeps its own denominator below; what changed
+ * here is that nothing computes a second, competing "how much is left" from
+ * the wizard's own step list any more.
  */
 export function outstanding(setup: DeploymentSetup): number {
+  // The deployment's own verdict wins outright, the same rule `stepDone`
+  // follows for the same reason: a finished deployment whose historical
+  // step rows were never individually rewritten to `'done'` must still read
+  // as finished, not as one still owing work nobody can act on any more.
+  if (setup.complete) return 0;
   return setup.steps.filter((step) => step.state !== 'done').length;
+}
+
+/**
+ * Where a deployment is in its own checklist, as one fact: how many steps
+ * there are in total and how many of them still need something — both read
+ * from `setup.steps`, so the checklist panel and the dashboard card can never
+ * cite a different denominator than `outstanding` itself does.
+ */
+export interface SetupProgress {
+  readonly total: number;
+  readonly pending: number;
+}
+
+/** `setup`'s progress through its own checklist steps. */
+export function setupProgress(setup: DeploymentSetup): SetupProgress {
+  return {
+    total: setup.steps.length,
+    pending: outstanding(setup),
+  };
 }
 
 /**
@@ -293,6 +327,7 @@ export function readSetup(checklist: unknown, values: unknown): DeploymentSetup 
     })),
     modelChosen: typeof valueAt(values, MODEL_SETTING) === 'string',
     providerName: providerNameOf(values),
+    next: text(checklist, 'next'),
   };
 }
 

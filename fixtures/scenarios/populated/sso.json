@@ -3,31 +3,34 @@
     {
       "arguments": {},
       "body": {
-        "authorisation_endpoint": "https://sorrel.example.invalid/auth",
+        "authorisation_endpoint": "",
         "claims": {
-          "display_name": "name",
-          "email": "anchor.maple@example.invalid",
-          "groups": "groups",
-          "subject": "sub"
+          "display_name": "",
+          "email": "",
+          "groups": "",
+          "subject": ""
         },
-        "client_id": "ninjasre",
-        "default_node_id": "org-northwind",
-        "group_to_node": {
-          "sre": "team-platform"
-        },
+        "client_id": "",
+        "default_node_id": "",
+        "group_to_node": {},
         "is_active": false,
-        "issuer": "https://sorrel.example.invalid/realms/main",
-        "jwks_uri": "https://sorrel.example.invalid/certs",
-        "problems": [],
-        "provider": "keycloak",
-        "redirect_uri": "https://amber.example.invalid/auth/callback",
-        "scopes": [
-          "openid",
-          "email",
-          "profile"
+        "issuer": "",
+        "jwks_uri": "",
+        "problems": [
+          "provider is required",
+          "issuer is required",
+          "client_id is required",
+          "authorisation_endpoint is required",
+          "token_endpoint is required",
+          "jwks_uri is required",
+          "redirect_uri is required",
+          "default_node_id is required"
         ],
+        "provider": "",
+        "redirect_uri": "",
+        "scopes": [],
         "token_endpoint": "[removed]",
-        "verified": true
+        "verified": false
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",

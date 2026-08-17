@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
@@ -125,7 +126,7 @@ describe('the deployment’s own configuration reaches every field', () => {
     );
   });
 
-  it('lists every problem the deployment already carries', async () => {
+  it('shows none of its problems until the form is touched or submitted, then reveals them at the field, in the field’s own words', async () => {
     serve({
       ...CONFIGURED,
       verified: false,
@@ -134,25 +135,48 @@ describe('the deployment’s own configuration reaches every field', () => {
 
     await sso();
 
-    const problems = screen.getByTestId('sso-problems');
-    expect(problems).toHaveTextContent('issuer is required');
-    expect(problems).toHaveTextContent('default_node_id is required');
+    // A configuration this deployment already holds and already flagged is
+    // not a blank form — but the flag is still not shown as an accusation
+    // before anyone has had a chance to look at the field it is about.
+    expect(screen.queryByText('issuer is required')).toBeNull();
+    expect(screen.queryByText('default_node_id is required')).toBeNull();
     expect(screen.queryByTestId('activate-sso')).toBeNull();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Provider'), 'x');
+    await user.click(screen.getByTestId('save-sso'));
+
+    expect(screen.getByText('Issuer is required')).toBeInTheDocument();
+    expect(screen.getByText('Default team is required')).toBeInTheDocument();
   });
 });
 
 describe('an unconfigured deployment', () => {
-  it('renders every field blank and offers no way to activate', async () => {
+  it('renders every field blank, a neutral summary and no way to activate', async () => {
     serve({});
 
     await sso();
 
     expect(screen.getByLabelText('Provider')).toHaveValue('');
     expect(screen.getByLabelText('Issuer')).toHaveValue('');
+    // Genuinely nothing recorded reads as "not configured", not as "not
+    // tested" — the second implies an attempt this deployment never made.
+    expect(screen.getByTestId('sso-state')).toHaveTextContent('Not configured yet');
+    expect(screen.queryByTestId('activate-sso')).toBeNull();
+  });
+
+  it('reads as "not tested" instead, once the operator has started', async () => {
+    serve({});
+
+    await sso();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText('Issuer'));
+    await user.tab();
+
     expect(screen.getByTestId('sso-state')).toHaveTextContent(
       'Not tested. It cannot be made the way in until it is.',
     );
-    expect(screen.queryByTestId('activate-sso')).toBeNull();
   });
 });
 

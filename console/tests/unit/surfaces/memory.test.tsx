@@ -102,8 +102,9 @@ describe('a deployment where no investigation has ever ended', () => {
     expect(
       screen.getByText(/this deployment is still being set up/),
     ).toBeInTheDocument();
-    // Four of the platform's own five steps, read from the checklist fixture
-    // itself rather than from the console's seven-screen wizard sequencing.
+    // Four of the deployment's own five checklist steps — the same
+    // `setup.steps` the checklist panel and the dashboard's setup card both
+    // read the pending count from, so this is one derivation rather than two.
     expect(screen.getByText(/4 step\(s\) are outstanding/)).toBeInTheDocument();
 
     const link = screen.getByTestId('way-back');

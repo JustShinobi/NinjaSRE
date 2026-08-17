@@ -273,11 +273,35 @@ export interface EffectiveFieldsTableProps {
  * The effective value and origin of every field a page covers, for a viewer
  * who may only read configuration — origin display holds regardless of
  * `config.write`, shown here whether or not the editor beneath it is.
+ *
+ * **A row with nothing renderable in its Value or its origin is refused,
+ * not drawn blank.** A blank cell in a table like this one is indistinguishable
+ * from a rendering defect — the whole reason this component exists is that a
+ * reader cannot tell "nothing here" from "something failed to draw" by
+ * looking at an empty cell, so this makes the absence a defect in whoever
+ * built the row rather than a gap the screen ships with. A field that
+ * genuinely has no value still owes an explicit marker (an "unset" phrase),
+ * which is a non-empty string — the empty string itself is never legitimate.
  */
 export function EffectiveFieldsTable({
   rows,
   labels,
 }: EffectiveFieldsTableProps): ReactNode {
+  for (const row of rows) {
+    if (row.value.trim() === '') {
+      throw new Error(
+        `The configuration table's row "${row.path}" has no renderable value. ` +
+          'A blank Value cell is indistinguishable from a render defect — the row ' +
+          'must carry the effective value or an explicit "not set" marker.',
+      );
+    }
+    if (row.origin.trim() === '') {
+      throw new Error(
+        `The configuration table's row "${row.path}" has no renderable origin. ` +
+          'A blank Set at cell is indistinguishable from a render defect.',
+      );
+    }
+  }
   return (
     <table data-testid="effective-fields" className="w-full text-small">
       <caption className="sr-only">{labels.setting}</caption>
