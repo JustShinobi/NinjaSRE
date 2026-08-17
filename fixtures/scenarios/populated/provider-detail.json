@@ -195,9 +195,9 @@
         "provider_id": "google_gemini"
       },
       "body": {
-        "configured": false,
+        "configured": true,
         "default_model": "gemini-pro-latest",
-        "detail": "no credential is stored for this provider",
+        "detail": "a live request reached this endpoint",
         "display_name": "Google Gemini",
         "fields": [
           {
@@ -247,7 +247,7 @@
           "gemini-2.5-flash"
         ],
         "provider_id": "google_gemini",
-        "verified": false,
+        "verified": true,
         "where_to_get_it": "aistudio.google.com, under API keys."
       },
       "contract_version": "1.0.0",

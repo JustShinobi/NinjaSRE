@@ -92,6 +92,8 @@ export interface FieldProps {
   readonly description?: string;
   readonly error?: string;
   readonly disabled?: boolean;
+  /** A hook for a test to find this control by, never read by the control itself. */
+  readonly 'data-testid'?: string | undefined;
 }
 
 export interface InputProps extends FieldProps {
@@ -149,6 +151,7 @@ export function Input({
   defaultValue,
   onValueChange,
   onBlur,
+  'data-testid': testId,
 }: InputProps): ReactNode {
   const id = useId();
   return (
@@ -169,6 +172,7 @@ export function Input({
           onValueChange?.(event.target.value);
         }}
         onBlur={onBlur}
+        data-testid={testId}
         className={cx(CONTROL, error === undefined ? '' : INVALID)}
       />
     </Field>
@@ -196,6 +200,7 @@ export function Select({
   disabled = false,
   value,
   onValueChange,
+  'data-testid': testId,
 }: SelectProps): ReactNode {
   const id = useId();
   return (
@@ -211,6 +216,7 @@ export function Select({
           onChange={(event: ChangeEvent<HTMLSelectElement>) => {
             onValueChange?.(event.target.value);
           }}
+          data-testid={testId}
           className={cx(
             CONTROL,
             'appearance-none pr-6',

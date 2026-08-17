@@ -244,6 +244,66 @@ describe('the verification courier', () => {
     expect(answer.status).toBe(502);
     expect(Reflect.get(Object(await answer.json()), 'reachable')).toBe(false);
   });
+
+  it('asks the vendor’s own report for a usable integration, and carries its degradations', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: unknown, init?: RequestInit) => {
+        const address = String(url);
+        sent.push({ url: address, init: init ?? {} });
+        if (address.endsWith('/verify/report')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ report: { degradations: ['clock is 90s out'] } }),
+              { status: 200, headers: { 'content-type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify({ usable: true, state: 'usable' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }),
+    );
+
+    const answer = await post({ kind: 'integration', name: 'metrics-store' });
+    const body: unknown = await answer.json();
+
+    expect(sent[1]?.url).toBe(`${API}/v1/integrations/metrics-store/verify/report`);
+    expect(Reflect.get(Object(body), 'findings')).toEqual(['clock is 90s out']);
+  });
+
+  it('finds nothing to report for a provider, or for a vendor with no report to give', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: unknown, init?: RequestInit) => {
+        const address = String(url);
+        sent.push({ url: address, init: init ?? {} });
+        if (address.endsWith('/verify/report')) {
+          return Promise.resolve(new Response('', { status: 404 }));
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify({ usable: true, state: 'usable' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }),
+    );
+
+    // A provider has no report route at all — `findingsFor` is never asked.
+    const provider = await post({ kind: 'provider', name: 'anthropic' });
+    expect(Reflect.get(Object(await provider.json()), 'findings')).toEqual([]);
+    expect(sent).toHaveLength(1);
+
+    sent = [];
+    // An integration whose vendor answers the report route with a 404 — a
+    // working deployment with nothing further to say, not a failure.
+    const integration = await post({ kind: 'integration', name: 'metrics-store' });
+    expect(Reflect.get(Object(await integration.json()), 'findings')).toEqual([]);
+  });
 });
 
 describe('the configuration courier', () => {

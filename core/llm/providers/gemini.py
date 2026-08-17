@@ -147,6 +147,23 @@ def _read_parts(parts: Any) -> tuple[str, tuple[ToolCall, ...]]:
     return "".join(text_parts), tuple(calls)
 
 
+def _function_calling_mode(request: InvokeRequest, descriptor: ModelDescriptor) -> str | None:
+    """Return the `functionCallingConfig` mode this request needs, or ``None`` for the wire's own default.
+
+    ``"ANY"`` obliges the model to call one of the declared tools — the mode the
+    preflight probe turns on to find out whether tool calling actually works,
+    rather than merely whether the model is willing to. ``"AUTO"`` is set
+    explicitly only to also carry the existing serialised-parallel-calls
+    behaviour; an ordinary request that wants neither leaves the field off
+    entirely, which is the wire's own default and today's behaviour unchanged.
+    """
+    if request.force_tool_call:
+        return "ANY"
+    if not request.parallel_tool_calls or not descriptor.supports_parallel_tool_calls:
+        return "AUTO"
+    return None
+
+
 class GeminiAdapter(BaseAdapter):
     """Translates the neutral vocabulary to and from `generateContent`."""
 
@@ -189,8 +206,9 @@ class GeminiAdapter(BaseAdapter):
                     ]
                 }
             ]
-            if not request.parallel_tool_calls or not descriptor.supports_parallel_tool_calls:
-                config["toolConfig"] = {"functionCallingConfig": {"mode": "AUTO"}}
+            mode = _function_calling_mode(request, descriptor)
+            if mode is not None:
+                config["toolConfig"] = {"functionCallingConfig": {"mode": mode}}
 
         if request.stop_sequences:
             config["stopSequences"] = list(request.stop_sequences)

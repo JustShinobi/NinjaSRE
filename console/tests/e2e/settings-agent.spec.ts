@@ -53,10 +53,12 @@ test.describe('Models & providers', () => {
     await page.goto('/settings/models-providers');
 
     const advanced = page.getByTestId('advanced-roles');
-    await expect(advanced).toContainText('Subagent');
-    await expect(page.getByTestId('model-role-subagent-provider')).toHaveCount(0);
+    await expect(advanced.getByTestId('advanced-roles-summary')).toContainText('7');
+    await expect(page.getByTestId('model-role-subagent')).toHaveCount(0);
 
-    await advanced.getByText('Subagent', { exact: true }).click();
+    // One shared disclosure for all seven, not a per-role accordion: nobody
+    // who has never touched one pays for seven separate controls.
+    await advanced.getByTestId('advanced-roles-toggle').click();
     await expect(page.getByTestId('model-role-subagent')).toBeVisible();
   });
 

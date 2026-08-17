@@ -121,6 +121,7 @@ export const CREDENTIAL_STATUSES = [
   'not_connected',
   'stored',
   'verified',
+  'degraded',
   'failing',
   'unknown',
 ] as const;
@@ -147,7 +148,7 @@ const CREDENTIAL_STATUS_ALIASES: Readonly<Record<string, CredentialStatus>> = {
   stored: 'stored',
   healthy: 'verified',
   verified: 'verified',
-  degraded: 'failing',
+  degraded: 'degraded',
   failing: 'failing',
 };
 

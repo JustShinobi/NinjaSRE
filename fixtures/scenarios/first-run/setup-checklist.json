@@ -8,10 +8,18 @@
           {
             "name": "metrics-store",
             "readiness": "absent"
+          },
+          {
+            "name": "prometheus",
+            "readiness": "verified"
+          },
+          {
+            "name": "proxmox",
+            "readiness": "verified"
           }
         ],
         "next": "model-provider",
-        "provider": "absent",
+        "provider": "configured",
         "steps": [
           {
             "action": "issue further credentials from administration",
@@ -23,9 +31,9 @@
           },
           {
             "action": "choose a provider and store its credential",
-            "detail": "no provider holds a credential here",
+            "detail": "a credential is stored and nothing has checked it",
             "name": "model-provider",
-            "readiness": "absent",
+            "readiness": "configured",
             "state": "ready",
             "title": "Give it something to think with"
           },

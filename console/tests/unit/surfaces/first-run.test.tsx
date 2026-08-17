@@ -167,10 +167,14 @@ describe('the wizard screen', () => {
     ).toHaveLength(1);
   });
 
-  it('starts a fresh deployment at the provider, derived rather than remembered', async () => {
+  it('derives the current step from the checklist rather than remembering one', async () => {
+    // `first-run` is feature 010's own scenario: a provider already
+    // configured (google_gemini), its model not yet chosen — so the derived
+    // step is `model`, not `provider`. Nothing here is hard-coded to either;
+    // it is read straight off the checklist this scenario serves.
     await firstRun();
 
-    expect(screen.getByTestId('wizard-body')).toHaveAttribute('data-step', 'provider');
+    expect(screen.getByTestId('wizard-body')).toHaveAttribute('data-step', 'model');
   });
 
   it('reopens a completed step from its own address', async () => {
@@ -217,10 +221,8 @@ describe('the wizard screen', () => {
     // screens) and must not read as the same one disagreeing with itself.
     await firstRun();
 
-    expect(screen.getByTestId('wizard-position')).toHaveTextContent('1 of 7');
-    expect(screen.getByTestId('wizard-position')).toHaveTextContent(
-      'Choose a model provider',
-    );
+    expect(screen.getByTestId('wizard-position')).toHaveTextContent('3 of 7');
+    expect(screen.getByTestId('wizard-position')).toHaveTextContent('Choose a model');
   });
 
   it('moves the position to the step an address names, not only to the first unfinished one', async () => {
@@ -316,7 +318,7 @@ describe('a gateway that cannot answer the checklist mid-wizard', () => {
 
 describe('choosing a provider', () => {
   it('offers all nine, each with its siting and its guidance', async () => {
-    await firstRun();
+    await firstRun({ step: 'provider' });
 
     const options = screen.getAllByTestId('provider-option');
     expect(options).toHaveLength(9);
@@ -328,7 +330,7 @@ describe('choosing a provider', () => {
   });
 
   it('draws the local one exactly as it draws the other eight', async () => {
-    await firstRun();
+    await firstRun({ step: 'provider' });
 
     const options = screen.getAllByTestId('provider-option');
     const local = options.filter((one) => one.getAttribute('data-local') === 'true');
@@ -341,7 +343,7 @@ describe('choosing a provider', () => {
   });
 
   it('sends a chosen provider to its credential form and nowhere else', async () => {
-    await firstRun();
+    await firstRun({ step: 'provider' });
 
     const chosen = screen
       .getAllByTestId('provider-option')
@@ -369,7 +371,11 @@ describe('storing the provider credential', () => {
   });
 
   it('sends somebody back to the choice when no provider has been named', async () => {
-    await firstRun({ step: 'credential' });
+    // `first-run` has google_gemini already configured, which is exactly what
+    // makes this address resolve to it instead of to the empty choice — the
+    // scenario genuinely empty of any provider is `empty`.
+    serveScenario('empty');
+    render(await FirstRunScreen(await surfaceContext({ step: 'credential' })));
 
     expect(screen.getByTestId('no-provider-chosen')).toBeInTheDocument();
   });
@@ -880,6 +886,13 @@ describe('verifying what is configured', () => {
     fixIntegration: 'Review the credential',
     fullDiagnosis: 'Full diagnosis',
     fullDiagnosisSummary: 'The rest of what the deployment reported.',
+    latency: 'answered in {ms} ms',
+    footerNoneDegraded: 'none degraded',
+    footerDegraded: '{count} check(s) degraded',
+    footerNoneFailing: 'none failing',
+    footerFailing: '{name} is failing',
+    continueLabel: 'Continue',
+    blockedBy: 'Held back by:',
   };
 
   const THINGS = [
@@ -1117,6 +1130,105 @@ describe('verifying what is configured', () => {
 
     expect(screen.getByTestId('nothing-to-verify')).toBeInTheDocument();
   });
+
+  it('shows the round-trip latency beside an integration row, never a provider row', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({ verified: true, reason: 'it answered', checks: [] }),
+    );
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    const rows = screen.getAllByTestId('verify-row');
+    await userEvent.click(within(one(rows[0])).getByTestId('verify-one'));
+    await userEvent.click(within(one(rows[1])).getByTestId('verify-one'));
+
+    // THINGS[0] is the provider — several checks at once, one number would
+    // claim more precision than the row has. THINGS[1] is the integration —
+    // a single measurement, and the row says so.
+    expect(
+      within(one(screen.getAllByTestId('verify-row')[0])).queryByTestId(
+        'verify-latency',
+      ),
+    ).toBeNull();
+    expect(
+      within(one(screen.getAllByTestId('verify-row')[1])).getByTestId('verify-latency'),
+    ).toHaveTextContent('answered in');
+  });
+
+  it('mirrors a degraded check onto the row as "Degraded", never as "Failing"', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({
+        verified: true,
+        reason: 'the credential works',
+        checks: [
+          {
+            name: 'tool_calling',
+            status: 'degraded',
+            detail: 'no tool support declared',
+            duration_ms: 12,
+          },
+        ],
+      }),
+    );
+    render(<VerifyStep locale="en" things={THINGS} labels={LABELS} />);
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+
+    const row = screen.getAllByTestId('verify-row')[0];
+    expect(one(row)).toHaveAttribute('data-verdict', 'degraded');
+    expect(within(one(row)).getByTestId('status-chip')).toHaveTextContent('Degraded');
+  });
+
+  it('counts degraded checks in the footer, agreeing in number with the rows shown', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({
+        verified: true,
+        reason: 'it answered',
+        checks: [
+          { name: 'tool_calling', status: 'degraded', detail: '', duration_ms: 5 },
+        ],
+      }),
+    );
+    render(
+      <VerifyStep
+        locale="en"
+        things={THINGS}
+        labels={LABELS}
+        continueHref="/first-run?step=estate"
+      />,
+    );
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[0]));
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[1]));
+
+    expect(screen.getByTestId('verify-footer')).toHaveTextContent(
+      '2 check(s) degraded',
+    );
+    // Degraded holds nothing back — only a real failure does.
+    expect(screen.getByTestId('verify-continue')).toBeEnabled();
+  });
+
+  it('holds Continue back for a real failure and names the row responsible', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({ verified: false, reason: 'it refused the key' }),
+    );
+    render(
+      <VerifyStep
+        locale="en"
+        things={THINGS}
+        labels={LABELS}
+        continueHref="/first-run?step=estate"
+      />,
+    );
+
+    await userEvent.click(one(screen.getAllByTestId('verify-one')[1]));
+
+    expect(screen.getByTestId('verify-continue')).toBeDisabled();
+    expect(screen.getByTestId('verify-blocking-row')).toHaveTextContent('Chat');
+  });
 });
 
 // --- Continuing past a verification that has not passed yet ------------------------------------------
@@ -1150,12 +1262,10 @@ describe('continuing past verification', () => {
     serveUnverifiedProvider();
     render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
 
-    const link = screen.getByTestId('continue-anyway');
-    expect(link).toHaveAttribute('href', '/first-run?step=estate');
-    // The pending count is the single source's own — the same `verifiable`
-    // list VerifyStep renders — never a second tally of what this browser
-    // session happened to test.
-    expect(screen.getByTestId('verify-pending')).toHaveTextContent('1');
+    // Nothing has been checked live yet, so nothing has failed — Continue is
+    // open by default, and only a live failure holds it back (VerifyStep's
+    // own state, exercised directly in its own test file).
+    expect(screen.getByTestId('verify-continue')).toBeEnabled();
   });
 
   it('does not offer it once the deployment has no provider at all', async () => {
@@ -1186,10 +1296,13 @@ describe('continuing past verification', () => {
     render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
 
     expect(screen.getByTestId('verify-step')).toBeInTheDocument();
-    expect(screen.queryByTestId('continue-anyway')).toBeNull();
+    expect(screen.queryByTestId('verify-continue')).toBeNull();
   });
 
-  it('does not offer it once every verifiable thing has actually passed', async () => {
+  it('still offers it once every verifiable thing was already marked passed', async () => {
+    // An already-verified checklist is not a reason to hide Continue either —
+    // only a check this row itself just ran and watched fail does that, and
+    // none has run yet at first render, whatever the checklist already says.
     serveScenario('first-run');
     const scenario = global.fetch;
     const base = ['http:', '//fixtures.invalid'].join('');
@@ -1213,15 +1326,15 @@ describe('continuing past verification', () => {
 
     render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
 
-    expect(screen.queryByTestId('continue-anyway')).toBeNull();
+    expect(screen.getByTestId('verify-continue')).toBeEnabled();
   });
 
   it('does not offer it while nothing at all is configured yet', async () => {
-    await firstRun({ step: 'verify' });
-    // The default first-run fixture holds nothing configured at all, so there
-    // is nothing to continue past either — the ordinary early state, not the
-    // one this control is for.
-    expect(screen.queryByTestId('continue-anyway')).toBeNull();
+    // 'first-run' now holds a provider mid-setup; genuinely nothing
+    // configured at all is what 'empty' serves, so that is what this checks.
+    serveScenario('empty');
+    render(await FirstRunScreen(await surfaceContext({ step: 'verify' })));
+    expect(screen.queryByTestId('verify-continue')).toBeNull();
   });
 });
 
@@ -1289,7 +1402,11 @@ describe('the steps this feature does not own', () => {
   it.each(['estate', 'alerts'])(
     '%s names what is missing and which screen provides it',
     async (step) => {
-      await firstRun({ step });
+      // 'first-run' now carries a verified infrastructure source of its own,
+      // so the generic handover this test is about — nothing configured for
+      // the step at all — is what 'empty' serves, not the default fixture.
+      serveScenario('empty');
+      render(await FirstRunScreen(await surfaceContext({ step })));
 
       const handover = screen.getByTestId('handover');
       expect(handover).toHaveAttribute('data-step', step);
@@ -1617,7 +1734,9 @@ describe('the runtime nobody composed', () => {
 // --- What the dashboard gains -------------------------------------------------------------------
 
 describe('the dashboard of a deployment that is not set up', () => {
-  async function dashboard(scenario: 'first-run' | 'populated'): Promise<void> {
+  async function dashboard(
+    scenario: 'first-run' | 'populated' | 'empty',
+  ): Promise<void> {
     serveScenario(scenario);
     render(await DashboardScreen(await surfaceContext({})));
   }
@@ -1632,6 +1751,10 @@ describe('the dashboard of a deployment that is not set up', () => {
   });
 
   it('shows the remaining plan with the outstanding step one click away', async () => {
+    // `first-run` is feature 010's own worked example — a provider already
+    // configured (google_gemini, not yet verified) — so the next outstanding
+    // step is choosing its model, not choosing a provider. A scenario with no
+    // provider at all is `empty`, exercised by the next test.
     await dashboard('first-run');
 
     // The hero, and only the hero: the same plan used to be rendered twice on
@@ -1640,12 +1763,12 @@ describe('the dashboard of a deployment that is not set up', () => {
     expect(screen.getByTestId('setup-hero')).toBeInTheDocument();
     expect(screen.queryByTestId('setup-checklist')).toBeNull();
     expect(screen.getByTestId('setup-hero-cta').getAttribute('href')).toBe(
-      '/first-run?step=provider',
+      '/first-run?step=model',
     );
   });
 
   it('warns about a missing provider inside the page, linking to the step', async () => {
-    await dashboard('first-run');
+    await dashboard('empty');
 
     const notice = screen.getByTestId('no-provider');
     expect(notice).toBeInTheDocument();

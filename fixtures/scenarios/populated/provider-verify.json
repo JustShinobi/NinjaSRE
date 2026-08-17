@@ -20,6 +20,61 @@
         "query": {}
       },
       "status": 200
+    },
+    {
+      "arguments": {
+        "provider_id": "google_gemini"
+      },
+      "body": {
+        "alternatives": [],
+        "checks": [
+          {
+            "detail": "present: api_key",
+            "duration_ms": 1.0,
+            "name": "credentials",
+            "status": "passed"
+          },
+          {
+            "detail": "",
+            "duration_ms": 210.0,
+            "name": "authentication",
+            "status": "passed"
+          },
+          {
+            "detail": "model declares no tool support",
+            "duration_ms": 0.0,
+            "name": "tool calling",
+            "status": "degraded"
+          },
+          {
+            "detail": "via native",
+            "duration_ms": 340.0,
+            "name": "structured output",
+            "status": "passed"
+          },
+          {
+            "detail": "298 characters",
+            "duration_ms": 260.0,
+            "name": "streaming",
+            "status": "passed"
+          }
+        ],
+        "detail": "gemini-2.5-flash on google_gemini calls tools and returns structure (tool calling is degraded — this build's registry declares no tool support for this model, so it was not exercised; investigations may stall on it)",
+        "model_id": "gemini-2.5-flash",
+        "provider_id": "google_gemini",
+        "remedy": "",
+        "verified": true
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "POST",
+        "node": "",
+        "path": "provider-verify",
+        "query": {}
+      },
+      "status": 200
     }
   ],
   "slug": "provider-verify"

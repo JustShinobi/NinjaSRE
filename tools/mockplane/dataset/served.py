@@ -1264,6 +1264,20 @@ def config_records() -> tuple[CapturedRecord, ...]:
                         # this dataset has always carried.
                         "agents": dict(AGENTS_SECTION),
                         "capabilities": dict(CAPABILITIES_SECTION),
+                        # The investigator's own choice, nested rather than a
+                        # flat dotted key: `ModelsSettingsScreen` reads every
+                        # role through `valueAt`, which walks a path segment at
+                        # a time, the same shape `models.test.tsx`'s own
+                        # fixture already assumes. The other seven roles are
+                        # left absent on purpose — `_config_fields` below
+                        # already photographs "one role bound, seven left on
+                        # the deployment default", and this is the same fact.
+                        "models": {
+                            "investigator": {
+                                "provider": "anthropic",
+                                "model": "claude-sonnet-5",
+                            },
+                        },
                     },
                     "provenance": {
                         "investigation.max_loops": ORG_NODE if inherited else identifier,
@@ -1273,6 +1287,8 @@ def config_records() -> tuple[CapturedRecord, ...]:
                         "agents.subagents": identifier,
                         "agents.prompts.investigator": identifier,
                         "capabilities.protocol_servers": identifier,
+                        "models.investigator.provider": ORG_NODE if inherited else identifier,
+                        "models.investigator.model": ORG_NODE if inherited else identifier,
                     },
                 },
             )

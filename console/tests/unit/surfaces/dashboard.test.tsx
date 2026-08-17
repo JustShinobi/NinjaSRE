@@ -145,8 +145,10 @@ describe('the setup hero', () => {
   it('offers exactly one action: the next step', async () => {
     await dashboard('first-run');
 
+    // 'first-run' holds a provider already configured (not yet verified), so
+    // the next open step is choosing a model, not choosing a provider.
     const cta = screen.getByTestId('setup-hero-cta');
-    expect(cta.getAttribute('href')).toBe('/first-run?step=provider');
+    expect(cta.getAttribute('href')).toBe('/first-run?step=model');
   });
 
   it('gives way once nothing is left to set up', async () => {

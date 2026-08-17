@@ -30,10 +30,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+from core.llm.catalogue import ListingUnavailable, ModelOffering, catalogue_for, listing_for
+from core.llm.catalogue.cache import ModelCatalogueCache
+from core.llm.credentials import EnvironmentCredentialResolver
 from core.llm.onboarding import (
     ProviderOnboarding,
     UnknownProviderError,
@@ -136,6 +139,20 @@ class ProviderDetailView(ProviderView):
     install_hint: str = ""
 
 
+class CheckResultView(BaseModel):
+    """One preflight check, mirrored rather than collapsed into the boolean verdict.
+
+    A screen renders the state each of these actually reports — passed,
+    degraded or failed — never a translation of it into a word the backend
+    did not send.
+    """
+
+    name: str
+    status: str
+    detail: str
+    duration_ms: float
+
+
 class ProviderVerificationView(BaseModel):
     """What a real request to the provider's endpoint came back with.
 
@@ -153,6 +170,28 @@ class ProviderVerificationView(BaseModel):
     #: could be asked. Empty when it could not, which is honest rather than
     #: encouraging.
     alternatives: list[str]
+    #: Every check the preflight ran, verbatim — what a screen mirrors instead
+    #: of collapsing into "verified".
+    checks: list[CheckResultView] = Field(default_factory=list)
+
+
+class ModelOfferingView(BaseModel):
+    """One model a provider's listing offers, by the name the endpoint gave it."""
+
+    model_id: str
+    display_name: str
+
+
+class ModelListingView(BaseModel):
+    """The models one provider currently offers, curated, and where the list came from."""
+
+    provider_id: str
+    models: list[ModelOfferingView]
+    #: ``"endpoint"`` when the provider's own listing answered this time,
+    #: ``"static"`` when this is the registry's fallback list.
+    source: str
+    #: Why the fallback was used. Empty when ``source == "endpoint"``.
+    reason: str = ""
 
 
 def _model_capabilities(
@@ -311,6 +350,101 @@ async def show_provider(
     )
 
 
+#: This process's own cache of what each provider's endpoint currently lists —
+#: one per deployment, matching ``core.llm.factory``'s process-wide client
+#: cache in shape and in reason: a screen opened three times must not call the
+#: vendor three times.
+_CATALOGUE_CACHE = ModelCatalogueCache()
+
+
+def reset_catalogue_cache() -> None:
+    """Forget every cached listing.
+
+    For a test that registers a second implementation for a provider this
+    process already cached within the same run, the same reason
+    ``core.llm.factory.reset_factory`` exists.
+    """
+    _CATALOGUE_CACHE.clear()
+
+
+def _static_offerings(onboarding: ProviderOnboarding) -> tuple[ModelOffering, ...]:
+    """Return the onboarding's own static list, as offerings — the fallback listing.
+
+    No display name beyond the identifier itself: the static list is names
+    only (``ProviderOnboarding.models: tuple[str, ...]``), which is exactly
+    what a listing from the endpoint replaces once one answers.
+    """
+    return tuple(
+        ModelOffering(model_id=model_id, display_name=model_id) for model_id in onboarding.models
+    )
+
+
+async def _fetch_from_endpoint(provider_id: str) -> tuple[ModelOffering, ...]:
+    """Return the raw listing this provider's endpoint reports, uncurated.
+
+    Credentials are resolved the same way every other caller in ``core.llm``
+    resolves them — through :class:`CredentialResolver`, the seam the vault
+    fills in behind, never read directly here.
+
+    Raises:
+        ListingUnavailable: no implementation is registered for this provider,
+            or the live call failed.
+    """
+    catalogue = catalogue_for(provider_id)
+    if catalogue is None:
+        raise ListingUnavailable(f"{provider_id} declares no model-listing endpoint")
+    credentials = EnvironmentCredentialResolver().resolve(provider_id)
+    return await catalogue.list_models(credentials)
+
+
+async def _listing(
+    provider_id: str, onboarding: ProviderOnboarding, *, refresh: bool = False
+) -> ModelListingView:
+    """Return the curated listing for ``provider_id``, cached, falling back honestly."""
+
+    async def fetch() -> tuple[ModelOffering, ...]:
+        return await _CATALOGUE_CACHE.get(
+            provider_id, fetch=lambda: _fetch_from_endpoint(provider_id), refresh=refresh
+        )
+
+    listing = await listing_for(provider_id, fetch=fetch, static=_static_offerings(onboarding))
+    return ModelListingView(
+        provider_id=provider_id,
+        models=[
+            ModelOfferingView(model_id=offering.model_id, display_name=offering.display_name)
+            for offering in listing.models
+        ],
+        source=listing.source,
+        reason=listing.reason,
+    )
+
+
+async def _model_ids_for(provider_id: str, onboarding: ProviderOnboarding) -> list[str]:
+    """Return the curated listing's model identifiers, for a verification refusal to name."""
+    listing = await _listing(provider_id, onboarding)
+    return [offering.model_id for offering in listing.models]
+
+
+@router.get("/{provider_id}/models", response_model=ModelListingView)
+async def list_models(
+    provider_id: str,
+    refresh: bool = False,
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> ModelListingView:
+    """Return the models ``provider_id``'s own endpoint currently serves, curated.
+
+    Free, like the other two ``GET``s: listing spends no tokens, so a screen
+    may call this on every render. ``refresh=true`` ignores whatever is
+    cached, for an operator's own "Reload models".
+
+    Raises:
+        ApiProblem: no supported provider answers to ``provider_id`` (404).
+    """
+    del auth  # authorization only: reading what a provider serves needs no team scope
+    onboarding = _onboarding(provider_id)
+    return await _listing(provider_id, onboarding, refresh=refresh)
+
+
 @router.post(
     "/{provider_id}/verify",
     response_model=ProviderVerificationView,
@@ -336,13 +470,13 @@ async def verify_provider(
     Raises:
         ApiProblem: no supported provider answers to ``provider_id`` (404).
     """
-    _onboarding(provider_id)
+    onboarding = _onboarding(provider_id)
     configured = await _configured_model(state, auth, provider_id)
     verify = state.model_verifier
     verdict = await (
         verify(provider_id, configured)
         if verify is not None
-        else _preflight(provider_id, configured)
+        else _preflight(provider_id, configured, onboarding)
     )
     await record_check(
         state.gateway,
@@ -362,6 +496,15 @@ async def verify_provider(
         detail=verdict.summary_line if verdict.satisfied else verdict.limitation,
         remedy=verdict.remedy,
         alternatives=list(verdict.alternatives),
+        checks=[
+            CheckResultView(
+                name=check.name,
+                status=check.status.value,
+                detail=check.detail,
+                duration_ms=check.duration_ms,
+            )
+            for check in verdict.checks
+        ],
     )
 
 
@@ -398,15 +541,25 @@ async def _configured_model(
         return None
 
 
-async def _preflight(provider_id: str, model_id: str | None = None) -> ModelVerdict:
+async def _preflight(
+    provider_id: str, model_id: str | None, onboarding: ProviderOnboarding
+) -> ModelVerdict:
     """Return the verdict a default composition produces for ``provider_id``.
 
     The same end-to-end check ``make preflight`` runs, against however this
     process resolves provider credentials. A deployment that reaches its models
     through the credential proxy supplies its own verifier on ``GatewayState``
     instead, because only the composition root knows which of the two it is.
+
+    ``list_models`` is the curated listing above, so a refusal names real
+    alternatives — the endpoint's own answer to "what else do you serve" —
+    rather than the sentence this route used to emit when it never asked.
     """
-    return await verify_model(provider_id=provider_id, model_id=model_id)
+    return await verify_model(
+        provider_id=provider_id,
+        model_id=model_id,
+        list_models=lambda: _model_ids_for(provider_id, onboarding),
+    )
 
 
-__all__ = ["router"]
+__all__ = ["reset_catalogue_cache", "router"]

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { Badge, StatusDot } from '@/components/status';
+import { Badge, CheckChip, StatusDot } from '@/components/status';
 import { RESOURCE_STATUSES, RUN_STATUSES, statusPresentation } from '@/design/status';
 
 /**
@@ -68,5 +68,37 @@ describe('StatusDot', () => {
     unmount();
     const { container: stale } = render(<StatusDot status="stale" />);
     expect(stale.firstElementChild?.getAttribute('data-shape')).not.toBe(first);
+  });
+});
+
+describe('CheckChip', () => {
+  // Every state the preflight actually reports, each with its own role and
+  // shape — never the five-word credential vocabulary, which is a different
+  // claim about a different kind of thing.
+  const CASES: readonly {
+    readonly status: 'passed' | 'degraded' | 'failed' | 'skipped';
+    readonly role: string;
+    readonly shape: string;
+  }[] = [
+    { status: 'passed', role: 'success', shape: 'filled-circle' },
+    { status: 'degraded', role: 'warning', shape: 'triangle' },
+    { status: 'failed', role: 'danger', shape: 'square' },
+    { status: 'skipped', role: 'neutral', shape: 'dash' },
+  ];
+
+  it.each(CASES)(
+    'draws $status with the $role role and the $shape shape',
+    ({ status, role, shape }) => {
+      const { container } = render(<CheckChip name="Tool calling" status={status} />);
+      const chip = container.firstElementChild;
+      expect(chip).toHaveAttribute('data-role', role);
+      expect(chip).toHaveAttribute('data-check-status', status);
+      expect(chip?.querySelector('[data-shape]')).toHaveAttribute('data-shape', shape);
+    },
+  );
+
+  it('names the check, never a canonical credential word', () => {
+    render(<CheckChip name="Structured output" status="failed" />);
+    expect(screen.getByText('Structured output')).toBeInTheDocument();
   });
 });

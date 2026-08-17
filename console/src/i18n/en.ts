@@ -381,6 +381,7 @@ export const EN = {
   'status.credential.notConnected': 'Not connected',
   'status.credential.stored': 'Stored',
   'status.credential.verified': 'Verified',
+  'status.credential.degraded': 'Degraded',
   'status.credential.failing': 'Failing',
   'status.credential.unknown': 'Unknown',
   'status.credential.unknown.explain':
@@ -597,6 +598,13 @@ export const EN = {
   // definite than it is.
   'firstRun.verify.pending': '{count} of {total} not yet verified',
   'firstRun.verify.continueAnyway': 'Continue anyway',
+  'firstRun.verify.latency': 'answered in {ms} ms',
+  'firstRun.verify.footer.noneDegraded': 'none degraded',
+  'firstRun.verify.footer.degraded': '{count} check(s) degraded',
+  'firstRun.verify.footer.noneFailing': 'none failing',
+  'firstRun.verify.footer.failing': '{name} is failing',
+  'firstRun.verify.continue': 'Continue',
+  'firstRun.verify.blockedBy': 'Held back by:',
 
   'firstRun.established.title': 'What is set up so far',
   'firstRun.established.empty.heading': 'Nothing is set up yet',
@@ -1759,6 +1767,32 @@ export const EN = {
   'settings.models.failed': 'The deployment refused this change.',
   'settings.models.unreachable': 'The deployment could not be reached.',
   'settings.models.nothingChanges': 'Nothing would change.',
+  'settings.models.checkAgain': 'Check again',
+  'settings.models.checking': 'Checking…',
+  'settings.models.chooseVerifiedModel': 'Choose a model from the verified list',
+  'settings.models.reloadModels': 'Reload models',
+  'settings.models.reloadingModels': 'Reloading…',
+  'settings.models.staticModelsLabel':
+    'Static list — the endpoint could not be asked what it currently serves.',
+  'settings.models.advanced.summaryAll':
+    '{total} roles, all inherit the investigator’s default',
+  'settings.models.advanced.summaryPartial':
+    '{total} roles, {inheriting} inherit the investigator’s default',
+  'settings.models.check.credentials': 'Credentials',
+  'settings.models.check.authentication': 'Authentication',
+  'settings.models.check.toolCalling': 'Tool calling',
+  'settings.models.check.structuredOutput': 'Structured output',
+  'settings.models.check.streaming': 'Streaming',
+  'settings.models.consequence.credentials':
+    'No credential resolved, so nothing was called.',
+  'settings.models.consequence.authentication':
+    'The endpoint rejected this deployment’s credential.',
+  'settings.models.consequence.toolCalling':
+    'Investigations are sequences of tool calls — this model may stall on them.',
+  'settings.models.consequence.structuredOutput':
+    'The pipeline’s stages exchange typed documents — this model may fail mid-investigation.',
+  'settings.models.consequence.streaming':
+    'Streamed output would not reach the console.',
 
   // --- Settings: Notifications -----------------------------------------------
   'settings.notifications.contractNote':

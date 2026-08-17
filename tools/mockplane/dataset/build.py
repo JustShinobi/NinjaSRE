@@ -21,6 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Final
 
+from config.constants.first_run import SETUP_READINESS_CONFIGURED, SETUP_READINESS_VERIFIED
 from integrations._catalogue.gaps import gaps
 from tools.mockplane.anonymise.pipeline import ProcessedCapture, process
 from tools.mockplane.anonymise.pseudonyms import PseudonymBook
@@ -50,15 +51,172 @@ BUILT_SCENARIOS: Final[tuple[str, ...]] = (
 BUILD_KEY: Final = "committed-fixture-set"
 
 
+#: The Gemini models the curated listing endpoint offers on this deployment —
+#: including the generation the static onboarding list has never heard of,
+#: which is the whole point of the endpoint existing (feature 010's own
+#: motivating defect). A handful, not the full curated set: the fixture proves
+#: the mechanism (a name the static list does not carry, reached through the
+#: dynamic route) rather than duplicating the curation unit tests' own fixture.
+_GEMINI_MODELS_OFFERED: Final[tuple[tuple[str, str], ...]] = (
+    ("gemini-pro-latest", "Gemini Pro (Latest)"),
+    ("gemini-flash-latest", "Gemini Flash (Latest)"),
+    ("gemini-2.5-pro", "Gemini 2.5 Pro"),
+    ("gemini-2.5-flash", "Gemini 2.5 Flash"),
+    ("gemini-3.6-flash", "Gemini 3.6 Flash"),
+    ("gemini-3.7-flash", "Gemini 3.7 Flash"),
+)
+
+
+def _gemini_models_record() -> CapturedRecord:
+    """Return the curated listing `GET /v1/providers/google_gemini/models` serves.
+
+    A provider-specific override, layered over no catch-all — this endpoint
+    has no scenario-independent default, because "what a provider currently
+    lists" is not a fact any provider shares with another.
+    """
+    return CapturedRecord(
+        slug="provider-models",
+        arguments={"provider_id": "google_gemini"},
+        status=200,
+        body={
+            "provider_id": "google_gemini",
+            "models": [
+                {"model_id": model_id, "display_name": display_name}
+                for model_id, display_name in _GEMINI_MODELS_OFFERED
+            ],
+            "source": "endpoint",
+            "reason": "",
+        },
+        provenance=Provenance.GATEWAY,
+        request=Request(method="GET", path="provider-models"),
+    )
+
+
+def _gemini_verify_record() -> CapturedRecord:
+    """Return what `POST /v1/providers/google_gemini/verify` answers: degraded, not failing.
+
+    The scenario this whole feature exists to close: tool calling reads
+    degraded — this build's registry declares no tool support for the
+    configured model — and every other check passed, so the verdict is
+    satisfied rather than refused. Mirrored by the checks array rather than
+    collapsed into the boolean, which is what a screen built against this
+    fixture has to prove it does.
+    """
+    return CapturedRecord(
+        slug="provider-verify",
+        arguments={"provider_id": "google_gemini"},
+        status=200,
+        body={
+            "provider_id": "google_gemini",
+            "verified": True,
+            "model_id": "gemini-2.5-flash",
+            "detail": (
+                "gemini-2.5-flash on google_gemini calls tools and returns structure "
+                "(tool calling is degraded — this build's registry declares no tool "
+                "support for this model, so it was not exercised; investigations may "
+                "stall on it)"
+            ),
+            "remedy": "",
+            "alternatives": [],
+            "checks": [
+                {
+                    "name": "credentials",
+                    "status": "passed",
+                    "detail": "present: api_key",
+                    "duration_ms": 1.0,
+                },
+                {"name": "authentication", "status": "passed", "detail": "", "duration_ms": 210.0},
+                {
+                    "name": "tool calling",
+                    "status": "degraded",
+                    "detail": "model declares no tool support",
+                    "duration_ms": 0.0,
+                },
+                {
+                    "name": "structured output",
+                    "status": "passed",
+                    "detail": "via native",
+                    "duration_ms": 340.0,
+                },
+                {
+                    "name": "streaming",
+                    "status": "passed",
+                    "detail": "298 characters",
+                    "duration_ms": 260.0,
+                },
+            ],
+        },
+        provenance=Provenance.GATEWAY,
+        request=Request(method="POST", path="provider-verify"),
+    )
+
+
+def _with_investigator_on_gemini(record: CapturedRecord) -> CapturedRecord:
+    """Return `record` with the investigator role pointed at the degraded Gemini model.
+
+    A targeted overlay on the organisation root's own effective-configuration
+    record, not a replacement of it: every other field (`investigation.*`,
+    `approval.*`, `agents`, `capabilities`, and their provenance) carries over
+    unchanged, and only the two paths this feature is about — the investigator's
+    provider and model — move from the dataset's shared default (`anthropic`)
+    to the provider `_gemini_verify_record` reports as degraded, so the two
+    stay coherent: an operator opening Models & providers sees the same model
+    the verify endpoint is about to grade.
+    """
+    body = dict(record.body)
+    values = dict(body.get("values", {}))
+    values["models"] = {
+        "investigator": {"provider": "google_gemini", "model": "gemini-2.5-flash"},
+    }
+    body["values"] = values
+    provenance = dict(body.get("provenance", {}))
+    provenance["models.investigator.provider"] = str(record.body.get("node_id", ""))
+    provenance["models.investigator.model"] = str(record.body.get("node_id", ""))
+    body["provenance"] = provenance
+    return record.with_body(body)
+
+
 def populated_records() -> tuple[CapturedRecord, ...]:
     """Return every record of the full deployment, both halves, before the pipeline."""
     reading = profile.cluster_reading()
+    base = served.served_records(role="owner")
+    # The organisation root's own effective configuration, overlaid rather than
+    # duplicated: `served.config_records()` already emits exactly one record
+    # for this `(slug, node_id)` pair, and a second one under the same key
+    # would leave which one a reader actually gets to depend on list order
+    # nobody declared.
+    records = [
+        _with_investigator_on_gemini(record)
+        if record.slug == "config-effective" and record.arguments.get("node_id") == served.ORG_NODE
+        else record
+        for record in base
+        # The base listing and per-provider detail (`anthropic` alone
+        # configured and verified) are replaced below, whole, by the same
+        # helper `first_run_records` already uses for the same reason: a
+        # provider's `configured`/`verified` pair is a fact of the listing
+        # record, not of the investigator's own selection, and the two have
+        # to agree — the state card reads both.
+        if record.slug not in ("providers", "provider-detail")
+    ]
+    # Anthropic keeps its prior state; Google Gemini gains a credential that
+    # has answered before — the persisted, boolean fact a page load reads
+    # without spending a token. `_gemini_verify_record` is the token-costing
+    # detail behind "Check again": a live check that still finds tool calling
+    # degraded, on the same model this configuration now names.
+    records.extend(
+        served.provider_records(
+            configured=("anthropic", "google_gemini"),
+            verified=("anthropic", "google_gemini"),
+        )
+    )
     return (
-        *served.served_records(role="owner"),
+        *records,
         *estate(reading),
         *project(reading),
         *stream_records(),
         *_write_responses(),
+        _gemini_models_record(),
+        _gemini_verify_record(),
     )
 
 
@@ -171,14 +329,150 @@ def empty_records() -> tuple[CapturedRecord, ...]:
     return tuple(records)
 
 
+#: Two of the fifteen validated integrations, connected and verified — the
+#: Verify step's own worked example (mockup `#m5`): a metrics source and a
+#: cloud control plane, the same two kinds `_INTEGRATION_READINESS` covers for
+#: `populated` but with names this scenario's own catalogue does not carry
+#: otherwise.
+_PROMETHEUS_INTEGRATION: Final[Mapping[str, Any]] = {
+    "name": "prometheus",
+    "display_name": "Prometheus",
+    "category": "metrics",
+    "summary": (
+        "PromQL evaluation and the alert rules currently firing, from the server "
+        "that holds the series rather than from a dashboard on top of it."
+    ),
+    "health": "healthy",
+    "health_detail": "a live request reached this endpoint",
+    "hosts": ["prometheus.example.com"],
+    "regions": ["self-hosted"],
+    "capabilities": [
+        "prometheus_active_alerts",
+        "prometheus_metric_statistics",
+        "prometheus_resource_pressure",
+    ],
+    "fields": [
+        {
+            "name": "token",
+            "label": "Token",
+            "secret": True,
+            "required": True,
+            "help": "Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own",
+            "min_scope": "",
+            "guide_url": "",
+        }
+    ],
+    "permissions": [
+        {
+            "name": "query",
+            "grants": "evaluate PromQL over the stored series",
+            "where": "Your reverse proxy, ingress, or Grafana Cloud access policy",
+            "capabilities": ["prometheus_metric_statistics"],
+        }
+    ],
+    "parity": "complete",
+    "missing_artefacts": [],
+}
+
+_PROXMOX_INTEGRATION: Final[Mapping[str, Any]] = {
+    "name": "proxmox",
+    "display_name": "Proxmox VE",
+    "category": "cloud_control_plane",
+    "summary": (
+        "A Proxmox VE cluster read whole: quorum, nodes, containers, virtual "
+        "machines, datastores, thin pools, backups and replication."
+    ),
+    "health": "healthy",
+    "health_detail": "a live request reached this endpoint",
+    "hosts": ["proxmox.example.com"],
+    "regions": ["self-hosted"],
+    "capabilities": ["proxmox_cluster_health", "proxmox_guest_pressure"],
+    "fields": [
+        {
+            "name": "api_token",
+            "label": "API Token",
+            "secret": True,
+            "required": True,
+            "help": "Proxmox API token as one line: user@realm!tokenid=secret",
+            "min_scope": "",
+            "guide_url": "",
+        }
+    ],
+    "permissions": [
+        {
+            "name": "Sys.Audit on /",
+            "grants": "read cluster status, quorum and the cluster log",
+            "where": "Datacenter → Permissions",
+            "capabilities": ["proxmox_cluster_health"],
+        }
+    ],
+    "parity": "complete",
+    "missing_artefacts": [],
+}
+
+
 def first_run_records() -> tuple[CapturedRecord, ...]:
     """Return a deployment that has been configured and is not finished.
 
-    The setup checklist is the screen this exists for: the organisation node
-    exists, nothing is connected, no provider is configured, and readiness says
-    so in words a person can act on.
+    The setup checklist is the screen this exists for: the model provider is
+    google_gemini, configured and not yet verified, and Prometheus and Proxmox
+    VE are connected and verified — the Verify step's own worked example.
     """
-    records = list(empty_records())
+    records = [
+        record
+        for record in empty_records()
+        # Replaced below by a listing where google_gemini is configured,
+        # rather than patched by slug: `provider_records` returns one row
+        # per provider and a naive slug-keyed replacement cannot tell them
+        # apart by `provider_id`.
+        if record.slug not in ("providers", "provider-detail")
+    ]
+    records.extend(served.provider_records(configured=("google_gemini",), verified=()))
+    records.append(
+        CapturedRecord(
+            slug="config-integration-schemas",
+            arguments={"node_id": "org-northwind"},
+            status=200,
+            body={
+                "schemas": [
+                    {
+                        "name": "prometheus",
+                        "display_name": "Prometheus",
+                        "hosts": ["prometheus.example.com"],
+                        "credential_fields": [
+                            {
+                                "name": "token",
+                                "label": "Token",
+                                "secret": True,
+                                "required": True,
+                                "help": "Bearer token accepted by whatever fronts Prometheus",
+                            }
+                        ],
+                        "settings_fields": [],
+                    },
+                    {
+                        "name": "proxmox",
+                        "display_name": "Proxmox VE",
+                        "hosts": ["proxmox.example.com"],
+                        "credential_fields": [
+                            {
+                                "name": "api_token",
+                                "label": "API Token",
+                                "secret": True,
+                                "required": True,
+                                "help": "Proxmox API token as one line: user@realm!tokenid=secret",
+                            }
+                        ],
+                        "settings_fields": [],
+                    },
+                ]
+            },
+            provenance=Provenance.GATEWAY,
+            request=Request(method="GET", path="config-integration-schemas"),
+        )
+    )
+    records.append(_gemini_verify_record())
+    records.append(_gemini_models_record())
     replacements: Mapping[str, Any] = {
         "config-tree": {"nodes": [dict(served.CONFIG_NODES[0])]},
         "health": {
@@ -199,6 +493,8 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
         "integrations": {
             "known_gaps": [gap.to_record() for gap in gaps()],
             "integrations": [
+                dict(_PROMETHEUS_INTEGRATION),
+                dict(_PROXMOX_INTEGRATION),
                 {
                     "name": "metrics-store",
                     "display_name": "Metrics store",
@@ -231,14 +527,20 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
                     ],
                     "parity": "full",
                     "missing_artefacts": [],
-                }
+                },
             ],
         },
-        # Declared and holding nothing, which is a different fact from not being
-        # declared at all — and the one the integrations step of the guided run
-        # is drawn against.
+        # A provider configured and not yet verified, and the two connected
+        # integrations the Verify step's own worked example needs — declared
+        # and holding nothing is still the fact for `metrics-store`, which is
+        # what the Integrations step of the guided run is drawn against.
         "setup-checklist": served.checklist_record(
-            integrations=(("metrics-store", "absent"),)
+            provider=SETUP_READINESS_CONFIGURED,
+            integrations=(
+                ("metrics-store", "absent"),
+                ("prometheus", SETUP_READINESS_VERIFIED),
+                ("proxmox", SETUP_READINESS_VERIFIED),
+            ),
         ).body,
     }
     return tuple(

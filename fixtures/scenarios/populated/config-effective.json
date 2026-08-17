@@ -13,6 +13,8 @@
           "capabilities.protocol_servers": "env-production",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "env-production",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
@@ -70,6 +72,12 @@
           },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -97,6 +105,8 @@
           "capabilities.protocol_servers": "env-staging",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "env-staging",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
@@ -154,6 +164,12 @@
           },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -181,6 +197,8 @@
           "capabilities.protocol_servers": "org-northwind",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "org-northwind",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
@@ -238,6 +256,12 @@
           },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "gemini-2.5-flash",
+              "provider": "google_gemini"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -265,6 +289,8 @@
           "capabilities.protocol_servers": "team-platform",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "team-platform",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
@@ -322,6 +348,12 @@
           },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -349,6 +381,8 @@
           "capabilities.protocol_servers": "team-storage",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "team-storage",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
@@ -406,6 +440,12 @@
           },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },

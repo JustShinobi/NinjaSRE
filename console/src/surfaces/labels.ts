@@ -78,6 +78,13 @@ export function verifyLabels(locale: Locale): VerifyStepLabels {
     fixIntegration: message(locale, 'firstRun.verify.fix.integration'),
     fullDiagnosis: message(locale, 'firstRun.verify.fullDiagnosis'),
     fullDiagnosisSummary: message(locale, 'firstRun.verify.fullDiagnosis.summary'),
+    latency: message(locale, 'firstRun.verify.latency'),
+    footerNoneDegraded: message(locale, 'firstRun.verify.footer.noneDegraded'),
+    footerDegraded: message(locale, 'firstRun.verify.footer.degraded'),
+    footerNoneFailing: message(locale, 'firstRun.verify.footer.noneFailing'),
+    footerFailing: message(locale, 'firstRun.verify.footer.failing'),
+    continueLabel: message(locale, 'firstRun.verify.continue'),
+    blockedBy: message(locale, 'firstRun.verify.blockedBy'),
   };
 }
 

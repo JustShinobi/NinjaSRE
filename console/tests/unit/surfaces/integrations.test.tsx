@@ -272,17 +272,20 @@ describe('Connected, first and never empty', () => {
     ).toBeTruthy();
   });
 
-  it('shows a failing connected integration with a critical chip, still inside Connected', async () => {
+  it('shows a degraded connected integration with its own chip, still inside Connected', async () => {
+    // `signoz` is degraded, not failing — a check that once timed out, not
+    // one that is currently refused. Mirrored as its own word rather than
+    // collapsed into "failing", which is a different, worse claim.
     await integrations();
 
     const signoz = screen
       .getAllByTestId('connected-integration')
       .find((row) => row.getAttribute('data-integration') === 'signoz');
     expect(signoz).toBeDefined();
-    expect(signoz?.querySelector('[data-credential-status="failing"]')).not.toBeNull();
+    expect(signoz?.querySelector('[data-credential-status="degraded"]')).not.toBeNull();
   });
 
-  it('names the diagnostic beside the critical chip for a failing connected integration', async () => {
+  it('names the diagnostic beside the degraded chip for a degraded connected integration', async () => {
     // The edge case promises a chip *and* a diagnostic. `signoz` in the
     // fixture above already carries `healthDetail: 'the last verification
     // timed out'` — this asserts it actually reaches the row, not only the

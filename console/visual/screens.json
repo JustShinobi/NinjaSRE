@@ -425,7 +425,7 @@
       "theme": "light",
       "accepted": {
         "against": "09-area-settings.html",
-        "reason": "Which model answers each role, and what each provider is verified to support. The tri-state matters here: a provider whose tool-calling support is unknown must not read as one that lacks it."
+        "reason": "Which model answers each role, and what each provider is verified to support. The tri-state matters here: a provider whose tool-calling support is unknown must not read as one that lacks it. Re-accepted when verification became a state card: the provider's display name and its last verification's chip at the top, a single \"Set at\" beside the action that reverts it, and the seven advanced roles collapsed into one line until asked for — reviewed as an image diff before acceptance against the mockup's own worked example (a degraded provider, one credential, one line for what used to be seven open accordions)."
       }
     },
     {

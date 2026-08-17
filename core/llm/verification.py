@@ -5,18 +5,28 @@ degraded, failed or skipped. This *decides* — and the two are deliberately
 separate, because they answer different questions and one of them has to be
 willing to say no.
 
-The difference that matters is degraded tool calling. Preflight reports it and
-carries on, which is right for a report. Here it is a refusal, because a model
-that answers instead of calling the tool will not fail at setup; it will fail
-forty seconds into the first investigation, having produced a paragraph of
-plausible prose where an evidence-backed finding should be, and the operator will
-conclude the platform is broken. Verifying it at setup turns a confusing failure
-into a clear one.
+Degraded tool calling and degraded structured output are treated alike now, and
+both are accepted rather than refused — which was not always true of the first,
+and the reason it changed is worth keeping. The probe used to ask the model to
+call a tool without insisting; a model that could have called one and chose
+prose instead came back "degraded", and this module refused it anyway, because a
+model that answers instead of calling the tool would not fail at setup — it
+would fail forty seconds into the first investigation, having produced a
+paragraph of plausible prose where an evidence-backed finding should be. That
+refusal was a hedge against a probe that had not actually settled the question.
 
-Degraded *structured* output is the opposite call and for the same reason: a
-model reaching structured output through a prompt-and-parse shim does work, it
-works today in this codebase, and refusing it would rule out most self-hosted
-models. So it is accepted and said out loud.
+The probe now insists: the request that exercises tool calling makes the call
+mandatory on the wire, so a model that can call a tool does, and one that
+cannot produces a real failure rather than an ambiguous "degraded". The only way
+this check still reads degraded is a registry row that declares no tool support
+at all — a gap in what this build's catalogue knows about the model, not a
+measurement of what the model just did — and refusing a model for a gap in
+this build's own metadata is a claim about the catalogue wearing the authority
+of a measurement about the model.
+So a degraded tool-calling result is accepted and said out loud, the same as
+degraded structured output always was: a model reaching structured output
+through a prompt-and-parse shim does work, it works today in this codebase, and
+refusing it would rule out most self-hosted models.
 
 When the endpoint can enumerate what else it serves, a refusal names the models
 that would work. "The model endpoint answered, but not with a model that supports
@@ -59,6 +69,12 @@ class ModelVerdict:
     alternatives: tuple[str, ...] = ()
     #: How the working configuration reads in a passing report.
     summary_line: str = ""
+    #: Every check the preflight ran, verbatim — name, status, detail and
+    #: duration, in the order they ran. Carried on the verdict rather than left
+    #: for a caller to fetch a second way, because a screen mirroring what the
+    #: preflight found needs the same five facts a passing or failing verdict
+    #: was decided from, not a second, looser reading of them.
+    checks: tuple[CheckResult, ...] = ()
 
     def to_record(self) -> dict[str, Any]:
         """Return the JSON-serialisable form a check, a route and a bundle read."""
@@ -70,6 +86,15 @@ class ModelVerdict:
             "remedy": self.remedy,
             "alternatives": list(self.alternatives),
             "summary": self.summary_line,
+            "checks": [
+                {
+                    "name": check.name,
+                    "status": check.status.value,
+                    "detail": check.detail,
+                    "duration_ms": check.duration_ms,
+                }
+                for check in self.checks
+            ],
         }
 
 
@@ -118,10 +143,11 @@ def contract_verdict(report: PreflightReport, *, alternatives: Sequence[str] = (
                 limitation=_with_detail(limitation, result),
                 remedy=remedy,
                 alternatives=offered,
+                checks=report.checks,
             )
 
     tools = _status(report, _TOOL_CALLING)
-    if tools is not None and tools.status is not CheckStatus.PASSED:
+    if tools is not None and tools.status is CheckStatus.FAILED:
         return ModelVerdict(
             provider_id=report.provider_id,
             model_id=report.model_id,
@@ -129,13 +155,15 @@ def contract_verdict(report: PreflightReport, *, alternatives: Sequence[str] = (
             limitation=_with_detail(
                 (
                     f"the {report.provider_id} endpoint answered, but {report.model_id!r} did "
-                    f"not call the tool it was given — every investigation this platform runs "
-                    f"is a sequence of tool calls, so this model cannot run one"
+                    f"not call the tool it was given even though the call was mandatory — "
+                    f"every investigation this platform runs is a sequence of tool calls, so "
+                    f"this model cannot run one"
                 ),
                 tools,
             ),
             remedy=_model_remedy(offered),
             alternatives=offered,
+            checks=report.checks,
         )
 
     structured = _status(report, _STRUCTURED)
@@ -154,22 +182,31 @@ def contract_verdict(report: PreflightReport, *, alternatives: Sequence[str] = (
             ),
             remedy=_model_remedy(offered),
             alternatives=offered,
+            checks=report.checks,
         )
 
-    degraded = structured is not None and structured.status is CheckStatus.DEGRADED
+    tools_degraded = tools is not None and tools.status is CheckStatus.DEGRADED
+    structured_degraded = structured is not None and structured.status is CheckStatus.DEGRADED
+    notes: list[str] = []
+    if tools_degraded:
+        notes.append(
+            "tool calling is degraded — this build's registry declares no tool support for "
+            "this model, so it was not exercised; investigations may stall on it"
+        )
+    if structured_degraded:
+        notes.append(
+            "structured output is degraded — reached through a fallback rather than "
+            "natively, which works and is slower"
+        )
     return ModelVerdict(
         provider_id=report.provider_id,
         model_id=report.model_id,
         satisfied=True,
         summary_line=(
             f"{report.model_id} on {report.provider_id} calls tools and returns structure"
-            + (
-                " (structured output is degraded — reached through a fallback rather than "
-                "natively, which works and is slower)"
-                if degraded
-                else ""
-            )
+            + (f" ({'; '.join(notes)})" if notes else "")
         ),
+        checks=report.checks,
     )
 
 
@@ -186,10 +223,7 @@ def _model_remedy(alternatives: Sequence[str]) -> str:
             f"point NINJASRE_LLM_MODEL at one of the models this endpoint offers that do "
             f"satisfy the contract: {listed}"
         )
-    return (
-        "choose a model that supports tool calling. This endpoint could not be asked what "
-        "else it serves, so the list has to come from its own documentation"
-    )
+    return "choose a model that supports tool calling from the ones this endpoint offers"
 
 
 async def verify_model(

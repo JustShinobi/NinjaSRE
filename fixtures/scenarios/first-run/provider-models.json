@@ -1,0 +1,51 @@
+{
+  "responses": [
+    {
+      "arguments": {
+        "provider_id": "google_gemini"
+      },
+      "body": {
+        "models": [
+          {
+            "display_name": "Gemini Pro (Latest)",
+            "model_id": "gemini-pro-latest"
+          },
+          {
+            "display_name": "Gemini Flash (Latest)",
+            "model_id": "gemini-flash-latest"
+          },
+          {
+            "display_name": "Gemini 2.5 Pro",
+            "model_id": "gemini-2.5-pro"
+          },
+          {
+            "display_name": "Gemini 2.5 Flash",
+            "model_id": "gemini-2.5-flash"
+          },
+          {
+            "display_name": "Gemini 3.6 Flash",
+            "model_id": "gemini-3.6-flash"
+          },
+          {
+            "display_name": "Gemini 3.7 Flash",
+            "model_id": "gemini-3.7-flash"
+          }
+        ],
+        "provider_id": "google_gemini",
+        "reason": "",
+        "source": "endpoint"
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "",
+        "method": "GET",
+        "node": "",
+        "path": "provider-models",
+        "query": {}
+      },
+      "status": 200
+    }
+  ],
+  "slug": "provider-models"
+}

@@ -250,6 +250,43 @@ export async function ModelsSettingsScreen(
             after: message(locale, 'configuration.preview.after'),
             nothingChanges: message(locale, 'settings.models.nothingChanges'),
             origin: message(locale, 'configuration.column.provenance'),
+            checkAgain: message(locale, 'settings.models.checkAgain'),
+            checking: message(locale, 'settings.models.checking'),
+            chooseVerifiedModel: message(locale, 'settings.models.chooseVerifiedModel'),
+            reloadModels: message(locale, 'settings.models.reloadModels'),
+            reloadingModels: message(locale, 'settings.models.reloadingModels'),
+            staticModelsLabel: message(locale, 'settings.models.staticModelsLabel'),
+            advancedSummaryAll: message(locale, 'settings.models.advanced.summaryAll'),
+            advancedSummaryPartial: message(
+              locale,
+              'settings.models.advanced.summaryPartial',
+            ),
+            checkLabels: {
+              credentials: message(locale, 'settings.models.check.credentials'),
+              authentication: message(locale, 'settings.models.check.authentication'),
+              'tool calling': message(locale, 'settings.models.check.toolCalling'),
+              'structured output': message(
+                locale,
+                'settings.models.check.structuredOutput',
+              ),
+              streaming: message(locale, 'settings.models.check.streaming'),
+            },
+            checkConsequences: {
+              credentials: message(locale, 'settings.models.consequence.credentials'),
+              authentication: message(
+                locale,
+                'settings.models.consequence.authentication',
+              ),
+              'tool calling': message(
+                locale,
+                'settings.models.consequence.toolCalling',
+              ),
+              'structured output': message(
+                locale,
+                'settings.models.consequence.structuredOutput',
+              ),
+              streaming: message(locale, 'settings.models.consequence.streaming'),
+            },
           }}
         />
       </Panel>

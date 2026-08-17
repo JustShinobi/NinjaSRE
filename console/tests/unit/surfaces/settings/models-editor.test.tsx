@@ -43,6 +43,28 @@ const LABELS = {
   after: 'After saving',
   nothingChanges: 'Nothing would change.',
   origin: 'Set at',
+  checkAgain: 'Check again',
+  checking: 'Checking…',
+  chooseVerifiedModel: 'Choose a model from the verified list',
+  reloadModels: 'Reload models',
+  reloadingModels: 'Reloading…',
+  staticModelsLabel: 'Static list — the endpoint could not be asked.',
+  advancedSummaryAll: '{total} roles, all inherit the default',
+  advancedSummaryPartial: '{total} roles, {inheriting} inherit the default',
+  checkLabels: {
+    credentials: 'Credentials',
+    authentication: 'Authentication',
+    'tool calling': 'Tool calling',
+    'structured output': 'Structured output',
+    streaming: 'Streaming',
+  },
+  checkConsequences: {
+    credentials: 'No credential resolved, so nothing was called.',
+    authentication: 'The endpoint rejected the credential.',
+    'tool calling': 'Investigations are sequences of tool calls.',
+    'structured output': 'The pipeline reads typed documents, not prose.',
+    streaming: 'Streamed output would not reach the console.',
+  },
 };
 
 const ANTHROPIC: ProviderOption = {
@@ -66,7 +88,16 @@ const OLLAMA: ProviderOption = {
   models: [],
 };
 
-const PROVIDERS = [ANTHROPIC, OLLAMA];
+const OPENAI: ProviderOption = {
+  providerId: 'openai',
+  displayName: 'OpenAI',
+  configured: true,
+  verified: false,
+  detail: 'no verification has been run against this deployment',
+  models: [{ modelId: 'gpt-5', supportsTools: true }],
+};
+
+const PROVIDERS = [ANTHROPIC, OLLAMA, OPENAI];
 
 const INVESTIGATOR: RoleValue = {
   role: 'investigator',
@@ -117,11 +148,20 @@ describe('a model that fails the registry’s own tool-calling check', () => {
   });
 });
 
-describe('an advanced role, collapsed until asked for', () => {
-  it('opens to show its own provider and model controls, and can be fixed away from the default', async () => {
+describe('the seven advanced roles, collapsed into one line until asked for', () => {
+  it('declares how many there are and that they inherit, before anything is expanded', () => {
     editor();
 
-    await userEvent.click(screen.getByText('Subagent'));
+    expect(screen.getByTestId('advanced-roles-summary')).toHaveTextContent('1 roles');
+    // Not rendered until the disclosure is opened — the whole point of
+    // collapsing them into one line rather than seven accordions.
+    expect(screen.queryByTestId('model-role-subagent')).not.toBeInTheDocument();
+  });
+
+  it('opens every advanced role together, showing its own provider and model controls', async () => {
+    editor();
+
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
 
     const subagent = screen.getByTestId('model-role-subagent');
     expect(within(subagent).getByLabelText('Provider')).toBeInTheDocument();
@@ -133,11 +173,11 @@ describe('an advanced role, collapsed until asked for', () => {
       { ...SUBAGENT, bound: true, providerOrigin: 'Set at org-northwind' },
     ]);
 
-    await userEvent.click(screen.getByText('Subagent'));
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
     const subagent = screen.getByTestId('model-role-subagent');
     await userEvent.click(within(subagent).getByTestId('revert-subagent'));
 
-    expect(screen.getByTestId('role-reverted')).toBeInTheDocument();
+    expect(within(subagent).getByTestId('role-reverted')).toBeInTheDocument();
   });
 });
 
@@ -151,6 +191,38 @@ describe('a provider with no credential stored', () => {
       'href',
       '/integrations/ollama',
     );
+  });
+
+  it('draws an advanced role bound to a provider this catalogue no longer lists', async () => {
+    // A role's own configuration can outlive the catalogue — a provider this
+    // build retired, or one a viewer without config.write cannot see. The
+    // console's own state, "nothing here to say is verified", not a fifth
+    // guess dressed as one of the four real ones.
+    editor([
+      INVESTIGATOR,
+      { ...SUBAGENT, provider: 'retired-vendor', model: 'whatever-it-ran' },
+    ]);
+
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
+
+    const subagent = screen.getByTestId('model-role-subagent');
+    const chip = subagent.querySelector('[data-credential-status]');
+    expect(chip).not.toBeNull();
+    // "no-provider-selected" is deliberately not one of the five canonical
+    // words — it is this console's own state, not a fact the deployment
+    // reported — so it reads as the honest "unknown" fallback rather than
+    // a guessed status the deployment never sent.
+    expect(chip).toHaveAttribute('data-credential-status', 'unknown');
+  });
+
+  it('draws an advanced role on a stored credential nobody has checked yet, distinctly from a verified one', async () => {
+    editor([INVESTIGATOR, { ...SUBAGENT, provider: 'openai', model: 'gpt-5' }]);
+
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
+
+    const subagent = screen.getByTestId('model-role-subagent');
+    const chip = subagent.querySelector('[data-credential-status]');
+    expect(chip).toHaveAttribute('data-credential-status', 'stored');
   });
 });
 
@@ -303,17 +375,133 @@ describe('saving and verifying together', () => {
       'no tool call was made',
     );
   });
-});
 
-describe('an advanced role’s own disclosure', () => {
-  it('opens and closes independently, remembering which roles are expanded', async () => {
+  it('reports a genuine save failure — not a stalled preview — and never verifies a change that did not land', async () => {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const url = String(input);
+      if (url === '/api/preview') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              changes: [
+                {
+                  path: 'models.investigator.provider',
+                  before: 'anthropic',
+                  after: 'ollama',
+                },
+              ],
+              values: {},
+              provenance: {},
+              accepted: true,
+              errors: [],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      if (url === '/api/config') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ ok: false, reason: 'the node changed underneath it' }),
+            {
+              status: 409,
+              headers: { 'content-type': 'application/json' },
+            },
+          ),
+        );
+      }
+      throw new Error(`unexpected call to ${url} once the save itself already failed`);
+    });
     editor();
 
-    const disclosure = screen.getByTestId('advanced-role-subagent');
-    await userEvent.click(screen.getByText('Subagent'));
-    expect(disclosure).toHaveAttribute('open');
+    const investigator = screen.getByTestId('model-role-investigator');
+    await userEvent.selectOptions(
+      within(investigator).getByLabelText('Provider'),
+      'ollama',
+    );
+    await userEvent.click(screen.getByTestId('save-and-verify'));
 
-    await userEvent.click(screen.getByText('Subagent'));
-    expect(disclosure).not.toHaveAttribute('open');
+    expect(await screen.findByTestId('models-failure')).toBeInTheDocument();
+    expect(screen.queryByTestId('models-saved')).not.toBeInTheDocument();
+    // A verify call that follows a failed save would grade a change that
+    // never landed — the assertion above (no further fetch reached) is what
+    // `saveAndVerify`'s own early return on a failed save exists to keep true.
+  });
+});
+
+describe('the advanced roles’ shared disclosure', () => {
+  it('opens and closes all of them together', async () => {
+    editor();
+
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
+    expect(screen.getByTestId('model-role-subagent')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
+    expect(screen.queryByTestId('model-role-subagent')).not.toBeInTheDocument();
+  });
+});
+
+describe('the investigator’s own model listing', () => {
+  it('replaces the static registry once the endpoint answers, with names it never had', async () => {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      expect(String(input)).toContain('/api/models?provider=anthropic');
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            models: [{ model_id: 'claude-opus-5', display_name: 'Claude Opus 5' }],
+            source: 'endpoint',
+            reason: '',
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+    });
+    editor();
+
+    const investigator = screen.getByTestId('model-role-investigator');
+    expect(await within(investigator).findByText('Claude Opus 5')).toBeInTheDocument();
+    expect(screen.queryByTestId('model-list-static-label')).not.toBeInTheDocument();
+  });
+
+  it('labels the fallback honestly when the endpoint could not be asked', async () => {
+    vi.stubGlobal('fetch', () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            models: [],
+            source: 'static',
+            reason: "anthropic's listing could not be used",
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    );
+    editor();
+
+    expect(await screen.findByTestId('model-list-static-label')).toHaveTextContent(
+      LABELS.staticModelsLabel,
+    );
+  });
+
+  it('reloads on request, ignoring whatever this deployment already cached', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', (input: unknown) => {
+      calls += 1;
+      expect(String(input)).toContain(
+        calls > 1 ? 'refresh=true' : 'provider=anthropic',
+      );
+      return Promise.resolve(
+        new Response(JSON.stringify({ models: [], source: 'endpoint', reason: '' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    editor();
+    await screen.findByTestId('reload-models');
+
+    await userEvent.click(screen.getByTestId('reload-models'));
+
+    expect(calls).toBeGreaterThanOrEqual(2);
   });
 });

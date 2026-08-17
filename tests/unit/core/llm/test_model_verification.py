@@ -38,16 +38,17 @@ def _report(**statuses: CheckStatus) -> PreflightReport:
 # --- The failure the whole check exists for -------------------------------------
 
 
-def test_an_endpoint_that_answers_but_cannot_tool_call_fails_verification() -> None:
-    """T-015, SC-006. Degraded is a pass for preflight and a failure here, and
-    that difference is the point: preflight describes, verification decides."""
-    verdict = contract_verdict(_report(tool_calling=CheckStatus.DEGRADED))
+def test_a_model_that_does_not_call_the_mandatory_tool_fails_verification() -> None:
+    """The probe now makes the call mandatory, so a model that still answers in
+    prose is a real refusal — not the ambiguous "degraded" a permissive probe
+    used to produce for the same behaviour."""
+    verdict = contract_verdict(_report(tool_calling=CheckStatus.FAILED))
 
     assert verdict.satisfied is False
 
 
 def test_the_message_names_the_actual_limitation_rather_than_a_bare_failure() -> None:
-    verdict = contract_verdict(_report(tool_calling=CheckStatus.DEGRADED))
+    verdict = contract_verdict(_report(tool_calling=CheckStatus.FAILED))
 
     assert "tool" in verdict.limitation.lower()
     assert "tiny-1b" in verdict.limitation
@@ -55,6 +56,53 @@ def test_the_message_names_the_actual_limitation_rather_than_a_bare_failure() ->
     # the endpoint did and what it could not do.
     assert verdict.limitation != "verification failed"
     assert verdict.remedy
+
+
+def test_a_registry_gap_in_tool_support_degrades_rather_than_refuses() -> None:
+    """The one way tool calling still reads degraded: a registry row that
+    declares no tool support, so the probe spent no call finding out. That is a
+    gap in this build's own catalogue, not a measurement of the model, and it is
+    accepted the same way a degraded structured-output fallback always was."""
+    verdict = contract_verdict(_report(tool_calling=CheckStatus.DEGRADED))
+
+    assert verdict.satisfied is True
+    assert verdict.limitation == ""
+    assert "tool calling is degraded" in verdict.summary_line.lower()
+
+
+def test_both_checks_degraded_are_both_named_in_the_summary() -> None:
+    verdict = contract_verdict(
+        _report(tool_calling=CheckStatus.DEGRADED, structured_output=CheckStatus.DEGRADED)
+    )
+
+    assert verdict.satisfied is True
+    assert "tool calling is degraded" in verdict.summary_line.lower()
+    assert "structured output is degraded" in verdict.summary_line.lower()
+
+
+def test_the_verdict_carries_every_check_the_preflight_ran_verbatim() -> None:
+    report = _report(tool_calling=CheckStatus.DEGRADED)
+    verdict = contract_verdict(report)
+
+    assert verdict.checks == report.checks
+    names = [check.name for check in verdict.checks]
+    assert names == [
+        "credentials",
+        "authentication",
+        "tool calling",
+        "structured output",
+        "streaming",
+    ]
+
+
+def test_the_record_carries_the_checks_too() -> None:
+    verdict = contract_verdict(_report(tool_calling=CheckStatus.FAILED))
+
+    record = verdict.to_record()
+
+    assert len(record["checks"]) == 5
+    tool_check = next(check for check in record["checks"] if check["name"] == "tool calling")
+    assert tool_check["status"] == "failed"
 
 
 def test_an_endpoint_that_cannot_return_structured_output_fails_the_same_way() -> None:
@@ -111,7 +159,7 @@ def test_the_models_that_do_satisfy_the_contract_are_named_where_they_are_known(
     for, and it is only useful if it lists models rather than saying there may
     be some."""
     verdict = contract_verdict(
-        _report(tool_calling=CheckStatus.DEGRADED),
+        _report(tool_calling=CheckStatus.FAILED),
         alternatives=("qwen2.5-coder:14b", "llama3.1:70b"),
     )
 
@@ -120,7 +168,7 @@ def test_the_models_that_do_satisfy_the_contract_are_named_where_they_are_known(
 
 
 def test_an_endpoint_that_cannot_enumerate_its_models_says_so_rather_than_guessing() -> None:
-    verdict = contract_verdict(_report(tool_calling=CheckStatus.DEGRADED), alternatives=())
+    verdict = contract_verdict(_report(tool_calling=CheckStatus.FAILED), alternatives=())
 
     assert verdict.alternatives == ()
     assert "qwen" not in verdict.remedy
@@ -152,7 +200,7 @@ async def test_verification_exercises_tool_calling_and_structured_output() -> No
 
 async def test_verification_asks_the_endpoint_what_else_it_offers_when_it_fails() -> None:
     async def fake_preflight() -> PreflightReport:
-        return _report(tool_calling=CheckStatus.DEGRADED)
+        return _report(tool_calling=CheckStatus.FAILED)
 
     async def enumerate_models() -> tuple[str, ...]:
         return ("tiny-1b", "qwen2.5:32b")
@@ -167,7 +215,7 @@ async def test_an_endpoint_that_refuses_to_enumerate_does_not_fail_verification(
     """Listing models is a nicety. An endpoint that will not is still verifiable."""
 
     async def fake_preflight() -> PreflightReport:
-        return _report(tool_calling=CheckStatus.DEGRADED)
+        return _report(tool_calling=CheckStatus.FAILED)
 
     async def enumerate_models() -> tuple[str, ...]:
         raise ConnectionError("no /models on this endpoint")

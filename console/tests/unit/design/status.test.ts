@@ -102,13 +102,15 @@ describe('the status mapping', () => {
 });
 
 describe('the credential and verification vocabulary', () => {
-  it('is exactly the four states plus the degrade, and nothing else', () => {
-    // Four words for a credential's own state, plus the one every screen
-    // falls back to when nothing could be read at all.
+  it('is exactly the five canonical words plus the unreachable degrade, and nothing else', () => {
+    // Five words for a credential's own state — not_connected, stored,
+    // verified, degraded, failing — plus the one every screen falls back to
+    // when nothing could be read at all, which is not one of the five.
     expect([...CREDENTIAL_STATUSES]).toEqual([
       'not_connected',
       'stored',
       'verified',
+      'degraded',
       'failing',
       'unknown',
     ]);
@@ -148,8 +150,14 @@ describe('the credential and verification vocabulary', () => {
     expect(credentialStatus('unknown')).toBe('stored');
     expect(credentialStatus('healthy')).toBe('verified');
     expect(credentialStatus('verified')).toBe('verified');
-    expect(credentialStatus('degraded')).toBe('failing');
+    // The word the preflight actually produces, mirrored rather than folded
+    // into "failing" — the defect this vocabulary used to carry.
+    expect(credentialStatus('degraded')).toBe('degraded');
     expect(credentialStatus('failing')).toBe('failing');
+  });
+
+  it('reads "degraded" as warning, distinct from both verified and failing', () => {
+    expect(roleFor('degraded')).toBe('warning');
   });
 
   it('degrades a spelling nothing declared to the one word that is honest about it', () => {

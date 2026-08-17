@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { surfaceContext } from '@/surfaces/context';
@@ -197,14 +198,16 @@ describe('the investigator role, the one every operator opens this page for', ()
 
     await renderModels();
 
+    // The credential chip moved to the state card that opens the role — the
+    // three-line paragraph this feature retires never had a chip at all.
+    expect(screen.getByTestId('provider-state-chip')).toHaveTextContent(/verified/i);
     const investigator = screen.getByTestId('model-role-investigator');
-    expect(within(investigator).getByText(/verified/i)).toBeInTheDocument();
     const modelSelect = within(investigator).getByRole('combobox', { name: /model/i });
     expect(modelSelect).toHaveValue('claude-sonnet-5');
     expect(modelSelect).toHaveTextContent(/supports tool calling/i);
   });
 
-  it('annotates a model that failed its last verification', async () => {
+  it('names a live check that failed — the check, its consequence, and an exit', async () => {
     serveModels({
       values: {
         models: { investigator: { provider: 'anthropic', model: 'claude-sonnet-5' } },
@@ -213,19 +216,111 @@ describe('the investigator role, the one every operator opens this page for', ()
       providers: {
         anthropic: {
           configured: true,
-          verified: false,
-          detail:
-            'the last check of this provider (claude-sonnet-5) did not pass: no tool call was made',
+          verified: true,
           models: [{ model_id: 'claude-sonnet-5', supports_tools: true }],
+        },
+      },
+    });
+    // Verifying is gesture-triggered and costs tokens, so nothing about a
+    // failed check is known until "Check again" actually asks — the served
+    // provider list and detail never carry per-check results, only the
+    // rounded-up `verified` boolean the state chip already reads.
+    const scenario = global.fetch;
+    vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), BASE).pathname;
+      if (path === '/api/verify') {
+        return Promise.resolve(
+          respond({
+            verified: false,
+            reason: 'the last check answered without calling the tool',
+            checks: [
+              {
+                name: 'tool calling',
+                status: 'failed',
+                detail: 'no tool call was made',
+                duration_ms: 40,
+              },
+            ],
+          }),
+        );
+      }
+      return (scenario as (i: unknown, init?: RequestInit) => Promise<Response>)(
+        input,
+        init,
+      );
+    });
+
+    await renderModels();
+    await userEvent.click(screen.getByTestId('check-again'));
+
+    const chip = await screen.findByTestId('verification-error-chip');
+    expect(chip).toHaveTextContent(/tool calling/i);
+    expect(screen.getByTestId('verification-error-detail')).toHaveTextContent(
+      'no tool call was made',
+    );
+    expect(screen.getByTestId('verification-error-consequence')).toHaveTextContent(
+      /sequences of tool calls/i,
+    );
+    expect(screen.getByTestId('verification-error-exit')).toHaveTextContent(
+      'Choose a model from the verified list',
+    );
+  });
+
+  it('says a model the registry actively marks unsupported does not support tool calling', async () => {
+    serveModels({
+      values: {
+        models: { investigator: { provider: 'anthropic', model: 'claude-haiku-4-5' } },
+      },
+      provenance: {},
+      providers: {
+        anthropic: {
+          configured: true,
+          verified: true,
+          models: [{ model_id: 'claude-haiku-4-5', supports_tools: false }],
         },
       },
     });
 
     await renderModels();
 
-    expect(screen.getByTestId('model-verification-note')).toHaveTextContent(
-      'no tool call was made',
-    );
+    const investigator = screen.getByTestId('model-role-investigator');
+    expect(
+      within(investigator).getByRole('combobox', { name: /model/i }),
+    ).toHaveTextContent(/does not support tool calling/i);
+  });
+
+  it('does not let one provider’s own failed read blank the whole panel', async () => {
+    // The comment this behaviour lives under: nine independent reads, and one
+    // provider's own hiccup must not take the rest down with it.
+    serveModels({
+      values: {
+        models: { investigator: { provider: 'anthropic', model: 'claude-sonnet-5' } },
+      },
+      provenance: {},
+      providers: {
+        anthropic: {
+          configured: true,
+          verified: true,
+          models: [{ model_id: 'claude-sonnet-5', supports_tools: true }],
+        },
+      },
+    });
+    const scenario = global.fetch;
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), BASE).pathname;
+      if (path === '/v1/providers/openai') {
+        return Promise.resolve(respond({ error: 'unavailable' }, 503));
+      }
+      return (scenario as (i: unknown) => Promise<Response>)(input);
+    });
+
+    await renderModels();
+
+    // The failing provider's own row still opens under the collapsed
+    // disclosure, empty of what it could not read, rather than the whole
+    // page reporting a dependency error.
+    const investigator = screen.getByTestId('model-role-investigator');
+    expect(within(investigator).getByLabelText('Provider')).toHaveValue('anthropic');
   });
 
   it('says a model the registry has no row for is not known to support tool calling, never that it does not', async () => {
@@ -266,7 +361,9 @@ describe('the investigator role, the one every operator opens this page for', ()
     await renderModels();
 
     const investigator = screen.getByTestId('model-role-investigator');
-    expect(within(investigator).getByText(/not connected/i)).toBeInTheDocument();
+    expect(
+      within(investigator).getByText(/no credential is stored/i),
+    ).toBeInTheDocument();
     const modelControl = within(investigator).getByLabelText(/model/i);
     expect(modelControl).toBeDisabled();
     const connect = within(investigator).getByTestId('connect-credential');
@@ -311,6 +408,10 @@ describe('the seven advanced roles', () => {
     });
 
     await renderModels();
+
+    // Collapsed until asked for: the origin only reaches the DOM once the
+    // shared disclosure is open, same as every other advanced-role control.
+    await userEvent.click(screen.getByTestId('advanced-roles-toggle'));
 
     expect(screen.getByTestId('advanced-roles')).toHaveTextContent(NODE);
   });

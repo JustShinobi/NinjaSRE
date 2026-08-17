@@ -2025,6 +2025,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/providers/{provider_id}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Models
+         * @description Return the models ``provider_id``'s own endpoint currently serves, curated.
+         *
+         *     Free, like the other two ``GET``s: listing spends no tokens, so a screen
+         *     may call this on every render. ``refresh=true`` ignores whatever is
+         *     cached, for an operator's own "Reload models".
+         *
+         *     Raises:
+         *         ApiProblem: no supported provider answers to ``provider_id`` (404).
+         */
+        get: operations["list_models_v1_providers__provider_id__models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/providers/{provider_id}/verify": {
         parameters: {
             query?: never;
@@ -3013,6 +3040,24 @@ export interface components {
             summary: string;
             /** Tags */
             tags: string[];
+        };
+        /**
+         * CheckResultView
+         * @description One preflight check, mirrored rather than collapsed into the boolean verdict.
+         *
+         *     A screen renders the state each of these actually reports — passed,
+         *     degraded or failed — never a translation of it into a word the backend
+         *     did not send.
+         */
+        CheckResultView: {
+            /** Detail */
+            detail: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
         };
         /** ChecklistStepView */
         ChecklistStepView: {
@@ -4736,6 +4781,33 @@ export interface components {
             /** Supports Tools */
             supports_tools?: boolean | null;
         };
+        /**
+         * ModelListingView
+         * @description The models one provider currently offers, curated, and where the list came from.
+         */
+        ModelListingView: {
+            /** Models */
+            models: components["schemas"]["ModelOfferingView"][];
+            /** Provider Id */
+            provider_id: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Source */
+            source: string;
+        };
+        /**
+         * ModelOfferingView
+         * @description One model a provider's listing offers, by the name the endpoint gave it.
+         */
+        ModelOfferingView: {
+            /** Display Name */
+            display_name: string;
+            /** Model Id */
+            model_id: string;
+        };
         /** ObservationListView */
         ObservationListView: {
             /** Observations */
@@ -5416,6 +5488,8 @@ export interface components {
         ProviderVerificationView: {
             /** Alternatives */
             alternatives: string[];
+            /** Checks */
+            checks?: components["schemas"]["CheckResultView"][];
             /** Detail */
             detail: string;
             /** Model Id */
@@ -9796,6 +9870,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProviderDetailView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_models_v1_providers__provider_id__models_get: {
+        parameters: {
+            query?: {
+                refresh?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelListingView"];
                 };
             };
             /** @description Validation Error */

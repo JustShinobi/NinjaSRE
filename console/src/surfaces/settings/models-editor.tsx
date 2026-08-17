@@ -1,11 +1,11 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button, Link } from '@/components/action';
 import { Input, Select } from '@/components/form';
-import { StatusChip } from '@/components/status';
+import { CheckChip, StatusChip } from '@/components/status';
 import type { Locale } from '@/i18n/messages';
 
 import {
@@ -17,6 +17,14 @@ import {
 /**
  * Choosing what drives an investigation, role by role, without opening the
  * raw editor.
+ *
+ * The investigator's own row opens inside a state card: its display name, the
+ * chip of the last verification, and the action to check again. A degraded or
+ * failed check surfaces its own row — name, consequence, an exit written with
+ * a verb — mirrored from the checks the preflight actually produced, never
+ * translated into a word the backend did not report. The seven advanced roles
+ * collapse into one line until asked for: nobody who has never touched one
+ * pays for seven open accordions.
  *
  * One editor for all eight roles rather than one save button each: the
  * document a save writes is the whole `models` section
@@ -53,6 +61,14 @@ export interface RoleValue {
   readonly modelOrigin: string;
 }
 
+/** One preflight check, exactly as the backend reported it. */
+export interface CheckView {
+  readonly name: string;
+  readonly status: 'passed' | 'degraded' | 'failed' | 'skipped';
+  readonly detail: string;
+  readonly durationMs: number;
+}
+
 export interface ModelsEditorLabels {
   readonly provider: string;
   readonly knownModel: string;
@@ -65,6 +81,8 @@ export interface ModelsEditorLabels {
   readonly connectCredential: string;
   readonly advancedTitle: string;
   readonly advancedLead: string;
+  readonly advancedSummaryAll: string;
+  readonly advancedSummaryPartial: string;
   readonly inherits: string;
   readonly revert: string;
   readonly reverted: string;
@@ -81,6 +99,15 @@ export interface ModelsEditorLabels {
   readonly after: string;
   readonly nothingChanges: string;
   readonly origin: string;
+  readonly checkAgain: string;
+  readonly checking: string;
+  readonly chooseVerifiedModel: string;
+  readonly reloadModels: string;
+  readonly reloadingModels: string;
+  readonly staticModelsLabel: string;
+  /** Each keyed by the preflight's own check name — "credentials", "tool calling", and so on. */
+  readonly checkLabels: Readonly<Record<string, string>>;
+  readonly checkConsequences: Readonly<Record<string, string>>;
 }
 
 export interface ModelsEditorProps {
@@ -122,6 +149,20 @@ function annotate(model: ModelOption, labels: ModelsEditorLabels): string {
   return `${model.modelId}${suffix}`;
 }
 
+/**
+ * `text`, with every occurrence of the raw provider identifier replaced by
+ * its display name.
+ *
+ * The backend's own sentences are written for an operator reading logs and
+ * the audit trail, where the raw identifier is the right word. A screen is a
+ * different reader: the identifier is reserved for a technical context there,
+ * and this is the one seam where a backend sentence becomes screen text.
+ */
+function humanised(text: string, providerId: string, displayName: string): string {
+  if (providerId === '' || text === '') return text;
+  return text.split(providerId).join(displayName);
+}
+
 interface RoleControlsProps {
   readonly role: RoleValue;
   readonly locale: Locale;
@@ -134,6 +175,13 @@ interface RoleControlsProps {
   readonly onProvider: (value: string) => void;
   readonly onModel: (value: string) => void;
   readonly onRevert: () => void;
+  /** The investigator's own card already shows a chip and the static-fallback
+   * label; every other role keeps drawing both inline, the way it always has. */
+  readonly isInvestigator?: boolean | undefined;
+  /** Present only for the investigator: the dynamic listing replaces `active.models`. */
+  readonly dynamicModels?:
+    readonly { modelId: string; displayName: string }[] | undefined;
+  readonly dynamicSource?: 'endpoint' | 'static' | '' | undefined;
 }
 
 /** One role's provider and model controls, shared by the investigator row and every advanced role. */
@@ -149,6 +197,9 @@ function RoleControls({
   onProvider,
   onModel,
   onRevert,
+  isInvestigator = false,
+  dynamicModels,
+  dynamicSource,
 }: RoleControlsProps): ReactNode {
   const active = providers.find((each) => each.providerId === provider);
   // A raw spelling `credentialStatus` does not recognise, deliberately: its
@@ -164,6 +215,16 @@ function RoleControls({
           : 'configured'
         : 'unconfigured';
   const blocked = active !== undefined && !active.configured;
+  // The dynamic listing only replaces the registry's own list once it has
+  // actually answered with a recognised source — an unmocked or still-loading
+  // fetch must not blank a select that already has something to offer.
+  const modelOptions =
+    dynamicModels !== undefined && dynamicSource !== '' && dynamicSource !== undefined
+      ? dynamicModels
+      : active?.models.map((each) => ({
+          modelId: each.modelId,
+          displayName: annotate(each, labels),
+        }));
 
   return (
     <div data-testid={`model-role-${role.role}`} className="flex flex-col gap-2">
@@ -180,23 +241,19 @@ function RoleControls({
           }))}
           onValueChange={onProvider}
         />
-        <StatusChip locale={locale} status={canonical} />
-        {reverted ? (
-          <span data-testid="role-reverted" className="text-meta text-muted">
-            {labels.reverted}
-          </span>
-        ) : null}
+        {isInvestigator ? null : <StatusChip locale={locale} status={canonical} />}
       </div>
 
-      {active !== undefined && active.models.length > 0 ? (
+      {modelOptions !== undefined && modelOptions.length > 0 ? (
         <Select
           label={labels.knownModel}
           name={`${role.role}-model`}
+          data-testid={`model-role-${role.role}-model`}
           disabled={!writable || reverted || blocked}
           value={model}
-          options={active.models.map((each) => ({
+          options={modelOptions.map((each) => ({
             value: each.modelId,
-            label: annotate(each, labels),
+            label: each.displayName,
           }))}
           onValueChange={onModel}
         />
@@ -204,11 +261,17 @@ function RoleControls({
         <Input
           label={labels.freeModel}
           name={`${role.role}-model`}
+          data-testid={`model-role-${role.role}-model`}
           disabled={!writable || reverted || blocked}
           value={model}
           onValueChange={onModel}
         />
       )}
+      {dynamicSource === 'static' ? (
+        <p data-testid="model-list-static-label" className="text-meta text-muted">
+          {labels.staticModelsLabel}
+        </p>
+      ) : null}
 
       {blocked ? (
         <p className="text-meta text-muted">
@@ -219,31 +282,87 @@ function RoleControls({
         </p>
       ) : null}
 
-      {active !== undefined && active.configured && !active.verified ? (
+      {active !== undefined &&
+      active.configured &&
+      !active.verified &&
+      !isInvestigator ? (
         <p data-testid="model-verification-note" className="text-meta text-muted">
-          {labels.verificationNote} {active.detail}
+          {labels.verificationNote}{' '}
+          {humanised(active.detail, active.providerId, active.displayName)}
         </p>
       ) : null}
 
-      <p className="text-meta text-muted">
-        {labels.origin}{' '}
+      {/* "Set at" appears exactly once here — `role.providerOrigin` is
+          already the full sentence (`provenanceLabel`'s own "Set at: X" or
+          "Deployment default"), so nothing here repeats the label — with the
+          action to return to the default right beside it. */}
+      <span
+        data-testid={isInvestigator ? 'inheritance-line' : undefined}
+        className="text-meta text-muted"
+      >
         {role.providerOrigin === role.modelOrigin
           ? role.providerOrigin
           : `${role.providerOrigin} / ${role.modelOrigin}`}
-      </p>
-
-      {writable && role.bound && !reverted ? (
-        <button
-          type="button"
-          data-testid={`revert-${role.role}`}
-          className="self-start text-meta text-strong underline"
-          onClick={onRevert}
-        >
-          {labels.revert}
-        </button>
-      ) : null}
+        {writable && role.bound && !reverted ? (
+          <>
+            {' · '}
+            <button
+              type="button"
+              data-testid={
+                isInvestigator ? 'revert-investigator' : `revert-${role.role}`
+              }
+              className="text-strong underline"
+              onClick={onRevert}
+            >
+              {labels.revert}
+            </button>
+          </>
+        ) : null}
+        {reverted ? <span data-testid="role-reverted"> {labels.reverted}</span> : null}
+      </span>
     </div>
   );
+}
+
+/** One check's label, humanised: "tool calling" becomes "Tool calling". */
+function checkLabel(name: string, labels: ModelsEditorLabels): string {
+  const declared = labels.checkLabels[name];
+  if (declared !== undefined) return declared;
+  return name.length === 0 ? name : name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+interface ModelListingState {
+  readonly models: readonly { modelId: string; displayName: string }[];
+  readonly source: 'endpoint' | 'static' | '';
+}
+
+async function fetchListing(
+  providerId: string,
+  refresh: boolean,
+): Promise<ModelListingState> {
+  try {
+    const query = refresh ? '&refresh=true' : '';
+    const response = await fetch(
+      `/api/models?provider=${encodeURIComponent(providerId)}${query}`,
+    );
+    const body: unknown = await response.json().catch(() => ({}));
+    const rawModels: unknown = Reflect.get(Object(body), 'models');
+    const models = Array.isArray(rawModels)
+      ? rawModels
+          .map((entry) => ({
+            modelId: String(Reflect.get(Object(entry), 'model_id') ?? ''),
+            displayName: String(Reflect.get(Object(entry), 'display_name') ?? ''),
+          }))
+          .filter((entry) => entry.modelId !== '')
+      : [];
+    const source: unknown = Reflect.get(Object(body), 'source');
+    return {
+      models,
+      source: source === 'endpoint' || source === 'static' ? source : '',
+    };
+  } catch {
+    return { models: [], source: '' };
+  }
 }
 
 export function ModelsEditor({
@@ -264,12 +383,17 @@ export function ModelsEditor({
     {},
   );
   const [reverted, setReverted] = useState<ReadonlySet<string>>(new Set());
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{
     readonly ok: boolean;
     readonly detail: string;
+    readonly checks: readonly CheckView[];
   } | null>(null);
+  const [listings, setListings] = useState<Readonly<Record<string, ModelListingState>>>(
+    {},
+  );
+  const [listingBusy, setListingBusy] = useState<ReadonlySet<string>>(new Set());
 
   function currentProvider(role: RoleValue): string {
     return pendingProvider[role.role] ?? role.provider;
@@ -277,6 +401,34 @@ export function ModelsEditor({
   function currentModel(role: RoleValue): string {
     return pendingModel[role.role] ?? role.model;
   }
+
+  const investigatorProvider =
+    investigator === undefined ? '' : currentProvider(investigator);
+
+  async function loadListing(providerId: string, refresh: boolean): Promise<void> {
+    if (providerId === '') return;
+    setListingBusy((was) => new Set(was).add(providerId));
+    const listing = await fetchListing(providerId, refresh);
+    setListings((was) => ({ ...was, [providerId]: listing }));
+    setListingBusy((was) => {
+      const next = new Set(was);
+      next.delete(providerId);
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    if (investigatorProvider === '') return;
+    if (listings[investigatorProvider] !== undefined) return;
+    // Deferred a microtask past the effect's own body: `loadListing` sets
+    // state as its first statement, and calling it synchronously here would
+    // be a state update in the same flush as the effect itself.
+    const providerId = investigatorProvider;
+    void Promise.resolve().then(() => loadListing(providerId, false));
+    // Only the investigator's own model list is fetched dynamically here —
+    // exactly the role the state card is about.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [investigatorProvider]);
 
   function setProvider(role: RoleValue, value: string): void {
     setReverted((was) => {
@@ -337,17 +489,34 @@ export function ModelsEditor({
       const body: unknown = await response.json().catch(() => ({}));
       const verified = Reflect.get(Object(body), 'verified') === true;
       const reason: unknown = Reflect.get(Object(body), 'reason');
+      const rawChecks: unknown = Reflect.get(Object(body), 'checks');
+      const checks: CheckView[] = Array.isArray(rawChecks)
+        ? rawChecks.map((entry) => ({
+            name: String(Reflect.get(Object(entry), 'name') ?? ''),
+            status:
+              (Reflect.get(Object(entry), 'status') as
+                CheckView['status'] | undefined) ?? 'skipped',
+            detail: String(Reflect.get(Object(entry), 'detail') ?? ''),
+            durationMs: Number(Reflect.get(Object(entry), 'duration_ms') ?? 0),
+          }))
+        : [];
+      // The backend writes its summary sentence for an operator reading logs,
+      // where the raw provider identifier is the right word — the same reason
+      // `humanised` exists for the structured error block below. A screen is a
+      // different reader, so the same substitution applies here too.
+      const verifiedProvider = providers.find((each) => each.providerId === providerId);
       setVerifyResult({
         ok: verified,
         detail:
           typeof reason === 'string' && reason !== ''
-            ? reason
+            ? humanised(reason, providerId, verifiedProvider?.displayName ?? providerId)
             : verified
               ? labels.verified
               : labels.verificationFailed,
+        checks,
       });
     } catch {
-      setVerifyResult({ ok: false, detail: labels.unreachable });
+      setVerifyResult({ ok: false, detail: labels.unreachable, checks: [] });
     } finally {
       setVerifyBusy(false);
     }
@@ -367,113 +536,222 @@ export function ModelsEditor({
     if (investigator !== undefined) await verify(investigator.provider);
   }
 
+  const activeInvestigatorProvider = providers.find(
+    (each) => each.providerId === investigatorProvider,
+  );
+  const listing = listings[investigatorProvider];
+  const listingLoading = listingBusy.has(investigatorProvider);
+
+  // The chip mirrors a live check when one exists; otherwise it falls back to
+  // what was last recorded — "verified"/"configured"/"unconfigured" via the
+  // same canonical mapping every other credential chip in this console uses.
+  const failingCheck = verifyResult?.checks.find((check) => check.status === 'failed');
+  const degradedCheck = verifyResult?.checks.find(
+    (check) => check.status === 'degraded',
+  );
+  const problemCheck = failingCheck ?? degradedCheck;
+  const headlineStatus =
+    verifyResult === null
+      ? activeInvestigatorProvider === undefined
+        ? 'no-provider-selected'
+        : activeInvestigatorProvider.configured
+          ? activeInvestigatorProvider.verified
+            ? 'verified'
+            : 'stored'
+          : 'not_connected'
+      : failingCheck !== undefined
+        ? 'failing'
+        : degradedCheck !== undefined
+          ? 'degraded'
+          : 'verified';
+
   return (
     <div data-testid="models-editor" className="flex flex-col gap-6">
       {investigator === undefined ? null : (
-        <RoleControls
-          role={investigator}
-          locale={locale}
-          writable={writable}
-          providers={providers}
-          provider={currentProvider(investigator)}
-          model={currentModel(investigator)}
-          reverted={reverted.has('investigator')}
-          labels={labels}
-          onProvider={(value) => {
-            setProvider(investigator, value);
-          }}
-          onModel={(value) => {
-            setModel(investigator, value);
-          }}
-          onRevert={() => {
-            revert(investigator);
-          }}
-        />
-      )}
-
-      {writable ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="primary"
-            data-testid="save-and-verify"
-            state={write.status !== '' || verifyBusy ? 'loading' : 'default'}
-            onClick={() => {
-              void saveAndVerify();
-            }}
-          >
-            {write.status !== '' ? labels.saving : labels.saveAndVerify}
-          </Button>
-          <Button
-            data-testid="test-without-saving"
-            state={verifyBusy ? 'loading' : 'default'}
-            onClick={() => {
-              void testWithoutSaving();
-            }}
-          >
-            {verifyBusy ? labels.verifying : labels.testWithoutSaving}
-          </Button>
-        </div>
-      ) : null}
-
-      {write.resolved !== null && write.current ? (
-        <ResolutionPreview
-          changes={write.resolved.changes}
-          labels={{
-            before: labels.before,
-            after: labels.after,
-            nothingChanges: labels.nothingChanges,
-          }}
-        />
-      ) : null}
-      {verifyResult !== null ? (
-        <p
-          data-testid="verify-result"
-          className={
-            verifyResult.ok ? 'text-meta text-success' : 'text-meta text-danger'
-          }
+        <div
+          data-testid="provider-state-card"
+          className="flex flex-col gap-3 rounded-3 edge border-border p-4"
         >
-          {verifyResult.detail}
-        </p>
-      ) : null}
-      {write.saved ? (
-        <p data-testid="models-saved" className="text-meta text-success">
-          {labels.saved}
-        </p>
-      ) : null}
-      {write.failure === '' ? null : (
-        <p data-testid="models-failure" className="text-meta text-danger">
-          {write.failure}
-        </p>
+          <div
+            className="flex flex-wrap items-center gap-2"
+            data-testid="provider-state-header"
+          >
+            <span data-testid="provider-state-name" className="text-strong">
+              {activeInvestigatorProvider?.displayName ?? ''}
+            </span>
+            <StatusChip
+              locale={locale}
+              status={headlineStatus}
+              data-testid="provider-state-chip"
+            />
+            <span className="grow" />
+            <Button
+              data-testid="check-again"
+              state={verifyBusy ? 'loading' : 'default'}
+              onClick={() => {
+                void verify(currentProvider(investigator));
+              }}
+            >
+              {verifyBusy ? labels.checking : labels.checkAgain}
+            </Button>
+          </div>
+
+          <RoleControls
+            role={investigator}
+            locale={locale}
+            writable={writable}
+            providers={providers}
+            provider={currentProvider(investigator)}
+            model={currentModel(investigator)}
+            reverted={reverted.has('investigator')}
+            labels={labels}
+            onProvider={(value) => {
+              setProvider(investigator, value);
+            }}
+            onModel={(value) => {
+              setModel(investigator, value);
+            }}
+            onRevert={() => {
+              revert(investigator);
+            }}
+            isInvestigator
+            dynamicModels={listing?.models}
+            dynamicSource={listing?.source}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              data-testid="reload-models"
+              state={listingLoading ? 'loading' : 'default'}
+              onClick={() => {
+                void loadListing(investigatorProvider, true);
+              }}
+            >
+              {listingLoading ? labels.reloadingModels : labels.reloadModels}
+            </Button>
+          </div>
+
+          {problemCheck !== undefined ? (
+            <div
+              data-testid="verification-error-block"
+              className="flex flex-col gap-1 rounded-2 edge border-border p-3"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <CheckChip
+                  name={checkLabel(problemCheck.name, labels)}
+                  status={problemCheck.status === 'failed' ? 'failed' : 'degraded'}
+                  data-testid="verification-error-chip"
+                />
+                <span
+                  className="text-meta text-muted"
+                  data-testid="verification-error-detail"
+                >
+                  {humanised(
+                    problemCheck.detail,
+                    activeInvestigatorProvider?.providerId ?? '',
+                    activeInvestigatorProvider?.displayName ?? '',
+                  )}
+                </span>
+              </div>
+              <p
+                className="text-meta text-muted"
+                data-testid="verification-error-consequence"
+              >
+                {labels.checkConsequences[problemCheck.name] ?? ''}{' '}
+                <Link href="#" data-testid="verification-error-exit">
+                  {labels.chooseVerifiedModel}
+                </Link>
+              </p>
+            </div>
+          ) : null}
+
+          {writable ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="primary"
+                data-testid="save-and-verify"
+                state={write.status !== '' || verifyBusy ? 'loading' : 'default'}
+                onClick={() => {
+                  void saveAndVerify();
+                }}
+              >
+                {write.status !== '' ? labels.saving : labels.saveAndVerify}
+              </Button>
+              <Button
+                data-testid="test-without-saving"
+                state={verifyBusy ? 'loading' : 'default'}
+                onClick={() => {
+                  void testWithoutSaving();
+                }}
+              >
+                {verifyBusy ? labels.verifying : labels.testWithoutSaving}
+              </Button>
+            </div>
+          ) : null}
+
+          {verifyResult !== null ? (
+            <p
+              data-testid="verify-result"
+              className={
+                verifyResult.ok ? 'text-meta text-success' : 'text-meta text-danger'
+              }
+            >
+              {verifyResult.detail}
+            </p>
+          ) : null}
+
+          {write.resolved !== null && write.current ? (
+            <ResolutionPreview
+              changes={write.resolved.changes}
+              labels={{
+                before: labels.before,
+                after: labels.after,
+                nothingChanges: labels.nothingChanges,
+              }}
+            />
+          ) : null}
+          {write.saved ? (
+            <p data-testid="models-saved" className="text-meta text-success">
+              {labels.saved}
+            </p>
+          ) : null}
+          {write.failure === '' ? null : (
+            <p data-testid="models-failure" className="text-meta text-danger">
+              {write.failure}
+            </p>
+          )}
+        </div>
       )}
 
-      <div data-testid="advanced-roles" className="flex flex-col gap-2">
-        <h4 className="text-strong">{labels.advancedTitle}</h4>
+      <div
+        data-testid="advanced-roles"
+        className="flex flex-col gap-2 rounded-3 edge border-border p-3"
+      >
+        <button
+          type="button"
+          data-testid="advanced-roles-toggle"
+          className="flex items-center gap-2 text-left"
+          onClick={() => {
+            setAdvancedOpen((was) => !was);
+          }}
+        >
+          <h4 className="text-strong">{labels.advancedTitle}</h4>
+          <span data-testid="advanced-roles-summary" className="text-meta text-muted">
+            {advanced.every((role) => !role.bound)
+              ? labels.advancedSummaryAll.replace('{total}', String(advanced.length))
+              : labels.advancedSummaryPartial
+                  .replace('{total}', String(advanced.length))
+                  .replace(
+                    '{inheriting}',
+                    String(advanced.filter((role) => !role.bound).length),
+                  )}
+          </span>
+          <span className="text-meta text-muted">{advancedOpen ? '▾' : '▸'}</span>
+        </button>
         <p className="text-meta text-muted">{labels.advancedLead}</p>
-        {advanced.map((role) => {
-          const open = expanded.has(role.role);
-          return (
-            <details
-              key={role.role}
-              data-testid={`advanced-role-${role.role}`}
-              open={open}
-              onToggle={(event) => {
-                const isOpen = (event.target as HTMLDetailsElement).open;
-                setExpanded((was) => {
-                  const next = new Set(was);
-                  if (isOpen) next.add(role.role);
-                  else next.delete(role.role);
-                  return next;
-                });
-              }}
-              className="edge border-border rounded-2 px-3 py-2"
-            >
-              <summary className="cursor-pointer select-none flex items-center gap-2">
-                <span className="font-mono">{role.label}</span>
-                <span className="text-meta text-muted">
-                  {role.bound ? role.providerOrigin : labels.inherits}
-                </span>
-              </summary>
-              <div className="pt-3">
+        {advancedOpen
+          ? advanced.map((role) => (
+              <div key={role.role} className="edge border-border rounded-2 px-3 py-2">
+                <p className="font-mono text-meta">{role.label}</p>
                 <RoleControls
                   role={role}
                   locale={locale}
@@ -494,9 +772,8 @@ export function ModelsEditor({
                   }}
                 />
               </div>
-            </details>
-          );
-        })}
+            ))
+          : null}
       </div>
     </div>
   );

@@ -148,6 +148,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'O resto do que o deployment relatou sobre esta verifica\u00e7\u00e3o.',
   'firstRun.verify.pending': '{count} de {total} ainda sem verifica\u00e7\u00e3o',
   'firstRun.verify.continueAnyway': 'Continuar mesmo assim',
+  'firstRun.verify.latency': 'respondeu em {ms} ms',
+  'firstRun.verify.footer.noneDegraded': 'nenhum degradado',
+  'firstRun.verify.footer.degraded':
+    '{count} verifica\u00e7\u00e3o(\u00f5es) degradada(s)',
+  'firstRun.verify.footer.noneFailing': 'nenhum falhando',
+  'firstRun.verify.footer.failing': '{name} est\u00e1 falhando',
+  'firstRun.verify.continue': 'Continuar',
+  'firstRun.verify.blockedBy': 'Impedido por:',
 
   'firstRun.established.title': 'O que já está configurado',
   'firstRun.established.empty.heading': 'Nada está configurado ainda',
@@ -419,6 +427,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'status.credential.notConnected': 'Não conectada',
   'status.credential.stored': 'Armazenada',
   'status.credential.verified': 'Verificada',
+  'status.credential.degraded': 'Degradada',
   'status.credential.failing': 'Falhando',
   'status.credential.unknown': 'Desconhecida',
   'status.credential.unknown.explain':
@@ -1628,6 +1637,32 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.models.failed': 'A instalação recusou esta mudança.',
   'settings.models.unreachable': 'Não foi possível contatar a instalação.',
   'settings.models.nothingChanges': 'Nada mudaria.',
+  'settings.models.checkAgain': 'Verificar novamente',
+  'settings.models.checking': 'Verificando…',
+  'settings.models.chooseVerifiedModel': 'Escolha um modelo da lista verificada',
+  'settings.models.reloadModels': 'Recarregar modelos',
+  'settings.models.reloadingModels': 'Recarregando…',
+  'settings.models.staticModelsLabel':
+    'Lista estática — não foi possível perguntar ao endpoint o que ele serve hoje.',
+  'settings.models.advanced.summaryAll':
+    '{total} papéis, todos herdam o padrão do investigator',
+  'settings.models.advanced.summaryPartial':
+    '{total} papéis, {inheriting} herdam o padrão do investigator',
+  'settings.models.check.credentials': 'Credenciais',
+  'settings.models.check.authentication': 'Autenticação',
+  'settings.models.check.toolCalling': 'Chamada de ferramenta',
+  'settings.models.check.structuredOutput': 'Saída estruturada',
+  'settings.models.check.streaming': 'Streaming',
+  'settings.models.consequence.credentials':
+    'Nenhuma credencial foi resolvida, então nada foi chamado.',
+  'settings.models.consequence.authentication':
+    'O endpoint rejeitou a credencial desta instalação.',
+  'settings.models.consequence.toolCalling':
+    'Investigações são sequências de chamadas de ferramenta — este modelo pode travar nelas.',
+  'settings.models.consequence.structuredOutput':
+    'Os estágios do pipeline trocam documentos tipados — este modelo pode falhar no meio de uma investigação.',
+  'settings.models.consequence.streaming':
+    'A saída em streaming não chegaria ao console.',
 
   // --- Ajustes: Notifications -------------------------------------------------
   'settings.notifications.contractNote':

@@ -438,6 +438,15 @@ CONSOLE_ENDPOINTS: Final[tuple[ConsoleEndpoint, ...]] = (
         source=_GATEWAY,
         summary="one provider, with everything a form needs in order to set it up",
     ),
+    ConsoleEndpoint(
+        method="GET",
+        path="/v1/providers/{provider_id}/models",
+        slug="provider-models",
+        source=_GATEWAY,
+        summary="the models this provider's own endpoint currently serves, curated",
+        records_key="models",
+        query=("refresh",),
+    ),
     # --- Administration ---------------------------------------------------------
     ConsoleEndpoint(
         method="GET",

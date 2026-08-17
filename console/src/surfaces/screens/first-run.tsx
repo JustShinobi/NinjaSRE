@@ -27,8 +27,6 @@ import {
   outstanding,
   planFor,
   readSetup,
-  stepBlocking,
-  stepDone,
   type DeploymentSetup,
   type WizardStep,
 } from '../first-run/plan';
@@ -649,41 +647,17 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                   locale={locale}
                   things={verifiable}
                   labels={verifyLabels(locale)}
+                  continueHref={
+                    // A provider absent altogether is the one case that
+                    // blocks rather than slows: nothing here could ever run
+                    // an investigation, so there is nothing to explore by
+                    // continuing past it. Every other gate — a real failure —
+                    // is VerifyStep's own, from what it actually checked.
+                    verifiable.length > 0 && setup.provider !== 'absent'
+                      ? hrefFor(nextStep('verify') ?? 'estate')
+                      : undefined
+                  }
                 />
-              ) : null}
-
-              {/* "Continue anyway": available whenever verification is not
-                  done and nothing about it blocks moving on. The pending
-                  count is read from `verifiable` — the same single-source
-                  list VerifyStep itself renders — never from what this
-                  browser session has or has not tried checking, which is
-                  what keeps this a fourth reading of one fact rather than a
-                  count of its own. */}
-              {here === 'verify' &&
-              verifiable.length > 0 &&
-              !stepDone('verify', setup) &&
-              !stepBlocking('verify', setup) ? (
-                <div
-                  data-testid="verify-continue-anyway"
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-3 edge border-border p-3"
-                >
-                  <p className="text-meta text-muted" data-testid="verify-pending">
-                    {message(locale, 'firstRun.verify.pending', {
-                      count: formatNumber(
-                        locale,
-                        verifiable.filter((thing) => thing.readiness !== 'verified')
-                          .length,
-                      ),
-                      total: formatNumber(locale, verifiable.length),
-                    })}
-                  </p>
-                  <Link
-                    href={hrefFor(nextStep('verify') ?? 'estate')}
-                    data-testid="continue-anyway"
-                  >
-                    {message(locale, 'firstRun.verify.continueAnyway')}
-                  </Link>
-                </div>
               ) : null}
 
               {here === 'estate' && estateSource !== '' ? (

@@ -48,7 +48,10 @@ SKIPPED = frozenset(
         "node_modules",
         "specs",
         "specs_v2",
+        "specs_v3",
         "specs_v4",
+        "specs_v5",
+        "specs_v6",
     }
 )
 

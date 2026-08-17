@@ -195,9 +195,9 @@
         "provider_id": "google_gemini"
       },
       "body": {
-        "configured": false,
+        "configured": true,
         "default_model": "gemini-pro-latest",
-        "detail": "no credential is stored for this provider",
+        "detail": "no verification has been run against this deployment — a stored credential is not the same fact as an endpoint that answers",
         "display_name": "Google Gemini",
         "fields": [
           {

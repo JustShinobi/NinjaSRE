@@ -51,6 +51,11 @@ ONBOARDING_ROUTES: Final[tuple[Route, ...]] = (
     # --- The providers this deployment can be pointed at -------------------------
     Route(method="GET", path="/v1/providers", permission=Permission.CONFIG_READ),
     Route(method="GET", path="/v1/providers/{provider_id}", permission=Permission.CONFIG_READ),
+    # The listing spends no tokens — the same free class of fact as the two
+    # rows above, and the same permission.
+    Route(
+        method="GET", path="/v1/providers/{provider_id}/models", permission=Permission.CONFIG_READ
+    ),
     Route(
         method="POST",
         path="/v1/providers/{provider_id}/verify",

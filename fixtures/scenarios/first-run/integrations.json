@@ -6,6 +6,89 @@
         "integrations": [
           {
             "capabilities": [
+              "prometheus_active_alerts",
+              "prometheus_metric_statistics",
+              "prometheus_resource_pressure"
+            ],
+            "category": "metrics",
+            "display_name": "Prometheus",
+            "fields": [
+              {
+                "guide_url": "",
+                "help": "Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own",
+                "label": "Token",
+                "min_scope": "",
+                "name": "token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "health": "healthy",
+            "health_detail": "a live request reached this endpoint",
+            "hosts": [
+              "prometheus.example.com"
+            ],
+            "missing_artefacts": [],
+            "name": "prometheus",
+            "parity": "complete",
+            "permissions": [
+              {
+                "capabilities": [
+                  "prometheus_metric_statistics"
+                ],
+                "grants": "evaluate PromQL over the stored series",
+                "name": "query",
+                "where": "Your reverse proxy, ingress, or Grafana Cloud access policy"
+              }
+            ],
+            "regions": [
+              "self-hosted"
+            ],
+            "summary": "PromQL evaluation and the alert rules currently firing, from the server that holds the series rather than from a dashboard on top of it."
+          },
+          {
+            "capabilities": [
+              "proxmox_cluster_health",
+              "proxmox_guest_pressure"
+            ],
+            "category": "cloud_control_plane",
+            "display_name": "Proxmox VE",
+            "fields": [
+              {
+                "guide_url": "",
+                "help": "Proxmox API token as one line: user@realm!tokenid=secret",
+                "label": "API Token",
+                "min_scope": "",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "health": "healthy",
+            "health_detail": "a live request reached this endpoint",
+            "hosts": [
+              "proxmox.example.com"
+            ],
+            "missing_artefacts": [],
+            "name": "proxmox",
+            "parity": "complete",
+            "permissions": [
+              {
+                "capabilities": [
+                  "proxmox_cluster_health"
+                ],
+                "grants": "read cluster status, quorum and the cluster log",
+                "name": "Sys.Audit on /",
+                "where": "Datacenter → Permissions"
+              }
+            ],
+            "regions": [
+              "self-hosted"
+            ],
+            "summary": "A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, datastores, thin pools, backups and replication."
+          },
+          {
+            "capabilities": [
               "metrics.range_query"
             ],
             "category": "observability",

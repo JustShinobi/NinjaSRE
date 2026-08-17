@@ -96,7 +96,11 @@ test('the guided run walks provider to verification without leaving the shell', 
     if (frame.parentFrame() === null) seen.push(new URL(frame.url()).pathname);
   });
 
-  await page.goto('/first-run');
+  // Explicit rather than the bare address: this dataset's own checklist
+  // already has a provider configured, so the derived current step has
+  // moved past choosing one — the walk below is deliberately about the
+  // provider step onward, reached the same way a link to it would.
+  await page.goto('/first-run?step=provider');
   await expect(page.getByTestId('wizard-body')).toHaveAttribute(
     'data-step',
     'provider',
@@ -135,7 +139,12 @@ test('the guided run walks provider to verification without leaving the shell', 
   // the same two routes the deployment serves. Both halves are asserted on
   // their outcome rather than on a control having appeared.
   await page.goto('/first-run?step=integrations');
-  const offer = page.getByTestId('integration-offer').first();
+  // Named explicitly rather than `.first()`: this dataset's catalogue now
+  // carries more than one offer, and which one happens to render first is
+  // not the claim this test is making.
+  const offer = page.locator(
+    '[data-testid="integration-offer"][data-integration="metrics-store"]',
+  );
   await offer.locator('input[type="password"]').first().fill('a-vendor-token');
   await offer.getByTestId('store-credential').click();
   await expect(offer.getByTestId('credential-result')).toHaveText(/Stored\./);
@@ -260,11 +269,11 @@ test('the dashboard invites the wizard while there is something left to do', asy
 test('names the position by number and by name, distinct from how many the checklist has left', async ({
   page,
 }) => {
+  // This dataset's own checklist already has a provider configured, so the
+  // derived current step is the third one, not the first.
   await page.goto('/first-run');
-  await expect(page.getByTestId('wizard-position')).toContainText('1 of 7');
-  await expect(page.getByTestId('wizard-position')).toContainText(
-    'Choose a model provider',
-  );
+  await expect(page.getByTestId('wizard-position')).toContainText('3 of 7');
+  await expect(page.getByTestId('wizard-position')).toContainText('Choose a model');
 
   await page.goto('/first-run?step=verify');
   await expect(page.getByTestId('wizard-position')).toContainText('5 of 7');
@@ -276,12 +285,17 @@ test('names the position by number and by name, distinct from how many the check
 test('a step that hands over carries the way back, and the destination offers it while the wizard is not done', async ({
   page,
 }) => {
-  await page.goto('/first-run?step=estate');
+  // Alerts, not estate: this dataset's own checklist already carries a
+  // verified infrastructure source (Proxmox VE), so the estate step now
+  // renders its own preview rather than the generic handover this test is
+  // about. The runtime step stays blocked in every scenario this project
+  // serves, so alerts still hands over the same way.
+  await page.goto('/first-run?step=alerts');
   const link = page.getByTestId('handover-link');
-  await expect(link).toHaveAttribute('href', '/resources?return=setup');
+  await expect(link).toHaveAttribute('href', '/settings/alert-intake?return=setup');
   await link.click();
 
-  await expect(page).toHaveURL(/\/resources\?return=setup/);
+  await expect(page).toHaveURL(/\/settings\/alert-intake\?return=setup/);
   await expect(page.getByTestId('setup-return-banner')).toBeVisible();
 
   await page.getByTestId('setup-return-link').click();
@@ -295,13 +309,14 @@ test('a step that hands over carries the way back, and the destination offers it
   );
 });
 
-// "Continue anyway" is not exercised here. It needs a provider or an
-// integration the checklist reports as configured-but-unverified, and this
-// project's mock plane serves `/v1/setup/checklist` as one fixed document per
-// scenario — storing a credential through the real write endpoints during the
-// test does not move it, unlike the real gateway (proved against one in
+// The Verify step's own Continue control is not exercised here. This
+// dataset's checklist does carry a configured-but-unverified provider now,
+// but the checklist a scenario serves is one fixed document — storing a
+// credential through the real write endpoints during the test does not move
+// it, unlike the real gateway (proved against one in
 // `tests/contract/console/test_console_first_run.py::test_a_credential_written_the_way_the_console_writes_it_verifies`).
-// The control itself, its pending count, and its destination are covered at
-// the component level instead, in `tests/unit/surfaces/first-run.test.tsx`'s
-// "continuing past verification" suite, against a checklist this session
-// controls directly.
+// So a live failure — the state that actually holds Continue back — is not
+// reachable by driving this browser alone. The control itself, its footer,
+// and both outcomes are covered at the component level instead, in
+// `tests/unit/surfaces/first-run.test.tsx`'s "continuing past verification"
+// suite, against a checklist this session controls directly.

@@ -526,6 +526,53 @@ async def test_a_verification_that_failed_says_what_could_not_be_done(
     assert body["alternatives"] == ["llama4:405b"]
 
 
+async def test_a_degraded_check_is_mirrored_rather_than_translated_to_failing(
+    deployment: Deployment, operator_token: str
+) -> None:
+    """The verdict's own checks reach the response verbatim — status, name,
+    detail and duration — so a screen can show 'Degraded' instead of folding
+    it into a failure the backend never reported."""
+    from core.llm.preflight import CheckResult, CheckStatus, PreflightReport
+    from core.llm.verification import contract_verdict
+
+    report = PreflightReport(
+        provider_id="google_gemini",
+        model_id="gemini-2.5-flash",
+        transport="sdk",
+        checks=(
+            CheckResult("credentials", CheckStatus.PASSED, "present: api_key", 1.0),
+            CheckResult("authentication", CheckStatus.PASSED, "", 210.0),
+            CheckResult(
+                "tool calling", CheckStatus.DEGRADED, "model declares no tool support", 0.0
+            ),
+            CheckResult("structured output", CheckStatus.PASSED, "via native", 340.0),
+            CheckResult("streaming", CheckStatus.PASSED, "298 characters", 260.0),
+        ),
+    )
+
+    async def verifier(provider_id: str, model_id: str | None = None) -> ModelVerdict:
+        del provider_id, model_id
+        return contract_verdict(report)
+
+    deployment.state.model_verifier = verifier
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as http:
+        response = await http.post(
+            "/v1/providers/google_gemini/verify", headers=_headers(operator_token)
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["checks"]) == 5
+    tool_check = next(check for check in body["checks"] if check["name"] == "tool calling")
+    assert tool_check["status"] == "degraded"
+    assert tool_check["duration_ms"] == 0.0
+    auth_check = next(check for check in body["checks"] if check["name"] == "authentication")
+    assert auth_check["duration_ms"] == 210.0
+    # Degraded and still satisfied — non-blocking, exactly what the checks say.
+    assert body["verified"] is True
+
+
 async def test_verifying_tests_the_model_the_deployment_is_configured_to_run(
     deployment: Deployment, operator_token: str
 ) -> None:
@@ -641,6 +688,81 @@ async def test_reading_the_provider_listing_never_verifies_anything(
         await http.get("/v1/providers/anthropic", headers=_headers(operator_token))
 
     assert calls == []
+
+
+# --- The listing route --------------------------------------------------------
+
+
+async def test_the_listing_route_serves_a_curated_endpoint_listing(
+    client: AsyncClient, operator_token: str
+) -> None:
+    from core.llm.catalogue import ModelOffering, register_catalogue
+
+    class _FakeCatalogue:
+        async def list_models(self, credentials: object) -> tuple[ModelOffering, ...]:
+            del credentials
+            return (
+                ModelOffering("gemini-3.7-flash", "Gemini 3.7 Flash"),
+                ModelOffering("imagen-4.0-generate-001", "Imagen 4.0"),
+            )
+
+    register_catalogue("google_gemini", _FakeCatalogue())
+
+    response = await client.get(
+        "/v1/providers/google_gemini/models", headers=_headers(operator_token)
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "endpoint"
+    assert body["reason"] == ""
+    model_ids = [model["model_id"] for model in body["models"]]
+    assert "gemini-3.7-flash" in model_ids
+    # The image family, discarded by curation before the response is built.
+    assert "imagen-4.0-generate-001" not in model_ids
+
+
+async def test_the_listing_route_falls_back_to_the_static_list_when_labelled(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """Anthropic declares no listing implementation yet — the same observable
+    outcome as an endpoint that failed, per the port's own neutrality: the
+    caller cannot tell the two apart, and falls to the same labelled static
+    list either way."""
+    response = await client.get("/v1/providers/anthropic/models", headers=_headers(operator_token))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "static"
+    assert body["reason"] != ""
+    assert len(body["models"]) > 0
+
+
+async def test_a_local_provider_with_no_static_list_still_declares_itself_static(
+    client: AsyncClient, operator_token: str
+) -> None:
+    """Ollama's own onboarding names no models at all — an operator types
+    one in — so the fallback here is legitimately empty. It is still reported
+    as the static source with a reason, never as a silent, unlabelled gap."""
+    response = await client.get("/v1/providers/ollama/models", headers=_headers(operator_token))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "static"
+    assert body["reason"] != ""
+    assert body["models"] == []
+
+
+async def test_the_listing_route_needs_no_permission_beyond_reading_configuration(
+    deployment: Deployment, viewer_token: str
+) -> None:
+    """A viewer who may read configuration may see what a provider offers —
+    the same permission the other two provider GETs already demand."""
+    transport = ASGITransport(app=create_app(deployment.state))
+    async with AsyncClient(transport=transport, base_url="http://gateway.test") as http:
+        response = await http.get("/v1/providers/anthropic/models", headers=_headers(viewer_token))
+
+    assert response.status_code == 200
 
 
 # --- The configuration route stays sealed --------------------------------------

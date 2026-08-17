@@ -82,6 +82,22 @@ function pick(record: unknown, name: string, fallback: unknown): unknown {
   return found ?? fallback;
 }
 
+/**
+ * The preflight's own checks, mirrored rather than translated.
+ *
+ * `[]` for an integration's verdict, which carries no such breakdown — the
+ * per-check hierarchy is a provider-verification fact.
+ */
+function checksOf(verdict: unknown): readonly Record<string, unknown>[] {
+  const found: unknown = Reflect.get(Object(verdict), 'checks');
+  return Array.isArray(found)
+    ? found.filter(
+        (each): each is Record<string, unknown> =>
+          typeof each === 'object' && each !== null,
+      )
+    : [];
+}
+
 /** Verify one provider or one integration and return the deployment's verdict. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const credential = request.cookies.get(SESSION_COOKIE)?.value;
@@ -132,6 +148,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         state: pick(verdict, 'state', ''),
         alternatives: pick(verdict, 'alternatives', []),
         findings,
+        checks: checksOf(verdict),
       },
       { status: answer.status },
     );

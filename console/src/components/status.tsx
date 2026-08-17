@@ -162,6 +162,7 @@ const CREDENTIAL_STATUS_LABEL: Readonly<Record<CredentialStatus, MessageKey>> = 
   not_connected: 'status.credential.notConnected',
   stored: 'status.credential.stored',
   verified: 'status.credential.verified',
+  degraded: 'status.credential.degraded',
   failing: 'status.credential.failing',
   unknown: 'status.credential.unknown',
 };
@@ -171,6 +172,7 @@ export interface StatusChipProps {
   /** The status as any surface reports it — any spelling `credentialStatus` recognises. */
   readonly status: string;
   readonly className?: string;
+  readonly 'data-testid'?: string;
 }
 
 /**
@@ -186,7 +188,12 @@ export interface StatusChipProps {
  * because "Unknown" alone does not say whether that is the credential's own
  * state or a gateway this reader's screen could not reach.
  */
-export function StatusChip({ locale, status, className }: StatusChipProps): ReactNode {
+export function StatusChip({
+  locale,
+  status,
+  className,
+  'data-testid': testId,
+}: StatusChipProps): ReactNode {
   const canonical = credentialStatus(status);
   const presented = statusPresentation(canonical);
   const label = message(locale, CREDENTIAL_STATUS_LABEL[canonical]);
@@ -198,6 +205,7 @@ export function StatusChip({ locale, status, className }: StatusChipProps): Reac
     <span
       data-role={presented.role}
       data-credential-status={canonical}
+      data-testid={testId}
       title={explain}
       className={cx(
         'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
@@ -207,6 +215,65 @@ export function StatusChip({ locale, status, className }: StatusChipProps): Reac
     >
       <ShapeMark shape={presented.shape} role={presented.role} />
       {label}
+    </span>
+  );
+}
+
+export interface CheckChipProps {
+  readonly name: string;
+  /** The preflight's own vocabulary for one check: passed, degraded, failed, or skipped. */
+  readonly status: 'passed' | 'degraded' | 'failed' | 'skipped';
+  readonly className?: string;
+  readonly 'data-testid'?: string;
+}
+
+/** The role a preflight check's own status carries — never the credential vocabulary's. */
+const CHECK_ROLE: Readonly<Record<CheckChipProps['status'], SemanticRole>> = {
+  passed: 'success',
+  degraded: 'warning',
+  failed: 'danger',
+  skipped: 'neutral',
+};
+
+/**
+ * One preflight check, named — not the five-word credential vocabulary.
+ *
+ * `StatusChip` always shows one of the five canonical words; a check's own
+ * name ("Tool calling", "Structured output") is a different kind of label
+ * that still has to carry a role rather than a literal colour, which is what
+ * this borrows `ROLE_SKIN` and `ShapeMark` for directly.
+ */
+export function CheckChip({
+  name,
+  status,
+  className,
+  'data-testid': testId,
+}: CheckChipProps): ReactNode {
+  const role = CHECK_ROLE[status];
+  return (
+    <span
+      data-role={role}
+      data-check-status={status}
+      data-testid={testId}
+      className={cx(
+        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
+        ROLE_SKIN[role],
+        className,
+      )}
+    >
+      <ShapeMark
+        shape={
+          role === 'success'
+            ? 'filled-circle'
+            : role === 'warning'
+              ? 'triangle'
+              : role === 'danger'
+                ? 'square'
+                : 'dash'
+        }
+        role={role}
+      />
+      {name}
     </span>
   );
 }
