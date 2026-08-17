@@ -132,12 +132,8 @@ def _registered(name: str) -> Any:
     """
     from core.capability.registered import capability_marker
     from integrations.proxmox import tools as proxmox_tools
-    from integrations.proxmox_backup_server import tools as backup_server_tools
 
-    # Both packages, because a backup is only a recovery point once the backup
-    # server says it holds one — and a scenario about a full datastore on the
-    # backup server is a hypervisor scenario however the integrations are split.
-    function = getattr(proxmox_tools, name, None) or getattr(backup_server_tools, name, None)
+    function = getattr(proxmox_tools, name, None)
     if function is None:
         raise StaleFixture(
             name, f"{name!r} is not a Proxmox investigation tool this repository ships"

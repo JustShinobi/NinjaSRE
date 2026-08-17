@@ -169,7 +169,7 @@ class CredentialSchema:
 
     Declared beside the integration it describes, so adding a vendor is one
     package and no edit anywhere else — the property that has to hold if a
-    catalogue of eighty-five is going to be addable one at a time.
+    catalogue is going to be addable one at a time.
     """
 
     integration: str

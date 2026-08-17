@@ -1,10 +1,9 @@
 """A git host's commit listing, as the change record the platform reasons about.
 
-The catalogue already speaks to GitHub, GitLab and Bitbucket, and each of them
-can list what landed in a repository. What none of them can do is say what a
-deployment *applied*, and the difference is why this is the second change source
-rather than the first: a commit is a statement about a repository, and an estate
-is broken by something that reached it.
+The catalogue speaks to GitHub, and it can list what landed in a repository.
+What it cannot do is say what a deployment *applied*, and the difference is why
+this is the second change source rather than the first: a commit is a statement
+about a repository, and an estate is broken by something that reached it.
 
 So this adapter is deliberately thin and deliberately honest about what it
 cannot supply.
@@ -12,7 +11,7 @@ cannot supply.
 **Thin**: the vendor differences are three field maps, because that is genuinely
 all they are. Every one of these clients already returns bounded, paginated
 records through the proxy, and reimplementing any of that per vendor is how a
-catalogue of eighty-five integrations becomes unmaintainable.
+catalogue of integrations becomes unmaintainable.
 
 **Honest**: no commit-listing endpoint of the three returns the paths a commit
 touched, and a change with no paths cannot be correlated to a component, which
@@ -39,9 +38,7 @@ from config.constants.changes import CHANGES_TOOL_NAME, MAX_CHANGES_PER_WINDOW
 from integrations._base.access import current
 from integrations._base.client import IntegrationClient
 from integrations._base.errors import IntegrationError
-from integrations.bitbucket.client import BitbucketClient
 from integrations.github.client import GithubClient
-from integrations.gitlab.client import GitlabClient
 from platform.changes.models import Change, ChangeWindow
 from platform.changes.screening import screen_all
 from platform.observability.logging import get_logger
@@ -75,30 +72,16 @@ class VendorShape:
     message: tuple[str, ...]
 
 
-#: The three vendors in the catalogue whose clients list commits. Adding a
-#: fourth is a row here and nothing else, which is the property that makes the
-#: adapter worth having at all.
+#: The vendor in the catalogue whose client lists commits. Adding another is a
+#: row here and nothing else, which is the property that makes the adapter
+#: worth having at all.
 GIT_HOST_SHAPES: Final[Mapping[str, VendorShape]] = {
-    "bitbucket": VendorShape(
-        client=BitbucketClient,
-        identifier=("hash",),
-        author=("author.raw", "author.display_name", "author.user.display_name"),
-        instant=("date",),
-        message=("message",),
-    ),
     "github": VendorShape(
         client=GithubClient,
         identifier=("sha",),
         author=("commit.author.name", "author.login"),
         instant=("commit.author.date", "commit.committer.date"),
         message=("commit.message",),
-    ),
-    "gitlab": VendorShape(
-        client=GitlabClient,
-        identifier=("short_id", "id"),
-        author=("author_name",),
-        instant=("committed_date", "created_at"),
-        message=("title", "message"),
     ),
 }
 

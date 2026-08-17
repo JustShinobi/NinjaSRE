@@ -2,7 +2,7 @@
 
 The prompts are generated from the credential schema the integration package
 declares, so adding a vendor is a package and not an edit to this file. That is
-the property that makes a catalogue of eighty-five integrations addable one at
+the property that makes the catalogue addable one integration at
 a time, and it is the same reason capability discovery walks the tree.
 
 The credential goes from the prompt to the vault and nowhere else. It is never

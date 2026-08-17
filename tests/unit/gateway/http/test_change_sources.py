@@ -67,7 +67,7 @@ def test_both_configured_compose_both_with_the_apply_record_first() -> None:
         _settings(
             {
                 "repository_path": "/srv/infra",
-                "git_host": {"vendor": "gitlab", "repository": "acme/infra"},
+                "git_host": {"vendor": "github", "repository": "acme/infra"},
             }
         ).policies.changes
     )

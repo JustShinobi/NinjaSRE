@@ -18,12 +18,10 @@ integrations:
 - kubernetes
 - prometheus
 - loki
-- flagd
 available_evidence:
 - kubernetes
 - prometheus
 - loki
-- flagd
 
 expected_symptom:
 - recommendation_memory_rising

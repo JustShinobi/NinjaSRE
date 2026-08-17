@@ -24,7 +24,7 @@ without them, which is what this runs by default:
 
 ``--live`` adds the vendor calls, for the scheduled job. A failure there does
 *not* fail the build (FR-016): a vendor's breaking change is not the operator's
-fault, and a red build tells them nothing about which of eighty-five vendors
+fault, and a red build tells them nothing about which of the shipped vendors
 broke. It marks the integration degraded and prints what stopped working, so
 everything else keeps running and the affected part is named.
 

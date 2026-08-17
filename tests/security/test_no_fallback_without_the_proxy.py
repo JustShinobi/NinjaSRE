@@ -35,11 +35,11 @@ async def test_an_unreachable_vendor_fails_the_capability(stack: ProxyStack) -> 
     stack.sender.failures.append(ConnectionError("connection refused"))
 
     with pytest.raises(IntegrationError) as raised:
-        await stack.client().get("/api/v2/logs/events", params={"query": "*"})
+        await stack.client().get("/v1/subscriptions", params={"query": "*"})
 
-    assert raised.value.integration == "datadog"
+    assert raised.value.integration == "redis"
     assert raised.value.reason is IntegrationErrorReason.PROXY_UNAVAILABLE
-    assert "datadog" in str(raised.value)
+    assert "redis" in str(raised.value)
 
 
 async def test_a_tenant_without_the_credential_gets_a_structured_error() -> None:
@@ -47,11 +47,11 @@ async def test_a_tenant_without_the_credential_gets_a_structured_error() -> None
     unseeded = await build_stack()
 
     with pytest.raises(IntegrationError) as raised:
-        await unseeded.client().get("/api/v2/logs/events", params={"query": "*"})
+        await unseeded.client().get("/v1/subscriptions", params={"query": "*"})
 
     assert raised.value.reason is IntegrationErrorReason.CREDENTIAL_UNAVAILABLE
     assert raised.value.proxy_reason is ProxyErrorReason.CREDENTIAL_NOT_CONFIGURED
-    assert "datadog" in str(raised.value)
+    assert "redis" in str(raised.value)
     assert unseeded.sender.sent == [], "an unauthenticated request left for the vendor"
 
 
@@ -60,11 +60,11 @@ async def test_a_failed_resolution_becomes_a_capability_error(stack: ProxyStack)
     empty = await build_stack()
 
     with pytest.raises(IntegrationError) as raised:
-        await empty.client().get("/api/v2/logs/events", params={"query": "*"})
+        await empty.client().get("/v1/subscriptions", params={"query": "*"})
 
     error = raised.value.to_capability_error()
     assert error.classification is CapabilityErrorClass.PERMISSION_DENIED
-    assert "datadog" in error.message
+    assert "redis" in error.message
     assert not error.retryable
 
 
@@ -87,7 +87,7 @@ async def test_there_is_no_configuration_that_returns_a_credential(stack: ProxyS
     method that returned a value, every argument about where credentials cannot
     reach would be one import away from being false.
     """
-    handle = CredentialHandle(integration="datadog", team_id="payments")
+    handle = CredentialHandle(integration="redis", team_id="payments")
     version = await stack.vault.active(stack.scope, handle)
 
     assert version is not None
@@ -104,12 +104,12 @@ async def test_the_proxy_records_the_refusal(stack: ProxyStack) -> None:
     empty = await build_stack()
 
     with pytest.raises(IntegrationError):
-        await empty.client().get("/api/v2/logs/events", params={"query": "*"})
+        await empty.client().get("/v1/subscriptions", params={"query": "*"})
 
     async with empty.gateway.begin(empty.scope) as uow:
         events = await uow.audit.query(limit=10)
 
     assert len(events) == 1
-    assert events[0].detail["integration"] == "datadog"
+    assert events[0].detail["integration"] == "redis"
     assert events[0].detail["reason"] == ProxyErrorReason.CREDENTIAL_NOT_CONFIGURED
     assert events[0].actor_id == ORG_ID

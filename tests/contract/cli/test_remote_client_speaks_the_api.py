@@ -574,17 +574,17 @@ def test_the_integration_catalogue_comes_back(remote: RemoteClient) -> None:
 
 
 def test_verifying_an_integration_reports_its_credential_state(remote: RemoteClient) -> None:
-    status = asyncio.run(remote.verify_integration("datadog"))
+    status = asyncio.run(remote.verify_integration("redis"))
 
-    assert status.integration == "datadog"
+    assert status.integration == "redis"
     assert status.credential_state
 
 
 # --- Writing a credential over the wire --------------------------------------
 
-#: Valid against Datadog's declared format, so the write it is used in is one
-#: the deployment really accepts. A sweep over a rejected write would prove only
-#: that a refusal is quiet.
+#: Valid against Redis Cloud's declared format, so the write it is used in is
+#: one the deployment really accepts. A sweep over a rejected write would prove
+#: only that a refusal is quiet.
 SENTINEL_KEY = "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
 SENTINEL_APP_KEY = "abcdefghij0123456789ABCDEFGHIJ0123456789"
 PROVIDER_KEY = f"sk-ant-{SENTINEL_KEY}"
@@ -594,12 +594,12 @@ def test_a_credential_written_remotely_lands_and_verifies(remote: RemoteClient) 
     """The four steps an onboarding takes, against the route that serves them."""
     stored = asyncio.run(
         remote.store_integration_credential(
-            "datadog", {"api_key": SENTINEL_KEY, "app_key": SENTINEL_APP_KEY}
+            "redis", {"api_key": SENTINEL_KEY, "secret_key": SENTINEL_APP_KEY}
         )
     )
-    verified = asyncio.run(remote.verify_integration("datadog"))
+    verified = asyncio.run(remote.verify_integration("redis"))
 
-    assert stored.integration == "datadog"
+    assert stored.integration == "redis"
     assert stored.configured
     assert stored.credential_state == "configured"
     assert verified.healthy
@@ -624,13 +624,13 @@ def test_the_secret_is_in_the_request_body_and_in_nothing_else(
     watched = RemoteClient(endpoint=remote.endpoint, opener=watching)
     status = asyncio.run(
         watched.store_integration_credential(
-            "datadog", {"api_key": SENTINEL_KEY, "app_key": SENTINEL_APP_KEY}
+            "redis", {"api_key": SENTINEL_KEY, "secret_key": SENTINEL_APP_KEY}
         )
     )
 
     written = seen[-1]
     assert written.get_method() == "PUT"
-    assert written.full_url.endswith("/v1/integrations/datadog/credential")
+    assert written.full_url.endswith("/v1/integrations/redis/credential")
     assert SENTINEL_KEY not in written.full_url
     assert SENTINEL_KEY not in repr(dict(written.header_items()))
     assert SENTINEL_KEY in (written.data or b"").decode()
@@ -645,13 +645,13 @@ def test_a_credential_the_vendors_schema_refuses_names_the_field_not_the_value(
     with pytest.raises(CliError) as refused:
         asyncio.run(
             remote.store_integration_credential(
-                "datadog", {"api_key": SENTINEL_KEY, "app_key": "too-short"}
+                "redis", {"api_key": SENTINEL_KEY, "secret_key": "zzq1"}
             )
         )
 
-    assert "app_key" in str(refused.value)
+    assert "secret_key" in str(refused.value)
     assert SENTINEL_KEY not in str(refused.value)
-    assert "too-short" not in str(refused.value)
+    assert "zzq1" not in str(refused.value)
 
 
 # --- The provider surface ----------------------------------------------------
@@ -704,10 +704,10 @@ def test_credential_fields_resolve_the_callers_own_node(remote: RemoteClient) ->
     Credential schemas are reachable per node, not per client — and a client is
     perfectly able to resolve which node it is acting at.
     """
-    fields = asyncio.run(remote.credential_fields("datadog"))
+    fields = asyncio.run(remote.credential_fields("redis"))
 
-    assert [declared.name for declared in fields] == ["api_key", "app_key", "site"]
-    assert [declared.secret for declared in fields] == [True, True, False]
+    assert [declared.name for declared in fields] == ["api_key", "secret_key"]
+    assert [declared.secret for declared in fields] == [True, True]
     assert all(declared.prompt for declared in fields)
 
 

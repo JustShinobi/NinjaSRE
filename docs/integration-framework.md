@@ -4,7 +4,7 @@ Everything in this document exists to make one number true: a typical REST
 vendor goes from nothing to a passing contract suite in about two hours, and
 adding it edits zero existing files.
 
-Both halves matter. The first is what makes eighty-five integrations a plan
+Both halves matter. The first is what makes a catalogue of integrations a plan
 rather than a wish. The second is what makes them addable *concurrently* — a
 central registry would be a merge conflict on every pull request, and the line
 somebody eventually forgets is the one that makes an integration invisible while
@@ -144,7 +144,7 @@ every change. Live runs are scheduled separately, and a failure there marks the
 integration **degraded** rather than failing the build.
 
 That is deliberate. A vendor's breaking change is not the operator's change,
-they cannot fix it, and a red build across eighty-five integrations tells them
+they cannot fix it, and a red build across the whole catalogue tells them
 nothing about which one broke — the pressure that creates is to disable the live
 run, and then the drift is undetected rather than merely unfixed. Degrading
 names the vendor and what stopped working, in the catalogue the console reads,

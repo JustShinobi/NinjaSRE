@@ -62,7 +62,7 @@ VENDOR_TOOLS = tuple(
 def test_the_catalogue_is_the_size_the_wave_set_out_to_deliver() -> None:
     """A count, so a package quietly failing to import is visible as a number."""
     assert len(vendor_packages()) == len(CATALOGUE)
-    assert len(CATALOGUE) >= 80, f"only {len(CATALOGUE)} integrations are installed"
+    assert len(CATALOGUE) == 15, f"{len(CATALOGUE)} integrations are installed, not 15"
 
 
 def test_every_recorded_gap_is_absent_from_the_catalogue_rather_than_broken() -> None:
@@ -150,9 +150,7 @@ def test_every_integration_contributes_exactly_one_methodology_skill() -> None:
 
 
 def test_two_log_stores_are_both_scored_rather_than_one_being_preferred_by_accident() -> None:
-    catalogue = resolve_for(
-        REGISTRY, ConfiguredIntegrations(integrations=("loki", "elasticsearch"))
-    )
+    catalogue = resolve_for(REGISTRY, ConfiguredIntegrations(integrations=("loki", "openobserve")))
 
     result = select(
         catalogue,
@@ -162,20 +160,18 @@ def test_two_log_stores_are_both_scored_rather_than_one_being_preferred_by_accid
     )
 
     scored = {found.name: found for found in result.scores}
-    for name in ("loki_log_statistics", "elasticsearch_log_statistics"):
+    for name in ("loki_log_statistics", "openobserve_log_statistics"):
         assert name in scored, f"{name} was not scored at all"
         assert scored[name].rationale, f"{name} scored with no rationale to explain it"
 
 
 def test_a_domain_with_two_vendors_offers_both_methodologies() -> None:
     """Neither is hidden: an operator who configured both can be directed to either."""
-    catalogue = resolve_for(
-        REGISTRY, ConfiguredIntegrations(integrations=("loki", "elasticsearch"))
-    )
+    catalogue = resolve_for(REGISTRY, ConfiguredIntegrations(integrations=("loki", "openobserve")))
 
     names = {skill.name for skill in catalogue.skills}
 
-    assert {"logstore-loki", "logstore-elasticsearch"} <= names
+    assert {"logstore-loki", "logstore-openobserve"} <= names
 
 
 # --- Acceptance scenario 6: unconfigured is excluded with a reason -----------
@@ -186,10 +182,10 @@ def test_an_integration_nobody_configured_is_excluded_with_the_requirement_named
 
     excluded = {found.name: found for found in catalogue.excluded}
 
-    assert "datadog_log_statistics" in excluded
-    entry = excluded["datadog_log_statistics"]
+    assert "openobserve_log_statistics" in excluded
+    entry = excluded["openobserve_log_statistics"]
     assert entry.kind is CapabilityKind.TOOL
-    assert entry.unmet == ("datadog",)
+    assert entry.unmet == ("openobserve",)
     assert "not configured" in entry.reason
 
 

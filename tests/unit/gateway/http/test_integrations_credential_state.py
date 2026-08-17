@@ -23,7 +23,7 @@ from tests.unit.gateway.http.conftest import TEAM_PAYMENTS, Deployment, issue_to
 
 pytestmark = pytest.mark.unit
 
-CREDENTIAL_PATH = "/v1/integrations/datadog/credential"
+CREDENTIAL_PATH = "/v1/integrations/redis/credential"
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ async def test_an_integration_nobody_has_connected_reads_unconfigured(
 
     assert response.status_code == 200
     entries = {entry["name"]: entry for entry in response.json()["integrations"]}
-    assert entries["datadog"]["health"] == "unconfigured"
+    assert entries["redis"]["health"] == "unconfigured"
 
 
 async def test_storing_a_credential_flips_it_to_unknown_not_healthy(
@@ -66,13 +66,13 @@ async def test_storing_a_credential_flips_it_to_unknown_not_healthy(
     await client.put(
         CREDENTIAL_PATH,
         headers=_headers(manager_token),
-        json={"values": {"api_key": "0f1e2d3c4b5a69788796a5b4c3d2e1f0", "app_key": "x" * 40}},
+        json={"values": {"api_key": "0f1e2d3c4b5a69788796a5b4c3d2e1f0", "secret_key": "x" * 40}},
     )
 
     response = await client.get("/v1/integrations", headers=_headers(manager_token))
 
     entries = {entry["name"]: entry for entry in response.json()["integrations"]}
-    assert entries["datadog"]["health"] == "unknown"
+    assert entries["redis"]["health"] == "unknown"
 
 
 async def test_verifying_a_stored_credential_moves_it_to_healthy(
@@ -81,11 +81,11 @@ async def test_verifying_a_stored_credential_moves_it_to_healthy(
     await client.put(
         CREDENTIAL_PATH,
         headers=_headers(manager_token),
-        json={"values": {"api_key": "0f1e2d3c4b5a69788796a5b4c3d2e1f0", "app_key": "x" * 40}},
+        json={"values": {"api_key": "0f1e2d3c4b5a69788796a5b4c3d2e1f0", "secret_key": "x" * 40}},
     )
 
-    await client.post("/v1/integrations/datadog/verify", headers=_headers(manager_token))
+    await client.post("/v1/integrations/redis/verify", headers=_headers(manager_token))
     response = await client.get("/v1/integrations", headers=_headers(manager_token))
 
     entries = {entry["name"]: entry for entry in response.json()["integrations"]}
-    assert entries["datadog"]["health"] == "healthy"
+    assert entries["redis"]["health"] == "healthy"

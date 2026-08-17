@@ -22,7 +22,7 @@ import { signIn } from './session';
  * this suite runs on, and that is a fact about the dataset as much as about
  * the screens: it holds a handful of integrations and no audit history, not
  * the representative scale this budget is meant to be checked against —
- * eighty-five integrations, fifteen tokens, two hundred audit events. The
+ * the shipped integrations, fifteen tokens, two hundred audit events. The
  * catalogue and the raw configuration editor are the two screens most likely
  * to cross the budget once they carry that much, and each is a redesign
  * another feature of this wave owns. `ConfigScreen.expectedOverBudget` is

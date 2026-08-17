@@ -5,7 +5,7 @@ answer only the second one.
 An integration nobody has connected and an integration that is connected but
 has never been checked both read ``unknown`` before this file's own fix,
 which is exactly the "todas dizem UNKNOWN" defect an operator with three real
-integrations among eighty-five sees: nothing on the card says which three.
+integrations among the whole catalogue sees: nothing on the card says which three.
 ``configured`` is the missing half, threaded through from the same vault
 listing ``gateway/http/configured.py`` already uses for the estate's own
 catalogue read.

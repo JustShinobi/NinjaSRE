@@ -237,11 +237,11 @@ export const AREAS: readonly Area[] = [
     visible: () => false,
   },
   // What the Catalogue used to be, once its browsing half moved to The
-  // agent: 85 integrations as cards with a real state (absent, stored,
-  // verified, failing), a credential form collapsed until asked for, and the
-  // credential test. The first run points here, a blocked tool's "connect
-  // it" link points here, and there is no third place a credential is
-  // entered from. `integration.manage` rather than a broader read
+  // agent: the validated integrations as cards with a real state (absent,
+  // stored, verified, failing), a credential form collapsed until asked
+  // for, and the credential test. The first run points here, a blocked
+  // tool's "connect it" link points here, and there is no third place a
+  // credential is entered from. `integration.manage` rather than a broader read
   // permission: the gateway's own `GET /v1/integrations` already requires it
   // (`gateway/http/security/gateway_routes.py`), so a broader area gate
   // would only mean the one screen's one panel 403s for whoever it let in —

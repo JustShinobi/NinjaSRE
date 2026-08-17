@@ -41,7 +41,7 @@ function answered(body: unknown, status = 200): void {
 
 beforeEach(() => {
   answered({
-    rule_id: 'quiet-sentry',
+    rule_id: 'quiet-grafana',
     team: 'team-platform',
     action: 'discard',
     reason: 'noisy',
@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 function simulator(): void {
-  render(<RuleSimulator sources={['alertmanager', 'sentry']} labels={LABELS} />);
+  render(<RuleSimulator sources={['alertmanager', 'grafana']} labels={LABELS} />);
 }
 
 describe('simulating a rule before saving it', () => {
@@ -72,7 +72,7 @@ describe('simulating a rule before saving it', () => {
     await userEvent.type(screen.getByTestId('simulate-payload'), '{{"a": 1}');
     await userEvent.click(screen.getByTestId('simulate'));
 
-    expect(screen.getByTestId('simulate-rule')).toHaveTextContent('quiet-sentry');
+    expect(screen.getByTestId('simulate-rule')).toHaveTextContent('quiet-grafana');
     expect(screen.getByTestId('simulate-team')).toHaveTextContent('team-platform');
     expect(screen.getByTestId('simulate-action')).toHaveTextContent('discard');
     expect(screen.getByTestId('simulate-reason')).toHaveTextContent('noisy');
@@ -118,7 +118,7 @@ describe('simulating a rule before saving it', () => {
     simulator();
     await userEvent.click(screen.getByTestId('simulate'));
 
-    await userEvent.selectOptions(screen.getByTestId('simulate-source'), 'sentry');
+    await userEvent.selectOptions(screen.getByTestId('simulate-source'), 'grafana');
 
     expect(screen.getByTestId('simulate-save')).toBeDisabled();
   });

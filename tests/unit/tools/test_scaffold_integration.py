@@ -11,14 +11,14 @@ worth testing are the ones that decide that.
     because of.
 
 ``no existing file is edited``
-    SC-002, and the property that makes eighty-five integrations addable one at
+    the property that makes a catalogue of any size addable one at
     a time. A scaffold that appended to a registry would work for the first ten
     and produce a merge conflict on every pull request after that.
 
 ``the domain selects the template``
     FR-018. The methodology is the highest-value content in the system, and a
     skill started from a blank file is a skill that reinvents it — usually
-    worse, and always differently from the other eighty-four.
+    worse, and always differently from every other one.
 
 ``what it refuses to decide``
     The side-effect level has no default, structurally. A scaffold that guessed

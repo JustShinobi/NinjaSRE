@@ -75,14 +75,14 @@ test('search narrows the grid without a full page reload', async ({ page }) => {
   const before = await page.getByTestId('catalogue-item').count();
   expect(before).toBeGreaterThan(1);
 
-  await page.getByTestId('catalogue-search').getByRole('searchbox').fill('slack');
+  await page.getByTestId('catalogue-search').getByRole('searchbox').fill('logql');
   await expect(page.getByTestId('catalogue-item')).toHaveCount(1);
   await expect(
-    page.locator('[data-testid="catalogue-item"][data-integration="slack"]'),
+    page.locator('[data-testid="catalogue-item"][data-integration="loki"]'),
   ).toBeVisible();
 
   // The address carries the search, so the exact view can be sent to a colleague.
-  await expect(page).toHaveURL(/[?&]q=slack/);
+  await expect(page).toHaveURL(/[?&]q=logql/);
 });
 
 test('a search with no result offers to clear it, and links to the reference page', async ({
@@ -117,10 +117,10 @@ test('the category filter narrows the grid, and the address carries it', async (
 test('the deep link opens the panel directly, over the catalogue underneath it', async ({
   page,
 }) => {
-  await page.goto('/integrations/slack');
+  await page.goto('/integrations/metrics-store');
 
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog')).toContainText('Slack');
+  await expect(page.getByRole('dialog')).toContainText('Metrics store');
   // The catalogue is still there, not replaced by the panel.
   await expect(page.getByTestId('catalogue-grid')).toBeVisible();
 });
@@ -201,16 +201,16 @@ test('scroll position is restored across the round trip through the panel', asyn
 test('the panel names the field, its minimum scope and its guide when the catalogue declares them', async ({
   page,
 }) => {
-  await page.goto('/integrations/slack');
+  await page.goto('/integrations/metrics-store');
 
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByLabel('Bot token')).toBeVisible();
+  await expect(dialog.getByLabel('API token')).toBeVisible();
 });
 
 test('the panel names every required permission, what it grants and where it is turned on', async ({
   page,
 }) => {
-  await page.goto('/integrations/slack');
+  await page.goto('/integrations/metrics-store');
 
   const permissions = page.getByRole('dialog').getByTestId('required-permission');
   await expect(permissions.first()).toBeVisible();
@@ -219,9 +219,9 @@ test('the panel names every required permission, what it grants and where it is 
   // The declared, probed content — not a name a viewer would still have to
   // look up: what the scope is called, what it grants, and where an
   // operator turns it on.
-  expect(combined).toContain('chat:write');
-  expect(combined).toContain('post a message as the bot');
-  expect(combined).toContain('api.slack.com/apps');
+  expect(combined).toContain('metrics:read');
+  expect(combined).toContain('run range queries against stored series');
+  expect(combined).toContain('Settings → API tokens → Scopes');
 });
 
 test('the not-covered footer link opens the reference page, structured per vendor', async ({
@@ -248,10 +248,10 @@ test('the not-covered footer link opens the reference page, structured per vendo
 test('no credential value is echoed back into the DOM after saving', async ({
   page,
 }) => {
-  await page.goto('/integrations/slack');
+  await page.goto('/integrations/metrics-store');
 
-  const secret = 'xoxb-not-a-real-token-00000000';
-  await page.getByRole('dialog').getByLabel('Bot token').fill(secret);
+  const secret = 'tok-not-a-real-token-00000000';
+  await page.getByRole('dialog').getByLabel('API token').fill(secret);
   await page.getByRole('button', { name: /save and test/i }).click();
 
   // The intermediate "saving" state and the eventual outcome both render

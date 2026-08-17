@@ -52,7 +52,11 @@ CLOUD_SKIP = (
 
 def test_every_demo_fault_and_cloud_scenario_this_repository_ships_loads() -> None:
     assert discover_faults()
-    assert discover_scenarios()
+    # No cloud scenario is currently declared: every one this suite shipped was
+    # AWS-managed, and the AWS integrations left the catalogue with the rest of
+    # the vendors no validating environment covers. Asserted explicitly rather
+    # than dropped, so the day a scenario returns this line is what notices.
+    assert discover_scenarios() == ()
 
 
 def test_the_declared_cloud_scenarios_fit_inside_the_suite_ceiling() -> None:

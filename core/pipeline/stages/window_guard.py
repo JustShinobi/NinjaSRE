@@ -48,7 +48,7 @@ class IncidentWindowGuard:
     """Clamps time-bounded arguments to the incident window.
 
     A hook rather than a wrapper on each capability: the capabilities are
-    written by eighty-five different integrations and the bound belongs to the
+    written by every integration in the catalogue and the bound belongs to the
     investigation, not to any one of them.
 
     The window is read from the session being guarded rather than captured when

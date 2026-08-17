@@ -16,19 +16,23 @@ const LABELS = { copy: 'Copy the raw payload', copied: 'Copied' } as const;
 
 describe('a copyable value', () => {
   it('shows the value in full', () => {
-    render(<CopyValue value="/webhooks/pagerduty" labels={LABELS} testId="address" />);
+    render(
+      <CopyValue value="/webhooks/alertmanager" labels={LABELS} testId="address" />,
+    );
 
-    expect(screen.getByTestId('address')).toHaveTextContent('/webhooks/pagerduty');
+    expect(screen.getByTestId('address')).toHaveTextContent('/webhooks/alertmanager');
   });
 
   it('copies the exact value in one click, and says it did', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
-    render(<CopyValue value="/webhooks/pagerduty" labels={LABELS} testId="address" />);
+    render(
+      <CopyValue value="/webhooks/alertmanager" labels={LABELS} testId="address" />,
+    );
     await userEvent.click(screen.getByTestId('address-copy'));
 
-    expect(writeText).toHaveBeenCalledWith('/webhooks/pagerduty');
+    expect(writeText).toHaveBeenCalledWith('/webhooks/alertmanager');
     expect(await screen.findByText(LABELS.copied)).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
@@ -37,7 +41,9 @@ describe('a copyable value', () => {
     const writeText = vi.fn().mockRejectedValue(new Error('refused'));
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
-    render(<CopyValue value="/webhooks/pagerduty" labels={LABELS} testId="address" />);
+    render(
+      <CopyValue value="/webhooks/alertmanager" labels={LABELS} testId="address" />,
+    );
     await userEvent.click(screen.getByTestId('address-copy'));
 
     expect(await screen.findByText(LABELS.copy)).toBeInTheDocument();

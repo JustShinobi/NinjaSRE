@@ -14,7 +14,7 @@ reading it is something a caller has to ask for.
 This module also owns the lint on skill bodies. A skill directs tools; a skill
 that tells the model to run a shell command has routed around the approval
 gate, the rollback plan, and the audit record that the tool layer exists to
-provide. The rule has to survive eighty-five ported skills without being turned
+provide. The rule has to survive every ported skill without being turned
 off, so it fires on instructions to execute and not on prose about commands.
 """
 

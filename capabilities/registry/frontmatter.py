@@ -7,7 +7,7 @@ deployment that ships no vendor SDKs because it egresses nothing should not
 acquire a parser to read seven keys out of a file the repository wrote itself.
 
 The second is the one that actually matters. YAML is enormous, and most of it
-is a liability in a file that eighty-five contributors will hand-write. Merge
+is a liability in a file that many contributors will hand-write. Merge
 keys, anchors, implicit typing that turns ``no`` into ``False`` and ``1.10``
 into a float — every one of those is a manifest that parses successfully and
 means something other than what its author wrote. This reader accepts scalars,

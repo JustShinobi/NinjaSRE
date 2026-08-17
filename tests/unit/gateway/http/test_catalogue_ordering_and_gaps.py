@@ -120,8 +120,8 @@ async def test_everything_the_estate_says_nothing_about_carries_no_suggestion(
 ) -> None:
     body = await _catalogue(discovered, manager_token)
 
-    datadog = next(entry for entry in body["integrations"] if entry["name"] == "datadog")
-    assert datadog["suggested"] is None
+    redis = next(entry for entry in body["integrations"] if entry["name"] == "redis")
+    assert redis["suggested"] is None
 
 
 async def test_a_deployment_that_has_swept_nothing_keeps_the_alphabet(

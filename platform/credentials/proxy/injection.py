@@ -4,7 +4,7 @@ FR-008 lists seven ways a credential can be attached to an HTTP call: a header,
 a query parameter, a path segment, a body field, basic auth, a bearer token, and
 a signature over the whole request. Every vendor uses one or two of them, and
 the temptation is to write a small ``if integration == "datadog"`` somewhere.
-That is how eighty-five integrations become eighty-five subtly different
+That is how a catalogue of integrations becomes as many subtly different
 authentication paths, of which some number are wrong in a way that only shows up
 under load.
 

@@ -161,7 +161,7 @@ def test_a_backend_is_found_by_walking_rather_than_by_being_listed() -> None:
     """T021: a new integration adds a module, not a change to the harness."""
     found = registry()
 
-    assert {"kubernetes", "aws", "datadog", "grafana", "loki", "prometheus"} <= set(found)
+    assert {"kubernetes", "github", "grafana", "loki", "prometheus"} <= set(found)
     for integration, backend in found.items():
         assert backend.integration == integration
 
@@ -176,8 +176,6 @@ def test_an_integration_with_no_module_falls_back_to_the_generic_json_vendor() -
         ("kubernetes", "https://h/api/v1/pods", {"items": []}),
         ("prometheus", "https://h/api/v1/query?query=up", {"status": "success"}),
         ("loki", "https://h/loki/api/v1/query_range", {"status": "success"}),
-        ("elasticsearch", "https://h/logs/_search", {"took": 0}),
-        ("datadog", "https://h/api/v2/logs/events/search", {"data": []}),
     ],
 )
 def test_each_backends_empty_answer_is_the_shape_its_client_parses(
@@ -188,18 +186,6 @@ def test_each_backends_empty_answer_is_the_shape_its_client_parses(
     document = json.loads(answer.body)
     for key, value in expected.items():
         assert document[key] == value
-
-
-def test_the_aws_query_protocol_gets_xml_and_the_json_protocol_gets_json() -> None:
-    query = OutboundRequest(
-        method="POST",
-        url="https://ec2.us-east-1.amazonaws.com/",
-        body=b"Action=DescribeInstances&Version=2016-11-15",
-    )
-    modern = OutboundRequest(method="POST", url="https://logs.us-east-1.amazonaws.com/", body=b"{}")
-
-    assert backend_for("aws_ec2").empty_for(query).headers["content-type"] == "text/xml"
-    assert backend_for("aws").empty_for(modern).headers["content-type"] == "application/json"
 
 
 def test_the_kubernetes_log_subresource_answers_text_rather_than_a_document() -> None:

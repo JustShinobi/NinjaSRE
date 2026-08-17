@@ -1,4 +1,4 @@
-"""SC-006: an investigation on a Kubernetes and AWS stack, tier-1 integrations only.
+"""An investigation on a Kubernetes and Prometheus stack, tier-1 integrations only.
 
 The gate the wave was ordered around. Tiering is only worth the checkpoint it
 costs if the platform is *usable* when the first tier is done, and "usable"
@@ -13,10 +13,10 @@ provider, and the vendors on the far side of the wire — which is exactly the
 boundary every other synthetic test in this directory draws.
 
 What that catches is the thing a per-integration scenario cannot. Each vendor's
-own scenario proves its client parses its vendor's shape; this proves that three
-of them can be bound into one process at once, that the loop can call across
-them in a single investigation, and that the evidence arrives attributed to the
-integration it came from rather than to whichever was bound last.
+own scenario proves its client parses its vendor's shape; this proves that more
+than one of them can be bound into one process at once, that the loop can call
+across them in a single investigation, and that the evidence arrives attributed
+to the integration it came from rather than to whichever was bound last.
 """
 
 from __future__ import annotations
@@ -51,10 +51,9 @@ from platform.credentials.vault import Vault
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import TenantScope
 from tests.synthetic.conftest import LoopTurn, ScenarioLLM
-from tests.synthetic.integration_scenarios import aws as aws_scenarios
-from tests.synthetic.integration_scenarios import aws_ec2 as ec2_scenarios
 from tests.synthetic.integration_scenarios import capability_named
 from tests.synthetic.integration_scenarios import kubernetes as kubernetes_scenarios
+from tests.synthetic.integration_scenarios import prometheus as prometheus_scenarios
 
 pytestmark = pytest.mark.synthetic
 
@@ -64,12 +63,11 @@ SCOPE = TenantScope(org_id=ORG_ID, team_node_id=TEAM_ID)
 AT = datetime(2026, 8, 7, 12, 30, tzinfo=UTC)
 
 #: The stack the primary story describes, narrowed to what tier 1 delivers.
-TIER_ONE_STACK: tuple[str, ...] = ("kubernetes", "aws", "aws_ec2")
+TIER_ONE_STACK: tuple[str, ...] = ("kubernetes", "prometheus")
 
 CREDENTIALS: dict[str, dict[str, str]] = {
     "kubernetes": dict(kubernetes_scenarios.CREDENTIAL),
-    "aws": dict(aws_scenarios.CREDENTIAL),
-    "aws_ec2": dict(ec2_scenarios.CREDENTIAL),
+    "prometheus": dict(prometheus_scenarios.CREDENTIAL),
 }
 
 #: What each vendor answers, keyed by a fragment of the path the client calls.
@@ -102,14 +100,20 @@ VENDOR_ANSWERS: tuple[tuple[str, bytes, str], ...] = (
         "application/json",
     ),
     (
-        "DescribeInstanceStatus",
-        b"<?xml version='1.0'?><DescribeInstanceStatusResponse><instanceStatusSet>"
-        b"<item><instanceId>i-0a1</instanceId>"
-        b"<instanceState><name>running</name></instanceState></item>"
-        b"<item><instanceId>i-0a2</instanceId>"
-        b"<instanceState><name>running</name></instanceState></item>"
-        b"</instanceStatusSet></DescribeInstanceStatusResponse>",
-        "text/xml",
+        "/api/v1/query_range",
+        json.dumps(
+            {
+                "data": {
+                    "result": [
+                        {
+                            "metric": {"job": "checkout"},
+                            "values": [[1786000000, "0.97"], [1786000060, "0.98"]],
+                        }
+                    ]
+                }
+            }
+        ).encode("utf-8"),
+        "application/json",
     ),
 )
 
@@ -204,7 +208,7 @@ def scripted_provider() -> ScenarioLLM:
     from core.llm.types import ToolCall
 
     workload_events = capability_named("kubernetes_workload_events", _declared("kubernetes"))
-    inventory = capability_named("aws_ec2_resource_inventory", _declared("aws_ec2"))
+    metric_statistics = capability_named("prometheus_metric_statistics", _declared("prometheus"))
 
     return ScenarioLLM(
         structured=[
@@ -222,8 +226,8 @@ def scripted_provider() -> ScenarioLLM:
                 "root_cause_category": "resource_exhaustion",
                 "summary": (
                     "The checkout container was OOM-killed twice inside the window [e1]; "
-                    "the EC2 fleet behind it stayed running [e2], so the constraint is the "
-                    "container's memory limit rather than the nodes."
+                    "the memory series behind it stayed elevated the whole time [e2], so the "
+                    "constraint is the container's memory limit rather than a transient spike."
                 ),
                 "confidence": 0.86,
                 "contributing_factors": [],
@@ -241,15 +245,15 @@ def scripted_provider() -> ScenarioLLM:
                     ),
                     ToolCall(
                         id="c2",
-                        name=inventory.name,
-                        arguments={"kind": "", "start": "", "end": ""},
+                        name=metric_statistics.name,
+                        arguments={"query": "checkout memory", "start": "", "end": ""},
                     ),
                 )
             ),
             LoopTurn(
                 text=(
                     "The checkout container was OOM-killed inside the incident window [e1], "
-                    "and every EC2 instance behind it stayed running [e2]."
+                    "and its memory series stayed elevated the whole time [e2]."
                 )
             ),
         ],
@@ -298,7 +302,7 @@ async def investigate() -> tuple[Any, StackVendors]:
 
 
 async def test_the_investigation_completes_on_tier_one_integrations_alone() -> None:
-    """SC-006: the platform is usable before the wave finishes."""
+    """The platform is usable before the wave finishes."""
     run, _ = await investigate()
 
     assert run.stages_run == STAGE_ORDER
@@ -313,11 +317,11 @@ async def test_the_diagnosis_cites_evidence_the_real_vendors_returned() -> None:
     assert diagnosis is not None
     assert not diagnosis.fallback_used
     sources = {entry.source for entry in run.state.evidence.entries}
-    assert sources == {"kubernetes", "aws_ec2"}
+    assert sources == {"kubernetes", "prometheus"}
 
 
 async def test_every_call_left_through_the_proxy_for_a_permitted_host() -> None:
-    """Article IV, across three integrations bound into one process at once."""
+    """Article IV, across the integrations bound into one process at once."""
     _, vendors = await investigate()
 
     assert vendors.sent, "the investigation reached no vendor at all"
@@ -344,4 +348,4 @@ async def test_the_two_integrations_report_separately_rather_than_merging() -> N
     by_capability = {entry.capability: entry for entry in run.state.evidence.entries}
 
     assert by_capability["kubernetes_workload_events"].source == "kubernetes"
-    assert by_capability["aws_ec2_resource_inventory"].source == "aws_ec2"
+    assert by_capability["prometheus_metric_statistics"].source == "prometheus"

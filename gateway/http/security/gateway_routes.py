@@ -179,11 +179,7 @@ WEBHOOK_ROUTES: Final[tuple[Route, ...]] = tuple(
     )
     for source in (
         "alertmanager",
-        "pagerduty",
-        "datadog",
         "grafana",
-        "sentry",
-        "opsgenie",
         "generic",
     )
 )

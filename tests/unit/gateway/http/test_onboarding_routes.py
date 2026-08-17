@@ -32,9 +32,9 @@ pytestmark = pytest.mark.unit
 #: A value nothing may echo. Distinctive enough that a substring search over a
 #: response body or a log line cannot match it by accident.
 SENTINEL_API_KEY = "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
-SENTINEL_APP_KEY = "abcdefghij0123456789ABCDEFGHIJ0123456789"
+SENTINEL_SECRET_KEY = "abcdefghij0123456789ABCDEFGHIJ0123456789"
 
-CREDENTIAL_PATH = "/v1/integrations/datadog/credential"
+CREDENTIAL_PATH = "/v1/integrations/redis/credential"
 
 
 def _headers(secret: str) -> dict[str, str]:
@@ -92,16 +92,16 @@ async def test_a_credential_is_written_and_answered_with_a_status(
     response = await client.put(
         CREDENTIAL_PATH,
         headers=_headers(operator_token),
-        json={"values": {"api_key": SENTINEL_API_KEY, "app_key": SENTINEL_APP_KEY}},
+        json={"values": {"api_key": SENTINEL_API_KEY, "secret_key": SENTINEL_SECRET_KEY}},
     )
 
     assert response.status_code == 200
     body = response.json()
-    assert body["integration"] == "datadog"
+    assert body["integration"] == "redis"
     assert body["usable"] is True
     assert body["state"] == "configured"
     assert body["version"] == 1
-    assert body["fields"] == ["api_key", "app_key"]
+    assert body["fields"] == ["api_key", "secret_key"]
 
 
 async def test_the_value_appears_in_no_part_of_the_response(
@@ -115,11 +115,11 @@ async def test_the_value_appears_in_no_part_of_the_response(
     response = await client.put(
         CREDENTIAL_PATH,
         headers=_headers(operator_token),
-        json={"values": {"api_key": SENTINEL_API_KEY, "app_key": SENTINEL_APP_KEY}},
+        json={"values": {"api_key": SENTINEL_API_KEY, "secret_key": SENTINEL_SECRET_KEY}},
     )
 
     assert SENTINEL_API_KEY not in response.text
-    assert SENTINEL_APP_KEY not in response.text
+    assert SENTINEL_SECRET_KEY not in response.text
 
 
 async def test_the_value_reaches_the_vault_and_the_vault_alone(
@@ -129,12 +129,12 @@ async def test_the_value_reaches_the_vault_and_the_vault_alone(
     await client.put(
         CREDENTIAL_PATH,
         headers=_headers(operator_token),
-        json={"values": {"api_key": SENTINEL_API_KEY, "app_key": SENTINEL_APP_KEY}},
+        json={"values": {"api_key": SENTINEL_API_KEY, "secret_key": SENTINEL_SECRET_KEY}},
     )
 
     vault = Vault(gateway=deployment.gateway, schemas=CredentialSchemaRegistry())
     scope = TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)
-    live = await vault.active(scope, CredentialHandle(integration="datadog", team_id=TEAM_PAYMENTS))
+    live = await vault.active(scope, CredentialHandle(integration="redis", team_id=TEAM_PAYMENTS))
 
     assert live is not None
     assert live.version == 1
@@ -148,13 +148,16 @@ async def test_writing_again_replaces_and_carries_the_version_forward(
     first = await client.put(
         CREDENTIAL_PATH,
         headers=_headers(operator_token),
-        json={"values": {"api_key": SENTINEL_API_KEY, "app_key": SENTINEL_APP_KEY}},
+        json={"values": {"api_key": SENTINEL_API_KEY, "secret_key": SENTINEL_SECRET_KEY}},
     )
     second = await client.put(
         CREDENTIAL_PATH,
         headers=_headers(operator_token),
         json={
-            "values": {"api_key": "f0e1d2c3b4a5968778695a4b3c2d1e0f", "app_key": SENTINEL_APP_KEY}
+            "values": {
+                "api_key": "f0e1d2c3b4a5968778695a4b3c2d1e0f",
+                "secret_key": SENTINEL_SECRET_KEY,
+            }
         },
     )
 
@@ -178,7 +181,7 @@ async def test_a_body_outside_the_schema_is_refused_naming_the_field(
     assert response.status_code == 400
     detail = response.text
     assert "wrong_field" in detail
-    assert "app_key" in detail
+    assert "secret_key" in detail
     assert SENTINEL_API_KEY not in detail
 
 
@@ -202,7 +205,7 @@ async def test_a_caller_without_credential_write_is_refused(
     response = await client.put(
         CREDENTIAL_PATH,
         headers=_headers(viewer_token),
-        json={"values": {"api_key": SENTINEL_API_KEY, "app_key": SENTINEL_APP_KEY}},
+        json={"values": {"api_key": SENTINEL_API_KEY, "secret_key": SENTINEL_SECRET_KEY}},
     )
 
     assert response.status_code == 403
@@ -648,7 +651,7 @@ async def test_the_config_route_refuses_a_field_an_integration_marks_secret(
 ) -> None:
     """The credential route is the only way in, so the other way has to stay shut.
 
-    Datadog's own schema calls ``api_key`` secret. Written into the one open map
+    Redis's own schema calls ``api_key`` secret. Written into the one open map
     an integration entry has, it is refused whatever it contains — a key an
     operator invented matches nobody's pattern, so a shape scan alone would let
     it through.
@@ -658,9 +661,7 @@ async def test_the_config_route_refuses_a_field_an_integration_marks_secret(
         headers=_headers(operator_token),
         json={
             "patch": {
-                "integrations": {
-                    "active": [{"name": "datadog", "settings": {"api_key": "hunter2"}}]
-                }
+                "integrations": {"active": [{"name": "redis", "settings": {"api_key": "hunter2"}}]}
             }
         },
     )

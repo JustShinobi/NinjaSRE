@@ -208,13 +208,13 @@ async def test_every_credential_field_the_catalogue_serves_carries_its_own_metad
                 f"{entry['name']}.{field['name']} has no label, not even a derived one"
             )
 
-    # The one vendor with a hand-declared label and scope: proves the two
-    # travel from the schema to the payload as the declared value, and not as
-    # an empty string that happens to satisfy the key-set check above.
-    assert "slack" in by_name, "the fixture catalogue no longer carries slack"
-    slack_fields = {field["name"]: field for field in by_name["slack"]["fields"]}
-    assert slack_fields["token"]["label"] == "Bot token"
-    assert slack_fields["token"]["min_scope"] == "chat:write"
+    # A real vendor with real, declared content: proves the value travels from
+    # the schema to the payload as the declared value, and not as an empty
+    # string that happens to satisfy the key-set check above.
+    assert "github" in by_name, "the fixture catalogue no longer carries github"
+    github_fields = {field["name"]: field for field in by_name["github"]["fields"]}
+    assert github_fields["token"]["label"].strip() != ""
+    assert "personal access token" in github_fields["token"]["help"]
 
 
 async def test_every_required_permission_the_catalogue_serves_carries_what_it_grants_and_where(
@@ -252,16 +252,19 @@ async def test_every_required_permission_the_catalogue_serves_carries_what_it_gr
                 f"{entry['name']}.{permission['name']} has no description of what it grants"
             )
 
-    # A real vendor with real, sondada content: proves the values are the
+    # A real vendor with real, declared content: proves the values are the
     # declared ones, not an empty string that happens to satisfy the shape
     # check above.
-    assert "slack" in by_name, "the fixture catalogue no longer carries slack"
-    slack_permissions = {p["name"]: p for p in by_name["slack"]["permissions"]}
-    assert slack_permissions["chat:write"]["grants"] == "post a message as the bot"
-    assert slack_permissions["chat:write"]["where"] == (
-        "api.slack.com/apps → your app → OAuth & Permissions → Bot User OAuth Token"
+    assert "github" in by_name, "the fixture catalogue no longer carries github"
+    github_permissions = {p["name"]: p for p in by_name["github"]["permissions"]}
+    assert github_permissions["contents:read"]["grants"] == (
+        "search and read commits in a repository"
     )
-    assert slack_permissions["chat:write"]["capabilities"] == ["slack_post_message"]
+    assert github_permissions["contents:read"]["where"] == (
+        "GitHub → Settings → Developer settings → Personal access tokens, with "
+        "Contents and Pull requests read access"
+    )
+    assert github_permissions["contents:read"]["capabilities"] == ["github_change_statistics"]
 
 
 # --- The two structural claims ------------------------------------------------------

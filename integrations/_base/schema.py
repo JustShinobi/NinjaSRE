@@ -1,4 +1,4 @@
-"""The credential shapes eighty-five vendors turn out to have four of.
+"""The credential shapes every vendor turns out to have four of.
 
 Every integration declares what its credential is made of, and almost every one
 of those declarations is one of the same handful: a bearer token, an API key in

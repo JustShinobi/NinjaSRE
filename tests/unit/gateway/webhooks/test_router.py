@@ -1,9 +1,10 @@
-"""Webhook ingestion: signature verification (SC-003), payload cap, idempotency, dedup linking.
+"""Webhook ingestion: signature verification, payload cap, idempotency, dedup linking.
 
-SC-003 requires forgery rejection for all seven sources, so ``webhook_app``
-below configures every one of them and ``test_forgery_is_rejected_for_every_source``
-/ ``test_a_valid_signature_starts_an_investigation_for_every_source`` are
-parametrised across all seven rather than spot-checking two.
+Forgery rejection is required for all three sources this deployment still
+answers, so ``webhook_app`` below configures every one of them and
+``test_forgery_is_rejected_for_every_source`` /
+``test_a_valid_signature_starts_an_investigation_for_every_source`` are
+parametrised across all three rather than spot-checking one.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ pytestmark = pytest.mark.asyncio
 
 #: One shared-secret or HMAC secret per source, plus the payload builder and
 #: the headers a valid delivery carries. Every source is exercised, not a
-#: sample of them (SC-003).
+#: sample of them.
 SECRET = "the-real-secret"
 
 
@@ -56,18 +57,6 @@ def alertmanager_payload() -> dict[str, object]:
     }
 
 
-def pagerduty_payload(event_id: str = "pd-evt-1") -> dict[str, object]:
-    return {"event": {"id": event_id, "event_type": "incident.triggered"}, "id": event_id}
-
-
-def datadog_payload() -> dict[str, object]:
-    return {
-        "alert_id": "dd-1",
-        "alert_title": "High CPU on checkout",
-        "alert_transition": "Triggered",
-    }
-
-
 def grafana_payload() -> dict[str, object]:
     return {
         "orgId": 1,
@@ -82,29 +71,19 @@ def grafana_payload() -> dict[str, object]:
     }
 
 
-def sentry_payload() -> dict[str, object]:
+def generic_payload(event_id: str = "generic-evt-1") -> dict[str, object]:
     return {
-        "culprit": "checkout.py",
-        "data": {"issue": {"title": "NullPointerException in checkout"}},
+        "alert_name": "CustomAlert",
+        "summary": "something broke",
+        "severity": "high",
+        "event_id": event_id,
     }
 
 
-def opsgenie_payload() -> dict[str, object]:
-    return {"action": "Create", "alert": {"alertId": "og-1", "message": "Disk almost full"}}
-
-
-def generic_payload() -> dict[str, object]:
-    return {"alert_name": "CustomAlert", "summary": "something broke", "severity": "high"}
-
-
-#: source name -> payload builder, for the seven sources SC-003 names.
+#: source name -> payload builder, for the three sources this deployment answers.
 PAYLOADS: dict[str, Callable[[], dict[str, object]]] = {
     "alertmanager": alertmanager_payload,
-    "pagerduty": pagerduty_payload,
-    "datadog": datadog_payload,
     "grafana": grafana_payload,
-    "sentry": sentry_payload,
-    "opsgenie": opsgenie_payload,
     "generic": generic_payload,
 }
 
@@ -118,15 +97,11 @@ def _hmac(header: str) -> Callable[[str], HmacVerifier]:
 
 
 #: source name -> verifier factory, matching each vendor's real mechanism (FR-015):
-#: PagerDuty, Sentry, and the generic webhook sign with HMAC; the rest carry a
-#: shared secret.
+#: the generic webhook signs with HMAC; alertmanager and grafana carry a shared
+#: secret.
 VERIFIERS: dict[str, Callable[[str], object]] = {
     "alertmanager": _shared_secret("Authorization"),
-    "pagerduty": _hmac("X-PagerDuty-Signature"),
-    "datadog": _shared_secret("X-Datadog-Token"),
     "grafana": _shared_secret("Authorization"),
-    "sentry": _hmac("Sentry-Hook-Signature"),
-    "opsgenie": _shared_secret("Authorization"),
     "generic": _hmac("X-Webhook-Signature"),
 }
 
@@ -179,7 +154,7 @@ async def webhook_app() -> tuple[AsyncClient, GatewayState]:
 async def test_a_valid_signature_starts_an_investigation_for_every_source(
     source: str, webhook_app: tuple[AsyncClient, GatewayState]
 ) -> None:
-    """SC-003, the positive case: every source's real mechanism verifies."""
+    """The positive case: every source's real mechanism verifies."""
     client, _state = webhook_app
     body = json.dumps(PAYLOADS[source]()).encode("utf-8")
     response = await client.post(
@@ -193,7 +168,7 @@ async def test_a_valid_signature_starts_an_investigation_for_every_source(
 async def test_forgery_is_rejected_for_every_source(
     source: str, webhook_app: tuple[AsyncClient, GatewayState]
 ) -> None:
-    """SC-003: a forged signature is rejected for all seven sources."""
+    """A forged signature is rejected for all three sources."""
     client, _state = webhook_app
     body = json.dumps(PAYLOADS[source]()).encode("utf-8")
     response = await client.post(
@@ -232,11 +207,11 @@ async def test_a_repeated_delivery_is_idempotent(
     webhook_app: tuple[AsyncClient, GatewayState],
 ) -> None:
     client, state = webhook_app
-    body = json.dumps(pagerduty_payload("dup-1")).encode("utf-8")
-    headers = valid_headers("pagerduty", body)
+    body = json.dumps(generic_payload("dup-1")).encode("utf-8")
+    headers = valid_headers("generic", body)
 
-    first = await client.post("/webhooks/pagerduty", content=body, headers=headers)
-    second = await client.post("/webhooks/pagerduty", content=body, headers=headers)
+    first = await client.post("/webhooks/generic", content=body, headers=headers)
+    second = await client.post("/webhooks/generic", content=body, headers=headers)
 
     assert first.status_code == 202
     assert second.status_code == 202

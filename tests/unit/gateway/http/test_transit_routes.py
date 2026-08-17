@@ -84,7 +84,7 @@ async def test_every_configured_receiver_appears_whether_or_not_it_ever_delivere
 
     assert response.status_code == 200, response.text
     sources = {row["source"]: row for row in response.json()["sources"]}
-    assert len(sources) == 7
+    assert len(sources) == 3
     assert all(row["never_delivered"] for row in sources.values())
 
 

@@ -3,7 +3,7 @@
 The runner is small on purpose. Everything interesting about verification is in
 what a vendor's verifier chooses to probe and in how the result is worded; the
 part that walks a list and gathers results should be boring, and boring is what
-lets it be the same for all eighty-five.
+lets it be the same for every one of them.
 
 Two decisions here are load-bearing.
 

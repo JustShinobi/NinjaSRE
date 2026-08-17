@@ -2,7 +2,7 @@
 
 # cicd integrations
 
-4 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
+1 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
 
 ### `argocd`
 
@@ -31,87 +31,3 @@ What Argo CD has actually applied: which applications are synced and healthy, an
 
 - `list_runs` — cursor on `cursor`
 - `list_failed_runs` — cursor on `cursor`
-
-### `jenkins`
-
-Jenkins build history: how a job has been doing lately, and the builds that failed, for the estates whose pipelines still run there.
-
-- **Category:** cicd
-- **Regions:** self-hosted
-- **Credentials:** username, password
-- **SDK strategy:** `direct_client`
-- **Parity:** complete
-- **Health:** unknown
-
-**Capabilities:**
-
-- `jenkins_failed_runs`
-- `jenkins_pipeline_statistics`
-
-**Permissions:**
-
-| Permission | Grants | Without it |
-|---|---|---|
-| `Overall/Read` | read the Jenkins instance at all | `jenkins_pipeline_statistics`, `jenkins_failed_runs` |
-| `Job/Read` | read job configuration and build history | `jenkins_pipeline_statistics`, `jenkins_failed_runs` |
-
-**Pagination:**
-
-- `list_runs` — cursor on `from`
-- `list_failed_runs` — cursor on `from`
-
-### `railway`
-
-Railway deployments and their status, for the services this project runs on it.
-
-- **Category:** cicd
-- **Regions:** global
-- **Credentials:** token
-- **SDK strategy:** `direct_client`
-- **Parity:** complete
-- **Health:** unknown
-
-**Capabilities:**
-
-- `railway_failed_runs`
-- `railway_pipeline_statistics`
-
-**Permissions:**
-
-| Permission | Grants | Without it |
-|---|---|---|
-| `deployments:read` | read the project's deployments | `railway_pipeline_statistics`, `railway_failed_runs` |
-| `me:read` | read the token's own identity, which the probe uses | `railway_pipeline_statistics` |
-
-**Pagination:**
-
-- `list_runs` — cursor on `after`
-- `list_failed_runs` — cursor on `after`
-
-### `vercel`
-
-Vercel deployments: how the recent ones have gone for a project, and the ones that errored, which is usually the whole story for a frontend incident.
-
-- **Category:** cicd
-- **Regions:** global
-- **Credentials:** token
-- **SDK strategy:** `direct_client`
-- **Parity:** complete
-- **Health:** unknown
-
-**Capabilities:**
-
-- `vercel_failed_runs`
-- `vercel_pipeline_statistics`
-
-**Permissions:**
-
-| Permission | Grants | Without it |
-|---|---|---|
-| `deployments:read` | list deployments and their state | `vercel_pipeline_statistics`, `vercel_failed_runs` |
-| `user:read` | read the token's own account, which the probe uses | `vercel_pipeline_statistics` |
-
-**Pagination:**
-
-- `list_runs` — cursor on `until`
-- `list_failed_runs` — cursor on `until`

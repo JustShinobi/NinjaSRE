@@ -145,10 +145,10 @@ const INTEGRATIONS = {
       suggested: { address: '192.168.68.159:3000', fromResource: 'monitoring' },
     }),
     integration({
-      name: 'datadog',
-      displayName: 'Datadog',
+      name: 'signoz',
+      displayName: 'SigNoz',
       category: 'metrics',
-      summary: 'Metrics, logs and monitors.',
+      summary: 'Traces, metrics and logs.',
       health: 'degraded',
       healthDetail: 'the last verification timed out',
     }),
@@ -160,8 +160,8 @@ const INTEGRATIONS = {
       health: 'unconfigured',
     }),
     integration({
-      name: 'slack',
-      displayName: 'Slack',
+      name: 'telegram',
+      displayName: 'Telegram',
       category: 'communication',
       summary: 'Delivers reports and alerts.',
       health: 'unconfigured',
@@ -169,16 +169,16 @@ const INTEGRATIONS = {
         {
           name: 'bot_token',
           label: 'Bot token',
-          minScope: 'chat:write',
-          guideUrl: '/integrations/slack/guide',
+          minScope: 'sendMessage',
+          guideUrl: '/integrations/telegram/guide',
         },
       ],
       permissions: [
         {
-          name: 'chat:write',
+          name: 'sendMessage',
           grants: 'post a message as the bot',
-          where: 'api.slack.com/apps → your app → OAuth & Permissions',
-          capabilities: ['slack_post_message'],
+          where: 'Telegram → BotFather → your bot → API token',
+          capabilities: ['telegram_post_message'],
         },
       ],
     }),
@@ -263,7 +263,7 @@ describe('Connected, first and never empty', () => {
     expect(rows.map((row) => row.getAttribute('data-integration'))).toEqual([
       'prometheus',
       'proxmox',
-      'datadog',
+      'signoz',
     ]);
     expect(within(connected).getByText('Prometheus')).toBeInTheDocument();
     expect(
@@ -275,24 +275,24 @@ describe('Connected, first and never empty', () => {
   it('shows a failing connected integration with a critical chip, still inside Connected', async () => {
     await integrations();
 
-    const datadog = screen
+    const signoz = screen
       .getAllByTestId('connected-integration')
-      .find((row) => row.getAttribute('data-integration') === 'datadog');
-    expect(datadog).toBeDefined();
-    expect(datadog?.querySelector('[data-credential-status="failing"]')).not.toBeNull();
+      .find((row) => row.getAttribute('data-integration') === 'signoz');
+    expect(signoz).toBeDefined();
+    expect(signoz?.querySelector('[data-credential-status="failing"]')).not.toBeNull();
   });
 
   it('names the diagnostic beside the critical chip for a failing connected integration', async () => {
-    // The edge case promises a chip *and* a diagnostic. `datadog` in the
+    // The edge case promises a chip *and* a diagnostic. `signoz` in the
     // fixture above already carries `healthDetail: 'the last verification
     // timed out'` — this asserts it actually reaches the row, not only the
     // record.
     await integrations();
 
-    const datadog = screen
+    const signoz = screen
       .getAllByTestId('connected-integration')
-      .find((row) => row.getAttribute('data-integration') === 'datadog');
-    expect(one(datadog)).toHaveTextContent('the last verification timed out');
+      .find((row) => row.getAttribute('data-integration') === 'signoz');
+    expect(one(signoz)).toHaveTextContent('the last verification timed out');
   });
 
   it('shows a credential nobody has verified yet as Stored, inside Connected, never in the grid', async () => {
@@ -304,8 +304,8 @@ describe('Connected, first and never empty', () => {
       integrations: {
         integrations: [
           integration({
-            name: 'notion',
-            displayName: 'Notion',
+            name: 'hermes',
+            displayName: 'Hermes',
             health: 'unknown',
           }),
         ],
@@ -316,7 +316,7 @@ describe('Connected, first and never empty', () => {
 
     const connected = screen.getByTestId('connected-section');
     const row = within(connected).getByTestId('connected-integration');
-    expect(row).toHaveAttribute('data-integration', 'notion');
+    expect(row).toHaveAttribute('data-integration', 'hermes');
     expect(row.querySelector('[data-credential-status="stored"]')).not.toBeNull();
     expect(screen.queryByTestId('catalogue-item')).toBeNull();
   });
@@ -422,7 +422,7 @@ describe('the catalogue grid: compact cards, never the raw id, never the form', 
     const cards = within(grid).getAllByTestId('catalogue-item');
     expect(cards.map((card) => card.getAttribute('data-integration')).sort()).toEqual([
       'postgresql',
-      'slack',
+      'telegram',
     ]);
     expect(within(grid).getByText('PostgreSQL')).toBeInTheDocument();
     expect(within(grid).queryByText('postgresql')).toBeNull();
@@ -447,10 +447,10 @@ describe('the catalogue grid: compact cards, never the raw id, never the form', 
 
     const card = screen
       .getAllByTestId('catalogue-item')
-      .find((each) => each.getAttribute('data-integration') === 'slack');
+      .find((each) => each.getAttribute('data-integration') === 'telegram');
     expect(within(one(card)).getByRole('link')).toHaveAttribute(
       'href',
-      '/integrations/slack',
+      '/integrations/telegram',
     );
   });
 
@@ -496,42 +496,42 @@ describe('the "not covered" footer link', () => {
 describe('the credential panel, opened by a deep link', () => {
   it('opens the drawer for the named integration when the address names one', async () => {
     serve({});
-    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+    render(await IntegrationsScreen(await surfaceContext({}), 'telegram'));
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByRole('dialog')).toHaveTextContent('Slack');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Telegram');
   });
 
   it('shows a human label, help and minimum scope per field, and a guide link when one exists', async () => {
     serve({});
-    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+    render(await IntegrationsScreen(await surfaceContext({}), 'telegram'));
 
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByLabelText('Bot token')).toBeInTheDocument();
     expect(within(dialog).getByTestId('credential-field-scope')).toHaveTextContent(
-      'chat:write',
+      'sendMessage',
     );
     expect(within(dialog).getByTestId('credential-field-guide')).toHaveAttribute(
       'href',
-      '/integrations/slack/guide',
+      '/integrations/telegram/guide',
     );
   });
 
   it('names each required permission with what it grants and where it is turned on', async () => {
     serve({});
-    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+    render(await IntegrationsScreen(await surfaceContext({}), 'telegram'));
 
     const dialog = screen.getByRole('dialog');
     const permissions = within(dialog).getAllByTestId('required-permission');
     expect(permissions).toHaveLength(1);
-    expect(permissions[0]).toHaveTextContent('chat:write');
+    expect(permissions[0]).toHaveTextContent('sendMessage');
     expect(permissions[0]).toHaveTextContent('post a message as the bot');
-    expect(permissions[0]).toHaveTextContent('api.slack.com/apps');
+    expect(permissions[0]).toHaveTextContent('BotFather');
   });
 
   it('names the one primary action "Save and test"', async () => {
     serve({});
-    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+    render(await IntegrationsScreen(await surfaceContext({}), 'telegram'));
 
     expect(
       within(screen.getByRole('dialog')).getByRole('button', {
@@ -542,7 +542,7 @@ describe('the credential panel, opened by a deep link', () => {
 
   it('carries the two-sentence security note', async () => {
     serve({});
-    render(await IntegrationsScreen(await surfaceContext({}), 'slack'));
+    render(await IntegrationsScreen(await surfaceContext({}), 'telegram'));
 
     expect(
       within(screen.getByRole('dialog')).getByTestId('credential-security-note'),

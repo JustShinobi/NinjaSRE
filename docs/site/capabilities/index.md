@@ -2,26 +2,24 @@
 
 # Capability reference
 
-225 tools and 95 skills, 36 of them approval-gated. A capability with no declared side-effect level is treated as a write and gated accordingly, so an omission is safe rather than silent.
+80 tools and 25 skills, 24 of them approval-gated. A capability with no declared side-effect level is treated as a write and gated accordingly, so an omission is safe rather than silent.
 
 | Domain | Tools | Skills |
 |---|---|---|
 | [changes](changes.md) | 1 | 1 |
-| [cicd](cicd.md) | 8 | 4 |
-| [cloud_control_plane](cloud-control-plane.md) | 49 | 21 |
-| [communication](communication.md) | 16 | 8 |
-| [data_platform](data-platform.md) | 16 | 8 |
-| [database](database.md) | 14 | 7 |
+| [cicd](cicd.md) | 2 | 1 |
+| [cloud_control_plane](cloud-control-plane.md) | 24 | 8 |
+| [communication](communication.md) | 4 | 2 |
+| [database](database.md) | 2 | 1 |
 | [estate](estate.md) | 1 | 0 |
-| [incident](incident.md) | 21 | 7 |
+| [incident](incident.md) | 3 | 1 |
 | [infrastructure](infrastructure.md) | 0 | 1 |
-| [logstore](logstore.md) | 26 | 13 |
+| [logstore](logstore.md) | 6 | 3 |
 | [methodology](methodology.md) | 7 | 1 |
-| [metrics](metrics.md) | 13 | 6 |
+| [metrics](metrics.md) | 3 | 1 |
 | [model_provider](model-provider.md) | 1 | 1 |
 | [observability](observability.md) | 1 | 1 |
 | [remediation](remediation.md) | 20 | 1 |
-| [ticketing](ticketing.md) | 14 | 7 |
 | [topology](topology.md) | 1 | 0 |
-| [tracing](tracing.md) | 8 | 4 |
-| [vcs](vcs.md) | 8 | 4 |
+| [tracing](tracing.md) | 2 | 1 |
+| [vcs](vcs.md) | 2 | 1 |

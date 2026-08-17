@@ -3,7 +3,7 @@
 The value of a declarative injection is that these are the only seven, and each
 is tested here rather than once per vendor. A vendor that wants its key in a
 query string gets ``QueryParameterInjection`` and inherits this test; the
-alternative — a branch per vendor — would be eighty-five paths of which some
+alternative — a branch per vendor — would be a path per vendor of which some
 number are wrong in a way nobody looks at until a 401.
 
 The last group is about the rule rather than the injections: an integration that

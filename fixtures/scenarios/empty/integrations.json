@@ -11,7 +11,7 @@
             "display_name": "PostgreSQL",
             "integration": "postgresql",
             "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
-            "resolution": "A protocol bridge that terminates the credential outside the agent process, the way the HTTP proxy does. Until there is one, a managed PostgreSQL is reachable through its cloud control plane — `aws_rds` for RDS and Aurora, `supabase` for Supabase — which answers instance state, failovers, and parameter changes but not sessions or query plans."
+            "resolution": "A protocol bridge that terminates the credential outside the agent process, the way the HTTP proxy does. Nothing in the catalogue reaches a managed PostgreSQL's control plane today."
           },
           {
             "category": "database",
@@ -19,7 +19,7 @@
             "display_name": "MySQL",
             "integration": "mysql",
             "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
-            "resolution": "The same bridge PostgreSQL needs. A managed MySQL is reachable through `aws_rds`, which answers instance state and the event history and not what is executing inside the engine."
+            "resolution": "The same bridge PostgreSQL needs. Nothing in the catalogue reaches a managed MySQL's control plane today."
           },
           {
             "category": "database",
@@ -35,7 +35,7 @@
             "display_name": "MongoDB",
             "integration": "mongodb",
             "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
-            "resolution": "A protocol bridge, or Atlas: `mongodb_atlas` reaches a hosted deployment through the Atlas administration API and answers process and cluster state. A self-hosted replica set on port 27017 has no equivalent."
+            "resolution": "A protocol bridge. Nothing in the catalogue reaches a hosted deployment's administration API today, and a self-hosted replica set on port 27017 has no equivalent either way."
           },
           {
             "category": "database",
@@ -51,7 +51,7 @@
             "display_name": "SMTP",
             "integration": "smtp",
             "reason": "SMTP is a stateful line protocol over its own port, not a request-response API. The credential proxy attaches a secret to an HTTP request; an SMTP session has no such request, and authentication happens inside a conversation the proxy cannot participate in.",
-            "resolution": "Either a protocol bridge that terminates the SMTP credential outside the agent process, or delivery through a vendor with an HTTP API — `twilio` and `pushover` are both in the catalogue and reach a person without an SMTP session."
+            "resolution": "Either a protocol bridge that terminates the SMTP credential outside the agent process, or delivery through a vendor with an HTTP API — `pushover` is in the catalogue and reaches a person without an SMTP session."
           },
           {
             "category": "cicd",

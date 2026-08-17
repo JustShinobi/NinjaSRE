@@ -750,7 +750,7 @@
         "type": "object"
       },
       "CloseRequest": {
-        "description": "Why an incident is being closed. Required, and refused at the schema.\n\n\"Closed by Ada\" does not say whether it was fixed or dismissed, and a\ndeployment that recorded both the same way could not find the dismissals\nagain — which is the search somebody runs when a detector turns out to have\nbeen wrong all along.",
+        "description": "Why an incident is being closed. Required, and refused at the schema.\n\n\"Closed by Ada\" does not say whether it was fixed or dismissed, and a\ndeployment that recorded both the same way could not find the dismissals\nagain \u2014 which is the search somebody runs when a detector turns out to have\nbeen wrong all along.",
         "properties": {
           "reason": {
             "minLength": 1,
@@ -770,7 +770,7 @@
         "type": "object"
       },
       "ConfigFieldView": {
-        "description": "One editable field, as the schema declares it and this node stands on it.\n\nEverything a client needs to draw a control and to know what pressing save\nwould do — and nothing it could have worked out for itself, because there is\nnothing here it could have. The type, range and default come from the\nPydantic section the write path validates against; the value, provenance,\nlock and gate come from this node's chain.",
+        "description": "One editable field, as the schema declares it and this node stands on it.\n\nEverything a client needs to draw a control and to know what pressing save\nwould do \u2014 and nothing it could have worked out for itself, because there is\nnothing here it could have. The type, range and default come from the\nPydantic section the write path validates against; the value, provenance,\nlock and gate come from this node's chain.",
         "properties": {
           "allowed_values": {
             "anyOf": [
@@ -3196,7 +3196,7 @@
         "type": "object"
       },
       "IntegrationVerificationReport": {
-        "description": "What an integration's own verifier found, in the vendor's own terms.\n\n``report`` is deliberately untyped at this layer. Each verifier answers the\nquestion its vendor can actually be asked — Proxmox reports the token's\neffective privileges because Proxmox has an endpoint for them; another\nvendor reports which probes were permitted because it has not. A schema\nimposed here would either be the union of every vendor's answer or the\nintersection, and the intersection is a boolean.",
+        "description": "What an integration's own verifier found, in the vendor's own terms.\n\n``report`` is deliberately untyped at this layer. Each verifier answers the\nquestion its vendor can actually be asked \u2014 Proxmox reports the token's\neffective privileges because Proxmox has an endpoint for them; another\nvendor reports which probes were permitted because it has not. A schema\nimposed here would either be the union of every vendor's answer or the\nintersection, and the intersection is a boolean.",
         "properties": {
           "integration": {
             "title": "Integration",
@@ -3533,7 +3533,7 @@
         "type": "object"
       },
       "ItemFieldView": {
-        "description": "One field inside an entry of an ordered list of objects.\n\nA separate model from ``ConfigFieldView`` because half of that one is about\na node — provenance, whether this node sets it, which node locks it — and\nnone of it is true of a field *inside* a list entry. A list replaces\nentirely, so the entry inherits the list's answer to all of those and has\nnone of its own.",
+        "description": "One field inside an entry of an ordered list of objects.\n\nA separate model from ``ConfigFieldView`` because half of that one is about\na node \u2014 provenance, whether this node sets it, which node locks it \u2014 and\nnone of it is true of a field *inside* a list entry. A list replaces\nentirely, so the entry inherits the list's answer to all of those and has\nnone of its own.",
         "properties": {
           "allowed_values": {
             "anyOf": [
@@ -3919,7 +3919,7 @@
         "type": "object"
       },
       "ModelCapabilityView": {
-        "description": "One model a provider's onboarding lists, and what the registry knows about it.\n\n``supports_tools`` is ``None`` when the registry holds no row for this model\nat all — a name the onboarding lists that nothing has described yet. That is\nnever presented as \"does not support\": a console reading it that way would\nsend an operator away from a model that might work perfectly well, on the\nstrength of a gap in this build's own catalogue rather than a fact about the\nmodel.",
+        "description": "One model a provider's onboarding lists, and what the registry knows about it.\n\n``supports_tools`` is ``None`` when the registry holds no row for this model\nat all \u2014 a name the onboarding lists that nothing has described yet. That is\nnever presented as \"does not support\": a console reading it that way would\nsend an operator away from a model that might work perfectly well, on the\nstrength of a gap in this build's own catalogue rather than a fact about the\nmodel.",
         "properties": {
           "model_id": {
             "title": "Model Id",
@@ -5129,7 +5129,7 @@
         "type": "object"
       },
       "ProviderVerificationView": {
-        "description": "What a real request to the provider's endpoint came back with.\n\n``detail`` is the sentence — the working configuration when it passed, the\nlimitation when it did not. Never \"verification failed\", which is a\nrestatement rather than something anybody can act on.",
+        "description": "What a real request to the provider's endpoint came back with.\n\n``detail`` is the sentence \u2014 the working configuration when it passed, the\nlimitation when it did not. Never \"verification failed\", which is a\nrestatement rather than something anybody can act on.",
         "properties": {
           "alternatives": {
             "items": {
@@ -5330,7 +5330,7 @@
         "type": "object"
       },
       "RequiredPermissionView": {
-        "description": "One permission the credential has to be allowed, exactly as declared.\n\nReplaces the bare list of permission names this route used to serve. A\nname alone left an operator to look up what it grants and where it is\nturned on; this is the vendor's own declaration\n(`integrations._verification.permissions.RequiredPermission`), read\nthrough the gateway rather than copied by the console. Every one of these\nis probed, not merely declared — `tools.verify_integrations` makes the\ncall each names.",
+        "description": "One permission the credential has to be allowed, exactly as declared.\n\nReplaces the bare list of permission names this route used to serve. A\nname alone left an operator to look up what it grants and where it is\nturned on; this is the vendor's own declaration\n(`integrations._verification.permissions.RequiredPermission`), read\nthrough the gateway rather than copied by the console. Every one of these\nis probed, not merely declared \u2014 `tools.verify_integrations` makes the\ncall each names.",
         "properties": {
           "capabilities": {
             "items": {
@@ -5361,7 +5361,7 @@
         "type": "object"
       },
       "ResourceChangesView": {
-        "description": "What changed under this resource, and the claim that goes with it.\n\n``statement`` is served rather than composed by the client, because it is\nthe same sentence the investigation's own report carries — and a console\nthat phrased it differently would be a second opinion nobody asked for.\n\n``answered`` is the field that stops an empty panel being read as \"nothing\nhas changed\". A deployment that consulted nothing has established nothing.",
+        "description": "What changed under this resource, and the claim that goes with it.\n\n``statement`` is served rather than composed by the client, because it is\nthe same sentence the investigation's own report carries \u2014 and a console\nthat phrased it differently would be a second opinion nobody asked for.\n\n``answered`` is the field that stops an empty panel being read as \"nothing\nhas changed\". A deployment that consulted nothing has established nothing.",
         "properties": {
           "answered": {
             "default": false,
@@ -6254,7 +6254,7 @@
         "type": "object"
       },
       "SignInView": {
-        "description": "What a successful sign-in hands back: a credential, and when it dies.\n\nThe token is in the body and in nothing else — not a redirect, not a\n``Set-Cookie``. Who stores it and how is the client's decision, and the\nconsole's answer is an HTTP-only cookie the browser cannot read.",
+        "description": "What a successful sign-in hands back: a credential, and when it dies.\n\nThe token is in the body and in nothing else \u2014 not a redirect, not a\n``Set-Cookie``. Who stores it and how is the client's decision, and the\nconsole's answer is an HTTP-only cookie the browser cannot read.",
         "properties": {
           "expires_at": {
             "title": "Expires At",
@@ -8477,7 +8477,7 @@
     },
     "/identity/sso/test": {
       "post": {
-        "description": "Run a real claim set through the configuration, and record whether it worked.\n\nThe result is stored as the digest of the settings it passed against, so it\ncovers *these* settings and nothing else. A failure stores nothing, which\nleaves activation refused — the correct outcome, and the one that does not\ndepend on anybody reading the response.",
+        "description": "Run a real claim set through the configuration, and record whether it worked.\n\nThe result is stored as the digest of the settings it passed against, so it\ncovers *these* settings and nothing else. A failure stores nothing, which\nleaves activation refused \u2014 the correct outcome, and the one that does not\ndepend on anybody reading the response.",
         "operationId": "test_sso_identity_sso_test_post",
         "parameters": [
           {
@@ -8595,7 +8595,7 @@
         ]
       },
       "post": {
-        "description": "Issue a machine token and return its secret exactly once.\n\nA second issuance for the same owner and the same purpose — the name a\ntoken was given, at the same node — supersedes the one it replaces rather\nthan accumulating beside it.",
+        "description": "Issue a machine token and return its secret exactly once.\n\nA second issuance for the same owner and the same purpose \u2014 the name a\ntoken was given, at the same node \u2014 supersedes the one it replaces rather\nthan accumulating beside it.",
         "operationId": "issue_token_identity_tokens_post",
         "parameters": [
           {
@@ -8824,7 +8824,7 @@
     },
     "/v1/approvals": {
       "get": {
-        "description": "Return undecided approvals, longest-waiting first (FR-008).\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
+        "description": "Return undecided approvals, longest-waiting first (FR-008).\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open \u2014 and \"this one has no undo\" is exactly the fact\nthat decides it.",
         "operationId": "list_approvals_v1_approvals_get",
         "parameters": [
           {
@@ -9070,7 +9070,7 @@
         ]
       },
       "get": {
-        "description": "Return whether automated writes are stopped for this caller.\n\nA read of its own, because the two write routes answer the question only for\nwhoever just changed it — and the thing that has to be visible is the\nengaged state, on every screen, to everybody. A dashboard where nothing is\nhappening looks the same whether nothing needed doing or everything is\nstopped, and only one of those is something a person has to be told.",
+        "description": "Return whether automated writes are stopped for this caller.\n\nA read of its own, because the two write routes answer the question only for\nwhoever just changed it \u2014 and the thing that has to be visible is the\nengaged state, on every screen, to everybody. A dashboard where nothing is\nhappening looks the same whether nothing needed doing or everything is\nstopped, and only one of those is something a person has to be told.",
         "operationId": "read_kill_switch_v1_autonomy_kill_switch_get",
         "parameters": [
           {
@@ -9118,7 +9118,7 @@
         ]
       },
       "post": {
-        "description": "Stop every automated write, immediately, with no configuration in the way.\n\nAudited after the switch is thrown rather than before it. The stop is the\nurgent half and must not wait on a database; the record is written straight\nafterwards, and a store that could not take it still leaves the auditor's own\nlog line — which is the arrangement ``RemediationAuditor`` exists for.",
+        "description": "Stop every automated write, immediately, with no configuration in the way.\n\nAudited after the switch is thrown rather than before it. The stop is the\nurgent half and must not wait on a database; the record is written straight\nafterwards, and a store that could not take it still leaves the auditor's own\nlog line \u2014 which is the arrangement ``RemediationAuditor`` exists for.",
         "operationId": "engage_kill_switch_v1_autonomy_kill_switch_post",
         "parameters": [
           {
@@ -9501,7 +9501,7 @@
     },
     "/v1/autonomy/policy/{node_id}/outlook": {
       "get": {
-        "description": "Return what an action of each risk class would meet under this posture.\n\nThe reading the policy document does not give. A table of rules answers\n\"what did somebody configure\"; this answers \"what will this do if something\nhappens now\", which is the question asked before a deployment is trusted\nwith an estate — and it is answered by the deployment's own gate rather than\nby a client's reading of the rules, so what is shown and what would happen\ncannot drift.",
+        "description": "Return what an action of each risk class would meet under this posture.\n\nThe reading the policy document does not give. A table of rules answers\n\"what did somebody configure\"; this answers \"what will this do if something\nhappens now\", which is the question asked before a deployment is trusted\nwith an estate \u2014 and it is answered by the deployment's own gate rather than\nby a client's reading of the rules, so what is shown and what would happen\ncannot drift.",
         "operationId": "read_outlook_v1_autonomy_policy__node_id__outlook_get",
         "parameters": [
           {
@@ -9629,7 +9629,7 @@
     },
     "/v1/autonomy/policy/{node_id}/overrides/{name}": {
       "delete": {
-        "description": "Take an override away before it expires, and say whether one was there.\n\n404 rather than a quiet success for an override this node did not grant: an\noperator who asked for a widening to be taken away, and was told it was,\nwould stop looking — and the widening would still be in force from a level\nabove, where it has to be revoked instead.",
+        "description": "Take an override away before it expires, and say whether one was there.\n\n404 rather than a quiet success for an override this node did not grant: an\noperator who asked for a widening to be taken away, and was told it was,\nwould stop looking \u2014 and the widening would still be in force from a level\nabove, where it has to be revoked instead.",
         "operationId": "revoke_override_v1_autonomy_policy__node_id__overrides__name__delete",
         "parameters": [
           {
@@ -9811,7 +9811,7 @@
     },
     "/v1/config": {
       "get": {
-        "description": "Return the nodes this caller may navigate, as one document (FR-016).\n\nOne response rather than a walk. A client rendering an organisation tree\nneeds the shape before it can render anything at all, and a node-by-node\nexpansion would make a tree of several hundred nodes a request storm during\nthe one hour anybody is looking at it.\n\nA team-scoped caller gets its own subtree and nothing else — the same\nasymmetry ``platform/identity/authorisation.py`` applies to grants, so a\ntoken narrower than the organisation cannot map the rest of it.",
+        "description": "Return the nodes this caller may navigate, as one document (FR-016).\n\nOne response rather than a walk. A client rendering an organisation tree\nneeds the shape before it can render anything at all, and a node-by-node\nexpansion would make a tree of several hundred nodes a request storm during\nthe one hour anybody is looking at it.\n\nA team-scoped caller gets its own subtree and nothing else \u2014 the same\nasymmetry ``platform/identity/authorisation.py`` applies to grants, so a\ntoken narrower than the organisation cannot map the rest of it.",
         "operationId": "config_tree_v1_config_get",
         "parameters": [
           {
@@ -9918,7 +9918,7 @@
         ]
       },
       "put": {
-        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.\n\nGiven both live registries, which is what makes validation here the same\nvalidation the read routes report. The integration directory is what lets a\nfield a vendor's own schema calls secret be refused, which is the way round\n``PUT /v1/integrations/{name}/credential`` and has to be shut. The capability\ncatalogue is what lets a name no capability answers to be refused, which is\notherwise a setting that stores happily and never does anything.\n\nWithholding the catalogue was once argued for on the grounds that a write\nwould then refuse what ``POST /{node_id}/preview`` accepts. The preview runs\nno validation at all — it answers what a document would *resolve* to — so\nevery refusal this route makes is already one the preview does not predict,\nand the argument protected a property that does not exist. Predicting them is\nworth doing, and it is a change to what the preview returns rather than a\nreason to check less here.",
+        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.\n\nGiven both live registries, which is what makes validation here the same\nvalidation the read routes report. The integration directory is what lets a\nfield a vendor's own schema calls secret be refused, which is the way round\n``PUT /v1/integrations/{name}/credential`` and has to be shut. The capability\ncatalogue is what lets a name no capability answers to be refused, which is\notherwise a setting that stores happily and never does anything.\n\nWithholding the catalogue was once argued for on the grounds that a write\nwould then refuse what ``POST /{node_id}/preview`` accepts. The preview runs\nno validation at all \u2014 it answers what a document would *resolve* to \u2014 so\nevery refusal this route makes is already one the preview does not predict,\nand the argument protected a property that does not exist. Predicting them is\nworth doing, and it is a change to what the preview returns rather than a\nreason to check less here.",
         "operationId": "write_config_v1_config__node_id__put",
         "parameters": [
           {
@@ -9987,7 +9987,7 @@
     },
     "/v1/config/{node_id}/catalogue": {
       "get": {
-        "description": "Return what ``node_id`` can run, and why anything else it cannot (FR-021).\n\nEvery installed capability appears, available or not. A capability missing\nfrom a list looks identical whether it was never written, is switched off\nfor this team, or needs an integration nobody has connected — and only two\nof those are something an operator can fix in a minute.",
+        "description": "Return what ``node_id`` can run, and why anything else it cannot (FR-021).\n\nEvery installed capability appears, available or not. A capability missing\nfrom a list looks identical whether it was never written, is switched off\nfor this team, or needs an integration nobody has connected \u2014 and only two\nof those are something an operator can fix in a minute.",
         "operationId": "node_catalogue_v1_config__node_id__catalogue_get",
         "parameters": [
           {
@@ -10046,7 +10046,7 @@
     },
     "/v1/config/{node_id}/fields": {
       "get": {
-        "description": "Return every field this node can be edited by, described by the schema.\n\nServed rather than shipped in a client, for the reason the whole\nconfiguration surface is: a client holding its own table of field types and\nranges agrees with the deployment on the day it is written and drifts from\nthen on. The drift arrives as a control offering a value the write path\nrefuses, which reads to an operator as the platform being arbitrary.\n\nThe per-node half — the value, which level supplied it, whether this node\noverrides it, what locks it — cannot be assembled by a client at all. It\nneeds the ancestors' documents, and nothing outside this deployment has\nthem.",
+        "description": "Return every field this node can be edited by, described by the schema.\n\nServed rather than shipped in a client, for the reason the whole\nconfiguration surface is: a client holding its own table of field types and\nranges agrees with the deployment on the day it is written and drifts from\nthen on. The drift arrives as a control offering a value the write path\nrefuses, which reads to an operator as the platform being arbitrary.\n\nThe per-node half \u2014 the value, which level supplied it, whether this node\noverrides it, what locks it \u2014 cannot be assembled by a client at all. It\nneeds the ancestors' documents, and nothing outside this deployment has\nthem.",
         "operationId": "node_fields_v1_config__node_id__fields_get",
         "parameters": [
           {
@@ -10105,7 +10105,7 @@
     },
     "/v1/config/{node_id}/guardian": {
       "get": {
-        "description": "Return the shipped detector set as ``node_id`` runs it (FR-015).\n\nResolved here rather than by whatever is rendering it. The shipped\ncatalogue, the detected topology and this node's overrides all meet in one\nfunction, and a client that combined them itself would be a client whose\nidea of what a threshold resolves to could drift from the deployment's —\nwhich is the failure that makes a reassuring screen wrong.\n\nEvery detector that is *not* active is named too, because a detector missing\nfrom a list reads as one that does not exist, and an operator on a\nsingle-node installation deserves to know the quorum detectors are waiting\nfor a second node.",
+        "description": "Return the shipped detector set as ``node_id`` runs it (FR-015).\n\nResolved here rather than by whatever is rendering it. The shipped\ncatalogue, the detected topology and this node's overrides all meet in one\nfunction, and a client that combined them itself would be a client whose\nidea of what a threshold resolves to could drift from the deployment's \u2014\nwhich is the failure that makes a reassuring screen wrong.\n\nEvery detector that is *not* active is named too, because a detector missing\nfrom a list reads as one that does not exist, and an operator on a\nsingle-node installation deserves to know the quorum detectors are waiting\nfor a second node.",
         "operationId": "node_guardian_v1_config__node_id__guardian_get",
         "parameters": [
           {
@@ -10223,7 +10223,7 @@
     },
     "/v1/config/{node_id}/operating-context": {
       "get": {
-        "description": "Return this node's operating context, what it costs, and the text it becomes.\n\nThree things a client cannot assemble for itself, and one it should not try.\n\n``prompt`` is the *exact* string the investigator's next run will be sent —\nthe shipped-or-overridden prompt with the rendered sections appended, by the\nsame function the runtime hook uses. A console that concatenated the pieces\nitself would be a second implementation of the assembly, and the day it\ndrifted somebody would approve a prompt nobody sends.\n\n``provenance`` per section is the ancestors' documents, which nothing\noutside this deployment holds.\n\n``template`` is served only where the node resolves to no sections at all.\nIt is derived from what the estate has discovered — kinds, zones and their\nnetworks, the source answering each signal question — plus the facts that\nare true of any deployment of this kind and the questions only a person can\nanswer. It is a suggestion: nothing here stores it, and it disappears the\nmoment anything is written, because a field that kept re-offering its own\nstarting text over somebody's edits is a field they stop editing.",
+        "description": "Return this node's operating context, what it costs, and the text it becomes.\n\nThree things a client cannot assemble for itself, and one it should not try.\n\n``prompt`` is the *exact* string the investigator's next run will be sent \u2014\nthe shipped-or-overridden prompt with the rendered sections appended, by the\nsame function the runtime hook uses. A console that concatenated the pieces\nitself would be a second implementation of the assembly, and the day it\ndrifted somebody would approve a prompt nobody sends.\n\n``provenance`` per section is the ancestors' documents, which nothing\noutside this deployment holds.\n\n``template`` is served only where the node resolves to no sections at all.\nIt is derived from what the estate has discovered \u2014 kinds, zones and their\nnetworks, the source answering each signal question \u2014 plus the facts that\nare true of any deployment of this kind and the questions only a person can\nanswer. It is a suggestion: nothing here stores it, and it disappears the\nmoment anything is written, because a field that kept re-offering its own\nstarting text over somebody's edits is a field they stop editing.",
         "operationId": "node_operating_context_v1_config__node_id__operating_context_get",
         "parameters": [
           {
@@ -10282,7 +10282,7 @@
     },
     "/v1/config/{node_id}/operating-context/preview": {
       "post": {
-        "description": "Return the prompt this context would produce, and everything wrong with it.\n\nThe 058 discipline, where the \"effect\" happens to be the most literal one on\nthe platform: what a person is shown before saving is the *text the model\nwill read*. Assembled by the deployment from the same merge and the same\nfunction a run uses, so there is no arrangement of the pieces a client could\nget differently.\n\nTwo refusals are reported rather than raised, because this is a preview and\na refusal an operator can still act on is worth more than a 4xx: a document\npast the token budget, and a section body carrying something\ncredential-shaped. The second never quotes what it found — a refusal that\nechoed the secret would be the first place it was written down.\n\n``over_budget`` is computed against the **merged** result rather than\nagainst this node's own document. A node whose own text fits can still\ninherit its way past the ceiling, and the resolution's answer to that is to\nsend no context at all — which is safe and silent, and this is where it\nstops being silent.",
+        "description": "Return the prompt this context would produce, and everything wrong with it.\n\nThe 058 discipline, where the \"effect\" happens to be the most literal one on\nthe platform: what a person is shown before saving is the *text the model\nwill read*. Assembled by the deployment from the same merge and the same\nfunction a run uses, so there is no arrangement of the pieces a client could\nget differently.\n\nTwo refusals are reported rather than raised, because this is a preview and\na refusal an operator can still act on is worth more than a 4xx: a document\npast the token budget, and a section body carrying something\ncredential-shaped. The second never quotes what it found \u2014 a refusal that\nechoed the secret would be the first place it was written down.\n\n``over_budget`` is computed against the **merged** result rather than\nagainst this node's own document. A node whose own text fits can still\ninherit its way past the ceiling, and the resolution's answer to that is to\nsend no context at all \u2014 which is safe and silent, and this is where it\nstops being silent.",
         "operationId": "preview_operating_context_v1_config__node_id__operating_context_preview_post",
         "parameters": [
           {
@@ -10351,7 +10351,7 @@
     },
     "/v1/config/{node_id}/preview": {
       "post": {
-        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating — and the day it drifted, somebody would\nsave a change that did something other than what they were shown.\n\n``errors`` is the fourth thing the write decides and the last one this route\nlearned to predict. The merge, the locks and the gates were always here;\nvalidation was not, so a document the write would refuse previewed clean and\nthe refusal arrived as a 400 after somebody pressed save. It is reported\nrather than raised for the reason the whole surface exists: somebody who can\nstill edit the field is better served by being told than by a status code.",
+        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating \u2014 and the day it drifted, somebody would\nsave a change that did something other than what they were shown.\n\n``errors`` is the fourth thing the write decides and the last one this route\nlearned to predict. The merge, the locks and the gates were always here;\nvalidation was not, so a document the write would refuse previewed clean and\nthe refusal arrived as a 400 after somebody pressed save. It is reported\nrather than raised for the reason the whole surface exists: somebody who can\nstill edit the field is better served by being told than by a status code.",
         "operationId": "preview_config_v1_config__node_id__preview_post",
         "parameters": [
           {
@@ -10707,7 +10707,7 @@
     },
     "/v1/estate/discovery/report": {
       "get": {
-        "description": "Return each swept source's last pass and every disagreement it recorded.\n\nDivergence is content, so it is served rather than logged. Naming a\n``source`` narrows to one and answers 404 when nothing has ever swept it —\nwhich is a different fact from a sweep that found nothing to disagree with,\nand collapsing the two would let an unconfigured deployment read as a\nperfectly reconciled one. Naming none returns what there is, which for a\ndeployment that has swept nothing is an empty list.\n\nRaises:\n    ApiProblem: a named source nothing has ever swept (404).",
+        "description": "Return each swept source's last pass and every disagreement it recorded.\n\nDivergence is content, so it is served rather than logged. Naming a\n``source`` narrows to one and answers 404 when nothing has ever swept it \u2014\nwhich is a different fact from a sweep that found nothing to disagree with,\nand collapsing the two would let an unconfigured deployment read as a\nperfectly reconciled one. Naming none returns what there is, which for a\ndeployment that has swept nothing is an empty list.\n\nRaises:\n    ApiProblem: a named source nothing has ever swept (404).",
         "operationId": "discovery_report_v1_estate_discovery_report_get",
         "parameters": [
           {
@@ -10969,7 +10969,7 @@
     },
     "/v1/estate/resources/{resource_id}": {
       "get": {
-        "description": "Return one resource's state, why, its history, and what touched it.\n\nThe ``signals`` block is derived here rather than by the estate service,\nbecause it needs a fact the estate does not hold: which integrations this\nteam has a credential for. Deriving it per request is also what keeps it\ncorrect — connect a log store and the next render of this page says so,\nwith nothing to migrate.",
+        "description": "Return one resource's state, why, its history, and what touched it.\n\nThe ``signals`` block is derived here rather than by the estate service,\nbecause it needs a fact the estate does not hold: which integrations this\nteam has a credential for. Deriving it per request is also what keeps it\ncorrect \u2014 connect a log store and the next render of this page says so,\nwith nothing to migrate.",
         "operationId": "resource_detail_v1_estate_resources__resource_id__get",
         "parameters": [
           {
@@ -11749,7 +11749,7 @@
     },
     "/v1/integrations/{name}/verify": {
       "post": {
-        "description": "Check this team's credential for ``name``: configured, current, decryptable.\n\n``name`` is an installed integration or a supported model provider, the same\ntwo as the write beside it — the guided first run stores a provider key and\nthen verifies it, and a verify that only knew about vendor packages would\nrefuse the second half of its own flow.\n\nThe answer is written down. A check whose result lived only in the response\nleft the first run's \"check that each of them works\" step uncompletable:\ngreen while the tab was open, \"nobody has checked this one\" on reload.",
+        "description": "Check this team's credential for ``name``: configured, current, decryptable.\n\n``name`` is an installed integration or a supported model provider, the same\ntwo as the write beside it \u2014 the guided first run stores a provider key and\nthen verifies it, and a verify that only knew about vendor packages would\nrefuse the second half of its own flow.\n\nThe answer is written down. A check whose result lived only in the response\nleft the first run's \"check that each of them works\" step uncompletable:\ngreen while the tab was open, \"nobody has checked this one\" on reload.",
         "operationId": "verify_integration_v1_integrations__name__verify_post",
         "parameters": [
           {
@@ -13038,7 +13038,7 @@
     },
     "/v1/proposals": {
       "get": {
-        "description": "Return what is waiting on this team, longest-waiting first.\n\nThe acceptance figure travels with the list rather than on an endpoint of\nits own. It is a property of the queue — how this team has answered — and a\nsecond request for one number is a second thing to be out of date.",
+        "description": "Return what is waiting on this team, longest-waiting first.\n\nThe acceptance figure travels with the list rather than on an endpoint of\nits own. It is a property of the queue \u2014 how this team has answered \u2014 and a\nsecond request for one number is a second thing to be out of date.",
         "operationId": "list_proposals_v1_proposals_get",
         "parameters": [
           {
@@ -13276,7 +13276,7 @@
     },
     "/v1/protocols/catalogue": {
       "get": {
-        "description": "Return this team's bridged tools, their origin, and each server's health.\n\nBuilt from the team's own registrations rather than from whatever the\nadapter happens to hold, so a server registered and never reached still\nappears — with the reason where its tools would be.",
+        "description": "Return this team's bridged tools, their origin, and each server's health.\n\nBuilt from the team's own registrations rather than from whatever the\nadapter happens to hold, so a server registered and never reached still\nappears \u2014 with the reason where its tools would be.",
         "operationId": "bridged_catalogue_view_v1_protocols_catalogue_get",
         "parameters": [
           {
@@ -13435,7 +13435,7 @@
     },
     "/v1/providers/{provider_id}/verify": {
       "post": {
-        "description": "Check ``provider_id`` end to end and report what came back.\n\nA real request, and the claim being made is about what happened rather than\nabout what is configured. \"It should work now\" is not the same statement as\n\"a call went out, called a tool, and returned structure\", and the difference\nis discovered at 03:00 by whoever was told the first one.\n\nThe model exercised is the one this deployment is configured to run, when\nthe configuration names one for this provider. An operator told \"choose a\nmodel that supports tool calling\" changes the configuration and presses the\nbutton again — a check that kept testing the registry's default would\nreturn the same refusal forever.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
+        "description": "Check ``provider_id`` end to end and report what came back.\n\nA real request, and the claim being made is about what happened rather than\nabout what is configured. \"It should work now\" is not the same statement as\n\"a call went out, called a tool, and returned structure\", and the difference\nis discovered at 03:00 by whoever was told the first one.\n\nThe model exercised is the one this deployment is configured to run, when\nthe configuration names one for this provider. An operator told \"choose a\nmodel that supports tool calling\" changes the configuration and presses the\nbutton again \u2014 a check that kept testing the registry's default would\nreturn the same refusal forever.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
         "operationId": "verify_provider_v1_providers__provider_id__verify_post",
         "parameters": [
           {
@@ -14281,7 +14281,7 @@
     },
     "/v1/schedules/preview": {
       "post": {
-        "description": "Return what ``cron`` would fire, storing nothing.\n\nParsed through the same ``CronExpression`` the write path validates\nwith — a form calling this and a form calling ``create`` can never\ndisagree about what an expression means, because there is one\nimplementation of cron in this deployment rather than a console-side\nsecond opinion beside a server-side first one. A refused expression is\nrefused here exactly as ``create`` would refuse it, before anything\nwould have been stored.",
+        "description": "Return what ``cron`` would fire, storing nothing.\n\nParsed through the same ``CronExpression`` the write path validates\nwith \u2014 a form calling this and a form calling ``create`` can never\ndisagree about what an expression means, because there is one\nimplementation of cron in this deployment rather than a console-side\nsecond opinion beside a server-side first one. A refused expression is\nrefused here exactly as ``create`` would refuse it, before anything\nwould have been stored.",
         "operationId": "preview_schedule_v1_schedules_preview_post",
         "parameters": [
           {
@@ -14635,7 +14635,7 @@
     },
     "/v1/setup/checklist": {
       "get": {
-        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present — and it means that on the next request too,\nwhich is the whole reason the answer is written down.",
+        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present \u2014 and it means that on the next request too,\nwhich is the whole reason the answer is written down.",
         "operationId": "checklist_v1_setup_checklist_get",
         "parameters": [
           {
@@ -14843,7 +14843,7 @@
     },
     "/v1/setup/durable-credential": {
       "post": {
-        "description": "Exchange the bootstrap credential for one that lasts, and spend it.\n\nReads the bootstrap credential from the host file rather than from the\nrequest: the caller has already proved they hold it by getting this far, and\naccepting it in a body would be a second way in — one where a caller could\nname somebody else's credential to revoke.",
+        "description": "Exchange the bootstrap credential for one that lasts, and spend it.\n\nReads the bootstrap credential from the host file rather than from the\nrequest: the caller has already proved they hold it by getting this far, and\naccepting it in a body would be a second way in \u2014 one where a caller could\nname somebody else's credential to revoke.",
         "operationId": "durable_credential_v1_setup_durable_credential_post",
         "parameters": [
           {
@@ -14903,7 +14903,7 @@
     },
     "/v1/setup/self-check": {
       "get": {
-        "description": "Run every check in one pass and return the findings, most blocking first.\n\nThe runtime check is handed what this process actually composed, because\nthat is a fact only the running process holds — no store can be asked\nwhether anything here can drive an investigation, and it is the one\ndependency that leaves no trace on any screen.",
+        "description": "Run every check in one pass and return the findings, most blocking first.\n\nThe runtime check is handed what this process actually composed, because\nthat is a fact only the running process holds \u2014 no store can be asked\nwhether anything here can drive an investigation, and it is the one\ndependency that leaves no trace on any screen.",
         "operationId": "run_self_check_v1_setup_self_check_get",
         "parameters": [
           {
@@ -15158,7 +15158,7 @@
     },
     "/v1/transit/deliveries/{delivery_id}/resend": {
       "post": {
-        "description": "Send a failed outbound delivery again, and record that a person asked.\n\nA re-send puts a report in front of somebody, so it is a human act and is\naudited like every other one — Article III. Refused for a delivery that\ndid not fail: re-sending a message the destination already accepted would\nbe this deployment producing a duplicate nobody asked for.",
+        "description": "Send a failed outbound delivery again, and record that a person asked.\n\nA re-send puts a report in front of somebody, so it is a human act and is\naudited like every other one \u2014 Article III. Refused for a delivery that\ndid not fail: re-sending a message the destination already accepted would\nbe this deployment producing a duplicate nobody asked for.",
         "operationId": "resend_delivery_v1_transit_deliveries__delivery_id__resend_post",
         "parameters": [
           {
@@ -15377,7 +15377,7 @@
     },
     "/v1/transit/simulate": {
       "post": {
-        "description": "Return which rule would catch this delivery, where it would go, and what would happen.\n\nTakes either a pasted ``payload`` with its ``source``, or the\n``delivery_id`` of a crossing already in the ledger. Both end in the same\n``evaluate`` call the live ingress path makes — asserted by construction\nrather than by comparison, because there is only one implementation to call.",
+        "description": "Return which rule would catch this delivery, where it would go, and what would happen.\n\nTakes either a pasted ``payload`` with its ``source``, or the\n``delivery_id`` of a crossing already in the ledger. Both end in the same\n``evaluate`` call the live ingress path makes \u2014 asserted by construction\nrather than by comparison, because there is only one implementation to call.",
         "operationId": "simulate_v1_transit_simulate_post",
         "parameters": [
           {
@@ -15455,25 +15455,6 @@
         ]
       }
     },
-    "/webhooks/datadog": {
-      "post": {
-        "operationId": "handle_webhooks_datadog_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
     "/webhooks/generic": {
       "post": {
         "operationId": "handle_webhooks_generic_post",
@@ -15496,63 +15477,6 @@
     "/webhooks/grafana": {
       "post": {
         "operationId": "handle_webhooks_grafana_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
-    "/webhooks/opsgenie": {
-      "post": {
-        "operationId": "handle_webhooks_opsgenie_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
-    "/webhooks/pagerduty": {
-      "post": {
-        "operationId": "handle_webhooks_pagerduty_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
-    "/webhooks/sentry": {
-      "post": {
-        "operationId": "handle_webhooks_sentry_post",
         "responses": {
           "200": {
             "content": {

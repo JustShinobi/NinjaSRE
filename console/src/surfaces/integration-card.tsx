@@ -15,9 +15,9 @@ import { VerifyStep, type VerifyStepLabels } from './first-run/verify';
 /**
  * One integration, collapsed to its state until somebody asks for more.
  *
- * Eighty-five of these on one screen is the whole reason this collapses: an
- * operator with three real integrations should not scroll past eighty-two
- * open forms with nothing behind them to find the three that matter. What is
+ * A screenful of these is the whole reason this collapses: an operator with
+ * three real integrations should not scroll past a column of open forms with
+ * nothing behind them to find the three that matter. What is
  * visible without expanding anything is exactly the state a card has to be
  * legible for — absent, stored, verified, failing — read straight off
  * `health`, which distinguishes all four (`platform/credentials/health.py`'s

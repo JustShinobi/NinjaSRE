@@ -1,8 +1,8 @@
 """The catalogue every contract test below is parameterised over.
 
-One suite, one row per integration. The catalogue is three vendors today and
-roughly eighty-five by the end of the wave, and the arithmetic of that growth is
-the whole reason the suite is shaped this way: eighty-five test files drift, and
+One suite, one row per integration. The catalogue grows a vendor at a time as
+environments appear to validate them, and the arithmetic of that growth is
+the whole reason the suite is shaped this way: a test file per vendor drifts, and
 the ones that drift are the ones nobody reads. One suite over a discovered
 catalogue cannot, because there is no per-integration file to forget to update
 and a framework change is checked against every vendor in the same run.

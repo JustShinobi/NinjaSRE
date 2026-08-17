@@ -2,63 +2,7 @@
 
 # tracing integrations
 
-4 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
-
-### `honeycomb`
-
-Honeycomb's query engine over trace events: where latency and errors concentrate in a dataset, and the slowest traces behind that concentration.
-
-- **Category:** tracing
-- **Regions:** us, eu
-- **Credentials:** api_key, dataset
-- **SDK strategy:** `direct_client`
-- **Parity:** complete
-- **Health:** unknown
-
-**Capabilities:**
-
-- `honeycomb_slow_traces`
-- `honeycomb_trace_statistics`
-
-**Permissions:**
-
-| Permission | Grants | Without it |
-|---|---|---|
-| `query` | run queries against a dataset's events | `honeycomb_trace_statistics`, `honeycomb_slow_traces` |
-| `auth:read` | read what the key is allowed to do, which the probe uses | `honeycomb_trace_statistics` |
-
-**Pagination:**
-
-- `search_traces` — cursor on `cursor`
-- `slow_traces` — cursor on `cursor`
-
-### `jaeger`
-
-Jaeger's trace store: where a service's operations concentrate latency, and the slowest traces behind that concentration.
-
-- **Category:** tracing
-- **Regions:** self-hosted
-- **Credentials:** token
-- **SDK strategy:** `direct_client`
-- **Parity:** complete
-- **Health:** unknown
-
-**Capabilities:**
-
-- `jaeger_slow_traces`
-- `jaeger_trace_statistics`
-
-**Permissions:**
-
-| Permission | Grants | Without it |
-|---|---|---|
-| `traces:read` | query the trace store | `jaeger_trace_statistics`, `jaeger_slow_traces` |
-| `services:read` | list services, which the probe uses | `jaeger_trace_statistics` |
-
-**Pagination:**
-
-- `search_traces` — offset on `offset`
-- `slow_traces` — offset on `offset`
+1 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
 
 ### `signoz`
 
@@ -87,31 +31,3 @@ SigNoz's span store: where latency and errors concentrate for a service, and the
 
 - `search_traces` — offset on `offset`
 - `slow_traces` — offset on `offset`
-
-### `tempo`
-
-TraceQL against Grafana Tempo: which traces match a latency or error condition, and the slowest of them, for estates storing traces in object storage.
-
-- **Category:** tracing
-- **Regions:** self-hosted
-- **Credentials:** token
-- **SDK strategy:** `direct_client`
-- **Parity:** complete
-- **Health:** unknown
-
-**Capabilities:**
-
-- `tempo_slow_traces`
-- `tempo_trace_statistics`
-
-**Permissions:**
-
-| Permission | Grants | Without it |
-|---|---|---|
-| `traces:read` | search the trace store | `tempo_trace_statistics`, `tempo_slow_traces` |
-| `echo` | the unauthenticated liveness endpoint the probe uses | `tempo_trace_statistics` |
-
-**Pagination:**
-
-- `search_traces` — cursor on `start`
-- `slow_traces` — cursor on `start`

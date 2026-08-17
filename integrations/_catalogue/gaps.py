@@ -101,10 +101,8 @@ UNREACHABLE: Final[tuple[CatalogueGap, ...]] = (
         reason=_WIRE_PROTOCOL,
         what_would_change_it=(
             "A protocol bridge that terminates the credential outside the agent process, the "
-            "way the HTTP proxy does. Until there is one, a managed PostgreSQL is reachable "
-            "through its cloud control plane — `aws_rds` for RDS and Aurora, `supabase` for "
-            "Supabase — which answers instance state, failovers, and parameter changes but "
-            "not sessions or query plans."
+            "way the HTTP proxy does. Nothing in the catalogue reaches a managed PostgreSQL's "
+            "control plane today."
         ),
     ),
     CatalogueGap(
@@ -113,9 +111,8 @@ UNREACHABLE: Final[tuple[CatalogueGap, ...]] = (
         category="database",
         reason=_WIRE_PROTOCOL,
         what_would_change_it=(
-            "The same bridge PostgreSQL needs. A managed MySQL is reachable through "
-            "`aws_rds`, which answers instance state and the event history and not what is "
-            "executing inside the engine."
+            "The same bridge PostgreSQL needs. Nothing in the catalogue reaches a managed "
+            "MySQL's control plane today."
         ),
     ),
     CatalogueGap(
@@ -134,9 +131,9 @@ UNREACHABLE: Final[tuple[CatalogueGap, ...]] = (
         category="database",
         reason=_WIRE_PROTOCOL,
         what_would_change_it=(
-            "A protocol bridge, or Atlas: `mongodb_atlas` reaches a hosted deployment through "
-            "the Atlas administration API and answers process and cluster state. A "
-            "self-hosted replica set on port 27017 has no equivalent."
+            "A protocol bridge. Nothing in the catalogue reaches a hosted deployment's "
+            "administration API today, and a self-hosted replica set on port 27017 has no "
+            "equivalent either way."
         ),
     ),
     CatalogueGap(
@@ -162,8 +159,8 @@ UNREACHABLE: Final[tuple[CatalogueGap, ...]] = (
         ),
         what_would_change_it=(
             "Either a protocol bridge that terminates the SMTP credential outside the agent "
-            "process, or delivery through a vendor with an HTTP API — `twilio` and `pushover` "
-            "are both in the catalogue and reach a person without an SMTP session."
+            "process, or delivery through a vendor with an HTTP API — `pushover` is in the "
+            "catalogue and reaches a person without an SMTP session."
         ),
     ),
     CatalogueGap(

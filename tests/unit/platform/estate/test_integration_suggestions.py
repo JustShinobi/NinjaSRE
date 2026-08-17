@@ -1,8 +1,8 @@
 """Which integrations to offer first, derived from what the estate turned out to hold.
 
 An operator who has just discovered fifty-seven containers is then shown a
-catalogue of ninety vendors in alphabetical order, and the first useful thing on
-it is on the second screen. What the deployment already knows is that one of
+catalogue in alphabetical order, and the first useful thing on it is further
+down than it should be. What the deployment already knows is that one of
 those containers is called ``prometheus`` and sits on ``10.20.20.37`` — so the
 Prometheus entry comes first with the address filled in, and the operator's job
 shrinks to pasting a token.

@@ -205,18 +205,6 @@
       "pending_because": "The catalogue rework changed this screen substantially and the migration that retires the raw configuration editor will change it again. Its baseline is the pre-rework one, deliberately: reviewing these pixels now buys a second review of the same screen a feature later."
     },
     {
-      "id": "integrations-panel-1440-light",
-      "route": "/integrations/slack",
-      "status": "pending",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The credential panel: a slide-over on the catalogue with a human label, help and minimum scope per field, and \"Save and test\" as the one primary action. Reviewed against the credential-panel mockup for layout, hierarchy, grouping and vocabulary. No committed baseline exists yet — this is a new screen this feature adds, and the first capture is a deliberate, reviewed acceptance rather than something a gate should manufacture."
-      },
-      "pending_because": "Registered so the screen is not forgotten, and deliberately left out of the capture set until a person accepts its first baseline. Carrying it as baselined instead would fail the committed-baseline contract on every run, and — worse — each full gate run regenerates the missing PNG as a real-looking 1440x2006 capture that nobody reviewed, which is how an unreviewed baseline gets committed by the next person who stages this directory. It leaves pending the moment someone captures it under review."
-    },
-    {
       "id": "knowledge-1440-light",
       "route": "/knowledge",
       "status": "baselined",

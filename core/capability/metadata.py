@@ -44,7 +44,7 @@ TOOL_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
 #: A skill name, which is an identifier rather than a callable symbol: the model
 #: never emits it as a function name, so it may carry the hyphens that make a
-#: directory listing of eighty-five skills readable.
+#: directory listing of every shipped skill readable.
 SKILL_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*$")
 
 #: The permissive of the two, for code that has a capability of either kind.

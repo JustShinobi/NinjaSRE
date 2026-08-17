@@ -222,8 +222,8 @@ An integration with no backend module is not broken — it gets the generic JSON
 vendor, whose empty document is `{}`, and that is the right answer for the many
 clients that read a document and treat an empty one as "nothing to report". A
 module is worth writing when the empty answer has a *shape*: a Kubernetes list
-with an empty continue token, a Prometheus result envelope, an AWS
-query-protocol XML document, an Elasticsearch hit envelope reporting zero hits.
+with an empty continue token, a Prometheus result envelope, a Grafana search
+that answers an array in some places and a keyed document in others.
 
 Adding one is adding a module under `tests/harness/backends/` that exposes
 `BACKENDS`. Discovery walks the package; nothing registers.

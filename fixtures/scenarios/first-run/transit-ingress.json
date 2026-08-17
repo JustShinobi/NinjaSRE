@@ -19,19 +19,6 @@
           },
           {
             "counts": {},
-            "expects": "a Datadog webhook body carrying `id`, `alert_title` and `alert_transition`. The @-mention webhook integration sends it unchanged.",
-            "last_delivery_at": "",
-            "last_outcome": "",
-            "never_delivered": true,
-            "path": "/webhooks/datadog",
-            "recent_rejections": [],
-            "sample": null,
-            "source": "datadog",
-            "url": "https://ninjasre.example.invalid/webhooks/datadog",
-            "verification": "a token in the `X-Datadog-Token` header, or a machine token scoped to alert delivery"
-          },
-          {
-            "counts": {},
             "expects": "any JSON object naming the alert: `alert_name`, `summary`, `severity`, and an `event_id` or `id` if the sender has one. What anything without a vendor integration posts.",
             "last_delivery_at": "",
             "last_outcome": "",
@@ -55,45 +42,6 @@
             "source": "grafana",
             "url": "https://ninjasre.example.invalid/webhooks/grafana",
             "verification": "a shared secret in the `Authorization` header, or a machine token scoped to alert delivery"
-          },
-          {
-            "counts": {},
-            "expects": "an Opsgenie webhook body: an `action` and an `alert` object carrying `alertId` and `message`.",
-            "last_delivery_at": "",
-            "last_outcome": "",
-            "never_delivered": true,
-            "path": "/webhooks/opsgenie",
-            "recent_rejections": [],
-            "sample": null,
-            "source": "opsgenie",
-            "url": "https://ninjasre.example.invalid/webhooks/opsgenie",
-            "verification": "a shared secret in the `Authorization` header, or a machine token scoped to alert delivery"
-          },
-          {
-            "counts": {},
-            "expects": "a PagerDuty v3 webhook body: an `event` object with an `id` and an `event_type`.",
-            "last_delivery_at": "",
-            "last_outcome": "",
-            "never_delivered": true,
-            "path": "/webhooks/pagerduty",
-            "recent_rejections": [],
-            "sample": null,
-            "source": "pagerduty",
-            "url": "https://ninjasre.example.invalid/webhooks/pagerduty",
-            "verification": "PagerDuty's HMAC signature in `X-PagerDuty-Signature`, or a machine token scoped to alert delivery"
-          },
-          {
-            "counts": {},
-            "expects": "a Sentry issue-alert body: a `culprit` and a `data.issue` object carrying the title.",
-            "last_delivery_at": "",
-            "last_outcome": "",
-            "never_delivered": true,
-            "path": "/webhooks/sentry",
-            "recent_rejections": [],
-            "sample": null,
-            "source": "sentry",
-            "url": "https://ninjasre.example.invalid/webhooks/sentry",
-            "verification": "Sentry's HMAC signature in `Sentry-Hook-Signature`, or a machine token scoped to alert delivery"
           }
         ],
         "window_hours": 24

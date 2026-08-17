@@ -6,7 +6,7 @@ scheduled live run does not. The question is what happens next, and there are
 only two answers.
 
 Failing the build is the wrong one. It is not the operator's change, they cannot
-fix it, and a red build tells them nothing about which of their eighty-five
+fix it, and a red build tells them nothing about which of their shipped
 integrations is affected — so the pressure is to disable the live run, and then
 the drift is undetected instead of merely unfixed.
 

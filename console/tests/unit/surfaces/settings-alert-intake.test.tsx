@@ -28,13 +28,11 @@ import {
 const FIXTURE_BASE = ['http:', '//fixtures.invalid'].join('');
 
 /**
- * The address a deployment's own network path produced for `pagerduty` in one
+ * The address a deployment's own network path produced for `grafana` in one
  * observed case: the scheme and host this test's fetch stub swaps in, never a
  * literal origin.
  */
-const UNSAFE_PAGERDUTY_URL = ['http:', '//192.168.68.74:8420/webhooks/pagerduty'].join(
-  '',
-);
+const UNSAFE_GRAFANA_URL = ['http:', '//192.168.68.74:8420/webhooks/grafana'].join('');
 
 interface IngressSourcesBody {
   readonly sources: readonly { readonly source: string; readonly url: string }[];
@@ -58,7 +56,7 @@ function serveWithUnsafeIngressUrl(): void {
       JSON.stringify({
         ...body,
         sources: body.sources.map((row) =>
-          row.source === 'pagerduty' ? { ...row, url: UNSAFE_PAGERDUTY_URL } : row,
+          row.source === 'grafana' ? { ...row, url: UNSAFE_GRAFANA_URL } : row,
         ),
       }),
       { status: response.status, headers: { 'content-type': 'application/json' } },
@@ -121,7 +119,7 @@ describe('the receiver list, compact by default', () => {
     await page();
 
     const rows = screen.getAllByTestId('ingress-source');
-    expect(rows.length).toBe(7);
+    expect(rows.length).toBe(3);
     // No reference content is in the document at all until it is asked for.
     expect(screen.queryByTestId('reference-body')).toBeNull();
     expect(screen.queryByTestId('rule-simulator')).toBeNull();
@@ -153,7 +151,7 @@ describe('a source that has never delivered', () => {
   it('says so, rather than showing an empty row', async () => {
     await page();
 
-    const silent = sourceRow('sentry');
+    const silent = sourceRow('generic');
     expect(silent?.getAttribute('data-never-delivered')).toBe('true');
     expect(silent).toHaveTextContent('Nothing has ever arrived here');
   });
@@ -169,7 +167,7 @@ describe('a source that has never delivered', () => {
     await page('empty');
 
     const rows = screen.getAllByTestId('ingress-source');
-    expect(rows.length).toBe(7);
+    expect(rows.length).toBe(3);
     expect(
       rows.every((row) => row.getAttribute('data-never-delivered') === 'true'),
     ).toBe(true);
@@ -327,7 +325,7 @@ describe('a webhook address that is not safe to announce', () => {
     serveWithUnsafeIngressUrl();
     render(await AlertIntakeScreen(await surfaceContext({})));
 
-    const row = sourceRow('pagerduty');
+    const row = sourceRow('grafana');
     expect(row?.textContent).not.toContain(['http', '://'].join(''));
   });
 
@@ -337,10 +335,10 @@ describe('a webhook address that is not safe to announce', () => {
 
     serveWithUnsafeIngressUrl();
     render(await AlertIntakeScreen(await surfaceContext({})));
-    const row = requireSourceRow('pagerduty');
+    const row = requireSourceRow('grafana');
     await userEvent.click(within(row).getByTestId('ingress-url-copy'));
 
-    expect(writeText).toHaveBeenCalledWith('/webhooks/pagerduty');
+    expect(writeText).toHaveBeenCalledWith('/webhooks/grafana');
     vi.unstubAllGlobals();
   });
 });
@@ -378,7 +376,7 @@ describe('provenance', () => {
   it('says plainly when there is nothing to trace', async () => {
     await page('empty');
 
-    expect(screen.getAllByTestId('provenance-none').length).toBe(7);
+    expect(screen.getAllByTestId('provenance-none').length).toBe(3);
   });
 
   it('names how many deliveries the disclosure holds, before it is opened', async () => {
@@ -389,7 +387,7 @@ describe('provenance', () => {
     );
     expect(live).toHaveTextContent('Where did this go? (1)');
 
-    const silent = requireSourceRow('datadog').querySelector(
+    const silent = requireSourceRow('generic').querySelector(
       '[data-testid="provenance"] summary',
     );
     expect(silent).toHaveTextContent('Where did this go? (0)');
@@ -405,7 +403,7 @@ describe('a column whose read the deployment refused', () => {
       .getAllByTestId('panel')
       .filter((panel) => panel.getAttribute('data-state') === 'error');
     expect(failed.length).toBe(1);
-    expect(screen.getAllByTestId('ingress-source').length).toBe(7);
+    expect(screen.getAllByTestId('ingress-source').length).toBe(3);
   });
 });
 

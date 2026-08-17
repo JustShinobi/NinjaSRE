@@ -53,12 +53,8 @@ from gateway.http.state import GatewayState
 from gateway.webhooks.dedup import fingerprint
 from gateway.webhooks.sources import (
     alertmanager,
-    datadog,
     generic,
     grafana,
-    opsgenie,
-    pagerduty,
-    sentry,
 )
 from gateway.webhooks.sources.profile import WebhookSourceProfile
 from platform.config_service.bindings import masking_policy
@@ -89,15 +85,11 @@ from platform.runs.recorder import RunRecorder
 
 logger = get_logger(__name__)
 
-#: The seven configured path segments, each with the normalisation profile
-#: that already exists for it (feature 005).
+#: The three configured path segments this deployment answers alerts on, each
+#: with the normalisation profile that already exists for it (feature 005).
 PROFILES: dict[str, WebhookSourceProfile] = {
     "alertmanager": alertmanager.PROFILE,
-    "pagerduty": pagerduty.PROFILE,
-    "datadog": datadog.PROFILE,
     "grafana": grafana.PROFILE,
-    "sentry": sentry.PROFILE,
-    "opsgenie": opsgenie.PROFILE,
     "generic": generic.PROFILE,
 }
 

@@ -121,7 +121,7 @@ test('the administration area never shows a forbidden phrase', async ({ page }) 
 });
 
 /**
- * A raw catalogue id — `azure_monitor`, `google_gemini` — in the position a
+ * A raw catalogue id — `google_gemini`, `openobserve_cloud` — in the position a
  * person reads as a title, rather than the display name every profile now
  * declares. Snake case is the tell: nothing this console titles with on
  * purpose is spelled with an underscore, so any match here is the id
