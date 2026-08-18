@@ -104,7 +104,13 @@ test.describe('Autonomy & guardrails', () => {
     const rules = page.getByTestId('autonomy-rule');
     await expect(rules.first()).toBeVisible();
 
-    await expect(page.getByText('Guardrails', { exact: true })).toBeVisible();
+    // The section's own heading, not the bare word: the advanced configuration
+    // section below now titles `policies.guardrails` in the same language a
+    // person reads, so "Guardrails" appears twice on this page and only the
+    // heading is the one this test means.
+    await expect(
+      page.getByRole('heading', { name: 'Guardrails', exact: true }),
+    ).toBeVisible();
     const invariants = page.getByTestId('guardrail-invariant');
     await expect(invariants).toHaveCount(2);
   });
