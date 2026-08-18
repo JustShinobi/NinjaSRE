@@ -349,6 +349,14 @@ CONFIG_SCREEN_VIEWPORT_HEIGHT_PX: Final[int] = 1080
 #: pagination instead of asking for more scrolling.
 CONFIG_SCREEN_SCROLL_BUDGET_VIEWPORTS: Final[float] = 2.0
 
+#: How many of that same viewport's heights a single tab of a tabbed
+#: configuration screen may occupy. Narrower than the whole-page budget above
+#: on purpose: once a screen is cut into tabs, each tab answers one question
+#: rather than the whole page's worth, and a tab that still needed two
+#: viewports would mean the cut did not actually reduce what one screen asks
+#: a reader to hold at once.
+CONFIG_SCREEN_TAB_SCROLL_BUDGET_VIEWPORTS: Final[float] = 1.5
+
 #: How many catalogue cards the integrations grid renders on one page. Chosen
 #: so the grid, plus the Connected and Suggested sections above it, stays
 #: inside ``CONFIG_SCREEN_SCROLL_BUDGET_VIEWPORTS`` against the full catalogue
@@ -382,6 +390,7 @@ __all__ = [
     "CLI_COMMAND_NAME",
     "COLUMNS_ENV",
     "CONFIG_SCREEN_SCROLL_BUDGET_VIEWPORTS",
+    "CONFIG_SCREEN_TAB_SCROLL_BUDGET_VIEWPORTS",
     "CONFIG_SCREEN_VIEWPORT_HEIGHT_PX",
     "CONFIG_SCREEN_VIEWPORT_WIDTH_PX",
     "CONSOLE_ORG_TREE_BENCHMARK_NODES",
