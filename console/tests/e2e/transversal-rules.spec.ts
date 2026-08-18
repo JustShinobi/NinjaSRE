@@ -145,46 +145,6 @@ const EXCEPTIONS: readonly Exception[] = [
     reason: 'the screen repeats seven near-identical sources with nothing collapsed',
   },
   {
-    path: '/settings/members-roles',
-    rule: 'vocabulary',
-    reason:
-      "a person's or a token group's own chip still shows the raw health word " +
-      "HEALTHY rather than the product's canonical, translated state words",
-  },
-  {
-    path: '/settings/machine-tokens',
-    rule: 'vocabulary',
-    reason:
-      'the same token-group chip named above for /settings/members-roles — ' +
-      'both routes render it from the one call site in ' +
-      "machine-token-groups.tsx, so this is that route's own occurrence of " +
-      'it, not a second defect',
-  },
-  {
-    path: '/settings/autonomy-guardrails',
-    rule: 'vocabulary',
-    reason:
-      'the raw schema editor below the guardrail table still titles its own ' +
-      'collapsible sections with dotted configuration paths (e.g. "policies.' +
-      'autonomy") rather than a display name',
-  },
-  {
-    path: '/settings/notifications',
-    rule: 'vocabulary',
-    reason:
-      'the raw schema editor below the effective-value table still titles its ' +
-      'own section with the dotted configuration path ' +
-      '"surfaces.notification_policy" rather than a display name',
-  },
-  {
-    path: '/settings/alert-intake',
-    rule: 'vocabulary',
-    reason:
-      'a trust relationship on this screen is still named by its delivery ' +
-      'route\'s internal identifier ("webhook.deliver") rather than a ' +
-      'display name',
-  },
-  {
     path: '/settings/schedules-destinations',
     rule: 'vocabulary',
     reason:

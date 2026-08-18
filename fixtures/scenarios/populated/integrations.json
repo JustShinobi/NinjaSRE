@@ -43,7 +43,9 @@
             "suggested": {
               "address": "http://thicket.example.invalid:9090",
               "because": "a guest labelled prometheus is reachable on the metrics port",
-              "from_resource": "vm-201-metrics"
+              "from_resource": "vm-201-metrics",
+              "resource_kind": "guest",
+              "resource_label": "prometheus"
             },
             "summary": "Range queries against the metrics store."
           },
@@ -921,6 +923,13 @@
             "regions": [
               "global"
             ],
+            "suggested": {
+              "address": "http://zephyr.example.invalid:6379",
+              "because": "this estate holds a container called 'ct-9042' at 198.51.100.197, which is where redis was found rather than where anyone guessed it would be",
+              "from_resource": "ct-9042",
+              "resource_kind": "container",
+              "resource_label": ""
+            },
             "summary": "The Redis Cloud control plane: which databases exist in a subscription and in what state, which is what an HTTP-reachable Redis can answer."
           },
           {

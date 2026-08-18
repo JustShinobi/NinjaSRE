@@ -11,9 +11,12 @@
         "permissions": [
           "approval.read",
           "config.read",
+          "estate.read",
+          "incident.read",
           "investigation.read",
           "knowledge.read",
-          "memory.read"
+          "memory.read",
+          "report.read"
         ],
         "principal_id": "user-viewer",
         "roles": [

@@ -188,7 +188,9 @@ function rules(over: Partial<EditableField> = {}): EditableField {
 }
 
 function editor(fields: readonly EditableField[]): void {
-  render(<ConfigEditor nodeId="payments" fields={fields} labels={LABELS} />);
+  render(
+    <ConfigEditor nodeId="payments" fields={fields} labels={LABELS} locale="en" />,
+  );
 }
 
 /** Ask for a preview, which is what puts the current patch on the wire. */

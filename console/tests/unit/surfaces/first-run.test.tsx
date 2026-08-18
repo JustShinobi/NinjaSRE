@@ -495,6 +495,10 @@ describe('choosing a model', () => {
     refused: 'refused',
     unreachable: 'unreachable',
     needsPreview: 'preview first',
+    fieldLabels: {
+      'models.investigator.provider': 'Provider',
+      'models.investigator.model': 'Investigation model',
+    },
   };
 
   it('offers the models a provider declares as a closed list', () => {
@@ -710,6 +714,30 @@ describe('choosing a model', () => {
       'is not a configuration field',
     );
     expect(screen.getByTestId('save-model')).toBeDisabled();
+  });
+
+  it('names a changed field by its display name, never the raw configuration path', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answerWith({
+        changes: [{ path: 'models.investigator.model', after: 'claude-opus-5' }],
+      }),
+    );
+    render(
+      <ModelStep
+        provider="anthropic"
+        models={['claude-opus-5']}
+        defaultModel="claude-opus-5"
+        nodeId="team-a"
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('preview-model'));
+
+    const preview = screen.getByTestId('model-preview');
+    expect(preview).toHaveTextContent('Investigation model');
+    expect(preview).not.toHaveTextContent('models.investigator.model');
   });
 
   it('says nothing would change when the deployment says nothing would', async () => {

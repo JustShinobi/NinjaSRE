@@ -91,7 +91,14 @@ function integration(source: {
   readonly fields?: readonly FieldSource[];
   readonly capabilities?: readonly string[];
   readonly permissions?: readonly PermissionSource[];
-  readonly suggested?: { readonly address: string; readonly fromResource: string };
+  readonly suggested?: {
+    readonly address: string;
+    readonly fromResource: string;
+    // Required, like the API's own `resource_kind` — a suggestion the estate
+    // produced always names a kind, resolved or not.
+    readonly resourceKind: string;
+    readonly resourceLabel?: string;
+  };
 }): unknown {
   return {
     name: source.name,
@@ -114,6 +121,8 @@ function integration(source: {
             address: source.suggested.address,
             from_resource: source.suggested.fromResource,
             because: 'a guest labelled it is reachable on the right port',
+            resource_label: source.suggested.resourceLabel ?? '',
+            resource_kind: source.suggested.resourceKind,
           },
   };
 }
@@ -142,7 +151,12 @@ const INTEGRATIONS = {
       category: 'cloud_control_plane',
       summary: 'Dashboards and annotations.',
       health: 'unconfigured',
-      suggested: { address: '192.168.68.159:3000', fromResource: 'monitoring' },
+      suggested: {
+        address: '192.168.68.159:3000',
+        fromResource: 'monitoring',
+        resourceLabel: 'observability-01',
+        resourceKind: 'guest',
+      },
     }),
     integration({
       name: 'signoz',
@@ -361,13 +375,66 @@ describe('Suggested by the estate, in front of the catalogue', () => {
     expect(within(row).getByTestId('suggestion-evidence')).toHaveTextContent(
       '192.168.68.159:3000',
     );
+    // The resource's own legible name, read from `resource_label` — never the
+    // raw identifier the estate matched on.
     expect(within(row).getByTestId('suggestion-evidence')).toHaveTextContent(
-      'monitoring',
+      'observability-01',
     );
     expect(within(row).getByTestId('connect-suggested')).toHaveAttribute(
       'href',
       '/integrations/grafana',
     );
+  });
+
+  it('never names the resource by its raw identifier, in the evidence or the link', async () => {
+    await integrations();
+
+    const suggested = screen.getByTestId('suggested-section');
+    const row = within(suggested).getByTestId('suggested-integration');
+    expect(within(row).getByTestId('suggestion-evidence')).not.toHaveTextContent(
+      'monitoring',
+    );
+    expect(within(row).getByTestId('connect-suggested')).not.toHaveAttribute(
+      'href',
+      expect.stringContaining('monitoring'),
+    );
+  });
+
+  it('keeps the raw resource identifier recoverable as a data attribute', async () => {
+    await integrations();
+
+    const suggested = screen.getByTestId('suggested-section');
+    const row = within(suggested).getByTestId('suggested-integration');
+    expect(row).toHaveAttribute('data-resource', 'monitoring');
+  });
+
+  it('names a resource address and kind, never a blank label, when the estate never resolved a name', async () => {
+    serve({
+      integrations: {
+        integrations: [
+          integration({
+            name: 'redis',
+            health: 'unconfigured',
+            suggested: {
+              address: '10.20.0.187:6379',
+              fromResource: 'ct-9042',
+              resourceKind: 'container',
+              // `resourceLabel` deliberately omitted — the unresolvable case.
+            },
+          }),
+        ],
+        known_gaps: [],
+      },
+    });
+    await integrations();
+
+    const suggested = screen.getByTestId('suggested-section');
+    const row = within(suggested).getByTestId('suggested-integration');
+    const evidence = within(row).getByTestId('suggestion-evidence');
+    expect(evidence).toHaveTextContent('10.20.0.187:6379');
+    expect(evidence).toHaveTextContent('container');
+    expect(evidence).not.toHaveTextContent('ct-9042');
+    expect(row).toHaveAttribute('data-resource', 'ct-9042');
   });
 
   it('never renders an empty Suggested section', async () => {
@@ -389,7 +456,12 @@ describe('Suggested by the estate, in front of the catalogue', () => {
           integration({
             name: 'prometheus',
             health: 'healthy',
-            suggested: { address: '10.0.0.1:9090', fromResource: 'vm-1' },
+            suggested: {
+              address: '10.0.0.1:9090',
+              fromResource: 'vm-1',
+              resourceLabel: 'prom-host',
+              resourceKind: 'guest',
+            },
           }),
         ],
         known_gaps: [],

@@ -568,6 +568,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               <ConfigEditor
                 nodeId={nodeId}
                 fields={guardrailEditable}
+                locale={locale}
                 labels={{
                   setting: message(locale, 'configuration.column.setting'),
                   value: message(locale, 'configuration.column.value'),

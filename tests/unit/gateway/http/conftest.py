@@ -123,6 +123,10 @@ async def issue_token(
         user_id=user_id,
         name=f"{user_id}-token",
         node_id=node_id,
+        # This bearer secret stands in for the person just granted `role` —
+        # a session-shaped credential, not a narrowly scoped machine token —
+        # so it keeps resolving to whatever that person holds.
+        unscoped=True,
     )
     return issued.secret
 

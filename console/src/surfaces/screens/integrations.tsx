@@ -114,7 +114,12 @@ interface CatalogueItem {
   readonly fields: readonly CredentialFieldSpec[];
   readonly capabilities: readonly string[];
   readonly permissions: readonly PermissionSpec[];
-  readonly suggested?: { readonly address: string; readonly fromResource: string };
+  readonly suggested?: {
+    readonly address: string;
+    readonly fromResource: string;
+    readonly resourceLabel: string;
+    readonly resourceKind: string;
+  };
 }
 
 /** `record.name` read as a list of strings, dropping anything that is not one. */
@@ -139,10 +144,9 @@ function fieldsOf(record: unknown): readonly CredentialFieldSpec[] {
 }
 
 /**
- * The vendor permissions this integration's capabilities need, whole — the
- * declared, sondada content FR-006's "minimum permission" is about, read
- * from the catalogue rather than the per-field `min_scope` a schema mostly
- * leaves blank.
+ * The vendor permissions this integration's capabilities need, whole — read
+ * from the catalogue's own declared permission entries rather than the
+ * per-field `min_scope` a schema mostly leaves blank.
  */
 function permissionsOf(record: unknown): readonly PermissionSpec[] {
   return list(record, 'permissions').map((declared) => ({
@@ -154,15 +158,40 @@ function permissionsOf(record: unknown): readonly PermissionSpec[] {
 }
 
 /** Where the estate already found this vendor running, read rather than derived. */
-function suggestionOf(
-  record: unknown,
-): { readonly address: string; readonly fromResource: string } | undefined {
+function suggestionOf(record: unknown): CatalogueItem['suggested'] {
   const found = field(record, 'suggested');
   if (found === null || found === undefined) return undefined;
   const address = text(found, 'address');
   return address === ''
     ? undefined
-    : { address, fromResource: text(found, 'from_resource') };
+    : {
+        address,
+        fromResource: text(found, 'from_resource'),
+        resourceLabel: text(found, 'resource_label'),
+        resourceKind: text(found, 'resource_kind'),
+      };
+}
+
+/**
+ * The evidence sentence for one suggestion: the resource's own legible name
+ * when the estate resolved one, and address-plus-kind — never the raw
+ * identifier — when it did not. The identifier itself is never dropped: it
+ * stays recoverable as `data-resource` on the row this renders inside, which
+ * is where a technical reader looks for it rather than inside the sentence a
+ * casual one reads.
+ */
+function evidenceOf(locale: Locale, suggestion: CatalogueItem['suggested']): string {
+  const address = suggestion?.address ?? '';
+  const resourceLabel = suggestion?.resourceLabel ?? '';
+  return resourceLabel === ''
+    ? message(locale, 'catalogue.integrations.suggested.evidence.unresolved', {
+        address,
+        kind: suggestion?.resourceKind ?? '',
+      })
+    : message(locale, 'catalogue.integrations.suggested.evidence', {
+        address,
+        resource: resourceLabel,
+      });
 }
 
 function itemOf(record: unknown): CatalogueItem {
@@ -425,6 +454,10 @@ export async function IntegrationsScreen(
                     key={item.name}
                     data-testid="suggested-integration"
                     data-integration={item.name}
+                    // The estate's own identifier for the resource this
+                    // suggestion came from — never in the evidence sentence
+                    // below, always recoverable here for a technical reader.
+                    data-resource={item.suggested?.fromResource ?? ''}
                     className="flex flex-wrap items-center gap-3"
                   >
                     <span className="text-strong">{item.displayName}</span>
@@ -432,10 +465,7 @@ export async function IntegrationsScreen(
                       className="text-meta text-accent"
                       data-testid="suggestion-evidence"
                     >
-                      {message(locale, 'catalogue.integrations.suggested.evidence', {
-                        address: item.suggested?.address ?? '',
-                        resource: item.suggested?.fromResource ?? '',
-                      })}
+                      {evidenceOf(locale, item.suggested)}
                     </span>
                     <ScrollCapturingLink
                       href={detailHref(item.name)}

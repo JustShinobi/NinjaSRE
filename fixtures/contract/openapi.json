@@ -1306,6 +1306,33 @@
         "title": "CreateInvestigationRequest",
         "type": "object"
       },
+      "CreatePrincipalRequest": {
+        "description": "A new person, with the password they will sign in with locally.\n\nCreation only. There is no field here for a role: granting one is a\nsecond request, through ``POST /identity/grants``, which needs the same\npermission this route does and leaves its own audit row. A route that\ncould create a principal and hand it a role in the same call would be a\nroute that could mint an account holding more than its caller ever had\nto be granted anything to obtain — this one cannot, because it never\ngrants at all.",
+        "properties": {
+          "display_name": {
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "minLength": 1,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "display_name",
+          "password"
+        ],
+        "title": "CreatePrincipalRequest",
+        "type": "object"
+      },
       "CreateScheduleRequest": {
         "properties": {
           "cron": {
@@ -6887,12 +6914,22 @@
           "from_resource": {
             "title": "From Resource",
             "type": "string"
+          },
+          "resource_kind": {
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "resource_label": {
+            "title": "Resource Label",
+            "type": "string"
           }
         },
         "required": [
           "address",
           "from_resource",
-          "because"
+          "because",
+          "resource_label",
+          "resource_kind"
         ],
         "title": "SuggestionView",
         "type": "object"
@@ -8349,6 +8386,64 @@
           }
         },
         "summary": "List Principals",
+        "tags": [
+          "identity"
+        ]
+      },
+      "post": {
+        "description": "Create a person with a local password, and record who did it.\n\nRefused before this body ever runs for a caller who lacks\n``identity.write`` — the route table's guard, the same dependency every\nwrite in this file goes through, not a second check written here. That\nrefusal carries no information about whether ``body.email`` is already\ntaken: the permission is checked before the request reaches this\nfunction, so the response to somebody who may not create an account is\nidentical whether or not one already exists at that address.\n\nGrants nothing. There is no role on the request body, so a caller who\nmay create a person can never come away from this one call holding an\naccount that outranks them — widening what the new principal may do is\na separate, already-guarded request to ``POST /identity/grants``.\n\nThe password is hashed with the same construction the environment\naccount uses (``hash_local_password``), stored once by a write dedicated\nto that column alone, and never appears in this function's return value\nor in anything logged about the call.",
+        "operationId": "create_principal_identity_principals_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePrincipalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Principal",
         "tags": [
           "identity"
         ]

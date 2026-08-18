@@ -37,6 +37,7 @@ from gateway.http.app import create_app
 from gateway.http.state import GatewayState
 from platform.identity.break_glass import hash_secret
 from platform.identity.local_accounts import LocalAccount, LocalSignIn
+from platform.identity.permissions import Role, permissions_for
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.startup.bootstrap import organisation_id
@@ -161,3 +162,62 @@ async def test_the_passphrase_comes_back_in_nothing(signed_out: AsyncClient) -> 
     )
 
     assert LOCAL_ACCOUNT_DEFAULT_PASSWORD not in opened.text
+
+
+async def test_a_person_created_with_a_local_password_signs_in_and_reaches_exactly_their_role(
+    signed_out: AsyncClient,
+) -> None:
+    """The independent test this slice exists to close, walked end to end
+    through the real route table and permission guard: create a person with a
+    local password, grant them a role, sign in as that account, and see that
+    it reaches exactly what the role permits — never the local administrator's
+    full authority.
+    """
+    opened = await signed_out.post(
+        "/auth/sign-in",
+        json={"username": LOCAL_ACCOUNT_USERNAME, "password": LOCAL_ACCOUNT_DEFAULT_PASSWORD},
+    )
+    assert opened.status_code == 200, opened.text
+    admin_headers = {"authorization": f"Bearer {opened.json()['token']}"}
+
+    created = await signed_out.post(
+        "/identity/principals",
+        json={
+            "email": "grace@acme.test",
+            "display_name": "Grace",
+            "password": "correct horse battery staple",
+        },
+        headers=admin_headers,
+    )
+    assert created.status_code == 201, created.text
+    grace_id = created.json()["user_id"]
+
+    granted = await signed_out.post(
+        "/identity/grants",
+        json={"principal_id": grace_id, "role": Role.VIEWER.value},
+        headers=admin_headers,
+    )
+    assert granted.status_code == 201, granted.text
+
+    grace_signed_in = await signed_out.post(
+        "/auth/sign-in",
+        json={"username": "grace@acme.test", "password": "correct horse battery staple"},
+    )
+    assert grace_signed_in.status_code == 200, grace_signed_in.text
+    body = grace_signed_in.json()
+    assert body["principal_id"] == grace_id
+    assert body["principal_id"] != LOCAL_ACCOUNT_PRINCIPAL_ID
+
+    reached = await signed_out.get("/auth/me", headers={"authorization": f"Bearer {body['token']}"})
+    assert reached.status_code == 200, reached.text
+    whoami = reached.json()
+    assert whoami["principal_id"] == grace_id
+    assert whoami["kind"] == "user"
+    assert whoami["display_name"] == "Grace"
+    assert whoami["roles"] == [Role.VIEWER.value]
+    assert sorted(whoami["permissions"]) == sorted(
+        permission.value for permission in permissions_for(Role.VIEWER)
+    )
+    # Not the local administrator's authority: an owner-only permission this
+    # role never grants must stay absent.
+    assert "org.delete" not in whoami["permissions"]

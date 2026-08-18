@@ -96,6 +96,13 @@ class SuggestionView(BaseModel):
     address: str
     from_resource: str
     because: str
+    #: The resource's own display name, empty when the estate never resolved
+    #: one. A console names the resource from this field rather than
+    #: ``from_resource``, and it never falls back to the raw id the way
+    #: ``because`` does.
+    resource_label: str
+    #: The resource's own kind, always present.
+    resource_kind: str
 
 
 class KnownGapView(BaseModel):
@@ -338,6 +345,8 @@ async def list_integrations(
                         address=suggested[entry.name].address,
                         from_resource=suggested[entry.name].from_resource,
                         because=suggested[entry.name].because,
+                        resource_label=suggested[entry.name].resource_label,
+                        resource_kind=suggested[entry.name].resource_kind,
                     )
                     if entry.name in suggested
                     else None

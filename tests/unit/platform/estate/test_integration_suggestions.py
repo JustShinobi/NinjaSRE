@@ -42,13 +42,14 @@ def resource(
     address: str = "",
     kind: str = KIND_CONTAINER,
     labels: tuple[str, ...] = (),
+    display_name: str | None = None,
 ) -> Resource:
     return Resource(
         resource_id=f"prox-{name}",
         kind=kind,
         source="proxmox",
         native_id=f"lxc/HAL9000/{name}",
-        display_name=name,
+        display_name=name if display_name is None else display_name,
         attributes={"address": address} if address else {},
         labels=labels,
         last_seen_at=SEEN,
@@ -124,6 +125,40 @@ def test_a_hosted_vendor_with_no_default_port_is_not_suggested_from_an_address()
     estate = (resource("datadog", address="10.20.20.60"),)
 
     assert suggest_integrations(estate, offers=OFFERS) == ()
+
+
+class TestTheResourceLabelAndKind:
+    """``resource_label``/``resource_kind`` exist so a caller can name the
+    resource without parsing ``because`` — and, unlike ``because``, the label
+    must never fall back to the raw id."""
+
+    def test_a_resolvable_resource_carries_its_own_label_and_kind(self) -> None:
+        found = {entry.integration: entry for entry in suggest_integrations(ESTATE, offers=OFFERS)}
+
+        assert found["prometheus"].resource_label == "prometheus"
+        assert found["prometheus"].resource_kind == KIND_CONTAINER
+
+    def test_a_resource_with_no_display_name_carries_an_empty_label_never_the_id(
+        self,
+    ) -> None:
+        estate = (
+            resource(
+                "redis",
+                address="10.20.0.187",
+                labels=("redis",),
+                display_name="",
+            ),
+        )
+
+        found = suggest_integrations(estate, offers={"redis": 6379})
+
+        assert len(found) == 1
+        assert found[0].resource_label == ""
+        assert found[0].resource_kind == KIND_CONTAINER
+        # `because` is untouched by this change: it still names the raw id for
+        # a reader of the sentence, which is FR-008's own documented edge case
+        # rather than a defect this field fixes.
+        assert "prox-redis" in found[0].because
 
 
 class TestTheOrderIsStable:

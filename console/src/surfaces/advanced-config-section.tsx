@@ -191,6 +191,7 @@ export function AdvancedConfigSection({
             nodeId={nodeId}
             fields={editable}
             labels={configEditorLabels(locale)}
+            locale={locale}
           />
         ) : null}
       </div>

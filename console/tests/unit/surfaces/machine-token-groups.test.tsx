@@ -272,7 +272,7 @@ describe('issuing declares and shows the substitution', () => {
     expect(screen.queryByTestId('token-superseded-notice')).toBeNull();
   });
 
-  it('offers every one of the viewer’s own permissions as a scope to choose, checked by default', () => {
+  it('offers every one of the viewer’s own permissions as a scope to choose, none of them checked', () => {
     render(
       <MachineTokenGroups
         tokens={[]}
@@ -282,11 +282,11 @@ describe('issuing declares and shows the substitution', () => {
       />,
     );
 
-    expect(screen.getByLabelText('Investigation Read')).toBeChecked();
-    expect(screen.getByLabelText('Token Manage')).toBeChecked();
+    expect(screen.getByLabelText('Investigation Read')).not.toBeChecked();
+    expect(screen.getByLabelText('Token Manage')).not.toBeChecked();
   });
 
-  it('issues only the scopes left checked', async () => {
+  it('issues only the scopes explicitly checked by hand', async () => {
     const user = userEvent.setup();
     render(
       <MachineTokenGroups
@@ -297,6 +297,28 @@ describe('issuing declares and shows the substitution', () => {
       />,
     );
 
+    await user.click(screen.getByLabelText('Investigation Read'));
+    await user.type(screen.getByLabelText(LABELS.purpose), 'ci-runner');
+    await user.click(screen.getByTestId('issue-token'));
+
+    const call = sent.find((entry) => entry.url.endsWith('/api/token'));
+    const body = call?.body as { permissions: readonly string[] };
+    expect(body.permissions).toEqual(['investigation.read']);
+  });
+
+  it('checking a scope and then unchecking it leaves it out again', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['investigation.read', 'token.manage']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Investigation Read'));
+    await user.click(screen.getByLabelText('Token Manage'));
     await user.click(screen.getByLabelText('Token Manage'));
     await user.type(screen.getByLabelText(LABELS.purpose), 'ci-runner');
     await user.click(screen.getByTestId('issue-token'));
@@ -306,7 +328,20 @@ describe('issuing declares and shows the substitution', () => {
     expect(body.permissions).toEqual(['investigation.read']);
   });
 
-  it('checking a scope back on adds it again', async () => {
+  it('states the selected-scope count as zero when the form first opens', () => {
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['investigation.read', 'token.manage']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    expect(screen.getByTestId('scope-selected-count')).toHaveTextContent('0');
+  });
+
+  it('updates the selected-scope count as boxes are checked and unchecked', async () => {
     const user = userEvent.setup();
     render(
       <MachineTokenGroups
@@ -317,16 +352,11 @@ describe('issuing declares and shows the substitution', () => {
       />,
     );
 
-    await user.click(screen.getByLabelText('Token Manage'));
-    await user.click(screen.getByLabelText('Token Manage'));
-    await user.type(screen.getByLabelText(LABELS.purpose), 'ci-runner');
-    await user.click(screen.getByTestId('issue-token'));
+    await user.click(screen.getByLabelText('Investigation Read'));
+    expect(screen.getByTestId('scope-selected-count')).toHaveTextContent('1');
 
-    const call = sent.find((entry) => entry.url.endsWith('/api/token'));
-    const body = call?.body as { permissions: readonly string[] };
-    expect(new Set(body.permissions)).toEqual(
-      new Set(['investigation.read', 'token.manage']),
-    );
+    await user.click(screen.getByLabelText('Investigation Read'));
+    expect(screen.getByTestId('scope-selected-count')).toHaveTextContent('0');
   });
 
   it('reports why an issuance was refused', async () => {
@@ -360,6 +390,209 @@ describe('issuing declares and shows the substitution', () => {
     expect(await screen.findByTestId('token-failure')).toHaveTextContent(
       LABELS.unreachable,
     );
+  });
+});
+
+describe('a purpose template marks only what it promises', () => {
+  it('marks exactly webhook.deliver for the Alert delivery template', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['webhook.deliver', 'investigation.read', 'token.manage']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    await user.click(screen.getByTestId('scope-template-alert-delivery'));
+
+    expect(screen.getByLabelText('Webhook Deliver')).toBeChecked();
+    expect(screen.getByLabelText('Investigation Read')).not.toBeChecked();
+    expect(screen.getByLabelText('Token Manage')).not.toBeChecked();
+  });
+
+  it('marks only read scopes for the Read-only automation template', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['investigation.read', 'config.read', 'token.manage']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    await user.click(screen.getByTestId('scope-template-read-only-automation'));
+
+    expect(screen.getByLabelText('Investigation Read')).toBeChecked();
+    expect(screen.getByLabelText('Config Read')).toBeChecked();
+    expect(screen.getByLabelText('Token Manage')).not.toBeChecked();
+  });
+
+  it('leaves a template’s selection open to being adjusted by hand afterward', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['webhook.deliver', 'token.manage']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    await user.click(screen.getByTestId('scope-template-alert-delivery'));
+    await user.click(screen.getByLabelText('Token Manage'));
+
+    expect(screen.getByLabelText('Webhook Deliver')).toBeChecked();
+    expect(screen.getByLabelText('Token Manage')).toBeChecked();
+  });
+
+  it('replaces rather than adds to a prior manual selection', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['webhook.deliver', 'token.manage']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Token Manage'));
+    await user.click(screen.getByTestId('scope-template-alert-delivery'));
+
+    expect(screen.getByLabelText('Webhook Deliver')).toBeChecked();
+    expect(screen.getByLabelText('Token Manage')).not.toBeChecked();
+  });
+
+  it('offers a template disabled, naming why, once its scope is outside the ceiling', () => {
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['investigation.read']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    const template = screen.getByTestId('scope-template-alert-delivery');
+    expect(template).toBeDisabled();
+    expect(
+      screen.getByTestId('scope-template-alert-delivery-reason'),
+    ).not.toHaveTextContent('');
+  });
+});
+
+describe('scopes render grouped by domain', () => {
+  it('renders more than one named group once the offered scopes span more than one domain', () => {
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['investigation.read', 'org.delete', 'identity.write']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    expect(screen.getAllByTestId('scope-group').length).toBeGreaterThan(1);
+  });
+
+  it('places every offered scope in exactly one group', () => {
+    const issuedScopes = [
+      'investigation.read',
+      'investigation.run',
+      'org.delete',
+      'identity.write',
+    ];
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={issuedScopes}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    const checkboxCount = screen
+      .getAllByTestId('scope-group')
+      .reduce(
+        (count, group) => count + within(group).getAllByRole('checkbox').length,
+        0,
+      );
+    expect(checkboxCount).toBe(issuedScopes.length);
+  });
+
+  it('names each group legibly rather than by its raw domain word', () => {
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['org.delete']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    expect(screen.queryByText('org')).toBeNull();
+    expect(screen.getByText('Org')).toBeInTheDocument();
+  });
+});
+
+describe('a destructive scope warns before it is issued, and never blocks issuing', () => {
+  it('names what Org Delete permits once it is checked, and withdraws the warning once unchecked', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['org.delete', 'investigation.read']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    expect(screen.queryByTestId('destructive-scope-warning')).toBeNull();
+
+    await user.click(screen.getByLabelText('Org Delete'));
+    expect(screen.getByTestId('destructive-scope-warning')).toHaveTextContent(
+      'delete the entire organisation',
+    );
+
+    await user.click(screen.getByLabelText('Org Delete'));
+    expect(screen.queryByTestId('destructive-scope-warning')).toBeNull();
+  });
+
+  it('warns for Impersonation Use by its own consequence, not a generic message', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['impersonation.use']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Impersonation Use'));
+    expect(screen.getByTestId('destructive-scope-warning')).toHaveTextContent(
+      'act as any other person',
+    );
+  });
+
+  it('never disables issuing once a destructive scope is checked', async () => {
+    const user = userEvent.setup();
+    render(
+      <MachineTokenGroups
+        tokens={[]}
+        issuedScopes={['owner.assign']}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Owner Assign'));
+    await user.type(screen.getByLabelText(LABELS.purpose), 'break-glass script');
+
+    expect(screen.getByTestId('issue-token')).toBeEnabled();
   });
 });
 
@@ -471,6 +704,45 @@ describe('revoking all but the newest fails honestly too', () => {
     expect(await screen.findByTestId('token-failure')).toHaveTextContent(
       LABELS.unreachable,
     );
+  });
+});
+
+describe('the group state chip names what the group has done, never a resource health word', () => {
+  it('reads "in use" once any of its tokens has a recorded last use, not the raw resource-health word', () => {
+    render(
+      <MachineTokenGroups
+        tokens={[
+          token({ tokenId: 'tok-1', name: 'ci-runner', lastUsed: '3 days ago' }),
+        ]}
+        issuedScopes={[]}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    const chip = within(screen.getByTestId('token-group')).getByTestId(
+      'token-group-state',
+    );
+    expect(chip).toHaveTextContent('In use');
+    expect(screen.queryByText('healthy', { exact: false })).toBeNull();
+    expect(screen.getByTestId('token-group')).not.toHaveTextContent('HEALTHY');
+  });
+
+  it('reads "never used" when none of its tokens has a recorded last use', () => {
+    render(
+      <MachineTokenGroups
+        tokens={[token({ tokenId: 'tok-1', name: 'ci-runner', lastUsed: '' })]}
+        issuedScopes={[]}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    const chip = within(screen.getByTestId('token-group')).getByTestId(
+      'token-group-state',
+    );
+    expect(chip).toHaveTextContent('Never used');
+    expect(screen.getByTestId('token-group')).not.toHaveTextContent('HEALTHY');
   });
 });
 

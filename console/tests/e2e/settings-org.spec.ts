@@ -77,17 +77,20 @@ test.describe('machine tokens, grouped', () => {
     await expect(bootstrapGroup.getByTestId('token-group-count')).toContainText('1');
   });
 
-  test('issuing a token offers scopes to choose rather than a blank slate', async ({
+  test('issuing a token offers scopes to choose, none of them pre-selected', async ({
     page,
   }) => {
     await page.goto('/settings/machine-tokens');
 
     await expect(page.getByLabel('What it is for')).toBeVisible();
-    // At least one permission checkbox, pre-checked — the ceiling this
-    // viewer's own token may hold, chosen from rather than typed.
+    // At least one permission checkbox, offered but unchecked — the ceiling
+    // this viewer's own token may hold, chosen from rather than assumed. A
+    // box used to start pre-checked here, which is exactly what let a name
+    // typed and "Issue" clicked emit every scope the issuer held — including
+    // the destructive ones — for a purpose that asked for one.
     const scopes = page.locator('input[type="checkbox"][name^="scope-"]');
     await expect(scopes.first()).toBeVisible();
-    await expect(scopes.first()).toBeChecked();
+    await expect(scopes.first()).not.toBeChecked();
   });
 });
 

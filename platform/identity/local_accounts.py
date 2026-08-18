@@ -26,6 +26,15 @@ it holds come from the catalogue rather than from a special case.
 deployment also declares itself a demonstration — see ``from_environment``. A
 default credential that is merely documented as "change this" is a default
 credential that ships.
+
+**A created person is not the environment account, and signs in as themself.**
+Somebody made through ``POST /identity/principals`` gets a stored local
+password of their own (``User.local_password_hash``). ``LocalSignIn.sign_in``
+accepts either that credential or the environment account's, and the token it
+returns names whichever one actually matched — never the local administrator
+by default. The door stays the same one: a deployment that never configured
+``account`` still refuses everybody, a created person included, because that
+field being set is the door, not this feature.
 """
 
 from __future__ import annotations
@@ -125,6 +134,27 @@ class LocalAccount:
         return cls(password_hash=stored, username=username)
 
 
+def hash_local_password(password: str) -> str:
+    """Return the stored form of a person's initial local password.
+
+    The same memory-hard hash the environment-configured account already
+    uses (``LocalAccount.password_hash``, via ``hash_secret``) — one hashing
+    path for every local passphrase this deployment stores, not a second one
+    invented for whoever gets created after the first account did.
+    """
+    return hash_secret(password)
+
+
+#: A syntactically valid hash that no stored passphrase produces, computed once
+#: at import rather than per request. Compared against whenever a sign-in's
+#: ``username`` does not resolve to a created principal with a stored local
+#: password, so that comparison costs exactly what a real one costs. Skipping
+#: it for an email that matches nobody would let the response time say what
+#: the refusal message is built not to: whether that email belongs to anybody
+#: at all.
+_NO_SUCH_LOCAL_PASSWORD_HASH = hash_secret("no stored local password is ever this value")
+
+
 @dataclass(slots=True)
 class LocalSignIn:
     """Turns a name and a passphrase into a token the rest of the deployment accepts."""
@@ -137,12 +167,20 @@ class LocalSignIn:
     lifetime: timedelta = field(default=SESSION_LIFETIME)
 
     async def sign_in(self, username: str, password: str, *, org_id: str) -> IssuedToken:
-        """Return a freshly issued token for the local account, or refuse.
+        """Return a freshly issued token for whoever this credential names, or refuse.
+
+        Two identities can answer: the environment-configured account, and a
+        person created through ``POST /identity/principals`` with a local
+        password of their own. Both are always checked, in full, whether or
+        not the first one already matched — which one (if either) did is not
+        something a caller, or a stopwatch, can tell apart from the outside.
 
         The refusal is one exception with one message for every way of being
-        wrong, including "this deployment has no local account at all". The
-        *audit* distinguishes them, because the operator reading it afterwards is
-        on our side and the person at the form is not necessarily.
+        wrong — a wrong name, a wrong passphrase, no local account configured
+        at all, or a principal that exists but has no stored password. The
+        *audit* distinguishes the broad outcomes, because the operator reading
+        it afterwards is on our side and the person at the form is not
+        necessarily.
 
         Raises:
             LocalSignInRejected: the credential was not accepted.
@@ -150,40 +188,83 @@ class LocalSignIn:
         scope = TenantScope(org_id=org_id)
 
         if self.account is None:
+            # The door is this field being set at all, deployment-wide — every
+            # request to a deployment that never configured it takes this same
+            # branch, so refusing here without comparing anything reveals
+            # nothing about which credential was tried. A principal created
+            # through the identity route opens no door of its own: creating one
+            # must not turn a deployment that only has an identity provider
+            # into a deployment with a second entrance.
             await self._record(scope, username, outcome="no local account is configured")
             raise LocalSignInRejected
 
-        if not self.account.verify(username, password):
+        account_matches = self.account.verify(username, password)
+        created_principal_id = await self._resolve_created_principal(scope, username, password)
+
+        if account_matches:
+            await self._ensure_principal(scope)
+            matched_user_id = LOCAL_ACCOUNT_PRINCIPAL_ID
+        elif created_principal_id is not None:
+            matched_user_id = created_principal_id
+        else:
             await self._record(scope, username, outcome="rejected")
             _LOG.warning("identity.local_sign_in_rejected", username=username)
             raise LocalSignInRejected
 
-        await self._ensure_principal(scope)
         issued = await self.tokens.issue(
             scope,
-            self._context(),
-            user_id=LOCAL_ACCOUNT_PRINCIPAL_ID,
+            self._context(matched_user_id),
+            user_id=matched_user_id,
             name=CREDENTIAL_NAME,
             description="Issued by a local sign-in.",
             lifetime=self.lifetime,
+            # This token stands in for the person, not for one declared
+            # purpose — it must keep resolving to whatever the account
+            # currently holds, not to nothing.
+            unscoped=True,
         )
         await self._record(
             scope,
             username,
             outcome="accepted",
+            actor_id=matched_user_id,
             token_id=issued.token.token_id,
             success=True,
         )
-        _LOG.info("identity.local_sign_in", principal=LOCAL_ACCOUNT_PRINCIPAL_ID)
+        _LOG.info("identity.local_sign_in", principal=matched_user_id)
         return issued
 
     # --- The pieces ---------------------------------------------------------------
+
+    async def _resolve_created_principal(
+        self, scope: TenantScope, username: str, password: str
+    ) -> str | None:
+        """Return the id of the created principal this credential names, or ``None``.
+
+        Looked up by email, and verified in the same constant-time shape
+        ``LocalAccount.verify`` already uses for the environment account: the
+        passphrase always runs through ``verify_secret``, against the stored
+        hash when ``username`` names somebody who has one, and against
+        ``_NO_SUCH_LOCAL_PASSWORD_HASH`` otherwise. The comparison is never
+        skipped, so an email that resolves to nobody costs exactly what a known
+        email with the wrong passphrase costs.
+        """
+        async with self.gateway.begin(scope) as uow:
+            candidate = await uow.identity.find_user_by_email(username)
+        stored_hash = candidate.local_password_hash if candidate is not None else None
+        matches = verify_secret(password, stored_hash or _NO_SUCH_LOCAL_PASSWORD_HASH)
+        if candidate is None or stored_hash is None or not matches:
+            return None
+        return candidate.user_id
 
     async def _ensure_principal(self, scope: TenantScope) -> None:
         """Create the local admin and its owner grant, idempotently.
 
         ``upsert`` on both, so signing in twice writes the same two rows rather
-        than accumulating an administrator per restart.
+        than accumulating an administrator per restart. Runs only when the
+        environment account itself matched — a created principal already
+        exists, made by ``POST /identity/principals``, and this must never
+        touch it.
         """
         async with self.gateway.begin(scope) as uow:
             await uow.identity.upsert_user(
@@ -203,8 +284,8 @@ class LocalSignIn:
                 )
             )
 
-    def _context(self) -> AuditContext:
-        return AuditContext(actor_kind=ActorKind.USER, actor_id=LOCAL_ACCOUNT_PRINCIPAL_ID)
+    def _context(self, user_id: str) -> AuditContext:
+        return AuditContext(actor_kind=ActorKind.USER, actor_id=user_id)
 
     async def _record(
         self,
@@ -212,6 +293,7 @@ class LocalSignIn:
         username: str,
         *,
         outcome: str,
+        actor_id: str = LOCAL_ACCOUNT_PRINCIPAL_ID,
         token_id: str = "",
         success: bool = False,
     ) -> None:
@@ -219,13 +301,16 @@ class LocalSignIn:
 
         The attempted name is recorded and the passphrase is not, in any form.
         A rejected sign-in whose username nobody kept is one an operator cannot
-        tell from a typo six months later.
+        tell from a typo six months later. ``actor_id`` is who the record
+        attributes the attempt to: the principal that actually signed in, on
+        success; the same placeholder this has always used on a refusal, since
+        nobody has been authenticated yet to attribute it to instead.
         """
         if self.recorder is None:
             return
         await self.recorder.record(
             scope,
-            self._context(),
+            self._context(actor_id),
             action=LOCAL_ACCOUNT_AUDIT_ACTION,
             resource_kind=_AUDIT_RESOURCE_KIND,
             resource_id=token_id or LOCAL_ACCOUNT_PRINCIPAL_ID,
@@ -234,4 +319,11 @@ class LocalSignIn:
         )
 
 
-__all__ = ["CREDENTIAL_NAME", "SESSION_LIFETIME", "LocalAccount", "LocalSignIn"]
+__all__ = [
+    "CREDENTIAL_NAME",
+    "SESSION_LIFETIME",
+    "LocalAccount",
+    "LocalSignIn",
+    "UnsafeDefaultPassword",
+    "hash_local_password",
+]

@@ -125,6 +125,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.model.nothingWouldChange': 'Nada mudaria: isto já é o que se aplica.',
   'firstRun.model.saved': 'Salvo.',
   'firstRun.model.needsPreview': 'Veja o que mudaria antes de salvar.',
+  'firstRun.model.field.provider': 'Provedor',
+  'firstRun.model.field.model': 'Modelo de investigação',
 
   'firstRun.integrations.search': 'Buscar no catálogo',
   'firstRun.integrations.none': 'Nada no catálogo corresponde a isso.',
@@ -1094,6 +1096,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'configuration.editor.search': 'Buscar um campo',
   'configuration.editor.searchEmpty': 'Nenhum campo corresponde a esta busca.',
   'configuration.editor.generalSection': 'Geral',
+  'configuration.section.policiesMasking': 'Masking',
+  'configuration.section.policiesGuardrails': 'Guardrails',
+  'configuration.section.policiesApprovals': 'Aprovações',
+  'configuration.section.policiesAutonomy': 'Autonomia',
+  'configuration.section.notificationPolicy': 'Política de notificação',
   'configuration.provenance.default': 'Padrão do deployment',
   'configuration.provenance.setAt': 'Definido em: {node}',
   'configuration.provenance.mixed': 'Definido em mais de um nó',
@@ -1135,8 +1142,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'ingress.body':
     'O \u00fanico passo que acontece fora desta implanta\u00e7\u00e3o. Aponte o roteador de alertas para o endere\u00e7o do seu tipo e ele vai interpretar o corpo que aquele sistema j\u00e1 envia \u2014 nada aqui \u00e9 escrito na sua pilha de observabilidade.',
   'ingress.verification': 'Confiado por',
+  'ingress.delivery.authenticated': 'Autenticado com o token de entrega',
+  'ingress.delivery.unauthenticated': 'Nenhum token de entrega autenticou isso ainda.',
   'ingress.token.issue': 'Emitir um token de entrega',
   'ingress.token.issuing': 'Emitindo\u2026',
+  'ingress.token.rotate': 'Rotacionar',
+  'ingress.token.rotating': 'Rotacionando\u2026',
   'ingress.token.shownOnce':
     'Copie agora. \u00c9 mostrado uma vez e nunca mais pode ser lido \u2014 o deployment guarda apenas um hash dele.',
   'ingress.token.failed': 'O deployment recusou a emiss\u00e3o.',
@@ -1185,6 +1196,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.suggested.title': 'Sugerida pelo seu ambiente',
   'catalogue.integrations.suggested.evidence':
     'Encontrado em {address}, no recurso {resource}',
+  // O ambiente encontrou o fornecedor, mas não resolveu um nome legível para o
+  // recurso em que ele está rodando. Endereço e tipo, nunca o identificador
+  // cru — que continua recuperável como atributo de dado, fora desta frase.
+  'catalogue.integrations.suggested.evidence.unresolved':
+    'Encontrado em {address}, em um recurso do tipo {kind}',
   'catalogue.integrations.suggested.connect': 'Conectar',
   'catalogue.integrations.search.label': 'Buscar por nome, categoria ou capacidade',
   'catalogue.integrations.search.empty.heading': 'Nada corresponde a isso',
@@ -1225,9 +1241,21 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
 
   'admin.principals.title': 'Pessoas e máquinas',
   'admin.principals.serviceAccount': 'Conta de serviço criada no deploy, sem e-mail.',
+  'principal.kind.person': 'Pessoa',
+  'principal.kind.serviceAccount': 'Conta de serviço',
+  'principal.state.active': 'Ativa',
+  'principal.state.suspended': 'Suspensa',
+  'tokenGroup.state.inUse': 'Em uso',
   'admin.column.principal': 'Identidade',
   'admin.column.kind': 'Tipo',
   'admin.column.active': 'Ativa',
+  'admin.principals.create.displayName': 'Nome de exibição',
+  'admin.principals.create.email': 'E-mail',
+  'admin.principals.create.password': 'Senha inicial',
+  'admin.principals.create.passwordHelp':
+    'A senha com que esta pessoa entra localmente.',
+  'admin.principals.create.action': 'Criar pessoa',
+  'admin.principals.create.creating': 'Criando…',
   'admin.grants.title': 'Atribuições',
   'admin.grant.nodeHelp': 'Deixe em branco para atribuir em toda a organização.',
   'admin.grant.organisation': 'Toda a organização',
@@ -1244,6 +1272,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'A pessoa pode fazer tudo que este papel permite, imediatamente.',
   'admin.grant.addClose': 'Fechar',
   'admin.grant.addCancel': 'Não atribuir',
+  'admin.grant.role.summary.one': 'Alcança {count} domínio de permissão',
+  'admin.grant.role.summary': 'Alcança {count} domínios de permissão',
+  'admin.grant.rolePermissions': 'Ver cada permissão',
   'admin.column.role': 'Papel',
   'admin.column.node': 'Nó',
   'admin.tokens.title': 'Tokens de máquina',
@@ -1266,6 +1297,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'admin.column.token': 'Token',
   'admin.column.scopes': 'Âmbitos',
   'admin.column.expires': 'Expira',
+  'admin.column.origin': 'Início',
   'admin.sso.title': 'Início de sessão único',
   'admin.sso.provider': 'Provider',
   'admin.sso.issuer': 'Emissor',
@@ -1781,6 +1813,23 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.machineTokens.empty.body':
     'Tokens emitidos para um script ou serviço aparecem aqui, agrupados pela finalidade com que foram emitidos.',
   'settings.machineTokens.empty.action': 'Emitir um token',
+  'settings.machineTokens.scopesSelected.one': '{count} escopo selecionado',
+  'settings.machineTokens.scopesSelected': '{count} escopos selecionados',
+  'settings.machineTokens.template.alertDelivery.name': 'Entrega de alertas',
+  'settings.machineTokens.template.alertDelivery.purpose':
+    'Marca o único escopo que um roteador de alertas precisa para entregar neste deployment.',
+  'settings.machineTokens.template.readOnlyAutomation.name':
+    'Automação somente leitura',
+  'settings.machineTokens.template.readOnlyAutomation.purpose':
+    'Marca todo escopo de leitura que você detém, para um script que só olha.',
+  'settings.machineTokens.template.disabled':
+    'Não disponível: esta predefinição precisa de um escopo fora do que você pode emitir.',
+  'settings.machineTokens.destructiveScope.orgDelete':
+    'Org Delete permite que quem tiver este token exclua a organização inteira.',
+  'settings.machineTokens.destructiveScope.ownerAssign':
+    'Owner Assign permite que quem tiver este token conceda o papel de owner a qualquer pessoa.',
+  'settings.machineTokens.destructiveScope.impersonationUse':
+    'Impersonation Use permite que quem tiver este token aja como qualquer outra pessoa neste deployment.',
 
   // --- Ajustes: Single sign-on --------------------------------------------------
   'settings.sso.step.configure': 'Configurar',

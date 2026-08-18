@@ -198,12 +198,24 @@ class TokenService:
         lifetime_days: int | None = None,
         lifetime: timedelta | None = None,
         supersede: bool = False,
+        unscoped: bool = False,
     ) -> IssuedToken:
         """Return a new token, its plaintext included exactly once.
 
         ``permissions`` is a ceiling, not a grant. It narrows what the owning
         user already holds; a token can never do something its owner cannot,
         which is why there is no path here that consults the role catalogue.
+        An empty ``permissions`` means the token holds nothing at all — not
+        "everything its owner does" — unless ``unscoped`` says otherwise.
+
+        ``unscoped`` is that otherwise. It is how a credential that stands in
+        for a person rather than for one declared purpose — a browser sign-in,
+        the durable credential issued right after the bootstrap one — keeps
+        resolving to whatever its owner currently holds, dynamically, at every
+        authentication. It defaults to ``False`` and has to be asked for: the
+        machine-token issuance route never does, which is the whole point of
+        it existing as its own flag rather than being read off an empty
+        ``permissions`` list the way it used to be.
 
         ``lifetime`` overrides ``lifetime_days`` and is how a credential shorter
         than a day is issued. It exists for the bootstrap credential, which lives
@@ -246,6 +258,7 @@ class TokenService:
             description=description,
             created_at=now,
             expires_at=now + span,
+            unscoped=unscoped,
         )
 
         superseded: tuple[str, ...] = ()
@@ -605,17 +618,21 @@ def _last_activity(token: ApiToken) -> datetime:
 def _scoped(token: ApiToken, held: PermissionSet) -> PermissionSet:
     """Return what ``token`` may do: its owner's permissions, capped by its scopes.
 
-    An unscoped token is a personal access token and carries no cap — it is as
-    wide as its owner and no wider. A scoped one is capped by what it was issued
-    for. Either way the result is a *narrowing* of the owner's set, so a token
-    can never exceed the person it belongs to.
+    ``token.unscoped`` is a personal access token's own flag and carries no
+    cap — it is as wide as its owner and no wider. Every other token is capped
+    by exactly what it was issued for, and an empty ``scopes`` caps it to
+    nothing: ``PermissionSet.narrowed_to`` already draws that line at the
+    permission-set layer (``ceiling=None`` is unbounded, ``ceiling=frozenset()``
+    is bounded to nothing), and this is the one place that has to ask
+    ``token.unscoped`` rather than reading emptiness as the unbounded case,
+    because the two are indistinguishable once ``scopes`` alone is looked at.
 
     A stored scope naming a permission this build does not have is dropped
     rather than raising. The alternative is that renaming a permission breaks
     every token issued before the rename, at authentication time, across the
     whole deployment.
     """
-    if not token.scopes:
+    if token.unscoped:
         return held
     return held.narrowed_to(
         Permission(scope) for scope in token.scopes if scope in _PERMISSION_VALUES

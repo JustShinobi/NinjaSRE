@@ -92,8 +92,18 @@ async def machine_token(
     *,
     user_id: str,
     permissions: tuple[Permission, ...],
+    unscoped: bool = False,
 ) -> str:
-    """Return the secret of a machine token scoped to ``permissions``."""
+    """Return the secret of a token issued to ``user_id``, holding ``permissions``.
+
+    ``unscoped`` stands the credential in for the person who holds it rather
+    than for one declared purpose, the way a session or a personal token
+    does — it keeps resolving to whatever role bindings ``user_id`` carries
+    at the moment the token is used, not to ``permissions`` alone. Every
+    delivery credential in this module leaves it at the default, because the
+    whole point under test is that a scope it was never issued stays out of
+    reach.
+    """
     scope = TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)
     async with deployment.gateway.begin(scope) as uow:
         await uow.identity.upsert_user(
@@ -114,6 +124,7 @@ async def machine_token(
         name=f"{user_id}-token",
         node_id=TEAM_PAYMENTS,
         permissions=permissions,
+        unscoped=unscoped,
     )
     return issued.secret
 
@@ -217,7 +228,12 @@ async def test_the_permission_is_grantable_through_the_token_route(
     deployment: Deployment,
 ) -> None:
     """T-006's own sentence: issued by ``POST /identity/tokens``, and no wider."""
-    admin = await machine_token(deployment, user_id="operator", permissions=())
+    # The credential calling the route stands in for the administrator, not
+    # for one declared purpose — a session-shaped, unscoped token, the way an
+    # operator's own sign-in would authenticate here. `Role.ADMIN` (granted
+    # below, after issuance) is what actually carries `token.manage`; an
+    # empty `permissions` on a scoped token would hold nothing at all.
+    admin = await machine_token(deployment, user_id="operator", permissions=(), unscoped=True)
     async with deployment.gateway.begin(TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)) as uow:
         await uow.identity.upsert_role_binding(
             RoleBinding(

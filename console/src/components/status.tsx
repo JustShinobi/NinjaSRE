@@ -219,6 +219,145 @@ export function StatusChip({
   );
 }
 
+/**
+ * A chip whose label and role are already resolved by the caller, never a
+ * value the API sent for transport — the raw material `Badge` is right to
+ * print for a run or a resource, but wrong for a fact about a person or a
+ * group of credentials, which has no business being shown to a viewer in
+ * `SCREAMING_SNAKE_CASE` or a language it does not read.
+ */
+interface ResolvedChipProps {
+  readonly role: SemanticRole;
+  readonly shape: Shape;
+  readonly label: string;
+  readonly testId: string;
+  readonly className?: string | undefined;
+}
+
+function ResolvedChip({
+  role,
+  shape,
+  label,
+  testId,
+  className,
+}: ResolvedChipProps): ReactNode {
+  return (
+    <span
+      data-testid={testId}
+      data-role={role}
+      className={cx(
+        'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
+        ROLE_SKIN[role],
+        className,
+      )}
+    >
+      <ShapeMark shape={shape} role={role} />
+      {label}
+    </span>
+  );
+}
+
+/** The two ways a principal is created, read off `/identity/principals`'s own `kind`. */
+const PRINCIPAL_KIND_LABEL: Readonly<Record<string, MessageKey>> = {
+  user: 'principal.kind.person',
+  service_account: 'principal.kind.serviceAccount',
+};
+
+export interface PrincipalKindChipProps {
+  readonly locale: Locale;
+  /** `kind` as `/identity/principals` reports it — `'user'` or `'service_account'`. */
+  readonly kind: string;
+  readonly className?: string;
+}
+
+/**
+ * A principal's own kind, in the viewer's language — never `SERVICE_ACCOUNT`
+ * shouted in the transport's own case, and never `user` mistaken for a role.
+ *
+ * A kind this catalogue has not declared a label for still shows its own raw
+ * word rather than nothing: the same rule every status chip in this module
+ * holds, because a deployment one version ahead is not a rendering fault.
+ */
+export function PrincipalKindChip({
+  locale,
+  kind,
+  className,
+}: PrincipalKindChipProps): ReactNode {
+  const key = PRINCIPAL_KIND_LABEL[kind];
+  const label = key === undefined ? kind : message(locale, key);
+  return (
+    <ResolvedChip
+      role="neutral"
+      shape="hollow-circle"
+      label={label}
+      testId="principal-kind"
+      className={className}
+    />
+  );
+}
+
+export interface AccountStateChipProps {
+  readonly locale: Locale;
+  /** Whether this principal may currently sign in — `/identity/principals`'s `is_active`. */
+  readonly active: boolean;
+  readonly className?: string;
+}
+
+/**
+ * Whether a principal's own account may sign in — account vocabulary, never
+ * a resource's health. `HEALTHY` never describes a person; `Active` and
+ * `Suspended` are the words this console uses for one instead.
+ */
+export function AccountStateChip({
+  locale,
+  active,
+  className,
+}: AccountStateChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={active ? 'success' : 'neutral'}
+      shape={active ? 'filled-circle' : 'dash'}
+      label={message(
+        locale,
+        active ? 'principal.state.active' : 'principal.state.suspended',
+      )}
+      testId="principal-state"
+      className={className}
+    />
+  );
+}
+
+export interface TokenGroupStateChipProps {
+  readonly locale: Locale;
+  /** Whether any token in this group has a recorded `last_used_at`. */
+  readonly everUsed: boolean;
+  readonly className?: string;
+}
+
+/**
+ * What a group of machine tokens has actually done — in use, or never used —
+ * rather than the literal, fixed `healthy` this chip used to be handed
+ * regardless of the group it described.
+ */
+export function TokenGroupStateChip({
+  locale,
+  everUsed,
+  className,
+}: TokenGroupStateChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={everUsed ? 'success' : 'neutral'}
+      shape={everUsed ? 'filled-circle' : 'dash'}
+      label={message(
+        locale,
+        everUsed ? 'tokenGroup.state.inUse' : 'settings.machineTokens.neverUsed',
+      )}
+      testId="token-group-state"
+      className={className}
+    />
+  );
+}
+
 export interface CheckChipProps {
   readonly name: string;
   /** The preflight's own vocabulary for one check: passed, degraded, failed, or skipped. */

@@ -16,10 +16,16 @@ import { signIn } from './session';
  * these screens says "it answered" or "Nobody has checked" for an unrelated
  * reason, so a page-wide match is never a false positive. The single, bare
  * words — "HEALTHY", "UNCONFIGURED" — are checked only inside the regions that
- * actually carry a credential's state, because the same words describe other
- * things this feature does not touch (a person's own active/inactive state on
- * Administration, for one) and a page-wide match on those would flag a screen
- * this vocabulary was never meant to reach.
+ * actually carry a credential's state everywhere else, because the same words
+ * can describe a resource's own health on a screen this sweep does not cover.
+ * Administration used to be the one page that needed that same narrowing — a
+ * person's own account state and a token group's own state both rendered the
+ * literal word "HEALTHY" there — but both are now resolved by a dedicated
+ * chip (Active/Suspended, In use/Never used) before they ever reach the page,
+ * so the bare words are checked there page-wide, exactly like the phrases
+ * above: nothing legitimate on Administration has a reason to print any of
+ * them any more, and a page-wide match on that page is never a false
+ * positive either.
  */
 
 const FORBIDDEN_PHRASES = [
@@ -111,12 +117,23 @@ test('what the first run has established shows canonical chips, not raw words', 
   }
 });
 
-test('the administration area never shows a forbidden phrase', async ({ page }) => {
+test('the administration area never shows a forbidden phrase or word', async ({
+  page,
+}) => {
   await page.goto('/administration');
   const body = await page.locator('body').innerText();
 
   for (const phrase of FORBIDDEN_PHRASES) {
     expect(body, `"${phrase}" is not the canonical vocabulary`).not.toContain(phrase);
+  }
+  // Page-wide, not scoped to a region: a principal's own account state and a
+  // token group's own state are the only things on this page that ever spoke
+  // in this vocabulary, and both are resolved by a dedicated chip before
+  // they reach here — see PrincipalKindChip/AccountStateChip/TokenGroupStateChip
+  // in components/status.tsx. Nothing legitimate left on this page has a
+  // reason to print the raw word.
+  for (const word of FORBIDDEN_WORDS) {
+    expect(body, `"${word}" is not the canonical vocabulary`).not.toContain(word);
   }
 });
 

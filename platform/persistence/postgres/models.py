@@ -160,6 +160,11 @@ class User(Base):
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     external_subject: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
+    # The stored form of a local sign-in passphrase, for a person created with
+    # one. Never assigned by `upsert_user` — only `set_local_password` writes
+    # this column, so an unrelated update (a display name, a status change)
+    # cannot clear it by omission the way a full-row upsert would.
+    local_password_hash: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     created_at: Mapped[datetime | None] = _timestamp()
 
 
@@ -183,6 +188,12 @@ class ApiToken(Base):
     scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     team_node_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Whether this token stands in for the person who holds it — a browser
+    # sign-in, the durable credential established from the bootstrap one —
+    # rather than for one declared purpose. `False` is the safe default for a
+    # row nothing set explicitly: nothing at all, never everything its owner
+    # holds.
+    unscoped: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime | None] = _timestamp()
     expires_at: Mapped[datetime | None] = _timestamp()
     revoked_at: Mapped[datetime | None] = _timestamp()

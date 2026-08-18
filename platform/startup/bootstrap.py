@@ -326,6 +326,9 @@ async def establish_durable_credential(
         name=name,
         description="Established from the bootstrap credential at first run.",
         lifetime_days=DURABLE_CREDENTIAL_LIFETIME_DAYS,
+        # Stands in for the owner just granted above, not for one declared
+        # purpose — it must keep resolving to whatever the account holds.
+        unscoped=True,
     )
 
     # Revoked after the replacement exists, never before. The other order leaves

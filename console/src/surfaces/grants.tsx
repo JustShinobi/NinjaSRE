@@ -6,7 +6,6 @@ import { useState } from 'react';
 import { Button } from '@/components/action';
 import { Input, Select } from '@/components/form';
 import { ConfirmDestructive } from '@/components/overlay';
-import { Badge } from '@/components/status';
 
 /**
  * A role grant: given to a principal, taken back, and refused for its own
@@ -39,7 +38,9 @@ import { Badge } from '@/components/status';
  * `tools/console_roles` gives about the role list itself: a description of a
  * role kept here, separately, would be the copy that goes stale the day a
  * permission is added. `roleDescriptions` is that catalogue, composed by the
- * caller from live data rather than from words this component invents.
+ * caller from live data rather than from words this component invents — a
+ * short human summary shown beside the choice, with the live permission list
+ * one expansion away rather than announced up front as a line of ids.
  *
  * **Absence, not disablement, is the caller's job.** `canWrite` decides
  * whether the form and the remove control exist at all; the list itself is
@@ -77,6 +78,8 @@ export interface GrantPrincipalOption {
 export interface GrantLabels {
   readonly principal: string;
   readonly role: string;
+  /** The disclosure beside the role choice that names it: the full permission list. */
+  readonly rolePermissions: string;
   readonly node: string;
   readonly nodeHelp: string;
   readonly organisation: string;
@@ -97,6 +100,18 @@ export interface GrantLabels {
   readonly unreachable: string;
 }
 
+/**
+ * What a role permits, in the two grains a grant form needs: a short human
+ * sentence for the choice itself, and the live permission list for whoever
+ * expands it. Neither is written by hand for this component — the caller
+ * derives both from the deployment's own role catalogue — so a permission
+ * added there changes what this renders without this file changing at all.
+ */
+export interface RoleDescription {
+  readonly summary: string;
+  readonly permissions: readonly string[];
+}
+
 export interface GrantPanelProps {
   readonly grants: readonly Grant[];
   readonly principals: readonly GrantPrincipalOption[];
@@ -105,11 +120,11 @@ export interface GrantPanelProps {
    * What each role in `roles` permits, keyed by that same name.
    *
    * Optional so a caller that has not resolved it yet still renders a working
-   * select — a role with no entry shows no description, which is what every
-   * select here did before this existed, rather than an empty option or a
-   * crash.
+   * select — a role with no entry shows no description and no expansion,
+   * which is what every select here did before this existed, rather than an
+   * empty option or a crash.
    */
-  readonly roleDescriptions?: Readonly<Record<string, string>>;
+  readonly roleDescriptions?: Readonly<Record<string, RoleDescription>>;
   readonly canWrite: boolean;
   readonly labels: GrantLabels;
 }
@@ -282,7 +297,12 @@ export function GrantPanel({
               {principalLabel(principals, row.principalId)}
             </span>
             <span className="ml-auto flex items-center gap-2">
-              <Badge status={row.role} />
+              {/* Plain text, the same word and case the role selector below
+                  offers as an `<option>` — not `Badge`, whose contract is a
+                  transport status (a run's, a resource's), never a role. */}
+              <span data-testid="grant-role" className="text-meta">
+                {row.role}
+              </span>
               <span className="text-meta text-muted">
                 {row.nodeId === '' ? labels.organisation : row.nodeId}
               </span>
@@ -307,51 +327,69 @@ export function GrantPanel({
       </ul>
 
       {!canWrite ? null : (
-        <div className="flex flex-wrap items-end gap-3">
-          <Select
-            label={labels.principal}
-            name="grant-principal"
-            options={principals.map((option) => ({
-              value: option.id,
-              label: option.label,
-            }))}
-            value={principalId}
-            onValueChange={setPrincipalId}
-          />
-          <Select
-            label={labels.role}
-            name="grant-role"
-            options={roles.map((name) => ({ value: name, label: name }))}
-            value={role}
-            onValueChange={setRole}
-            // The description names what *this* option — the one selected right
-            // now — permits, so it changes as the choice does rather than
-            // sitting fixed under the control.
-            {...(roleDescriptions?.[role] === undefined
-              ? {}
-              : { description: roleDescriptions[role] })}
-          />
-          <Input
-            label={labels.node}
-            name="grant-node"
-            description={labels.nodeHelp}
-            value={nodeId}
-            onValueChange={setNodeId}
-          />
-          <Button
-            variant="primary"
-            data-testid="add-grant"
-            state={
-              busy === 'add'
-                ? 'loading'
-                : principalId === '' || role === ''
-                  ? 'disabled'
-                  : 'default'
-            }
-            onClick={requestGrant}
-          >
-            {busy === 'add' ? labels.adding : labels.add}
-          </Button>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-end gap-3">
+            <Select
+              label={labels.principal}
+              name="grant-principal"
+              options={principals.map((option) => ({
+                value: option.id,
+                label: option.label,
+              }))}
+              value={principalId}
+              onValueChange={setPrincipalId}
+            />
+            <Select
+              label={labels.role}
+              name="grant-role"
+              options={roles.map((name) => ({ value: name, label: name }))}
+              value={role}
+              onValueChange={setRole}
+              // The description names what *this* option — the one selected
+              // right now — permits, as a human summary rather than the raw
+              // permission list, so it changes as the choice does rather than
+              // sitting fixed under the control.
+              {...(roleDescriptions?.[role] === undefined
+                ? {}
+                : { description: roleDescriptions[role].summary })}
+            />
+            <Input
+              label={labels.node}
+              name="grant-node"
+              description={labels.nodeHelp}
+              value={nodeId}
+              onValueChange={setNodeId}
+            />
+            <Button
+              variant="primary"
+              data-testid="add-grant"
+              state={
+                busy === 'add'
+                  ? 'loading'
+                  : principalId === '' || role === ''
+                    ? 'disabled'
+                    : 'default'
+              }
+              onClick={requestGrant}
+            >
+              {busy === 'add' ? labels.adding : labels.add}
+            </Button>
+          </div>
+
+          {roleDescriptions?.[role] === undefined ? null : (
+            // Closed by default: the summary above already says what the role
+            // permits, in one sentence that does not grow with how many
+            // permissions it holds. This is the full list for whoever wants
+            // it — not a second sentence competing with the first.
+            <details data-testid="role-permissions">
+              <summary className="cursor-pointer text-meta text-muted">
+                {labels.rolePermissions}
+              </summary>
+              <p className="text-meta text-muted pt-1">
+                {roleDescriptions[role].permissions.join(', ')}
+              </p>
+            </details>
+          )}
         </div>
       )}
 

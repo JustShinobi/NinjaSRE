@@ -315,10 +315,20 @@ export interface SessionEntry {
   readonly principalId: string;
   readonly principalLabel: string;
   readonly expires: string;
+  /**
+   * When this session started, already formatted as a relative time.
+   *
+   * `/identity/tokens` carries no device or network origin — the deployment
+   * simply does not know it — so this is the one additional fact it already
+   * records standing in for it: "who, and since when" rather than the bare
+   * token number the session used to be shown by.
+   */
+  readonly origin: string;
 }
 
 export interface SessionLabels {
   readonly person: string;
+  readonly origin: string;
   readonly expires: string;
   readonly endAll: string;
   readonly ending: string;
@@ -363,7 +373,7 @@ function grouped(sessions: readonly SessionEntry[]): readonly SessionGroup[] {
  *
  * A person who signs in three times an hour holds three of these
  * simultaneously — each one a real, live credential until it is revoked or its
- * twelve hours pass — and grouping is what keeps that a number beside a name
+ * twelve hours pass — and grouping is what keeps that one row per person
  * rather than a wall of identical rows. "End all sessions" revokes every one
  * this person currently holds, in the one decision an operator actually has to
  * make: not this browser tab, but this person, everywhere.
@@ -408,7 +418,10 @@ export function SessionPanel({ sessions, labels }: SessionPanelProps): ReactNode
           className="flex flex-wrap items-center gap-3 text-meta text-muted"
         >
           <span className="truncate">{labels.person}</span>
-          <span className="ml-auto">{labels.expires}</span>
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            <span>{labels.origin}</span>
+            <span>{labels.expires}</span>
+          </span>
         </div>
       )}
       <ul className="flex flex-col gap-2 text-small">
@@ -420,10 +433,10 @@ export function SessionPanel({ sessions, labels }: SessionPanelProps): ReactNode
             className="flex flex-wrap items-center gap-3 min-w-0"
           >
             <span className="truncate">{group.principalLabel}</span>
-            <span className="text-meta text-muted tabular-nums">
-              {group.sessions.length}
-            </span>
             <span className="ml-auto flex flex-wrap items-center gap-2">
+              <span data-testid="session-origin" className="text-meta text-muted">
+                {group.sessions[0]?.origin ?? ''}
+              </span>
               <span className="text-meta text-muted">
                 {group.sessions[0]?.expires ?? ''}
               </span>

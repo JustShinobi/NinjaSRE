@@ -115,6 +115,18 @@ async def test_a_suggestion_says_which_resource_it_was_derived_from(
     assert "10.20.20.37" in prometheus["suggested"]["because"]
 
 
+async def test_a_suggestion_carries_the_resources_label_and_kind(
+    discovered: AsyncClient, manager_token: str
+) -> None:
+    """A caller names the resource from ``resource_label``/``resource_kind``
+    without parsing ``because`` — the same fact, served twice on purpose."""
+    body = await _catalogue(discovered, manager_token)
+    prometheus = next(entry for entry in body["integrations"] if entry["name"] == "prometheus")
+
+    assert prometheus["suggested"]["resource_label"] == "prometheus"
+    assert prometheus["suggested"]["resource_kind"] == KIND_CONTAINER
+
+
 async def test_everything_the_estate_says_nothing_about_carries_no_suggestion(
     discovered: AsyncClient, manager_token: str
 ) -> None:

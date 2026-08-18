@@ -41,6 +41,14 @@ class User:
     is_active: bool = True
     external_subject: str | None = None
     created_at: datetime | None = None
+    #: The stored form of a local sign-in passphrase, for a person created
+    #: with one — never the passphrase itself. ``None`` for a principal that
+    #: has no local password: the environment-configured account (which never
+    #: writes this row at all) and anyone who signs in through an identity
+    #: provider instead. Set once, through ``IdentityRepository.set_local_password``,
+    #: never through ``upsert_user`` — a general-purpose upsert that also
+    #: carried this field would silently wipe it on the next unrelated update.
+    local_password_hash: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +84,13 @@ class ApiToken:
     expires_at: datetime | None = None
     revoked_at: datetime | None = None
     last_used_at: datetime | None = None
+    #: Whether an empty ``scopes`` means "as wide as the owner" (``True``) or
+    #: "holds nothing" (``False``). The two calls that mean the former — a
+    #: browser sign-in and the durable credential issued right after the
+    #: bootstrap one — ask for it explicitly; every other caller, machine-token
+    #: issuance included, gets the safe reading of an empty scope list without
+    #: asking for it.
+    unscoped: bool = False
 
     @property
     def is_revoked(self) -> bool:
@@ -168,6 +183,15 @@ class IdentityRepository(Protocol):
         Callers write coarsely — see ``ApiToken.last_used_at``. The store does
         not deduplicate, because deciding how stale is stale enough is a policy
         and this is not where policy lives.
+        """
+
+    async def set_local_password(self, user_id: str, *, password_hash: str) -> bool:
+        """Store the hash of a person's local passphrase, and return whether they existed.
+
+        A targeted write, deliberately apart from ``upsert_user``: the two
+        differ in every call except the one that creates the person, and a
+        caller updating a display name or a status must never be able to
+        clear this by omission.
         """
 
     async def upsert_role_binding(self, binding: RoleBinding) -> RoleBinding:

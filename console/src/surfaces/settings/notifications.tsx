@@ -148,6 +148,7 @@ export async function NotificationsSettingsScreen(
             <ConfigEditor
               nodeId={nodeId}
               fields={editable}
+              locale={locale}
               labels={{
                 setting: message(locale, 'configuration.column.setting'),
                 value: message(locale, 'configuration.column.value'),

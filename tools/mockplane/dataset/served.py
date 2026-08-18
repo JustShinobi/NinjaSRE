@@ -44,7 +44,7 @@ from platform.config_service.schema.policies import GuardianSettings
 from platform.credentials.schemas import CredentialField
 from platform.guardian.resolution import resolve as resolve_guardian
 from platform.guardian.topology import ClusterShape
-from platform.identity.permissions import Permission
+from platform.identity.permissions import Permission, Role, permissions_for
 from tools.mockplane.dataset import profile
 from tools.mockplane.records import CapturedRecord, Provenance, Request
 
@@ -58,43 +58,33 @@ OPERATOR: Final = "user-operator"
 REVIEWER: Final = "user-reviewer"
 VIEWER: Final = "user-viewer"
 AUTOMATION: Final = "user-automation"
+#: Somebody who used to hold a grant here and does not any more. Every other
+#: entry in ``USERS`` below is active — a directory where nobody ever left is
+#: a directory that never exercises the suspended state the console renders.
+FORMER: Final = "user-departed"
 
 #: What a sign-in against this dataset returns. Obviously not a credential: the
 #: mock resolves no token, and a fixture holding something that looked like a
 #: real one is a fixture somebody eventually tries in a deployment.
 SIGN_IN_TOKEN: Final = "fixture-session-token"
 
-#: The permissions a full operator holds here. Spelled rather than imported so
-#: the fixture states what it claims rather than tracking a runtime enum — a
-#: fixture that changed when a permission was renamed would hide the change the
-#: console has to cope with.
-OPERATOR_PERMISSIONS: Final[tuple[str, ...]] = (
-    "approval.read",
-    # Reading the proposal queue takes ``approval.read``; answering one takes
-    # this. The console renders no approve or reject control without it, so a
-    # dataset whose operator lacked it served a queue nobody could empty.
-    "approval.review",
-    "audit.read",
-    "config.read",
-    "config.write",
-    "identity.read",
-    "integration.manage",
-    "investigation.read",
-    "investigation.run",
-    "knowledge.read",
-    "memory.read",
-    "remediation.approve",
-    "remediation.execute",
-    "schedule.manage",
-    "token.manage",
+#: The permissions the signed-in principal holds here, read off the platform's
+#: own catalogue rather than hand-curated. This used to be a literal, chosen
+#: list — plausible on its own, and silently narrower than what ``/identity/roles``
+#: already publishes for the same role (``role_records()`` below, which *does*
+#: read ``permissions_for``). The gap was invisible until something asked the
+#: console to exercise a permission this list had never included: nothing here
+#: ever granted ``identity.write``, ``sso.manage``, ``estate.manage`` or the
+#: three destructive scopes, so no scenario this fixture ever served could
+#: prove the console's own handling of any of them. Computed now, so the
+#: ceiling this dataset serves is the one the role actually carries, not a
+#: guess at what an operator "should" plausibly hold.
+OPERATOR_PERMISSIONS: Final[tuple[str, ...]] = tuple(
+    sorted(permission.value for permission in permissions_for(Role.OWNER))
 )
 
-VIEWER_PERMISSIONS: Final[tuple[str, ...]] = (
-    "approval.read",
-    "config.read",
-    "investigation.read",
-    "knowledge.read",
-    "memory.read",
+VIEWER_PERMISSIONS: Final[tuple[str, ...]] = tuple(
+    sorted(permission.value for permission in permissions_for(Role.VIEWER))
 )
 
 
@@ -1730,6 +1720,40 @@ def integration_records() -> tuple[CapturedRecord, ...]:
     fictional entries are never replaced by a same-named real one: none of the
     installed vendors is called ``metrics-store``, ``chat`` or ``ticketing``.
     """
+    real_entries = [
+        _catalogue_integration_record(entry)
+        for entry in integration_catalogue(configured=frozenset())
+    ]
+    for entry in real_entries:
+        if entry["name"] == "redis":
+            # The other half of the suggestion story ``metrics-store`` tells
+            # above. That one resolves to a legible name — "a guest labelled
+            # prometheus" — which is the ordinary case
+            # ``suggest_integrations`` (``platform/estate/suggestions.py``)
+            # produces. This one is the edge that function's own fallback
+            # exists for: a resource with no display name and no matching
+            # label, so the evidence sentence names the estate's raw
+            # identifier instead, in the same shape that fallback produces
+            # (``resource.display_name or resource.resource_id!r``). Attached
+            # to a real, uninstalled catalogue entry rather than a fourth
+            # fictional one, so the "one only suggested" story above stays
+            # true of the hand-authored three and this is additional height,
+            # the same way the eighty-plus real entries beneath them are.
+            entry["suggested"] = {
+                "address": "http://10.20.0.187:6379",
+                "from_resource": "ct-9042",
+                "because": (
+                    "this estate holds a container called 'ct-9042' at "
+                    "10.20.0.187, which is where redis was found rather than "
+                    "where anyone guessed it would be"
+                ),
+                # Unresolvable on purpose — the edge ``resource_label``'s own
+                # fallback exists for, matched with ``resource_kind`` to the
+                # ``because`` sentence above (a container, never named).
+                "resource_label": "",
+                "resource_kind": "container",
+            }
+            break
     return (
         _record(
             "integrations",
@@ -1781,6 +1805,10 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                             "address": "http://10.20.0.14:9090",
                             "from_resource": "vm-201-metrics",
                             "because": "a guest labelled prometheus is reachable on the metrics port",
+                            # Resolvable — matches the sentence above, which
+                            # already names the guest by a legible label.
+                            "resource_label": "prometheus",
+                            "resource_kind": "guest",
                         },
                     },
                     {
@@ -1847,10 +1875,7 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                         "parity": "partial",
                         "missing_artefacts": ["synthetic scenario"],
                     },
-                    *[
-                        _catalogue_integration_record(entry)
-                        for entry in integration_catalogue(configured=frozenset())
-                    ],
+                    *real_entries,
                 ],
             },
         ),
@@ -2436,6 +2461,13 @@ USERS: Final[tuple[Mapping[str, Any], ...]] = (
         "kind": "service_account",
         "is_active": True,
     },
+    {
+        "user_id": FORMER,
+        "display_name": "Jordan Vance",
+        "email": "jordan.vance@example.invalid",
+        "kind": "user",
+        "is_active": False,
+    },
 )
 
 GRANTS: Final[tuple[Mapping[str, Any], ...]] = (
@@ -2665,7 +2697,16 @@ def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
                 "tokens": [
                     {
                         "token_id": "tok-0001",
-                        "name": "console",
+                        # The console's own predicate for "this is a browser
+                        # sign-in, not a machine token" is an exact match on
+                        # this name (`CONSOLE_SESSION_NAME`,
+                        # `console/src/surfaces/token-identity.ts`) — not on
+                        # `description`, which is prose nobody parses. A name
+                        # that does not match it is read as an ordinary
+                        # machine token: it lists on the Machine tokens
+                        # screen instead of the Active sessions panel it
+                        # actually belongs to.
+                        "name": "Console sign-in",
                         "user_id": OPERATOR,
                         "team_node_id": ORG_NODE,
                         "scopes": ["investigation.read", "investigation.run"],

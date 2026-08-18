@@ -40,6 +40,13 @@ export interface ModelStepLabels {
   readonly refused: string;
   readonly unreachable: string;
   readonly needsPreview: string;
+  /**
+   * Every configuration path this step's own patch may name, mapped to the
+   * display name a reader should see instead of it — `changesOf` falls back
+   * to the raw path only for one this map does not cover, which never
+   * happens for `patchOf`'s own two fields.
+   */
+  readonly fieldLabels: Readonly<Record<string, string>>;
 }
 
 export interface ModelStepProps {
@@ -60,13 +67,23 @@ interface Outcome {
   readonly message: string;
 }
 
-function changesOf(previewed: unknown): readonly string[] {
+/**
+ * `previewed`'s changes, each named by its display label rather than its raw
+ * configuration path — `models.investigator.model` is a schema address, not
+ * a sentence a person reads, and `fieldLabels` is where this step's own two
+ * fields declare what a reader should see instead of it.
+ */
+function changesOf(
+  previewed: unknown,
+  fieldLabels: Readonly<Record<string, string>>,
+): readonly string[] {
   const changes: unknown = Reflect.get(Object(previewed), 'changes');
   if (!Array.isArray(changes)) return [];
   return changes.map((change) => {
-    const path: unknown = Reflect.get(Object(change), 'path');
+    const path = String(Reflect.get(Object(change), 'path'));
     const after: unknown = Reflect.get(Object(change), 'after');
-    return `${String(path)} → ${String(after)}`;
+    const label = fieldLabels[path] ?? path;
+    return `${label} → ${String(after)}`;
   });
 }
 
@@ -172,7 +189,7 @@ export function ModelStep({
       });
       return;
     }
-    setPreviewed(changesOf(body));
+    setPreviewed(changesOf(body, labels.fieldLabels));
   }
 
   async function save(): Promise<void> {

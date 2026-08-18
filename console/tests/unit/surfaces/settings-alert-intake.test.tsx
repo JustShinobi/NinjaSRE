@@ -38,6 +38,49 @@ interface IngressSourcesBody {
   readonly sources: readonly { readonly source: string; readonly url: string }[];
 }
 
+interface IdentityTokensBody {
+  readonly tokens: readonly Record<string, unknown>[];
+}
+
+/**
+ * `serveScenario('populated')`, with `/identity/tokens` answering one extra,
+ * live token scoped to `webhook.deliver` — the credential that actually
+ * authenticates alert delivery on this deployment, named the way an operator
+ * would recognise it (`am-cluster`) rather than by the raw permission it
+ * carries.
+ */
+function serveWithADeliveryTokenNamed(name: string): void {
+  serveScenario('populated');
+  const base = globalThis.fetch;
+  vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+    const path = new URL(String(input), FIXTURE_BASE).pathname;
+    const response = await base(input as string, init);
+    if (path !== '/identity/tokens') return response;
+    const body = (await response.json()) as IdentityTokensBody;
+    return new Response(
+      JSON.stringify({
+        ...body,
+        tokens: [
+          ...body.tokens,
+          {
+            token_id: 'tok-delivery',
+            user_id: 'user-automation',
+            name,
+            description: '',
+            team_node_id: null,
+            scopes: ['webhook.deliver'],
+            created_at: '2026-08-01T00:00:00+00:00',
+            expires_at: null,
+            last_used_at: '2026-08-07T11:54:00+00:00',
+            revoked: false,
+          },
+        ],
+      }),
+      { status: response.status, headers: { 'content-type': 'application/json' } },
+    );
+  });
+}
+
 /**
  * `serveScenario('populated')`, with one receiver's paste-ready address
  * swapped for the shape a real deployment produced: an http:// address
@@ -348,8 +391,135 @@ describe('the delivery token control', () => {
     await page();
 
     const group = screen.getByTestId('delivery-token-group');
-    expect(group).toHaveTextContent('webhook.deliver');
     expect(within(group).getByTestId('delivery-token')).toBeInTheDocument();
+  });
+
+  it('never names the raw delivery permission, before or after a token authenticates it', async () => {
+    await page();
+
+    expect(screen.getByTestId('delivery-token-group')).not.toHaveTextContent(
+      'webhook.deliver',
+    );
+  });
+
+  it('says nothing has authenticated deliveries yet, when no token carries the permission', async () => {
+    await page();
+
+    // The populated scenario's own tokens never carry webhook.deliver — this
+    // is the ordinary state of a deployment that has not issued one yet.
+    const group = screen.getByTestId('delivery-token-group');
+    expect(group).toHaveTextContent(/no delivery token/i);
+    expect(within(group).getByTestId('delivery-token')).toHaveTextContent(
+      'Issue a delivery token',
+    );
+  });
+
+  it('names the delivery token once one has actually authenticated deliveries with it', async () => {
+    serveWithADeliveryTokenNamed('am-cluster');
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const group = screen.getByTestId('delivery-token-group');
+    expect(group).toHaveTextContent('am-cluster');
+    expect(group).not.toHaveTextContent('webhook.deliver');
+  });
+
+  it('offers to rotate, not to issue a second one, once a delivery token already exists', async () => {
+    serveWithADeliveryTokenNamed('am-cluster');
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const group = screen.getByTestId('delivery-token-group');
+    expect(within(group).getByTestId('delivery-token')).toHaveTextContent('Rotate');
+    expect(within(group).getByTestId('delivery-token')).not.toHaveTextContent(
+      'Issue a delivery token',
+    );
+  });
+
+  it('picks the most recently issued token when more than one carries the permission', async () => {
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      const response = await base(input as string, init);
+      if (path !== '/identity/tokens') return response;
+      const body = (await response.json()) as IdentityTokensBody;
+      return new Response(
+        JSON.stringify({
+          ...body,
+          tokens: [
+            ...body.tokens,
+            {
+              token_id: 'tok-delivery-old',
+              user_id: 'user-automation',
+              name: 'am-cluster-old',
+              description: '',
+              team_node_id: null,
+              scopes: ['webhook.deliver'],
+              created_at: '2026-01-01T00:00:00+00:00',
+              expires_at: null,
+              last_used_at: null,
+              revoked: false,
+            },
+            {
+              token_id: 'tok-delivery-new',
+              user_id: 'user-automation',
+              name: 'am-cluster-new',
+              description: '',
+              team_node_id: null,
+              scopes: ['webhook.deliver'],
+              created_at: '2026-08-01T00:00:00+00:00',
+              expires_at: null,
+              last_used_at: null,
+              revoked: false,
+            },
+          ],
+        }),
+        { status: response.status, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const group = screen.getByTestId('delivery-token-group');
+    expect(group).toHaveTextContent('am-cluster-new');
+    expect(group).not.toHaveTextContent('am-cluster-old');
+  });
+
+  it('never counts a revoked token as the one authenticating deliveries', async () => {
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      const response = await base(input as string, init);
+      if (path !== '/identity/tokens') return response;
+      const body = (await response.json()) as IdentityTokensBody;
+      return new Response(
+        JSON.stringify({
+          ...body,
+          tokens: [
+            ...body.tokens,
+            {
+              token_id: 'tok-delivery-revoked',
+              user_id: 'user-automation',
+              name: 'am-cluster-revoked',
+              description: '',
+              team_node_id: null,
+              scopes: ['webhook.deliver'],
+              created_at: '2026-08-01T00:00:00+00:00',
+              expires_at: null,
+              last_used_at: null,
+              revoked: true,
+            },
+          ],
+        }),
+        { status: response.status, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const group = screen.getByTestId('delivery-token-group');
+    expect(group).not.toHaveTextContent('am-cluster-revoked');
+    expect(within(group).getByTestId('delivery-token')).toHaveTextContent(
+      'Issue a delivery token',
+    );
   });
 });
 

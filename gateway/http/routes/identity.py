@@ -12,6 +12,7 @@ they may do *here*, not what the role means in the abstract.
 
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
@@ -19,9 +20,11 @@ from pydantic import BaseModel, Field
 
 from config.constants.security import (
     IDENTITY_AUDIT_RESOURCE_KIND_GRANT,
+    IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL,
     ORGANISATION_WIDE,
     PERMISSION_AUDIT_ACTION_GRANT,
     PERMISSION_AUDIT_ACTION_REVOKE,
+    PRINCIPAL_AUDIT_ACTION_CREATE,
 )
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, conflict, not_found, unauthorized
@@ -33,11 +36,24 @@ from platform.identity.errors import (
     LocalSignInRejected,
     TooManyRevocations,
 )
+from platform.identity.local_accounts import hash_local_password
 from platform.identity.models import Grant
 from platform.identity.permissions import ROLE_ORDER, Permission, Role, permissions_for
 from platform.persistence.ports.audit_repository import ActorKind
-from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
+from platform.persistence.ports.identity_repository import (
+    ApiToken,
+    PrincipalKind,
+    RoleBinding,
+    User,
+)
 from platform.startup.bootstrap import organisation_id
+
+#: Entropy in a freshly created principal's identifier. Matches the machine
+#: token id below it in shape: a caller-opaque random string, not derived
+#: from anything the request supplied — an email is chosen by whoever calls,
+#: and an identifier taken from it would make renaming a person's address
+#: indistinguishable from creating a second one.
+_PRINCIPAL_ID_BYTES = 16
 
 auth_router = APIRouter(prefix="/auth", tags=["identity"])
 identity_router = APIRouter(prefix="/identity", tags=["identity"])
@@ -69,6 +85,25 @@ class UserView(BaseModel):
 
 class UserList(BaseModel):
     users: list[UserView]
+
+
+class CreatePrincipalRequest(BaseModel):
+    """A new person, with the password they will sign in with locally.
+
+    Creation only. There is no field here for a role: granting one is a
+    second request, through ``POST /identity/grants``, which needs the same
+    permission this route does and leaves its own audit row. A route that
+    could create a principal and hand it a role in the same call would be a
+    route that could mint an account holding more than its caller ever had
+    to be granted anything to obtain — this one cannot, because it never
+    grants at all.
+    """
+
+    email: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+    #: Never logged, never echoed back, never stored as typed — see
+    #: ``create_principal``.
+    password: str = Field(min_length=1)
 
 
 class GrantView(BaseModel):
@@ -309,6 +344,61 @@ async def list_principals(
     async with state.gateway.begin(auth.scope) as uow:
         users = await uow.identity.list_users()
     return UserList(users=[_user_view(user) for user in users])
+
+
+@identity_router.post("/principals", response_model=UserView, status_code=201)
+async def create_principal(
+    body: CreatePrincipalRequest,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> UserView:
+    """Create a person with a local password, and record who did it.
+
+    Refused before this body ever runs for a caller who lacks
+    ``identity.write`` — the route table's guard, the same dependency every
+    write in this file goes through, not a second check written here. That
+    refusal carries no information about whether ``body.email`` is already
+    taken: the permission is checked before the request reaches this
+    function, so the response to somebody who may not create an account is
+    identical whether or not one already exists at that address.
+
+    Grants nothing. There is no role on the request body, so a caller who
+    may create a person can never come away from this one call holding an
+    account that outranks them — widening what the new principal may do is
+    a separate, already-guarded request to ``POST /identity/grants``.
+
+    The password is hashed with the same construction the environment
+    account uses (``hash_local_password``), stored once by a write dedicated
+    to that column alone, and never appears in this function's return value
+    or in anything logged about the call.
+    """
+    async with state.gateway.begin(auth.scope) as uow:
+        if await uow.identity.find_user_by_email(body.email) is not None:
+            raise conflict(f"a principal already exists with the email {body.email!r}")
+        created = await uow.identity.upsert_user(
+            User(
+                user_id=secrets.token_hex(_PRINCIPAL_ID_BYTES),
+                email=body.email,
+                display_name=body.display_name,
+                kind=PrincipalKind.USER,
+            )
+        )
+        await uow.identity.set_local_password(
+            created.user_id, password_hash=hash_local_password(body.password)
+        )
+    await AuditRecorder(gateway=state.gateway).record(
+        auth.scope,
+        _audit_context(auth),
+        action=PRINCIPAL_AUDIT_ACTION_CREATE,
+        resource_kind=IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL,
+        resource_id=created.user_id,
+        detail={
+            "email": created.email,
+            "display_name": created.display_name,
+            "node_id": auth.team_node_id or ORGANISATION_WIDE,
+        },
+    )
+    return _user_view(created)
 
 
 @identity_router.get("/grants", response_model=GrantList)

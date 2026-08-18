@@ -565,6 +565,10 @@ export const EN = {
     'Nothing would change: this is already what applies.',
   'firstRun.model.saved': 'Saved.',
   'firstRun.model.needsPreview': 'See what it would change before saving it.',
+  // What the preview names each field by — never the dotted configuration
+  // path (`models.investigator.model`) the request actually sends.
+  'firstRun.model.field.provider': 'Provider',
+  'firstRun.model.field.model': 'Investigation model',
 
   'firstRun.integrations.search': 'Search the catalogue',
   'firstRun.integrations.none': 'Nothing in the catalogue matches that.',
@@ -1236,6 +1240,17 @@ export const EN = {
   'configuration.editor.search': 'Find a field',
   'configuration.editor.searchEmpty': 'No field matches this search.',
   'configuration.editor.generalSection': 'General',
+  // Human titles for the technical sections whose own schema paths used to
+  // stand in as a title — the path a section's fields sit under is never
+  // printed as a title again.
+  // A section this catalogue has not named yet still gets one: the
+  // humanised form of its own name, not its raw path (see `sectionTitle` in
+  // `preview.tsx`).
+  'configuration.section.policiesMasking': 'Masking',
+  'configuration.section.policiesGuardrails': 'Guardrails',
+  'configuration.section.policiesApprovals': 'Approvals',
+  'configuration.section.policiesAutonomy': 'Autonomy',
+  'configuration.section.notificationPolicy': 'Notification policy',
   'configuration.provenance.default': 'Deployment default',
   'configuration.provenance.setAt': 'Set at: {node}',
   'configuration.provenance.mixed': 'Set across more than one node',
@@ -1328,8 +1343,16 @@ export const EN = {
   'ingress.body':
     'The one step that happens outside this deployment. Point the alert router at the address for its own kind, and it will parse the body that system already sends \u2014 nothing here is written into your monitoring stack.',
   'ingress.verification': 'Trusted by',
+  // The delivery-token-group block only (alert-intake.tsx): the trust
+  // sentence beside the receiver's token control. `ingress.verification`
+  // above is a different, still-legitimate use on the same page (the
+  // per-source verification description) and is untouched.
+  'ingress.delivery.authenticated': 'Authenticated with delivery token',
+  'ingress.delivery.unauthenticated': 'No delivery token has authenticated this yet.',
   'ingress.token.issue': 'Issue a delivery token',
   'ingress.token.issuing': 'Issuing\u2026',
+  'ingress.token.rotate': 'Rotate',
+  'ingress.token.rotating': 'Rotating\u2026',
   'ingress.token.shownOnce':
     'Copy it now. It is shown once and is never readable again \u2014 the deployment keeps only a hash of it.',
   'ingress.token.failed': 'The deployment refused to issue it.',
@@ -1376,6 +1399,11 @@ export const EN = {
   'catalogue.integrations.suggested.title': 'Suggested by your estate',
   'catalogue.integrations.suggested.evidence':
     'Found at {address}, on resource {resource}',
+  // The estate found this vendor, but never resolved a legible name for the
+  // resource it is running on. Address and kind, never the raw identifier —
+  // that stays recoverable as a data attribute, not folded into this sentence.
+  'catalogue.integrations.suggested.evidence.unresolved':
+    'Found at {address}, on a {kind}',
   'catalogue.integrations.suggested.connect': 'Connect',
   'catalogue.integrations.search.label': 'Search by name, category or capability',
   'catalogue.integrations.search.empty.heading': 'Nothing matches that',
@@ -1418,9 +1446,29 @@ export const EN = {
   'admin.principals.title': 'People and machines',
   'admin.principals.serviceAccount':
     'A service account created at deploy, with no email.',
+  // The account-facing vocabulary: what kind of principal this is, and
+  // whether it may currently sign in — never the transport words the API
+  // reports (`service_account`, `is_active`) and never health vocabulary
+  // (`HEALTHY`), which describes a resource and not a person.
+  'principal.kind.person': 'Person',
+  'principal.kind.serviceAccount': 'Service account',
+  'principal.state.active': 'Active',
+  'principal.state.suspended': 'Suspended',
+  // What a group of machine tokens has actually done, not the health of a
+  // resource — a token group is never "healthy".
+  'tokenGroup.state.inUse': 'In use',
   'admin.column.principal': 'Principal',
   'admin.column.kind': 'Kind',
   'admin.column.active': 'Active',
+  // The primary action Members & roles never had: a person, created without
+  // leaving the page, with the local password they sign in with. Absent for
+  // a viewer who may not write identity — see `PrincipalsPanel`'s own doc.
+  'admin.principals.create.displayName': 'Display name',
+  'admin.principals.create.email': 'Email',
+  'admin.principals.create.password': 'Initial password',
+  'admin.principals.create.passwordHelp': 'What this person signs in with locally.',
+  'admin.principals.create.action': 'Create person',
+  'admin.principals.create.creating': 'Creating…',
   'admin.grants.title': 'Grants',
   'admin.grant.nodeHelp': 'Leave blank to grant it across the whole organisation.',
   'admin.grant.organisation': 'Whole organisation',
@@ -1436,6 +1484,14 @@ export const EN = {
   'admin.grant.addConsequence': 'They can do everything this role allows, immediately.',
   'admin.grant.addClose': 'Close',
   'admin.grant.addCancel': 'Do not grant it',
+  // The role picker's own help text: what the selected role permits, as a
+  // human sentence bounded by how many permission domains it reaches rather
+  // than by how many permissions it holds — a role with dozens of them still
+  // reads as one sentence, never a disguised list. `rolePermissions` names
+  // the expansion that holds the full list instead.
+  'admin.grant.role.summary.one': 'Reaches {count} permission domain',
+  'admin.grant.role.summary': 'Reaches {count} permission domains',
+  'admin.grant.rolePermissions': 'See every permission',
   'admin.column.role': 'Role',
   'admin.column.node': 'Node',
   'admin.tokens.title': 'Machine tokens',
@@ -1457,6 +1513,10 @@ export const EN = {
   'admin.column.token': 'Token',
   'admin.column.scopes': 'Scopes',
   'admin.column.expires': 'Expires',
+  // What an active session identifies itself by, alongside who holds it: the
+  // deployment has no device or network origin to report, so this is when it
+  // started — "since when" rather than a bare session number.
+  'admin.column.origin': 'Started',
   'admin.sso.title': 'Single sign-on',
   'admin.sso.provider': 'Provider',
   'admin.sso.issuer': 'Issuer',
@@ -1910,6 +1970,22 @@ export const EN = {
   'settings.machineTokens.empty.body':
     'Tokens issued for a script or a service appear here, grouped by what they were issued for.',
   'settings.machineTokens.empty.action': 'Issue a token',
+  'settings.machineTokens.scopesSelected.one': '{count} scope selected',
+  'settings.machineTokens.scopesSelected': '{count} scopes selected',
+  'settings.machineTokens.template.alertDelivery.name': 'Alert delivery',
+  'settings.machineTokens.template.alertDelivery.purpose':
+    'Marks the one scope an alert router needs to deliver into this deployment.',
+  'settings.machineTokens.template.readOnlyAutomation.name': 'Read-only automation',
+  'settings.machineTokens.template.readOnlyAutomation.purpose':
+    'Marks every read scope you hold, for a script that only ever looks.',
+  'settings.machineTokens.template.disabled':
+    'Not available: this template needs a scope outside what you may issue.',
+  'settings.machineTokens.destructiveScope.orgDelete':
+    'Org Delete lets whoever holds this token delete the entire organisation.',
+  'settings.machineTokens.destructiveScope.ownerAssign':
+    'Owner Assign lets whoever holds this token grant the owner role to anyone.',
+  'settings.machineTokens.destructiveScope.impersonationUse':
+    'Impersonation Use lets whoever holds this token act as any other person in this deployment.',
 
   // --- Settings: Single sign-on -------------------------------------------------
   'settings.sso.step.configure': 'Configure',

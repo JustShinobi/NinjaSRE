@@ -7,6 +7,7 @@ import {
   type Grant,
   type GrantLabels,
   type GrantPrincipalOption,
+  type RoleDescription,
 } from '@/surfaces/grants';
 
 import { ROLES } from '../shell/support';
@@ -79,6 +80,7 @@ afterEach(() => {
 const LABELS: GrantLabels = {
   principal: 'Principal',
   role: 'Role',
+  rolePermissions: 'See every permission',
   node: 'Node',
   nodeHelp: 'Leave blank to grant it across the whole organisation.',
   organisation: 'Whole organisation',
@@ -121,7 +123,7 @@ function panel(
     canWrite: boolean;
     principals: readonly GrantPrincipalOption[];
     roles: readonly string[];
-    roleDescriptions: Readonly<Record<string, string>>;
+    roleDescriptions: Readonly<Record<string, RoleDescription>>;
   }> = {},
 ): void {
   render(
@@ -491,33 +493,115 @@ describe('who a grant belongs to, at a glance', () => {
     const row = one(screen.getAllByTestId('grant')[0]);
     expect(within(row).getByText('bootstrap-administrator')).toBeInTheDocument();
   });
+
+  it('names the role with the same word the selector that grants it offers, not a status chip', () => {
+    panel();
+
+    // `GRANTS[0]` holds `owner` — the same fixture the last-owner tests use.
+    const row = one(screen.getAllByTestId('grant')[0]);
+    const roleText = within(row).getByTestId('grant-role');
+    expect(roleText).toHaveTextContent('owner');
+    // Not a status chip: no `data-role`, the mark `Badge`/`ResolvedChip` leave
+    // and a role is neither a run's status nor a resource's health.
+    expect(roleText).not.toHaveAttribute('data-role');
+
+    const option = within(screen.getByLabelText(LABELS.role)).getByRole('option', {
+      name: 'owner',
+    });
+    expect(roleText.textContent).toBe(option.textContent);
+  });
 });
 
 describe('what a role means, at the point it is chosen', () => {
+  // The defect this whole block used to assert as correct: a raw,
+  // comma-separated permission-id line (`investigation.read, report.read`)
+  // shown as the form's own help text. What a role permits is a human
+  // summary here instead, with the full permission list behind an expansion —
+  // `roleDescriptions` now carries both, not one string doing duty for two
+  // different readers.
   const DESCRIPTIONS = {
-    viewer: 'investigation.read, report.read',
-    operator: 'config.write, credential.write',
-    owner: 'org.delete, owner.assign',
+    viewer: {
+      summary: 'Reaches 2 permission domains',
+      permissions: ['investigation.read', 'report.read'],
+    },
+    operator: {
+      summary: 'Reaches 3 permission domains',
+      permissions: ['config.write', 'credential.write', 'integration.manage'],
+    },
+    owner: {
+      summary: 'Reaches 4 permission domains',
+      permissions: ['org.delete', 'owner.assign', 'audit.read', 'audit.export'],
+    },
   };
 
-  it('describes the role currently selected, not just its name', () => {
+  /** The field help tied to the role select by `aria-describedby`, or a failure naming the absence. */
+  function roleHelp(): HTMLElement {
+    const roleSelect = screen.getByLabelText(LABELS.role);
+    const describedById = roleSelect.getAttribute('aria-describedby')?.split(' ')[0];
+    const help =
+      describedById === undefined ? null : document.getElementById(describedById);
+    if (help === null) throw new Error('the element this test is about is not there');
+    return help;
+  }
+
+  it('describes the role currently selected by a human summary, not the raw permission list', () => {
     panel({ roleDescriptions: DESCRIPTIONS });
 
-    expect(screen.getByText(DESCRIPTIONS.viewer)).toBeInTheDocument();
+    // The claim is about the field help itself, not the whole document — the
+    // full permission list is legitimately present elsewhere, behind the
+    // closed expansion the next test covers.
+    const help = roleHelp();
+    expect(help).toHaveTextContent(DESCRIPTIONS.viewer.summary);
+    expect(help.textContent).not.toContain('investigation.read');
   });
 
-  it('updates the description when a different role is chosen', async () => {
+  it('updates the summary when a different role is chosen', async () => {
     panel({ roleDescriptions: DESCRIPTIONS });
 
     await userEvent.selectOptions(screen.getByLabelText(LABELS.role), 'owner');
 
-    expect(screen.getByText(DESCRIPTIONS.owner)).toBeInTheDocument();
-    expect(screen.queryByText(DESCRIPTIONS.viewer)).toBeNull();
+    expect(screen.getByText(DESCRIPTIONS.owner.summary)).toBeInTheDocument();
+    expect(screen.queryByText(DESCRIPTIONS.viewer.summary)).toBeNull();
   });
 
-  it('describes nothing for a role this console was given no catalogue for', () => {
+  it('keeps the full permission list available, closed by default, behind an expansion', () => {
+    panel({ roleDescriptions: DESCRIPTIONS });
+
+    const disclosure = screen.getByTestId('role-permissions');
+    expect(disclosure).not.toHaveAttribute('open');
+    // Still in the document — a disclosure hides content visually, not from
+    // the tree — the same convention `TokenPanel`'s revoked-tokens group
+    // already relies on.
+    expect(disclosure).toHaveTextContent(DESCRIPTIONS.viewer.permissions.join(', '));
+  });
+
+  it('describes nothing, and offers no expansion, for a role this console was given no catalogue for', () => {
     panel();
 
     expect(screen.queryByText(/investigation\.read/)).toBeNull();
+    expect(screen.queryByTestId('role-permissions')).toBeNull();
+  });
+
+  it('does not let the summary grow with the role — 31 permissions read the same one sentence as 2', () => {
+    // `owner`'s real catalogue holds 31 permissions today. The summary is a
+    // fixed count-of-domains sentence, never the list itself, so it must
+    // neither contain a permission id nor scale with how many there are.
+    const manyPermissions = Array.from(
+      { length: 31 },
+      (_, index) => `domain-${String(index)}.verb`,
+    );
+    panel({
+      roles: ['owner'],
+      roleDescriptions: {
+        owner: {
+          summary: 'Reaches 31 permission domains',
+          permissions: manyPermissions,
+        },
+      },
+    });
+
+    const summary = screen.getByText('Reaches 31 permission domains');
+    expect(summary.textContent).not.toContain('domain-0.verb');
+    expect(summary.textContent.length).toBeLessThan(manyPermissions.join(', ').length);
   });
 });

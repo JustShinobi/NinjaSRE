@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { Badge, CheckChip, StatusDot } from '@/components/status';
+import {
+  AccountStateChip,
+  Badge,
+  CheckChip,
+  PrincipalKindChip,
+  StatusDot,
+  TokenGroupStateChip,
+} from '@/components/status';
 import { RESOURCE_STATUSES, RUN_STATUSES, statusPresentation } from '@/design/status';
 
 /**
@@ -100,5 +107,53 @@ describe('CheckChip', () => {
   it('names the check, never a canonical credential word', () => {
     render(<CheckChip name="Structured output" status="failed" />);
     expect(screen.getByText('Structured output')).toBeInTheDocument();
+  });
+});
+
+describe('PrincipalKindChip', () => {
+  it('names a service account by what it is, never the transport word', () => {
+    render(<PrincipalKindChip locale="en" kind="service_account" />);
+    expect(screen.getByText('Service account')).toBeInTheDocument();
+    expect(screen.queryByText('SERVICE_ACCOUNT')).toBeNull();
+    expect(screen.queryByText('service_account')).toBeNull();
+  });
+
+  it('names a person by what they are, never the raw record kind', () => {
+    render(<PrincipalKindChip locale="en" kind="user" />);
+    expect(screen.getByText('Person')).toBeInTheDocument();
+    expect(screen.queryByText('user')).toBeNull();
+  });
+
+  it('shows a kind this catalogue has never heard of rather than hiding it', () => {
+    render(<PrincipalKindChip locale="en" kind="robot" />);
+    expect(screen.getByText('robot')).toBeInTheDocument();
+  });
+});
+
+describe('AccountStateChip', () => {
+  it('says a live account is active, never the health word healthy', () => {
+    render(<AccountStateChip locale="en" active />);
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.queryByText('healthy')).toBeNull();
+    expect(screen.queryByText(/HEALTHY/i)).toBeNull();
+  });
+
+  it('says a disabled account is suspended, never disabled', () => {
+    render(<AccountStateChip locale="en" active={false} />);
+    expect(screen.getByText('Suspended')).toBeInTheDocument();
+    expect(screen.queryByText('disabled')).toBeNull();
+  });
+});
+
+describe('TokenGroupStateChip', () => {
+  it('says a group with a recorded last use is in use, never healthy', () => {
+    render(<TokenGroupStateChip locale="en" everUsed />);
+    expect(screen.getByText('In use')).toBeInTheDocument();
+    expect(screen.queryByText(/HEALTHY/i)).toBeNull();
+  });
+
+  it('says a group with no recorded use was never used', () => {
+    render(<TokenGroupStateChip locale="en" everUsed={false} />);
+    expect(screen.getByText('Never used')).toBeInTheDocument();
   });
 });

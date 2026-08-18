@@ -17,6 +17,8 @@ import { IntegrationsStep, type IntegrationOffer } from '../first-run/integratio
 import { ModelStep } from '../first-run/model';
 import {
   INVESTIGATION_STEP,
+  MODEL_PROVIDER_SETTING,
+  MODEL_SETTING,
   RUNTIME_STEP,
   SOURCE_STEP,
   WIZARD_STEPS,
@@ -639,6 +641,13 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                       refused: message(locale, 'firstRun.refused'),
                       unreachable: message(locale, 'firstRun.unreachable'),
                       needsPreview: message(locale, 'firstRun.model.needsPreview'),
+                      fieldLabels: {
+                        [MODEL_PROVIDER_SETTING]: message(
+                          locale,
+                          'firstRun.model.field.provider',
+                        ),
+                        [MODEL_SETTING]: message(locale, 'firstRun.model.field.model'),
+                      },
                     }}
                   />
                 )

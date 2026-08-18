@@ -83,15 +83,17 @@ test.describe('opening Settings', () => {
     const groupHeadings = subnav.locator('p');
     await expect(groupHeadings).toHaveText(['Organization', 'Agent', 'Data']);
 
-    // Eight of the nine pages the subnav lists — this signed-in principal
-    // (`fixtures/scenarios/populated/principal.json`, role `owner`) does not
-    // hold `sso.manage`, so Single sign-on is correctly absent rather than
-    // disabled. `console/tests/unit/shell/routes.test.ts` proves the
-    // permission-gated absence itself, for every permission combination;
-    // this is the one real viewer this suite can drive a browser as.
+    // All nine pages the subnav lists. The signed-in principal
+    // (`fixtures/scenarios/populated/principal.json`) holds the role `owner`,
+    // and an owner holds every permission the role catalogue grants — so no
+    // page is gated away from this viewer. `console/tests/unit/shell/routes.test.ts`
+    // proves the permission-gated absence itself, for every permission
+    // combination; this is the one real viewer this suite can drive a
+    // browser as, and it is deliberately the widest one.
     const entries = subnav.locator('[data-testid="settings-nav-entry"]');
     await expect(entries).toHaveText([
       'Members & roles',
+      'Single sign-on',
       'Machine tokens',
       'Audit log',
       'Models & providers',
@@ -111,9 +113,9 @@ test.describe('opening Settings', () => {
   }) => {
     await page.goto('/settings/members-roles');
 
-    // Single sign-on is left out: this principal does not hold `sso.manage`
-    // (see the previous test), so the subnav never offers it to click.
+    // Every page the subnav offers, starting from the one already open.
     const destinations: readonly { readonly label: string; readonly path: string }[] = [
+      { label: 'Single sign-on', path: '/settings/single-sign-on' },
       { label: 'Machine tokens', path: '/settings/machine-tokens' },
       { label: 'Audit log', path: '/settings/audit-log' },
       { label: 'Models & providers', path: '/settings/models-providers' },

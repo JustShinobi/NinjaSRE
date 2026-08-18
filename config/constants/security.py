@@ -540,6 +540,12 @@ TOKEN_AUDIT_ACTION_EXPIRY_WARNING: Final = "token.expiry_warning"
 PERMISSION_AUDIT_ACTION_GRANT: Final = "permission.grant"
 PERMISSION_AUDIT_ACTION_REVOKE: Final = "permission.revoke"
 PERMISSION_AUDIT_ACTION_DENIED: Final = "permission.denied"
+#: Creating a person with a local password — its own class rather than a
+#: reuse of ``PERMISSION_AUDIT_ACTION_GRANT``, because minting the account and
+#: granting it a role are two different events even when they happen a moment
+#: apart, and a reviewer asking "who was created" needs a query narrower than
+#: "who was granted anything".
+PRINCIPAL_AUDIT_ACTION_CREATE: Final = "principal.create"
 IMPERSONATION_AUDIT_ACTION_START: Final = "impersonation.start"
 IMPERSONATION_AUDIT_ACTION_END: Final = "impersonation.end"
 BREAK_GLASS_AUDIT_ACTION: Final = "break_glass.open"
@@ -937,6 +943,7 @@ __all__ = [
     "PERMISSION_AUDIT_ACTION_DENIED",
     "PERMISSION_AUDIT_ACTION_GRANT",
     "PERMISSION_AUDIT_ACTION_REVOKE",
+    "PRINCIPAL_AUDIT_ACTION_CREATE",
     "PRODUCTION_ENVIRONMENT",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",

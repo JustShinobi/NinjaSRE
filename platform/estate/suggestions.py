@@ -53,6 +53,14 @@ class Suggestion:
     address: str
     from_resource: str
     because: str
+    #: The resource's own display name — empty when the estate never resolved
+    #: one. Never falls back to the raw id the way ``because`` does: a caller
+    #: reading this field alone must never see the identifier ``because`` only
+    #: tolerates inside a sentence.
+    resource_label: str
+    #: The resource's own kind (``container``, ``virtual_machine`` …).
+    #: ``Resource.kind`` has no default, so this is never empty.
+    resource_kind: str
 
     def to_record(self) -> dict[str, str]:
         """Return the JSON-serialisable form a catalogue response carries."""
@@ -61,6 +69,8 @@ class Suggestion:
             "address": self.address,
             "from_resource": self.from_resource,
             "because": self.because,
+            "resource_label": self.resource_label,
+            "resource_kind": self.resource_kind,
         }
 
 
@@ -98,6 +108,8 @@ def suggest_integrations(
                     f"{resource.display_name or resource.resource_id!r} at {address}, which is "
                     f"where {name} was found rather than where anyone guessed it would be"
                 ),
+                resource_label=resource.display_name,
+                resource_kind=resource.kind,
             )
     return tuple(found[name] for name in sorted(found))
 

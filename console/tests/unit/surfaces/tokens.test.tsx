@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -362,6 +362,7 @@ describe('telling a session from a machine token', () => {
 describe('active sessions, grouped by who holds them', () => {
   const SESSION_LABELS = {
     person: 'Principal',
+    origin: 'Started',
     expires: 'Expires',
     endAll: 'Revoke',
     ending: 'Revoking…',
@@ -378,18 +379,21 @@ describe('active sessions, grouped by who holds them', () => {
       principalId: 'ana',
       principalLabel: 'Ana',
       expires: 'in 4 hours',
+      origin: 'started 40 days ago',
     },
     {
       tokenId: 'sess-2',
       principalId: 'ana',
       principalLabel: 'Ana',
       expires: 'in 11 hours',
+      origin: 'started 12 days ago',
     },
     {
       tokenId: 'sess-3',
       principalId: 'ben',
       principalLabel: 'Ben',
       expires: 'in 2 hours',
+      origin: 'started 4 days ago',
     },
   ];
 
@@ -404,6 +408,56 @@ describe('active sessions, grouped by who holds them', () => {
     expect(groups).toHaveLength(2);
     expect(screen.getByText('Ana')).toBeInTheDocument();
     expect(screen.getByText('Ben')).toBeInTheDocument();
+  });
+
+  it("names the origin the group's first session started from, not a bare number", () => {
+    sessions();
+
+    // Ana's group is first — `grouped()` preserves first-appearance order —
+    // and its first session is `sess-1`, so its origin is `sess-1`'s.
+    const origins = screen.getAllByTestId('session-origin');
+    expect(origins).toHaveLength(2);
+    expect(origins[0]).toHaveTextContent('started 40 days ago');
+    expect(origins[1]).toHaveTextContent('started 4 days ago');
+
+    // "Not a bare number": nothing beside the person's name may be a loose
+    // integer, labelled or not — Ana holds two sessions and Ben holds one,
+    // so a value of exactly "2" or "1" sitting on its own is the historical
+    // defect (the session count, rendered with no label of its own)
+    // reappearing. Checked element by element, one top-level value at a
+    // time, because the real values here ("in 4 hours") carry digits too
+    // and a substring match on the row's concatenated text would not tell
+    // the two apart.
+    for (const group of screen.getAllByTestId('session-group')) {
+      for (const value of Array.from(group.children)) {
+        expect(value.textContent.trim()).not.toMatch(/^\d+$/);
+      }
+    }
+  });
+
+  it('names a column for the origin, beside who holds the session', () => {
+    sessions();
+
+    const columns = screen.getByTestId('session-columns');
+    expect(columns).toHaveTextContent(SESSION_LABELS.origin);
+
+    // "Beside who holds the session": the origin value must sit in the same
+    // top-level slot of the row that the origin label sits in within the
+    // header — the person's name alone in one slot, origin and expiry
+    // together in the next — or the two no longer correspond and a reader
+    // cannot tell which value under the header is which.
+    const originSlot = Array.from(columns.children).findIndex((child) =>
+      child.textContent.includes(SESSION_LABELS.origin),
+    );
+    expect(originSlot).toBeGreaterThanOrEqual(0);
+
+    for (const group of screen.getAllByTestId('session-group')) {
+      const origin = within(group).getByTestId('session-origin');
+      const originValueSlot = Array.from(group.children).findIndex((child) =>
+        child.contains(origin),
+      );
+      expect(originValueSlot).toBe(originSlot);
+    }
   });
 
   it('names what stops before it stops it, for the whole group', async () => {

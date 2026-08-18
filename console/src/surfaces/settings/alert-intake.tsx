@@ -30,6 +30,7 @@ import {
   stateOf,
   text,
 } from '../read';
+import { isConsoleSession } from '../token-identity';
 import { Provenance, type ProvenanceChain } from '../provenance';
 import { RuleSimulator } from '../simulation';
 import { placedTree } from '../tree';
@@ -184,6 +185,36 @@ function rowsOf(body: unknown): readonly unknown[] {
   return Array.isArray(body) ? body : [];
 }
 
+/**
+ * The name of the live token that actually authenticates delivery, or
+ * `undefined` when nothing has been issued with that permission yet.
+ *
+ * `webhook.deliver` is a fact about a token, not a name — showing it in place
+ * of one is exactly the leak this page used to have. Cross-referencing
+ * `/identity/tokens` by scope is how the screen tells the reader which
+ * credential is actually doing the authenticating, the way it already names
+ * anything else the deployment issued. A browser session is excluded the
+ * same way `settings/machine-tokens.tsx` excludes it from its own list — a
+ * person's own sign-in is not "the delivery token" even if it happened to
+ * carry the scope. Newest first, so more than one token sharing the scope
+ * still names the one presently in use rather than whichever the deployment
+ * happened to list first.
+ */
+function deliveryTokenNamed(
+  records: readonly unknown[],
+  permission: string,
+): string | undefined {
+  const holders = records
+    .filter((record) => !isConsoleSession({ name: text(record, 'name') }))
+    .filter((record) => !flag(record, 'revoked'))
+    .filter((record) => list(record, 'scopes').map(String).includes(permission))
+    .sort((left, right) =>
+      text(right, 'created_at').localeCompare(text(left, 'created_at')),
+    );
+  const name = holders[0] === undefined ? '' : text(holders[0], 'name');
+  return name === '' ? undefined : name;
+}
+
 // Built from parts rather than written whole, so the scheme this checks for
 // is never itself a literal origin — the very thing this file exists to stop
 // the screen from announcing.
@@ -235,12 +266,20 @@ async function content(
   const writable = may(viewer, WRITE);
   const state = readViewState(search, ALERT_INTAKE_FILTERS);
 
-  const [ingress, rules, deliveries, receivers, tree] = await Promise.all([
+  const [ingress, rules, deliveries, receivers, tree, identity] = await Promise.all([
     panelRead('/v1/transit/ingress', () => read('/v1/transit/ingress', init)),
     panelRead('/v1/transit/rules', () => read('/v1/transit/rules', init)),
     panelRead('/v1/transit/deliveries', () => read('/v1/transit/deliveries', init)),
     optionalRead('/v1/ingress/sources', () => read('/v1/ingress/sources', init)),
     panelRead('/v1/config', () => read('/v1/config', init)),
+    // Naming the delivery token needs an extra read this page did not make
+    // before — justified because it is the one thing left between "who is
+    // trusted" reading as a permission string and reading as a credential a
+    // person issued. A failed read degrades to "not yet authenticated"
+    // rather than an error state for the whole panel: which token, if any,
+    // is doing the authenticating is a detail of this group, not the reason
+    // the receiver list itself would fail to render.
+    optionalRead('/identity/tokens', () => read('/identity/tokens', init)),
   ]);
 
   const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
@@ -263,6 +302,10 @@ async function content(
     list(dataOf(receivers), 'sources').map((row) => [text(row, 'source'), row]),
   );
   const deliveryPermission = text(dataOf(receivers), 'delivery_permission');
+  const deliveryTokenName =
+    deliveryPermission === ''
+      ? undefined
+      : deliveryTokenNamed(list(dataOf(identity), 'tokens'), deliveryPermission);
 
   // Never-delivered first. The screen's own ordering rather than the API's,
   // because "what is silent" is the question this column is opened with.
@@ -474,14 +517,31 @@ async function content(
             className="flex flex-col gap-2 pt-3 mt-3 edge border-border border-b-0 border-x-0"
             data-testid="delivery-token-group"
           >
-            <span className="text-meta text-muted">
-              {message(locale, 'ingress.verification')} {deliveryPermission}
+            <span className="text-meta text-muted" data-testid="delivery-token-trust">
+              {deliveryTokenName === undefined ? (
+                message(locale, 'ingress.delivery.unauthenticated')
+              ) : (
+                <>
+                  {message(locale, 'ingress.delivery.authenticated')}{' '}
+                  <code data-testid="delivery-token-name">{deliveryTokenName}</code>
+                </>
+              )}
             </span>
             <DeliveryToken
               permission={deliveryPermission}
               labels={{
-                issue: message(locale, 'ingress.token.issue'),
-                issuing: message(locale, 'ingress.token.issuing'),
+                issue: message(
+                  locale,
+                  deliveryTokenName === undefined
+                    ? 'ingress.token.issue'
+                    : 'ingress.token.rotate',
+                ),
+                issuing: message(
+                  locale,
+                  deliveryTokenName === undefined
+                    ? 'ingress.token.issuing'
+                    : 'ingress.token.rotating',
+                ),
                 shownOnce: message(locale, 'ingress.token.shownOnce'),
                 failed: message(locale, 'ingress.token.failed'),
                 unreachable: message(locale, 'ingress.token.unreachable'),

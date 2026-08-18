@@ -7,6 +7,8 @@ import { Button } from '@/components/action';
 import { Input, Select, Switch } from '@/components/form';
 import { Badge } from '@/components/status';
 import { cx } from '@/design/cx';
+import type { MessageKey } from '@/i18n/en';
+import { message, type Locale } from '@/i18n/messages';
 
 /**
  * Editing configuration at a node, previewed against the deployment first.
@@ -172,6 +174,8 @@ export interface ConfigEditorProps {
   /** Every field this node can be edited by, as the deployment describes them. */
   readonly fields: readonly EditableField[];
   readonly labels: EditorLabels;
+  /** The viewer's own language, for the section titles this editor resolves itself. */
+  readonly locale: Locale;
 }
 
 interface Change {
@@ -324,6 +328,50 @@ function sectionId(section: string): string {
   return section === ''
     ? 'config-section-general'
     : `config-section-${section.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+}
+
+/**
+ * The human title for a technical section this feature has already named.
+ *
+ * Keyed by the dotted path the catalogue's own schema declares
+ * (`platform/config_service/fields.py`'s `section`, the immediate parent
+ * object of every leaf in it) — the same string this editor used to print
+ * verbatim as a section title. This is shared by every page that renders a
+ * `ConfigEditor`, directly or through `AdvancedConfigSection`, so a section
+ * this map does not yet name still needs a title: `sectionTitle` below falls
+ * back to a humanised form of the section's own name rather than leaving the
+ * schema path on screen for a section declared after this map was last
+ * updated.
+ */
+const SECTION_TITLE: Readonly<Record<string, MessageKey>> = {
+  'policies.masking': 'configuration.section.policiesMasking',
+  'policies.guardrails': 'configuration.section.policiesGuardrails',
+  'policies.approvals': 'configuration.section.policiesApprovals',
+  'policies.autonomy': 'configuration.section.policiesAutonomy',
+  'surfaces.notification_policy': 'configuration.section.notificationPolicy',
+};
+
+/** `value`, with its separators opened into spaces and each word capitalised. */
+function humanize(value: string): string {
+  const words = value.split(/[._-]+/).filter((word) => word.length > 0);
+  if (words.length === 0) return value;
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * `section`, as a title a person reads — never the dotted schema path this
+ * editor used to print in its place. Named where this catalogue already
+ * knows what to call it; humanised from its own last segment otherwise, so
+ * a section declared after this list was last updated still reads as words.
+ */
+function sectionTitle(section: string, locale: Locale): string {
+  const key = SECTION_TITLE[section];
+  if (key !== undefined) return message(locale, key);
+  const segments = section.split('.');
+  const last = segments[segments.length - 1];
+  return humanize(last === undefined || last === '' ? section : last);
 }
 
 /** Where a section's open state is remembered, across visits and across nodes. */
@@ -502,7 +550,12 @@ function isEmpty(body: Record<string, unknown>): boolean {
 }
 
 /** Change one or more settings, see what the deployment says, then save that. */
-export function ConfigEditor({ nodeId, fields, labels }: ConfigEditorProps): ReactNode {
+export function ConfigEditor({
+  nodeId,
+  fields,
+  labels,
+  locale,
+}: ConfigEditorProps): ReactNode {
   const [pending, setPending] = useState<Pending>({ edits: {}, cleared: [] });
   const [answer, setAnswer] = useState<Previewed | null>(null);
   // The change the answer above was produced for. Compared against the current
@@ -642,8 +695,8 @@ export function ConfigEditor({ nodeId, fields, labels }: ConfigEditorProps): Rea
                 toggleSection(section, true);
               }}
             >
-              {section === '' ? labels.generalSection : section} ({sectionFields.length}
-              )
+              {section === '' ? labels.generalSection : sectionTitle(section, locale)} (
+              {sectionFields.length})
             </a>
           ))}
         </nav>
@@ -669,8 +722,10 @@ export function ConfigEditor({ nodeId, fields, labels }: ConfigEditorProps): Rea
               className="edge border-border rounded-2 px-3 py-2"
             >
               <summary className="cursor-pointer select-none">
-                <span className="font-mono text-meta text-strong">
-                  {section === '' ? labels.generalSection : section}
+                <span className="text-meta text-strong">
+                  {section === ''
+                    ? labels.generalSection
+                    : sectionTitle(section, locale)}
                 </span>
                 {summary === '' ? null : (
                   <span className="ml-2 text-meta text-muted">{summary}</span>

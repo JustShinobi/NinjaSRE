@@ -5,9 +5,9 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { Checkbox, Input } from '@/components/form';
-import { Badge } from '@/components/status';
+import { TokenGroupStateChip } from '@/components/status';
 import { formatCount } from '@/i18n/format';
-import type { Locale } from '@/i18n/messages';
+import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import { TOKEN_ENDPOINT } from './tokens';
 
 /**
@@ -28,17 +28,81 @@ import { TOKEN_ENDPOINT } from './tokens';
  * exactly the "acúmulo silencioso" the purpose of grouping this page exists
  * to end.
  *
- * **Scopes are chosen, not typed.** The ceiling a token may hold is this
- * viewer's own permission set — `platform/identity/tokens.py`'s `_scoped`
- * narrows to it regardless of what a caller asks for — so offering anything
- * wider would be a form whose extra options do nothing. Every one of the
- * viewer's permissions is offered as a checkbox, checked by default so the
- * unchanged form issues a token as wide as its owner, exactly like the
- * form it replaces did.
+ * **Scopes are chosen, not typed, and none is chosen by default.** The
+ * ceiling a token may hold is this viewer's own permission set —
+ * `platform/identity/tokens.py`'s `_scoped` narrows to it regardless of what
+ * a caller asks for — so offering anything wider would be a form whose extra
+ * options do nothing. Every one of the viewer's permissions is offered as a
+ * checkbox, grouped by the domain its own name declares (the text before its
+ * dot — the same segment an audit query groups by), and **none starts
+ * checked**: naming a purpose and clicking Issue must never emit more power
+ * than that purpose asked for. A purpose template marks the minimal set a
+ * common purpose needs in one click; choosing one never locks the boxes it
+ * marked, so adjusting by hand afterward is still just checking and
+ * unchecking. Checking a scope whose consequence outruns its short name —
+ * deleting the organisation, assigning the owner role, acting as anyone else
+ * — names that consequence on the spot. The warning informs; it never
+ * withholds issuance from whoever decided they need it.
  */
 
 export const TOKEN_ISSUE_ENDPOINT = '/api/token';
 export const TOKEN_BULK_REVOKE_ENDPOINT = '/api/token/bulk-revoke';
+
+/** The one scope alert delivery needs — already a product permission, not one this form invents. */
+const ALERT_DELIVERY_SCOPE = 'webhook.deliver';
+
+/** The verb a scope's own name carries when it only ever observes. */
+const READ_VERB = 'read';
+
+export interface PurposeTemplate {
+  /** Stable, used in the control's own `data-testid`. */
+  readonly id: string;
+  readonly nameKey: MessageKey;
+  readonly purposeKey: MessageKey;
+  /**
+   * The scopes this template would mark, drawn from what `issuedScopes`
+   * (this issuer's own ceiling) actually holds. An empty result is what
+   * "outside the ceiling" looks like from here — there is nothing left this
+   * template could mark, so it renders disabled rather than marking less
+   * than its own name promises.
+   */
+  readonly scopesFor: (issuedScopes: readonly string[]) => readonly string[];
+}
+
+/**
+ * The purpose templates the issue form offers — a name, a one-sentence
+ * purpose, and the minimal scope set each marks. Choosing one
+ * replaces whatever was already checked; nothing about choosing one stops a
+ * manual adjustment afterward, because `scopesFor` only ever runs once, on
+ * click — it is not enforced again after.
+ */
+export const PURPOSE_TEMPLATES: readonly PurposeTemplate[] = [
+  {
+    id: 'alert-delivery',
+    nameKey: 'settings.machineTokens.template.alertDelivery.name',
+    purposeKey: 'settings.machineTokens.template.alertDelivery.purpose',
+    scopesFor: (issuedScopes) =>
+      issuedScopes.includes(ALERT_DELIVERY_SCOPE) ? [ALERT_DELIVERY_SCOPE] : [],
+  },
+  {
+    id: 'read-only-automation',
+    nameKey: 'settings.machineTokens.template.readOnlyAutomation.name',
+    purposeKey: 'settings.machineTokens.template.readOnlyAutomation.purpose',
+    scopesFor: (issuedScopes) =>
+      issuedScopes.filter((scope) => scope.split('.')[1] === READ_VERB),
+  },
+];
+
+/**
+ * Scopes whose consequence outruns their short name — already-existing
+ * product permissions (Assumptions: no new permission category), marked here
+ * only so the destructive-scope warning below knows which ones to name.
+ */
+const DESTRUCTIVE_SCOPES: Readonly<Record<string, MessageKey>> = {
+  'org.delete': 'settings.machineTokens.destructiveScope.orgDelete',
+  'owner.assign': 'settings.machineTokens.destructiveScope.ownerAssign',
+  'impersonation.use': 'settings.machineTokens.destructiveScope.impersonationUse',
+};
 
 /** One machine token, as this panel needs it — never a browser session. */
 export interface MachineToken {
@@ -103,6 +167,40 @@ function humanize(value: string): string {
     .join(' ');
 }
 
+/** The text before `scope`'s first dot — the domain its own name declares. */
+function domainOf(scope: string): string {
+  const domain = scope.split('.')[0];
+  return domain === undefined || domain === '' ? scope : domain;
+}
+
+interface ScopeGroup {
+  readonly domain: string;
+  readonly scopes: readonly string[];
+}
+
+/**
+ * `scopes`, one group per domain, in the order each domain first appears.
+ *
+ * Grouping derives from the scope's own name rather than from a curated list
+ * this file would have to keep in step with the permission catalogue: the
+ * domain is the same segment `platform/identity/permissions.py`'s own
+ * `Permission.domain` already groups an audit query by, so a permission
+ * added there lands in a group here without this file changing at all.
+ */
+function groupedByDomain(scopes: readonly string[]): readonly ScopeGroup[] {
+  const byDomain = new Map<string, string[]>();
+  for (const scope of scopes) {
+    const domain = domainOf(scope);
+    const held = byDomain.get(domain);
+    if (held === undefined) {
+      byDomain.set(domain, [scope]);
+    } else {
+      held.push(scope);
+    }
+  }
+  return [...byDomain.entries()].map(([domain, held]) => ({ domain, scopes: held }));
+}
+
 interface Group {
   readonly purpose: string;
   readonly tokens: readonly MachineToken[];
@@ -153,7 +251,7 @@ export function MachineTokenGroups({
   locale,
 }: MachineTokenGroupsProps): ReactNode {
   const [name, setName] = useState('');
-  const [scopes, setScopes] = useState<ReadonlySet<string>>(new Set(issuedScopes));
+  const [scopes, setScopes] = useState<ReadonlySet<string>>(new Set<string>());
   const [secret, setSecret] = useState('');
   const [supersededCount, setSupersededCount] = useState(0);
   const [busy, setBusy] = useState('');
@@ -255,6 +353,16 @@ export function MachineTokenGroups({
     });
   }
 
+  /** Replace the current selection outright with what `template` marks. */
+  function applyTemplate(template: PurposeTemplate): void {
+    setScopes(new Set(template.scopesFor(issuedScopes)));
+  }
+
+  const domainGroups = groupedByDomain(issuedScopes);
+  const checkedDestructiveScopes = Object.entries(DESTRUCTIVE_SCOPES).filter(
+    ([scope]) => scopes.has(scope),
+  );
+
   return (
     <div data-testid="machine-token-groups" className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
@@ -270,22 +378,88 @@ export function MachineTokenGroups({
         />
 
         {issuedScopes.length === 0 ? null : (
-          <fieldset className="flex flex-col gap-1">
-            <legend className="text-meta text-muted">{labels.scopes}</legend>
-            <div className="flex flex-wrap gap-3">
-              {issuedScopes.map((scope) => (
-                <Checkbox
-                  key={scope}
-                  label={humanize(scope)}
-                  name={`scope-${scope}`}
-                  checked={scopes.has(scope)}
-                  onCheckedChange={(checked) => {
-                    toggleScope(scope, checked);
-                  }}
-                />
-              ))}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-meta text-muted">{labels.scopes}</span>
+              <span
+                data-testid="scope-selected-count"
+                className="text-meta text-muted tabular-nums"
+              >
+                {formatCount(
+                  locale,
+                  scopes.size,
+                  'settings.machineTokens.scopesSelected.one',
+                  'settings.machineTokens.scopesSelected',
+                )}
+              </span>
             </div>
-          </fieldset>
+
+            <div className="flex flex-wrap gap-3">
+              {PURPOSE_TEMPLATES.map((template) => {
+                const templateScopes = template.scopesFor(issuedScopes);
+                const disabled = templateScopes.length === 0;
+                return (
+                  <div key={template.id} className="flex flex-col gap-1">
+                    <Button
+                      data-testid={`scope-template-${template.id}`}
+                      state={disabled ? 'disabled' : 'default'}
+                      onClick={() => {
+                        applyTemplate(template);
+                      }}
+                    >
+                      {message(locale, template.nameKey)}
+                    </Button>
+                    <span className="text-meta text-muted max-w-prose">
+                      {message(locale, template.purposeKey)}
+                    </span>
+                    {disabled ? (
+                      <span
+                        data-testid={`scope-template-${template.id}-reason`}
+                        className="text-meta text-warning max-w-prose"
+                      >
+                        {message(locale, 'settings.machineTokens.template.disabled')}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {domainGroups.map((group) => (
+              <fieldset
+                key={group.domain}
+                data-testid="scope-group"
+                className="flex flex-col gap-1"
+              >
+                <legend className="text-meta text-muted">
+                  {humanize(group.domain)}
+                </legend>
+                <div className="flex flex-wrap gap-3">
+                  {group.scopes.map((scope) => (
+                    <Checkbox
+                      key={scope}
+                      label={humanize(scope)}
+                      name={`scope-${scope}`}
+                      checked={scopes.has(scope)}
+                      onCheckedChange={(checked) => {
+                        toggleScope(scope, checked);
+                      }}
+                    />
+                  ))}
+                </div>
+              </fieldset>
+            ))}
+
+            {checkedDestructiveScopes.map(([scope, detailKey]) => (
+              <p
+                key={scope}
+                data-testid="destructive-scope-warning"
+                className="text-meta text-warning"
+              >
+                {message(locale, detailKey)}
+              </p>
+            ))}
+          </div>
         )}
 
         <div>
@@ -347,7 +521,7 @@ export function MachineTokenGroups({
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-strong truncate">{group.purpose}</span>
-                  <Badge status="healthy" />
+                  <TokenGroupStateChip locale={locale} everUsed={lastUsed !== ''} />
                   <span
                     data-testid="token-group-count"
                     className="text-meta text-muted tabular-nums"

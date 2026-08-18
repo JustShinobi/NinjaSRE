@@ -1,15 +1,15 @@
 import type { ReactNode } from 'react';
 
-import { timestamp } from '@/i18n/format';
+import { formatCount, timestamp } from '@/i18n/format';
 import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { Badge } from '@/components/status';
-import { GrantPanel, type Grant } from '../grants';
+import { GrantPanel, type Grant, type RoleDescription } from '../grants';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
+import { PrincipalsPanel, type PrincipalRow } from '../principals';
 import { SessionPanel, type SessionEntry } from '../tokens';
 import { isConsoleSession } from '../token-identity';
 import {
@@ -59,7 +59,9 @@ function principalIdentity(locale: Locale, person: unknown): string {
 
 const ID = 'settings-members-roles';
 const TOKENS = 'token.manage';
-const GRANTS = 'identity.write';
+// Gates two writes on this page, not one: granting a role, and — the primary
+// action this page gained alongside it — creating the person to grant one to.
+const IDENTITY_WRITE = 'identity.write';
 
 async function content(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, now, zone } = context;
@@ -82,12 +84,30 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
   const held = list(dataOf(grants), 'grants');
   const roleCatalogue = list(dataOf(roles), 'roles');
   const catalogue = roleCatalogue.map((role) => text(role, 'name'));
-  const roleDescriptions = Object.fromEntries(
-    roleCatalogue.map((role) => [
-      text(role, 'name'),
-      list(role, 'permissions').map(String).join(', '),
-    ]),
-  );
+  // A human summary derived from the catalogue's own shape — how many
+  // distinct permission domains a role reaches — rather than a sentence
+  // written by hand per role, which is the copy that goes stale the day a
+  // permission is added. The raw permission list travels alongside it, for
+  // whoever expands the disclosure `GrantPanel` renders beside the choice.
+  const roleDescriptions: Readonly<Record<string, RoleDescription>> =
+    Object.fromEntries(
+      roleCatalogue.map((role) => {
+        const permissions = list(role, 'permissions').map(String);
+        const domains = new Set(
+          permissions.map((permission) => permission.split('.')[0] ?? permission),
+        );
+        const description: RoleDescription = {
+          summary: formatCount(
+            locale,
+            domains.size,
+            'admin.grant.role.summary.one',
+            'admin.grant.role.summary',
+          ),
+          permissions,
+        };
+        return [text(role, 'name'), description];
+      }),
+    );
   const issued = list(dataOf(tokens), 'tokens');
 
   const principalLabel = (userId: string): string => {
@@ -106,6 +126,10 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
       principalId: text(token, 'user_id'),
       principalLabel: principalLabel(text(token, 'user_id')),
       expires: timestamp(locale, text(token, 'expires_at'), now, zone).relative,
+      // The deployment has no device or origin to report — `created_at` is
+      // the one additional fact it already knows, so a session identifies by
+      // who and since when rather than by a bare token number.
+      origin: timestamp(locale, text(token, 'created_at'), now, zone).relative,
     }));
 
   const emptyState = {
@@ -124,24 +148,27 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
         labels={panelLabels(locale, message(locale, 'admin.principals.title'))}
         empty={emptyState}
       >
-        <ul className="flex flex-col gap-2 text-small">
-          {people.map((person) => (
-            <li
-              key={text(person, 'user_id')}
-              data-testid="principal"
-              className="flex items-center gap-3 min-w-0"
-            >
-              <span className="truncate">{text(person, 'display_name')}</span>
-              <span className="text-meta text-muted truncate">
-                {principalIdentity(locale, person)}
-              </span>
-              <span className="ml-auto flex items-center gap-2">
-                <Badge status={text(person, 'kind')} />
-                <Badge status={flag(person, 'is_active') ? 'healthy' : 'disabled'} />
-              </span>
-            </li>
-          ))}
-        </ul>
+        <PrincipalsPanel
+          principals={people.map((person): PrincipalRow => ({
+            userId: text(person, 'user_id'),
+            displayName: text(person, 'display_name'),
+            identity: principalIdentity(locale, person),
+            kind: text(person, 'kind'),
+            isActive: flag(person, 'is_active'),
+          }))}
+          canWrite={may(viewer, IDENTITY_WRITE)}
+          locale={locale}
+          labels={{
+            displayName: message(locale, 'admin.principals.create.displayName'),
+            email: message(locale, 'admin.principals.create.email'),
+            password: message(locale, 'admin.principals.create.password'),
+            passwordHelp: message(locale, 'admin.principals.create.passwordHelp'),
+            create: message(locale, 'admin.principals.create.action'),
+            creating: message(locale, 'admin.principals.create.creating'),
+            failed: message(locale, 'admin.tokens.failed'),
+            unreachable: message(locale, 'admin.tokens.unreachable'),
+          }}
+        />
       </Panel>
 
       <Panel
@@ -164,10 +191,11 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
           }))}
           roles={catalogue}
           roleDescriptions={roleDescriptions}
-          canWrite={may(viewer, GRANTS)}
+          canWrite={may(viewer, IDENTITY_WRITE)}
           labels={{
             principal: message(locale, 'admin.column.principal'),
             role: message(locale, 'admin.column.role'),
+            rolePermissions: message(locale, 'admin.grant.rolePermissions'),
             node: message(locale, 'admin.column.node'),
             nodeHelp: message(locale, 'admin.grant.nodeHelp'),
             organisation: message(locale, 'admin.grant.organisation'),
@@ -201,6 +229,7 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
             sessions={liveSessions}
             labels={{
               person: message(locale, 'admin.column.principal'),
+              origin: message(locale, 'admin.column.origin'),
               expires: message(locale, 'admin.column.expires'),
               endAll: message(locale, 'admin.tokens.revoke'),
               ending: message(locale, 'admin.tokens.revoking'),

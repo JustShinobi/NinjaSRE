@@ -130,7 +130,9 @@ function field(over: Partial<EditableField> = {}): EditableField {
 }
 
 function editor(fields: readonly EditableField[]): void {
-  render(<ConfigEditor nodeId="payments" fields={fields} labels={LABELS} />);
+  render(
+    <ConfigEditor nodeId="payments" fields={fields} labels={LABELS} locale="en" />,
+  );
 }
 
 /** The jump-to link for `section`, or a failure saying it was never drawn. */
@@ -444,6 +446,52 @@ describe('sections, collapsed by default and reachable two ways', () => {
     await userEvent.type(screen.getByLabelText(LABELS.search), 'nonexistent-setting');
 
     expect(screen.getByTestId('search-empty')).toHaveTextContent(LABELS.searchEmpty);
+  });
+});
+
+describe('a section titles itself for a person, never by its own schema path', () => {
+  function schemaSectioned(section: string): EditableField[] {
+    return [field({ path: `${section}.level`, label: 'Level', section })];
+  }
+
+  it('shows a human title for a known technical section, not the schema path', () => {
+    editor(schemaSectioned('policies.masking'));
+
+    expect(screen.queryByText('policies.masking')).toBeNull();
+    expect(screen.getByTestId('section-link')).toHaveTextContent('Masking');
+    const details = screen.getByTestId('config-section');
+    expect(details).not.toHaveTextContent('policies.masking');
+    expect(details).toHaveTextContent('Masking');
+  });
+
+  it('shows a human title for every other section this feature names', () => {
+    editor([
+      ...schemaSectioned('policies.guardrails'),
+      ...schemaSectioned('policies.approvals'),
+      ...schemaSectioned('policies.autonomy'),
+      ...schemaSectioned('surfaces.notification_policy'),
+    ]);
+
+    const body = document.body.textContent;
+    for (const path of [
+      'policies.guardrails',
+      'policies.approvals',
+      'policies.autonomy',
+      'surfaces.notification_policy',
+    ]) {
+      expect(body).not.toContain(path);
+    }
+    expect(screen.getByText('Guardrails')).toBeInTheDocument();
+    expect(screen.getByText('Approvals')).toBeInTheDocument();
+    expect(screen.getByText('Autonomy')).toBeInTheDocument();
+    expect(screen.getByText('Notification policy')).toBeInTheDocument();
+  });
+
+  it('still reads as words, not a path, for a section this catalogue has never met', () => {
+    editor(schemaSectioned('policies.unheard_of_thing'));
+
+    expect(screen.queryByText('policies.unheard_of_thing')).toBeNull();
+    expect(screen.getByTestId('section-link')).toHaveTextContent('Unheard Of Thing');
   });
 });
 
