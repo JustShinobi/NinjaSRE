@@ -358,6 +358,69 @@ export function TokenGroupStateChip({
   );
 }
 
+export interface ScheduleStateChipProps {
+  readonly locale: Locale;
+  /** Whether this schedule currently runs — `/v1/schedules`'s own `enabled`. */
+  readonly enabled: boolean;
+  readonly className?: string;
+}
+
+/**
+ * Whether a schedule currently fires on its clock — never a resource's
+ * health. A schedule an operator turned off is disabled, not `HEALTHY`'s
+ * opposite; the same distinction `AccountStateChip` draws for a person's own
+ * account and `TokenGroupStateChip` draws for a group of machine tokens.
+ */
+export function ScheduleStateChip({
+  locale,
+  enabled,
+  className,
+}: ScheduleStateChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={enabled ? 'success' : 'neutral'}
+      shape={enabled ? 'filled-circle' : 'dash'}
+      label={message(
+        locale,
+        enabled ? 'schedule.state.enabled' : 'schedule.state.disabled',
+      )}
+      testId="schedule-state"
+      className={className}
+    />
+  );
+}
+
+export interface SsoStateChipProps {
+  readonly locale: Locale;
+  /** Whether this provider is currently the way people sign in. */
+  readonly active: boolean;
+  readonly className?: string;
+}
+
+/**
+ * Whether single sign-on is currently the way in — never a resource's
+ * health. A provider that has not been made active is not "unhealthy"; it is
+ * simply not, yet, how anyone signs in. The finer distinction (tested but
+ * not activated, not yet tested, not configured) stays the sentence already
+ * beside this chip — this only ever carries the same two-way fact the chip
+ * itself always has.
+ */
+export function SsoStateChip({
+  locale,
+  active,
+  className,
+}: SsoStateChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={active ? 'success' : 'neutral'}
+      shape={active ? 'filled-circle' : 'dash'}
+      label={message(locale, active ? 'sso.state.active' : 'sso.state.inactive')}
+      testId="sso-state-chip"
+      className={className}
+    />
+  );
+}
+
 export interface CheckChipProps {
   readonly name: string;
   /** The preflight's own vocabulary for one check: passed, degraded, failed, or skipped. */

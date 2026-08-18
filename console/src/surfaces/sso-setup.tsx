@@ -5,7 +5,8 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { Input } from '@/components/form';
-import { Badge } from '@/components/status';
+import { SsoStateChip } from '@/components/status';
+import type { Locale } from '@/i18n/messages';
 import { SSO_FIELDS, type SsoField } from './sso-fields';
 
 /**
@@ -66,6 +67,7 @@ export interface SsoSetupProps {
   readonly verified: boolean;
   readonly problems: readonly string[];
   readonly labels: SsoSetupLabels;
+  readonly locale: Locale;
 }
 
 function text(record: unknown, name: string): string {
@@ -107,6 +109,7 @@ export function SsoSetupFlow({
   verified,
   problems,
   labels,
+  locale,
 }: SsoSetupProps): ReactNode {
   const [values, setValues] = useState<Readonly<Record<string, string>>>({});
   const [claims, setClaims] = useState('');
@@ -240,7 +243,7 @@ export function SsoSetupFlow({
   return (
     <div data-testid="sso-setup-flow" className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge status={state.active ? 'healthy' : 'disabled'} />
+        <SsoStateChip locale={locale} active={state.active} />
         <span data-testid="sso-state" className="text-meta text-muted">
           {stateLabel}
         </span>

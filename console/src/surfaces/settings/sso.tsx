@@ -122,6 +122,7 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
       >
         <SsoSetupFlow
           settings={settings}
+          locale={locale}
           isActive={flag(data, 'is_active')}
           verified={flag(data, 'verified')}
           problems={list(data, 'problems').map(String)}

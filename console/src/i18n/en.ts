@@ -1457,6 +1457,15 @@ export const EN = {
   // What a group of machine tokens has actually done, not the health of a
   // resource — a token group is never "healthy".
   'tokenGroup.state.inUse': 'In use',
+  // Whether a schedule fires on its clock, or an operator turned it off —
+  // not the health of a resource; a schedule is never "healthy" either.
+  'schedule.state.enabled': 'Enabled',
+  'schedule.state.disabled': 'Disabled',
+  // Whether single sign-on is currently the way in — not the health of a
+  // resource; the finer distinction (tested, not yet tested, not
+  // configured) stays the sentence beside this chip.
+  'sso.state.active': 'Active',
+  'sso.state.inactive': 'Inactive',
   'admin.column.principal': 'Principal',
   'admin.column.kind': 'Kind',
   'admin.column.active': 'Active',

@@ -144,13 +144,6 @@ const EXCEPTIONS: readonly Exception[] = [
     rule: 'scroll-budget',
     reason: 'the screen repeats seven near-identical sources with nothing collapsed',
   },
-  {
-    path: '/settings/schedules-destinations',
-    rule: 'vocabulary',
-    reason:
-      "a schedule's own chip still shows the raw health word HEALTHY rather " +
-      "than the product's canonical, translated state words",
-  },
 ];
 
 function exceptionFor(path: string, rule: Rule): Exception | undefined {

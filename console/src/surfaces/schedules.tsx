@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { Input, Select } from '@/components/form';
-import { Badge } from '@/components/status';
+import { ScheduleStateChip } from '@/components/status';
 import { ConfirmDestructive } from '@/components/overlay';
 import { timestamp, type Timestamp } from '@/i18n/format';
 import type { Locale } from '@/i18n/messages';
@@ -681,7 +681,7 @@ export function Schedules({
                   </td>
                   <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge status={schedule.enabled ? 'healthy' : 'disabled'} />
+                      <ScheduleStateChip locale={locale} enabled={schedule.enabled} />
                       <Button
                         data-testid="toggle-schedule"
                         data-job={schedule.jobId}

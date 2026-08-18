@@ -99,6 +99,7 @@ describe('the three steps', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -116,6 +117,7 @@ describe('the three steps', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -137,6 +139,7 @@ describe('the three steps', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -153,6 +156,7 @@ describe('the three steps', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -171,6 +175,7 @@ describe('an unconfigured deployment', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -203,6 +208,7 @@ describe('testing against real claims', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -243,6 +249,7 @@ describe('testing against real claims', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     fireEvent.change(screen.getByLabelText(LABELS.claims), { target: { value: '{}' } });
@@ -264,6 +271,7 @@ describe('testing against real claims', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     fireEvent.change(screen.getByLabelText(LABELS.claims), { target: { value: '{}' } });
@@ -288,6 +296,7 @@ describe('testing against real claims', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -311,6 +320,7 @@ describe('testing against real claims', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -330,6 +340,7 @@ describe('testing against real claims', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     fireEvent.change(screen.getByLabelText(LABELS.claims), { target: { value: '{}' } });
@@ -350,6 +361,7 @@ describe('activation is blocked until a test on these exact settings has passed'
         verified={true}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -364,6 +376,7 @@ describe('activation is blocked until a test on these exact settings has passed'
         verified={true}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -379,6 +392,7 @@ describe('activation is blocked until a test on these exact settings has passed'
         verified={true}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     expect(screen.getByTestId('activate-sso')).toBeInTheDocument();
@@ -405,6 +419,7 @@ describe('activation is blocked until a test on these exact settings has passed'
         verified={true}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -424,6 +439,7 @@ describe('activation is blocked until a test on these exact settings has passed'
         verified={true}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -447,6 +463,7 @@ describe('activation is blocked until a test on these exact settings has passed'
         verified={true}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -473,6 +490,7 @@ describe('activation is blocked until a test on these exact settings has passed'
         verified={true}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     expect(screen.getByTestId('activate-sso')).toBeInTheDocument();
@@ -495,6 +513,7 @@ describe('a deployment already carrying problems', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -509,6 +528,7 @@ describe('a deployment already carrying problems', () => {
         verified={false}
         problems={['issuer is required', 'default_node_id is required']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -525,6 +545,7 @@ describe('a deployment already carrying problems', () => {
         verified={false}
         problems={['issuer is required', 'default_node_id is required']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -548,6 +569,7 @@ describe('a deployment already carrying problems', () => {
         verified={false}
         problems={['issuer is required', 'default_node_id is required']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -569,6 +591,7 @@ describe('a deployment already carrying problems', () => {
         verified={false}
         problems={['issuer is required']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -591,6 +614,7 @@ describe('a deployment already carrying problems', () => {
         verified={false}
         problems={['issuer is required', 'default_node_id is required']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -611,6 +635,7 @@ describe('a deployment already carrying problems', () => {
         verified={false}
         problems={['the issuer and the token endpoint must share a host']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -636,6 +661,7 @@ describe('saving reports its own refusal', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -657,6 +683,7 @@ describe('saving reports its own refusal', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -679,6 +706,7 @@ describe('testing rejects a claim set that is not valid JSON', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -704,6 +732,7 @@ describe('testing rejects a claim set that is not valid JSON', () => {
         verified={false}
         problems={[]}
         labels={LABELS}
+        locale="en"
       />,
     );
     fireEvent.change(screen.getByLabelText(LABELS.claims), { target: { value: '{}' } });
@@ -733,6 +762,7 @@ describe('the shared machinery underneath save and activate', () => {
         verified={true}
         problems={['issuer is required']}
         labels={LABELS}
+        locale="en"
       />,
     );
 
@@ -744,5 +774,41 @@ describe('the shared machinery underneath save and activate', () => {
     await user.click(screen.getByLabelText(LABELS.field.issuer));
     await user.tab();
     expect(screen.queryByText(/is required/)).toBeNull();
+  });
+});
+
+describe('vocabulary', () => {
+  it('never shows the raw resource-health word once this provider is the way in', () => {
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={true}
+        verified={true}
+        problems={[]}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    const flow = screen.getByTestId('sso-setup-flow');
+    expect(flow.textContent).not.toMatch(/healthy/i);
+    // The named chip itself, in single sign-on's own words — not a schedule's
+    // "Enabled" and not a resource's "Healthy".
+    expect(screen.getByTestId('sso-state-chip')).toHaveTextContent('Active');
+  });
+
+  it('reads as inactive, not "disabled", the same chip when nothing is active yet', () => {
+    render(
+      <SsoSetupFlow
+        settings={SETTINGS}
+        isActive={false}
+        verified={false}
+        problems={[]}
+        labels={LABELS}
+        locale="en"
+      />,
+    );
+
+    expect(screen.getByTestId('sso-state-chip')).toHaveTextContent('Inactive');
   });
 });
