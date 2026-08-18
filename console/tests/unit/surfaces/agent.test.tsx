@@ -173,6 +173,27 @@ describe('what it is: the stages and the specialists', () => {
     ]);
   });
 
+  it('never shows the raw resource-health word for a specialist still dispatched', async () => {
+    await renderAgent({ node: NODE, tab: 'topology' });
+
+    const rows = screen.getAllByTestId('agent-specialist');
+    const on = rows.filter((row) => row.getAttribute('data-enabled') === 'true');
+    expect(on.length).toBeGreaterThan(0);
+    for (const row of on) {
+      // `healthy` is a resource's word, never a specialist's own on/off state.
+      expect(row.textContent).not.toMatch(/healthy/i);
+      expect(within(row).getByTestId('specialist-state')).toHaveTextContent('Enabled');
+    }
+
+    // change-historian is the fixture's own switched-off specialist — this
+    // branch has a natural red already, unlike the two proved by hand below.
+    const off = rows.find(
+      (row) => row.getAttribute('data-specialist') === 'change-historian',
+    );
+    if (off === undefined) throw new Error('the switched-off specialist is not there');
+    expect(within(off).getByTestId('specialist-state')).toHaveTextContent('Disabled');
+  });
+
   it('does not repeat the specialists empty state in the document panel', async () => {
     // A deployment with nothing configured: the specialists panel says so, with
     // its own heading and a way out. The document beside it is a second view of
@@ -515,6 +536,96 @@ describe('what it can do: the tools', () => {
     );
     expect(servers[0]?.textContent).toContain('mcp');
   });
+
+  it('never shows the raw resource-health word for a server still registered', async () => {
+    await renderAgent({ node: NODE, tab: 'tools' });
+
+    const servers = screen.getAllByTestId('bridged-server');
+    const on = servers.filter((row) => row.getAttribute('data-enabled') === 'true');
+    expect(on.length).toBeGreaterThan(0);
+    for (const row of on) {
+      // `healthy` is a resource's word, never a bridged server's own
+      // registration state.
+      expect(row.textContent).not.toMatch(/healthy/i);
+      expect(within(row).getByTestId('bridged-server-state')).toHaveTextContent(
+        'Enabled',
+      );
+    }
+  });
+});
+
+describe('a bridged server the configuration has switched off', () => {
+  // The populated fixture's one bridged server is enabled — this branch has
+  // no natural red in that dataset, so it is served by hand instead.
+  const AGENT_NODE = 'org-northwind';
+
+  function serveWithDisabledServer(): void {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const path = new URL(String(input), ['http:', '//fixtures.invalid'].join(''))
+        .pathname;
+      const byPath: Record<string, unknown> = {
+        '/auth/me': {
+          principal_id: 'user-operator',
+          display_name: 'Avery Lockhart',
+          kind: 'person',
+          roles: ['owner'],
+          permissions: EVERYTHING,
+          team_node_id: AGENT_NODE,
+          impersonating: false,
+          impersonated_by: null,
+        },
+        '/v1/config': {
+          nodes: [
+            {
+              kind: 'organisation',
+              name: 'Northwind',
+              node_id: AGENT_NODE,
+              parent_id: null,
+            },
+          ],
+        },
+        [`/v1/config/${AGENT_NODE}`]: {
+          node_id: AGENT_NODE,
+          values: {
+            capabilities: {
+              protocol_servers: [
+                {
+                  name: 'archived-runbooks',
+                  protocol: 'mcp',
+                  transport: 'stdio',
+                  command: ['run', 'archived-runbooks'],
+                  enabled: false,
+                },
+              ],
+            },
+          },
+          provenance: {},
+        },
+      };
+      const body = byPath[path];
+      return Promise.resolve(
+        new Response(JSON.stringify(body ?? {}), {
+          status: body === undefined ? 404 : 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+  }
+
+  it('says the server is disabled, never paused and never healthy', async () => {
+    serveWithDisabledServer();
+    await renderAgent({ node: AGENT_NODE, tab: 'tools' });
+
+    const row = screen
+      .getAllByTestId('bridged-server')
+      .find((server) => server.getAttribute('data-server') === 'archived-runbooks');
+    if (row === undefined) throw new Error('the disabled server row is not there');
+    expect(row.textContent).not.toMatch(/healthy/i);
+    expect(row.textContent).not.toContain('paused');
+    expect(within(row).getByTestId('bridged-server-state')).toHaveTextContent(
+      'Disabled',
+    );
+  });
 });
 
 /**
@@ -748,6 +859,25 @@ describe("what it can do: the catalogue's own read half", () => {
       );
       expect(blocked).toHaveTextContent('disabled for this team');
       expect(within(blocked).queryByRole('link')).toBeNull();
+    });
+  });
+
+  describe('whether a tool is available here', () => {
+    beforeEach(() => {
+      serve();
+    });
+
+    it('says the tool is enabled, never the raw resource-health word', async () => {
+      await renderAgent({ tab: 'tools' });
+
+      const row = toolRow('estate.list_resources');
+      // `healthy` is a resource's word, never a capability's own
+      // availability in this column — the same distinction already drawn
+      // for a bridged server's own registration state.
+      expect(row.textContent).not.toMatch(/healthy/i);
+      expect(within(row).getByTestId('capability-available')).toHaveTextContent(
+        'Enabled',
+      );
     });
   });
 

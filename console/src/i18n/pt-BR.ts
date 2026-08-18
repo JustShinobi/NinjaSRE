@@ -725,6 +725,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'detectors.column.coverage': 'Cobertura',
   'detectors.column.verdict': 'Último veredicto',
   'detectors.column.enabled': 'Ativo',
+  'detectors.state.enabled': 'Ativo',
+  'detectors.state.disabled': 'Inativo',
   'detectors.proposed': 'proposto por um documento',
   'detectors.list.title': 'Detectores',
   'detectors.list.caption':
@@ -1128,6 +1130,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.column.effect': 'Efeito',
   'catalogue.column.integrations': 'Precisa de',
   'catalogue.column.enabled': 'Ativa aqui',
+  'catalogue.state.enabled': 'Ativa',
+  'catalogue.state.disabled': 'Inativa',
   'catalogue.blocked': 'Requer a integração {integration}',
   'catalogue.blocked.action': 'Conectar',
   'catalogue.empty.heading': 'Nenhuma capacidade declarada',
@@ -1417,6 +1421,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.specialists.empty.body':
     'A investigação continua rodando; ela mesma faz a coleta em vez de despachar alguém. Declare um especialista para dividir o trabalho.',
   'agent.specialists.empty.action': 'Editar a configuração',
+  'agent.specialists.state.enabled': 'Ativado',
+  'agent.specialists.state.disabled': 'Desativado',
   'agent.models.title': 'Em que cada papel roda',
   'agent.models.body':
     'Uma etapa nomeia um papel, nunca um modelo. Aquilo em que um papel resolve é configuração, e cada linha aqui diz qual nó forneceu o valor.',
@@ -1471,6 +1477,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'agent.bridged.empty.body':
     'Toda ferramenta que esta equipe pode rodar é uma que este build entrega. Registre um servidor externo para acrescentar ferramentas de fora.',
   'agent.bridged.empty.action': 'Editar a configuração',
+  'agent.bridged.state.enabled': 'Ativado',
+  'agent.bridged.state.disabled': 'Desativado',
   'agent.outlook.title': 'O que aconteceria, por classe de ação',
   'agent.outlook.body':
     'Uma frase por classe, respondida pelo próprio deployment sob a política tal como ela está agora.',

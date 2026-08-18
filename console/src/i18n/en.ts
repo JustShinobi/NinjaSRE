@@ -897,6 +897,8 @@ export const EN = {
   'detectors.column.coverage': 'Coverage',
   'detectors.column.verdict': 'Last verdict',
   'detectors.column.enabled': 'Enabled',
+  'detectors.state.enabled': 'Enabled',
+  'detectors.state.disabled': 'Disabled',
   'detectors.proposed': 'proposed by a document',
   'detectors.list.title': 'Detectors',
   'detectors.list.caption': 'Every detector, what it watches and what it last found',
@@ -1329,6 +1331,8 @@ export const EN = {
   'catalogue.column.effect': 'Side effect',
   'catalogue.column.integrations': 'Needs',
   'catalogue.column.enabled': 'Enabled here',
+  'catalogue.state.enabled': 'Enabled',
+  'catalogue.state.disabled': 'Disabled',
   'catalogue.blocked': 'Requires the {integration} integration',
   'catalogue.blocked.action': 'Connect it',
   'catalogue.empty.heading': 'No capabilities declared',
@@ -1651,6 +1655,8 @@ export const EN = {
   'agent.specialists.empty.body':
     'The investigation still runs; it does the gathering itself instead of dispatching anybody. Declare a specialist to split the work.',
   'agent.specialists.empty.action': 'Edit the configuration',
+  'agent.specialists.state.enabled': 'Enabled',
+  'agent.specialists.state.disabled': 'Disabled',
   'agent.models.title': 'What each role runs on',
   'agent.models.body':
     'A stage names a role, never a model. What a role resolves to is configuration, and every row here says which node supplied it.',
@@ -1711,6 +1717,8 @@ export const EN = {
   'agent.bridged.empty.body':
     'Every tool this team can run is one this build ships. Register a bridged server to add tools from elsewhere.',
   'agent.bridged.empty.action': 'Edit the configuration',
+  'agent.bridged.state.enabled': 'Enabled',
+  'agent.bridged.state.disabled': 'Disabled',
   'agent.outlook.title': 'What would happen, by class of action',
   'agent.outlook.body':
     'One sentence per class, answered by the deployment itself under the policy as it stands right now.',

@@ -4,8 +4,12 @@ import { describe, expect, it } from 'vitest';
 import {
   AccountStateChip,
   Badge,
+  BridgedServerStateChip,
+  CapabilityAvailabilityChip,
   CheckChip,
+  DetectorStateChip,
   PrincipalKindChip,
+  SpecialistStateChip,
   StatusDot,
   TokenGroupStateChip,
 } from '@/components/status';
@@ -155,5 +159,71 @@ describe('TokenGroupStateChip', () => {
   it('says a group with no recorded use was never used', () => {
     render(<TokenGroupStateChip locale="en" everUsed={false} />);
     expect(screen.getByText('Never used')).toBeInTheDocument();
+  });
+});
+
+describe('DetectorStateChip', () => {
+  it('says a detector that evaluates is enabled, never the health word healthy', () => {
+    render(<DetectorStateChip locale="en" enabled />);
+    expect(screen.getByText('Enabled')).toBeInTheDocument();
+    expect(screen.queryByText('healthy')).toBeNull();
+    expect(screen.queryByText(/HEALTHY/i)).toBeNull();
+  });
+
+  // No fixture scenario carries a switched-off detector — every detector this
+  // deployment ships is enabled — so this branch has no natural red to catch
+  // it and is proved here instead.
+  it('says a detector an operator turned off is disabled', () => {
+    render(<DetectorStateChip locale="en" enabled={false} />);
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+  });
+});
+
+describe('SpecialistStateChip', () => {
+  it('says a specialist the configuration still dispatches is enabled, never healthy', () => {
+    render(<SpecialistStateChip locale="en" enabled />);
+    expect(screen.getByText('Enabled')).toBeInTheDocument();
+    expect(screen.queryByText(/HEALTHY/i)).toBeNull();
+  });
+
+  it('says a specialist the configuration switched off is disabled, never paused', () => {
+    render(<SpecialistStateChip locale="en" enabled={false} />);
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(screen.queryByText('paused')).toBeNull();
+  });
+});
+
+describe('BridgedServerStateChip', () => {
+  it('says a server the configuration still registers is enabled, never healthy', () => {
+    render(<BridgedServerStateChip locale="en" enabled />);
+    expect(screen.getByText('Enabled')).toBeInTheDocument();
+    expect(screen.queryByText(/HEALTHY/i)).toBeNull();
+  });
+
+  // No fixture scenario carries a bridged server switched off — the one
+  // fixture server is enabled — so this branch has no natural red to catch
+  // it and is proved here instead.
+  it('says a server an operator turned off is disabled, never paused', () => {
+    render(<BridgedServerStateChip locale="en" enabled={false} />);
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    expect(screen.queryByText('paused')).toBeNull();
+  });
+});
+
+describe('CapabilityAvailabilityChip', () => {
+  it('says an available tool is enabled, never the health word healthy', () => {
+    render(<CapabilityAvailabilityChip locale="en" available />);
+    expect(screen.getByText('Enabled')).toBeInTheDocument();
+    expect(screen.queryByText('healthy')).toBeNull();
+    expect(screen.queryByText(/HEALTHY/i)).toBeNull();
+  });
+
+  // The capability table never renders this with `available={false}` — a
+  // blocked tool shows the reason it is blocked instead of this chip (see
+  // `capability-browser.tsx`) — so this branch has no render path to catch
+  // it and is proved here instead.
+  it('says an unavailable tool is disabled', () => {
+    render(<CapabilityAvailabilityChip locale="en" available={false} />);
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
   });
 });

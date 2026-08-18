@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Badge, Link, TabLinks } from '@/components';
+import { BridgedServerStateChip, SpecialistStateChip } from '@/components/status';
 import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
@@ -480,7 +481,7 @@ function TopologyTab({
                 <span className="font-mono text-small text-strong">
                   {specialist.name}
                 </span>
-                <Badge status={specialist.enabled ? 'healthy' : 'paused'} />
+                <SpecialistStateChip locale={locale} enabled={specialist.enabled} />
                 <span className="text-meta text-muted">
                   {message(locale, 'agent.stage.role', { role: specialist.modelRole })}
                 </span>
@@ -965,6 +966,7 @@ function ToolsTab({
           skills={skills}
           count={count}
           configurationHref={blockedIntegrationHref}
+          locale={locale}
           labels={{
             tableCaption: message(locale, 'agent.tools.browse'),
             search: message(locale, 'catalogue.search'),
@@ -1023,7 +1025,7 @@ function ToolsTab({
               className="flex flex-wrap items-center gap-3 text-small"
             >
               <span className="font-mono min-w-0 truncate">{server.name}</span>
-              <Badge status={server.enabled ? 'healthy' : 'paused'} />
+              <BridgedServerStateChip locale={locale} enabled={server.enabled} />
               <span className="text-meta text-muted">{server.protocol}</span>
               <span className="text-meta text-muted break-all">{server.address}</span>
             </li>

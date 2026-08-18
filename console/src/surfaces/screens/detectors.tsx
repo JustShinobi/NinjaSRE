@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { Badge } from '@/components/status';
+import { Badge, DetectorStateChip } from '@/components/status';
 import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import type { SurfaceContext } from '../context';
@@ -180,8 +180,9 @@ export async function ObservationTab(context: SurfaceContext): Promise<ReactNode
                   </td>
                   <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
                     <div className="flex flex-col items-start gap-2">
-                      <Badge
-                        status={flag(record, 'enabled') ? 'healthy' : 'disabled'}
+                      <DetectorStateChip
+                        locale={locale}
+                        enabled={flag(record, 'enabled')}
                       />
                       <DetectorControls
                         detectorId={text(record, 'detector_id')}

@@ -421,6 +421,140 @@ export function SsoStateChip({
   );
 }
 
+export interface DetectorStateChipProps {
+  readonly locale: Locale;
+  /** Whether this detector currently evaluates its subjects — `/v1/detectors`'s own `enabled`. */
+  readonly enabled: boolean;
+  readonly className?: string;
+}
+
+/**
+ * Whether a detector is currently evaluating what it watches — never a
+ * resource's health. The column this chip sits under is itself titled
+ * "Enabled", so this renders exactly that word rather than the raw health
+ * word `healthy` a detector's own record has no business carrying: turning a
+ * detector off is an operator's decision, not a degrade.
+ */
+export function DetectorStateChip({
+  locale,
+  enabled,
+  className,
+}: DetectorStateChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={enabled ? 'success' : 'neutral'}
+      shape={enabled ? 'filled-circle' : 'dash'}
+      label={message(
+        locale,
+        enabled ? 'detectors.state.enabled' : 'detectors.state.disabled',
+      )}
+      testId="detector-state"
+      className={className}
+    />
+  );
+}
+
+export interface SpecialistStateChipProps {
+  readonly locale: Locale;
+  /** Whether the configuration still dispatches this specialist. */
+  readonly enabled: boolean;
+  readonly className?: string;
+}
+
+/**
+ * Whether a team's own configuration still dispatches this specialist —
+ * never a resource's health. The hierarchy graph beside this list already
+ * draws a specialist switched off as "disabled"; this chip names the same
+ * fact in the same word, in the row the graph's own accessible copy sits
+ * next to.
+ */
+export function SpecialistStateChip({
+  locale,
+  enabled,
+  className,
+}: SpecialistStateChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={enabled ? 'success' : 'neutral'}
+      shape={enabled ? 'filled-circle' : 'dash'}
+      label={message(
+        locale,
+        enabled
+          ? 'agent.specialists.state.enabled'
+          : 'agent.specialists.state.disabled',
+      )}
+      testId="specialist-state"
+      className={className}
+    />
+  );
+}
+
+export interface BridgedServerStateChipProps {
+  readonly locale: Locale;
+  /** Whether the configuration still registers this outside server. */
+  readonly enabled: boolean;
+  readonly className?: string;
+}
+
+/**
+ * Whether a team's own configuration still registers a bridged server —
+ * never a resource's health, and never the same fact as whether the server
+ * answered when reached (that is what the tool rows beside it, dimmed with
+ * their own reason, already say). A server an operator turned off is
+ * disabled, not `HEALTHY`'s opposite.
+ */
+export function BridgedServerStateChip({
+  locale,
+  enabled,
+  className,
+}: BridgedServerStateChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={enabled ? 'success' : 'neutral'}
+      shape={enabled ? 'filled-circle' : 'dash'}
+      label={message(
+        locale,
+        enabled ? 'agent.bridged.state.enabled' : 'agent.bridged.state.disabled',
+      )}
+      testId="bridged-server-state"
+      className={className}
+    />
+  );
+}
+
+export interface CapabilityAvailabilityChipProps {
+  readonly locale: Locale;
+  /** Whether this node's own catalogue currently lets this capability run. */
+  readonly available: boolean;
+  readonly className?: string;
+}
+
+/**
+ * Whether this node's catalogue currently lets a tool run — never a
+ * resource's health. The column this chip sits under already asks "Enabled
+ * here?", so this renders exactly that word; a blocked tool never reaches
+ * this chip at all — what blocks it, structured and where relevant linked to
+ * the integration that would fix it, is what the same cell renders instead.
+ */
+export function CapabilityAvailabilityChip({
+  locale,
+  available,
+  className,
+}: CapabilityAvailabilityChipProps): ReactNode {
+  return (
+    <ResolvedChip
+      role={available ? 'success' : 'neutral'}
+      shape={available ? 'filled-circle' : 'dash'}
+      label={message(
+        locale,
+        available ? 'catalogue.state.enabled' : 'catalogue.state.disabled',
+      )}
+      testId="capability-available"
+      className={className}
+    />
+  );
+}
+
 export interface CheckChipProps {
   readonly name: string;
   /** The preflight's own vocabulary for one check: passed, degraded, failed, or skipped. */

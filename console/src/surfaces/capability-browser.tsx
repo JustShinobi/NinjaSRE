@@ -2,8 +2,9 @@
 
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 
-import { Badge } from '@/components/status';
+import { Badge, CapabilityAvailabilityChip } from '@/components/status';
 import { Input } from '@/components/form';
+import type { Locale } from '@/i18n/messages';
 
 /**
  * 233 tools in 17 domains, searchable, with an anchor per domain.
@@ -88,6 +89,7 @@ export interface CapabilityBrowserProps {
   /** Where a blocked tool's "connect it" link goes: this node's own Configuration. */
   readonly configurationHref: string;
   readonly labels: CapabilityBrowserLabels;
+  readonly locale: Locale;
 }
 
 /** The tools-and-skills table, searchable, with a jump list and a count. */
@@ -97,6 +99,7 @@ export function CapabilityBrowser({
   count,
   configurationHref,
   labels,
+  locale,
 }: CapabilityBrowserProps): ReactNode {
   const [query, setQuery] = useState('');
   const needle = query.trim().toLowerCase();
@@ -227,7 +230,10 @@ export function CapabilityBrowser({
                         {!tool.known ? (
                           <span className="text-muted text-meta">{labels.none}</span>
                         ) : tool.available ? (
-                          <Badge status="healthy" />
+                          <CapabilityAvailabilityChip
+                            locale={locale}
+                            available={tool.available}
+                          />
                         ) : (
                           <span
                             className="text-meta text-muted"

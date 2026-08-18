@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SESSION_COOKIE } from '@/session/cookies';
@@ -77,6 +77,26 @@ function enabledDetector(id: string): unknown {
     description: 'Watches quorum margin.',
     severity: 'critical',
     enabled: true,
+    signal: 'x',
+    subjects_covered: 1,
+    subjects_total: 1,
+    last_verdict: 'clear',
+    last_evaluated_at: '2026-08-07T10:00:00+00:00',
+    origin: '',
+    origin_excerpt: '',
+    proposed: false,
+  };
+}
+
+/** The fixture scenario carries no switched-off detector — every shipped
+ * detector is enabled — so the disabled branch is built by hand here. */
+function disabledDetector(id: string): unknown {
+  return {
+    detector_id: id,
+    name: id,
+    description: 'Watches quorum margin.',
+    severity: 'critical',
+    enabled: false,
     signal: 'x',
     subjects_covered: 1,
     subjects_total: 1,
@@ -193,5 +213,46 @@ describe('a deployment that is watching and has coverage', () => {
         .getAllByTestId('detector')
         .some((row) => row.getAttribute('data-detector') === 'quorum-margin-zero'),
     ).toBe(true);
+  });
+});
+
+describe('a detector that is switched on', () => {
+  it('never shows the raw resource-health word for its own on/off state', async () => {
+    serve({
+      detectors: [enabledDetector('quorum-margin-zero')],
+      setup: SETUP_COMPLETE,
+    });
+    await observation();
+
+    const row = screen
+      .getAllByTestId('detector')
+      .find(
+        (candidate) => candidate.getAttribute('data-detector') === 'quorum-margin-zero',
+      );
+    if (row === undefined) throw new Error('the detector row is not there');
+    // `healthy` is a resource's word, never a detector's own on/off state.
+    expect(row.textContent).not.toMatch(/healthy/i);
+    expect(within(row).getByTestId('detector-state')).toHaveTextContent('Enabled');
+  });
+});
+
+describe('a detector that has been switched off', () => {
+  // No populated fixture carries this branch, so it is proved at the unit
+  // level with a detector built by hand rather than left unverified.
+  it('says the detector is disabled, in the column already titled that', async () => {
+    serve({
+      detectors: [disabledDetector('backup-job-disabled')],
+      setup: SETUP_COMPLETE,
+    });
+    await observation();
+
+    const row = screen
+      .getAllByTestId('detector')
+      .find(
+        (candidate) =>
+          candidate.getAttribute('data-detector') === 'backup-job-disabled',
+      );
+    if (row === undefined) throw new Error('the detector row is not there');
+    expect(within(row).getByTestId('detector-state')).toHaveTextContent('Disabled');
   });
 });
