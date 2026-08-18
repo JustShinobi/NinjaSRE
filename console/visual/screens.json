@@ -4,14 +4,13 @@
     {
       "id": "administration-1440-light",
       "route": "/settings/members-roles",
-      "status": "pending",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "Who may do what — the People tab, and the default one. A screen where a change of emphasis is a change of meaning."
-      },
-      "pending_because": "Members and roles, once the other three subjects moved to their own addresses. Held with the audit log below it: both are organisation screens the migration still has fields to place on."
+        "reason": "Who exists in this deployment, the roles they hold, and the sessions they have open — the first screen of the organisation group and the one an administrator lands on. First accepted capture, taken once the screen stopped presenting machine identifiers as if they were language: a principal is a Person or a Service account rather than SERVICE_ACCOUNT, an account in use is Active and a withdrawn one Suspended rather than HEALTHY, a role in the grant form reaches a stated number of permission domains with the full list behind a disclosure rather than a comma-separated line of permission ids, and a session identifies itself by who holds it and when it started. What this baseline exists to catch is the thing no assertion in the suite caught: the review of the previous capture rejected it because a bare unlabelled session count still sat beside the person's name while every gate was green and the acceptance spec passed thirteen of thirteen — the test asserted that the origin element existed and never that the number was gone. The header row and the values beneath it were misaligned for the same reason. Both are fixed here, and this image is what it looks like when they are. Reviewed as a full-page capture before acceptance."
+      }
     },
     {
       "id": "administration-audit-1440-light",
