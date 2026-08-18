@@ -199,7 +199,29 @@ export interface paths {
          */
         get: operations["list_principals_identity_principals_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Principal
+         * @description Create a person with a local password, and record who did it.
+         *
+         *     Refused before this body ever runs for a caller who lacks
+         *     ``identity.write`` — the route table's guard, the same dependency every
+         *     write in this file goes through, not a second check written here. That
+         *     refusal carries no information about whether ``body.email`` is already
+         *     taken: the permission is checked before the request reaches this
+         *     function, so the response to somebody who may not create an account is
+         *     identical whether or not one already exists at that address.
+         *
+         *     Grants nothing. There is no role on the request body, so a caller who
+         *     may create a person can never come away from this one call holding an
+         *     account that outranks them — widening what the new principal may do is
+         *     a separate, already-guarded request to ``POST /identity/grants``.
+         *
+         *     The password is hashed with the same construction the environment
+         *     account uses (``hash_local_password``), stored once by a write dedicated
+         *     to that column alone, and never appears in this function's return value
+         *     or in anything logged about the call.
+         */
+        post: operations["create_principal_identity_principals_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3434,6 +3456,26 @@ export interface components {
             /** Objective */
             objective: string;
         };
+        /**
+         * CreatePrincipalRequest
+         * @description A new person, with the password they will sign in with locally.
+         *
+         *     Creation only. There is no field here for a role: granting one is a
+         *     second request, through ``POST /identity/grants``, which needs the same
+         *     permission this route does and leaves its own audit row. A route that
+         *     could create a principal and hand it a role in the same call would be a
+         *     route that could mint an account holding more than its caller ever had
+         *     to be granted anything to obtain — this one cannot, because it never
+         *     grants at all.
+         */
+        CreatePrincipalRequest: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
         /** CreateScheduleRequest */
         CreateScheduleRequest: {
             /** Cron */
@@ -6350,6 +6392,10 @@ export interface components {
             because: string;
             /** From Resource */
             from_resource: string;
+            /** Resource Kind */
+            resource_kind: string;
+            /** Resource Label */
+            resource_label: string;
         };
         /**
          * SuppressRequest
@@ -7038,6 +7084,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_principal_identity_principals_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePrincipalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserView"];
                 };
             };
             /** @description Validation Error */
