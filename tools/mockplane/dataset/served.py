@@ -219,6 +219,27 @@ CAPABILITIES_SECTION: Final[Mapping[str, Any]] = {
     ],
 }
 
+#: One active temporary override, granted on the organisation's own node — the
+#: node `resolveNode` (console `url-state.ts`) lands on when nothing in the
+#: address names one, since the owner's own `team_node_id` is `ORG_NODE`. Every
+#: other node in `CONFIG_NODES` keeps `overrides: []`: an override is granted
+#: to somebody working a specific node, and the same grant repeated
+#: identically across five nodes would read as a fixture posing rather than a
+#: deployment mid-operation. `expires_at` is a plain future instant rather
+#: than `at()` (which only ever subtracts from the survey moment): a grant
+#: that is still active has to read as being ahead of "now", not as a fixed
+#: offset from a capture that is already in the past.
+_ACTIVE_OVERRIDE: Final[Mapping[str, Any]] = {
+    "name": "storage-capacity-response",
+    "level": "act_and_report",
+    "reason": (
+        "store-cove is near its capacity threshold; approved to let automation "
+        "expand it unattended until the maintenance window closes."
+    ),
+    "expires_at": "2026-09-01T12:00:00+00:00",
+    "granted_by": "Morgan Thorne",
+}
+
 
 def _policy_document(node_id: str) -> dict[str, Any]:
     """Return the posture this node resolves to, as the export format spells it.
@@ -1518,7 +1539,7 @@ def config_records() -> tuple[CapturedRecord, ...]:
                             "interval_seconds": 3600.0,
                         }
                     ],
-                    "overrides": [],
+                    "overrides": [dict(_ACTIVE_OVERRIDE)] if identifier == ORG_NODE else [],
                     "expired_overrides": [],
                 },
             )

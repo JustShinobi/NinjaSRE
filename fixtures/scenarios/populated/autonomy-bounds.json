@@ -114,7 +114,15 @@
           }
         ],
         "node_id": "org-northwind",
-        "overrides": [],
+        "overrides": [
+          {
+            "expires_at": "2026-09-01T14:19:00+00:00",
+            "granted_by": "Morgan Thorne",
+            "level": "act_and_report",
+            "name": "storage-capacity-response",
+            "reason": "store-cove is near its capacity threshold; approved to let automation expand it unattended until the maintenance window closes."
+          }
+        ],
         "stop_reason": "",
         "stopped": false
       },
