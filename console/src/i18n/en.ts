@@ -1082,6 +1082,9 @@ export const EN = {
   'topology.empty.action': 'See the estate',
 
   // --- Autonomy -----------------------------------------------------------------------------
+  'autonomy.tab.posture': 'Posture',
+  'autonomy.tab.rules-windows': 'Rules & windows',
+  'autonomy.tab.guardrails': 'Guardrails',
   'autonomy.rules.title': 'Rules, in resolution order',
   'autonomy.column.scope': 'Scope',
   'autonomy.column.matcher': 'Matcher',
