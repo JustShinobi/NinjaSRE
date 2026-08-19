@@ -337,7 +337,7 @@ describe('revoking an active override', () => {
     expect(chip).not.toHaveTextContent('act_and_report');
   });
 
-  it("falls back to the raw level when the screen resolved no word for it", () => {
+  it('falls back to the raw level when the screen resolved no word for it', () => {
     // The levels come from the deployment, not from this console — a level
     // with no resolved name still renders something, never a blank chip.
     render(

@@ -143,10 +143,7 @@ const RULES: readonly EditableRule[] = [
 
 const LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report'];
 
-function editor(
-  dryRun = false,
-  levelNames?: Readonly<Record<string, string>>,
-): void {
+function editor(dryRun = false, levelNames?: Readonly<Record<string, string>>): void {
   render(
     <AutonomyEditor
       nodeId="team-platform"

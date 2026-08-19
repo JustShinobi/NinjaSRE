@@ -256,7 +256,13 @@ describe('what a governed action would be decided to do', () => {
   // The outcome vocabulary a resolved decision carries — execute, simulate,
   // propose, approve, refuse — distinct from an autonomy posture and from an
   // audit event's own allowed/denied.
-  const DECISION_OUTCOMES = ['execute', 'simulate', 'propose', 'approve', 'refuse'] as const;
+  const DECISION_OUTCOMES = [
+    'execute',
+    'simulate',
+    'propose',
+    'approve',
+    'refuse',
+  ] as const;
 
   it('declares all five outcomes', () => {
     for (const outcome of DECISION_OUTCOMES) {

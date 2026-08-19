@@ -76,7 +76,5 @@ export function postureNames(
   locale: Locale,
   levels: readonly string[],
 ): Readonly<Record<string, string>> {
-  return Object.fromEntries(
-    levels.map((level) => [level, postureName(locale, level)]),
-  );
+  return Object.fromEntries(levels.map((level) => [level, postureName(locale, level)]));
 }
