@@ -42,14 +42,41 @@ interface IdentityTokensBody {
   readonly tokens: readonly Record<string, unknown>[];
 }
 
+/** The permission a token must carry to authenticate an inbound delivery. */
+const DELIVERY_SCOPE = ['webhook', 'deliver'].join('.');
+
+/** One delivery-scoped token, as `/identity/tokens` serves it. */
+function deliveryToken(fields: {
+  readonly name: string;
+  readonly createdAt: string;
+  readonly revoked?: boolean;
+}): Record<string, unknown> {
+  return {
+    token_id: `tok-${fields.name}`,
+    user_id: 'user-automation',
+    name: fields.name,
+    description: '',
+    team_node_id: null,
+    scopes: [DELIVERY_SCOPE],
+    created_at: fields.createdAt,
+    expires_at: null,
+    last_used_at: null,
+    revoked: fields.revoked ?? false,
+  };
+}
+
 /**
- * `serveScenario('populated')`, with `/identity/tokens` answering one extra,
- * live token scoped to `webhook.deliver` — the credential that actually
- * authenticates alert delivery on this deployment, named the way an operator
- * would recognise it (`am-cluster`) rather than by the raw permission it
- * carries.
+ * `serveScenario('populated')`, with `/identity/tokens` answering exactly the
+ * delivery-scoped tokens named here and no others.
+ *
+ * The dataset's own delivery token is filtered out first, which is the whole
+ * point: a test that only appended would be asserting against whatever the
+ * shared fixture happened to hold that week, and four tests in this block did
+ * exactly that until the dataset grew a delivery token of its own and they all
+ * went red at once. Passing no token is how "nobody has issued one" is stated
+ * here, rather than borrowed from a scenario that never promised it.
  */
-function serveWithADeliveryTokenNamed(name: string): void {
+function serveWithDeliveryTokens(...tokens: readonly Record<string, unknown>[]): void {
   serveScenario('populated');
   const base = globalThis.fetch;
   vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
@@ -57,23 +84,14 @@ function serveWithADeliveryTokenNamed(name: string): void {
     const response = await base(input as string, init);
     if (path !== '/identity/tokens') return response;
     const body = (await response.json()) as IdentityTokensBody;
+    const scopesOf = (token: Record<string, unknown>): readonly string[] =>
+      Array.isArray(token.scopes) ? (token.scopes as readonly string[]) : [];
     return new Response(
       JSON.stringify({
         ...body,
         tokens: [
-          ...body.tokens,
-          {
-            token_id: 'tok-delivery',
-            user_id: 'user-automation',
-            name,
-            description: '',
-            team_node_id: null,
-            scopes: ['webhook.deliver'],
-            created_at: '2026-08-01T00:00:00+00:00',
-            expires_at: null,
-            last_used_at: '2026-08-07T11:54:00+00:00',
-            revoked: false,
-          },
+          ...body.tokens.filter((token) => !scopesOf(token).includes(DELIVERY_SCOPE)),
+          ...tokens,
         ],
       }),
       { status: response.status, headers: { 'content-type': 'application/json' } },
@@ -403,10 +421,12 @@ describe('the delivery token control', () => {
   });
 
   it('says nothing has authenticated deliveries yet, when no token carries the permission', async () => {
-    await page();
+    // Stated here rather than inherited: the deployment this renders has no
+    // delivery-scoped token at all, which is the ordinary state of one that
+    // has not issued one yet.
+    serveWithDeliveryTokens();
+    render(await AlertIntakeScreen(await surfaceContext({})));
 
-    // The populated scenario's own tokens never carry webhook.deliver — this
-    // is the ordinary state of a deployment that has not issued one yet.
     const group = screen.getByTestId('delivery-token-group');
     expect(group).toHaveTextContent(/no delivery token/i);
     expect(within(group).getByTestId('delivery-token')).toHaveTextContent(
@@ -415,16 +435,20 @@ describe('the delivery token control', () => {
   });
 
   it('names the delivery token once one has actually authenticated deliveries with it', async () => {
-    serveWithADeliveryTokenNamed('am-cluster');
+    serveWithDeliveryTokens(
+      deliveryToken({ name: 'am-cluster', createdAt: '2026-08-01T00:00:00+00:00' }),
+    );
     render(await AlertIntakeScreen(await surfaceContext({})));
 
     const group = screen.getByTestId('delivery-token-group');
     expect(group).toHaveTextContent('am-cluster');
-    expect(group).not.toHaveTextContent('webhook.deliver');
+    expect(group).not.toHaveTextContent(DELIVERY_SCOPE);
   });
 
   it('offers to rotate, not to issue a second one, once a delivery token already exists', async () => {
-    serveWithADeliveryTokenNamed('am-cluster');
+    serveWithDeliveryTokens(
+      deliveryToken({ name: 'am-cluster', createdAt: '2026-08-01T00:00:00+00:00' }),
+    );
     render(await AlertIntakeScreen(await surfaceContext({})));
 
     const group = screen.getByTestId('delivery-token-group');
@@ -435,47 +459,10 @@ describe('the delivery token control', () => {
   });
 
   it('picks the most recently issued token when more than one carries the permission', async () => {
-    serveScenario('populated');
-    const base = globalThis.fetch;
-    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
-      const path = new URL(String(input), FIXTURE_BASE).pathname;
-      const response = await base(input as string, init);
-      if (path !== '/identity/tokens') return response;
-      const body = (await response.json()) as IdentityTokensBody;
-      return new Response(
-        JSON.stringify({
-          ...body,
-          tokens: [
-            ...body.tokens,
-            {
-              token_id: 'tok-delivery-old',
-              user_id: 'user-automation',
-              name: 'am-cluster-old',
-              description: '',
-              team_node_id: null,
-              scopes: ['webhook.deliver'],
-              created_at: '2026-01-01T00:00:00+00:00',
-              expires_at: null,
-              last_used_at: null,
-              revoked: false,
-            },
-            {
-              token_id: 'tok-delivery-new',
-              user_id: 'user-automation',
-              name: 'am-cluster-new',
-              description: '',
-              team_node_id: null,
-              scopes: ['webhook.deliver'],
-              created_at: '2026-08-01T00:00:00+00:00',
-              expires_at: null,
-              last_used_at: null,
-              revoked: false,
-            },
-          ],
-        }),
-        { status: response.status, headers: { 'content-type': 'application/json' } },
-      );
-    });
+    serveWithDeliveryTokens(
+      deliveryToken({ name: 'am-cluster-old', createdAt: '2026-01-01T00:00:00+00:00' }),
+      deliveryToken({ name: 'am-cluster-new', createdAt: '2026-08-01T00:00:00+00:00' }),
+    );
     render(await AlertIntakeScreen(await surfaceContext({})));
 
     const group = screen.getByTestId('delivery-token-group');
@@ -484,35 +471,13 @@ describe('the delivery token control', () => {
   });
 
   it('never counts a revoked token as the one authenticating deliveries', async () => {
-    serveScenario('populated');
-    const base = globalThis.fetch;
-    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
-      const path = new URL(String(input), FIXTURE_BASE).pathname;
-      const response = await base(input as string, init);
-      if (path !== '/identity/tokens') return response;
-      const body = (await response.json()) as IdentityTokensBody;
-      return new Response(
-        JSON.stringify({
-          ...body,
-          tokens: [
-            ...body.tokens,
-            {
-              token_id: 'tok-delivery-revoked',
-              user_id: 'user-automation',
-              name: 'am-cluster-revoked',
-              description: '',
-              team_node_id: null,
-              scopes: ['webhook.deliver'],
-              created_at: '2026-08-01T00:00:00+00:00',
-              expires_at: null,
-              last_used_at: null,
-              revoked: true,
-            },
-          ],
-        }),
-        { status: response.status, headers: { 'content-type': 'application/json' } },
-      );
-    });
+    serveWithDeliveryTokens(
+      deliveryToken({
+        name: 'am-cluster-revoked',
+        createdAt: '2026-08-01T00:00:00+00:00',
+        revoked: true,
+      }),
+    );
     render(await AlertIntakeScreen(await surfaceContext({})));
 
     const group = screen.getByTestId('delivery-token-group');
