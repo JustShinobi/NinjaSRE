@@ -896,6 +896,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.tab.posture': 'Postura',
   'autonomy.tab.rules-windows': 'Regras e janelas',
   'autonomy.tab.guardrails': 'Guardrails',
+  'autonomy.subtitle': 'Nó: {node} · Postura agora: {posture}',
+  'autonomy.posture.title': 'O que esta instalação pode fazer sozinha',
+  'autonomy.posture.save': 'Salvar postura',
+  'autonomy.posture.empty.scopeLead':
+    'Regras que estreitam ou ampliam um âmbito vivem em',
+  'autonomy.posture.guardrails.title': 'Guardrails em vigor',
   'autonomy.rules.title': 'Regras, por ordem de resolução',
   'autonomy.column.scope': 'Âmbito',
   'autonomy.column.matcher': 'Seletor',
@@ -969,7 +975,9 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.empty.heading': 'Nenhuma política registrada',
   'autonomy.empty.body':
     'Sem regra registrada, tudo resolve para apenas-propor. Esse é o comportamento seguro, não um erro.',
-  'autonomy.empty.action': 'Ver a configuração',
+  'autonomy.cta.createRule': 'Criar a primeira regra',
+  'autonomy.cta.recordBound': 'Registrar um congelamento ou um teto',
+  'autonomy.cta.grantOverride': 'Conceder uma exceção',
   'autonomy.glossary.rule':
     'Uma regra decide o que este deployment pode fazer para um âmbito, do deployment inteiro até um único recurso — lida em ordem, da menos específica à mais específica.',
   'autonomy.glossary.bound':

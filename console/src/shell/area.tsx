@@ -120,6 +120,13 @@ export interface SettingsPageHeaderProps {
   /** Anything nested under the page, for a detail route that has a parent. */
   readonly nested?: readonly { readonly label: string; readonly href?: string }[];
   readonly actions?: ReactNode;
+  /**
+   * The subtitle, when a page has one to say that the catalogue's own static
+   * `page.context` cannot — a node and the state it is currently in, neither
+   * of which a translation key can hold. Falls back to `page.context`, so
+   * every other caller is unaffected.
+   */
+  readonly context?: string;
 }
 
 /**
@@ -136,6 +143,7 @@ export function SettingsPageHeader({
   locale,
   nested = [],
   actions,
+  context,
 }: SettingsPageHeaderProps): ReactNode {
   const trail = trailFor(areaFor('settings'), [
     { label: message(locale, GROUP_LABEL[page.group]) },
@@ -153,7 +161,7 @@ export function SettingsPageHeader({
       />
       <PageHeader
         title={message(locale, page.label)}
-        context={message(locale, page.context)}
+        context={context ?? message(locale, page.context)}
         {...(actions === undefined ? {} : { actions })}
       />
     </div>

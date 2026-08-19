@@ -1087,6 +1087,18 @@ export const EN = {
   'autonomy.tab.posture': 'Posture',
   'autonomy.tab.rules-windows': 'Rules & windows',
   'autonomy.tab.guardrails': 'Guardrails',
+  // The subtitle every tab shares — FR-009 is page-level, not Posture-only —
+  // replacing the static description `page.context` gives every other
+  // Settings page, since neither the node nor the posture in force is a fact
+  // a catalogue can hold.
+  'autonomy.subtitle': 'Node: {node} · Posture now: {posture}',
+  'autonomy.posture.title': 'What this deployment may do on its own',
+  'autonomy.posture.save': 'Save posture',
+  // Follows the level selector and its Save, never precedes them — the
+  // sentence a reader gets once they have already seen the control it
+  // explains.
+  'autonomy.posture.empty.scopeLead': 'Rules that narrow or widen one scope live in',
+  'autonomy.posture.guardrails.title': 'Guardrails in effect',
   'autonomy.rules.title': 'Rules, in resolution order',
   'autonomy.column.scope': 'Scope',
   'autonomy.column.matcher': 'Matcher',
@@ -1159,7 +1171,13 @@ export const EN = {
   'autonomy.empty.heading': 'No policy recorded',
   'autonomy.empty.body':
     'With no rule recorded, everything resolves to propose-only. That is the safe default rather than an error.',
-  'autonomy.empty.action': 'Look at the configuration',
+  // One key per destination, replacing the single "Look at the
+  // configuration" label every empty state on this route used to share —
+  // three different destinations is three different sentences, not one that
+  // named none of them honestly.
+  'autonomy.cta.createRule': 'Create the first rule',
+  'autonomy.cta.recordBound': 'Record a freeze or a budget',
+  'autonomy.cta.grantOverride': 'Grant an override',
   'autonomy.glossary.rule':
     'A rule decides what this deployment may do for one scope, from the whole deployment down to a single resource — read in order, least specific first.',
   'autonomy.glossary.bound':

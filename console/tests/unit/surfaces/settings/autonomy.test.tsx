@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { surfaceContext } from '@/surfaces/context';
@@ -257,15 +257,31 @@ describe('a node with no rule and no bound recorded', () => {
 });
 
 describe('the vocabulary this screen assumes an operator already has', () => {
-  it('defines a rule, a bound and an override in the reader’s own words, near the top of the page', async () => {
+  it('no longer bundles the three concepts into one glossary block at the top of any tab', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+    expect(screen.queryByTestId('autonomy-glossary')).not.toBeInTheDocument();
+
+    await renderAutonomy({ tab: 'posture' });
+    expect(screen.queryByTestId('autonomy-glossary')).not.toBeInTheDocument();
+  });
+
+  it('defines a rule where one is created, on Rules & windows', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
     await renderAutonomy({ tab: 'rules-windows' });
 
-    const glossary = screen.getByTestId('autonomy-glossary');
-    expect(glossary).toHaveTextContent(/rule/i);
-    expect(glossary).toHaveTextContent(/bound/i);
-    expect(glossary).toHaveTextContent(/override/i);
+    expect(screen.getByTestId('autonomy-rule-note')).toHaveTextContent(/rule/i);
+  });
+
+  it('defines a bound and an override on Posture, beside the panels that show them', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    expect(screen.getByTestId('autonomy-bound-note')).toHaveTextContent(/bound/i);
+    expect(screen.getByTestId('autonomy-override-note')).toHaveTextContent(/override/i);
   });
 });
 
@@ -836,5 +852,180 @@ describe('the bounds panel’s empty state, now that the panel reads on a differ
     // `#new-freeze` only exists inside `AutonomyEditor`, which this tab does
     // not render, so a same-page anchor here would silently go nowhere.
     expect(document.getElementById('new-freeze')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The exact walk `autonomy-tabs.acceptance.spec.ts` runs in the browser,
+ * against jsdom instead — one violation message (a paragraph's own text) or
+ * `null` when a real control is reached first. Mirrored rather than
+ * reimplemented from scratch, so a unit run and a browser run never disagree
+ * about what "before the first control" means.
+ */
+function firstParagraphBeforeControl(): string | null {
+  const headerEl = document.querySelector('[data-testid="page-header"]');
+  if (headerEl === null) return 'no page-header found';
+
+  const all = Array.from(document.body.querySelectorAll('*'));
+  let index = all.indexOf(headerEl);
+  if (index === -1) return 'page-header is not attached under body';
+
+  const CHROME_TESTIDS = ['page-header', 'tab-links'];
+  for (;;) {
+    const root = all[index];
+    if (root === undefined) break;
+    while (index + 1 < all.length && root.contains(all[index + 1] ?? null)) {
+      index += 1;
+    }
+    const next = all[index + 1];
+    const nextTestid = next === undefined ? null : next.getAttribute('data-testid');
+    if (nextTestid === null || !CHROME_TESTIDS.includes(nextTestid)) break;
+    index += 1;
+  }
+
+  const CONTROL_TAGS = new Set(['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA', 'A']);
+  for (let cursor = index + 1; cursor < all.length; cursor += 1) {
+    const el = all[cursor];
+    if (el === undefined) continue;
+    if (el.tagName === 'P')
+      return `a paragraph sits before the first control: "${el.textContent.trim().slice(0, 120)}"`;
+    if (CONTROL_TAGS.has(el.tagName)) return null;
+  }
+  return null;
+}
+
+describe('Posture: the level selector, and nothing before it', () => {
+  it('states the node and the posture in force in the subtitle', async () => {
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        rules: [
+          {
+            rule_id: 'deployment',
+            scope: { kind: 'deployment' },
+            level: 'act_and_report',
+          },
+        ],
+      },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    const header = screen.getByTestId('page-header');
+    expect(header).toHaveTextContent(NODE);
+    // The full description, not the bare slug — the same words the level's
+    // own selector option carries, so the subtitle never disagrees with the
+    // control it is summarising.
+    expect(header).toHaveTextContent('Act and report');
+  });
+
+  it('renders no paragraph between the title and the level selector, on Posture', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    expect(firstParagraphBeforeControl()).toBeNull();
+  });
+
+  it('renders no paragraph between the title and the first control, on Rules & windows either', async () => {
+    // A node with at least one rule, matching what the browser acceptance
+    // suite actually exercises on this tab (`populated`'s every node holds
+    // one). With `rules: []` instead, the rules panel draws its own
+    // `EmptyState` — heading, then body, then the action — and that body
+    // paragraph necessarily precedes the action it explains, the same as
+    // every other empty state this design system draws; that is a property
+    // of `EmptyState` itself, not the glossary paragraph T015 retires, and
+    // is not what this walk is written to prove.
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        rules: [
+          {
+            rule_id: 'deployment',
+            scope: { kind: 'deployment' },
+            level: 'propose_only',
+          },
+        ],
+      },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    expect(firstParagraphBeforeControl()).toBeNull();
+  });
+
+  it('offers the levels the deployment declares, in display names, with Save beside it', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    const editor = screen.getByTestId('posture-editor');
+    const options = Array.from(editor.querySelectorAll('option')).map(
+      (option) => option.textContent,
+    );
+    expect(options).toEqual([
+      'Propose only — every action is written up for a person to approve. Nothing runs without one.',
+      'Act on low risk — runs on its own up to the risk bound chosen; anything riskier still waits for a person.',
+      'Act and report — runs on its own and tells somebody afterwards, whatever the risk.',
+      'Act silently — runs on its own and reports nothing. Choose this one deliberately.',
+    ]);
+    expect(screen.getByTestId('save-posture')).toHaveTextContent('Save posture');
+  });
+
+  it('renders a level the screen has no display name for by its declared identifier, never omitted', async () => {
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        rules: [
+          {
+            rule_id: 'deployment',
+            scope: { kind: 'deployment' },
+            level: 'custom_level',
+          },
+        ],
+      },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    const editor = screen.getByTestId('posture-editor');
+    const options = Array.from(editor.querySelectorAll('option')).map(
+      (option) => option.textContent,
+    );
+    expect(options).toContain('custom_level');
+    // Not merely appended past the four known levels: it is the value this
+    // node actually holds, so the control opens on it rather than silently
+    // falling back to the first entry.
+    expect(editor.querySelector('select')).toHaveValue('custom_level');
+  });
+});
+
+describe('Posture: the empty state, with no rule recorded', () => {
+  it('says everything resolves to propose-only, names it the safe default rather than an error, and points at Rules & windows', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    const note = screen.getByTestId('autonomy-posture-empty');
+    expect(note).toHaveTextContent('everything resolves to propose-only');
+    expect(note).toHaveTextContent('safe default rather than an error');
+
+    const link = within(note).getByRole('link', { name: 'Rules & windows' });
+    expect(link).toBeInTheDocument();
+
+    // FR-012 / Acceptance Scenario 4: the CTA lands where its own label
+    // promises — the Rules & windows tab, not an anchor on the same tab.
+    expect(link).toHaveAttribute('href', expect.stringContaining('tab=rules-windows'));
+  });
+
+  it('says nothing about the empty default once the node holds a rule', async () => {
+    serveScenario('populated');
+
+    await renderAutonomy({ tab: 'posture' });
+
+    expect(screen.queryByTestId('autonomy-posture-empty')).not.toBeInTheDocument();
   });
 });

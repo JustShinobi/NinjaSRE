@@ -31,8 +31,14 @@ import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-ban
 import { panelLabels } from '../labels';
 import { OverrideEditor, type ActiveOverride } from '../override-editor';
 import { Panel } from '../panel';
+import { PostureEditor } from '../posture-editor';
 import { ConfigEditor } from '../preview';
-import { postureLabels } from '../postures';
+import { postureLabel, postureLabels } from '../postures';
+// Aliased: this file already has its own local `guardrailRows` (the Guardrails
+// tab's own rows, resolved from its own inline field list) — the shared
+// resolver is only for Posture's read-only summary, kept distinct by name
+// rather than by which one shadows the other.
+import { guardrailRows as postureGuardrailRows } from './guardrail-values';
 import {
   authorised,
   dataOf,
@@ -272,6 +278,25 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const rules = [...list(dataOf(policy), 'rules')].sort(
     (left, right) => specificityOf(left) - specificityOf(right),
   );
+
+  // Posture's own reading: the level of the rule scoped to the whole
+  // deployment — not the first rule in resolution order, which may be a
+  // narrower scope that happens to sort first. Absent that rule entirely,
+  // the deployment has not raised itself above the safe default.
+  const deploymentRule = rules.find(
+    (rule) => text(field(rule, 'scope'), 'kind') === 'deployment',
+  );
+  const postureLevel =
+    deploymentRule === undefined
+      ? (LEVELS[0] ?? 'propose_only')
+      : text(deploymentRule, 'level');
+  // FR-015: a level the deployment declares and this screen has no name for
+  // still has to be selectable, never silently dropped from the list because
+  // it is not one of the four known ones.
+  const selectableLevels = LEVELS.includes(postureLevel)
+    ? LEVELS
+    : [...LEVELS, postureLevel];
+
   const simulated = flag(dataOf(policy), 'dry_run');
   const stopped = flag(dataOf(bounds), 'stopped');
   const freezes = list(dataOf(bounds), 'freezes');
@@ -359,12 +384,24 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
 
   const setup = await readSetupState(credential);
   const page = settingsPageFor('settings-autonomy-guardrails');
+  // Every tab shares one subtitle: the node this address resolved to, and
+  // the posture in force there right now. Falls back to the page's own
+  // static description when no node resolved — there is no posture to
+  // report yet, and claiming one would be a fact this render does not have.
+  const subtitle =
+    nodeId === ''
+      ? message(locale, page.context)
+      : message(locale, 'autonomy.subtitle', {
+          node: nodeId,
+          posture: postureLabel(locale, postureLevel),
+        });
 
   return (
     <>
       <SettingsPageHeader
         page={page}
         locale={locale}
+        context={subtitle}
         // No crumb for a deployment that resolved to no node: a breadcrumb
         // whose last step is blank reads as a page that lost its subject.
         nested={nodeId === '' ? [] : [{ label: nodeId }]}
@@ -389,16 +426,6 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
 
         {tab === 'rules-windows' ? (
           <>
-            {/* What the rest of the page assumes an operator already knows. */}
-            <div
-              data-testid="autonomy-glossary"
-              className="flex flex-col gap-1 text-meta text-muted mb-5 max-w-prose"
-            >
-              <p>{message(locale, 'autonomy.glossary.rule')}</p>
-              <p>{message(locale, 'autonomy.glossary.bound')}</p>
-              <p>{message(locale, 'autonomy.glossary.override')}</p>
-            </div>
-
             <div className="min-w-0">
               <Panel
                 title={message(locale, 'autonomy.rules.title')}
@@ -408,7 +435,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 empty={{
                   heading: message(locale, 'autonomy.empty.heading'),
                   body: message(locale, 'autonomy.empty.body'),
-                  actionLabel: message(locale, 'autonomy.empty.action'),
+                  actionLabel: message(locale, 'autonomy.cta.createRule'),
                   href: ruleEditorHref,
                 }}
               >
@@ -466,16 +493,6 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   </table>
                 </div>
               </Panel>
-              {rules.length > 0 ? (
-                <p data-testid="autonomy-footer" className="text-meta text-muted mt-3">
-                  {message(locale, 'autonomy.footer')}
-                </p>
-              ) : null}
-              {simulated ? (
-                <p data-testid="autonomy-dry-run" className="text-meta text-muted mt-2">
-                  {message(locale, 'autonomy.dry_run')}
-                </p>
-              ) : null}
 
               {/* Absent, not disabled, for a viewer who may not write. */}
               {writable && nodeId !== '' ? (
@@ -491,7 +508,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     empty={{
                       heading: message(locale, 'autonomy.empty.heading'),
                       body: message(locale, 'autonomy.empty.body'),
-                      actionLabel: message(locale, 'autonomy.empty.action'),
+                      actionLabel: message(locale, 'autonomy.cta.createRule'),
                       href: ruleEditorHref,
                     }}
                   >
@@ -585,6 +602,29 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   </Panel>
                 </div>
               ) : null}
+
+              {/* What "a rule" means, placed where one is created rather
+                  than above a read-only table with no control to sit after —
+                  the mockup puts an explanatory sentence after the control it
+                  explains, never before it. */}
+              <div className="flex flex-col gap-1 mt-3">
+                <p
+                  data-testid="autonomy-rule-note"
+                  className="text-meta text-muted max-w-prose"
+                >
+                  {message(locale, 'autonomy.glossary.rule')}
+                </p>
+                {rules.length > 0 ? (
+                  <p data-testid="autonomy-footer" className="text-meta text-muted">
+                    {message(locale, 'autonomy.footer')}
+                  </p>
+                ) : null}
+                {simulated ? (
+                  <p data-testid="autonomy-dry-run" className="text-meta text-muted">
+                    {message(locale, 'autonomy.dry_run')}
+                  </p>
+                ) : null}
+              </div>
 
               <div className="mt-5">
                 <AdvancedConfigSection
@@ -688,6 +728,79 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
 
         {tab === 'posture' ? (
           <div className="flex flex-col gap-5">
+            {/* The decision itself, first — a level and a Save beside it,
+                before anything that only reads the posture this produces.
+                Absent, not disabled, for a viewer who may not write: the
+                subtitle above already states the posture in force for
+                anyone who cannot change it. */}
+            {writable && nodeId !== '' ? (
+              <div data-testid="posture-card" className="flex flex-col gap-3">
+                <h4 className="text-strong">
+                  {message(locale, 'autonomy.posture.title')}
+                </h4>
+                <PostureEditor
+                  nodeId={nodeId}
+                  levels={selectableLevels}
+                  levelLabels={postureLabels(locale, selectableLevels)}
+                  currentLevel={postureLevel}
+                  rules={rules}
+                  dryRun={simulated}
+                  freezes={editableFreezes}
+                  budgets={editableBudgets}
+                  riskBound={DEFAULT_RISK_BOUND}
+                  labels={{
+                    level: message(locale, 'autonomy.editor.level'),
+                    save: message(locale, 'autonomy.posture.save'),
+                    saving: message(locale, 'autonomy.editor.saving'),
+                    saved: message(locale, 'autonomy.editor.saved'),
+                    failed: message(locale, 'autonomy.editor.failed'),
+                    unreachable: message(locale, 'autonomy.editor.unreachable'),
+                  }}
+                />
+                {/* FR-016/017/018: absence of a rule is the safe default,
+                    named as such, after the control it explains — never
+                    before it. */}
+                {rulesEmpty ? (
+                  <p
+                    data-testid="autonomy-posture-empty"
+                    className="text-meta text-muted max-w-prose"
+                  >
+                    {message(locale, 'autonomy.empty.body')}{' '}
+                    {message(locale, 'autonomy.posture.empty.scopeLead')}{' '}
+                    <a
+                      href={hrefForTab(state, 'rules-windows', nodeId)}
+                      className="text-accent underline underline-offset-2 motion-hover hover:opacity-80"
+                    >
+                      {tabLabel(locale, 'rules-windows')}
+                    </a>
+                    .
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* The guardrails summary FR-019 asks Posture to carry — read
+                only, the same resolver the Guardrails tab's own table uses,
+                so the two appearances can never disagree. */}
+            <div
+              data-testid="posture-guardrails-summary"
+              className="flex flex-col gap-3"
+            >
+              <h4 className="text-strong">
+                {message(locale, 'autonomy.posture.guardrails.title')}
+              </h4>
+              {nodeId === '' ? null : (
+                <EffectiveFieldsTable
+                  rows={postureGuardrailRows(guardrailCatalogue, locale)}
+                  labels={{
+                    setting: message(locale, 'configuration.column.setting'),
+                    value: message(locale, 'configuration.column.value'),
+                    origin: message(locale, 'configuration.column.provenance'),
+                  }}
+                />
+              )}
+            </div>
+
             {/* The posture reading: what this deployment may do on its own,
                 right now — stopped or not, which freezes and budgets
                 currently bound it, and any temporary override raising it.
@@ -702,7 +815,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 empty={{
                   heading: message(locale, 'autonomy.empty.heading'),
                   body: message(locale, 'autonomy.empty.body'),
-                  actionLabel: message(locale, 'autonomy.empty.action'),
+                  actionLabel: message(locale, 'autonomy.cta.recordBound'),
                   href: boundsEditorHref,
                 }}
               >
@@ -795,6 +908,13 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               </Panel>
             ) : null}
 
+            <p
+              data-testid="autonomy-bound-note"
+              className="text-meta text-muted max-w-prose"
+            >
+              {message(locale, 'autonomy.glossary.bound')}
+            </p>
+
             {/* Absent, not disabled, for a viewer who may not write. */}
             {writable && nodeId !== '' ? (
               <Panel
@@ -808,7 +928,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 empty={{
                   heading: message(locale, 'autonomy.empty.heading'),
                   body: message(locale, 'autonomy.empty.body'),
-                  actionLabel: message(locale, 'autonomy.empty.action'),
+                  actionLabel: message(locale, 'autonomy.cta.grantOverride'),
                   href: overrideEditorHref,
                 }}
               >
@@ -869,6 +989,15 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   }}
                 />
               </Panel>
+            ) : null}
+
+            {writable && nodeId !== '' ? (
+              <p
+                data-testid="autonomy-override-note"
+                className="text-meta text-muted max-w-prose"
+              >
+                {message(locale, 'autonomy.glossary.override')}
+              </p>
             ) : null}
           </div>
         ) : null}
