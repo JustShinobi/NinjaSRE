@@ -74,10 +74,16 @@ export const SCOPE_KINDS = [
 
 export interface AutonomyLabels {
   readonly level: string;
+  /** The simulation section's own heading, read before any of its controls. */
+  readonly simulationTitle: string;
+  /** One line saying what the section answers, read before its CTA. */
+  readonly simulationDescription: string;
   readonly preview: string;
   readonly previewing: string;
   readonly explain: string;
   readonly explaining: string;
+  /** Frames "explain one action" as the narrower question, subordinate to the section's primary CTA. */
+  readonly explainIntro: string;
   readonly explainCapability: string;
   readonly explainResource: string;
   readonly save: string;
@@ -464,18 +470,6 @@ export function AutonomyEditor({
 
   return (
     <div data-testid="autonomy-editor" className="flex flex-col gap-4">
-      {/* A state colour, never the accent. The accent means "press this"; this
-          means "here is what the deployment is currently doing". */}
-      {simulated ? (
-        <p
-          data-testid="dry-run-banner"
-          role="status"
-          className="rounded-2 bg-warning-bg px-3 py-1 text-small text-warning"
-        >
-          {labels.dryRunBanner}
-        </p>
-      ) : null}
-
       <div className="flex flex-col gap-3">
         {allRules.map((rule) => (
           <div
@@ -686,136 +680,168 @@ export function AutonomyEditor({
         </div>
       </details>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <Input
-          label={labels.explainCapability}
-          name="explain-capability"
-          value={capability}
-          onValueChange={setCapability}
-        />
-        <Input
-          label={labels.explainResource}
-          name="explain-resource"
-          value={resource}
-          onValueChange={setResource}
-        />
-        <Button
-          data-testid="ask-explain"
-          state={
-            busy === 'explain'
-              ? 'loading'
-              : capability === '' || resource === ''
-                ? 'disabled'
-                : 'default'
-          }
-          onClick={() => {
-            void explain();
-          }}
-        >
-          {busy === 'explain' ? labels.explaining : labels.explain}
-        </Button>
-        <Button
-          data-testid="toggle-dry-run"
-          state={busy === 'dry-run' ? 'loading' : 'default'}
-          onClick={() => {
-            void toggleDryRun();
-          }}
-        >
-          {simulated ? labels.dryRunOff : labels.dryRunOn}
-        </Button>
-      </div>
+      {/* One question, one path: replay this node's own history under the
+          change above, then decide whether to also flip the whole
+          deployment into simulate-only mode. Exactly one primary control —
+          the toggle stays beside it as a plain secondary action (it takes no
+          extra input), and the narrower "one hypothetical action" question
+          moves to the foot of the section, behind its own line, because it
+          needs two fields before it means anything and never gates the save
+          below. */}
+      <div data-testid="autonomy-simulation" className="flex flex-col gap-3">
+        <h3 className="text-strong">{labels.simulationTitle}</h3>
+        <p className="text-meta text-muted max-w-prose">
+          {labels.simulationDescription}
+        </p>
 
-      {explanation === null ? null : (
-        <dl data-testid="explanation" className="flex flex-col gap-1 text-small">
-          <div className="flex items-center gap-2">
-            <dt className="text-meta text-muted">{labels.decision}</dt>
-            <dd className="flex items-center gap-2">
-              <Badge status={explanation.decision} />
-              <Badge status={explanation.level} />
-            </dd>
-          </div>
-          <div className="flex items-center gap-2">
-            <dt className="text-meta text-muted">{labels.winningRule}</dt>
-            <dd className="font-mono break-all">{explanation.winningRule}</dd>
-          </div>
-          <p className="text-meta text-muted">{explanation.reason}</p>
-        </dl>
-      )}
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="primary"
-          data-testid="ask-autonomy-preview"
-          state={
-            busy === 'preview' ? 'loading' : edited || current ? 'default' : 'disabled'
-          }
-          onClick={() => {
-            void preview();
-          }}
-        >
-          {busy === 'preview' ? labels.previewing : labels.preview}
-        </Button>
-      </div>
-
-      {answer === null || !current ? null : (
-        <div data-testid="autonomy-preview" className="flex flex-col gap-2">
-          <p className="text-small">{answer.summary}</p>
-          <p className="text-meta text-muted tabular-nums">
-            {labels.considered} {answer.considered} · {labels.changed} {answer.changed}{' '}
-            · {labels.newlyAutonomous} {answer.newlyAutonomous}
+        {simulated ? (
+          <p
+            data-testid="dry-run-banner"
+            role="status"
+            className="rounded-2 bg-warning-bg px-3 py-1 text-small text-warning"
+          >
+            {labels.dryRunBanner}
           </p>
-          {answer.actions.length === 0 ? (
-            <p className="text-meta text-muted">{labels.nothingChanges}</p>
-          ) : (
-            <ul className="flex flex-col gap-1 text-meta">
-              {answer.actions.map((action) => (
-                <li
-                  key={action.id}
-                  data-testid="newly-autonomous"
-                  data-capability={action.capability}
-                  className="flex flex-wrap items-center gap-2"
-                >
-                  <span className="font-mono break-all">{action.capability}</span>
-                  <Badge status={action.before} />
-                  <Badge status={action.after} />
-                  <span className="text-muted">{action.reason}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+        ) : null}
 
-          {/* Below the list, never beside the form. What somebody has to have
-              read is what would newly happen without them. */}
-          <span className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="primary"
+            data-testid="ask-autonomy-preview"
+            state={
+              busy === 'preview'
+                ? 'loading'
+                : edited || current
+                  ? 'default'
+                  : 'disabled'
+            }
+            onClick={() => {
+              void preview();
+            }}
+          >
+            {busy === 'preview' ? labels.previewing : labels.preview}
+          </Button>
+          <Button
+            data-testid="toggle-dry-run"
+            state={busy === 'dry-run' ? 'loading' : 'default'}
+            onClick={() => {
+              void toggleDryRun();
+            }}
+          >
+            {simulated ? labels.dryRunOff : labels.dryRunOn}
+          </Button>
+        </div>
+
+        {answer === null || !current ? null : (
+          <div data-testid="autonomy-preview" className="flex flex-col gap-2">
+            <p className="text-small">{answer.summary}</p>
+            <p className="text-meta text-muted tabular-nums">
+              {labels.considered} {answer.considered} · {labels.changed}{' '}
+              {answer.changed} · {labels.newlyAutonomous} {answer.newlyAutonomous}
+            </p>
+            {answer.actions.length === 0 ? (
+              <p className="text-meta text-muted">{labels.nothingChanges}</p>
+            ) : (
+              <ul className="flex flex-col gap-1 text-meta">
+                {answer.actions.map((action) => (
+                  <li
+                    key={action.id}
+                    data-testid="newly-autonomous"
+                    data-capability={action.capability}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <span className="font-mono break-all">{action.capability}</span>
+                    <Badge status={action.before} />
+                    <Badge status={action.after} />
+                    <span className="text-muted">{action.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Below the list, never beside the form. What somebody has to have
+                read is what would newly happen without them. */}
+            <span className="flex items-center gap-3">
+              <Button
+                data-testid="save-autonomy"
+                state={busy === 'save' ? 'loading' : 'default'}
+                onClick={() => {
+                  void save();
+                }}
+              >
+                {busy === 'save' ? labels.saving : labels.save}
+              </Button>
+            </span>
+          </div>
+        )}
+
+        {answer === null && edited ? (
+          <span data-testid="autonomy-preview-first" className="text-meta text-muted">
+            {labels.previewFirst}
+          </span>
+        ) : null}
+
+        {saved ? (
+          <span data-testid="autonomy-saved" className="text-meta text-success">
+            {labels.saved}
+          </span>
+        ) : null}
+        {failure === '' ? null : (
+          <span data-testid="autonomy-failure" className="text-meta text-danger">
+            {failure}
+          </span>
+        )}
+
+        <div className="flex flex-col gap-2 border-t border-border pt-3">
+          <p className="text-meta text-muted">{labels.explainIntro}</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <Input
+              label={labels.explainCapability}
+              name="explain-capability"
+              value={capability}
+              onValueChange={setCapability}
+            />
+            <Input
+              label={labels.explainResource}
+              name="explain-resource"
+              value={resource}
+              onValueChange={setResource}
+            />
             <Button
-              data-testid="save-autonomy"
-              state={busy === 'save' ? 'loading' : 'default'}
+              data-testid="ask-explain"
+              state={
+                busy === 'explain'
+                  ? 'loading'
+                  : capability === '' || resource === ''
+                    ? 'disabled'
+                    : 'default'
+              }
               onClick={() => {
-                void save();
+                void explain();
               }}
             >
-              {busy === 'save' ? labels.saving : labels.save}
+              {busy === 'explain' ? labels.explaining : labels.explain}
             </Button>
-          </span>
+          </div>
+
+          {explanation === null ? null : (
+            <dl data-testid="explanation" className="flex flex-col gap-1 text-small">
+              <div className="flex items-center gap-2">
+                <dt className="text-meta text-muted">{labels.decision}</dt>
+                <dd className="flex items-center gap-2">
+                  <Badge status={explanation.decision} />
+                  <Badge status={explanation.level} />
+                </dd>
+              </div>
+              <div className="flex items-center gap-2">
+                <dt className="text-meta text-muted">{labels.winningRule}</dt>
+                <dd className="font-mono break-all">{explanation.winningRule}</dd>
+              </div>
+              <p className="text-meta text-muted">{explanation.reason}</p>
+            </dl>
+          )}
         </div>
-      )}
-
-      {answer === null && edited ? (
-        <span data-testid="autonomy-preview-first" className="text-meta text-muted">
-          {labels.previewFirst}
-        </span>
-      ) : null}
-
-      {saved ? (
-        <span data-testid="autonomy-saved" className="text-meta text-success">
-          {labels.saved}
-        </span>
-      ) : null}
-      {failure === '' ? null : (
-        <span data-testid="autonomy-failure" className="text-meta text-danger">
-          {failure}
-        </span>
-      )}
+      </div>
     </div>
   );
 }

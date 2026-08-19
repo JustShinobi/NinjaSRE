@@ -492,10 +492,19 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                       budgets={editableBudgets}
                       labels={{
                         level: message(locale, 'autonomy.editor.level'),
+                        simulationTitle: message(
+                          locale,
+                          'autonomy.editor.simulation.title',
+                        ),
+                        simulationDescription: message(
+                          locale,
+                          'autonomy.editor.simulation.description',
+                        ),
                         preview: message(locale, 'autonomy.editor.preview'),
                         previewing: message(locale, 'autonomy.editor.previewing'),
                         explain: message(locale, 'autonomy.editor.explain'),
                         explaining: message(locale, 'autonomy.editor.explaining'),
+                        explainIntro: message(locale, 'autonomy.editor.explainIntro'),
                         explainCapability: message(
                           locale,
                           'autonomy.editor.capability',

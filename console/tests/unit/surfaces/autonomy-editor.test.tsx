@@ -83,10 +83,13 @@ afterEach(() => {
 
 const LABELS = {
   level: 'Level',
+  simulationTitle: 'Simulate this change',
+  simulationDescription: 'Replays what this node has actually decided recently.',
   preview: 'What would this decide differently?',
   previewing: 'Asking…',
   explain: 'Explain',
   explaining: 'Explaining…',
+  explainIntro: 'Or ask about one hypothetical action:',
   explainCapability: 'Capability',
   explainResource: 'Resource',
   save: 'Save this posture',

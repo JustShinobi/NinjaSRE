@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { surfaceContext } from '@/surfaces/context';
@@ -140,6 +141,13 @@ interface Stub {
   readonly values?: unknown;
   readonly provenance?: Readonly<Record<string, string>>;
   readonly fields?: readonly unknown[];
+  /**
+   * The `answer` a POST to the autonomy write endpoint carries back, for
+   * `preview`/`explain`/`save`/`dry-run` alike. Undefined means this stub has
+   * nothing to say about that endpoint, so tests that never click a simulation
+   * control keep getting the same 404 they always did.
+   */
+  readonly simulationAnswer?: unknown;
 }
 
 /** One deployment, one node, and whatever policy and bounds this test needs. */
@@ -151,8 +159,9 @@ function serveAutonomy({
   values,
   provenance = {},
   fields = [],
+  simulationAnswer,
 }: Stub): void {
-  vi.stubGlobal('fetch', (input: unknown) => {
+  vi.stubGlobal('fetch', (input: unknown, init?: RequestInit) => {
     const path = new URL(String(input), BASE).pathname;
     if (path === '/auth/me') return Promise.resolve(respond(principal));
     if (path === '/v1/config') return Promise.resolve(respond({ nodes: tree }));
@@ -173,6 +182,11 @@ function serveAutonomy({
     }
     if (path === `/v1/config/${NODE}/fields`) {
       return Promise.resolve(respond({ fields }));
+    }
+    if (path === '/api/autonomy' && init?.method === 'POST') {
+      return simulationAnswer === undefined
+        ? Promise.resolve(respond({}, 404))
+        : Promise.resolve(respond({ ok: true, answer: simulationAnswer }));
     }
     return Promise.resolve(respond({}, 404));
   });
@@ -541,6 +555,89 @@ describe('the rules table, over every scope kind the deployment may send', () =>
     // The risk bound column shows a value only for `act_on_low_risk`.
     expect(rows[5]).toHaveTextContent('low');
     expect(rows[3]).toHaveTextContent('—');
+  });
+});
+
+describe('the simulation section, on Rules & windows', () => {
+  const ONE_RULE = {
+    rule_id: 'r1',
+    scope: { kind: 'deployment' },
+    level: 'propose_only',
+  };
+
+  it('has its own title, a line saying what it answers, and exactly one primary CTA, with none of the old competing labels surviving beside it', async () => {
+    serveAutonomy({
+      policy: { ...EMPTY_POLICY, rules: [ONE_RULE] },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    const section = screen.getByTestId('autonomy-simulation');
+    expect(
+      within(section).getByRole('heading', { name: 'Simulate this change' }),
+    ).toBeInTheDocument();
+    expect(section).toHaveTextContent(
+      'Replays what this node has actually decided recently',
+    );
+
+    // A count, not a find: the defect this replaces was three controls of
+    // equal weight, a shape "a primary exists somewhere" cannot rule out.
+    const primaries = within(section)
+      .getAllByRole('button')
+      .filter((button) => button.getAttribute('data-variant') === 'primary');
+    expect(primaries).toHaveLength(1);
+
+    // The absence has to be proven, not the presence of the survivor: each
+    // of yesterday's three labels is checked for a non-primary match, the
+    // same shape the feature's own acceptance spec counts.
+    for (const name of [
+      'Explain one action',
+      'Simulate everything',
+      'Stop simulating',
+      'What would this decide differently?',
+    ]) {
+      const matches = within(section).queryAllByRole('button', { name });
+      const survivors = matches.filter(
+        (button) => button.getAttribute('data-variant') !== 'primary',
+      );
+      expect(survivors, `"${name}" survives outside the primary CTA`).toHaveLength(0);
+    }
+  });
+
+  it('still refuses to save the current rule until its simulated effect has been seen', async () => {
+    const PREVIEW_ANSWER = {
+      summary: 'One of one action would be decided differently.',
+      considered: 1,
+      changed: 1,
+      newly_autonomous: 0,
+      actions: [],
+    };
+    serveAutonomy({
+      policy: { ...EMPTY_POLICY, rules: [ONE_RULE] },
+      bounds: EMPTY_BOUNDS,
+      simulationAnswer: PREVIEW_ANSWER,
+    });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    const row = screen.getByTestId('rule-editor');
+    await userEvent.selectOptions(
+      within(row).getByLabelText('Level'),
+      'act_and_report',
+    );
+
+    // Edited, but not yet previewed: no save control exists for this entry.
+    expect(screen.queryByTestId('save-autonomy')).toBeNull();
+    expect(screen.getByTestId('autonomy-preview-first')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+    expect(await screen.findByTestId('save-autonomy')).toBeInTheDocument();
+
+    // Editing again after the preview was seen takes the save away again —
+    // the lock is against the *current* entry, not a one-time unlock.
+    await userEvent.selectOptions(within(row).getByLabelText('Level'), 'propose_only');
+    expect(screen.queryByTestId('save-autonomy')).toBeNull();
   });
 });
 
