@@ -306,13 +306,12 @@ describe('the vocabulary this screen assumes an operator already has', () => {
     expect(screen.getByTestId('autonomy-rule-note')).toHaveTextContent(/rule/i);
   });
 
-  it('defines a bound and an override on Posture, beside the panels that show them', async () => {
+  it('defines a bound on Posture, beside the panel that shows it', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
     await renderAutonomy({ tab: 'posture' });
 
     expect(screen.getByTestId('autonomy-bound-note')).toHaveTextContent(/bound/i);
-    expect(screen.getByTestId('autonomy-override-note')).toHaveTextContent(/override/i);
   });
 });
 
@@ -336,7 +335,11 @@ describe('an active override on the bounds this node holds', () => {
       },
     });
 
+    const user = userEvent.setup();
     await renderAutonomy();
+    // The panel is a rare action now: nothing about it is on the page until
+    // the header button opens it.
+    await user.click(screen.getByRole('button', { name: /temporary override/i }));
 
     expect(screen.queryByTestId('override-revoke-empty')).not.toBeInTheDocument();
     // Specifically the row *inside the revoke section*, not the read-only
@@ -352,10 +355,70 @@ describe('an active override on the bounds this node holds', () => {
   it('says there is nothing to revoke for a node with none active', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
+    const user = userEvent.setup();
     await renderAutonomy();
+    await user.click(screen.getByRole('button', { name: /temporary override/i }));
 
     expect(screen.queryByTestId('revoke-override')).not.toBeInTheDocument();
-    expect(screen.getByTestId('override-revoke-empty')).toBeInTheDocument();
+    // The sentence, not merely the absence of a row: an empty list and a
+    // list that says nothing would both leave `active-override` absent.
+    expect(screen.getByTestId('override-revoke-empty')).toHaveTextContent(
+      /no override is active/i,
+    );
+  });
+});
+
+describe('the temporary override, behind a header button', () => {
+  it.each(['posture', 'rules-windows', 'guardrails'] as const)(
+    'reserves no body space for it, tab=%s',
+    async (tab) => {
+      serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+      await renderAutonomy({ tab });
+
+      // Not merely "no button visible" — the editor itself, and the sentence
+      // that used to sit beside it on Posture, are gone from the body on
+      // every tab, not hidden on the one tab they used to live on.
+      expect(screen.queryByTestId('override-editor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('autonomy-override-note')).not.toBeInTheDocument();
+    },
+  );
+
+  it('opens from a button inside the page header, carrying name, level, reason and duration, the reason field naming the audit trail', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+    const user = userEvent.setup();
+
+    await renderAutonomy();
+
+    const header = screen.getByTestId('page-header');
+    const trigger = within(header).getByRole('button', {
+      name: /temporary override/i,
+    });
+    await user.click(trigger);
+
+    const dialog = screen.getByRole('dialog', { name: /temporary override/i });
+    expect(within(dialog).getByLabelText('Name')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Level')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Duration')).toBeInTheDocument();
+    // The reason field's own label, not a caption beside it, is what has to
+    // say this — a single lookup proves both that the field exists and that
+    // its label names the audit trail.
+    expect(within(dialog).getByLabelText(/reason.*audit trail/i)).toBeInTheDocument();
+    // The definition that used to sit in Posture's body moved with the
+    // control it explains, into the panel it now belongs to.
+    expect(within(dialog).getByTestId('autonomy-override-note')).toHaveTextContent(
+      /override/i,
+    );
+  });
+
+  it('carries no trigger at all for a viewer who may not write', async () => {
+    serveAutonomy({ principal: READER, policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy();
+
+    expect(
+      screen.queryByRole('button', { name: /temporary override/i }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -945,6 +1008,13 @@ describe('a reader sees real content on every tab, never an empty page because t
       expect(screen.queryByTestId('override-editor')).not.toBeInTheDocument();
       expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
       expect(screen.queryByTestId('guardrail-edit')).not.toBeInTheDocument();
+      // Not merely the editor absent, but no button offering it either —
+      // the header carries the same content on every tab, so this is the
+      // one place a reader could otherwise find a route into a form they
+      // may not submit.
+      expect(
+        screen.queryByRole('button', { name: /temporary override/i }),
+      ).not.toBeInTheDocument();
 
       // And the tab is not simply blank instead: each one still has its own
       // real content for a reader to look at.
@@ -1225,6 +1295,47 @@ describe('Posture: the level selector, and nothing before it', () => {
     // own selector option carries, so the subtitle never disagrees with the
     // control it is summarising.
     expect(header).toHaveTextContent('Act and report');
+  });
+
+  it('shows the posture an active override actually puts in force, not the saved level, and says it is temporary', async () => {
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        rules: [
+          {
+            rule_id: 'deployment',
+            scope: { kind: 'deployment' },
+            // The saved level is the lowest one — if the subtitle read this
+            // instead of the override, it would report the deployment as
+            // more cautious than it actually is right now.
+            level: 'propose_only',
+          },
+        ],
+      },
+      bounds: {
+        ...EMPTY_BOUNDS,
+        overrides: [
+          {
+            name: 'incident-widen',
+            scope: { kind: 'deployment' },
+            level: 'act_and_report',
+            risk_bound: 'low',
+            expires_at: '2026-08-14T00:00:00Z',
+            granted_by: 'user-operator',
+            reason: 'restoring a paged service',
+          },
+        ],
+      },
+    });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    const header = screen.getByTestId('page-header');
+    // The override's level, not the saved rule's propose-only.
+    expect(header).toHaveTextContent('Act and report');
+    expect(header).not.toHaveTextContent('Propose only');
+    // And it declares why: a temporary override, not the configured posture.
+    expect(header).toHaveTextContent(/temporary override/i);
   });
 
   it('renders no paragraph between the title and the level selector, on Posture', async () => {

@@ -1092,6 +1092,11 @@ export const EN = {
   // Settings page, since neither the node nor the posture in force is a fact
   // a catalogue can hold.
   'autonomy.subtitle': 'Node: {node} · Posture now: {posture}',
+  // An active override outranks the saved level: what actually governs right
+  // now is the override's, and this says so rather than reporting the saved
+  // level as if nothing temporary were in force.
+  'autonomy.subtitle.override':
+    'Node: {node} · Posture now: {posture}, from a temporary override',
   'autonomy.posture.title': 'What this deployment may do on its own',
   'autonomy.posture.save': 'Save posture',
   // Follows the level selector and its Save, never precedes them — the
@@ -1136,13 +1141,20 @@ export const EN = {
   'autonomy.override.duration': 'Expires',
   'autonomy.override.reason': 'Granted because',
   'autonomy.override.grantedBy': 'Granted by',
+  // What the header button says and what the side panel is titled — the same
+  // phrase names both, so whoever opens the panel finds the words they
+  // clicked waiting for them at the top of what opened.
+  'autonomy.override.temporary.title': 'Temporary override',
+  'autonomy.override.temporary.close': 'Close',
   'autonomy.override.panel.title': 'Grant or revoke an override',
   'autonomy.override.grant.title': 'Grant an override',
   'autonomy.override.grant.name': 'Name',
   'autonomy.override.grant.nameHelp':
     'A short identifier for this override, unique on this node. It appears in the audit trail and is what a revoke names.',
   'autonomy.override.grant.level': 'Level',
-  'autonomy.override.grant.reason': 'Reason',
+  // The label itself, not a caption beside it, says this is recorded — a
+  // reader who only reads labels still learns where a reason ends up.
+  'autonomy.override.grant.reason': 'Reason — recorded in the audit trail',
   'autonomy.override.grant.reasonHelp':
     'Recorded in the audit trail beside the override, for whoever reviews it later.',
   'autonomy.override.grant.duration': 'Duration',

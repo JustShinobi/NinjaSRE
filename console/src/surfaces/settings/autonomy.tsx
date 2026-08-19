@@ -30,6 +30,7 @@ import { readSetupState } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { panelLabels } from '../labels';
 import { OverrideEditor, type ActiveOverride } from '../override-editor';
+import { OverridePanel } from '../override-panel';
 import { Panel } from '../panel';
 import { PostureEditor } from '../posture-editor';
 import { ConfigEditor } from '../preview';
@@ -84,6 +85,21 @@ const LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report', 'act_silent
 
 /** The levels an override may raise a scope to. Overrides never grant silence. */
 const OVERRIDE_LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report'];
+
+/**
+ * The most autonomous level among currently active overrides, or `null`
+ * when none is active — an override only ever raises a scope, so the
+ * highest one in force is the ceiling the subtitle has to report, not
+ * merely the first one this node's bounds happened to list.
+ */
+function highestActiveLevel(overrides: readonly ActiveOverride[]): string | null {
+  return overrides.reduce<string | null>((highest, override) => {
+    if (highest === null) return override.level;
+    return LEVELS.indexOf(override.level) > LEVELS.indexOf(highest)
+      ? override.level
+      : highest;
+  }, null);
+}
 
 /** Least specific first, which is the order resolution considers them in. */
 const SCOPE_ORDER = [
@@ -349,13 +365,104 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   // the posture in force there right now. Falls back to the page's own
   // static description when no node resolved — there is no posture to
   // report yet, and claiming one would be a fact this render does not have.
+  // An active override outranks the saved level: what actually governs right
+  // now is the override's, on the record and only until it expires, and
+  // reporting the saved level instead would understate what this node may do.
+  const overriddenLevel = highestActiveLevel(activeOverrides);
   const subtitle =
     nodeId === ''
       ? message(locale, page.context)
-      : message(locale, 'autonomy.subtitle', {
-          node: nodeId,
-          posture: postureLabel(locale, postureLevel),
-        });
+      : overriddenLevel === null
+        ? message(locale, 'autonomy.subtitle', {
+            node: nodeId,
+            posture: postureLabel(locale, postureLevel),
+          })
+        : message(locale, 'autonomy.subtitle.override', {
+            node: nodeId,
+            posture: postureLabel(locale, overriddenLevel),
+          });
+
+  // The rare action: absent from every tab's own body, reachable through one
+  // button in the header. Absent, not disabled, for a viewer who may not
+  // write — the header carries no trigger at all rather than one that opens
+  // onto a form nobody may submit.
+  const overridePanel =
+    writable && nodeId !== '' ? (
+      <OverridePanel
+        label={message(locale, 'autonomy.override.temporary.title')}
+        closeLabel={message(locale, 'autonomy.override.temporary.close')}
+      >
+        <p
+          data-testid="autonomy-override-note"
+          className="text-meta text-muted max-w-prose"
+        >
+          {message(locale, 'autonomy.glossary.override')}
+        </p>
+        <Panel
+          title={message(locale, 'autonomy.override.panel.title')}
+          state={stateOf(bounds, false)}
+          dependency={dependencyOf(bounds)}
+          labels={panelLabels(locale, message(locale, 'autonomy.override.panel.title'))}
+          empty={{
+            heading: message(locale, 'autonomy.empty.heading'),
+            body: message(locale, 'autonomy.empty.body'),
+            actionLabel: message(locale, 'autonomy.cta.grantOverride'),
+            href: overrideEditorHref,
+          }}
+        >
+          <OverrideEditor
+            nodeId={nodeId}
+            levels={OVERRIDE_LEVELS}
+            levelLabels={postureLabels(locale, OVERRIDE_LEVELS)}
+            active={activeOverrides}
+            labels={{
+              grantTitle: message(locale, 'autonomy.override.grant.title'),
+              grantName: message(locale, 'autonomy.override.grant.name'),
+              grantNameHelp: message(locale, 'autonomy.override.grant.nameHelp'),
+              grantLevel: message(locale, 'autonomy.override.grant.level'),
+              grantReason: message(locale, 'autonomy.override.grant.reason'),
+              grantReasonHelp: message(locale, 'autonomy.override.grant.reasonHelp'),
+              grantDuration: message(locale, 'autonomy.override.grant.duration'),
+              grantDurationDefault: message(
+                locale,
+                'autonomy.override.grant.durationDefault',
+              ),
+              grantDurationOneHour: message(
+                locale,
+                'autonomy.override.grant.durationOneHour',
+              ),
+              grantDurationEightHours: message(
+                locale,
+                'autonomy.override.grant.durationEightHours',
+              ),
+              grantDurationTwentyFourHours: message(
+                locale,
+                'autonomy.override.grant.durationTwentyFourHours',
+              ),
+              grantDurationCustom: message(
+                locale,
+                'autonomy.override.grant.durationCustom',
+              ),
+              grantSeconds: message(locale, 'autonomy.override.grant.seconds'),
+              grant: message(locale, 'autonomy.override.grant.submit'),
+              granting: message(locale, 'autonomy.override.grant.granting'),
+              granted: message(locale, 'autonomy.override.grant.granted'),
+              reasonRequired: message(locale, 'autonomy.override.grant.reasonRequired'),
+              revokeTitle: message(locale, 'autonomy.override.revoke.title'),
+              revokeEmpty: message(locale, 'autonomy.override.revoke.empty'),
+              duration: message(locale, 'autonomy.override.duration'),
+              reasonLabel: message(locale, 'autonomy.override.reason'),
+              grantedBy: message(locale, 'autonomy.override.grantedBy'),
+              revoke: message(locale, 'autonomy.override.revoke.submit'),
+              revoking: message(locale, 'autonomy.override.revoke.revoking'),
+              revoked: message(locale, 'autonomy.override.revoke.revoked'),
+              failed: message(locale, 'autonomy.override.failed'),
+              unreachable: message(locale, 'autonomy.override.unreachable'),
+            }}
+          />
+        </Panel>
+      </OverridePanel>
+    ) : undefined;
 
   return (
     <>
@@ -366,6 +473,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
         // No crumb for a deployment that resolved to no node: a breadcrumb
         // whose last step is blank reads as a page that lost its subject.
         nested={nodeId === '' ? [] : [{ label: nodeId }]}
+        actions={overridePanel}
       />
 
       <TabLinks
@@ -902,91 +1010,6 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
             >
               {message(locale, 'autonomy.glossary.bound')}
             </p>
-
-            {/* Absent, not disabled, for a viewer who may not write. */}
-            {writable && nodeId !== '' ? (
-              <Panel
-                title={message(locale, 'autonomy.override.panel.title')}
-                state={stateOf(bounds, false)}
-                dependency={dependencyOf(bounds)}
-                labels={panelLabels(
-                  locale,
-                  message(locale, 'autonomy.override.panel.title'),
-                )}
-                empty={{
-                  heading: message(locale, 'autonomy.empty.heading'),
-                  body: message(locale, 'autonomy.empty.body'),
-                  actionLabel: message(locale, 'autonomy.cta.grantOverride'),
-                  href: overrideEditorHref,
-                }}
-              >
-                <OverrideEditor
-                  nodeId={nodeId}
-                  levels={OVERRIDE_LEVELS}
-                  levelLabels={postureLabels(locale, OVERRIDE_LEVELS)}
-                  active={activeOverrides}
-                  labels={{
-                    grantTitle: message(locale, 'autonomy.override.grant.title'),
-                    grantName: message(locale, 'autonomy.override.grant.name'),
-                    grantNameHelp: message(locale, 'autonomy.override.grant.nameHelp'),
-                    grantLevel: message(locale, 'autonomy.override.grant.level'),
-                    grantReason: message(locale, 'autonomy.override.grant.reason'),
-                    grantReasonHelp: message(
-                      locale,
-                      'autonomy.override.grant.reasonHelp',
-                    ),
-                    grantDuration: message(locale, 'autonomy.override.grant.duration'),
-                    grantDurationDefault: message(
-                      locale,
-                      'autonomy.override.grant.durationDefault',
-                    ),
-                    grantDurationOneHour: message(
-                      locale,
-                      'autonomy.override.grant.durationOneHour',
-                    ),
-                    grantDurationEightHours: message(
-                      locale,
-                      'autonomy.override.grant.durationEightHours',
-                    ),
-                    grantDurationTwentyFourHours: message(
-                      locale,
-                      'autonomy.override.grant.durationTwentyFourHours',
-                    ),
-                    grantDurationCustom: message(
-                      locale,
-                      'autonomy.override.grant.durationCustom',
-                    ),
-                    grantSeconds: message(locale, 'autonomy.override.grant.seconds'),
-                    grant: message(locale, 'autonomy.override.grant.submit'),
-                    granting: message(locale, 'autonomy.override.grant.granting'),
-                    granted: message(locale, 'autonomy.override.grant.granted'),
-                    reasonRequired: message(
-                      locale,
-                      'autonomy.override.grant.reasonRequired',
-                    ),
-                    revokeTitle: message(locale, 'autonomy.override.revoke.title'),
-                    revokeEmpty: message(locale, 'autonomy.override.revoke.empty'),
-                    duration: message(locale, 'autonomy.override.duration'),
-                    reasonLabel: message(locale, 'autonomy.override.reason'),
-                    grantedBy: message(locale, 'autonomy.override.grantedBy'),
-                    revoke: message(locale, 'autonomy.override.revoke.submit'),
-                    revoking: message(locale, 'autonomy.override.revoke.revoking'),
-                    revoked: message(locale, 'autonomy.override.revoke.revoked'),
-                    failed: message(locale, 'autonomy.override.failed'),
-                    unreachable: message(locale, 'autonomy.override.unreachable'),
-                  }}
-                />
-              </Panel>
-            ) : null}
-
-            {writable && nodeId !== '' ? (
-              <p
-                data-testid="autonomy-override-note"
-                className="text-meta text-muted max-w-prose"
-              >
-                {message(locale, 'autonomy.glossary.override')}
-              </p>
-            ) : null}
           </div>
         ) : null}
       </div>

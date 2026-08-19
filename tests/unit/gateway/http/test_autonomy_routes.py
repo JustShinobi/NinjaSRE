@@ -561,3 +561,62 @@ async def test_revoking_an_override_this_node_never_granted_is_not_found(
     client, _, secret = deployment
     answer = await client.delete(f"{POLICY}/overrides/never-granted", headers=bearer(secret))
     assert answer.status_code == 404
+
+
+async def test_granting_and_revoking_an_override_write_the_audit_trail(
+    deployment: tuple[AsyncClient, GatewayState, str],
+) -> None:
+    """Neither route writes its own audit event — both go through `save`, the
+    same generic configuration-write path every other policy change uses. A
+    list is audited as one leaf rather than field by field
+    (`platform/config_service/paths.py:leaves`), so granting or revoking an
+    override produces one event for the whole `overrides` field, carrying the
+    override's name, level, reason and expiry inside the before/after value it
+    already records — not a bespoke override-shaped event nobody writes.
+    """
+    client, state, secret = deployment
+    granted = await client.post(
+        f"{POLICY}/overrides",
+        json={
+            "name": "rack-move",
+            "level": "act_and_report",
+            "reason": "moving the rack",
+            "seconds": 3600,
+        },
+        headers=bearer(secret),
+    )
+    assert granted.status_code == 201
+
+    scope = TenantScope(org_id=ORG)
+    async with state.gateway.begin(scope) as uow:
+        after_grant = await uow.audit.query(resource_id=TEAM_PAYMENTS, limit=50)
+    grant_events = [
+        event for event in after_grant if event.detail.get("field") == "policies.autonomy.overrides"
+    ]
+    assert len(grant_events) == 1, [event.detail for event in after_grant]
+    granted_entry = next(
+        item for item in grant_events[0].detail["new_value"] if item["name"] == "rack-move"
+    )
+    assert granted_entry["level"] == "act_and_report"
+    assert granted_entry["reason"] == "moving the rack"
+    assert granted_entry["expires_at"]
+
+    revoked = await client.delete(f"{POLICY}/overrides/rack-move", headers=bearer(secret))
+    assert revoked.status_code == 200
+
+    async with state.gateway.begin(scope) as uow:
+        after_revoke = await uow.audit.query(resource_id=TEAM_PAYMENTS, limit=50)
+    seen = {event.event_id for event in grant_events}
+    revoke_events = [
+        event
+        for event in after_revoke
+        if event.detail.get("field") == "policies.autonomy.overrides" and event.event_id not in seen
+    ]
+    assert len(revoke_events) == 1, [event.detail for event in after_revoke]
+    revoked_entry = next(
+        item for item in revoke_events[0].detail["previous_value"] if item["name"] == "rack-move"
+    )
+    assert revoked_entry["level"] == "act_and_report"
+    assert revoked_entry["reason"] == "moving the rack"
+    assert revoked_entry["expires_at"]
+    assert revoke_events[0].detail["new_value"] == []

@@ -897,6 +897,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.tab.rules-windows': 'Regras e janelas',
   'autonomy.tab.guardrails': 'Guardrails',
   'autonomy.subtitle': 'Nó: {node} · Postura agora: {posture}',
+  'autonomy.subtitle.override':
+    'Nó: {node} · Postura agora: {posture}, por uma exceção temporária',
   'autonomy.posture.title': 'O que esta instalação pode fazer sozinha',
   'autonomy.posture.save': 'Salvar postura',
   'autonomy.posture.empty.scopeLead':
@@ -940,13 +942,15 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'autonomy.override.duration': 'Expira',
   'autonomy.override.reason': 'Concedido porque',
   'autonomy.override.grantedBy': 'Concedido por',
+  'autonomy.override.temporary.title': 'Exceção temporária',
+  'autonomy.override.temporary.close': 'Fechar',
   'autonomy.override.panel.title': 'Conceder ou revogar uma exceção',
   'autonomy.override.grant.title': 'Conceder uma exceção',
   'autonomy.override.grant.name': 'Nome',
   'autonomy.override.grant.nameHelp':
     'Um identificador curto para esta exceção, único neste nó. Aparece na trilha de auditoria e é o nome que uma revogação usa.',
   'autonomy.override.grant.level': 'Nível',
-  'autonomy.override.grant.reason': 'Motivo',
+  'autonomy.override.grant.reason': 'Motivo — registrado na trilha de auditoria',
   'autonomy.override.grant.reasonHelp':
     'Registrado na trilha de auditoria junto com a exceção, para quem for revisá-la depois.',
   'autonomy.override.grant.duration': 'Duração',
