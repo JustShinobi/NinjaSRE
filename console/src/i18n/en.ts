@@ -174,8 +174,16 @@ export const EN = {
 
   // --- Where data comes from and where it goes ---------------------------------
   'data.ingress.title': 'What arrives',
-  'data.ingress.never': 'Nothing has ever arrived here',
+  // The two chip words a receiver's own state resolves to \u2014 never a third,
+  // and never translated to a synonym of either.
+  'data.ingress.receiving': 'Receiving',
+  'data.ingress.ready': 'Ready \u2014 nothing arrived yet',
   'data.ingress.last': 'Last delivery',
+  // A wider, coarser span than `last`: how much has arrived recently, not
+  // only whether anything just did.
+  'data.ingress.week': '{count} this week',
+  'data.ingress.copyUrl': 'Copy URL',
+  'data.ingress.receiverYaml': 'Copy Alertmanager receiver YAML',
   'data.ingress.sample': 'Last payload, masked',
   'data.ingress.empty.heading': 'No receiver is configured',
   'data.ingress.empty.body':
@@ -187,6 +195,10 @@ export const EN = {
   'data.ingress.detail.summary':
     'Expected format, trust mechanism, and a delivery test.',
   'data.ingress.detail.format': 'Expects:',
+  // The intake sources the environment-validated scope could not carry \u2014
+  // named on the screen the gap is felt on, not only in the catalogue.
+  'data.ingress.retired':
+    'Sentry, PagerDuty, Opsgenie and Datadog intake moved to the roadmap \u2014 they return with an environment that can validate them.',
   'data.rules.title': 'What happens to it',
   'data.rules.action': 'Action:',
   'data.rules.catchAll': 'Everything no rule above matched ends here.',

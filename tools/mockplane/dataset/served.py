@@ -40,6 +40,7 @@ from config.constants.security import (
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
 from core.llm.registry import default_registry
 from gateway.webhooks.router import PROFILES
+from gateway.webhooks.sources import alertmanager
 from integrations._catalogue.discovery import catalogue as integration_catalogue
 from integrations._catalogue.entry import CatalogueEntry
 from integrations._catalogue.gaps import gaps
@@ -2211,12 +2212,20 @@ def checklist_record(
 INGRESS_BASE_URL: Final = "https://ninjasre.example.invalid"
 
 
-def ingress_records() -> tuple[CapturedRecord, ...]:
+def ingress_records(*, delivery_token_name: str = "") -> tuple[CapturedRecord, ...]:
     """Return what an operator pastes into each alert router, per source.
 
     Derived from the shipped profiles rather than written out, for the reason
     the signal block is: a fixture that carried its own copy of the seven
     receivers would go on describing a receiver after it was removed.
+
+    ``delivery_token_name`` mirrors the real route's own rule
+    (``gateway/http/routes/ingress.py``): the receiver block is generated —
+    never assembled here by concatenation — and only for Alertmanager, and
+    only once a delivery token actually exists to name in it. A scenario with
+    no delivery-scoped token (``empty_records``' own call to this function)
+    passes nothing, so its receiver stays exactly as silent as its token list
+    is — the same contradiction the real route refuses to produce.
     """
     return (
         _record(
@@ -2230,6 +2239,14 @@ def ingress_records() -> tuple[CapturedRecord, ...]:
                         "url": f"{INGRESS_BASE_URL}/webhooks/{name}",
                         "expects": profile_of.expects,
                         "verification": profile_of.verification,
+                        "receiver_yaml": (
+                            alertmanager.receiver_yaml(
+                                url=f"{INGRESS_BASE_URL}/webhooks/{name}",
+                                token_name=delivery_token_name,
+                            )
+                            if name == _LIVE_SOURCE and delivery_token_name
+                            else None
+                        ),
                     }
                     for name, profile_of in sorted(PROFILES.items())
                 ],
@@ -2256,6 +2273,20 @@ _LIVE_SOURCE: Final = "alertmanager"
 #: a source delivering rubbish are different problems with different fixes, and
 #: a dataset carrying only the first would let a screen conflate them.
 _REFUSING_SOURCE: Final = "grafana"
+
+#: How much of the week's ingress ``counts`` actually landed, for the two
+#: sources that have any: the accepted total for the live one, the rejected
+#: total for the refusing one. A wider window than ``counts`` in principle,
+#: but this dataset invents no activity older than what ``counts`` already
+#: states, so the two agree here rather than one silently exceeding the other.
+_WEEK_COUNT: Final[dict[str, int]] = {_LIVE_SOURCE: 14, _REFUSING_SOURCE: 6}
+
+#: Must match the delivery-scoped token's own name in the ``tokens`` record
+#: below (``tok-0003``) — the receiver block names the credential an operator
+#: actually has to find in Machine tokens, not a name invented here. Scenarios
+#: built without that token (``empty_records``' own call to ``ingress_records``)
+#: pass nothing instead of borrowing this name.
+_DELIVERY_TOKEN_NAME: Final = "Alert delivery"
 
 
 def transit_records() -> tuple[CapturedRecord, ...]:
@@ -2327,6 +2358,7 @@ def transit_records() -> tuple[CapturedRecord, ...]:
             "last_delivery_at": "",
             "last_outcome": "",
             "counts": {},
+            "week_count": _WEEK_COUNT.get(name, 0),
             "recent_rejections": [],
             "sample": None,
         }
@@ -3040,7 +3072,7 @@ def served_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
         *identity_records(role=role),
         *role_records(),
         *platform_records(),
-        *ingress_records(),
+        *ingress_records(delivery_token_name=_DELIVERY_TOKEN_NAME),
         *transit_records(),
         *setup_records(),
     )

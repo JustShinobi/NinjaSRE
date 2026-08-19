@@ -10,7 +10,7 @@ import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { AdvancedConfigSection } from '../advanced-config-section';
-import { CopyValue } from '../screens/data-copy';
+import { CopyAction, CopyValue } from '../screens/data-copy';
 import { emptyBecause, readSetupState, setupCause, type Cause } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { DeliveryToken } from '../ingress';
@@ -24,6 +24,7 @@ import {
   field,
   flag,
   list,
+  number,
   optionalRead,
   panelRead,
   read,
@@ -347,6 +348,130 @@ async function content(
             const sample: unknown = field(source, 'sample');
             const rejections = list(source, 'recent_rejections');
             const pasteRow = paste.get(name);
+            const receiverYaml =
+              pasteRow === undefined ? '' : text(pasteRow, 'receiver_yaml');
+
+            // The endpoint is one of the three things a receiving row carries
+            // always, shown ahead of the detail — but only once there is a
+            // genuinely paste-ready, absolute address to show. The bare
+            // relative `path` this deployment also knows is not that: pasted
+            // into an external alert router with no host, it resolves
+            // nowhere, so absent, correctly-scoped data beats a copy button
+            // that looks actionable and is not. A silent source (below)
+            // keeps the same endpoint one press away instead of ahead of
+            // proof that anything is listening — FR-051/052 still hold for
+            // it, just inside its own compact disclosure rather than open on
+            // arrival.
+            const endpoint =
+              pasteRow === undefined ? null : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <CopyValue
+                    testId="ingress-url"
+                    value={
+                      schemeOf(text(pasteRow, 'url')) === UNSAFE_SCHEME
+                        ? text(source, 'path')
+                        : text(pasteRow, 'url')
+                    }
+                    labels={{
+                      copy: message(locale, 'data.ingress.copyUrl'),
+                      copied: message(locale, 'surface.payload.copied'),
+                    }}
+                  />
+                  {receiverYaml === '' ? null : (
+                    // Consumes exactly what the gateway generated — never
+                    // assembled here by concatenation. Absent whenever the
+                    // gateway had nothing to name a credential with.
+                    <CopyAction
+                      testId="ingress-receiver-yaml"
+                      value={receiverYaml}
+                      label={message(locale, 'data.ingress.receiverYaml')}
+                      copiedLabel={message(locale, 'surface.payload.copied')}
+                    />
+                  )}
+                </div>
+              );
+
+            const provenance = (
+              <Provenance
+                labels={{
+                  open: `${message(locale, 'data.provenance.open')} (${formatNumber(
+                    locale,
+                    arrivalRows.filter((row) => text(row, 'source') === name).length,
+                  )})`,
+                  source: message(locale, 'data.provenance.source'),
+                  rule: message(locale, 'data.provenance.rule'),
+                  team: message(locale, 'data.provenance.team'),
+                  run: message(locale, 'data.provenance.run'),
+                  resource: message(locale, 'data.provenance.resource'),
+                  none: message(locale, 'data.provenance.none'),
+                }}
+                chain={chainOf(name, arrivalRows)}
+              />
+            );
+
+            const detailBody = (
+              <div className="flex flex-col gap-2">
+                <p>
+                  <span className="text-muted">
+                    {message(locale, 'data.ingress.detail.format')}
+                  </span>{' '}
+                  {text(source, 'expects')}
+                </p>
+                <p>
+                  <span className="text-muted">
+                    {message(locale, 'ingress.verification')}
+                  </span>{' '}
+                  {text(source, 'verification')}
+                </p>
+                {counts(source, 'counts').length === 0 ? null : (
+                  <p data-testid="ingress-counts">
+                    {counts(source, 'counts')
+                      .map(([outcome, total]) => `${outcome} ${String(total)}`)
+                      .join(' · ')}
+                  </p>
+                )}
+                {sample === undefined || sample === null ? null : (
+                  <div data-testid="sample">
+                    <p className="text-muted">
+                      {message(locale, 'data.ingress.sample')} —{' '}
+                      {text(sample, 'masking_policy')}
+                    </p>
+                    <code className="text-meta break-all">{text(sample, 'body')}</code>
+                  </div>
+                )}
+
+                {may(viewer, WRITE) ? (
+                  <div
+                    className="flex flex-col gap-2 pt-2 mt-1 edge border-border border-b-0 border-x-0"
+                    data-testid="delivery-tester"
+                  >
+                    <h4 className="text-strong">
+                      {message(locale, 'data.simulate.title')}
+                    </h4>
+                    <p className="text-meta text-muted">
+                      {message(locale, 'data.simulate.purpose')}
+                    </p>
+                    <RuleSimulator
+                      sources={[name]}
+                      labels={{
+                        source: message(locale, 'data.simulate.source'),
+                        payload: message(locale, 'data.simulate.payload'),
+                        simulate: message(locale, 'data.simulate.action'),
+                        simulating: message(locale, 'data.simulate.running'),
+                        save: message(locale, 'data.simulate.save'),
+                        needsSimulation: message(locale, 'data.simulate.needed'),
+                        rule: message(locale, 'data.provenance.rule'),
+                        team: message(locale, 'data.provenance.team'),
+                        action: message(locale, 'data.rules.action'),
+                        failed: message(locale, 'data.simulate.failed'),
+                        unreachable: message(locale, 'data.simulate.unreachable'),
+                        malformed: message(locale, 'data.simulate.malformed'),
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            );
 
             return (
               <li
@@ -366,20 +491,29 @@ async function content(
                       className="text-meta text-muted"
                       data-testid="never-delivered"
                     >
-                      {message(locale, 'data.ingress.never')}
+                      {message(locale, 'data.ingress.ready')}
                     </span>
                   ) : (
-                    <span
-                      className="text-meta text-muted flex items-center gap-1"
-                      data-testid="last-delivery"
-                    >
-                      {message(locale, 'data.ingress.last')}{' '}
-                      {
-                        timestamp(locale, text(source, 'last_delivery_at'), now, zone)
-                          .relative
-                      }
-                      <Badge status={text(source, 'last_outcome')} />
-                    </span>
+                    <>
+                      <span className="text-meta text-strong">
+                        {message(locale, 'data.ingress.receiving')}
+                      </span>
+                      <span
+                        className="text-meta text-muted flex items-center gap-1"
+                        data-testid="last-delivery"
+                      >
+                        {message(locale, 'data.ingress.last')}{' '}
+                        {
+                          timestamp(locale, text(source, 'last_delivery_at'), now, zone)
+                            .relative
+                        }
+                        <Badge status={text(source, 'last_outcome')} />
+                        {' · '}
+                        {message(locale, 'data.ingress.week', {
+                          count: number(source, 'week_count'),
+                        })}
+                      </span>
+                    </>
                   )}
                 </div>
 
@@ -396,113 +530,43 @@ async function content(
                   </ul>
                 )}
 
-                {pasteRow === undefined ? null : (
-                  // The endpoint is one of the three things a compact row
-                  // carries, shown always rather than behind the detail —
-                  // but only once there is a genuinely paste-ready,
-                  // absolute address to show. The bare relative `path` this
-                  // deployment also knows is not that: pasted into an
-                  // external alert router with no host, it resolves nowhere,
-                  // so absent, correctly-scoped data beats a copy button that
-                  // looks actionable and is not.
-                  <CopyValue
-                    testId="ingress-url"
-                    value={
-                      schemeOf(text(pasteRow, 'url')) === UNSAFE_SCHEME
-                        ? text(source, 'path')
-                        : text(pasteRow, 'url')
-                    }
-                    labels={{
-                      copy: message(locale, 'surface.payload.copy'),
-                      copied: message(locale, 'surface.payload.copied'),
-                    }}
-                  />
+                {silent ? (
+                  // A source nothing has ever pointed at yet earns a single
+                  // compact line, not a shorter list of what it offers: the
+                  // endpoint moves inside the same "Format & test"
+                  // disclosure a receiving row already keeps collapsed by
+                  // default, rather than sitting ahead of proof that
+                  // anything is listening. `Reference` renders nothing of
+                  // its children until it is opened — closed means absent
+                  // from the document, the same contract the receiving
+                  // row's own detail already keeps — which a plain
+                  // `<details>` cannot promise: its content stays in the
+                  // DOM, visually hidden by the browser alone. Provenance
+                  // stays outside the disclosure, matching every other row.
+                  <>
+                    {provenance}
+                    <Reference
+                      title={message(locale, 'data.ingress.detail.title')}
+                      summary={message(locale, 'data.ingress.detail.summary')}
+                    >
+                      <div className="flex flex-col gap-2">
+                        {endpoint}
+                        {detailBody}
+                      </div>
+                    </Reference>
+                  </>
+                ) : (
+                  <>
+                    {endpoint}
+                    {provenance}
+                    <Reference
+                      title={message(locale, 'data.ingress.detail.title')}
+                      summary={message(locale, 'data.ingress.detail.summary')}
+                    >
+                      {detailBody}
+                    </Reference>
+                  </>
                 )}
-
-                <Provenance
-                  labels={{
-                    open: `${message(locale, 'data.provenance.open')} (${formatNumber(
-                      locale,
-                      arrivalRows.filter((row) => text(row, 'source') === name).length,
-                    )})`,
-                    source: message(locale, 'data.provenance.source'),
-                    rule: message(locale, 'data.provenance.rule'),
-                    team: message(locale, 'data.provenance.team'),
-                    run: message(locale, 'data.provenance.run'),
-                    resource: message(locale, 'data.provenance.resource'),
-                    none: message(locale, 'data.provenance.none'),
-                  }}
-                  chain={chainOf(name, arrivalRows)}
-                />
-
-                <Reference
-                  title={message(locale, 'data.ingress.detail.title')}
-                  summary={message(locale, 'data.ingress.detail.summary')}
-                >
-                  <div className="flex flex-col gap-2">
-                    <p>
-                      <span className="text-muted">
-                        {message(locale, 'data.ingress.detail.format')}
-                      </span>{' '}
-                      {text(source, 'expects')}
-                    </p>
-                    <p>
-                      <span className="text-muted">
-                        {message(locale, 'ingress.verification')}
-                      </span>{' '}
-                      {text(source, 'verification')}
-                    </p>
-                    {counts(source, 'counts').length === 0 ? null : (
-                      <p data-testid="ingress-counts">
-                        {counts(source, 'counts')
-                          .map(([outcome, total]) => `${outcome} ${String(total)}`)
-                          .join(' · ')}
-                      </p>
-                    )}
-                    {sample === undefined || sample === null ? null : (
-                      <div data-testid="sample">
-                        <p className="text-muted">
-                          {message(locale, 'data.ingress.sample')} —{' '}
-                          {text(sample, 'masking_policy')}
-                        </p>
-                        <code className="text-meta break-all">
-                          {text(sample, 'body')}
-                        </code>
-                      </div>
-                    )}
-
-                    {may(viewer, WRITE) ? (
-                      <div
-                        className="flex flex-col gap-2 pt-2 mt-1 edge border-border border-b-0 border-x-0"
-                        data-testid="delivery-tester"
-                      >
-                        <h4 className="text-strong">
-                          {message(locale, 'data.simulate.title')}
-                        </h4>
-                        <p className="text-meta text-muted">
-                          {message(locale, 'data.simulate.purpose')}
-                        </p>
-                        <RuleSimulator
-                          sources={[name]}
-                          labels={{
-                            source: message(locale, 'data.simulate.source'),
-                            payload: message(locale, 'data.simulate.payload'),
-                            simulate: message(locale, 'data.simulate.action'),
-                            simulating: message(locale, 'data.simulate.running'),
-                            save: message(locale, 'data.simulate.save'),
-                            needsSimulation: message(locale, 'data.simulate.needed'),
-                            rule: message(locale, 'data.provenance.rule'),
-                            team: message(locale, 'data.provenance.team'),
-                            action: message(locale, 'data.rules.action'),
-                            failed: message(locale, 'data.simulate.failed'),
-                            unreachable: message(locale, 'data.simulate.unreachable'),
-                            malformed: message(locale, 'data.simulate.malformed'),
-                          }}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                </Reference>
               </li>
             );
           })}
@@ -549,6 +613,10 @@ async function content(
             />
           </div>
         )}
+
+        <p className="text-meta text-muted" data-testid="ingress-retired">
+          {message(locale, 'data.ingress.retired')}
+        </p>
       </Panel>
 
       {/* --- What happens to it --------------------------------------------- */}

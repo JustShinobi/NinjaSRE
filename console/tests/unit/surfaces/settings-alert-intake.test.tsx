@@ -210,11 +210,15 @@ describe('the receiver list, compact by default', () => {
 
 describe('a source that has never delivered', () => {
   it('says so, rather than showing an empty row', async () => {
+    // FR-050: the exact chip a silent source carries. Replaces the sentence
+    // this test pinned before the chip vocabulary existed
+    // ("Nothing has ever arrived here") — the words changed, the property
+    // this test protects (a silent source says so, plainly) did not.
     await page();
 
     const silent = sourceRow('generic');
     expect(silent?.getAttribute('data-never-delivered')).toBe('true');
-    expect(silent).toHaveTextContent('Nothing has ever arrived here');
+    expect(silent).toHaveTextContent('Ready — nothing arrived yet');
   });
 
   it('is drawn before the ones that have', async () => {
@@ -241,6 +245,121 @@ describe('a source that has never delivered', () => {
       expect(marker.className).not.toContain('text-danger');
       expect(marker.className).toContain('text-muted');
     }
+  });
+});
+
+describe('the Receiving chip, the week volume, and the compact silent row', () => {
+  it('carries the exact "Receiving" chip, distinct from the silent "Ready" one', async () => {
+    await page();
+
+    const live = requireSourceRow('alertmanager');
+    expect(within(live).getByText('Receiving', { exact: true })).toBeInTheDocument();
+
+    const silent = requireSourceRow('generic');
+    expect(
+      within(silent).getByText('Ready — nothing arrived yet', { exact: true }),
+    ).toBeInTheDocument();
+    expect(within(silent).queryByText('Receiving', { exact: true })).toBeNull();
+  });
+
+  it('states the week volume beside the last delivery, for the receiving source', async () => {
+    await page();
+
+    const live = requireSourceRow('alertmanager');
+    expect(within(live).getByTestId('last-delivery')).toHaveTextContent('14 this week');
+  });
+
+  it('keeps the endpoint and the disclosure closed for a silent source, reachable one press away', async () => {
+    await page();
+
+    const silent = requireSourceRow('generic');
+    // Nothing the compact row defers is in the document at all until it is
+    // opened — the same "closed rather than absent" contract the receiving
+    // row's own `Reference` already keeps.
+    expect(within(silent).queryByTestId('ingress-url')).toBeNull();
+    expect(within(silent).queryByTestId('reference-body')).toBeNull();
+
+    const disclosure = within(silent).getByTestId('reference');
+    expect(disclosure).toHaveAttribute('data-expanded', 'false');
+
+    await expandDetail(silent);
+
+    expect(within(silent).getByTestId('ingress-url')).toBeInTheDocument();
+  });
+
+  it('never shows the week volume or a last-delivery time on the silent row', async () => {
+    await page();
+
+    const silent = requireSourceRow('generic');
+    expect(silent).not.toHaveTextContent('this week');
+    expect(silent.querySelector('[data-testid="last-delivery"]')).toBeNull();
+  });
+});
+
+describe('a silent source with a recent rejection', () => {
+  /**
+   * `serveScenario('populated')`, with `generic`'s ingress row swapped for one
+   * that is `never_delivered` yet still carries a `recent_rejections` entry —
+   * the shape FR-065's edge case names: something arrived and was refused
+   * outside the window that decides "receiving" versus "silent", and the
+   * refusal must not disappear into "nothing arrived".
+   */
+  function serveSilentSourceWithARejection(): void {
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      const response = await base(input as string, init);
+      if (path !== '/v1/transit/ingress') return response;
+      const body = (await response.json()) as {
+        readonly sources: readonly Record<string, unknown>[];
+      };
+      return new Response(
+        JSON.stringify({
+          ...body,
+          sources: body.sources.map((row) =>
+            row.source === 'generic'
+              ? {
+                  ...row,
+                  recent_rejections: [
+                    {
+                      delivery_id: 'generic:rejected',
+                      direction: 'ingress',
+                      source: 'generic',
+                      occurred_at: '2026-08-01T00:00:00+00:00',
+                      outcome: 'rejected',
+                      reason: 'this generic webhook did not verify',
+                      matched_rule: '',
+                      team_node_id: '',
+                      resource_id: '',
+                      run_id: '',
+                      incident_id: '',
+                      event_type: '',
+                      attempt: 1,
+                      detail: {},
+                    },
+                  ],
+                }
+              : row,
+          ),
+        }),
+        { status: response.status, headers: { 'content-type': 'application/json' } },
+      );
+    });
+  }
+
+  it('still shows the rejection, without the row reading as though nothing arrived', async () => {
+    serveSilentSourceWithARejection();
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const silent = requireSourceRow('generic');
+    expect(silent.getAttribute('data-never-delivered')).toBe('true');
+    expect(
+      within(silent).getByText('Ready — nothing arrived yet', { exact: true }),
+    ).toBeInTheDocument();
+    expect(within(silent).getByTestId('rejections')).toHaveTextContent(
+      'this generic webhook did not verify',
+    );
   });
 });
 
@@ -377,6 +496,91 @@ describe('a webhook address safe to announce', () => {
     expect(writeText).toHaveBeenCalledWith(
       ['https:', '//ninjasre.example.invalid/webhooks/alertmanager'].join(''),
     );
+    vi.unstubAllGlobals();
+  });
+
+  it('names the action "Copy URL", not the raw-payload label it borrowed', async () => {
+    // FR-052, read literally: the button this row offers is named "Copy
+    // URL" — not "Copy the raw payload", the label of an unrelated control
+    // (`surface.payload.copy`) this row was reading by mistake.
+    await page();
+
+    const row = requireSourceRow('alertmanager');
+    expect(within(row).getByTestId('ingress-url-copy')).toHaveTextContent('Copy URL');
+  });
+});
+
+describe('the Alertmanager receiver YAML', () => {
+  it('offers "Copy Alertmanager receiver YAML" only on the Alertmanager row', async () => {
+    await page();
+
+    const live = requireSourceRow('alertmanager');
+    expect(
+      within(live).getByRole('button', { name: 'Copy Alertmanager receiver YAML' }),
+    ).toBeInTheDocument();
+
+    for (const name of ['grafana', 'generic']) {
+      const row = requireSourceRow(name);
+      expect(
+        within(row).queryByRole('button', { name: 'Copy Alertmanager receiver YAML' }),
+      ).toBeNull();
+    }
+  });
+
+  it('copies exactly the block the gateway served, never a value assembled on the screen', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+
+    await page();
+    const live = requireSourceRow('alertmanager');
+    await userEvent.click(
+      within(live).getByRole('button', { name: 'Copy Alertmanager receiver YAML' }),
+    );
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const copied = writeText.mock.calls[0]?.[0] as string;
+    expect(copied).toContain('webhook_configs');
+    expect(copied).toContain(
+      ['https:', '//ninjasre.example.invalid/webhooks/alertmanager'].join(''),
+    );
+    expect(copied).toContain('Alert delivery');
+    // Never a value assembled by string concatenation on the screen: the
+    // gateway's own marker sentence, verbatim, never a raw secret shape.
+    expect(copied).toContain('paste the value of delivery token');
+    vi.unstubAllGlobals();
+  });
+
+  it('offers no receiver-YAML action when the gateway generated none', async () => {
+    // Mirrors FR-063's own rule for the trust line, applied to the YAML
+    // action: no delivery token, no block that could not authenticate
+    // anything — the gateway's own answer for that case is a `null`
+    // `receiver_yaml`, never a block the screen would have to assemble
+    // itself to fill the gap.
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      const response = await base(input as string, init);
+      if (path !== '/v1/ingress/sources') return response;
+      const body = (await response.json()) as {
+        readonly sources: readonly Record<string, unknown>[];
+      };
+      return new Response(
+        JSON.stringify({
+          ...body,
+          sources: body.sources.map((row) =>
+            row.source === 'alertmanager' ? { ...row, receiver_yaml: null } : row,
+          ),
+        }),
+        { status: response.status, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const live = requireSourceRow('alertmanager');
+    expect(
+      within(live).queryByRole('button', { name: 'Copy Alertmanager receiver YAML' }),
+    ).toBeNull();
     vi.unstubAllGlobals();
   });
 });
@@ -547,6 +751,19 @@ describe('the setup wizard handover', () => {
     await page();
 
     expect(screen.queryByTestId('setup-return-banner')).toBeNull();
+  });
+});
+
+describe('the retired intake sources', () => {
+  it('names what moved to the roadmap, and why', async () => {
+    await page();
+
+    const footer = screen.getByTestId('ingress-retired');
+    expect(footer).toHaveTextContent('Sentry');
+    expect(footer).toHaveTextContent('PagerDuty');
+    expect(footer).toHaveTextContent('Opsgenie');
+    expect(footer).toHaveTextContent('Datadog');
+    expect(footer).toHaveTextContent('roadmap');
   });
 });
 

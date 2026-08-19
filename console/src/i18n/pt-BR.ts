@@ -1556,8 +1556,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'live.investigate.started': 'A investigação foi iniciada.',
   'live.investigate.close': 'Fechar',
   'data.ingress.title': 'O que chega',
-  'data.ingress.never': 'Nada nunca chegou aqui',
+  'data.ingress.receiving': 'Recebendo',
+  'data.ingress.ready': 'Pronta \u2014 nada chegou ainda',
   'data.ingress.last': '\u00daltima entrega',
+  'data.ingress.week': '{count} nesta semana',
+  'data.ingress.copyUrl': 'Copiar URL',
+  'data.ingress.receiverYaml': 'Copiar YAML do receiver do Alertmanager',
   'data.ingress.sample': '\u00daltimo payload, mascarado',
   'data.ingress.empty.heading': 'Nenhum receptor configurado',
   'data.ingress.empty.body':
@@ -1567,6 +1571,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'data.ingress.detail.summary':
     'Formato esperado, mecanismo de confian\u00e7a, e um teste de entrega.',
   'data.ingress.detail.format': 'Espera:',
+  'data.ingress.retired':
+    'A entrada de Sentry, PagerDuty, Opsgenie e Datadog foi para o roadmap \u2014 eles voltam com um ambiente que consiga valid\u00e1-los.',
   'data.rules.title': 'O que fazer com isso',
   'data.rules.action': 'A\u00e7\u00e3o:',
   'data.rules.catchAll': 'Tudo o que nenhuma regra acima pegou termina aqui.',

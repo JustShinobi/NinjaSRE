@@ -55,3 +55,48 @@ export function CopyValue({ value, labels, testId }: CopyValueProps): ReactNode 
     </span>
   );
 }
+
+export interface CopyActionProps {
+  /** What actually reaches the clipboard. Never rendered on the screen. */
+  readonly value: string;
+  readonly label: string;
+  readonly copiedLabel: string;
+  /** Names this control for anything that looks for it. */
+  readonly testId?: string;
+}
+
+/**
+ * A button that copies `value` without ever displaying it.
+ *
+ * `CopyValue`'s sibling for a block too long to show inline — the
+ * Alertmanager receiver YAML, not a URL a row already prints in full. The
+ * value still never leaves the click handler's own closure: nothing renders
+ * it, and nothing but the browser's clipboard API ever reads it.
+ */
+export function CopyAction({
+  value,
+  label,
+  copiedLabel,
+  testId,
+}: CopyActionProps): ReactNode {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Button
+      variant="quiet"
+      data-testid={testId}
+      onClick={() => {
+        void navigator.clipboard.writeText(value).then(
+          () => {
+            setCopied(true);
+          },
+          () => {
+            setCopied(false);
+          },
+        );
+      }}
+    >
+      {copied ? copiedLabel : label}
+    </Button>
+  );
+}
