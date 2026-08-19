@@ -176,6 +176,50 @@ def test_every_audit_outcome_is_one_the_backend_actually_declares() -> None:
     )
 
 
+def _side_effect_level_pointers(value: Any, *, pointer: str = "") -> list[tuple[str, Any]]:
+    """Return every ``(pointer, value)`` pair where a key is ``side_effect_level``.
+
+    Recursive, because the field sits at a different depth in each slug that
+    carries it: a top-level field on an approval, nested under ``entries`` in
+    the catalogue, under ``tools`` in the capability listing, and under
+    ``detail`` on an audit event describing one. A value the backend cannot say
+    is exactly as wrong wherever in the body it is nested.
+    """
+    found: list[tuple[str, Any]] = []
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            child_pointer = f"{pointer}/{key}"
+            if key == "side_effect_level":
+                found.append((child_pointer, nested))
+            else:
+                found.extend(_side_effect_level_pointers(nested, pointer=child_pointer))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found.extend(_side_effect_level_pointers(item, pointer=f"{pointer}/{index}"))
+    return found
+
+
+def test_every_side_effect_level_is_one_the_backend_actually_declares() -> None:
+    """``side_effect_level`` is a plain ``str`` on the wire too, so schema
+    validation alone never catches a value the real ``SIDE_EFFECT_LEVELS`` tuple
+    does not have — the gap that let this dataset serve ``"write"``, a sixth
+    level the backend has never declared, for every capability that was not a
+    plain read, leaving the whole upper half of the scale exercised by nothing.
+    """
+    from config.constants.security import SIDE_EFFECT_LEVELS
+
+    allowed = set(SIDE_EFFECT_LEVELS)
+    offending: list[str] = []
+    for scenario in FIXTURE_SCENARIO_NAMES:
+        for record in scenarios.load(scenario).all_records():
+            for pointer, level in _side_effect_level_pointers(record.body):
+                if level is not None and level not in allowed:
+                    offending.append(f"{scenario}/{record.slug}{pointer}: {level!r}")
+    assert not offending, (
+        f"a fixture serves a side-effect level the real backend never declares: {offending}"
+    )
+
+
 def test_a_seeded_contract_change_fails_naming_the_endpoint_and_the_field() -> None:
     # What a route change looks like from here: the document gains a required
     # field the fixture does not carry.

@@ -30,7 +30,7 @@
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
+            "side_effect_level": "write_reversible",
             "summary": "Enable a backup job that exists and is disabled.",
             "tags": [
               "estate",
@@ -119,7 +119,7 @@
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
+            "side_effect_level": "write_reversible",
             "summary": "Enable a backup job that exists and is disabled.",
             "tags": [
               "estate",
@@ -208,7 +208,7 @@
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
+            "side_effect_level": "write_reversible",
             "summary": "Enable a backup job that exists and is disabled.",
             "tags": [
               "estate",
@@ -297,7 +297,7 @@
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
+            "side_effect_level": "write_reversible",
             "summary": "Enable a backup job that exists and is disabled.",
             "tags": [
               "estate",
@@ -386,7 +386,7 @@
             "name": "estate.enable_backup_job",
             "reason": null,
             "required_integrations": [],
-            "side_effect_level": "write",
+            "side_effect_level": "write_reversible",
             "summary": "Enable a backup job that exists and is disabled.",
             "tags": [
               "estate",

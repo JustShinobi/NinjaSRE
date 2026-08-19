@@ -33,6 +33,10 @@ from config.constants.first_run import (
     SETUP_STEP_INVESTIGATION_RUNTIME,
     SETUP_STEP_MODEL_PROVIDER,
 )
+from config.constants.security import (
+    SIDE_EFFECT_WRITE_IRREVERSIBLE,
+    SIDE_EFFECT_WRITE_REVERSIBLE,
+)
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
 from core.llm.registry import default_registry
 from gateway.webhooks.router import PROFILES
@@ -666,7 +670,11 @@ APPROVALS: Final[tuple[Mapping[str, Any], ...]] = (
         "approval_id": "apr-0001",
         "run_id": "run-0005",
         "action": "estate.enable_backup_job",
-        "side_effect_level": "write",
+        # Flipping a job back on is undone by flipping it off again — the
+        # rollback plan below says exactly that — so this is the reversible
+        # half of a write, not the bare, backend-undeclared "write" this
+        # dataset used to serve.
+        "side_effect_level": SIDE_EFFECT_WRITE_REVERSIBLE,
         "summary": "Enable the disabled job so the primary's guests are covered at all.",
         "requested_at": at(minutes=21),
         "expires_at": at(minutes=-99),
@@ -693,7 +701,11 @@ APPROVALS: Final[tuple[Mapping[str, Any], ...]] = (
         "approval_id": "apr-0002",
         "run_id": "run-0001",
         "action": "estate.expand_volume",
-        "side_effect_level": "write",
+        # No rollback plan below: growth has no safe undo (shrinking a live
+        # disk is not something this tool offers back), which is what makes
+        # it the irreversible half of a write rather than the "destructive"
+        # tier — nothing here is deleted, only added.
+        "side_effect_level": SIDE_EFFECT_WRITE_IRREVERSIBLE,
         "summary": "Grow the volume that is at the ceiling of its own allocation.",
         "requested_at": at(days=2, minutes=33),
         "expires_at": at(days=1, minutes=33),
@@ -1579,7 +1591,7 @@ def config_records() -> tuple[CapturedRecord, ...]:
                             "name": "estate.enable_backup_job",
                             "kind": "tool",
                             "summary": "Enable a backup job that exists and is disabled.",
-                            "side_effect_level": "write",
+                            "side_effect_level": SIDE_EFFECT_WRITE_REVERSIBLE,
                             "available": True,
                             "reason": None,
                             "required_integrations": [],
@@ -2537,7 +2549,8 @@ AUDIT_EVENTS: Final[tuple[Mapping[str, Any], ...]] = (
         "resource_kind": "approval",
         "resource_id": "apr-0001",
         "outcome": "allowed",
-        "detail": {"side_effect_level": "write"},
+        # Mirrors what apr-0001 itself declares above, not a second opinion.
+        "detail": {"side_effect_level": SIDE_EFFECT_WRITE_REVERSIBLE},
     },
     {
         "event_id": "aud-0006",
@@ -2788,7 +2801,7 @@ def platform_records() -> tuple[CapturedRecord, ...]:
                         "display_name": "Enable backup job",
                         "description": "Enable a job that exists and is switched off.",
                         "domain": "estate",
-                        "side_effect_level": "write",
+                        "side_effect_level": SIDE_EFFECT_WRITE_REVERSIBLE,
                     },
                     {
                         "name": "knowledge.search",

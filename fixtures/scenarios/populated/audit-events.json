@@ -22,7 +22,7 @@
             "actor_id": "user-automation",
             "actor_kind": "agent",
             "detail": {
-              "side_effect_level": "write"
+              "side_effect_level": "write_reversible"
             },
             "event_id": "aud-0007",
             "occurred_at": "2026-08-07T11:39:00+00:00",
