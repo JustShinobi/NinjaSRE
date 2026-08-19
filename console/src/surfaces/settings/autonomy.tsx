@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { TabLinks } from '@/components';
 import { Badge } from '@/components/status';
 import { formatNumber } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
@@ -16,6 +17,13 @@ import {
   type EditableBound,
   type EditableRule,
 } from '../autonomy-editor';
+import {
+  AUTONOMY_TABS,
+  AUTONOMY_TAB_FILTERS,
+  hrefForTab,
+  tabFrom,
+  tabLabel,
+} from './autonomy-tabs';
 import { editableFields } from '../editable';
 import { effectiveRows, formatHours, formatSeconds } from '../effective-fields';
 import { readSetupState } from '../emptiness';
@@ -40,7 +48,7 @@ import {
 } from '../read';
 import { EffectiveFieldsTable } from '@/design/resolution-preview';
 import { placedTree } from '../tree';
-import { readViewState, resolveNode, type FilterName } from '../url-state';
+import { readViewState, resolveNode } from '../url-state';
 
 /**
  * The single surface that edits what this deployment may do on its own: the
@@ -53,9 +61,13 @@ import { readViewState, resolveNode, type FilterName } from '../url-state';
  * path than this one. Every one of those links now goes to the section of
  * this same page that resolves it: creating the first rule, a freeze, a
  * budget, or an override never leaves this document again.
+ *
+ * **Three tabs, one question each.** `autonomy-tabs.ts` declares the three
+ * addresses (Posture, Rules & windows, Guardrails) and which one owns which
+ * configuration field; this screen still makes every read it always did,
+ * regardless of which tab is active, and only the JSX below the tab strip is
+ * conditional on `tab`.
  */
-
-export const AUTONOMY_FILTERS: readonly FilterName[] = ['node'];
 
 /** The permission that decides whether any editor is on the page at all. */
 const WRITE = 'config.write';
@@ -215,7 +227,8 @@ const SCOPE_LABEL: Readonly<Record<string, MessageKey>> = {
 
 export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode> {
   const { credential, locale, viewer, search, now, zone } = context;
-  const state = readViewState(search, AUTONOMY_FILTERS);
+  const state = readViewState(search, AUTONOMY_TAB_FILTERS);
+  const tab = tabFrom(state.filters.tab ?? '');
   const init = authorised(credential);
   const writable = may(viewer, WRITE);
 
@@ -321,7 +334,13 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   // or the raw editor either way.
   const canCreateHere = writable && nodeId !== '';
   const ruleEditorHref = canCreateHere ? '#new-rule' : '/settings';
-  const boundsEditorHref = canCreateHere ? '#new-freeze' : '/settings';
+  // The bounds panel reads on Posture now (the posture reading it is), but
+  // the freeze-creation form it points at still lives inside `AutonomyEditor`
+  // on Rules & windows — so, unlike `ruleEditorHref`, this anchor has to name
+  // the owning tab rather than merely scroll within the current one.
+  const boundsEditorHref = canCreateHere
+    ? `${hrefForTab(state, 'rules-windows', nodeId)}#new-freeze`
+    : '/settings';
   const overrideEditorHref = canCreateHere ? '#override-grant' : '/settings';
 
   const guardrailCatalogue = editableFields(dataOf(guardrailFields));
@@ -350,107 +369,42 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
         // whose last step is blank reads as a page that lost its subject.
         nested={nodeId === '' ? [] : [{ label: nodeId }]}
       />
-      <SetupReturnBanner
-        locale={locale}
-        setup={setup}
-        requested={requestedSetupReturn(search.get('return'))}
+
+      <TabLinks
+        label={message(locale, 'autonomy.tabs')}
+        selected={tab}
+        tabs={AUTONOMY_TABS.map((each) => ({
+          id: each,
+          label: tabLabel(locale, each),
+          href: hrefForTab(state, each, nodeId),
+        }))}
       />
 
-      {/* What the rest of the page assumes an operator already knows. */}
-      <div
-        data-testid="autonomy-glossary"
-        className="flex flex-col gap-1 text-meta text-muted mb-5 max-w-prose"
-      >
-        <p>{message(locale, 'autonomy.glossary.rule')}</p>
-        <p>{message(locale, 'autonomy.glossary.bound')}</p>
-        <p>{message(locale, 'autonomy.glossary.override')}</p>
-      </div>
+      <div className="mt-4">
+        <SetupReturnBanner
+          locale={locale}
+          setup={setup}
+          requested={requestedSetupReturn(search.get('return'))}
+        />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 min-w-0">
-          <Panel
-            title={message(locale, 'autonomy.rules.title')}
-            state={stateOf(policy, rulesEmpty)}
-            dependency={dependencyOf(policy)}
-            labels={panelLabels(locale, message(locale, 'autonomy.rules.title'))}
-            empty={{
-              heading: message(locale, 'autonomy.empty.heading'),
-              body: message(locale, 'autonomy.empty.body'),
-              actionLabel: message(locale, 'autonomy.empty.action'),
-              href: ruleEditorHref,
-            }}
-          >
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-small">
-                <caption className="sr-only">
-                  {message(locale, 'autonomy.rules.title')}
-                </caption>
-                <thead>
-                  <tr>
-                    {[
-                      message(locale, 'autonomy.column.scope'),
-                      message(locale, 'autonomy.column.matcher'),
-                      message(locale, 'autonomy.column.level'),
-                      message(locale, 'autonomy.column.risk'),
-                    ].map((header) => (
-                      <th
-                        key={header}
-                        scope="col"
-                        className="text-left text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rules.map((rule, position) => {
-                    const scope = field(rule, 'scope');
-                    const level = text(rule, 'level');
-                    return (
-                      <tr
-                        key={`${text(scope, 'kind')}-${String(position)}`}
-                        data-testid="autonomy-rule"
-                        data-level={level}
-                      >
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
-                          {text(scope, 'kind')}
-                        </td>
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0 break-all">
-                          {matcherOf(scope)}
-                        </td>
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                          <Badge status={level} />
-                        </td>
-                        <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                          {level === 'act_on_low_risk' ? text(rule, 'risk_bound') : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        {tab === 'rules-windows' ? (
+          <>
+            {/* What the rest of the page assumes an operator already knows. */}
+            <div
+              data-testid="autonomy-glossary"
+              className="flex flex-col gap-1 text-meta text-muted mb-5 max-w-prose"
+            >
+              <p>{message(locale, 'autonomy.glossary.rule')}</p>
+              <p>{message(locale, 'autonomy.glossary.bound')}</p>
+              <p>{message(locale, 'autonomy.glossary.override')}</p>
             </div>
-          </Panel>
-          {rules.length > 0 ? (
-            <p data-testid="autonomy-footer" className="text-meta text-muted mt-3">
-              {message(locale, 'autonomy.footer')}
-            </p>
-          ) : null}
-          {simulated ? (
-            <p data-testid="autonomy-dry-run" className="text-meta text-muted mt-2">
-              {message(locale, 'autonomy.dry_run')}
-            </p>
-          ) : null}
 
-          {/* Absent, not disabled, for a viewer who may not write. */}
-          {writable && nodeId !== '' ? (
-            <div className="mt-5">
+            <div className="min-w-0">
               <Panel
-                title={message(locale, 'autonomy.editor.save')}
-                state={stateOf(policy, false)}
+                title={message(locale, 'autonomy.rules.title')}
+                state={stateOf(policy, rulesEmpty)}
                 dependency={dependencyOf(policy)}
-                labels={panelLabels(locale, message(locale, 'autonomy.editor.save'))}
+                labels={panelLabels(locale, message(locale, 'autonomy.rules.title'))}
                 empty={{
                   heading: message(locale, 'autonomy.empty.heading'),
                   body: message(locale, 'autonomy.empty.body'),
@@ -458,87 +412,204 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   href: ruleEditorHref,
                 }}
               >
-                <AutonomyEditor
-                  nodeId={nodeId}
-                  rules={editable}
-                  levels={LEVELS}
-                  levelLabels={postureLabels(locale, LEVELS)}
-                  scopeKindLabels={Object.fromEntries(
-                    SCOPE_ORDER.map((kind) => [
-                      kind,
-                      message(locale, SCOPE_LABEL[kind] ?? 'autonomy.scope.deployment'),
-                    ]),
-                  )}
-                  dryRun={simulated}
-                  freezes={editableFreezes}
-                  budgets={editableBudgets}
-                  labels={{
-                    level: message(locale, 'autonomy.editor.level'),
-                    preview: message(locale, 'autonomy.editor.preview'),
-                    previewing: message(locale, 'autonomy.editor.previewing'),
-                    explain: message(locale, 'autonomy.editor.explain'),
-                    explaining: message(locale, 'autonomy.editor.explaining'),
-                    explainCapability: message(locale, 'autonomy.editor.capability'),
-                    explainResource: message(locale, 'autonomy.editor.resource'),
-                    save: message(locale, 'autonomy.editor.save'),
-                    saving: message(locale, 'autonomy.editor.saving'),
-                    saved: message(locale, 'autonomy.editor.saved'),
-                    failed: message(locale, 'autonomy.editor.failed'),
-                    unreachable: message(locale, 'autonomy.editor.unreachable'),
-                    previewFirst: message(locale, 'autonomy.editor.previewFirst'),
-                    considered: message(locale, 'autonomy.editor.considered'),
-                    changed: message(locale, 'autonomy.editor.changed'),
-                    newlyAutonomous: message(locale, 'autonomy.editor.newlyAutonomous'),
-                    nothingChanges: message(locale, 'autonomy.editor.nothingChanges'),
-                    dryRunOn: message(locale, 'autonomy.editor.dryRunOn'),
-                    dryRunOff: message(locale, 'autonomy.editor.dryRunOff'),
-                    dryRunBanner: message(locale, 'autonomy.editor.dryRunBanner'),
-                    decision: message(locale, 'autonomy.editor.decision'),
-                    winningRule: message(locale, 'autonomy.editor.winningRule'),
-                    newRuleTitle: message(locale, 'autonomy.editor.newRule.title'),
-                    newRuleScope: message(locale, 'autonomy.editor.newRule.scope'),
-                    newRuleLevel: message(locale, 'autonomy.editor.newRule.level'),
-                    newRuleTeam: message(locale, 'autonomy.editor.newRule.team'),
-                    newRuleResourceKind: message(
-                      locale,
-                      'autonomy.editor.newRule.resourceKind',
-                    ),
-                    newRuleResourceId: message(
-                      locale,
-                      'autonomy.editor.newRule.resourceId',
-                    ),
-                    newRuleCapability: message(
-                      locale,
-                      'autonomy.editor.newRule.capability',
-                    ),
-                    newRuleLabelName: message(
-                      locale,
-                      'autonomy.editor.newRule.labelName',
-                    ),
-                    newRuleLabelValue: message(
-                      locale,
-                      'autonomy.editor.newRule.labelValue',
-                    ),
-                    addRule: message(locale, 'autonomy.editor.newRule.add'),
-                    freezesTitle: message(locale, 'autonomy.freezes.title'),
-                    freezeName: message(locale, 'autonomy.freeze.name'),
-                    freezeStart: message(locale, 'autonomy.freeze.start'),
-                    freezeEnd: message(locale, 'autonomy.freeze.end'),
-                    freezeReason: message(locale, 'autonomy.freeze.reason'),
-                    addFreeze: message(locale, 'autonomy.freeze.add'),
-                    budgetsTitle: message(locale, 'autonomy.budgets.title'),
-                    budgetName: message(locale, 'autonomy.budget.name'),
-                    budgetLimit: message(locale, 'autonomy.budget.limit'),
-                    budgetCountedBy: message(locale, 'autonomy.budget.countedBy'),
-                    addBudget: message(locale, 'autonomy.budget.add'),
-                  }}
-                />
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full text-small">
+                    <caption className="sr-only">
+                      {message(locale, 'autonomy.rules.title')}
+                    </caption>
+                    <thead>
+                      <tr>
+                        {[
+                          message(locale, 'autonomy.column.scope'),
+                          message(locale, 'autonomy.column.matcher'),
+                          message(locale, 'autonomy.column.level'),
+                          message(locale, 'autonomy.column.risk'),
+                        ].map((header) => (
+                          <th
+                            key={header}
+                            scope="col"
+                            className="text-left text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rules.map((rule, position) => {
+                        const scope = field(rule, 'scope');
+                        const level = text(rule, 'level');
+                        return (
+                          <tr
+                            key={`${text(scope, 'kind')}-${String(position)}`}
+                            data-testid="autonomy-rule"
+                            data-level={level}
+                          >
+                            <td className="px-3 py-2 edge border-border border-t-0 border-x-0 font-mono break-all">
+                              {text(scope, 'kind')}
+                            </td>
+                            <td className="px-3 py-2 edge border-border border-t-0 border-x-0 break-all">
+                              {matcherOf(scope)}
+                            </td>
+                            <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                              <Badge status={level} />
+                            </td>
+                            <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
+                              {level === 'act_on_low_risk'
+                                ? text(rule, 'risk_bound')
+                                : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </Panel>
-            </div>
-          ) : null}
+              {rules.length > 0 ? (
+                <p data-testid="autonomy-footer" className="text-meta text-muted mt-3">
+                  {message(locale, 'autonomy.footer')}
+                </p>
+              ) : null}
+              {simulated ? (
+                <p data-testid="autonomy-dry-run" className="text-meta text-muted mt-2">
+                  {message(locale, 'autonomy.dry_run')}
+                </p>
+              ) : null}
 
-          {/* Guardrails: masking, secret detection and approval — the same
-              document a save here writes, never a second registration. */}
+              {/* Absent, not disabled, for a viewer who may not write. */}
+              {writable && nodeId !== '' ? (
+                <div className="mt-5">
+                  <Panel
+                    title={message(locale, 'autonomy.editor.save')}
+                    state={stateOf(policy, false)}
+                    dependency={dependencyOf(policy)}
+                    labels={panelLabels(
+                      locale,
+                      message(locale, 'autonomy.editor.save'),
+                    )}
+                    empty={{
+                      heading: message(locale, 'autonomy.empty.heading'),
+                      body: message(locale, 'autonomy.empty.body'),
+                      actionLabel: message(locale, 'autonomy.empty.action'),
+                      href: ruleEditorHref,
+                    }}
+                  >
+                    <AutonomyEditor
+                      nodeId={nodeId}
+                      rules={editable}
+                      levels={LEVELS}
+                      levelLabels={postureLabels(locale, LEVELS)}
+                      scopeKindLabels={Object.fromEntries(
+                        SCOPE_ORDER.map((kind) => [
+                          kind,
+                          message(
+                            locale,
+                            SCOPE_LABEL[kind] ?? 'autonomy.scope.deployment',
+                          ),
+                        ]),
+                      )}
+                      dryRun={simulated}
+                      freezes={editableFreezes}
+                      budgets={editableBudgets}
+                      labels={{
+                        level: message(locale, 'autonomy.editor.level'),
+                        preview: message(locale, 'autonomy.editor.preview'),
+                        previewing: message(locale, 'autonomy.editor.previewing'),
+                        explain: message(locale, 'autonomy.editor.explain'),
+                        explaining: message(locale, 'autonomy.editor.explaining'),
+                        explainCapability: message(
+                          locale,
+                          'autonomy.editor.capability',
+                        ),
+                        explainResource: message(locale, 'autonomy.editor.resource'),
+                        save: message(locale, 'autonomy.editor.save'),
+                        saving: message(locale, 'autonomy.editor.saving'),
+                        saved: message(locale, 'autonomy.editor.saved'),
+                        failed: message(locale, 'autonomy.editor.failed'),
+                        unreachable: message(locale, 'autonomy.editor.unreachable'),
+                        previewFirst: message(locale, 'autonomy.editor.previewFirst'),
+                        considered: message(locale, 'autonomy.editor.considered'),
+                        changed: message(locale, 'autonomy.editor.changed'),
+                        newlyAutonomous: message(
+                          locale,
+                          'autonomy.editor.newlyAutonomous',
+                        ),
+                        nothingChanges: message(
+                          locale,
+                          'autonomy.editor.nothingChanges',
+                        ),
+                        dryRunOn: message(locale, 'autonomy.editor.dryRunOn'),
+                        dryRunOff: message(locale, 'autonomy.editor.dryRunOff'),
+                        dryRunBanner: message(locale, 'autonomy.editor.dryRunBanner'),
+                        decision: message(locale, 'autonomy.editor.decision'),
+                        winningRule: message(locale, 'autonomy.editor.winningRule'),
+                        newRuleTitle: message(locale, 'autonomy.editor.newRule.title'),
+                        newRuleScope: message(locale, 'autonomy.editor.newRule.scope'),
+                        newRuleLevel: message(locale, 'autonomy.editor.newRule.level'),
+                        newRuleTeam: message(locale, 'autonomy.editor.newRule.team'),
+                        newRuleResourceKind: message(
+                          locale,
+                          'autonomy.editor.newRule.resourceKind',
+                        ),
+                        newRuleResourceId: message(
+                          locale,
+                          'autonomy.editor.newRule.resourceId',
+                        ),
+                        newRuleCapability: message(
+                          locale,
+                          'autonomy.editor.newRule.capability',
+                        ),
+                        newRuleLabelName: message(
+                          locale,
+                          'autonomy.editor.newRule.labelName',
+                        ),
+                        newRuleLabelValue: message(
+                          locale,
+                          'autonomy.editor.newRule.labelValue',
+                        ),
+                        addRule: message(locale, 'autonomy.editor.newRule.add'),
+                        freezesTitle: message(locale, 'autonomy.freezes.title'),
+                        freezeName: message(locale, 'autonomy.freeze.name'),
+                        freezeStart: message(locale, 'autonomy.freeze.start'),
+                        freezeEnd: message(locale, 'autonomy.freeze.end'),
+                        freezeReason: message(locale, 'autonomy.freeze.reason'),
+                        addFreeze: message(locale, 'autonomy.freeze.add'),
+                        budgetsTitle: message(locale, 'autonomy.budgets.title'),
+                        budgetName: message(locale, 'autonomy.budget.name'),
+                        budgetLimit: message(locale, 'autonomy.budget.limit'),
+                        budgetCountedBy: message(locale, 'autonomy.budget.countedBy'),
+                        addBudget: message(locale, 'autonomy.budget.add'),
+                      }}
+                    />
+                  </Panel>
+                </div>
+              ) : null}
+
+              <div className="mt-5">
+                <AdvancedConfigSection
+                  title={message(locale, 'settings.autonomy.advanced.title')}
+                  prefix={AUTONOMY_ADVANCED_PREFIX}
+                  nodeId={nodeId}
+                  locale={locale}
+                  writable={writable}
+                  fields={AUTONOMY_ADVANCED_FIELD_LIST.map(
+                    ({ path, label, format }) => ({
+                      path,
+                      label: message(locale, label),
+                      format,
+                    }),
+                  )}
+                  rawFields={dataOf(guardrailFields)}
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        {tab === 'guardrails' ? (
+          // Guardrails: masking, secret detection and approval — the same
+          // document a save here writes, never a second registration.
           <div id="guardrails" className="mt-5 flex flex-col gap-3">
             <h3 className="text-strong">
               {message(locale, 'settings.autonomy.guardrails.title')}
@@ -613,202 +684,194 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               />
             ) : null}
           </div>
+        ) : null}
 
-          <div className="mt-5">
-            <AdvancedConfigSection
-              title={message(locale, 'settings.autonomy.advanced.title')}
-              prefix={AUTONOMY_ADVANCED_PREFIX}
-              nodeId={nodeId}
-              locale={locale}
-              writable={writable}
-              fields={AUTONOMY_ADVANCED_FIELD_LIST.map(({ path, label, format }) => ({
-                path,
-                label: message(locale, label),
-                format,
-              }))}
-              rawFields={dataOf(guardrailFields)}
-            />
-          </div>
-        </div>
-
-        <div className="min-w-0 flex flex-col gap-5">
-          {showBounds ? (
-            <Panel
-              title={message(locale, 'autonomy.bounds.title')}
-              state={stateOf(bounds, boundsEmpty)}
-              dependency={dependencyOf(bounds)}
-              labels={panelLabels(locale, message(locale, 'autonomy.bounds.title'))}
-              empty={{
-                heading: message(locale, 'autonomy.empty.heading'),
-                body: message(locale, 'autonomy.empty.body'),
-                actionLabel: message(locale, 'autonomy.empty.action'),
-                href: boundsEditorHref,
-              }}
-            >
-              <dl className="flex flex-col gap-2 text-small">
-                {stopped ? (
-                  <div
-                    className="flex flex-wrap items-center gap-3"
-                    data-testid="autonomy-stopped"
-                  >
-                    <dt className="font-mono min-w-0 truncate">
-                      {message(locale, 'autonomy.bound.stopped')}
-                    </dt>
-                    <dd className="ml-auto flex flex-wrap items-center gap-3 min-w-0">
-                      <span className="min-w-0 truncate">
-                        {text(dataOf(bounds), 'stop_reason')}
-                      </span>
-                      <KillSwitchControl
-                        viewer={viewer}
-                        locale={locale}
-                        engaged={stopped}
-                      />
-                    </dd>
-                  </div>
-                ) : null}
-                {freezes.map((freeze) => (
-                  <div
-                    key={text(freeze, 'name')}
-                    className="flex items-center gap-3"
-                    data-testid="bound"
-                    data-bound="freeze"
-                  >
-                    <dt className="font-mono min-w-0 truncate">
-                      {text(freeze, 'name')}
-                    </dt>
-                    <dd className="ml-auto flex items-center gap-2 tabular-nums">
-                      {text(freeze, 'start')}–{text(freeze, 'end')}{' '}
-                      {text(freeze, 'timezone')}
-                    </dd>
-                  </div>
-                ))}
-                {budgets.map((budget) => (
-                  <div
-                    key={text(budget, 'name')}
-                    className="flex items-center gap-3"
-                    data-testid="bound"
-                    data-bound="budget"
-                  >
-                    <dt className="font-mono min-w-0 truncate">
-                      {text(budget, 'name')}
-                    </dt>
-                    <dd className="ml-auto flex items-center gap-2 tabular-nums">
-                      {formatNumber(locale, number(budget, 'limit'))} /{' '}
-                      {text(budget, 'counted_by')}
-                    </dd>
-                  </div>
-                ))}
-                {activeOverrides.map((override) => (
-                  <div
-                    key={override.name}
-                    className="flex flex-wrap items-center gap-3"
-                    data-testid="bound"
-                    data-bound="override"
-                  >
-                    <dt className="font-mono min-w-0 truncate">{override.name}</dt>
-                    <dd className="flex flex-wrap items-center gap-2">
-                      <Badge status={override.level} />
-                      <span
-                        className="text-meta text-muted"
-                        data-testid="override-duration"
-                      >
-                        {message(locale, 'autonomy.override.duration')}{' '}
-                        <time
-                          dateTime={override.expiresIso}
-                          title={override.expiresAbsolute}
-                        >
-                          {override.expiresRelative}
-                        </time>
-                      </span>
-                      <span
-                        className="text-meta text-muted"
-                        data-testid="override-reason"
-                      >
-                        {message(locale, 'autonomy.override.reason')} {override.reason}
-                      </span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </Panel>
-          ) : null}
-
-          {/* Absent, not disabled, for a viewer who may not write. */}
-          {writable && nodeId !== '' ? (
-            <Panel
-              title={message(locale, 'autonomy.override.panel.title')}
-              state={stateOf(bounds, false)}
-              dependency={dependencyOf(bounds)}
-              labels={panelLabels(
-                locale,
-                message(locale, 'autonomy.override.panel.title'),
-              )}
-              empty={{
-                heading: message(locale, 'autonomy.empty.heading'),
-                body: message(locale, 'autonomy.empty.body'),
-                actionLabel: message(locale, 'autonomy.empty.action'),
-                href: overrideEditorHref,
-              }}
-            >
-              <OverrideEditor
-                nodeId={nodeId}
-                levels={OVERRIDE_LEVELS}
-                levelLabels={postureLabels(locale, OVERRIDE_LEVELS)}
-                active={activeOverrides}
-                labels={{
-                  grantTitle: message(locale, 'autonomy.override.grant.title'),
-                  grantName: message(locale, 'autonomy.override.grant.name'),
-                  grantNameHelp: message(locale, 'autonomy.override.grant.nameHelp'),
-                  grantLevel: message(locale, 'autonomy.override.grant.level'),
-                  grantReason: message(locale, 'autonomy.override.grant.reason'),
-                  grantReasonHelp: message(
-                    locale,
-                    'autonomy.override.grant.reasonHelp',
-                  ),
-                  grantDuration: message(locale, 'autonomy.override.grant.duration'),
-                  grantDurationDefault: message(
-                    locale,
-                    'autonomy.override.grant.durationDefault',
-                  ),
-                  grantDurationOneHour: message(
-                    locale,
-                    'autonomy.override.grant.durationOneHour',
-                  ),
-                  grantDurationEightHours: message(
-                    locale,
-                    'autonomy.override.grant.durationEightHours',
-                  ),
-                  grantDurationTwentyFourHours: message(
-                    locale,
-                    'autonomy.override.grant.durationTwentyFourHours',
-                  ),
-                  grantDurationCustom: message(
-                    locale,
-                    'autonomy.override.grant.durationCustom',
-                  ),
-                  grantSeconds: message(locale, 'autonomy.override.grant.seconds'),
-                  grant: message(locale, 'autonomy.override.grant.submit'),
-                  granting: message(locale, 'autonomy.override.grant.granting'),
-                  granted: message(locale, 'autonomy.override.grant.granted'),
-                  reasonRequired: message(
-                    locale,
-                    'autonomy.override.grant.reasonRequired',
-                  ),
-                  revokeTitle: message(locale, 'autonomy.override.revoke.title'),
-                  revokeEmpty: message(locale, 'autonomy.override.revoke.empty'),
-                  duration: message(locale, 'autonomy.override.duration'),
-                  reasonLabel: message(locale, 'autonomy.override.reason'),
-                  grantedBy: message(locale, 'autonomy.override.grantedBy'),
-                  revoke: message(locale, 'autonomy.override.revoke.submit'),
-                  revoking: message(locale, 'autonomy.override.revoke.revoking'),
-                  revoked: message(locale, 'autonomy.override.revoke.revoked'),
-                  failed: message(locale, 'autonomy.override.failed'),
-                  unreachable: message(locale, 'autonomy.override.unreachable'),
+        {tab === 'posture' ? (
+          <div className="flex flex-col gap-5">
+            {/* The posture reading: what this deployment may do on its own,
+                right now — stopped or not, which freezes and budgets
+                currently bound it, and any temporary override raising it.
+                Read regardless of `writable`, the same as the guardrail
+                summary below it is meant to be once it lands here too. */}
+            {showBounds ? (
+              <Panel
+                title={message(locale, 'autonomy.bounds.title')}
+                state={stateOf(bounds, boundsEmpty)}
+                dependency={dependencyOf(bounds)}
+                labels={panelLabels(locale, message(locale, 'autonomy.bounds.title'))}
+                empty={{
+                  heading: message(locale, 'autonomy.empty.heading'),
+                  body: message(locale, 'autonomy.empty.body'),
+                  actionLabel: message(locale, 'autonomy.empty.action'),
+                  href: boundsEditorHref,
                 }}
-              />
-            </Panel>
-          ) : null}
-        </div>
+              >
+                <dl className="flex flex-col gap-2 text-small">
+                  {stopped ? (
+                    <div
+                      className="flex flex-wrap items-center gap-3"
+                      data-testid="autonomy-stopped"
+                    >
+                      <dt className="font-mono min-w-0 truncate">
+                        {message(locale, 'autonomy.bound.stopped')}
+                      </dt>
+                      <dd className="ml-auto flex flex-wrap items-center gap-3 min-w-0">
+                        <span className="min-w-0 truncate">
+                          {text(dataOf(bounds), 'stop_reason')}
+                        </span>
+                        <KillSwitchControl
+                          viewer={viewer}
+                          locale={locale}
+                          engaged={stopped}
+                        />
+                      </dd>
+                    </div>
+                  ) : null}
+                  {freezes.map((freeze) => (
+                    <div
+                      key={text(freeze, 'name')}
+                      className="flex items-center gap-3"
+                      data-testid="bound"
+                      data-bound="freeze"
+                    >
+                      <dt className="font-mono min-w-0 truncate">
+                        {text(freeze, 'name')}
+                      </dt>
+                      <dd className="ml-auto flex items-center gap-2 tabular-nums">
+                        {text(freeze, 'start')}–{text(freeze, 'end')}{' '}
+                        {text(freeze, 'timezone')}
+                      </dd>
+                    </div>
+                  ))}
+                  {budgets.map((budget) => (
+                    <div
+                      key={text(budget, 'name')}
+                      className="flex items-center gap-3"
+                      data-testid="bound"
+                      data-bound="budget"
+                    >
+                      <dt className="font-mono min-w-0 truncate">
+                        {text(budget, 'name')}
+                      </dt>
+                      <dd className="ml-auto flex items-center gap-2 tabular-nums">
+                        {formatNumber(locale, number(budget, 'limit'))} /{' '}
+                        {text(budget, 'counted_by')}
+                      </dd>
+                    </div>
+                  ))}
+                  {activeOverrides.map((override) => (
+                    <div
+                      key={override.name}
+                      className="flex flex-wrap items-center gap-3"
+                      data-testid="bound"
+                      data-bound="override"
+                    >
+                      <dt className="font-mono min-w-0 truncate">{override.name}</dt>
+                      <dd className="flex flex-wrap items-center gap-2">
+                        <Badge status={override.level} />
+                        <span
+                          className="text-meta text-muted"
+                          data-testid="override-duration"
+                        >
+                          {message(locale, 'autonomy.override.duration')}{' '}
+                          <time
+                            dateTime={override.expiresIso}
+                            title={override.expiresAbsolute}
+                          >
+                            {override.expiresRelative}
+                          </time>
+                        </span>
+                        <span
+                          className="text-meta text-muted"
+                          data-testid="override-reason"
+                        >
+                          {message(locale, 'autonomy.override.reason')}{' '}
+                          {override.reason}
+                        </span>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </Panel>
+            ) : null}
+
+            {/* Absent, not disabled, for a viewer who may not write. */}
+            {writable && nodeId !== '' ? (
+              <Panel
+                title={message(locale, 'autonomy.override.panel.title')}
+                state={stateOf(bounds, false)}
+                dependency={dependencyOf(bounds)}
+                labels={panelLabels(
+                  locale,
+                  message(locale, 'autonomy.override.panel.title'),
+                )}
+                empty={{
+                  heading: message(locale, 'autonomy.empty.heading'),
+                  body: message(locale, 'autonomy.empty.body'),
+                  actionLabel: message(locale, 'autonomy.empty.action'),
+                  href: overrideEditorHref,
+                }}
+              >
+                <OverrideEditor
+                  nodeId={nodeId}
+                  levels={OVERRIDE_LEVELS}
+                  levelLabels={postureLabels(locale, OVERRIDE_LEVELS)}
+                  active={activeOverrides}
+                  labels={{
+                    grantTitle: message(locale, 'autonomy.override.grant.title'),
+                    grantName: message(locale, 'autonomy.override.grant.name'),
+                    grantNameHelp: message(locale, 'autonomy.override.grant.nameHelp'),
+                    grantLevel: message(locale, 'autonomy.override.grant.level'),
+                    grantReason: message(locale, 'autonomy.override.grant.reason'),
+                    grantReasonHelp: message(
+                      locale,
+                      'autonomy.override.grant.reasonHelp',
+                    ),
+                    grantDuration: message(locale, 'autonomy.override.grant.duration'),
+                    grantDurationDefault: message(
+                      locale,
+                      'autonomy.override.grant.durationDefault',
+                    ),
+                    grantDurationOneHour: message(
+                      locale,
+                      'autonomy.override.grant.durationOneHour',
+                    ),
+                    grantDurationEightHours: message(
+                      locale,
+                      'autonomy.override.grant.durationEightHours',
+                    ),
+                    grantDurationTwentyFourHours: message(
+                      locale,
+                      'autonomy.override.grant.durationTwentyFourHours',
+                    ),
+                    grantDurationCustom: message(
+                      locale,
+                      'autonomy.override.grant.durationCustom',
+                    ),
+                    grantSeconds: message(locale, 'autonomy.override.grant.seconds'),
+                    grant: message(locale, 'autonomy.override.grant.submit'),
+                    granting: message(locale, 'autonomy.override.grant.granting'),
+                    granted: message(locale, 'autonomy.override.grant.granted'),
+                    reasonRequired: message(
+                      locale,
+                      'autonomy.override.grant.reasonRequired',
+                    ),
+                    revokeTitle: message(locale, 'autonomy.override.revoke.title'),
+                    revokeEmpty: message(locale, 'autonomy.override.revoke.empty'),
+                    duration: message(locale, 'autonomy.override.duration'),
+                    reasonLabel: message(locale, 'autonomy.override.reason'),
+                    grantedBy: message(locale, 'autonomy.override.grantedBy'),
+                    revoke: message(locale, 'autonomy.override.revoke.submit'),
+                    revoking: message(locale, 'autonomy.override.revoke.revoking'),
+                    revoked: message(locale, 'autonomy.override.revoke.revoked'),
+                    failed: message(locale, 'autonomy.override.failed'),
+                    unreachable: message(locale, 'autonomy.override.unreachable'),
+                  }}
+                />
+              </Panel>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </>
   );

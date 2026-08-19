@@ -80,10 +80,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderArea(id: string): Promise<void> {
+async function renderArea(
+  id: string,
+  query: Readonly<Record<string, string>> = {},
+): Promise<void> {
   const target = AREA_SCREENS.find((each) => each.id === id);
   if (target === undefined) throw new Error(`no screen renders the ${id} area`);
-  render(await target.render({ searchParams: Promise.resolve({}) }));
+  render(await target.render({ searchParams: Promise.resolve(query) }));
 }
 
 describe('the shell with its gateway unreachable', () => {
@@ -164,7 +167,18 @@ describe('the shell with no gateway and no node', () => {
     serveOutage(principalHolding(EVERYTHING, ''));
   });
 
-  for (const area of AREAS.filter((each) => !HAS_NO_SCREEN.has(each.id))) {
+  // `autonomy`'s own address with no node resolved lands on Posture, which —
+  // in this slice of the three-tab rework — carries no panel of its own for
+  // a viewer with no team and no node: the one panel it could show
+  // (Temporary override) is gated behind a resolved node, the same as every
+  // other write control on this screen. Rules & windows does carry one (the
+  // rules panel is never gated on a node), so it gets its own case below
+  // instead of joining this generic walk.
+  const NO_PANEL_WITH_NO_NODE = new Set(['autonomy']);
+
+  for (const area of AREAS.filter(
+    (each) => !HAS_NO_SCREEN.has(each.id) && !NO_PANEL_WITH_NO_NODE.has(each.id),
+  )) {
     it(`${area.path}: still renders`, async () => {
       await renderArea(area.id);
 
@@ -172,4 +186,11 @@ describe('the shell with no gateway and no node', () => {
       expect(screen.getAllByTestId('panel').length).toBeGreaterThan(0);
     });
   }
+
+  it('/autonomy (rules & windows tab): still renders', async () => {
+    await renderArea('autonomy', { tab: 'rules-windows' });
+
+    expect(screen.getByTestId('page-header')).toBeInTheDocument();
+    expect(screen.getAllByTestId('panel').length).toBeGreaterThan(0);
+  });
 });

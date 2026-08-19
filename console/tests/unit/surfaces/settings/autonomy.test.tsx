@@ -32,6 +32,11 @@ import { serveScenario } from '../../support/dataset';
  * - no empty state anywhere on this page links to the raw configuration
  *   editor — see `console/tests/unit/surfaces/autonomy-editor.test.tsx` for
  *   the rule/freeze/budget creation this loop was replaced with.
+ *
+ * The screen is now three tabs (`autonomy-tabs.ts`), each its own address —
+ * `renderAutonomy` below passes `tab` alongside every other filter, and each
+ * test names the tab that owns whatever it is asserting on, rather than
+ * assuming everything still renders on one page load.
  */
 
 const BASE = ['http:', '//fixtures.invalid'].join('');
@@ -162,11 +167,46 @@ function emptyPanels(): HTMLElement[] {
     .filter((panel) => panel.getAttribute('data-state') === 'empty');
 }
 
+describe('the three tabs, addressable and marked', () => {
+  it('renders Posture, Rules & windows and Guardrails in that order, each a real link, and marks the one this address named', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'guardrails' });
+
+    const links = screen.getAllByTestId('tab-link');
+    expect(links).toHaveLength(3);
+    expect(links.map((link) => link.textContent)).toEqual([
+      'Posture',
+      'Rules & windows',
+      'Guardrails',
+    ]);
+
+    // A link with its own address, not a button that only flips client
+    // state: the browser's own history has to record the switch, which only
+    // an anchor with a real `href` gives for free.
+    for (const link of links) {
+      expect(link.tagName).toBe('A');
+    }
+    expect(links[0]).toHaveAttribute('href', expect.stringContaining('tab=posture'));
+    expect(links[1]).toHaveAttribute(
+      'href',
+      expect.stringContaining('tab=rules-windows'),
+    );
+    expect(links[2]).toHaveAttribute('href', expect.stringContaining('tab=guardrails'));
+
+    // The active tab is the one this address named — the other two carry no
+    // `aria-current` at all, never a falsy one.
+    expect(links[2]).toHaveAttribute('aria-current', 'page');
+    expect(links[0]).not.toHaveAttribute('aria-current');
+    expect(links[1]).not.toHaveAttribute('aria-current');
+  });
+});
+
 describe('a node with no rule and no bound recorded', () => {
   it('shows exactly one empty panel, with the first-rule editor directly beneath it', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     expect(emptyPanels()).toHaveLength(1);
 
@@ -184,13 +224,34 @@ describe('a node with no rule and no bound recorded', () => {
     expect(editor).toBeInTheDocument();
   });
 
-  it('leaves the editor and the override panel out for a viewer who may not write', async () => {
+  it('suppresses the bounds panel on Posture too, rather than repeating the same "nothing recorded"', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    // Genuine suppression, not the structural absence every other tab shows:
+    // the node resolved (`org-northwind`, `SINGLE_NODE`'s default), so the
+    // panel would appear here if it had anything to say — it stays off only
+    // because both rules and bounds are empty at once.
+    expect(
+      screen.queryByRole('heading', { name: 'Bounds and level overrides' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('leaves the editor out for a viewer who may not write', async () => {
     serveAutonomy({ principal: READER, policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     expect(emptyPanels()).toHaveLength(1);
     expect(screen.queryByTestId('autonomy-editor')).not.toBeInTheDocument();
+  });
+
+  it('leaves the override panel out, on its own tab, for a viewer who may not write', async () => {
+    serveAutonomy({ principal: READER, policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'posture' });
+
     expect(screen.queryByTestId('override-editor')).not.toBeInTheDocument();
   });
 });
@@ -199,7 +260,7 @@ describe('the vocabulary this screen assumes an operator already has', () => {
   it('defines a rule, a bound and an override in the reader’s own words, near the top of the page', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     const glossary = screen.getByTestId('autonomy-glossary');
     expect(glossary).toHaveTextContent(/rule/i);
@@ -260,39 +321,57 @@ describe('a deployment with no organisation tree at all', () => {
       bounds: EMPTY_BOUNDS,
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     expect(emptyPanels()).toHaveLength(1);
     expect(screen.queryByTestId('autonomy-editor')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('override-editor')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: 'Bounds and level overrides' }),
     ).not.toBeInTheDocument();
   });
+
+  it('shows no override panel either, with no node to scope it to', async () => {
+    serveAutonomy({
+      tree: [],
+      principal: { ...WRITER, team_node_id: '' },
+      policy: EMPTY_POLICY,
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    expect(screen.queryByTestId('override-editor')).not.toBeInTheDocument();
+  });
 });
 
 describe('no rule recorded, but a freeze window is', () => {
-  it('still shows only one empty panel, and the bounds panel keeps its real content', async () => {
-    serveAutonomy({
-      policy: EMPTY_POLICY,
-      bounds: {
-        ...EMPTY_BOUNDS,
-        freezes: [
-          {
-            name: 'nightly-backups',
-            start: '01:00',
-            end: '04:00',
-            timezone: 'Europe/Lisbon',
-            reason: 'backups run',
-            scope: { kind: 'deployment' },
-          },
-        ],
+  const BOUNDS_WITH_A_FREEZE = {
+    ...EMPTY_BOUNDS,
+    freezes: [
+      {
+        name: 'nightly-backups',
+        start: '01:00',
+        end: '04:00',
+        timezone: 'Europe/Lisbon',
+        reason: 'backups run',
+        scope: { kind: 'deployment' },
       },
-    });
+    ],
+  };
 
-    await renderAutonomy();
+  it('still shows only one empty panel on Rules & windows', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: BOUNDS_WITH_A_FREEZE });
+
+    await renderAutonomy({ tab: 'rules-windows' });
 
     expect(emptyPanels()).toHaveLength(1);
+  });
+
+  it('keeps the bounds panel’s real content, on Posture where it now lives', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: BOUNDS_WITH_A_FREEZE });
+
+    await renderAutonomy({ tab: 'posture' });
+
     expect(
       screen.getByRole('heading', { name: 'Bounds and level overrides' }),
     ).toBeInTheDocument();
@@ -312,7 +391,9 @@ describe('automated writes are stopped', () => {
       },
     });
 
-    await renderAutonomy();
+    // The stopped row moved to Posture with the rest of the bounds panel —
+    // "is everything switched off" is exactly the posture reading.
+    await renderAutonomy({ tab: 'posture' });
 
     const stoppedRow = screen.getByTestId('autonomy-stopped');
     expect(stoppedRow).toHaveTextContent(
@@ -332,7 +413,7 @@ describe('automated writes are stopped', () => {
       },
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'posture' });
 
     expect(screen.getByTestId('autonomy-stopped')).toHaveTextContent(
       'Automated writes are stopped for this organisation',
@@ -343,16 +424,28 @@ describe('automated writes are stopped', () => {
 });
 
 describe('a populated node', () => {
-  it('renders nothing as empty', async () => {
+  it('renders nothing as empty on Rules & windows', async () => {
     serveScenario('populated');
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     expect(emptyPanels()).toHaveLength(0);
+    expect(screen.getByTestId('autonomy-footer')).toBeInTheDocument();
+  });
+
+  it('renders the bounds panel and the override panel as not-empty either, on Posture', async () => {
+    serveScenario('populated');
+
+    await renderAutonomy({ tab: 'posture' });
+
+    expect(emptyPanels()).toHaveLength(0);
+    // The bounds panel — freeze, budget and override rows — lives here now,
+    // carrying real content rather than the panel this tab used to render
+    // (the override editor) alone.
     expect(
       screen.getByRole('heading', { name: 'Bounds and level overrides' }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('autonomy-footer')).toBeInTheDocument();
+    expect(screen.getAllByTestId('bound').length).toBeGreaterThan(0);
   });
 });
 
@@ -402,7 +495,7 @@ describe('the rules table, over every scope kind the deployment may send', () =>
       bounds: EMPTY_BOUNDS,
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     const rows = screen.getAllByTestId('autonomy-rule');
     expect(rows).toHaveLength(6);
@@ -495,7 +588,7 @@ describe('the guardrails section', () => {
       ],
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'guardrails' });
 
     function rowFor(path: string): HTMLElement {
       const row = screen
@@ -525,9 +618,11 @@ describe('the guardrails section', () => {
     // The two constitutional invariants are stated as facts, never as a toggle.
     const invariants = screen.getAllByTestId('guardrail-invariant');
     expect(invariants).toHaveLength(2);
-    // Two editors now share the page: the guardrails one above, and the
-    // advanced autonomy-scalars one this same test dataset also feeds.
-    expect(screen.getAllByTestId('config-editor')).toHaveLength(2);
+    // One editor on this tab — the guardrails one above. The advanced
+    // autonomy-scalars editor this same test dataset also feeds lives on
+    // Rules & windows now, not here; see the advanced-autonomy-scalars
+    // `describe` below for that one.
+    expect(screen.getAllByTestId('config-editor')).toHaveLength(1);
   });
 
   it('leaves the editor out, keeping the read-only rows, for a viewer who may not write', async () => {
@@ -538,7 +633,7 @@ describe('the guardrails section', () => {
       values: { policies: { masking: { enabled: false, level: 'standard' } } },
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'guardrails' });
 
     expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
@@ -574,7 +669,7 @@ describe('the advanced autonomy-scalars section', () => {
       ],
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     const details = screen.getByTestId('advanced-config-policies-autonomy');
     expect(details.tagName).toBe('DETAILS');
@@ -616,7 +711,7 @@ describe('the advanced autonomy-scalars section', () => {
       ],
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     const section = screen.getByTestId('advanced-config-policies-autonomy');
     const fieldsInSection = section.querySelectorAll('[data-testid="config-field"]');
@@ -670,7 +765,7 @@ describe('the advanced autonomy-scalars section', () => {
       fields: AUTONOMY_LIST_PATHS.map((path) => listField(path)),
     });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     const section = screen.getByTestId('advanced-config-policies-autonomy');
     for (const path of AUTONOMY_LIST_PATHS) {
@@ -687,7 +782,7 @@ describe('the loop into the raw editor', () => {
   it('sends no empty state, on an empty node, to /configuration', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     for (const link of screen.getAllByTestId('way-back')) {
       expect(link.getAttribute('href')).not.toContain('/configuration');
@@ -707,10 +802,39 @@ describe('the loop into the raw editor', () => {
   it('points the rules panel’s empty state at the rule-creation section on this same page', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
-    await renderAutonomy();
+    await renderAutonomy({ tab: 'rules-windows' });
 
     const link = screen.getByTestId('way-back');
     expect(link).toHaveAttribute('href', '#new-rule');
     expect(document.getElementById('new-rule')).toBeInTheDocument();
+  });
+});
+
+describe('the bounds panel’s empty state, now that the panel reads on a different tab than the freeze editor', () => {
+  it('points at the freeze-creation section on Rules & windows by tab, not a bare anchor absent from Posture', async () => {
+    // A rule exists (so the page does not fall into the rules-panel's own
+    // empty state instead), but nothing bounds it yet — the one combination
+    // that puts the bounds panel itself into its empty state.
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        rules: [
+          { rule_id: 'r1', scope: { kind: 'deployment' }, level: 'propose_only' },
+        ],
+      },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'posture' });
+
+    const link = screen.getByTestId('way-back');
+    const href = link.getAttribute('href') ?? '';
+    expect(href).toContain('tab=rules-windows');
+    expect(href).toContain('#new-freeze');
+    // Proven false, not merely asserted: an anchor with no matching id on
+    // this render is exactly the "already compliant screen reads red" trap —
+    // `#new-freeze` only exists inside `AutonomyEditor`, which this tab does
+    // not render, so a same-page anchor here would silently go nowhere.
+    expect(document.getElementById('new-freeze')).not.toBeInTheDocument();
   });
 });

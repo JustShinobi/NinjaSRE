@@ -113,12 +113,14 @@ describe('the write controls, per role', () => {
     // them, which is what this direction of the matrix is actually about.
     const autonomy = AREA_SCREENS.find((each) => each.id === 'autonomy');
     if (autonomy === undefined) throw new Error('there is no autonomy screen');
-    render(await autonomy.render({ searchParams: Promise.resolve({}) }));
+    // Guardrails: the tab that owns `config-editor` since the three-tab
+    // rework — the advanced section holding the autonomy scalars the retired
+    // editor used to be the only home for is on Rules & windows instead, its
+    // own `config-editor` covered by `settings/autonomy.test.tsx`.
+    render(
+      await autonomy.render({ searchParams: Promise.resolve({ tab: 'guardrails' }) }),
+    );
 
-    // `getAll`, because this page now draws two: the guardrail fields it
-    // always had, and the advanced section holding the autonomy scalars the
-    // retired editor used to be the only home for. The claim is "at least
-    // one", and it would be a worse test if a second one broke it.
     expect(screen.getAllByTestId('config-editor').length).toBeGreaterThan(0);
   });
 });

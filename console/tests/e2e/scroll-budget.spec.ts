@@ -30,6 +30,11 @@ import { signIn } from './session';
  * named, with `test.fail`, so the suite reports it as an expected red rather
  * than hiding it — and it carries nothing today because nothing here
  * measures over budget on this dataset yet.
+ *
+ * `/settings/autonomy-guardrails` is not in `SCREENS`: since its three-tab
+ * rework, "the whole page" is not an address a viewer reaches — each tab is
+ * its own address, held to its own, tighter budget
+ * (`CONFIG_SCREEN_TAB_SCROLL_BUDGET_VIEWPORTS`), measured below instead.
  */
 
 function constant(name: string): number {
@@ -71,7 +76,6 @@ const SCREENS: readonly ConfigScreen[] = [
   { route: '/first-run' },
   { route: '/integrations' },
   { route: '/signals' },
-  { route: '/autonomy' },
   { route: '/configuration' },
   // The four pages Administration desmembered into, each measured at its own
   // address now rather than as one screen carrying all five subjects.
@@ -101,5 +105,31 @@ for (const screen of SCREENS) {
       `${screen.route} is ${String(height)}px tall against a ${String(BUDGET_PX)}px ` +
         `budget (${String(BUDGET_VIEWPORTS)} viewports of ${String(VIEWPORT_HEIGHT)}px)`,
     ).toBeLessThanOrEqual(BUDGET_PX);
+  });
+}
+
+// --- Autonomy & guardrails: measured per tab, against the tighter budget ---
+
+const AUTONOMY_ROUTE = '/settings/autonomy-guardrails';
+const AUTONOMY_TABS = ['posture', 'rules-windows', 'guardrails'] as const;
+
+const TAB_BUDGET_VIEWPORTS = constant('CONFIG_SCREEN_TAB_SCROLL_BUDGET_VIEWPORTS');
+const TAB_BUDGET_PX = VIEWPORT_HEIGHT * TAB_BUDGET_VIEWPORTS;
+
+for (const tab of AUTONOMY_TABS) {
+  test(`${AUTONOMY_ROUTE}?tab=${tab} stays within the per-tab scroll budget`, async ({
+    page,
+  }) => {
+    await page.goto(`${AUTONOMY_ROUTE}?tab=${tab}`);
+    await expect(page.getByTestId('page-header')).toBeVisible();
+
+    const height = await page.evaluate(() => document.documentElement.scrollHeight);
+
+    expect(
+      height,
+      `${AUTONOMY_ROUTE}?tab=${tab} is ${String(height)}px tall against a ` +
+        `${String(TAB_BUDGET_PX)}px budget (${String(TAB_BUDGET_VIEWPORTS)} viewports ` +
+        `of ${String(VIEWPORT_HEIGHT)}px)`,
+    ).toBeLessThanOrEqual(TAB_BUDGET_PX);
   });
 }

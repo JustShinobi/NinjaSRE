@@ -1082,6 +1082,8 @@ export const EN = {
   'topology.empty.action': 'See the estate',
 
   // --- Autonomy -----------------------------------------------------------------------------
+  'autonomy.tabs':
+    'What this deployment may do alone, when it may not, and what always holds',
   'autonomy.tab.posture': 'Posture',
   'autonomy.tab.rules-windows': 'Rules & windows',
   'autonomy.tab.guardrails': 'Guardrails',

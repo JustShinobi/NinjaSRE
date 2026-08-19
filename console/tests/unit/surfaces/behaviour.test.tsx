@@ -140,7 +140,7 @@ describe('the autonomy screen', () => {
   });
 
   it('reads the rules in resolution order, least specific first', async () => {
-    await renderArea('autonomy');
+    await renderArea('autonomy', { tab: 'rules-windows' });
 
     const levels = screen
       .getAllByTestId('autonomy-rule')
@@ -151,15 +151,17 @@ describe('the autonomy screen', () => {
   });
 
   it('says what an empty table would have meant, whatever the table holds', async () => {
-    await renderArea('autonomy');
+    await renderArea('autonomy', { tab: 'rules-windows' });
 
     // The footer is not an empty state. An operator reading a *full* table
     // still needs to know that anything the rules do not cover is refused.
     expect(screen.getByTestId('autonomy-footer').textContent).toContain('propose-only');
   });
 
-  it('shows the bounds beside the rules, because both are true at once', async () => {
-    await renderArea('autonomy');
+  it('shows the bounds beside the posture they constrain, because both are true at once', async () => {
+    // The bounds panel now reads on Posture, not Rules & windows — it is
+    // the posture reading, not a rule.
+    await renderArea('autonomy', { tab: 'posture' });
 
     const kinds = screen
       .getAllByTestId('bound')

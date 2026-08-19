@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { signIn } from './session';
 
@@ -22,19 +22,38 @@ import { signIn } from './session';
  * makes this file pass is expected to adopt them rather than invent a second
  * set.
  *
- * **Two claims below are not written to fail today, on purpose:**
+ * **Screen-wide claims are checked on every tab they apply to, named by tab.**
+ * A claim written against `ROUTE` with no `?tab=` only ever exercises
+ * whichever tab the address defaults to (Posture) — the exact shape of the
+ * defect this project keeps re-finding once a screen grows tabs, because a
+ * requirement about "the route" or "either appearance" silently narrows to
+ * "whichever tab happened to be open when the test was written". The tab
+ * strip's own claims (three tabs, addressable, per-tab budget), the missing
+ * paragraph, the override's absence from the body, and the guardrails
+ * table's Value column are all checked once per tab that could carry them.
  *
- * - The guardrails table's Value column is already fully populated on this
- *   route (a property an earlier feature closed structurally). The claim
- *   here is a verification that the property survives the cut into tabs, not
- *   a reduction from some prior broken count — see its own comment.
+ * **Some of the per-tab checks below are not written to pass today, on
+ * purpose — each says why in its own comment:**
+ *
+ * - The guardrails table's Value column is already fully populated where it
+ *   has always lived (the Guardrails tab) — a property an earlier feature
+ *   closed structurally. On Posture, the same column is a later slice's
+ *   read-only summary and does not exist yet; that half stays red, by name,
+ *   until it does.
+ * - The missing-paragraph walk is expected to fail on Rules & windows, where
+ *   the three conceptual paragraphs still live, until a later slice removes
+ *   them.
+ * - The override-not-in-the-body claim is expected to fail on Posture, where
+ *   the grant/revoke panel still sits in the page body, until a later slice
+ *   moves it into a side panel opened from the header.
  * - The retired "Look at the configuration" CTA cannot be exercised through
  *   the browser at all on this dataset: every node `populated` can resolve
  *   to carries at least one rule, one freeze and one budget, so none of this
  *   route's four empty states ever renders. That claim is asserted against
  *   the screen's own source instead, the same way `scroll-budget.spec.ts`
  *   and `transversal-rules.spec.ts` already read `surfaces.py` and
- *   `routes.ts` as ground truth rather than through a rendered control.
+ *   `routes.ts` as ground truth rather than through a rendered control — and
+ *   the source scan already covers every tab at once, so it needs no loop.
  */
 
 function constant(name: string): number {
@@ -150,68 +169,79 @@ test.describe('one question per tab, addressable by the URL', () => {
 // --- (g)-(h): the conceptual paragraphs are gone, no CTA misleads ----------
 
 test.describe('the conceptual paragraphs are gone, and no CTA misleads about where it goes', () => {
-  test('no paragraph sits between the title and the first control', async ({
-    page,
-  }) => {
-    await page.goto(ROUTE);
-    await expect(page.getByTestId('page-header')).toBeVisible();
+  // This claim is about the route, not about whichever tab a bare `ROUTE`
+  // happens to default to: FR-010 bans a conceptual paragraph before the
+  // first control anywhere on this screen, and the three tabs are three
+  // separate DOM trees now, not three views of one. Walking only Posture
+  // (`ROUTE` with no `?tab=`) would have kept passing the day the three
+  // glossary paragraphs moved to Rules & windows in the tab cut — the
+  // content never left the page, it only left the one tab this claim used to
+  // look at. Named per tab, so a reader knows which one still owes the fix.
+  for (const tab of TAB_IDS) {
+    test(`no paragraph sits between the title and the first control, tab=${tab}`, async ({
+      page,
+    }) => {
+      await page.goto(`${ROUTE}?tab=${tab}`);
+      await expect(page.getByTestId('page-header')).toBeVisible();
 
-    // A DOM-order walk, not a lookup of the known offender: this must see a
-    // paragraph wherever one sits, not merely confirm today's specific one is
-    // there. Asserting only that "autonomy-glossary" is empty would pass the
-    // day that block is deleted even if a new paragraph took its place
-    // somewhere else before the first real control.
-    //
-    // Chrome is skipped, not just the header. Once tabs exist, `TabLinks`
-    // renders as the header's own sibling — `surfaces/screens/decisions.tsx`
-    // is the exact shape this route's own tabs are expected to copy — a
-    // `<nav>` full of `<a>` elements. A walk that stopped at the first tag in
-    // `CONTROL_TAGS` would treat that first tab link as "the first control"
-    // and return on its very first iteration, passing with every conceptual
-    // paragraph still sitting untouched below the tab strip. So every known
-    // chrome block — the header, then the tab strip — is skipped by its own
-    // subtree before the search for a paragraph or a real control begins.
-    const violation = await page.evaluate(() => {
-      const headerEl = document.querySelector('[data-testid="page-header"]');
-      if (headerEl === null) return 'no page-header found';
+      // A DOM-order walk, not a lookup of the known offender: this must see a
+      // paragraph wherever one sits, not merely confirm today's specific one is
+      // there. Asserting only that "autonomy-glossary" is empty would pass the
+      // day that block is deleted even if a new paragraph took its place
+      // somewhere else before the first real control.
+      //
+      // Chrome is skipped, not just the header. Once tabs exist, `TabLinks`
+      // renders as the header's own sibling — `surfaces/screens/decisions.tsx`
+      // is the exact shape this route's own tabs are expected to copy — a
+      // `<nav>` full of `<a>` elements. A walk that stopped at the first tag in
+      // `CONTROL_TAGS` would treat that first tab link as "the first control"
+      // and return on its very first iteration, passing with every conceptual
+      // paragraph still sitting untouched below the tab strip. So every known
+      // chrome block — the header, then the tab strip — is skipped by its own
+      // subtree before the search for a paragraph or a real control begins.
+      const violation = await page.evaluate(() => {
+        const headerEl = document.querySelector('[data-testid="page-header"]');
+        if (headerEl === null) return 'no page-header found';
 
-      const all = Array.from(document.body.querySelectorAll('*'));
-      let index = all.indexOf(headerEl);
-      if (index === -1) return 'page-header is not attached under body';
+        const all = Array.from(document.body.querySelectorAll('*'));
+        let index = all.indexOf(headerEl);
+        if (index === -1) return 'page-header is not attached under body';
 
-      // Chrome blocks sit back to back, in document order: the header's own
-      // subtree (breadcrumb, title, the required subtitle line, any header
-      // action), then — once tabs exist — the tab strip's own subtree. Skip
-      // each one in turn, however many of them are actually present, rather
-      // than only the header.
-      const CHROME_TESTIDS = ['page-header', 'tab-links'];
-      for (;;) {
-        const root = all[index];
-        if (root === undefined) break;
-        while (index + 1 < all.length && root.contains(all[index + 1] ?? null)) {
+        // Chrome blocks sit back to back, in document order: the header's own
+        // subtree (breadcrumb, title, the required subtitle line, any header
+        // action), then — once tabs exist — the tab strip's own subtree. Skip
+        // each one in turn, however many of them are actually present, rather
+        // than only the header.
+        const CHROME_TESTIDS = ['page-header', 'tab-links'];
+        for (;;) {
+          const root = all[index];
+          if (root === undefined) break;
+          while (index + 1 < all.length && root.contains(all[index + 1] ?? null)) {
+            index += 1;
+          }
+          const next = all[index + 1];
+          const nextTestid =
+            next === undefined ? null : next.getAttribute('data-testid');
+          if (nextTestid === null || !CHROME_TESTIDS.includes(nextTestid)) break;
           index += 1;
         }
-        const next = all[index + 1];
-        const nextTestid = next === undefined ? null : next.getAttribute('data-testid');
-        if (nextTestid === null || !CHROME_TESTIDS.includes(nextTestid)) break;
-        index += 1;
-      }
 
-      const CONTROL_TAGS = new Set(['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA', 'A']);
-      for (let cursor = index + 1; cursor < all.length; cursor += 1) {
-        const el = all[cursor];
-        if (el === undefined) continue;
-        if (el.tagName === 'P') {
-          const text = el.textContent.trim().slice(0, 120);
-          return `a paragraph sits before the first control: "${text}"`;
+        const CONTROL_TAGS = new Set(['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA', 'A']);
+        for (let cursor = index + 1; cursor < all.length; cursor += 1) {
+          const el = all[cursor];
+          if (el === undefined) continue;
+          if (el.tagName === 'P') {
+            const text = el.textContent.trim().slice(0, 120);
+            return `a paragraph sits before the first control: "${text}"`;
+          }
+          if (CONTROL_TAGS.has(el.tagName)) return null;
         }
-        if (CONTROL_TAGS.has(el.tagName)) return null;
-      }
-      return null;
-    });
+        return null;
+      });
 
-    expect(violation).toBeNull();
-  });
+      expect(violation, `tab=${tab}: ${violation ?? ''}`).toBeNull();
+    });
+  }
 
   test('the retired "Look at the configuration" CTA label is gone from this route', async ({
     page,
@@ -252,58 +282,110 @@ test.describe('the conceptual paragraphs are gone, and no CTA misleads about whe
 
 // --- (e): the guardrails table keeps every value filled ---------------------
 
+/**
+ * Opens every collapsed `<details>` (the advanced, technical
+ * `policies.autonomy.` section on Rules & windows has no bearing here, but
+ * the pattern is shared with `transversal-rules.spec.ts` for the same
+ * reason: closed `<details>` has no `innerText` at all, regardless of what
+ * its cells hold), then asserts no `effective-field` row's Value cell — the
+ * second `<td>` — is blank. Does not assert row count is non-zero: the two
+ * call sites disagree on whether zero rows is the expected state today, so
+ * each names its own expectation around this shared walk.
+ */
+async function assertNoEmptyValueCell(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    document.querySelectorAll('details').forEach((node) => {
+      node.open = true;
+    });
+  });
+
+  const rows = page.getByTestId('effective-field');
+  const rowCount = await rows.count();
+  for (let index = 0; index < rowCount; index += 1) {
+    const row = rows.nth(index);
+    const value = (await row.locator('td').nth(1).innerText()).trim();
+    const path = await row.getAttribute('data-path');
+    expect(value, `row "${path ?? String(index)}" has an empty Value cell`).not.toBe(
+      '',
+    );
+  }
+}
+
 test.describe('the guardrails table keeps every value filled', () => {
-  test('no empty cell in the Value column, in either appearance of the table', async ({
-    page,
-  }) => {
-    await page.goto(ROUTE);
+  // The two appearances FR-022 names now live on two different tabs, not two
+  // places on one page: the Guardrails tab's editable table, and Posture's
+  // read-only summary of the same fields. A single check against bare
+  // `ROUTE` only ever exercised Posture — and would have kept passing there
+  // by accident once tabs existed, for the wrong reason: not because the
+  // property held, but because that tab draws no such table at all yet.
+  test('no empty cell in the Value column, on the Guardrails tab', async ({ page }) => {
+    await page.goto(`${ROUTE}?tab=guardrails`);
     await expect(page.getByTestId('page-header')).toBeVisible();
 
-    // A configuration table inside a collapsed `<details>` (the advanced,
-    // technical `policies.autonomy.` section) has no `innerText` at all while
-    // closed, regardless of what its cells hold — opening every section first
-    // is what makes this check the data rather than the fold. The same
-    // pattern `transversal-rules.spec.ts` already uses for this exact rule.
-    await page.evaluate(() => {
-      document.querySelectorAll('details').forEach((node) => {
-        node.open = true;
-      });
-    });
+    const rowCount = await page.getByTestId('effective-field').count();
+    expect(
+      rowCount,
+      'tab=guardrails: the guardrails table drew no rows at all',
+    ).toBeGreaterThan(0);
 
-    const rows = page.getByTestId('effective-field');
-    const rowCount = await rows.count();
-    expect(rowCount, 'the guardrails table drew no rows at all').toBeGreaterThan(0);
+    await assertNoEmptyValueCell(page);
+  });
 
-    for (let index = 0; index < rowCount; index += 1) {
-      const row = rows.nth(index);
-      const value = (await row.locator('td').nth(1).innerText()).trim();
-      const path = await row.getAttribute('data-path');
-      expect(value, `row "${path ?? String(index)}" has an empty Value cell`).not.toBe(
-        '',
-      );
-    }
+  test('no empty cell in the Value column, in Posture’s read-only guardrails summary', async ({
+    page,
+  }) => {
+    await page.goto(`${ROUTE}?tab=posture`);
+    await expect(page.getByTestId('page-header')).toBeVisible();
+
+    const rowCount = await page.getByTestId('effective-field').count();
+    // Named red, not a mystery: Posture's own read-only guardrails summary
+    // (Setting, Value, Set at) is a later slice of this same feature. This
+    // goes green the day that slice lands, with no change to this assertion.
+    expect(
+      rowCount,
+      'tab=posture: 0 guardrails-summary rows — Posture’s read-only guardrails ' +
+        'summary is not built yet (a later slice); this stays red until it is',
+    ).toBeGreaterThan(0);
+
+    await assertNoEmptyValueCell(page);
   });
 });
 
 // --- (f): override is a rare action, not a permanent third of the page -----
 
 test.describe('override is a rare action, not a permanent third of the page', () => {
-  test('the override does not occupy body space, and a header button opens it in a side panel', async ({
-    page,
-  }) => {
+  // FR-038 says "no tab" in as many words: not occupying body space is a
+  // property of the whole route, not of whichever tab `ROUTE` happened to
+  // default to when this was written. Once the panel does move behind the
+  // header button (a later slice), it could easily stay mounted, but hidden,
+  // on the one tab it used to live in — a single check against bare `ROUTE`
+  // would not catch that, because that tab is Posture, the very one this
+  // panel is expected to leave last.
+  for (const tab of TAB_IDS) {
+    test(`the override editor does not occupy body space, tab=${tab}`, async ({
+      page,
+    }) => {
+      await page.goto(`${ROUTE}?tab=${tab}`);
+      await expect(page.getByTestId('page-header')).toBeVisible();
+
+      // Anchored to the component's own testid, not its current heading
+      // text: `override-editor.tsx` renders `data-testid="override-editor"`
+      // on the outermost element of the whole grant/revoke component, so
+      // this survives a rename of "Grant or revoke an override" that a
+      // heading-text lookup could not. Checked for visibility rather than
+      // absence: if a future drawer keeps this same component mounted while
+      // closed (`display:none` rather than unmounted), presence alone would
+      // be a false red for a screen that is already compliant.
+      await expect(
+        page.getByTestId('override-editor'),
+        `tab=${tab}: the override editor is visible in the page body`,
+      ).not.toBeVisible();
+    });
+  }
+
+  test('a header button opens the override in a side panel', async ({ page }) => {
     await page.goto(ROUTE);
     await expect(page.getByTestId('page-header')).toBeVisible();
-
-    // Anchored to the component's own testid, not its current heading text:
-    // `override-editor.tsx` renders `data-testid="override-editor"` on the
-    // outermost element of the whole grant/revoke component, so this
-    // survives a rename of "Grant or revoke an override" that a heading-text
-    // lookup could not. Checked for visibility rather than absence: if a
-    // future drawer keeps this same component mounted while closed
-    // (`display:none` rather than unmounted), presence alone would be a
-    // false red for a screen that is already compliant.
-    const bodyOverrideEditor = page.getByTestId('override-editor');
-    await expect(bodyOverrideEditor).not.toBeVisible();
 
     // A button in the header, labelled as a temporary override, that opens a
     // side panel — `Drawer` (`components/overlay.tsx`) is this console's own
@@ -327,7 +409,17 @@ test.describe('the simulation section converges on one CTA', () => {
   test('exactly one primary CTA carries the simulation section, and no competing label survives beside it', async ({
     page,
   }) => {
-    await page.goto(ROUTE);
+    // Not a screen-wide claim like (e)/(f)/(g): the simulation section is
+    // part of `AutonomyEditor`, which lives on exactly one tab (Rules &
+    // windows, per the field-ownership map's placement of `dry_run`
+    // alongside the rules, freezes and budgets it simulates), never on
+    // Posture or Guardrails. `ROUTE` with no `?tab=` defaults to Posture,
+    // where this section can never appear — found while repairing the three
+    // screen-wide claims above, same root cause (a tab cut changing which
+    // address a pre-tabs assertion actually reaches), fixed for the same
+    // reason: pointed at the one tab this claim could ever pass on, rather
+    // than the one a bare route happens to default to.
+    await page.goto(`${ROUTE}?tab=rules-windows`);
     await expect(page.getByTestId('page-header')).toBeVisible();
 
     // Scoped to the simulation section itself, not the whole editor:

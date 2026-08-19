@@ -55,8 +55,16 @@ const EVERYTHING = [
   'token.manage',
 ];
 
-/** The screens that read an endpoint with a `{node_id}` in it, unconditionally. */
-const NODE_SCOPED = ['autonomy'] as const;
+/**
+ * The screens that read an endpoint with a `{node_id}` in it, unconditionally.
+ *
+ * `autonomy` is not here: its default address lands on Posture, which — in
+ * this slice of the three-tab rework — carries no node-scoped panel of its
+ * own to assert the generic shape of (an empty one, none in error). It gets
+ * its own case below, on the tab that does, the same way `agent` already
+ * gets its own case on `tools` rather than joining this loop.
+ */
+const NODE_SCOPED: readonly string[] = [];
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
@@ -106,6 +114,20 @@ describe('a node-scoped screen with no node selected', () => {
 
   it('agent (tools tab): renders rather than throwing when no node resolves', async () => {
     await renderArea('agent', { tab: 'tools' });
+
+    expect(screen.getByTestId('page-header')).toBeInTheDocument();
+    const panels = screen.getAllByTestId('panel');
+    expect(panels.length).toBeGreaterThan(0);
+    expect(
+      panels.filter((panel) => panel.getAttribute('data-state') === 'empty').length,
+    ).toBeGreaterThan(0);
+    expect(
+      panels.filter((panel) => panel.getAttribute('data-state') === 'error'),
+    ).toEqual([]);
+  });
+
+  it('autonomy (rules & windows tab): renders rather than throwing when no node resolves', async () => {
+    await renderArea('autonomy', { tab: 'rules-windows' });
 
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
     const panels = screen.getAllByTestId('panel');
@@ -189,7 +211,7 @@ describe('a node-scoped read that fails on its own', () => {
     // The tree read is the node *selector*. Losing it must not cost the screen
     // the node it already had from the viewer.
     serveScenarioExcept('populated', ['/v1/config'], principalHolding(EVERYTHING));
-    await renderArea('autonomy');
+    await renderArea('autonomy', { tab: 'rules-windows' });
 
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
     expect(

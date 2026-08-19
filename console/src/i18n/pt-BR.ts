@@ -891,6 +891,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'O grafo é construído a partir do que as investigações observam. Nada foi observado sobre este nó.',
   'topology.empty.action': 'Ver o parque',
 
+  'autonomy.tabs':
+    'O que esta instalação pode fazer sozinha, quando não pode, e o que sempre vale',
   'autonomy.tab.posture': 'Postura',
   'autonomy.tab.rules-windows': 'Regras e janelas',
   'autonomy.tab.guardrails': 'Guardrails',
