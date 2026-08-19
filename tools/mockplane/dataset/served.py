@@ -1174,6 +1174,38 @@ _CONFIG_FIELDS_DEFAULTED: Final[tuple[Mapping[str, Any], ...]] = (
         "section_help": "How much of the estate may reach a model you do not host.",
         "default": "standard",
     },
+    # An array the schema names an entry shape for (`name`, `pattern`), so the
+    # generic editor draws it as an `ObjectList` — but only where this
+    # catalogue actually hands the field to that editor, which no entry named
+    # it to before. Left on the schema's own default (`[]`), same as every
+    # other field in this tuple, its own docstring's promise.
+    {
+        "path": "policies.masking.custom_patterns",
+        "label": "Custom patterns",
+        "type": "array",
+        "help": "Extra value shapes of your own to hide, beyond the ones shipped.",
+        "section": "policies.masking",
+        "section_summary": "How much of the estate may reach a model you do not host.",
+        "section_help": "How much of the estate may reach a model you do not host.",
+        "default": [],
+        "item_fields": [
+            {
+                "path": "name",
+                "label": "Name",
+                "type": "string",
+                "help": "A short name for this shape. It appears in the placeholder "
+                "that replaces the value, so make it recognisable.",
+                "max_length": 20000,
+            },
+            {
+                "path": "pattern",
+                "label": "Pattern",
+                "type": "string",
+                "help": "A regular expression matching the values to hide.",
+                "max_length": 20000,
+            },
+        ],
+    },
     {
         "path": "policies.guardrails.mode",
         "label": "Guardrail mode",

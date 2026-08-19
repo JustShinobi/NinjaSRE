@@ -189,6 +189,38 @@
             "value": "standard"
           },
           {
+            "approval_gated": false,
+            "default": [],
+            "help": "Extra value shapes of your own to hide, beyond the ones shipped.",
+            "item_fields": [
+              {
+                "help": "A short name for this shape. It appears in the placeholder that replaces the value, so make it recognisable.",
+                "label": "Name",
+                "max_length": 20000,
+                "path": "name",
+                "type": "string"
+              },
+              {
+                "help": "A regular expression matching the values to hide.",
+                "label": "Pattern",
+                "max_length": 20000,
+                "path": "pattern",
+                "type": "string"
+              }
+            ],
+            "label": "Custom patterns",
+            "locked_by": "",
+            "path": "policies.masking.custom_patterns",
+            "provenance": "",
+            "required": false,
+            "section": "policies.masking",
+            "section_help": "How much of the estate may reach a model you do not host.",
+            "section_summary": "How much of the estate may reach a model you do not host.",
+            "set_here": false,
+            "type": "array",
+            "value": []
+          },
+          {
             "allowed_values": [
               "enforcing",
               "observing"
@@ -626,6 +658,38 @@
             "set_here": false,
             "type": "string",
             "value": "standard"
+          },
+          {
+            "approval_gated": false,
+            "default": [],
+            "help": "Extra value shapes of your own to hide, beyond the ones shipped.",
+            "item_fields": [
+              {
+                "help": "A short name for this shape. It appears in the placeholder that replaces the value, so make it recognisable.",
+                "label": "Name",
+                "max_length": 20000,
+                "path": "name",
+                "type": "string"
+              },
+              {
+                "help": "A regular expression matching the values to hide.",
+                "label": "Pattern",
+                "max_length": 20000,
+                "path": "pattern",
+                "type": "string"
+              }
+            ],
+            "label": "Custom patterns",
+            "locked_by": "",
+            "path": "policies.masking.custom_patterns",
+            "provenance": "",
+            "required": false,
+            "section": "policies.masking",
+            "section_help": "How much of the estate may reach a model you do not host.",
+            "section_summary": "How much of the estate may reach a model you do not host.",
+            "set_here": false,
+            "type": "array",
+            "value": []
           },
           {
             "allowed_values": [
@@ -1067,6 +1131,38 @@
             "value": "standard"
           },
           {
+            "approval_gated": false,
+            "default": [],
+            "help": "Extra value shapes of your own to hide, beyond the ones shipped.",
+            "item_fields": [
+              {
+                "help": "A short name for this shape. It appears in the placeholder that replaces the value, so make it recognisable.",
+                "label": "Name",
+                "max_length": 20000,
+                "path": "name",
+                "type": "string"
+              },
+              {
+                "help": "A regular expression matching the values to hide.",
+                "label": "Pattern",
+                "max_length": 20000,
+                "path": "pattern",
+                "type": "string"
+              }
+            ],
+            "label": "Custom patterns",
+            "locked_by": "",
+            "path": "policies.masking.custom_patterns",
+            "provenance": "",
+            "required": false,
+            "section": "policies.masking",
+            "section_help": "How much of the estate may reach a model you do not host.",
+            "section_summary": "How much of the estate may reach a model you do not host.",
+            "set_here": false,
+            "type": "array",
+            "value": []
+          },
+          {
             "allowed_values": [
               "enforcing",
               "observing"
@@ -1506,6 +1602,38 @@
             "value": "standard"
           },
           {
+            "approval_gated": false,
+            "default": [],
+            "help": "Extra value shapes of your own to hide, beyond the ones shipped.",
+            "item_fields": [
+              {
+                "help": "A short name for this shape. It appears in the placeholder that replaces the value, so make it recognisable.",
+                "label": "Name",
+                "max_length": 20000,
+                "path": "name",
+                "type": "string"
+              },
+              {
+                "help": "A regular expression matching the values to hide.",
+                "label": "Pattern",
+                "max_length": 20000,
+                "path": "pattern",
+                "type": "string"
+              }
+            ],
+            "label": "Custom patterns",
+            "locked_by": "",
+            "path": "policies.masking.custom_patterns",
+            "provenance": "",
+            "required": false,
+            "section": "policies.masking",
+            "section_help": "How much of the estate may reach a model you do not host.",
+            "section_summary": "How much of the estate may reach a model you do not host.",
+            "set_here": false,
+            "type": "array",
+            "value": []
+          },
+          {
             "allowed_values": [
               "enforcing",
               "observing"
@@ -1943,6 +2071,38 @@
             "set_here": false,
             "type": "string",
             "value": "standard"
+          },
+          {
+            "approval_gated": false,
+            "default": [],
+            "help": "Extra value shapes of your own to hide, beyond the ones shipped.",
+            "item_fields": [
+              {
+                "help": "A short name for this shape. It appears in the placeholder that replaces the value, so make it recognisable.",
+                "label": "Name",
+                "max_length": 20000,
+                "path": "name",
+                "type": "string"
+              },
+              {
+                "help": "A regular expression matching the values to hide.",
+                "label": "Pattern",
+                "max_length": 20000,
+                "path": "pattern",
+                "type": "string"
+              }
+            ],
+            "label": "Custom patterns",
+            "locked_by": "",
+            "path": "policies.masking.custom_patterns",
+            "provenance": "",
+            "required": false,
+            "section": "policies.masking",
+            "section_help": "How much of the estate may reach a model you do not host.",
+            "section_summary": "How much of the estate may reach a model you do not host.",
+            "set_here": false,
+            "type": "array",
+            "value": []
           },
           {
             "allowed_values": [

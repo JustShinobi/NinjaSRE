@@ -27,8 +27,12 @@ import type { EditableField } from '../preview';
  * `disabled_rules`, `autonomous_capabilities`) are deliberately absent from
  * this list, matching the settings page's existing judgment: a list's
  * "effective value" would be its own JSON dump, which is not a sentence
- * anybody reads as a guardrail's state. Those three stay reachable through
- * their own editable list controls, not this summary.
+ * anybody reads as a guardrail's state. `custom_patterns` stays reachable
+ * through its own editable list control, not this summary; `disabled_rules`
+ * and `autonomous_capabilities` are plain string lists with no control
+ * anywhere in the console yet (`CONFIG_FIELDS_NO_CONTROL` in
+ * `shell/config-ownership.ts`), so neither this summary nor a list control
+ * is where either is reachable today.
  */
 
 export interface GuardrailFieldSpec {

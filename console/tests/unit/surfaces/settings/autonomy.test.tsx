@@ -1055,7 +1055,15 @@ describe('the guardrails section', () => {
     expect(screen.queryByTestId('guardrail-field-editor')).not.toBeInTheDocument();
   });
 
-  it('keeps the three array-shaped fields reachable through the generic editor, now that the six scalars have their own row', async () => {
+  it('rows all three array-shaped fields through the generic editor, but only one of them as a real control', async () => {
+    // The shapes below mirror the schema exactly, not a shorthand for it:
+    // `custom_patterns` is an array of objects the schema names an entry
+    // for (`name`, `pattern`), so `item_fields` is non-empty and the editor
+    // draws it as a working `ObjectList`. `disabled_rules` and
+    // `autonomous_capabilities` are plain string lists — the schema
+    // declares no entry shape for either, so `item_fields` is empty here
+    // because it is empty there, and the editor can offer nothing more than
+    // the same read-only row every other unreachable field gets.
     serveAutonomy({
       policy: EMPTY_POLICY,
       bounds: EMPTY_BOUNDS,
@@ -1080,6 +1088,16 @@ describe('the guardrails section', () => {
           set_here: false,
           item_fields: [
             {
+              path: 'name',
+              label: 'Name',
+              type: 'string',
+              help: '',
+              allowed_values: null,
+              minimum: null,
+              maximum: null,
+              default: '',
+            },
+            {
               path: 'pattern',
               label: 'Pattern',
               type: 'string',
@@ -1099,18 +1117,7 @@ describe('the guardrails section', () => {
           value: [],
           provenance: '',
           set_here: false,
-          item_fields: [
-            {
-              path: 'rule_id',
-              label: 'Rule',
-              type: 'string',
-              help: '',
-              allowed_values: null,
-              minimum: null,
-              maximum: null,
-              default: '',
-            },
-          ],
+          item_fields: [],
         },
         {
           path: 'policies.approvals.autonomous_capabilities',
@@ -1120,18 +1127,7 @@ describe('the guardrails section', () => {
           value: [],
           provenance: '',
           set_here: false,
-          item_fields: [
-            {
-              path: 'capability',
-              label: 'Capability',
-              type: 'string',
-              help: '',
-              allowed_values: null,
-              minimum: null,
-              maximum: null,
-              default: '',
-            },
-          ],
+          item_fields: [],
         },
       ],
     });
@@ -1156,6 +1152,30 @@ describe('the guardrails section', () => {
     // content: three fields is what is left of it here, not the nine this
     // route used to route through it.
     expect(paths).toHaveLength(3);
+
+    // The one field the schema gives an entry shape to gets a real,
+    // interactive list — add, remove and reorder included, not merely a row
+    // that exists.
+    const patternsRow = editor.querySelector(
+      '[data-testid="config-field"][data-path="policies.masking.custom_patterns"]',
+    );
+    expect(patternsRow?.querySelector('[data-testid="object-list"]')).not.toBeNull();
+    expect(patternsRow?.querySelector('[data-testid="add-entry"]')).not.toBeNull();
+    expect(patternsRow?.querySelector('[data-testid="field-not-editable"]')).toBeNull();
+
+    // The two plain string lists still have nothing to press — a row exists
+    // to say the field is there, and it says, honestly, that nothing on this
+    // screen can change it yet.
+    for (const path of [
+      'policies.guardrails.disabled_rules',
+      'policies.approvals.autonomous_capabilities',
+    ]) {
+      const row = editor.querySelector(
+        `[data-testid="config-field"][data-path="${path}"]`,
+      );
+      expect(row?.querySelector('[data-testid="field-not-editable"]')).not.toBeNull();
+      expect(row?.querySelector('[data-testid="object-list"]')).toBeNull();
+    }
   });
 
   it('renders no generic editor at all when the six scalars above already cover every guardrail-prefixed field', async () => {
@@ -1305,6 +1325,16 @@ describe('the guardrails section', () => {
           provenance: '',
           set_here: false,
           item_fields: [
+            {
+              path: 'name',
+              label: 'Name',
+              type: 'string',
+              help: '',
+              allowed_values: null,
+              minimum: null,
+              maximum: null,
+              default: '',
+            },
             {
               path: 'pattern',
               label: 'Pattern',

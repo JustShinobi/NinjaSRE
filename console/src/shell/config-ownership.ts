@@ -25,7 +25,7 @@
  *        array the schema describes no entry shape for. Retiring the editor
  *        costs this console nothing it had. This half is permanent; it
  *        shrinks only if a future feature builds an editor for one, which
- *        this migration does not. Nine fields.
+ *        this migration does not. Eleven fields.
  *      - a field the raw editor **can** reach, with no screen of its own yet.
  *        This half is the real burndown, and it is what keeps the parity
  *        check red until the page named beside it grows a control.
@@ -86,16 +86,17 @@ export interface ConfigFieldOwner {
  * editor be deleted over a field nobody can reach.
  */
 export const CONFIG_FIELD_OWNERS: readonly ConfigFieldOwner[] = [
-  // settings-autonomy-guardrails (17) — the thirteen scalars, plus the four
-  // array-shaped ones (`rules`, `freezes`, `budgets`, `overrides`). Those four
-  // also have their own purpose-built form (`AutonomyEditor`, `OverrideEditor`
-  // on the same page) — but they draw through this same prefixed
-  // `ConfigEditor` as an `ObjectList` too, which is a genuine second answer to
-  // "where do I change this", not merely a coincidence of the schema.
-  {
-    path: 'policies.approvals.autonomous_capabilities',
-    page: 'settings-autonomy-guardrails',
-  },
+  // settings-autonomy-guardrails (15) — ten scalars, the four array-shaped
+  // fields with a proven endpoint of their own (`rules`, `freezes`,
+  // `budgets`, `overrides`), and a fifth array (`custom_patterns`) the
+  // generic prefix-scoped editor reaches instead. Those four also have their
+  // own purpose-built form (`AutonomyEditor`, `OverrideEditor` on the same
+  // page) — but they draw through this same prefixed `ConfigEditor` as an
+  // `ObjectList` too, which is a genuine second answer to "where do I change
+  // this", not merely a coincidence of the schema. Two more fields on this
+  // page — `disabled_rules`, `autonomous_capabilities` — are plain string
+  // lists with no control anywhere; they are named on
+  // `CONFIG_FIELDS_NO_CONTROL` below, not here.
   { path: 'policies.approvals.expiry_hours', page: 'settings-autonomy-guardrails' },
   { path: 'policies.approvals.threshold', page: 'settings-autonomy-guardrails' },
   {
@@ -115,7 +116,6 @@ export const CONFIG_FIELD_OWNERS: readonly ConfigFieldOwner[] = [
     page: 'settings-autonomy-guardrails',
   },
   { path: 'policies.autonomy.rules', page: 'settings-autonomy-guardrails' },
-  { path: 'policies.guardrails.disabled_rules', page: 'settings-autonomy-guardrails' },
   { path: 'policies.guardrails.mode', page: 'settings-autonomy-guardrails' },
   { path: 'policies.guardrails.ruleset', page: 'settings-autonomy-guardrails' },
   { path: 'policies.masking.custom_patterns', page: 'settings-autonomy-guardrails' },
@@ -330,7 +330,7 @@ export const CONFIG_FIELDS_MACHINE: readonly string[] = [
  * written here — by whether `preview.tsx`'s own `isObjectList` would draw a
  * control for the field, not by whether the JSON type happens to say `array`:
  *
- * - **Genuinely unreachable (9 — 5 arrays with no declared entry shape, 4
+ * - **Genuinely unreachable (11 — 7 arrays with no declared entry shape, 4
  *   free-form objects).** The raw editor never drew a control for either; an
  *   array only gets one when the schema describes what one entry looks like,
  *   and an object only when it is a closed section rather than an
@@ -359,6 +359,21 @@ export const CONFIG_FIELDS_NO_CONTROL: readonly ConfigFieldOwner[] = [
   { path: 'capabilities.enabled', page: 'agent' },
   { path: 'capabilities.parameters', page: 'agent' },
   { path: 'capabilities.protocol_classifications', page: 'agent' },
+
+  // settings-autonomy-guardrails (2) — two plain string lists the schema
+  // gives no entry shape to: which named guardrail rules are switched off,
+  // and which capabilities may run without an approval. `ConfiguredStrList`
+  // is the same type as `capabilities.disabled`, `capabilities.enabled` and
+  // `policies.sso.scopes` above and below — a bare list of strings, with
+  // nothing inside one entry for any control, generic or bespoke, to draw.
+  // Reaching them would mean changing the schema's own shape, or teaching
+  // the generic editor to synthesise a one-field entry for every string
+  // list it meets; both go well past these two fields.
+  {
+    path: 'policies.approvals.autonomous_capabilities',
+    page: 'settings-autonomy-guardrails',
+  },
+  { path: 'policies.guardrails.disabled_rules', page: 'settings-autonomy-guardrails' },
 
   // settings-schedules-destinations (1) — which surfaces a team uses at all
   // is a plain string list the schema describes no entry shape for, so the

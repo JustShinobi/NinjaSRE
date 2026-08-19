@@ -165,10 +165,16 @@ describe('tabOwning — the field-to-tab map', () => {
     expect(tabOwning('policies.masking.custom_patterns')).toBe('guardrails');
     expect(tabOwning('policies.guardrails.mode')).toBe('guardrails');
     expect(tabOwning('policies.guardrails.ruleset')).toBe('guardrails');
-    expect(tabOwning('policies.guardrails.disabled_rules')).toBe('guardrails');
     expect(tabOwning('policies.approvals.threshold')).toBe('guardrails');
     expect(tabOwning('policies.approvals.expiry_hours')).toBe('guardrails');
-    expect(tabOwning('policies.approvals.autonomous_capabilities')).toBe('guardrails');
+  });
+
+  it('claims neither plain string list Guardrails has no control for', () => {
+    // `disabled_rules` and `autonomous_capabilities` are on
+    // `CONFIG_FIELDS_NO_CONTROL` now, not `CONFIG_FIELD_OWNERS` — this page
+    // has nothing to show for either yet, so no tab may claim them.
+    expect(tabOwning('policies.guardrails.disabled_rules')).toBeUndefined();
+    expect(tabOwning('policies.approvals.autonomous_capabilities')).toBeUndefined();
   });
 });
 

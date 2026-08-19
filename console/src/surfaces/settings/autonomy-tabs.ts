@@ -64,7 +64,7 @@ export interface AutonomyTabField {
 }
 
 /**
- * Every configuration field this page owns — the seventeen paths
+ * Every configuration field this page owns — the fifteen paths
  * `shell/config-ownership.ts` assigns to `settings-autonomy-guardrails` —
  * claimed by exactly one of the three tabs above.
  *
@@ -114,12 +114,13 @@ export const AUTONOMY_TAB_FIELDS: readonly AutonomyTabField[] = [
   { path: 'policies.autonomy.recurrence_window_seconds', tab: 'rules-windows' },
   { path: 'policies.autonomy.rules', tab: 'rules-windows' },
 
-  // Guardrails (9) — what always holds, whatever a rule decides: masking,
-  // secret detection, and the approval gate.
-  { path: 'policies.approvals.autonomous_capabilities', tab: 'guardrails' },
+  // Guardrails (7) — what always holds, whatever a rule decides: masking,
+  // secret detection, and the approval gate. `disabled_rules` and
+  // `autonomous_capabilities` are plain string lists this page has no
+  // control for either — see `CONFIG_FIELDS_NO_CONTROL` in
+  // `shell/config-ownership.ts` — so neither is claimed by any tab here.
   { path: 'policies.approvals.expiry_hours', tab: 'guardrails' },
   { path: 'policies.approvals.threshold', tab: 'guardrails' },
-  { path: 'policies.guardrails.disabled_rules', tab: 'guardrails' },
   { path: 'policies.guardrails.mode', tab: 'guardrails' },
   { path: 'policies.guardrails.ruleset', tab: 'guardrails' },
   { path: 'policies.masking.custom_patterns', tab: 'guardrails' },
