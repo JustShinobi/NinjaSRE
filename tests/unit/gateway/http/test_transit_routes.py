@@ -8,7 +8,7 @@ operator having to look for it.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -156,6 +156,82 @@ async def test_recent_rejections_come_back_with_their_reasons(
     assert [entry["reason"] for entry in row["recent_rejections"]] == [
         "did not verify against any configured route"
     ]
+
+
+# --- The week's delivery volume, beside the day's ---------------------------------
+
+
+async def test_the_week_s_volume_includes_a_delivery_older_than_the_day_window(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """FR-048: the week's volume is not the day's — a source that delivered
+    five days ago, and nothing inside the last 24 hours, still counts that
+    delivery toward its week, even though it does not count toward `counts`.
+    """
+    await ledger(
+        deployment,
+        arrival(delivery_id="five-days-ago", occurred_at=datetime.now(UTC) - timedelta(days=5)),
+    )
+
+    response = await client.get("/v1/transit/ingress", headers=await admin(deployment))
+
+    row = next(r for r in response.json()["sources"] if r["source"] == "alertmanager")
+    assert row["counts"] == {}
+    assert row["week_count"] == 1
+
+
+async def test_the_week_s_volume_includes_everything_the_day_s_count_already_does(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    await ledger(deployment, arrival())
+
+    response = await client.get("/v1/transit/ingress", headers=await admin(deployment))
+
+    row = next(r for r in response.json()["sources"] if r["source"] == "alertmanager")
+    assert row["week_count"] == 1
+
+
+async def test_a_source_with_nothing_delivered_reports_a_week_count_of_zero(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    response = await client.get("/v1/transit/ingress", headers=await admin(deployment))
+
+    row = next(r for r in response.json()["sources"] if r["source"] == "grafana")
+    assert row["week_count"] == 0
+
+
+async def test_a_delivery_older_than_the_week_does_not_count_toward_it(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    await ledger(
+        deployment,
+        arrival(delivery_id="ancient", occurred_at=datetime.now(UTC) - timedelta(days=30)),
+    )
+
+    response = await client.get("/v1/transit/ingress", headers=await admin(deployment))
+
+    row = next(r for r in response.json()["sources"] if r["source"] == "alertmanager")
+    assert row["week_count"] == 0
+
+
+async def test_the_week_s_volume_counts_every_outcome_not_only_accepted(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """A rejected delivery is still a delivery that arrived — FR-048 asks for
+    the volume, not only the accepted share of it."""
+    await ledger(
+        deployment,
+        arrival(
+            delivery_id="refused-this-week",
+            outcome=TransitOutcome.REJECTED,
+            reason="unverified",
+        ),
+    )
+
+    response = await client.get("/v1/transit/ingress", headers=await admin(deployment))
+
+    row = next(r for r in response.json()["sources"] if r["source"] == "alertmanager")
+    assert row["week_count"] == 1
 
 
 # --- Rules and simulation: acceptance 3 and 4 -------------------------------------

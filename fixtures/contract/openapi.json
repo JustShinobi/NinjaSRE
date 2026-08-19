@@ -3043,6 +3043,11 @@
           "verification": {
             "title": "Verification",
             "type": "string"
+          },
+          "week_count": {
+            "default": 0,
+            "title": "Week Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -3065,6 +3070,17 @@
           "path": {
             "title": "Path",
             "type": "string"
+          },
+          "receiver_yaml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Yaml"
           },
           "source": {
             "title": "Source",

@@ -73,6 +73,13 @@ RETENTION_DAYS_TRANSIT: Final[int] = 30
 #: operator asking "is this still arriving" has in mind.
 TRANSIT_ACTIVITY_WINDOW_HOURS: Final[int] = 24
 
+#: The window a source's own delivery *volume* is reported over on the intake
+#: screen. A week, because "is this still arriving" (the day window above) and
+#: "how much has been arriving" are different questions — a source that fires
+#: twice a month reads as silent on the first and as exactly what it is on the
+#: second.
+TRANSIT_WEEKLY_VOLUME_WINDOW_HOURS: Final[int] = 24 * 7
+
 # --- Routing rules ----------------------------------------------------------------
 
 #: Ordered rules one rule set may hold. Evaluation is a linear scan on the
@@ -227,4 +234,5 @@ __all__ = [
     "TRANSIT_SAMPLES_PER_SOURCE",
     "TRANSIT_SAMPLE_TRUNCATION_MARKER",
     "TRANSIT_SHED_LEDGER_INTERVAL",
+    "TRANSIT_WEEKLY_VOLUME_WINDOW_HOURS",
 ]

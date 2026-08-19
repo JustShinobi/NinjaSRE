@@ -36,6 +36,7 @@ from config.constants.transit import (
     DELIVERY_EVENTS,
     NO_DELIVERY_CHANNEL_REASON,
     TRANSIT_ACTIVITY_WINDOW_HOURS,
+    TRANSIT_WEEKLY_VOLUME_WINDOW_HOURS,
 )
 from core.domain.alerts.normalisation import RawAlert, adapter_for
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
@@ -102,6 +103,11 @@ class IngressSourceStatusView(BaseModel):
     last_outcome: str = ""
     #: Counts inside the activity window, keyed by outcome.
     counts: dict[str, int] = Field(default_factory=dict)
+    #: How many deliveries of any outcome landed inside the last
+    #: ``TRANSIT_WEEKLY_VOLUME_WINDOW_HOURS``. A wider, coarser number than
+    #: ``counts`` on purpose: "is this still arriving" and "how much has been
+    #: arriving" are different questions, asked over different spans.
+    week_count: int = 0
     recent_rejections: list[DeliveryView] = Field(default_factory=list)
     sample: SampleView | None = None
 
@@ -219,12 +225,23 @@ async def ingress_status(
     if rejections < 0:
         raise bad_request("rejections cannot be negative")
     since = _utc_now() - timedelta(hours=TRANSIT_ACTIVITY_WINDOW_HOURS)
+    since_this_week = _utc_now() - timedelta(hours=TRANSIT_WEEKLY_VOLUME_WINDOW_HOURS)
     base = ""
 
     async with state.gateway.begin(auth.scope) as uow:
         activity = {
             row.source: row
             for row in await uow.transit.activity(direction=TransitDirection.INGRESS, since=since)
+        }
+        # A second, wider read rather than widening the one above: "is this
+        # still arriving" and "how much has been arriving" are different
+        # questions, and collapsing them onto one window would make `counts`
+        # answer neither cleanly.
+        weekly_activity = {
+            row.source: row
+            for row in await uow.transit.activity(
+                direction=TransitDirection.INGRESS, since=since_this_week
+            )
         }
         refused = await uow.transit.deliveries(
             TransitQuery(
@@ -257,6 +274,7 @@ async def ingress_status(
                     if seen is None
                     else {outcome.value: count for outcome, count in seen.counts.items()}
                 ),
+                week_count=(0 if name not in weekly_activity else weekly_activity[name].total),
                 recent_rejections=[_view(row) for row in refused if row.source == name][
                     :rejections
                 ],

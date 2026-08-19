@@ -29,6 +29,8 @@ import hashlib
 from collections.abc import Mapping
 from typing import Any
 
+import yaml
+
 from core.domain.alerts.sources import AlertSource
 from gateway.webhooks.sources.profile import WebhookSourceProfile, field
 
@@ -91,4 +93,43 @@ PROFILE = WebhookSourceProfile(
     ),
 )
 
-__all__ = ["PROFILE"]
+#: What a copied receiver block says in place of a credential's value. Never a
+#: template a caller could accidentally fill with one — this string is the
+#: entire contents of that field, always, because ``receiver_yaml`` below has
+#: no parameter a raw value could arrive through in the first place.
+_CREDENTIALS_MARKER = 'paste the value of delivery token "{name}" here'
+
+
+def receiver_yaml(*, url: str, token_name: str) -> str:
+    """Return a ``webhook_configs`` block ready to paste into an Alertmanager receiver.
+
+    Alertmanager's own YAML shape, generated rather than typed by an operator
+    or assembled by concatenation on a screen — this is the one place that
+    knows what an Alertmanager receiver actually looks like, which is why it
+    lives beside the profile that already knows everything else about this
+    vendor's webhook.
+
+    Never carries a stored secret's value. A delivery token is never read back
+    once it is issued — the store holds a hash, and this function has no
+    parameter a value could arrive through even by mistake. What it carries
+    instead is the token's own name, both in the marker where the value goes
+    and readable beside it, so pasting this block and then finding the token by
+    that name in Machine tokens is one lookup, not a guess.
+    """
+    block: dict[str, Any] = {
+        "webhook_configs": [
+            {
+                "url": url,
+                "http_config": {
+                    "authorization": {
+                        "type": "Bearer",
+                        "credentials": _CREDENTIALS_MARKER.format(name=token_name),
+                    }
+                },
+            }
+        ]
+    }
+    return yaml.safe_dump(block, sort_keys=False)
+
+
+__all__ = ["PROFILE", "receiver_yaml"]

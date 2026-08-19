@@ -4415,6 +4415,11 @@ export interface components {
             url: string;
             /** Verification */
             verification: string;
+            /**
+             * Week Count
+             * @default 0
+             */
+            week_count: number;
         };
         /**
          * IngressSourceView
@@ -4425,6 +4430,8 @@ export interface components {
             expects: string;
             /** Path */
             path: string;
+            /** Receiver Yaml */
+            receiver_yaml?: string | null;
             /** Source */
             source: string;
             /** Url */
