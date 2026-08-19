@@ -1087,7 +1087,7 @@ export const EN = {
   'autonomy.tab.posture': 'Posture',
   'autonomy.tab.rules-windows': 'Rules & windows',
   'autonomy.tab.guardrails': 'Guardrails',
-  // The subtitle every tab shares — FR-009 is page-level, not Posture-only —
+  // The subtitle every tab shares — it belongs to the page, not to Posture —
   // replacing the static description `page.context` gives every other
   // Settings page, since neither the node nor the posture in force is a fact
   // a catalogue can hold.

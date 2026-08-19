@@ -677,7 +677,7 @@ describe('the guardrails section', () => {
     // Rules & windows now, not here; see the advanced-autonomy-scalars
     // `describe` below for that one.
     expect(screen.getAllByTestId('config-editor')).toHaveLength(1);
-    // FR-026/FR-027: a display name is shown, but that alone does not prove
+    // A display name is shown, but that alone does not prove
     // the raw technical path is gone — the two can coexist. It does not,
     // anywhere on this tab.
     expect(document.body.textContent).not.toMatch(
@@ -697,7 +697,7 @@ describe('the guardrails section', () => {
 
     expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
-    // FR-050: a reader gets the value and its origin, never the form that
+    // A reader gets the value and its origin, never the form that
     // would write it — not the generic editor below (checked above) and not
     // this table's own inline affordance either.
     expect(screen.queryByTestId('guardrail-edit')).not.toBeInTheDocument();
@@ -1226,7 +1226,7 @@ describe('Posture: the empty state, with no rule recorded', () => {
     const link = within(note).getByRole('link', { name: 'Rules & windows' });
     expect(link).toBeInTheDocument();
 
-    // FR-012 / Acceptance Scenario 4: the CTA lands where its own label
+    // The CTA lands where its own label
     // promises — the Rules & windows tab, not an anchor on the same tab.
     expect(link).toHaveAttribute('href', expect.stringContaining('tab=rules-windows'));
   });

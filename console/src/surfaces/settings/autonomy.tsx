@@ -253,7 +253,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
     deploymentRule === undefined
       ? (LEVELS[0] ?? 'propose_only')
       : text(deploymentRule, 'level');
-  // FR-015: a level the deployment declares and this screen has no name for
+  // A level the deployment declares and this screen has no name for
   // still has to be selectable, never silently dropped from the list because
   // it is not one of the four known ones.
   const selectableLevels = LEVELS.includes(postureLevel)
@@ -736,7 +736,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     unreachable: message(locale, 'autonomy.editor.unreachable'),
                   }}
                 />
-                {/* FR-016/017/018: absence of a rule is the safe default,
+                {/* The absence of a rule is the safe default,
                     named as such, after the control it explains — never
                     before it. */}
                 {rulesEmpty ? (
@@ -758,7 +758,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               </div>
             ) : null}
 
-            {/* The guardrails summary FR-019 asks Posture to carry — read
+            {/* The guardrails summary Posture carries — read
                 only, the same resolver the Guardrails tab's own table uses,
                 so the two appearances can never disagree. */}
             <div

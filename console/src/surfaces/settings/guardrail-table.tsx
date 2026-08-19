@@ -21,7 +21,7 @@ import {
  * Setting/Value/Set at shape everywhere else this product resolves a field,
  * and Posture's read-only summary still uses it unchanged. This is the one
  * place a value in that shape is also editable: the Guardrails tab is the
- * page the field-ownership map assigns these six scalars to (FR-025), and the
+ * page the field-ownership map assigns these six scalars to, and the
  * mockup draws one table here, not a table with a second, separate form below
  * it repeating the same six rows.
  *

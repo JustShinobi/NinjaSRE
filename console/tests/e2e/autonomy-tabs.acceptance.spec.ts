@@ -170,7 +170,7 @@ test.describe('one question per tab, addressable by the URL', () => {
 
 test.describe('the conceptual paragraphs are gone, and no CTA misleads about where it goes', () => {
   // This claim is about the route, not about whichever tab a bare `ROUTE`
-  // happens to default to: FR-010 bans a conceptual paragraph before the
+  // happens to default to: a conceptual paragraph before the
   // first control anywhere on this screen, and the three tabs are three
   // separate DOM trees now, not three views of one. Walking only Posture
   // (`ROUTE` with no `?tab=`) would have kept passing the day the three
@@ -312,7 +312,7 @@ async function assertNoEmptyValueCell(page: Page): Promise<void> {
 }
 
 test.describe('the guardrails table keeps every value filled', () => {
-  // The two appearances FR-022 names now live on two different tabs, not two
+  // The table's two appearances now live on two different tabs, not two
   // places on one page: the Guardrails tab's editable table, and Posture's
   // read-only summary of the same fields. A single check against bare
   // `ROUTE` only ever exercised Posture — and would have kept passing there
@@ -354,7 +354,7 @@ test.describe('the guardrails table keeps every value filled', () => {
 // --- (f): override is a rare action, not a permanent third of the page -----
 
 test.describe('override is a rare action, not a permanent third of the page', () => {
-  // FR-038 says "no tab" in as many words: not occupying body space is a
+  // The requirement says "no tab" in as many words: not occupying body space is a
   // property of the whole route, not of whichever tab `ROUTE` happened to
   // default to when this was written. Once the panel does move behind the
   // header button (a later slice), it could easily stay mounted, but hidden,
