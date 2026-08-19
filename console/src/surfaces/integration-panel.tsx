@@ -155,6 +155,7 @@ export function IntegrationPanel({
   return (
     <Drawer
       open
+      floating
       title={item?.displayName ?? requestedName}
       onClose={close}
       closeLabel={labels.close}
