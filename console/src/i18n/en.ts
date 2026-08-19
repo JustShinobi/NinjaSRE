@@ -1451,14 +1451,14 @@ export const EN = {
   'catalogue.integrations.filter.state.degraded': 'Failing',
 
   // --- The integrations catalogue: connected first, the rest a search --------------
-  'catalogue.integrations.summary':
-    '{total} integrations available · {connected} connected',
+  'catalogue.integrations.summary': '{total} integrations · {connected} connected',
   'catalogue.integrations.summary.suggested':
-    '{total} integrations available · {connected} connected · {suggested} suggested',
+    '{total} integrations · {connected} connected · {suggested} suggested',
   'catalogue.integrations.connected.title': 'Connected',
   'catalogue.integrations.connected.manage': 'Manage',
   'catalogue.integrations.filter.view.connected': 'Connected · {count}',
   'catalogue.integrations.filter.view.suggested': 'Suggested · {count}',
+  'catalogue.integrations.available.title': 'Available',
   'catalogue.integrations.suggested.title': 'Suggested by your estate',
   'catalogue.integrations.suggested.evidence':
     'Found at {address}, on resource {resource}',
@@ -1486,7 +1486,8 @@ export const EN = {
   'catalogue.integrations.category.communication': 'Chat & on-call',
   'catalogue.integrations.category.data_platform': 'Data',
   'catalogue.integrations.category.model_provider': 'Model provider',
-  'catalogue.integrations.footer.gaps': '{count} vendors not covered, and why',
+  'catalogue.integrations.footer.gaps':
+    '{count} integrations moved to the roadmap · see the list and why',
   'catalogue.integrations.panel.close': 'Close',
   'catalogue.integrations.panel.notFound': 'This integration is not in the catalogue.',
   'catalogue.integrations.panel.notFound.action': 'Back to Integrations',

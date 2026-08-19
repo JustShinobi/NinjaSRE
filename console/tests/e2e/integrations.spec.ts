@@ -65,7 +65,7 @@ test('the summary line counts what the API served', async ({ page }) => {
   await page.goto('/integrations');
 
   const summary = await page.getByTestId('catalogue-summary').innerText();
-  expect(summary).toMatch(/\d+ integrations available/);
+  expect(summary).toMatch(/\d+ integrations ·/);
   expect(summary).toMatch(/\d+ connected/);
 });
 

@@ -357,14 +357,6 @@ CONFIG_SCREEN_SCROLL_BUDGET_VIEWPORTS: Final[float] = 2.0
 #: a reader to hold at once.
 CONFIG_SCREEN_TAB_SCROLL_BUDGET_VIEWPORTS: Final[float] = 1.5
 
-#: How many catalogue cards the integrations grid renders on one page. Chosen
-#: so the grid, plus the Connected and Suggested sections above it, stays
-#: inside ``CONFIG_SCREEN_SCROLL_BUDGET_VIEWPORTS`` against the full catalogue
-#: — a page short enough to read, long enough that clicking "next" a handful
-#: of times covers the whole thing rather than dozens of times.
-INTEGRATIONS_CATALOGUE_PAGE_SIZE: Final[int] = 24
-
-
 __all__ = [
     "ALERT_DEDUP_WINDOW_SECONDS",
     "API_MAX_REQUESTS_PER_PRINCIPAL",
@@ -420,7 +412,6 @@ __all__ = [
     "EXIT_USAGE",
     "FORCE_COLOR_ENV",
     "GATEWAY_SHUTDOWN_DRAIN_SECONDS",
-    "INTEGRATIONS_CATALOGUE_PAGE_SIZE",
     "JSON_ENVELOPE_KEYS",
     "JSON_SCHEMA_PREFIX",
     "JSON_SCHEMA_VERSION",

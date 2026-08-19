@@ -1229,14 +1229,14 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.filter.state.degraded': 'Falhando',
 
   // --- O catálogo de integrações: conectadas primeiro, o resto é uma busca ---------
-  'catalogue.integrations.summary':
-    '{total} integrações disponíveis · {connected} conectadas',
+  'catalogue.integrations.summary': '{total} integrações · {connected} conectadas',
   'catalogue.integrations.summary.suggested':
-    '{total} integrações disponíveis · {connected} conectadas · {suggested} sugeridas',
+    '{total} integrações · {connected} conectadas · {suggested} sugeridas',
   'catalogue.integrations.connected.title': 'Conectadas',
   'catalogue.integrations.connected.manage': 'Gerenciar',
   'catalogue.integrations.filter.view.connected': 'Conectadas · {count}',
   'catalogue.integrations.filter.view.suggested': 'Sugeridas · {count}',
+  'catalogue.integrations.available.title': 'Disponíveis',
   'catalogue.integrations.suggested.title': 'Sugerida pelo seu ambiente',
   'catalogue.integrations.suggested.evidence':
     'Encontrado em {address}, no recurso {resource}',
@@ -1264,7 +1264,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.category.communication': 'Chat e plantão',
   'catalogue.integrations.category.data_platform': 'Dados',
   'catalogue.integrations.category.model_provider': 'Provedor de modelo',
-  'catalogue.integrations.footer.gaps': '{count} vendors não cobertos, e por quê',
+  'catalogue.integrations.footer.gaps':
+    '{count} integrações movidas para o roadmap · veja a lista e o motivo',
   'catalogue.integrations.panel.close': 'Fechar',
   'catalogue.integrations.panel.notFound': 'Esta integração não está no catálogo.',
   'catalogue.integrations.panel.notFound.action': 'Voltar para Integrações',

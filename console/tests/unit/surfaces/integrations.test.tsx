@@ -473,15 +473,90 @@ describe('Suggested by the estate, in front of the catalogue', () => {
   });
 });
 
+describe('the three sections, always in this order, each absent rather than empty', () => {
+  it('draws Connected, then Suggested by your estate, then Available, with Available carrying its own heading', async () => {
+    serve({});
+    await integrations();
+
+    const connectedSection = screen.getByTestId('connected-section');
+    const suggestedSection = screen.getByTestId('suggested-section');
+    const availableHeading = screen.getByRole('heading', { name: 'Available' });
+    const grid = screen.getByTestId('catalogue-grid');
+
+    expect(
+      connectedSection.compareDocumentPosition(suggestedSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      'suggested-section is expected to follow connected-section',
+    ).toBeTruthy();
+    expect(
+      suggestedSection.compareDocumentPosition(availableHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      'the "Available" heading is expected to follow suggested-section',
+    ).toBeTruthy();
+    expect(
+      availableHeading.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'catalogue-grid is expected to follow the "Available" heading',
+    ).toBeTruthy();
+  });
+
+  it('never renders an empty Available section, when every integration is already Connected or Suggested', async () => {
+    serve({
+      integrations: {
+        integrations: [
+          integration({ name: 'prometheus', health: 'healthy' }),
+          integration({
+            name: 'grafana',
+            health: 'unconfigured',
+            suggested: {
+              address: '192.168.68.159:3000',
+              fromResource: 'monitoring',
+              resourceLabel: 'observability-01',
+              resourceKind: 'guest',
+            },
+          }),
+        ],
+        known_gaps: [],
+      },
+    });
+    await integrations();
+
+    expect(screen.getByTestId('connected-section')).toBeInTheDocument();
+    expect(screen.getByTestId('suggested-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('available-section')).toBeNull();
+    expect(screen.queryByTestId('catalogue-grid')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Available' })).toBeNull();
+  });
+});
+
 describe('the summary line', () => {
   it('counts what the API actually served, never a literal', async () => {
     serve({});
     await integrations();
 
     const summary = screen.getByTestId('catalogue-summary');
-    expect(summary).toHaveTextContent('6 integrations available');
+    expect(summary).toHaveTextContent('6 integrations ·');
     expect(summary).toHaveTextContent('3 connected');
     expect(summary).toHaveTextContent('1 suggested');
+  });
+
+  it('drops the third term instead of showing zero, when nothing is suggested', async () => {
+    serve({
+      integrations: {
+        integrations: [
+          integration({ name: 'prometheus', health: 'healthy' }),
+          integration({ name: 'postgresql', health: 'unconfigured' }),
+        ],
+        known_gaps: [],
+      },
+    });
+    await integrations();
+
+    const summary = screen.getByTestId('catalogue-summary');
+    expect(summary).toHaveTextContent('2 integrations ·');
+    expect(summary).toHaveTextContent('1 connected');
+    // Not "0 suggested" and not the word at all — the third term is absent,
+    // never a zero standing in for it.
+    expect(summary.textContent).not.toMatch(/suggested/i);
   });
 });
 
@@ -556,6 +631,133 @@ describe('the catalogue grid: compact cards, never the raw id, never the form', 
   });
 });
 
+describe('search narrows every section, not only Available', () => {
+  it('narrows Connected to the one matching row, and hides Suggested and Available when nothing in them matches', async () => {
+    // "Prometheus" is the default fixture's own connected item — it appears
+    // nowhere in Grafana's (suggested) or PostgreSQL's/Telegram's (available)
+    // display name, category, summary or capabilities.
+    serve({});
+    await integrations({ q: 'Prometheus' });
+
+    const connectedRows = screen.getAllByTestId('connected-integration');
+    expect(connectedRows.map((row) => row.getAttribute('data-integration'))).toEqual([
+      'prometheus',
+    ]);
+    expect(screen.queryByTestId('suggested-section')).toBeNull();
+    expect(screen.queryByTestId('catalogue-grid')).toBeNull();
+  });
+
+  it('narrows Suggested to the one matching row, and hides Connected and Available when nothing in them matches', async () => {
+    serve({});
+    await integrations({ q: 'Grafana' });
+
+    const suggestedRows = screen.getAllByTestId('suggested-integration');
+    expect(suggestedRows.map((row) => row.getAttribute('data-integration'))).toEqual([
+      'grafana',
+    ]);
+    expect(screen.queryByTestId('connected-section')).toBeNull();
+    expect(screen.queryByTestId('catalogue-grid')).toBeNull();
+  });
+
+  it('keeps a match in every section inside its own section, in the same order, rather than merging or reordering them', async () => {
+    // One connected, one suggested and one available item share a capability
+    // no other fixture item carries; a decoy in Connected and in Available
+    // does not, so the search has to actually narrow rather than pass
+    // everything through.
+    serve({
+      integrations: {
+        integrations: [
+          integration({
+            name: 'alpha-connected',
+            displayName: 'Alpha Connected',
+            health: 'healthy',
+            capabilities: ['zzz_shared_marker'],
+          }),
+          integration({
+            name: 'beta-suggested',
+            displayName: 'Beta Suggested',
+            health: 'unconfigured',
+            capabilities: ['zzz_shared_marker'],
+            suggested: {
+              address: '10.20.0.9:1234',
+              fromResource: 'res-beta',
+              resourceLabel: 'beta-host',
+              resourceKind: 'guest',
+            },
+          }),
+          integration({
+            name: 'gamma-available',
+            displayName: 'Gamma Available',
+            health: 'unconfigured',
+            capabilities: ['zzz_shared_marker'],
+          }),
+          integration({
+            name: 'decoy-connected',
+            displayName: 'Decoy Connected',
+            health: 'healthy',
+          }),
+          integration({
+            name: 'decoy-available',
+            displayName: 'Decoy Available',
+            health: 'unconfigured',
+          }),
+        ],
+        known_gaps: [],
+      },
+    });
+    await integrations({ q: 'zzz_shared_marker' });
+
+    expect(
+      screen
+        .getAllByTestId('connected-integration')
+        .map((row) => row.getAttribute('data-integration')),
+    ).toEqual(['alpha-connected']);
+    expect(
+      screen
+        .getAllByTestId('suggested-integration')
+        .map((row) => row.getAttribute('data-integration')),
+    ).toEqual(['beta-suggested']);
+    expect(
+      screen
+        .getAllByTestId('catalogue-item')
+        .map((row) => row.getAttribute('data-integration')),
+    ).toEqual(['gamma-available']);
+
+    const connectedSection = screen.getByTestId('connected-section');
+    const suggestedSection = screen.getByTestId('suggested-section');
+    const availableHeading = screen.getByRole('heading', { name: 'Available' });
+    expect(
+      connectedSection.compareDocumentPosition(suggestedSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      'suggested-section is expected to still follow connected-section while searching',
+    ).toBeTruthy();
+    expect(
+      suggestedSection.compareDocumentPosition(availableHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      'the "Available" heading is expected to still follow suggested-section while searching',
+    ).toBeTruthy();
+  });
+
+  it('shows one empty state, offering to clear the search and the same roadmap link, when nothing matches anywhere', async () => {
+    serve({});
+    await integrations({ q: 'no-integration-will-ever-be-named-this' });
+
+    expect(screen.queryByTestId('connected-section')).toBeNull();
+    expect(screen.queryByTestId('suggested-section')).toBeNull();
+    expect(screen.queryByTestId('available-section')).toBeNull();
+    expect(screen.queryByTestId('catalogue-grid')).toBeNull();
+
+    const clear = screen.getByTestId('way-back');
+    expect(clear).toHaveTextContent('Clear the search');
+    expect(clear).toHaveAttribute('href', '/integrations');
+
+    expect(screen.getByTestId('empty-not-covered-link')).toHaveAttribute(
+      'href',
+      '/integrations/not-covered',
+    );
+  });
+});
+
 describe('the "not covered" footer link', () => {
   it('links to the reference page, and does not repeat the prose inline', async () => {
     serve({});
@@ -565,6 +767,14 @@ describe('the "not covered" footer link', () => {
     expect(link).toHaveAttribute('href', '/integrations/not-covered');
     expect(link).toHaveTextContent('1');
     expect(screen.queryByTestId('known-gap')).toBeNull();
+  });
+
+  it('names the count as integrations moved to the roadmap, not a raw vendor tally', async () => {
+    serve({});
+    await integrations();
+
+    const link = screen.getByTestId('not-covered-link');
+    expect(link.textContent).toMatch(/moved to the roadmap/i);
   });
 });
 

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import NextLink from 'next/link';
 
-import { StatusChip } from '@/components/status';
 import { resolveCta } from '@/design/empty-state';
 import { message, type Locale } from '@/i18n/messages';
 import { may } from '@/session/viewer';
@@ -15,14 +14,14 @@ import {
 import { FilterBar, type FilterChoice } from '../filters';
 import type { CredentialFieldSpec } from '../credential';
 import {
-  INTEGRATIONS_CATALOGUE_PAGE_SIZE,
-  IntegrationCatalogueGrid,
+  IntegrationCatalogue,
+  type CatalogueConnectedItem,
   type CatalogueGridItem,
+  type CatalogueSuggestedItem,
 } from '../integration-catalogue';
 import { IntegrationPanel, type PermissionSpec } from '../integration-panel';
 import { credentialLabels, panelLabels } from '../labels';
 import { Panel } from '../panel';
-import { ScrollCapturingLink } from '../scroll-link';
 import {
   authorised,
   dataOf,
@@ -36,25 +35,23 @@ import {
   text,
 } from '../read';
 import { placedTree } from '../tree';
-import {
-  hrefFor,
-  readViewState,
-  resolveNode,
-  writeViewState,
-  type FilterName,
-} from '../url-state';
+import { hrefFor, readViewState, resolveNode, type FilterName } from '../url-state';
 
 /**
  * What the Catalogue became: connected first, a suggestion the estate already
- * found in second place, and everything else a compact, searchable grid
- * rather than eighty-plus collapsed forms stacked one under another.
+ * found in second place, and everything else named Available rather than
+ * eighty-plus collapsed forms stacked one under another — no paging, because
+ * the whole post-cut catalogue fits inside the scroll budget on its own.
  *
  * Three sections, always in this order, each absent rather than empty:
  * Connected (any health but `unconfigured`, the failing ones included —
  * losing a credential does not send an integration back to the catalogue),
- * Suggested (unconnected, and the estate found it running), and the catalogue
- * grid (everything else). An integration is never drawn twice: once it is
- * suggested it leaves the grid, and once it is connected it leaves both.
+ * Suggested (unconnected, and the estate found it running), and Available
+ * (everything else). An integration is never drawn twice: once it is
+ * suggested it leaves Available, and once it is connected it leaves both.
+ * This module computes the three lists — view/category filtered, exactly as
+ * the API and the address bar say — and hands them to `IntegrationCatalogue`,
+ * which owns the one search box that narrows all three at once.
  *
  * The credential form itself lives one address over,
  * `/integrations/<name>`, opened as a drawer over this screen rather than a
@@ -333,17 +330,40 @@ export async function IntegrationsScreen(
   ];
 
   const notCoveredHref = resolveCta({ route: '/integrations/not-covered' }).href;
+  // Read from the *detail* route's own address, not built here: closing the
+  // panel returns to whatever `IntegrationCatalogue` has on the address bar
+  // at that moment (including a search still mid-keystroke), never to a
+  // snapshot of the address this render started with.
   const closeHref = hrefFor('/integrations', state, INTEGRATIONS_FILTERS);
-  // A card's own link carries the current filters, so closing the panel it
-  // opens returns to the same view rather than to the address with nothing
-  // on it: `closeHref` is read from the *detail* route's own address, and a
-  // link that dropped the query here is a link that closes back to "All".
-  const catalogueQuery = writeViewState(state, INTEGRATIONS_FILTERS);
-  const detailHref = (integration: string): string =>
-    `/integrations/${encodeURIComponent(integration)}${catalogueQuery === '' ? '' : `?${catalogueQuery}`}`;
 
   const panelItem =
     name === undefined ? null : (installed.find((item) => item.name === name) ?? null);
+
+  const connectedItems: readonly CatalogueConnectedItem[] = visibleConnected.map(
+    (item) => ({
+      name: item.name,
+      displayName: item.displayName,
+      category: item.category,
+      categoryLabel: categoryLabel(locale, item.category),
+      summary: item.summary,
+      capabilities: item.capabilities,
+      health: item.health,
+      healthDetail: item.healthDetail,
+    }),
+  );
+
+  const suggestedItems: readonly CatalogueSuggestedItem[] = visibleSuggested.map(
+    (item) => ({
+      name: item.name,
+      displayName: item.displayName,
+      category: item.category,
+      categoryLabel: categoryLabel(locale, item.category),
+      summary: item.summary,
+      capabilities: item.capabilities,
+      evidence: evidenceOf(locale, item.suggested),
+      fromResource: item.suggested?.fromResource ?? '',
+    }),
+  );
 
   const gridItems: readonly CatalogueGridItem[] = visibleCatalogueRest.map((item) => ({
     name: item.name,
@@ -397,107 +417,15 @@ export async function IntegrationsScreen(
             />
           )}
 
-          {visibleConnected.length === 0 ? null : (
-            <section data-testid="connected-section" className="flex flex-col gap-2">
-              <h2 className="text-micro uppercase tracking-wide text-muted">
-                {message(locale, 'catalogue.integrations.connected.title')}
-              </h2>
-              <ul className="flex flex-col gap-2">
-                {visibleConnected.map((item) => (
-                  <li
-                    key={item.name}
-                    data-testid="connected-integration"
-                    data-integration={item.name}
-                    className="flex flex-wrap items-center gap-3 rounded-3 edge border-border p-3"
-                  >
-                    <span className="text-strong">{item.displayName}</span>
-                    <span className="text-meta text-muted">
-                      {categoryLabel(locale, item.category)} · {item.summary}
-                    </span>
-                    {item.healthDetail === '' ? null : (
-                      <span
-                        className="text-meta text-muted"
-                        data-testid="connected-health-detail"
-                      >
-                        {item.healthDetail}
-                      </span>
-                    )}
-                    <StatusChip
-                      locale={locale}
-                      status={item.health}
-                      className="ml-auto"
-                    />
-                    <ScrollCapturingLink
-                      href={detailHref(item.name)}
-                      data-testid="manage-integration"
-                      className="text-accent underline underline-offset-2 motion-hover hover:opacity-80"
-                    >
-                      {message(locale, 'catalogue.integrations.connected.manage')}
-                    </ScrollCapturingLink>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {visibleSuggested.length === 0 ? null : (
-            <section
-              data-testid="suggested-section"
-              className="flex flex-col gap-2 rounded-3 edge border-accent p-3"
-            >
-              <h2 className="text-micro uppercase tracking-wide text-accent">
-                {message(locale, 'catalogue.integrations.suggested.title')}
-              </h2>
-              <ul className="flex flex-col gap-2">
-                {visibleSuggested.map((item) => (
-                  <li
-                    key={item.name}
-                    data-testid="suggested-integration"
-                    data-integration={item.name}
-                    // The estate's own identifier for the resource this
-                    // suggestion came from — never in the evidence sentence
-                    // below, always recoverable here for a technical reader.
-                    data-resource={item.suggested?.fromResource ?? ''}
-                    className="flex flex-wrap items-center gap-3"
-                  >
-                    <span className="text-strong">{item.displayName}</span>
-                    <span
-                      className="text-meta text-accent"
-                      data-testid="suggestion-evidence"
-                    >
-                      {evidenceOf(locale, item.suggested)}
-                    </span>
-                    <ScrollCapturingLink
-                      href={detailHref(item.name)}
-                      data-testid="connect-suggested"
-                      className="ml-auto text-on-accent bg-accent rounded-2 edge border-accent px-3 py-1 text-meta motion-hover hover:opacity-90"
-                    >
-                      {message(locale, 'catalogue.integrations.suggested.connect')}
-                    </ScrollCapturingLink>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          <IntegrationCatalogueGrid
+          <IntegrationCatalogue
             locale={locale}
             path="/integrations"
             state={state}
             filters={INTEGRATIONS_FILTERS}
-            items={gridItems}
-            pageSize={INTEGRATIONS_CATALOGUE_PAGE_SIZE}
+            connected={connectedItems}
+            suggested={suggestedItems}
+            available={gridItems}
             notCoveredHref={notCoveredHref}
-            labels={{
-              search: message(locale, 'catalogue.integrations.search.label'),
-              emptyHeading: message(
-                locale,
-                'catalogue.integrations.search.empty.heading',
-              ),
-              emptyBody: message(locale, 'catalogue.integrations.search.empty.body'),
-              emptyClear: message(locale, 'catalogue.integrations.search.empty.clear'),
-              notCovered: message(locale, 'catalogue.notCovered.title'),
-            }}
           />
 
           {gaps.length === 0 ? null : (
