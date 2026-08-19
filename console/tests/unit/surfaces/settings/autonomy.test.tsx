@@ -985,15 +985,21 @@ describe('the guardrails section', () => {
     expect(rowFor('policies.masking.enabled')).toHaveTextContent('On');
     expect(rowFor('policies.masking.enabled')).not.toHaveTextContent('true');
     expect(rowFor('policies.masking.enabled')).toHaveTextContent(NODE);
-    expect(rowFor('policies.masking.level')).toHaveTextContent('strict');
+    // The three closed-set scalars read as what the value does, not the raw
+    // deployment spelling — this fixture used to assert the bare slug here,
+    // which was the defect: one screen read the side effect a change carries
+    // as a sentence, and this table still read it as `write_reversible`.
+    expect(rowFor('policies.masking.level')).toHaveTextContent('Strict');
     expect(rowFor('policies.masking.level')).toHaveTextContent('Deployment default');
-    expect(rowFor('policies.guardrails.mode')).toHaveTextContent('enforcing');
+    expect(rowFor('policies.guardrails.mode')).toHaveTextContent(
+      'Enforcing — matches are blocked',
+    );
     // `ruleset` has no override and no schema default — the row still exists,
     // naming the field, with an explicit "not set" marker rather than a
     // blank cell, which the component itself refuses to render.
     expect(rowFor('policies.guardrails.ruleset')).toHaveTextContent('Not set');
     expect(rowFor('policies.approvals.threshold')).toHaveTextContent(
-      'write_reversible',
+      'Every write needs a person',
     );
     // A duration is said as one — "4.5 hours" — never the bare number alone.
     expect(rowFor('policies.approvals.expiry_hours')).toHaveTextContent('4.5 hours');

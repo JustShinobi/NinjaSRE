@@ -1783,6 +1783,33 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.autonomy.guardrails.ruleset': 'Conjunto de regras',
   'settings.autonomy.guardrails.threshold': 'Limiar de aprovação',
   'settings.autonomy.guardrails.expiryHours': 'Validade do pedido de aprovação (horas)',
+  // O que cada nível de masking, modo de guardrail e limiar de aprovação
+  // realmente significa, lido por `guardrail-values.ts` — a mesma tabela cuja
+  // coluna Valor chegou a imprimir `write_reversible` ao pé da letra, em
+  // monoespaçado, ao lado da frase de toda outra linha. "off"/"standard"/
+  // "strict" já se leem como palavras sozinhas; "local_models_exempt" ganha
+  // uma tradução também, para a célula nunca ser três valores simples e um só
+  // enfeitado.
+  'guardrail.maskingLevel.off': 'Desativado',
+  'guardrail.maskingLevel.standard': 'Padrão',
+  'guardrail.maskingLevel.strict': 'Estrito',
+  'guardrail.maskingLevel.local_models_exempt': 'Isento para modelos locais',
+  // O que enforcing e observing fazem com uma correspondência, não a palavra
+  // que o esquema usa para o modo — a mesma distinção que
+  // `settings.autonomy.guardrails.invariant.secret` já traça em prosa, dita
+  // aqui no vocabulário de dois valores da própria tabela.
+  'guardrail.mode.enforcing': 'Aplicando — correspondências são bloqueadas',
+  'guardrail.mode.observing':
+    'Observando — correspondências são registradas, não bloqueadas',
+  // O que cada limiar realmente exige aprovação, nas menos palavras que ainda
+  // dizem isso corretamente. O esquema recusa um limiar acima de
+  // `write_reversible` — uma escrita sempre precisa poder chegar a uma
+  // pessoa — então estes três são todo valor permitido, não uma amostra de
+  // um conjunto maior.
+  'guardrail.approvalThreshold.read': 'Toda ação precisa de uma pessoa',
+  'guardrail.approvalThreshold.read_sensitive':
+    'Toda leitura sensível e escrita precisa de uma pessoa',
+  'guardrail.approvalThreshold.write_reversible': 'Toda escrita precisa de uma pessoa',
   'settings.autonomy.guardrails.edit': 'Editar',
   'settings.autonomy.guardrails.cancel': 'Cancelar',
 

@@ -1970,6 +1970,30 @@ export const EN = {
   'settings.autonomy.guardrails.ruleset': 'Ruleset',
   'settings.autonomy.guardrails.threshold': 'Approval threshold',
   'settings.autonomy.guardrails.expiryHours': 'Approval request expiry (hours)',
+  // What each masking level, guardrail mode and approval threshold actually
+  // means, read by `guardrail-values.ts` — the same table's Value column
+  // that used to print `write_reversible` verbatim, in a monospace face,
+  // beside every other row's own sentence. `off`/`standard`/`strict` already
+  // read as words on their own; `local_models_exempt` gets one anyway, so
+  // the cell is never three plain values and one dressed-up one.
+  'guardrail.maskingLevel.off': 'Off',
+  'guardrail.maskingLevel.standard': 'Standard',
+  'guardrail.maskingLevel.strict': 'Strict',
+  'guardrail.maskingLevel.local_models_exempt': 'Exempt for local models',
+  // What enforcing and observing do to a match, not the schema's own word
+  // for the mode — the same distinction `settings.autonomy.guardrails.
+  // invariant.secret` already draws in prose, said here as the table's own
+  // two-value vocabulary.
+  'guardrail.mode.enforcing': 'Enforcing — matches are blocked',
+  'guardrail.mode.observing': 'Observing — matches are recorded, not blocked',
+  // What each threshold actually gates, in the fewest words that still say
+  // it correctly. The schema refuses a threshold above `write_reversible` —
+  // a write must always be able to reach a person — so these three are every
+  // legal value, not a sample of a larger set.
+  'guardrail.approvalThreshold.read': 'Every action needs a person',
+  'guardrail.approvalThreshold.read_sensitive':
+    'Every sensitive read and write needs a person',
+  'guardrail.approvalThreshold.write_reversible': 'Every write needs a person',
   'settings.autonomy.guardrails.edit': 'Edit',
   'settings.autonomy.guardrails.cancel': 'Cancel',
 

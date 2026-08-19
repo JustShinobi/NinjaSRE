@@ -69,16 +69,37 @@
       }
     },
     {
-      "id": "autonomy-1440-light",
-      "route": "/settings/autonomy-guardrails",
-      "status": "pending",
+      "id": "autonomy-posture-1440-light",
+      "route": "/settings/autonomy-guardrails?tab=posture",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "06-screen-autonomy.png",
-        "reason": "The autonomy screen at the reference's two-thirds/one-third split: the rules table in resolution order, the permanent footer stating that the absence of a rule resolves to propose-only, and the bounds no level overrides in the context rail. Re-accepted when the policy engine landed and the rules table stopped being empty; the frame, the split and the footer are unchanged from the first acceptance."
-      },
-      "pending_because": "This screen more than doubled in height absorbing the standalone autonomy page, exceeds the scroll budget, and is where the uncovered policy fields land next. Held until both the height and the remaining fields are settled, so one review covers the finished screen."
+        "reason": "The question a reader lands on: what this deployment may do on its own, the level selector and its Save immediately under the heading with no prose between them, and the sentence that explains the empty case after the control rather than ahead of it. Reviewed as a capture: the subtitle names the node and the posture actually in force and says it comes from a temporary override; the guardrails in force read as sentences with a filled Value column and an origin beside each; the override that used to hold a third of this page is gone from the body and sits behind the header button. What a re-review would be looking for is prose creeping back above the first control, or the posture in the subtitle drifting back to the saved level while an override governs."
+      }
+    },
+    {
+      "id": "autonomy-rules-windows-1440-light",
+      "route": "/settings/autonomy-guardrails?tab=rules-windows",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "06-screen-autonomy.png",
+        "reason": "When the deployment may not act alone: the rules in resolution order, each level drawn as a named chip whose shape carries the escalation, then the creation of a rule, a freeze window and a spend cap, then one simulation section with a single primary action and the narrower hypothetical below it. Reviewed as a capture. Two things a re-review should weigh rather than assume settled: the panel that edits rules is still titled as though it saved a posture, and the same three rules appear both in the table above and as level selectors below it."
+      }
+    },
+    {
+      "id": "autonomy-guardrails-1440-light",
+      "route": "/settings/autonomy-guardrails?tab=guardrails",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "06-screen-autonomy.png",
+        "reason": "What always holds, whatever a rule decides: each guardrail with its effective value as a sentence, where that value came from, and the edit in the row itself. Reviewed as a capture: no Value cell is empty, the two invariants nothing can switch off read as stated facts rather than controls, and the field search below the table carries one real field rather than the empty box saying nothing matched that stood here before. A re-review should check that the value a cell displays and the value an edit writes have not been allowed to become the same string."
+      }
     },
     {
       "id": "decisions-1440-light",

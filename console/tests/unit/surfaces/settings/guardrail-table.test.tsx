@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GuardrailTable } from '@/surfaces/settings/guardrail-table';
+import { guardrailRows } from '@/surfaces/settings/guardrail-values';
 import type { EditableField } from '@/surfaces/preview';
 import type { EffectiveFieldRow } from '@/design/resolution-preview';
 
@@ -287,5 +288,49 @@ describe('editing a field in its own row', () => {
     expect(
       screen.getByRole('combobox', { name: 'Guardrail mode' }),
     ).toBeInTheDocument();
+  });
+
+  it('shows the described sentence while reading but saves the raw slug underneath it', async () => {
+    answerWith({ ok: true, reachable: true, reason: '', values: {} });
+    const modeField = field({
+      path: 'policies.guardrails.mode',
+      label: 'Guardrail mode',
+      type: 'string',
+      value: 'enforcing',
+      default: 'enforcing',
+      allowedValues: ['enforcing', 'observing'],
+    });
+    // The real resolver both appearances of this table call, not a
+    // hand-typed row — proves the sentence `guardrailRows` now produces and
+    // the value this table saves stay two different things end to end.
+    const rows = guardrailRows([modeField], 'en').filter(
+      (each) => each.path === 'policies.guardrails.mode',
+    );
+    table({ rows, catalogue: [modeField] });
+
+    expect(screen.getByTestId('effective-field')).toHaveTextContent(
+      'Enforcing — matches are blocked',
+    );
+
+    await userEvent.click(screen.getByTestId('guardrail-edit'));
+    const editor = screen.getByTestId('guardrail-field-editor');
+    // Opens on the field's own raw value, through the closed-set control the
+    // schema's `allowedValues` draws — never the sentence above, which is
+    // not itself a value the deployment would accept back.
+    expect(within(editor).getByRole('combobox')).toHaveValue('enforcing');
+
+    await userEvent.selectOptions(within(editor).getByRole('combobox'), 'observing');
+    await userEvent.click(screen.getByTestId('guardrail-save'));
+
+    expect(await screen.findByTestId('guardrail-save-result')).toHaveTextContent(
+      'Saved.',
+    );
+    // The write carries the slug the deployment understands, never the
+    // sentence the Value cell showed while reading.
+    expect(sent[0]?.body).toEqual({
+      nodeId: 'org-northwind',
+      patch: { policies: { guardrails: { mode: 'observing' } } },
+      remove: [],
+    });
   });
 });
