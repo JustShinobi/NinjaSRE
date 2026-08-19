@@ -9,6 +9,7 @@ import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { ProposalCard, type ProposalRow } from '../proposal';
+import { sideEffectLabel } from '../side-effects';
 import { placedTree } from '../tree';
 import { readViewState, resolveNode } from '../url-state';
 import {
@@ -258,7 +259,7 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
       {
         field: 'autonomy',
         label: message(locale, 'proposal.autonomy'),
-        value: `${text(record, 'side_effect_level')} — ${message(locale, 'proposal.queued')}`,
+        value: `${sideEffectLabel(locale, text(record, 'side_effect_level'))} ${message(locale, 'proposal.queued')}`,
       },
     ];
   }

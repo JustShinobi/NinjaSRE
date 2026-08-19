@@ -670,6 +670,18 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'proposal.reason.required': 'É obrigatório indicar um motivo para rejeitar.',
   'proposal.norollback': 'Sem plano de reversão — esta mudança é irreversível.',
   'proposal.queued': 'Esta mudança é posta em fila em vez de aplicada.',
+  // O que o pior efeito colateral da ação proposta significa, para a linha
+  // Autonomia acima — os mesmos valores que security.py declara, do menos ao
+  // mais perigoso, em palavras em vez do nome cru que o deployment manda.
+  'sideEffect.level.read': 'Leitura — nada muda no parque.',
+  'sideEffect.level.read_sensitive':
+    'Leitura sensível — nada muda, mas o que volta deve ser tratado com cuidado.',
+  'sideEffect.level.write_reversible':
+    'Escrita reversível — isso muda o parque, e a mudança pode ser desfeita.',
+  'sideEffect.level.write_irreversible':
+    'Escrita irreversível — isso muda o parque de um jeito que não pode ser desfeito.',
+  'sideEffect.level.destructive':
+    'Destrutiva — isso remove algo do parque, sem nada para reverter.',
 
   'resources.column.name': 'Recurso',
   'resources.column.kind': 'Tipo',

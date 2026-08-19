@@ -181,3 +181,64 @@ describe('an empty queue that says why', () => {
     expect(screen.queryByText(/org-northwind/)).toBeNull();
   });
 });
+
+describe('the autonomy row of a pending proposal', () => {
+  const PENDING = {
+    approval_id: 'apr-test-1',
+    action: 'estate.expand_volume',
+    arguments: {},
+    decided_at: null,
+    decided_by: null,
+    expires_at: '2026-08-07T13:39:00+00:00',
+    reason: null,
+    requested_at: '2026-08-07T11:39:00+00:00',
+    rollback_plan: null,
+    run_id: 'run-under-test',
+    side_effect_level: 'write_irreversible',
+    state: 'pending',
+    summary: 'Grow the volume that is at the ceiling of its own allocation.',
+  };
+
+  it('reads as a sentence, not the raw slug beside an em dash', async () => {
+    stubReads({
+      '/v1/approvals': { approvals: [PENDING] },
+      '/v1/setup/checklist': { complete: true },
+      '/v1/investigations/run-under-test/interactions': { interactions: [] },
+    });
+
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
+    const { contextFor, datasetViewer } = await import('../support/dataset');
+    render(await ApprovalsTab(contextFor(datasetViewer('populated'))));
+
+    const row = screen
+      .getAllByTestId('proposal-row')
+      .find((each) => each.getAttribute('data-field') === 'autonomy');
+    expect(row).toBeDefined();
+    // The defect this guards against: the raw backend slug interpolated
+    // straight into the sentence, with nothing translating it.
+    expect(row).not.toHaveTextContent('write_irreversible —');
+    expect(row).toHaveTextContent(/cannot be undone/i);
+    expect(row).toHaveTextContent(/queued rather than applied/i);
+  });
+
+  it('still renders a level this console has no words for, as itself', async () => {
+    stubReads({
+      '/v1/approvals': {
+        approvals: [{ ...PENDING, side_effect_level: 'time_travel' }],
+      },
+      '/v1/setup/checklist': { complete: true },
+      '/v1/investigations/run-under-test/interactions': { interactions: [] },
+    });
+
+    const { ApprovalsTab } = await import('@/surfaces/screens/approvals');
+    const { contextFor, datasetViewer } = await import('../support/dataset');
+    render(await ApprovalsTab(contextFor(datasetViewer('populated'))));
+
+    const row = screen
+      .getAllByTestId('proposal-row')
+      .find((each) => each.getAttribute('data-field') === 'autonomy');
+    // The level comes from the deployment, not from this console. A level
+    // nobody here has named must still render, as itself, never blank.
+    expect(row).toHaveTextContent('time_travel');
+  });
+});

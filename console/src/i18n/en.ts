@@ -836,6 +836,19 @@ export const EN = {
   'proposal.reason.required': 'A reason is required to reject.',
   'proposal.norollback': 'No rollback plan — this change is irreversible.',
   'proposal.queued': 'This change is queued rather than applied.',
+  // What the proposed action's own worst-case side effect means, for the
+  // Autonomy row above — the same slugs `config/constants/security.py`
+  // declares, ordered least to most dangerous, in words rather than as the
+  // bare deployment spelling.
+  'sideEffect.level.read': 'Read — nothing on the estate changes.',
+  'sideEffect.level.read_sensitive':
+    'Sensitive read — nothing changes, but what comes back should be handled carefully.',
+  'sideEffect.level.write_reversible':
+    'Reversible write — this changes the estate, and the change can be undone.',
+  'sideEffect.level.write_irreversible':
+    'Irreversible write — this changes the estate in a way that cannot be undone.',
+  'sideEffect.level.destructive':
+    'Destructive — this removes something from the estate, with nothing left to roll back.',
 
   // --- Resources ---------------------------------------------------------------------
   'resources.column.name': 'Resource',
