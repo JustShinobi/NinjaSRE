@@ -117,6 +117,27 @@ function settingsRoutesFromSource(): readonly SettingsRoute[] {
 
 const SETTINGS_ROUTES = settingsRoutesFromSource();
 
+/**
+ * `/integrations` is not a Settings route — `shell/routes.ts` lists it among
+ * `AREAS`, not `SETTINGS_PAGES`, because it has its own top-level nav entry
+ * rather than living under the Settings subnav. Structurally it is held to
+ * exactly the same three per-route rules below: it renders `page-header` the
+ * same way a Settings page does, and it carries its own configuration table
+ * (the "Advanced: configured vendors" section) with a Value column the same
+ * rule applies to. The integrations-and-intake feature asks this suite to
+ * pass on both of its two screens, one of which is this one, so it is added
+ * here explicitly rather than by widening what `SETTINGS_ROUTES` itself
+ * means — that constant stays a truthful read of `SETTINGS_PAGES` alone.
+ */
+const NON_SETTINGS_ROUTES_HELD_TO_THE_SAME_RULES: readonly SettingsRoute[] = [
+  { id: 'integrations', path: '/integrations' },
+];
+
+const ROUTES_UNDER_THESE_RULES: readonly SettingsRoute[] = [
+  ...SETTINGS_ROUTES,
+  ...NON_SETTINGS_ROUTES_HELD_TO_THE_SAME_RULES,
+];
+
 // --- Exceptions: named per route and per rule, with a substantive reason ---
 
 type Rule = 'vocabulary' | 'scroll-budget' | 'value-column';
@@ -131,20 +152,18 @@ interface Exception {
  * What is already known to violate a rule, and why — filled in as routes are
  * measured, never as a blanket relaxation. Each entry names one route and one
  * rule; the same route can still be held to every rule it has no entry for.
+ *
+ * Empty today. `/settings/alert-intake` + `scroll-budget` used to carry an
+ * entry here ("the screen repeats seven near-identical sources with nothing
+ * collapsed"), but that route is in `SCROLL_BUDGET_MEASURED_ELSEWHERE` below
+ * and the scroll-budget test checks that set with `test.skip` before it ever
+ * reaches the `test.fixme` lookup against this table — the entry was already
+ * dead, unreachable code, not a second, harmless statement of the same fact,
+ * and the seven-sources reason it gave stopped being true once an earlier
+ * feature cut intake to three. Deleting a dead table entry is not evidence
+ * that the route now passes the rule — nothing here measured that.
  */
-// `/settings/autonomy-guardrails` + `scroll-budget` is not listed here: it is
-// in `SCROLL_BUDGET_MEASURED_ELSEWHERE` below (reached via the retired
-// `/autonomy` address, which redirects to it), and the scroll-budget test
-// checks that set with `test.skip` before it ever reaches the `test.fixme`
-// lookup against this table — an entry for the same pair here would be dead,
-// unreachable code rather than a second, harmless statement of the same fact.
-const EXCEPTIONS: readonly Exception[] = [
-  {
-    path: '/settings/alert-intake',
-    rule: 'scroll-budget',
-    reason: 'the screen repeats seven near-identical sources with nothing collapsed',
-  },
-];
+const EXCEPTIONS: readonly Exception[] = [];
 
 function exceptionFor(path: string, rule: Rule): Exception | undefined {
   return EXCEPTIONS.find((entry) => entry.path === path && entry.rule === rule);
@@ -214,9 +233,10 @@ async function configurationValueCells(page: Page): Promise<readonly string[]> {
   return values;
 }
 
-// --- The four rules, per Settings route -------------------------------------
+// --- The four rules, per Settings route (plus /integrations, held to the
+// same three per-route rules — see the constant's own comment above) -------
 
-for (const route of SETTINGS_ROUTES) {
+for (const route of ROUTES_UNDER_THESE_RULES) {
   test.describe(route.path, () => {
     test('carries no banned vocabulary in its visible text', async ({ page }) => {
       test.fixme(
