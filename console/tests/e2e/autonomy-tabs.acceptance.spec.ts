@@ -207,23 +207,27 @@ test.describe('the conceptual paragraphs are gone, and no CTA misleads about whe
         let index = all.indexOf(headerEl);
         if (index === -1) return 'page-header is not attached under body';
 
-        // Chrome blocks sit back to back, in document order: the header's own
-        // subtree (breadcrumb, title, the required subtitle line, any header
-        // action), then — once tabs exist — the tab strip's own subtree. Skip
-        // each one in turn, however many of them are actually present, rather
-        // than only the header.
+        // Chrome is found by asking the document where it is, not by assuming
+        // it sits immediately after the header. An earlier version walked past
+        // the header's subtree and then checked whether the very next element
+        // carried a chrome testid — which is true only while the tab strip is
+        // the header's direct sibling. Wrap it in one undecorated `<div>` and
+        // the check misses, the walk resumes inside the tab strip, and its
+        // first `<a>` is mistaken for "the first control" — green with every
+        // paragraph on that tab still in place. The tab strip is chrome
+        // wherever it sits, so it is located and skipped by identity.
         const CHROME_TESTIDS = ['page-header', 'tab-links'];
-        for (;;) {
-          const root = all[index];
-          if (root === undefined) break;
-          while (index + 1 < all.length && root.contains(all[index + 1] ?? null)) {
-            index += 1;
+        for (const testid of CHROME_TESTIDS) {
+          const block = document.querySelector(`[data-testid="${testid}"]`);
+          if (block === null) continue;
+          const at = all.indexOf(block);
+          if (at === -1) continue;
+          // Past this block and everything inside it, wherever it began.
+          let end = at;
+          while (end + 1 < all.length && block.contains(all[end + 1] ?? null)) {
+            end += 1;
           }
-          const next = all[index + 1];
-          const nextTestid =
-            next === undefined ? null : next.getAttribute('data-testid');
-          if (nextTestid === null || !CHROME_TESTIDS.includes(nextTestid)) break;
-          index += 1;
+          if (end > index) index = end;
         }
 
         const CONTROL_TAGS = new Set(['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA', 'A']);
