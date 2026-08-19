@@ -43,10 +43,15 @@ import { message, type Locale } from '@/i18n/messages';
 
 /** Where the two halves of a write go. Both are couriers in the console's process. */
 const PREVIEW_ENDPOINT = '/api/preview';
-const SAVE_ENDPOINT = '/api/config';
+export const SAVE_ENDPOINT = '/api/config';
 
 /** The types this surface offers a control for. Everything else is read-only here. */
-const EDITABLE_TYPES: readonly string[] = ['string', 'integer', 'number', 'boolean'];
+export const EDITABLE_TYPES: readonly string[] = [
+  'string',
+  'integer',
+  'number',
+  'boolean',
+];
 
 /**
  * One field inside an entry of an ordered list of objects.
@@ -269,8 +274,14 @@ function safeParse(keyed: string): unknown {
  * by path and holds strings. It is parsed back here rather than kept as a
  * second kind of pending state: one shape of pending change means one
  * invalidates-the-preview comparison, and two would eventually disagree.
+ *
+ * Exported for the same reason `Control` is: the guardrails table draws its
+ * own controls outside this editor's pending/preview machinery, and a value
+ * it writes still has to reach the deployment shaped the way the field's own
+ * schema type declares, which is the one thing this function already knows
+ * how to do.
  */
-function typed(field: EditableField, keyed: string): unknown {
+export function typed(field: EditableField, keyed: string): unknown {
   if (isObjectList(field)) return safeParse(keyed);
   if (field.type === 'boolean') return keyed === 'true';
   if (field.type === 'integer') return Number.parseInt(keyed, 10);
@@ -924,15 +935,25 @@ function FieldRow({
   );
 }
 
-interface ControlProps {
+export interface ControlProps {
   readonly field: EditableField;
   readonly value: string;
   readonly disabled: boolean;
   readonly onEdit: (path: string, value: string) => void;
 }
 
-/** The control the catalogue asks for, and never one this console chose. */
-function Control({ field, value, disabled, onEdit }: ControlProps): ReactNode {
+/**
+ * The control the catalogue asks for, and never one this console chose.
+ *
+ * Exported so the guardrails table can offer the same type-dispatched control
+ * — a closed set is still a `Select`, a boolean still a `Switch` — for a
+ * field edited in its own row instead of inside this editor's own form. A
+ * second implementation of "what control does this schema type get" is
+ * exactly the kind of duplicate this console's own conventions warn against;
+ * reusing this one is what keeps the two guardrail appearances answering the
+ * same way to the same field forever, not just today.
+ */
+export function Control({ field, value, disabled, onEdit }: ControlProps): ReactNode {
   if (field.allowedValues !== null && field.allowedValues.length > 0) {
     return (
       <Select

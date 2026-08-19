@@ -25,7 +25,7 @@ import {
   tabLabel,
 } from './autonomy-tabs';
 import { editableFields } from '../editable';
-import { effectiveRows, formatHours, formatSeconds } from '../effective-fields';
+import { formatSeconds } from '../effective-fields';
 import { readSetupState } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
 import { panelLabels } from '../labels';
@@ -34,11 +34,12 @@ import { Panel } from '../panel';
 import { PostureEditor } from '../posture-editor';
 import { ConfigEditor } from '../preview';
 import { postureLabel, postureLabels } from '../postures';
-// Aliased: this file already has its own local `guardrailRows` (the Guardrails
-// tab's own rows, resolved from its own inline field list) — the shared
-// resolver is only for Posture's read-only summary, kept distinct by name
-// rather than by which one shadows the other.
-import { guardrailRows as postureGuardrailRows } from './guardrail-values';
+import { GuardrailTable } from './guardrail-table';
+// The one resolver both appearances of a guardrail's value read from —
+// Posture's read-only summary and this tab's own editable table can no
+// longer disagree about what a guardrail's cell says, because there is only
+// one place that decides it.
+import { GUARDRAIL_FIELDS, guardrailRows } from './guardrail-values';
 import {
   authorised,
   dataOf,
@@ -149,44 +150,6 @@ const GUARDRAIL_PREFIXES = [
   'policies.masking.',
   'policies.guardrails.',
   'policies.approvals.',
-];
-
-/**
- * The guardrail scalar fields shown to every viewer, whether or not they may
- * write — origin display holds regardless of `config.write`.
- * The array-shaped fields (`custom_patterns`, `disabled_rules`,
- * `autonomous_capabilities`) are left off this summary and are still fully
- * editable below, through `ConfigEditor`.
- */
-const GUARDRAIL_FIELD_LIST: readonly {
-  readonly path: string;
-  readonly label: MessageKey;
-  /** Overrides the type-driven formatting for a field the schema's own type
-   * ('integer') does not say is a duration. */
-  readonly format?: ((value: unknown, locale: Locale) => string) | undefined;
-}[] = [
-  {
-    path: 'policies.masking.enabled',
-    label: 'settings.autonomy.guardrails.masking.enabled',
-  },
-  {
-    path: 'policies.masking.level',
-    label: 'settings.autonomy.guardrails.masking.level',
-  },
-  { path: 'policies.guardrails.mode', label: 'settings.autonomy.guardrails.mode' },
-  {
-    path: 'policies.guardrails.ruleset',
-    label: 'settings.autonomy.guardrails.ruleset',
-  },
-  {
-    path: 'policies.approvals.threshold',
-    label: 'settings.autonomy.guardrails.threshold',
-  },
-  {
-    path: 'policies.approvals.expiry_hours',
-    label: 'settings.autonomy.guardrails.expiryHours',
-    format: formatHours,
-  },
 ];
 
 /**
@@ -369,17 +332,15 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
   const overrideEditorHref = canCreateHere ? '#override-grant' : '/settings';
 
   const guardrailCatalogue = editableFields(dataOf(guardrailFields));
-  const guardrailRows = effectiveRows(
-    GUARDRAIL_FIELD_LIST.map(({ path, label, format }) => ({
-      path,
-      label: message(locale, label),
-      format,
-    })),
-    guardrailCatalogue,
-    locale,
-  );
-  const guardrailEditable = guardrailCatalogue.filter((entry) =>
-    GUARDRAIL_PREFIXES.some((prefix) => entry.path.startsWith(prefix)),
+  // The three array-shaped guardrail fields — a list's effective value would
+  // be its own JSON dump, not a sentence anybody reads as a guardrail's state
+  // — keep the generic editor below; the six scalars `GUARDRAIL_FIELDS` names
+  // are edited in this tab's own table instead, so a path never carries two
+  // controls at once.
+  const guardrailEditable = guardrailCatalogue.filter(
+    (entry) =>
+      GUARDRAIL_PREFIXES.some((prefix) => entry.path.startsWith(prefix)) &&
+      !GUARDRAIL_FIELDS.some((scalar) => scalar.path === entry.path),
   );
 
   const setup = await readSetupState(credential);
@@ -654,9 +615,6 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
             <h3 className="text-strong">
               {message(locale, 'settings.autonomy.guardrails.title')}
             </h3>
-            <p className="text-meta text-muted max-w-prose">
-              {message(locale, 'settings.autonomy.guardrails.lead')}
-            </p>
             <ul className="text-meta text-muted list-disc pl-5">
               <li data-testid="guardrail-invariant">
                 {message(locale, 'settings.autonomy.guardrails.invariant.secret')}
@@ -666,12 +624,22 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               </li>
             </ul>
             {nodeId === '' ? null : (
-              <EffectiveFieldsTable
-                rows={guardrailRows}
+              <GuardrailTable
+                rows={guardrailRows(guardrailCatalogue, locale)}
+                catalogue={guardrailCatalogue}
+                writable={writable}
+                nodeId={nodeId}
                 labels={{
                   setting: message(locale, 'configuration.column.setting'),
                   value: message(locale, 'configuration.column.value'),
                   origin: message(locale, 'configuration.column.provenance'),
+                  edit: message(locale, 'settings.autonomy.guardrails.edit'),
+                  cancel: message(locale, 'settings.autonomy.guardrails.cancel'),
+                  save: message(locale, 'configuration.editor.save'),
+                  saving: message(locale, 'configuration.editor.saving'),
+                  saved: message(locale, 'configuration.editor.saved'),
+                  failed: message(locale, 'configuration.editor.failed'),
+                  unreachable: message(locale, 'configuration.editor.unreachable'),
                 }}
               />
             )}
@@ -723,6 +691,17 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 }}
               />
             ) : null}
+
+            {/* What this group is, placed after the table it describes —
+                the mockup puts an explanatory sentence after the control it
+                explains, never before it (see the rule note on Rules &
+                windows, and the bound/override notes on Posture). */}
+            <p
+              data-testid="guardrail-note"
+              className="text-meta text-muted max-w-prose"
+            >
+              {message(locale, 'settings.autonomy.guardrails.lead')}
+            </p>
           </div>
         ) : null}
 
@@ -791,7 +770,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
               </h4>
               {nodeId === '' ? null : (
                 <EffectiveFieldsTable
-                  rows={postureGuardrailRows(guardrailCatalogue, locale)}
+                  rows={guardrailRows(guardrailCatalogue, locale)}
                   labels={{
                     setting: message(locale, 'configuration.column.setting'),
                     value: message(locale, 'configuration.column.value'),

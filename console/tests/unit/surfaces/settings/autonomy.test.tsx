@@ -1,10 +1,23 @@
 import { render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { surfaceContext } from '@/surfaces/context';
 import { AutonomyScreen } from '@/surfaces/settings/autonomy';
 
 import { serveScenario } from '../../support/dataset';
+
+// The floor in `tests/unit/setup.ts` already stubs `next/navigation` with a
+// no-op `refresh` — this file's own mock wins over it (its own comment says
+// so) and keeps the same shape, only making `refresh` a spy: the inline
+// guardrail editor calls it after a save, so Set at can catch up with what
+// was just written, and that call is part of what this file proves.
+const refresh = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh, push: () => undefined, replace: () => undefined }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 /**
  * The Autonomy & guardrails page's own defects, on top of what
@@ -49,6 +62,10 @@ vi.mock('next/headers', () => ({
     }),
   headers: () => Promise.resolve({ get: () => null }),
 }));
+
+beforeEach(() => {
+  refresh.mockClear();
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -631,6 +648,27 @@ describe('the guardrails section', () => {
     );
     // A duration is said as one — "4.5 hours" — never the bare number alone.
     expect(rowFor('policies.approvals.expiry_hours')).toHaveTextContent('4.5 hours');
+    // The Setting column names the field, not just its value — the walk a
+    // reader does is "what is this, what is it set to, where from", and the
+    // first of those three still has to be there after the tab cut.
+    expect(rowFor('policies.masking.level')).toHaveTextContent('Masking level');
+    // Value and Set at say different things for the same row — surviving the
+    // tab cut is the property T018 verifies, not merely that neither is
+    // blank (`EffectiveFieldsTable`'s own throw already forecloses that).
+    for (const path of [
+      'policies.masking.enabled',
+      'policies.masking.level',
+      'policies.guardrails.mode',
+      'policies.approvals.threshold',
+      'policies.approvals.expiry_hours',
+    ]) {
+      const r = rowFor(path);
+      const value = r.querySelector('td:nth-child(2)')?.textContent ?? '';
+      const origin = r.querySelector('td:nth-child(3)')?.textContent ?? '';
+      expect(value).not.toBe('');
+      expect(origin).not.toBe('');
+      expect(value).not.toBe(origin);
+    }
     // The two constitutional invariants are stated as facts, never as a toggle.
     const invariants = screen.getAllByTestId('guardrail-invariant');
     expect(invariants).toHaveLength(2);
@@ -639,6 +677,12 @@ describe('the guardrails section', () => {
     // Rules & windows now, not here; see the advanced-autonomy-scalars
     // `describe` below for that one.
     expect(screen.getAllByTestId('config-editor')).toHaveLength(1);
+    // FR-026/FR-027: a display name is shown, but that alone does not prove
+    // the raw technical path is gone — the two can coexist. It does not,
+    // anywhere on this tab.
+    expect(document.body.textContent).not.toMatch(
+      /\bpolicies\.(masking|guardrails|approvals)\b/,
+    );
   });
 
   it('leaves the editor out, keeping the read-only rows, for a viewer who may not write', async () => {
@@ -653,7 +697,173 @@ describe('the guardrails section', () => {
 
     expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
+    // FR-050: a reader gets the value and its origin, never the form that
+    // would write it — not the generic editor below (checked above) and not
+    // this table's own inline affordance either.
+    expect(screen.queryByTestId('guardrail-edit')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('guardrail-field-editor')).not.toBeInTheDocument();
   });
+
+  it('keeps the three array-shaped fields reachable through the generic editor, now that the six scalars have their own row', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: EMPTY_BOUNDS,
+      values: {},
+      fields: [
+        {
+          path: 'policies.masking.enabled',
+          label: 'Masking enabled',
+          type: 'boolean',
+          section: 'Masking',
+          value: true,
+          provenance: NODE,
+          set_here: true,
+        },
+        {
+          path: 'policies.masking.custom_patterns',
+          label: 'Custom patterns',
+          type: 'array',
+          section: 'Masking',
+          value: [],
+          provenance: '',
+          set_here: false,
+          item_fields: [
+            {
+              path: 'pattern',
+              label: 'Pattern',
+              type: 'string',
+              help: '',
+              allowed_values: null,
+              minimum: null,
+              maximum: null,
+              default: '',
+            },
+          ],
+        },
+        {
+          path: 'policies.guardrails.disabled_rules',
+          label: 'Disabled rules',
+          type: 'array',
+          section: 'Guardrails',
+          value: [],
+          provenance: '',
+          set_here: false,
+          item_fields: [
+            {
+              path: 'rule_id',
+              label: 'Rule',
+              type: 'string',
+              help: '',
+              allowed_values: null,
+              minimum: null,
+              maximum: null,
+              default: '',
+            },
+          ],
+        },
+        {
+          path: 'policies.approvals.autonomous_capabilities',
+          label: 'Autonomous capabilities',
+          type: 'array',
+          section: 'Approvals',
+          value: [],
+          provenance: '',
+          set_here: false,
+          item_fields: [
+            {
+              path: 'capability',
+              label: 'Capability',
+              type: 'string',
+              help: '',
+              allowed_values: null,
+              minimum: null,
+              maximum: null,
+              default: '',
+            },
+          ],
+        },
+      ],
+    });
+
+    await renderAutonomy({ tab: 'guardrails' });
+
+    const editor = screen.getByTestId('config-editor');
+    const paths = [...editor.querySelectorAll('[data-testid="config-field"]')].map(
+      (each) => each.getAttribute('data-path'),
+    );
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'policies.masking.custom_patterns',
+        'policies.guardrails.disabled_rules',
+        'policies.approvals.autonomous_capabilities',
+      ]),
+    );
+    // Every scalar `GUARDRAIL_FIELDS` names moved to this table's own row —
+    // a path never carries two controls for the same field at once.
+    expect(paths).not.toContain('policies.masking.enabled');
+    // No tab opens with this generic, multi-section editor as its primary
+    // content: three fields is what is left of it here, not the nine this
+    // route used to route through it.
+    expect(paths).toHaveLength(3);
+  });
+
+  it('states the fixed guardrails as facts with no control beside them, and moves the group’s own sentence after the table it describes', async () => {
+    serveScenario('populated');
+
+    await renderAutonomy({ tab: 'guardrails' });
+
+    const invariants = screen.getAllByTestId('guardrail-invariant');
+    expect(invariants).toHaveLength(2);
+    // A fact, stated as one — no switch, no button, nothing to press beside
+    // either sentence.
+    for (const invariant of invariants) {
+      expect(within(invariant).queryByRole('switch')).not.toBeInTheDocument();
+      expect(within(invariant).queryByRole('button')).not.toBeInTheDocument();
+      expect(invariant.textContent).not.toBe('');
+    }
+
+    // The paragraph the mockup shows directly under the title is gone from
+    // there — it now sits after the table it introduces, the same "sentence
+    // after the control" placement the rule/bound/override notes already use.
+    expect(firstParagraphBeforeControl()).toBeNull();
+    const note = screen.getByTestId('guardrail-note');
+    expect(note).toHaveTextContent('Masking, secret detection and approval');
+    const table = screen.getByTestId('effective-fields');
+    const bodyOrder = Array.from(document.body.querySelectorAll('*'));
+    expect(bodyOrder.indexOf(note)).toBeGreaterThan(bodyOrder.indexOf(table));
+  });
+});
+
+describe('a reader sees real content on every tab, never an empty page because the only content was write-gated', () => {
+  it.each(['posture', 'rules-windows', 'guardrails'] as const)(
+    'tab=%s renders values a reader can read, with no form and no override button anywhere on it',
+    async (tab) => {
+      serveScenario('populated', READER);
+
+      await renderAutonomy({ tab });
+
+      // No write surface reaches a reader, on any tab.
+      expect(screen.queryByTestId('autonomy-editor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('posture-editor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('override-editor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('guardrail-edit')).not.toBeInTheDocument();
+
+      // And the tab is not simply blank instead: each one still has its own
+      // real content for a reader to look at.
+      if (tab === 'posture') {
+        expect(screen.getByTestId('posture-guardrails-summary')).toBeInTheDocument();
+        expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
+      }
+      if (tab === 'rules-windows') {
+        expect(screen.getAllByTestId('autonomy-rule').length).toBeGreaterThan(0);
+      }
+      if (tab === 'guardrails') {
+        expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
+        expect(screen.getAllByTestId('guardrail-invariant')).toHaveLength(2);
+      }
+    },
+  );
 });
 
 describe('the advanced autonomy-scalars section', () => {

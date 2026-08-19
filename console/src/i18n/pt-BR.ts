@@ -1756,6 +1756,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.autonomy.guardrails.ruleset': 'Conjunto de regras',
   'settings.autonomy.guardrails.threshold': 'Limiar de aprovação',
   'settings.autonomy.guardrails.expiryHours': 'Validade do pedido de aprovação (horas)',
+  'settings.autonomy.guardrails.edit': 'Editar',
+  'settings.autonomy.guardrails.cancel': 'Cancelar',
 
   'settings.autonomy.advanced.title': 'Configurações avançadas de autonomia',
   'settings.autonomy.advanced.field.allowUnverifiableActions':

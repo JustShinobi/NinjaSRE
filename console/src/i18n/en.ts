@@ -1934,6 +1934,8 @@ export const EN = {
   'settings.autonomy.guardrails.ruleset': 'Ruleset',
   'settings.autonomy.guardrails.threshold': 'Approval threshold',
   'settings.autonomy.guardrails.expiryHours': 'Approval request expiry (hours)',
+  'settings.autonomy.guardrails.edit': 'Edit',
+  'settings.autonomy.guardrails.cancel': 'Cancel',
 
   // --- Settings: Autonomy & guardrails — the autonomy scalars, advanced ------
   'settings.autonomy.advanced.title': 'Advanced autonomy settings',
