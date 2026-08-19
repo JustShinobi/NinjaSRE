@@ -96,17 +96,24 @@ test.describe('Autonomy & guardrails', () => {
     await expect(page.locator('nav ol')).toContainText('Autonomy & guardrails');
   });
 
-  test('shows the rules table in resolution order, and the guardrails section beneath it', async ({
-    page,
-  }) => {
-    await page.goto('/settings/autonomy-guardrails');
+  // The two halves of what used to be one page. They are two claims about two
+  // tabs now, at their own addresses, rather than one claim about what sits
+  // beneath what — the screen no longer stacks them, so a test that asserted
+  // the stacking would be asserting a layout this deliberately stopped having.
+  test('shows the rules table in resolution order', async ({ page }) => {
+    await page.goto('/settings/autonomy-guardrails?tab=rules-windows');
 
     const rules = page.getByTestId('autonomy-rule');
     await expect(rules.first()).toBeVisible();
+  });
 
-    // The section's own heading, not the bare word: the advanced configuration
-    // section below now titles `policies.guardrails` in the same language a
-    // person reads, so "Guardrails" appears twice on this page and only the
+  test('shows the guardrails section with the invariants nothing can switch off', async ({
+    page,
+  }) => {
+    await page.goto('/settings/autonomy-guardrails?tab=guardrails');
+
+    // The section's own heading, not the bare word: the tab strip names a tab
+    // "Guardrails" too, so the word appears more than once and only the
     // heading is the one this test means.
     await expect(
       page.getByRole('heading', { name: 'Guardrails', exact: true }),
@@ -115,10 +122,10 @@ test.describe('Autonomy & guardrails', () => {
     await expect(invariants).toHaveCount(2);
   });
 
-  test('creates a rule with a chosen scope on this same page, never on the raw editor', async ({
+  test('creates a rule with a chosen scope on its own tab, never on the raw editor', async ({
     page,
   }) => {
-    await page.goto('/settings/autonomy-guardrails');
+    await page.goto('/settings/autonomy-guardrails?tab=rules-windows');
 
     const newRule = page.getByTestId('new-rule');
     await expect(newRule).toBeVisible();
@@ -141,16 +148,25 @@ test.describe('Autonomy & guardrails', () => {
     );
   });
 
-  test('has no empty state anywhere on the page that points at the raw editor', async ({
-    page,
-  }) => {
-    await page.goto('/settings/autonomy-guardrails');
+  // Every tab, not just the one a bare address opens: the three are separate
+  // documents now, so a sweep of one of them proves nothing about the other
+  // two, and an empty state pointing at the retired editor could hide on
+  // either of the tabs this never visited.
+  for (const tab of ['posture', 'rules-windows', 'guardrails']) {
+    test(`has no empty state on the ${tab} tab that points at the raw editor`, async ({
+      page,
+    }) => {
+      await page.goto(`/settings/autonomy-guardrails?tab=${tab}`);
 
-    for (const link of await page.getByTestId('way-back').all()) {
-      const href = await link.getAttribute('href');
-      expect(href ?? '').not.toContain('/configuration');
-    }
-  });
+      for (const link of await page.getByTestId('way-back').all()) {
+        const href = await link.getAttribute('href');
+        expect(
+          href ?? '',
+          `a way-back link on ${tab} points at the raw editor`,
+        ).not.toContain('/configuration');
+      }
+    });
+  }
 });
 
 test.describe('Notifications', () => {
