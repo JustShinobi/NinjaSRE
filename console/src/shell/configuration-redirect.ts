@@ -1,5 +1,10 @@
+import { tabOwning } from '@/surfaces/settings/autonomy-tabs';
+
 import { CONFIG_FIELD_OWNERS, CONFIG_FIELDS_NO_CONTROL } from './config-ownership';
 import { AREAS, SETTINGS_PAGES } from './routes';
+
+/** The one page a section anchor can also need a tab for — split into three since this table was written. */
+const AUTONOMY_GUARDRAILS_PAGE = 'settings-autonomy-guardrails';
 
 /**
  * Where a visitor with nothing more specific to say ends up.
@@ -64,9 +69,19 @@ function sectionDestinations(): ReadonlyMap<string, string> {
     const anchor = sectionAnchor(sectionOf(path));
     if (table.has(anchor)) continue;
     const destination = pathForPage(page);
-    if (destination !== undefined) {
-      table.set(anchor, destination);
-    }
+    if (destination === undefined) continue;
+    // Autonomy & guardrails answers with three tabs, not one screen, so its
+    // own destination has to name which tab owns the field as well as which
+    // page does — read from the same map the tabs themselves consult
+    // (`tabOwning`), rather than a second field-to-tab correspondence written
+    // here. A section spanning two tabs (only `policies.autonomy` does: every
+    // field but `overrides` sits in Rules & windows) resolves to whichever
+    // path this loop reaches first for that anchor — the same tie-break this
+    // function already used to pick a destination *page*, now also deciding
+    // the tab, and it lands on Rules & windows, where the section's other
+    // seven fields actually live.
+    const tab = page === AUTONOMY_GUARDRAILS_PAGE ? tabOwning(path) : undefined;
+    table.set(anchor, tab === undefined ? destination : `${destination}?tab=${tab}`);
   }
   return table;
 }

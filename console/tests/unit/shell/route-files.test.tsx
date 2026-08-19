@@ -224,10 +224,21 @@ describe('the Data Settings pages, cold', () => {
 });
 
 describe('a retired route file', () => {
-  it('sends /autonomy to its Settings address', async () => {
-    await expect(AutonomyPage({ searchParams: Promise.resolve({}) })).rejects.toThrow(
-      'redirected to /settings/autonomy-guardrails',
-    );
+  it.each([
+    [{}, '/settings/autonomy-guardrails'],
+    // The scope node this address always carried, and the tab the
+    // destination now understands natively — `/autonomy` never had a
+    // competing meaning for `tab` of its own, unlike `/administration` and
+    // `/signals` below, so both ride along rather than only one of them.
+    [{ node: 'org-northwind' }, '/settings/autonomy-guardrails?node=org-northwind'],
+    [
+      { node: 'org-northwind', tab: 'guardrails' },
+      '/settings/autonomy-guardrails?node=org-northwind&tab=guardrails',
+    ],
+  ])('sends /autonomy%s to its Settings address', async (params, target) => {
+    await expect(
+      AutonomyPage({ searchParams: Promise.resolve(params) }),
+    ).rejects.toThrow(`redirected to ${target}`);
   });
 
   it.each([

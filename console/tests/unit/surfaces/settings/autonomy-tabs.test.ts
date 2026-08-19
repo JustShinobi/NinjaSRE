@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { CONFIG_FIELD_OWNERS, type ConfigFieldOwner } from '@/shell/config-ownership';
 import {
   AUTONOMY_TAB_FIELDS,
   AUTONOMY_TAB_FILTERS,
@@ -8,6 +9,7 @@ import {
   tabFrom,
   tabLabel,
   tabOwning,
+  type AutonomyTabField,
 } from '@/surfaces/settings/autonomy-tabs';
 import { DEFAULT_VIEW_STATE, withFilter } from '@/surfaces/url-state';
 
@@ -64,7 +66,7 @@ describe('AUTONOMY_TAB_FILTERS', () => {
   });
 });
 
-describe('hrefForTab — scope-node preservation across a tab switch (FR-006)', () => {
+describe('hrefForTab — scope-node preservation across a tab switch', () => {
   it('carries a node already named in the address forward onto the new tab', () => {
     const state = withFilter(
       withFilter(DEFAULT_VIEW_STATE, 'node', 'org-northwind'),
@@ -168,36 +170,83 @@ describe('tabOwning — the field-to-tab map', () => {
     expect(tabOwning('policies.approvals.expiry_hours')).toBe('guardrails');
     expect(tabOwning('policies.approvals.autonomous_capabilities')).toBe('guardrails');
   });
+});
 
-  it('claims exactly the seventeen paths the console-wide field map assigns to this page', () => {
-    // The cross-check against `shell/config-ownership.ts` itself — proving
-    // this list is neither short a path nor carrying one that page does not
-    // declare — is a later task's job (it needs to fail by field name, which
-    // this file does not attempt). This is this module's own inventory,
-    // fixed by hand against the same source on 2026-08-18: a change to either
-    // list without the other is exactly what that later contract exists to
-    // catch, not this one.
-    const paths = AUTONOMY_TAB_FIELDS.map((entry) => entry.path).sort();
-    expect(paths).toEqual(
-      [
-        'policies.approvals.autonomous_capabilities',
-        'policies.approvals.expiry_hours',
-        'policies.approvals.threshold',
-        'policies.autonomy.allow_unverifiable_actions',
-        'policies.autonomy.budgets',
-        'policies.autonomy.dry_run',
-        'policies.autonomy.freezes',
-        'policies.autonomy.overrides',
-        'policies.autonomy.recurrence_threshold',
-        'policies.autonomy.recurrence_window_seconds',
-        'policies.autonomy.rules',
-        'policies.guardrails.disabled_rules',
-        'policies.guardrails.mode',
-        'policies.guardrails.ruleset',
-        'policies.masking.custom_patterns',
-        'policies.masking.enabled',
-        'policies.masking.level',
-      ].sort(),
-    );
+/**
+ * Cross-checked against `shell/config-ownership.ts` itself, not a hand-typed
+ * inventory: the console-wide map is the one thing that knows which fields
+ * this page owns, so a field it adds or drops for this page has to change
+ * this test — without anybody editing a second, hand-written list to match.
+ */
+describe('AUTONOMY_TAB_FIELDS — parity against shell/config-ownership.ts', () => {
+  /** Every path `config-ownership.ts` assigns to this screen, read from the source itself. */
+  function ownedByThisPage(
+    owners: readonly ConfigFieldOwner[] = CONFIG_FIELD_OWNERS,
+  ): readonly string[] {
+    return owners
+      .filter((owner) => owner.page === 'settings-autonomy-guardrails')
+      .map((owner) => owner.path);
+  }
+
+  /**
+   * Every path in `owned` that `fields` claims zero times or more than
+   * once — named, not counted, so a field with no tab, or two, fails by the
+   * exact string a person can search `AUTONOMY_TAB_FIELDS` for.
+   */
+  function unclaimedOrMisclaimed(
+    owned: readonly string[],
+    fields: readonly AutonomyTabField[],
+  ): readonly string[] {
+    const claims = new Map<string, number>();
+    for (const { path } of fields) claims.set(path, (claims.get(path) ?? 0) + 1);
+    return owned.filter((path) => claims.get(path) !== 1);
+  }
+
+  /** Every path a tab claims that `config-ownership.ts` does not assign to this page. */
+  function claimedNotOwned(
+    owned: readonly string[],
+    fields: readonly AutonomyTabField[],
+  ): readonly string[] {
+    const ownedSet = new Set(owned);
+    return fields.map((entry) => entry.path).filter((path) => !ownedSet.has(path));
+  }
+
+  it('claims every field config-ownership.ts assigns here, and none it does not', () => {
+    const owned = ownedByThisPage();
+    expect(unclaimedOrMisclaimed(owned, AUTONOMY_TAB_FIELDS)).toEqual([]);
+    expect(claimedNotOwned(owned, AUTONOMY_TAB_FIELDS)).toEqual([]);
+  });
+
+  it('names the field when config-ownership.ts assigns this page one no tab claims yet', () => {
+    // A field a future change adds to `CONFIG_FIELD_OWNERS` for this page,
+    // constructed here rather than assumed: the check has to name it, not
+    // merely notice that a count changed.
+    const grown = [...ownedByThisPage(), 'policies.autonomy.a_future_field'];
+
+    expect(unclaimedOrMisclaimed(grown, AUTONOMY_TAB_FIELDS)).toEqual([
+      'policies.autonomy.a_future_field',
+    ]);
+  });
+
+  it('names the field when a tab stops claiming a path config-ownership.ts still assigns', () => {
+    const owned = ownedByThisPage();
+    const orphaned = owned[0];
+    if (orphaned === undefined) throw new Error('this page owns no fields to orphan');
+    const shrunk = AUTONOMY_TAB_FIELDS.filter((entry) => entry.path !== orphaned);
+
+    expect(unclaimedOrMisclaimed(owned, shrunk)).toEqual([orphaned]);
+  });
+
+  it('names a path twice when two tabs both claim it', () => {
+    const owned = ownedByThisPage();
+    const doubled = owned[0];
+    if (doubled === undefined)
+      throw new Error('this page owns no fields to double-claim');
+    const overlapping: readonly AutonomyTabField[] = [
+      ...AUTONOMY_TAB_FIELDS,
+      { path: doubled, tab: 'guardrails' },
+    ];
+
+    expect(unclaimedOrMisclaimed(owned, overlapping)).toEqual([doubled]);
   });
 });

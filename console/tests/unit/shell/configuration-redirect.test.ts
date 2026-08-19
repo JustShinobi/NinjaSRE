@@ -32,11 +32,25 @@ describe('a bare address, or one with nothing this table recognises', () => {
 });
 
 describe('a fragment naming a section this console still owns', () => {
-  it('sends a scalar field on a Settings page to that page, section in focus', () => {
+  it('sends a section on a page cut into tabs to the tab that owns it, not just the page', () => {
     // `policies.autonomy.dry_run` sits in the `policies.autonomy` section,
-    // owned by Autonomy & guardrails.
+    // owned by Autonomy & guardrails — a page split into three tabs since
+    // this section was last read here, so landing on the bare page and not
+    // naming a tab reopens the exact problem tabs introduced: the address
+    // resolves, but the control the old table of contents pointed at may not
+    // be on the tab a visitor lands on.
     expect(configurationRedirectTarget('#config-section-policies-autonomy')).toBe(
-      '/settings/autonomy-guardrails#config-section-policies-autonomy',
+      '/settings/autonomy-guardrails?tab=rules-windows#config-section-policies-autonomy',
+    );
+  });
+
+  it('sends a section one single tab owns outright to that tab, not a fixed default', () => {
+    // Every `policies.guardrails.*` field belongs to the Guardrails tab
+    // alone, unlike `policies.autonomy` above, which splits across two —
+    // proving the tab named in the address tracks the field actually being
+    // linked to, rather than one tab every autonomy-guardrails link shares.
+    expect(configurationRedirectTarget('#config-section-policies-guardrails')).toBe(
+      '/settings/autonomy-guardrails?tab=guardrails#config-section-policies-guardrails',
     );
   });
 
