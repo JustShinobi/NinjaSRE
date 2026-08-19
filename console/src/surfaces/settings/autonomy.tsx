@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 
 import { TabLinks } from '@/components';
-import { Badge } from '@/components/status';
+import { ResolvedChip } from '@/components/status';
+import { statusPresentation } from '@/design/status';
 import { formatNumber } from '@/i18n/format';
 import type { MessageKey } from '@/i18n/en';
 import { message, type Locale } from '@/i18n/messages';
@@ -34,7 +35,7 @@ import { OverridePanel } from '../override-panel';
 import { Panel } from '../panel';
 import { PostureEditor } from '../posture-editor';
 import { ConfigEditor } from '../preview';
-import { postureLabels, postureName } from '../postures';
+import { postureLabels, postureName, postureNames } from '../postures';
 import { GuardrailTable } from './guardrail-table';
 // The one resolver both appearances of a guardrail's value read from —
 // Posture's read-only summary and this tab's own editable table can no
@@ -414,6 +415,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
             nodeId={nodeId}
             levels={OVERRIDE_LEVELS}
             levelLabels={postureLabels(locale, OVERRIDE_LEVELS)}
+            levelNames={postureNames(locale, OVERRIDE_LEVELS)}
             active={activeOverrides}
             labels={{
               grantTitle: message(locale, 'autonomy.override.grant.title'),
@@ -554,7 +556,12 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                               {matcherOf(scope)}
                             </td>
                             <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
-                              <Badge status={level} />
+                              <ResolvedChip
+                                role={statusPresentation(level).role}
+                                shape={statusPresentation(level).shape}
+                                label={postureName(locale, level)}
+                                testId="autonomy-rule-level"
+                              />
                             </td>
                             <td className="px-3 py-2 edge border-border border-t-0 border-x-0">
                               {level === 'act_on_low_risk'
@@ -592,6 +599,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                       rules={editable}
                       levels={LEVELS}
                       levelLabels={postureLabels(locale, LEVELS)}
+                      levelNames={postureNames(locale, LEVELS)}
                       scopeKindLabels={Object.fromEntries(
                         SCOPE_ORDER.map((kind) => [
                           kind,
@@ -990,7 +998,12 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                     >
                       <dt className="font-mono min-w-0 truncate">{override.name}</dt>
                       <dd className="flex flex-wrap items-center gap-2">
-                        <Badge status={override.level} />
+                        <ResolvedChip
+                          role={statusPresentation(override.level).role}
+                          shape={statusPresentation(override.level).shape}
+                          label={postureName(locale, override.level)}
+                          testId="bound-override-level"
+                        />
                         <span
                           className="text-meta text-muted"
                           data-testid="override-duration"

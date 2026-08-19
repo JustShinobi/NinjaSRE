@@ -67,3 +67,16 @@ export function postureLabels(
     levels.map((level) => [level, postureLabel(locale, level)]),
   );
 }
+
+/**
+ * `postureLabels`'s sibling for a chip rather than a `<Select>` option — the
+ * short name for each of `levels`, keyed by the deployment's own slug.
+ */
+export function postureNames(
+  locale: Locale,
+  levels: readonly string[],
+): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    levels.map((level) => [level, postureName(locale, level)]),
+  );
+}

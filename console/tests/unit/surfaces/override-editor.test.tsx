@@ -317,6 +317,43 @@ describe('revoking an active override', () => {
     expect(request?.payload).toEqual({ name: 'incident-widen' });
   });
 
+  it("names the active override's level in words, when the screen resolved one", () => {
+    render(
+      <OverrideEditor
+        nodeId="team-platform"
+        levels={LEVELS}
+        levelNames={{
+          propose_only: 'Propose only',
+          act_on_low_risk: 'Act on low risk',
+          act_and_report: 'Act and report',
+        }}
+        active={ACTIVE}
+        labels={LABELS}
+      />,
+    );
+
+    const chip = screen.getByTestId('active-override-level');
+    expect(chip).toHaveTextContent('Act and report');
+    expect(chip).not.toHaveTextContent('act_and_report');
+  });
+
+  it("falls back to the raw level when the screen resolved no word for it", () => {
+    // The levels come from the deployment, not from this console — a level
+    // with no resolved name still renders something, never a blank chip.
+    render(
+      <OverrideEditor
+        nodeId="team-platform"
+        levels={LEVELS}
+        active={ACTIVE}
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByTestId('active-override-level')).toHaveTextContent(
+      'act_and_report',
+    );
+  });
+
   it('reports success and removes the revoked override from its own list', async () => {
     editor(ACTIVE);
 

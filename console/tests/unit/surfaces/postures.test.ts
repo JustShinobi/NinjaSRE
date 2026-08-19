@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { postureLabel, postureLabels, postureName } from '@/surfaces/postures';
+import {
+  postureLabel,
+  postureLabels,
+  postureName,
+  postureNames,
+} from '@/surfaces/postures';
 
 /**
  * What an autonomy level permits, at the point somebody chooses it.
@@ -68,5 +73,21 @@ describe('what a posture is called, in short', () => {
     expect(postureName('pt-BR', 'propose_only')).not.toBe(
       postureName('en', 'propose_only'),
     );
+  });
+});
+
+describe('what a set of postures is called, in short, as a lookup', () => {
+  it('builds the same lookup postureLabels does, from the short name', () => {
+    const named = postureNames('en', ['act_silently', 'propose_only']);
+
+    expect(Object.keys(named)).toEqual(['act_silently', 'propose_only']);
+    expect(named.act_silently).toBe(postureName('en', 'act_silently'));
+    expect(named.propose_only).toBe(postureName('en', 'propose_only'));
+  });
+
+  it('falls back to the slug for a level this console has no words for', () => {
+    const named = postureNames('en', ['act_on_tuesdays']);
+
+    expect(named.act_on_tuesdays).toBe('act_on_tuesdays');
   });
 });

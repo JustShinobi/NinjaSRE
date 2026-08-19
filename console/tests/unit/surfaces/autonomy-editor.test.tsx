@@ -143,17 +143,27 @@ const RULES: readonly EditableRule[] = [
 
 const LEVELS = ['propose_only', 'act_on_low_risk', 'act_and_report'];
 
-function editor(dryRun = false): void {
+function editor(
+  dryRun = false,
+  levelNames?: Readonly<Record<string, string>>,
+): void {
   render(
     <AutonomyEditor
       nodeId="team-platform"
       rules={RULES}
       levels={LEVELS}
+      {...(levelNames === undefined ? {} : { levelNames })}
       dryRun={dryRun}
       labels={LABELS}
     />,
   );
 }
+
+const LEVEL_NAMES = {
+  propose_only: 'Propose only',
+  act_on_low_risk: 'Act on low risk',
+  act_and_report: 'Act and report',
+};
 
 async function raiseTheLevel(): Promise<void> {
   await userEvent.selectOptions(screen.getByLabelText('Level'), 'act_and_report');
@@ -234,6 +244,44 @@ describe('the two answers that come before the save', () => {
     editor();
 
     expect(screen.getByTestId('ask-explain')).toBeDisabled();
+  });
+
+  it("names each newly-autonomous action's before and after level in words", async () => {
+    editor(false, LEVEL_NAMES);
+    await raiseTheLevel();
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+
+    const [row] = await screen.findAllByTestId('newly-autonomous');
+    const before = screen.getByTestId('newly-autonomous-before');
+    const after = screen.getByTestId('newly-autonomous-after');
+
+    expect(row).toContainElement(before);
+    expect(row).toContainElement(after);
+    expect(before).toHaveTextContent('Propose only');
+    expect(before).not.toHaveTextContent('propose_only');
+    expect(after).toHaveTextContent('Act and report');
+    expect(after).not.toHaveTextContent('act_and_report');
+    // The safer level and the more autonomous one read as different roles.
+    expect(before).toHaveAttribute('data-role', 'success');
+    expect(after).toHaveAttribute('data-role', 'warning');
+  });
+
+  it("names the explanation's level in words, and leaves the decision its own raw word", async () => {
+    editor(false, LEVEL_NAMES);
+    answerWith(EXPLANATION);
+
+    await userEvent.type(screen.getByLabelText('Capability'), 'estate.unlock_guest');
+    await userEvent.type(screen.getByLabelText('Resource'), 'vm-201');
+    await userEvent.click(screen.getByTestId('ask-explain'));
+
+    const explained = await screen.findByTestId('explanation');
+    const level = screen.getByTestId('explanation-level');
+    expect(explained).toContainElement(level);
+    expect(level).toHaveTextContent('Propose only');
+    expect(level).not.toHaveTextContent('propose_only');
+    // `decision` is a different vocabulary (execute/simulate/propose/approve/
+    // refuse) — still shown by its own raw word, never a posture's.
+    expect(explained).toHaveTextContent(EXPLANATION.decision);
   });
 });
 

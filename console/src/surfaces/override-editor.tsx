@@ -5,7 +5,8 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { Input, Select } from '@/components/form';
-import { Badge } from '@/components/status';
+import { ResolvedChip } from '@/components/status';
+import { statusPresentation } from '@/design/status';
 
 import { AUTONOMY_ENDPOINT } from './autonomy-editor';
 
@@ -91,6 +92,13 @@ export interface OverrideEditorProps {
    */
   readonly levelLabels?: Readonly<Record<string, string>>;
   /**
+   * The same words, short — what the revoke list's own chip shows. A level
+   * with no entry here shows its own slug, the same fallback `levelLabels`
+   * gives, for the same reason: the level came from the deployment, not from
+   * this console's word list.
+   */
+  readonly levelNames?: Readonly<Record<string, string>>;
+  /**
    * Every override this node's own bounds currently report, resolved and
    * formatted by the screen that has a locale and a clock — this component has
    * neither. Revoking reads this list rather than a field a person typed into,
@@ -154,6 +162,7 @@ export function OverrideEditor({
   nodeId,
   levels,
   levelLabels,
+  levelNames,
   active,
   labels,
 }: OverrideEditorProps): ReactNode {
@@ -337,7 +346,12 @@ export function OverrideEditor({
                 className="flex flex-wrap items-center gap-3"
               >
                 <span className="font-mono min-w-0 truncate">{override.name}</span>
-                <Badge status={override.level} />
+                <ResolvedChip
+                  role={statusPresentation(override.level).role}
+                  shape={statusPresentation(override.level).shape}
+                  label={levelNames?.[override.level] ?? override.level}
+                  testId="active-override-level"
+                />
                 <span className="text-meta text-muted">
                   {labels.duration}{' '}
                   <time dateTime={override.expiresIso} title={override.expiresAbsolute}>

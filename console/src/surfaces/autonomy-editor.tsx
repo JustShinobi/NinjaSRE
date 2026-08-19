@@ -5,7 +5,8 @@ import { useState } from 'react';
 
 import { Button } from '@/components/action';
 import { Input, Select } from '@/components/form';
-import { Badge } from '@/components/status';
+import { Badge, ResolvedChip } from '@/components/status';
+import { statusPresentation } from '@/design/status';
 
 /**
  * Changing what this deployment may do on its own.
@@ -137,6 +138,12 @@ export interface AutonomyEditorProps {
    * which is what every control here did before and is still usable.
    */
   readonly levelLabels?: Readonly<Record<string, string>>;
+  /**
+   * The same words, short — what a level's chip shows in the preview list and
+   * the explanation panel. A level with no entry here shows its own slug, the
+   * same fallback `levelLabels` gives.
+   */
+  readonly levelNames?: Readonly<Record<string, string>>;
   /** What each scope kind is, in words, keyed by the deployment's own slug. */
   readonly scopeKindLabels?: Readonly<Record<string, string>>;
   readonly dryRun: boolean;
@@ -267,6 +274,7 @@ export function AutonomyEditor({
   rules,
   levels,
   levelLabels,
+  levelNames,
   scopeKindLabels,
   dryRun,
   freezes = [],
@@ -759,8 +767,18 @@ export function AutonomyEditor({
                     className="flex flex-wrap items-center gap-2"
                   >
                     <span className="font-mono break-all">{action.capability}</span>
-                    <Badge status={action.before} />
-                    <Badge status={action.after} />
+                    <ResolvedChip
+                      role={statusPresentation(action.before).role}
+                      shape={statusPresentation(action.before).shape}
+                      label={levelNames?.[action.before] ?? action.before}
+                      testId="newly-autonomous-before"
+                    />
+                    <ResolvedChip
+                      role={statusPresentation(action.after).role}
+                      shape={statusPresentation(action.after).shape}
+                      label={levelNames?.[action.after] ?? action.after}
+                      testId="newly-autonomous-after"
+                    />
                     <span className="text-muted">{action.reason}</span>
                   </li>
                 ))}
@@ -838,7 +856,12 @@ export function AutonomyEditor({
                 <dt className="text-meta text-muted">{labels.decision}</dt>
                 <dd className="flex items-center gap-2">
                   <Badge status={explanation.decision} />
-                  <Badge status={explanation.level} />
+                  <ResolvedChip
+                    role={statusPresentation(explanation.level).role}
+                    shape={statusPresentation(explanation.level).shape}
+                    label={levelNames?.[explanation.level] ?? explanation.level}
+                    testId="explanation-level"
+                  />
                 </dd>
               </div>
               <div className="flex items-center gap-2">

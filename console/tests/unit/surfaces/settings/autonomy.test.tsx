@@ -352,6 +352,34 @@ describe('an active override on the bounds this node holds', () => {
     expect(screen.getByTestId('revoke-override')).toBeInTheDocument();
   });
 
+  it('names the read-only mention of the override level in words, before the panel opens', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: {
+        ...EMPTY_BOUNDS,
+        overrides: [
+          {
+            name: 'incident-widen',
+            scope: { kind: 'deployment' },
+            level: 'act_and_report',
+            risk_bound: 'low',
+            expires_at: '2026-08-14T00:00:00Z',
+            granted_by: 'user-operator',
+            reason: 'restoring a paged service',
+          },
+        ],
+      },
+    });
+
+    await renderAutonomy();
+
+    // Shown without clicking the "temporary override" button that reveals the
+    // revoke section — the always-visible bounds summary this node reports.
+    const chip = screen.getByTestId('bound-override-level');
+    expect(chip).not.toHaveTextContent('act_and_report');
+    expect(chip).toHaveAttribute('data-role', 'warning');
+  });
+
   it('says there is nothing to revoke for a node with none active', async () => {
     serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
 
@@ -618,6 +646,45 @@ describe('the rules table, over every scope kind the deployment may send', () =>
     // The risk bound column shows a value only for `act_on_low_risk`.
     expect(rows[5]).toHaveTextContent('low');
     expect(rows[3]).toHaveTextContent('—');
+  });
+
+  it('names the level in words, not the raw slug, and gives the two levels present different roles', async () => {
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        rules: [
+          { rule_id: 'r1', scope: { kind: 'deployment' }, level: 'propose_only' },
+          {
+            rule_id: 'r2',
+            scope: { kind: 'capability', capability: 'estate.restart' },
+            level: 'act_silently',
+          },
+        ],
+      },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    const rows = screen.getAllByTestId('autonomy-rule');
+    // Indexed access is `T | undefined` under this project's strict settings,
+    // and a row that did not render should say so here rather than at the
+    // first assertion that reads a property of nothing.
+    const [firstRow, secondRow] = rows;
+    if (firstRow === undefined || secondRow === undefined) {
+      throw new Error(`expected two rule rows, drew ${String(rows.length)}`);
+    }
+    const proposeOnly = within(firstRow).getByTestId('autonomy-rule-level');
+    const actSilently = within(secondRow).getByTestId('autonomy-rule-level');
+
+    // Never the raw, uppercased slug a plain `Badge` would have shown.
+    expect(proposeOnly).not.toHaveTextContent('propose_only');
+    expect(actSilently).not.toHaveTextContent('act_silently');
+    expect(proposeOnly).not.toHaveTextContent('PROPOSE_ONLY');
+
+    // The safe end and the most autonomous end read as different roles.
+    expect(proposeOnly).toHaveAttribute('data-role', 'success');
+    expect(actSilently).toHaveAttribute('data-role', 'danger');
   });
 });
 

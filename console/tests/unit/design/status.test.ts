@@ -196,3 +196,124 @@ describe('shape, so colour is never the only carrier', () => {
     );
   });
 });
+
+describe("a tool's own side effect", () => {
+  // The backend's five-word scale: read, read_sensitive, write_reversible,
+  // write_irreversible, destructive — least to most dangerous. Before this,
+  // none of the five was declared, so a read and a destructive write drew
+  // identically: neutral, hollow, unknown.
+  const SIDE_EFFECT_LEVELS = [
+    'read',
+    'read_sensitive',
+    'write_reversible',
+    'write_irreversible',
+    'destructive',
+  ] as const;
+
+  it('declares all five, rather than falling through to the neutral unknown', () => {
+    for (const level of SIDE_EFFECT_LEVELS) {
+      expect(statusPresentation(level).known, level).toBe(true);
+    }
+  });
+
+  it('draws every one of the five distinguishably from every other', () => {
+    const pairs = SIDE_EFFECT_LEVELS.map((level) => {
+      const presented = statusPresentation(level);
+      return `${presented.role}/${presented.shape}`;
+    });
+    expect(new Set(pairs).size).toBe(SIDE_EFFECT_LEVELS.length);
+  });
+
+  it('reads a plain read as success and a destructive write as danger', () => {
+    expect(statusPresentation('read').role).toBe('success');
+    expect(statusPresentation('destructive').role).toBe('danger');
+  });
+
+  it('makes destructive more severe than write_irreversible, not identical to it', () => {
+    // Both are danger — `destructive` has no reversible twin at all, so it
+    // is the one that reaches `irreversible`'s own shape.
+    expect(statusPresentation('write_irreversible').role).toBe('danger');
+    expect(statusPresentation('destructive').role).toBe('danger');
+    expect(statusPresentation('destructive').shape).toBe(
+      statusPresentation('irreversible').shape,
+    );
+    expect(statusPresentation('write_irreversible').shape).not.toBe(
+      statusPresentation('destructive').shape,
+    );
+  });
+
+  it('draws a read and a destructive write nothing alike', () => {
+    // The regression this whole group exists to prevent: the two used to be
+    // identical, both falling through to neutral/hollow-circle/unknown.
+    const read = statusPresentation('read');
+    const destructive = statusPresentation('destructive');
+    expect(read.role).not.toBe(destructive.role);
+    expect(read.shape).not.toBe(destructive.shape);
+  });
+});
+
+describe('what a governed action would be decided to do', () => {
+  // The outcome vocabulary a resolved decision carries — execute, simulate,
+  // propose, approve, refuse — distinct from an autonomy posture and from an
+  // audit event's own allowed/denied.
+  const DECISION_OUTCOMES = ['execute', 'simulate', 'propose', 'approve', 'refuse'] as const;
+
+  it('declares all five outcomes', () => {
+    for (const outcome of DECISION_OUTCOMES) {
+      expect(statusPresentation(outcome).known, outcome).toBe(true);
+    }
+  });
+
+  it('draws every one of the five distinguishably from every other', () => {
+    const pairs = DECISION_OUTCOMES.map((outcome) => {
+      const presented = statusPresentation(outcome);
+      return `${presented.role}/${presented.shape}`;
+    });
+    expect(new Set(pairs).size).toBe(DECISION_OUTCOMES.length);
+  });
+
+  it('reads a refusal as neutral — the guardrail working, not itself a fault', () => {
+    expect(statusPresentation('refuse').role).toBe('neutral');
+  });
+});
+
+describe('an autonomy posture', () => {
+  // propose_only, act_on_low_risk, act_and_report, act_silently — used only by
+  // the resolved chip a translated word travels with; `Badge` itself never
+  // reaches these, because it never translates its label.
+  const POSTURES = [
+    'propose_only',
+    'act_on_low_risk',
+    'act_and_report',
+    'act_silently',
+  ] as const;
+
+  it('declares all four', () => {
+    for (const level of POSTURES) {
+      expect(statusPresentation(level).known, level).toBe(true);
+    }
+  });
+
+  it('draws every one of the four distinguishably from every other', () => {
+    const pairs = POSTURES.map((level) => {
+      const presented = statusPresentation(level);
+      return `${presented.role}/${presented.shape}`;
+    });
+    expect(new Set(pairs).size).toBe(POSTURES.length);
+  });
+
+  it('reads as an escalation: propose_only the safe end, act_silently the most autonomous', () => {
+    expect(statusPresentation('propose_only').role).toBe('success');
+    expect(statusPresentation('act_on_low_risk').role).toBe('info');
+    expect(statusPresentation('act_and_report').role).toBe('warning');
+    expect(statusPresentation('act_silently').role).toBe('danger');
+  });
+
+  it('still resolves a level this console has not declared, neutral and unknown', () => {
+    // The fifth-level fallback is load-bearing: the levels come from the
+    // deployment, not from this table.
+    const presented = statusPresentation('act_on_tuesdays');
+    expect(presented.known).toBe(false);
+    expect(presented.role).toBe('neutral');
+  });
+});

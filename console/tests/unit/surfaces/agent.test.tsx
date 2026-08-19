@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { statusPresentation } from '@/design/status';
 import { message } from '@/i18n/messages';
 import { LOCALE_COOKIE, SESSION_COOKIE } from '@/session/cookies';
 import { surfaceContext } from '@/surfaces/context';
@@ -510,6 +511,19 @@ describe('what it can do: the tools', () => {
     }
   });
 
+  it('gives a plain read a distinct, known role — never the neutral unknown', async () => {
+    await renderAgent({ node: NODE, tab: 'tools' });
+
+    const row = screen
+      .getAllByTestId('agent-tool')
+      .find((tool) => tool.getAttribute('data-tool') === 'estate.storage_pressure');
+    expect(row).toBeDefined();
+
+    const badge = row?.querySelector('[data-role]');
+    expect(badge).toHaveAttribute('data-role', 'success');
+    expect(badge).toHaveAttribute('data-known', 'true');
+  });
+
   it('dims a tool whose integration is missing, and names the integration', async () => {
     await renderAgent({ node: NODE, tab: 'tools' });
 
@@ -947,6 +961,48 @@ describe('what it will do alone', () => {
     expect(replayed.map((row) => row.getAttribute('data-capability'))).toContain(
       'restart_workload',
     );
+  });
+
+  it("gives every risk class's decision a declared, known role", async () => {
+    await renderAgent({ node: NODE, tab: 'autonomy' });
+
+    for (const entry of screen.getAllByTestId('outlook-class')) {
+      const decision = entry.getAttribute('data-decision') ?? '';
+      const badge = entry.querySelector('[data-role]');
+      expect(statusPresentation(decision).known, decision).toBe(true);
+      expect(badge).toHaveAttribute('data-role', statusPresentation(decision).role);
+    }
+  });
+
+  it('names each replayed action’s level in words, never the raw slug', async () => {
+    await renderAgent({ node: NODE, tab: 'autonomy' });
+
+    const rows = screen.getAllByTestId('replayed-action');
+    const restarted = rows.find(
+      (row) => row.getAttribute('data-capability') === 'restart_workload',
+    );
+    const unlocked = rows.find(
+      (row) => row.getAttribute('data-capability') === 'unlock_guest',
+    );
+    // A narrowing guard rather than a cast or a `!`: this project's lint
+    // forbids both, and a row that did not render should fail here saying so
+    // instead of at the first assertion that reads a property of nothing.
+    if (restarted === undefined || unlocked === undefined) {
+      throw new Error('expected both replayed action rows to render');
+    }
+
+    const restartedLevel = within(restarted).getByTestId('replayed-action-level');
+    const unlockedLevel = within(unlocked).getByTestId('replayed-action-level');
+
+    // Fixture values: restart_workload resolved to propose_only, unlock_guest
+    // to act_and_report — never the raw slug a plain `Badge` would have shown.
+    expect(restartedLevel).toHaveTextContent('Propose only');
+    expect(restartedLevel).not.toHaveTextContent('propose_only');
+    expect(restartedLevel).toHaveAttribute('data-role', 'success');
+
+    expect(unlockedLevel).toHaveTextContent('Act and report');
+    expect(unlockedLevel).not.toHaveTextContent('act_and_report');
+    expect(unlockedLevel).toHaveAttribute('data-role', 'warning');
   });
 
   it('does not ask for the record at all when the reader may not', async () => {

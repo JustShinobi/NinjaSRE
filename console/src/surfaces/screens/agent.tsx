@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
 
 import { Badge, Link, TabLinks } from '@/components';
-import { BridgedServerStateChip, SpecialistStateChip } from '@/components/status';
+import {
+  BridgedServerStateChip,
+  ResolvedChip,
+  SpecialistStateChip,
+} from '@/components/status';
+import { statusPresentation } from '@/design/status';
 import { message, type Locale, type MessageKey } from '@/i18n/messages';
 import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
@@ -20,6 +25,7 @@ import type { SurfaceContext } from '../context';
 import { HierarchyGraph, type HierarchyRank } from '../graph';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
+import { postureName } from '../postures';
 import {
   ask,
   authorised,
@@ -1245,7 +1251,12 @@ function AutonomyTab({
                 <span className="text-meta text-muted break-all">
                   {list(entry, 'subjects').map(String).join(', ')}
                 </span>
-                <Badge status={text(entry, 'after')} />
+                <ResolvedChip
+                  role={statusPresentation(text(entry, 'after')).role}
+                  shape={statusPresentation(text(entry, 'after')).shape}
+                  label={postureName(locale, text(entry, 'after'))}
+                  testId="replayed-action-level"
+                />
               </li>
             ))}
           </ul>

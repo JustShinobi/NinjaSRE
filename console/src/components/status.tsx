@@ -222,11 +222,19 @@ export function StatusChip({
 /**
  * A chip whose label and role are already resolved by the caller, never a
  * value the API sent for transport — the raw material `Badge` is right to
- * print for a run or a resource, but wrong for a fact about a person or a
- * group of credentials, which has no business being shown to a viewer in
- * `SCREAMING_SNAKE_CASE` or a language it does not read.
+ * print for a run or a resource, but wrong for a fact about a person, a
+ * group of credentials, or an autonomy posture, none of which has any
+ * business being shown to a viewer in `SCREAMING_SNAKE_CASE` or a language
+ * it does not read.
+ *
+ * Exported for a caller that already has both halves — a role and shape from
+ * `statusPresentation`, a label from its own translated vocabulary — and
+ * needs nothing else this module can name for it. `postures.ts` is exactly
+ * this: the slug decides the role and shape, and the deployment's own word,
+ * translated, decides the label, and the two never travel through `Badge`
+ * together.
  */
-interface ResolvedChipProps {
+export interface ResolvedChipProps {
   readonly role: SemanticRole;
   readonly shape: Shape;
   readonly label: string;
@@ -234,7 +242,7 @@ interface ResolvedChipProps {
   readonly className?: string | undefined;
 }
 
-function ResolvedChip({
+export function ResolvedChip({
   role,
   shape,
   label,

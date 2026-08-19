@@ -260,6 +260,37 @@ const DECLARED: Readonly<Record<string, { role: SemanticRole; shape: Shape }>> =
   stored: { role: 'info', shape: 'dimmed-circle' },
   verified: { role: 'success', shape: 'filled-circle' },
   failing: { role: 'danger', shape: 'square' },
+  // A tool's own side effect, worst case, ordered by how hard it is to undo.
+  // The two reads change nothing on the estate; the two writes do; `destructive`
+  // has no reversible twin at all and is worse than `write_irreversible`, which
+  // is why it is the one entry here that reaches `irreversible`'s own shape.
+  read: { role: 'success', shape: 'filled-circle' },
+  read_sensitive: { role: 'info', shape: 'hollow-circle' },
+  write_reversible: { role: 'warning', shape: 'triangle' },
+  write_irreversible: { role: 'danger', shape: 'triangle' },
+  destructive: { role: 'danger', shape: 'square' },
+  // What a governed action would be decided to do, read before anything
+  // happens — never what already happened, so this shares no word with an
+  // audit event's own `allowed`/`denied` above. `execute` and `simulate` are
+  // the same permission class (the deployment would act on its own); `approve`
+  // and `propose` both wait on a person; `refuse` is the one this class of
+  // action never reaches at all.
+  execute: { role: 'danger', shape: 'square' },
+  simulate: { role: 'info', shape: 'rotated-square' },
+  approve: { role: 'warning', shape: 'triangle' },
+  propose: { role: 'warning', shape: 'hollow-circle' },
+  refuse: { role: 'neutral', shape: 'dash' },
+  // An autonomy posture — what a scope may do without asking. `propose_only`
+  // is the safe end and `act_silently` the most autonomous, and the four read
+  // distinguishably for exactly the reason severity above does. Declared here
+  // for the resolved chip that pairs this with the deployment's own word for
+  // it; `Badge` itself never reaches these, because its label is never
+  // translated and a posture read as a raw slug is the defect this exists to
+  // end.
+  propose_only: { role: 'success', shape: 'filled-circle' },
+  act_on_low_risk: { role: 'info', shape: 'rotated-square' },
+  act_and_report: { role: 'warning', shape: 'triangle' },
+  act_silently: { role: 'danger', shape: 'square' },
 };
 
 /** Whether `value` is a run status the gateway is known to report. */
