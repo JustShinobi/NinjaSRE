@@ -43,6 +43,7 @@ from gateway.webhooks.router import PROFILES
 from integrations._catalogue.discovery import catalogue as integration_catalogue
 from integrations._catalogue.entry import CatalogueEntry
 from integrations._catalogue.gaps import gaps
+from integrations._catalogue.health import HealthLedger
 from integrations._verification.permissions import RequiredPermission
 from platform.config_service.schema.policies import GuardianSettings
 from platform.credentials.schemas import CredentialField
@@ -1764,6 +1765,27 @@ def _catalogue_integration_record(entry: CatalogueEntry) -> dict[str, Any]:
     }
 
 
+#: The one real, installed vendor that is connected and verified — the second
+#: half of "two connected and verified" the docstring below already promises,
+#: alongside the fictional ``chat``. Produced through the real health ledger
+#: rather than hand-typed, so a browser test against a *non-fictional*
+#: catalogue entry is exercising the exact function
+#: ``gateway/http/routes/integrations.py`` calls, not a second opinion about
+#: what that function would say. Alertmanager, because it is the one this
+#: deployment's own intake, rules and receiver already point at (see
+#: ``_LIVE_SOURCE`` below) — the deployment that is connected to it for real.
+_VERIFIED_INTEGRATION: Final = "alertmanager"
+
+#: Configured — a credential is stored — and never checked. ``catalogue()``
+#: reports ``HealthStatus.UNKNOWN`` for a name that is ``configured`` but
+#: carries no ledger record, which is exactly "stored, never verified": the
+#: state a screen showing only ``unconfigured`` real vendors could never
+#: render. Loki rather than Prometheus, so the one other real vendor a deep
+#: link is measured against elsewhere stays exactly as unconfigured as every
+#: other uninstalled entry.
+_STORED_UNVERIFIED_INTEGRATION: Final = "loki"
+
+
 def integration_records() -> tuple[CapturedRecord, ...]:
     """Return every installed integration, one of them unhealthy.
 
@@ -1784,10 +1806,21 @@ def integration_records() -> tuple[CapturedRecord, ...]:
     produce rather than a guess at what that would look like. The three
     fictional entries are never replaced by a same-named real one: none of the
     installed vendors is called ``metrics-store``, ``chat`` or ``ticketing``.
+
+    Two of the real, layered-in entries carry the rest of the credential-state
+    story the three fictional ones cannot finish alone: ``_VERIFIED_INTEGRATION``
+    is the second "connected and verified", and ``_STORED_UNVERIFIED_INTEGRATION``
+    is the one "stored, never checked" — both produced by the real health ledger
+    rather than typed as a literal here.
     """
+    ledger = HealthLedger(clock=lambda: _CAPTURED)
+    ledger.record_success(_VERIFIED_INTEGRATION)
     real_entries = [
         _catalogue_integration_record(entry)
-        for entry in integration_catalogue(configured=frozenset())
+        for entry in integration_catalogue(
+            health=ledger,
+            configured=frozenset({_VERIFIED_INTEGRATION, _STORED_UNVERIFIED_INTEGRATION}),
+        )
     ]
     for entry in real_entries:
         if entry["name"] == "redis":
@@ -1913,8 +1946,15 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                         "display_name": "Ticketing",
                         "category": "workflow",
                         "summary": "Opens and updates tickets from findings.",
-                        "health": "degraded",
-                        "health_detail": "the last verification timed out",
+                        # Not ``degraded`` — a stored credential the vendor
+                        # itself rejects is ``failing``, the credential
+                        # vocabulary's own word for it
+                        # (``console/src/design/status.ts``), carrying its
+                        # own critical chip rather than a warning one. It is
+                        # what keeps this entry in Connected instead of
+                        # falling back to the catalogue grid.
+                        "health": "failing",
+                        "health_detail": "the stored credential was rejected by the vendor",
                         "hosts": ["tickets.example.invalid"],
                         "regions": [],
                         "capabilities": ["ticketing.open_ticket"],
@@ -2793,6 +2833,30 @@ def identity_records(*, role: str = "owner") -> tuple[CapturedRecord, ...]:
                         "last_used_at": at(minutes=6),
                         "revoked": False,
                         "description": None,
+                    },
+                    {
+                        # The one token this deployment's webhook route
+                        # actually accepts: every token above holds an
+                        # investigation or token-management scope, and none
+                        # of them authenticates a POST to
+                        # ``/webhooks/alertmanager``. Named the way the
+                        # console's own alert-delivery issuance template
+                        # names the purpose
+                        # (``settings.machineTokens.template.alertDelivery.name``),
+                        # scoped to nothing beyond delivery, and last used at
+                        # the instant the one accepted delivery
+                        # (``_TRANSIT_ACCEPTED_AT`` below) actually arrived —
+                        # the same token, not a coincidence of timing.
+                        "token_id": "tok-0003",
+                        "name": "Alert delivery",
+                        "user_id": AUTOMATION,
+                        "team_node_id": PLATFORM_TEAM_NODE,
+                        "scopes": [Permission.WEBHOOK_DELIVER.value],
+                        "created_at": at(days=6, hours=4),
+                        "expires_at": None,
+                        "last_used_at": at(minutes=12),
+                        "revoked": False,
+                        "description": "Authenticates inbound Alertmanager webhook deliveries.",
                     },
                     *_bootstrap_tokens(),
                 ]

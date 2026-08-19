@@ -104,8 +104,8 @@
                 "secret": true
               }
             ],
-            "health": "degraded",
-            "health_detail": "the last verification timed out",
+            "health": "failing",
+            "health_detail": "the stored credential was rejected by the vendor",
             "hosts": [
               "tickets.example.invalid"
             ],
@@ -146,8 +146,8 @@
                 "secret": true
               }
             ],
-            "health": "unconfigured",
-            "health_detail": "no credential is stored for this node",
+            "health": "healthy",
+            "health_detail": "",
             "hosts": [
               "alertmanager.example.com"
             ],
@@ -547,8 +547,8 @@
                 "secret": false
               }
             ],
-            "health": "unconfigured",
-            "health_detail": "no credential is stored for this node",
+            "health": "unknown",
+            "health_detail": "",
             "hosts": [
               "loki.example.com"
             ],
