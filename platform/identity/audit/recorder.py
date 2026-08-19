@@ -93,6 +93,7 @@ REMEDIATION_AUDIT_ACTION_EXECUTE: Final = "remediation.execute"
 REMEDIATION_AUDIT_ACTION_ROLLBACK: Final = "remediation.rollback"
 CREDENTIAL_AUDIT_ACTION_WRITE: Final = "credential.write"
 CREDENTIAL_AUDIT_ACTION_ROTATE: Final = "credential.rotate"
+CREDENTIAL_AUDIT_ACTION_DELETE: Final = "credential.delete"
 
 #: Every class of action that must be audited. A tuple rather than a
 #: comment, because the security suite iterates it: a new class added without a
@@ -111,6 +112,7 @@ AUDITED_ACTIONS: Final[tuple[str, ...]] = (
     CONFIG_AUDIT_ACTION_TEMPLATE,
     CREDENTIAL_AUDIT_ACTION_WRITE,
     CREDENTIAL_AUDIT_ACTION_ROTATE,
+    CREDENTIAL_AUDIT_ACTION_DELETE,
     CREDENTIAL_RESOLUTION_AUDIT_ACTION,
     APPROVAL_AUDIT_ACTION_REQUEST,
     APPROVAL_AUDIT_ACTION_DECIDE,

@@ -13,7 +13,7 @@ import {
   type CredentialLabels,
 } from './credential';
 import { VERIFY_ENDPOINT } from './first-run/verify';
-import { consumeScrollPosition } from './scroll-memory';
+import { consumeScrollPosition, peekScrollPosition } from './scroll-memory';
 
 /**
  * The credential panel: a slide-over on the catalogue, one integration at a
@@ -106,13 +106,22 @@ export function IntegrationPanel({
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [unreachable, setUnreachable] = useState(false);
 
-  // The scroll position the catalogue was at when this panel opened is
-  // restored the moment this component goes away — the close button, Escape,
-  // and navigating anywhere else all unmount it the same way, so one cleanup
-  // covers every path shut. Guarded to `/integrations` because a viewer who
-  // left the area entirely (a different nav link, say) should not have this
-  // page's memory of a scroll position nudge whatever page they landed on.
+  // Two corrections, one effect. On mount: the RSC swap that brought this
+  // panel in can leave the browser having clamped `window.scrollY` down to a
+  // document that was briefly shorter mid-navigation (see `scroll-memory.ts`
+  // for why) — peeked, not consumed, because the cleanup below still needs
+  // the same value. On unmount: the scroll position the catalogue was at
+  // when this panel opened is restored the moment this component goes away
+  // — the close button, Escape, and navigating anywhere else all unmount it
+  // the same way, so one cleanup covers every path shut. Guarded to
+  // `/integrations` because a viewer who left the area entirely (a different
+  // nav link, say) should not have this page's memory of a scroll position
+  // nudge whatever page they landed on.
   useEffect(() => {
+    const remembered = peekScrollPosition();
+    if (remembered !== null && window.scrollY !== remembered) {
+      window.scrollTo(0, remembered);
+    }
     return () => {
       if (!window.location.pathname.startsWith('/integrations')) return;
       const restored = consumeScrollPosition();

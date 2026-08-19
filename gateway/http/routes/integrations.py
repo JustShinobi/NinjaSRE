@@ -60,6 +60,7 @@ from platform.credentials.vault import Vault
 from platform.estate.service import EstateService
 from platform.estate.suggestions import Suggestion, suggest_integrations
 from platform.identity.audit.recorder import (
+    CREDENTIAL_AUDIT_ACTION_DELETE,
     CREDENTIAL_AUDIT_ACTION_WRITE,
     AuditContext,
     AuditRecorder,
@@ -243,6 +244,16 @@ class CredentialWriteView(BaseModel):
     version: int
     #: The field *names* that were supplied, in name order. Never their values.
     fields: list[str]
+
+
+class CredentialDeleteView(BaseModel):
+    """What disconnecting removed. Nothing here a value could ever have sat in."""
+
+    integration: str
+    #: How many stored versions were removed. Zero is not an error — the
+    #: console offers "Disconnect" on a connected integration only, but
+    #: disconnecting something already bare is idempotent rather than refused.
+    versions_removed: int
 
 
 async def _suggestions(
@@ -547,6 +558,54 @@ async def store_credential(
         version=stored.version,
         fields=names,
     )
+
+
+@router.delete("/{name}/credential", response_model=CredentialDeleteView)
+async def delete_credential(
+    name: str,
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> CredentialDeleteView:
+    """Disconnect: remove this team's stored credential for ``name``, every version.
+
+    The same permission as the write beside it (``credential.write``), because
+    whoever may put a credential in the vault is whoever may take it back out —
+    a narrower rule here would be a second, undocumented gate on the same
+    material. Idempotent: disconnecting an integration with nothing stored
+    removes zero versions rather than refusing, so a viewer who reloads a stale
+    panel and presses it again does not meet an error over a fact that is
+    already true.
+
+    Raises:
+        ApiProblem: nothing answers to ``name`` (404) — the same refusal the
+            write beside it gives, for the same reason.
+    """
+    vault = Vault(
+        gateway=state.gateway,
+        schemas=CredentialSchemaRegistry.from_schemas(schema_for(name)),
+    )
+    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
+    removed = await vault.delete(auth.scope, handle)
+
+    await AuditRecorder(gateway=state.gateway).record(
+        auth.scope,
+        AuditContext(actor_kind=ActorKind.USER, actor_id=auth.principal_id),
+        action=CREDENTIAL_AUDIT_ACTION_DELETE,
+        resource_kind=_CREDENTIAL_RESOURCE_KIND,
+        resource_id=name,
+        detail={"integration": name, "versions_removed": removed},
+    )
+    logger.info(
+        "gateway.integration_credential_deleted", integration=name, versions_removed=removed
+    )
+
+    # A verdict belongs to the credential it was reached with. A disconnected
+    # integration keeping yesterday's green tick would answer "is this
+    # working" from a credential that no longer exists.
+    for kind in _affected_kinds(name):
+        await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
+
+    return CredentialDeleteView(integration=name, versions_removed=removed)
 
 
 __all__ = ["router"]

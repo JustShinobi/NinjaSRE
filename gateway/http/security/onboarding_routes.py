@@ -8,7 +8,9 @@ masking threshold is not automatically whoever may replace the API token a
 cluster is reached with, and a deployment narrowing one must not silently narrow
 the other. There is no separate rotation verb — writing again supersedes — so
 this one row covers onboarding and rotation both, and the audit trail carries
-the sequence.
+the sequence. Disconnecting takes the same permission for the same reason: a
+deployment that lets somebody store a credential but not remove it again has
+not narrowed anything, it has just made the removal somebody else's problem.
 
 **Reading the provider inventory takes ``config.read``.** It reveals no value:
 what comes back is which providers this build supports, which fields each needs,
@@ -39,6 +41,13 @@ ONBOARDING_ROUTES: Final[tuple[Route, ...]] = (
     # --- Putting a credential into the vault -----------------------------------
     Route(
         method="PUT",
+        path="/v1/integrations/{name}/credential",
+        permission=Permission.CREDENTIAL_WRITE,
+    ),
+    # --- Taking it back out. Same permission as the write above: whoever may
+    # store a credential is whoever may disconnect it. -------------------------
+    Route(
+        method="DELETE",
         path="/v1/integrations/{name}/credential",
         permission=Permission.CREDENTIAL_WRITE,
     ),
