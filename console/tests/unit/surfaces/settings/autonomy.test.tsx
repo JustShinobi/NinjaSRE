@@ -954,11 +954,13 @@ describe('the guardrails section', () => {
     // The two constitutional invariants are stated as facts, never as a toggle.
     const invariants = screen.getAllByTestId('guardrail-invariant');
     expect(invariants).toHaveLength(2);
-    // One editor on this tab — the guardrails one above. The advanced
+    // No generic editor at all on this tab: the six fields this fixture
+    // declares are exactly the six `GUARDRAIL_FIELDS` already draws inline,
+    // above, so there is nothing left for it to offer. The advanced
     // autonomy-scalars editor this same test dataset also feeds lives on
     // Rules & windows now, not here; see the advanced-autonomy-scalars
     // `describe` below for that one.
-    expect(screen.getAllByTestId('config-editor')).toHaveLength(1);
+    expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
     // A display name is shown, but that alone does not prove
     // the raw technical path is gone — the two can coexist. It does not,
     // anywhere on this tab.
@@ -1087,6 +1089,178 @@ describe('the guardrails section', () => {
     // content: three fields is what is left of it here, not the nine this
     // route used to route through it.
     expect(paths).toHaveLength(3);
+  });
+
+  it('renders no generic editor at all when the six scalars above already cover every guardrail-prefixed field', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: EMPTY_BOUNDS,
+      values: {},
+      fields: [
+        {
+          path: 'policies.masking.enabled',
+          label: 'Masking enabled',
+          type: 'boolean',
+          section: 'Masking',
+          value: true,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.masking.level',
+          label: 'Masking level',
+          type: 'string',
+          section: 'Masking',
+          value: 'strict',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.guardrails.mode',
+          label: 'Secret detection',
+          type: 'string',
+          section: 'Guardrails',
+          value: 'enforcing',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.guardrails.ruleset',
+          label: 'Detection ruleset',
+          type: 'string',
+          section: 'Guardrails',
+          value: null,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.approvals.threshold',
+          label: 'Approval threshold',
+          type: 'string',
+          section: 'Approvals',
+          value: 'write_reversible',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.approvals.expiry_hours',
+          label: 'Approval expiry',
+          type: 'integer',
+          section: 'Approvals',
+          value: 4.5,
+          provenance: '',
+          set_here: false,
+        },
+      ],
+    });
+
+    await renderAutonomy({ tab: 'guardrails' });
+
+    // A search box for a field list with nothing left to offer is dead UI
+    // stating something false to every reader — absent, not an empty
+    // result.
+    expect(screen.queryByTestId('config-editor')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('search-empty')).not.toBeInTheDocument();
+    // The table above still carries the six scalars — the tab itself is
+    // not empty, only the generic editor beneath it has nothing left to add.
+    expect(screen.getAllByTestId('effective-field').length).toBeGreaterThan(0);
+  });
+
+  it('still renders the generic editor when a guardrail-prefixed field is left over, so the fix is a condition rather than a deletion', async () => {
+    serveAutonomy({
+      policy: EMPTY_POLICY,
+      bounds: EMPTY_BOUNDS,
+      values: {},
+      fields: [
+        {
+          path: 'policies.masking.enabled',
+          label: 'Masking enabled',
+          type: 'boolean',
+          section: 'Masking',
+          value: true,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.masking.level',
+          label: 'Masking level',
+          type: 'string',
+          section: 'Masking',
+          value: 'strict',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.guardrails.mode',
+          label: 'Secret detection',
+          type: 'string',
+          section: 'Guardrails',
+          value: 'enforcing',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.guardrails.ruleset',
+          label: 'Detection ruleset',
+          type: 'string',
+          section: 'Guardrails',
+          value: null,
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.approvals.threshold',
+          label: 'Approval threshold',
+          type: 'string',
+          section: 'Approvals',
+          value: 'write_reversible',
+          provenance: '',
+          set_here: false,
+        },
+        {
+          path: 'policies.approvals.expiry_hours',
+          label: 'Approval expiry',
+          type: 'integer',
+          section: 'Approvals',
+          value: 4.5,
+          provenance: '',
+          set_here: false,
+        },
+        // The one field left over once the six scalars above have their own
+        // row — the same shape the fix still has to draw, not merely stop
+        // hiding.
+        {
+          path: 'policies.masking.custom_patterns',
+          label: 'Custom patterns',
+          type: 'array',
+          section: 'Masking',
+          value: [],
+          provenance: '',
+          set_here: false,
+          item_fields: [
+            {
+              path: 'pattern',
+              label: 'Pattern',
+              type: 'string',
+              help: '',
+              allowed_values: null,
+              minimum: null,
+              maximum: null,
+              default: '',
+            },
+          ],
+        },
+      ],
+    });
+
+    await renderAutonomy({ tab: 'guardrails' });
+
+    const editor = screen.getByTestId('config-editor');
+    expect(
+      editor.querySelector(
+        '[data-testid="config-field"][data-path="policies.masking.custom_patterns"]',
+      ),
+    ).not.toBeNull();
   });
 
   it('states the fixed guardrails as facts with no control beside them, and moves the group’s own sentence after the table it describes', async () => {
@@ -1430,10 +1604,11 @@ describe('Posture: the level selector, and nothing before it', () => {
 
     const header = screen.getByTestId('page-header');
     expect(header).toHaveTextContent(NODE);
-    // The full description, not the bare slug — the same words the level's
-    // own selector option carries, so the subtitle never disagrees with the
-    // control it is summarising.
+    // The short name, not the bare slug and not the sentence written for
+    // the level's own `<Select>` option — that sentence carries its own
+    // full stop, and this header is not the control it is summarising.
     expect(header).toHaveTextContent('Act and report');
+    expect(header).not.toHaveTextContent('runs on its own');
   });
 
   it('shows the posture an active override actually puts in force, not the saved level, and says it is temporary', async () => {
@@ -1475,6 +1650,11 @@ describe('Posture: the level selector, and nothing before it', () => {
     expect(header).not.toHaveTextContent('Propose only');
     // And it declares why: a temporary override, not the configured posture.
     expect(header).toHaveTextContent(/temporary override/i);
+    // The short name only — not the sentence written for the level's own
+    // `<Select>` option, and not that sentence's own full stop landing in
+    // the middle of this one, right before "from a temporary override".
+    expect(header).not.toHaveTextContent('runs on its own');
+    expect(header.textContent).not.toMatch(/\.\s*,/);
   });
 
   it('renders no paragraph between the title and the level selector, on Posture', async () => {

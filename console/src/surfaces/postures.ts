@@ -32,6 +32,26 @@ export function postureLabel(locale: Locale, level: string): string {
 }
 
 /**
+ * The short name for each level this console has words for — what a
+ * subtitle or a heading states beside a node's own name, in a sentence of
+ * its own. `DESCRIBED`'s text is written for the `<Select>` option it is
+ * and carries its own full stop; interpolating that whole sentence into
+ * another one produces one sentence wearing the punctuation of two.
+ */
+const NAMED: Readonly<Record<string, MessageKey>> = {
+  propose_only: 'autonomy.level.propose_only.short',
+  act_on_low_risk: 'autonomy.level.act_on_low_risk.short',
+  act_and_report: 'autonomy.level.act_and_report.short',
+  act_silently: 'autonomy.level.act_silently.short',
+};
+
+/** `level`'s short name, or the slug itself when this console has no word for it. */
+export function postureName(locale: Locale, level: string): string {
+  const key = NAMED[level];
+  return key === undefined ? level : message(locale, key);
+}
+
+/**
  * `levels` as a lookup a client editor can hold, keyed by the deployment's slug.
  *
  * The editors are client components with no locale of their own, so the screen

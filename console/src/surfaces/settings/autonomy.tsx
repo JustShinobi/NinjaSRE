@@ -34,7 +34,7 @@ import { OverridePanel } from '../override-panel';
 import { Panel } from '../panel';
 import { PostureEditor } from '../posture-editor';
 import { ConfigEditor } from '../preview';
-import { postureLabel, postureLabels } from '../postures';
+import { postureLabels, postureName } from '../postures';
 import { GuardrailTable } from './guardrail-table';
 // The one resolver both appearances of a guardrail's value read from —
 // Posture's read-only summary and this tab's own editable table can no
@@ -375,11 +375,11 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
       : overriddenLevel === null
         ? message(locale, 'autonomy.subtitle', {
             node: nodeId,
-            posture: postureLabel(locale, postureLevel),
+            posture: postureName(locale, postureLevel),
           })
         : message(locale, 'autonomy.subtitle.override', {
             node: nodeId,
-            posture: postureLabel(locale, overriddenLevel),
+            posture: postureName(locale, overriddenLevel),
           });
 
   // The rare action: absent from every tab's own body, reachable through one
@@ -766,7 +766,14 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                 }}
               />
             )}
-            {writable && nodeId !== '' ? (
+            {/* Absent, not an empty result: a search box for a field list
+                with nothing left to offer states something false to every
+                reader. The six scalars above already draw the whole of
+                what the deployment declared under these three prefixes,
+                on the datasets that reach this tab today; the day one more
+                guardrail-prefixed field exists with no row of its own, this
+                is where it appears. */}
+            {writable && nodeId !== '' && guardrailEditable.length > 0 ? (
               <ConfigEditor
                 nodeId={nodeId}
                 fields={guardrailEditable}

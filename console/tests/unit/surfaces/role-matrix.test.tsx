@@ -108,17 +108,21 @@ describe('the write controls, per role', () => {
     serveScenario('populated', principalHolding(ROLES.roles[most] ?? []));
 
     // Autonomy & guardrails rather than the retired raw editor: the editor is
-    // gone, but the control it was asked about is not — the same
-    // `ConfigEditor` now draws the guardrail fields on the page that owns
-    // them, which is what this direction of the matrix is actually about.
+    // gone, but the control it was asked about is not.
     const autonomy = AREA_SCREENS.find((each) => each.id === 'autonomy');
     if (autonomy === undefined) throw new Error('there is no autonomy screen');
-    // Guardrails: the tab that owns `config-editor` since the three-tab
-    // rework — the advanced section holding the autonomy scalars the retired
-    // editor used to be the only home for is on Rules & windows instead, its
-    // own `config-editor` covered by `settings/autonomy.test.tsx`.
+    // Rules & windows, not Guardrails: the guardrails tab's own generic
+    // editor is conditional now — absent once every guardrail-prefixed field
+    // already has a control of its own, which the populated dataset already
+    // satisfies, so it is no longer a stable target for "at least one
+    // exists". The advanced section holding the autonomy scalars the retired
+    // editor used to be the only home for draws through the same
+    // `ConfigEditor`, unconditionally, for the four fields this dataset
+    // always declares — covered on its own terms by `settings/autonomy.test.tsx`.
     render(
-      await autonomy.render({ searchParams: Promise.resolve({ tab: 'guardrails' }) }),
+      await autonomy.render({
+        searchParams: Promise.resolve({ tab: 'rules-windows' }),
+      }),
     );
 
     expect(screen.getAllByTestId('config-editor').length).toBeGreaterThan(0);

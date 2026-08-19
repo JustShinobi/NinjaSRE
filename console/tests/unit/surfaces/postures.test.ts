@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { postureLabel, postureLabels } from '@/surfaces/postures';
+import { postureLabel, postureLabels, postureName } from '@/surfaces/postures';
 
 /**
  * What an autonomy level permits, at the point somebody chooses it.
@@ -42,5 +42,31 @@ describe('what a posture is called', () => {
     const held = postureLabels('en', ['act_silently', 'propose_only']);
 
     expect(Object.keys(held)).toEqual(['act_silently', 'propose_only']);
+  });
+});
+
+describe('what a posture is called, in short', () => {
+  it('is shorter than the sentence, and is not the raw slug', () => {
+    const named = postureName('en', 'act_and_report');
+
+    expect(named).not.toBe('act_and_report');
+    expect(named).not.toBe(postureLabel('en', 'act_and_report'));
+    // The short name is the descriptive sentence's own headline — the
+    // words a reader who already saw the subtitle recognises on opening
+    // the level selector, not a second vocabulary for the same thing.
+    expect(postureLabel('en', 'act_and_report')).toContain(named);
+  });
+
+  it('falls back to the slug for a level this console has no words for', () => {
+    // The levels come from the deployment, not from here — the same
+    // guarantee `postureLabel` gives, and just as easy to lose while
+    // adding a second lookup beside it.
+    expect(postureName('en', 'act_on_tuesdays')).toBe('act_on_tuesdays');
+  });
+
+  it('translates rather than carrying English into another locale', () => {
+    expect(postureName('pt-BR', 'propose_only')).not.toBe(
+      postureName('en', 'propose_only'),
+    );
   });
 });

@@ -165,9 +165,18 @@ const SCROLL_BUDGET_MEASURED_ELSEWHERE = new Set<string>([
   '/settings/audit-log',
   '/settings/alert-intake',
   '/settings/schedules-destinations',
-  // Reached by `scroll-budget.spec.ts` via the retired `/autonomy` address,
-  // which redirects here (`shell/routes.ts`'s `SETTINGS_REDIRECTS`) — the
-  // same document loads either way.
+  // Measured by `scroll-budget.spec.ts` directly, at this address, and once
+  // per tab — against the tighter per-tab budget rather than the whole-page
+  // one this file would apply. So the delegation hands this route to a
+  // stricter instrument than the rule here, not a weaker one, and measuring
+  // it again here would be the looser of the two assertions.
+  //
+  // What that measurement can and cannot see: the app shell carries
+  // `min-h-screen` (`shell/shell.tsx`), so `documentElement.scrollHeight`
+  // never reports less than one viewport. A tab at exactly the viewport
+  // height is proved to need no scrolling at all, which is what a scroll
+  // budget asks; its content height below that line is simply not a thing
+  // this instrument measures, and does not need to be.
   '/settings/autonomy-guardrails',
 ]);
 

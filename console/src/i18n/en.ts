@@ -53,6 +53,13 @@ export const EN = {
     'Act and report — runs on its own and tells somebody afterwards, whatever the risk.',
   'autonomy.level.act_silently':
     'Act silently — runs on its own and reports nothing. Choose this one deliberately.',
+  // The same four levels, in the short form a subtitle or a heading states
+  // beside a node's own name — never the sentence above, which carries its
+  // own full stop and reads as a fragment once another clause follows it.
+  'autonomy.level.propose_only.short': 'Propose only',
+  'autonomy.level.act_on_low_risk.short': 'Act on low risk',
+  'autonomy.level.act_and_report.short': 'Act and report',
+  'autonomy.level.act_silently.short': 'Act silently',
   'nav.autonomy': 'Autonomy',
   'nav.configuration': 'Configuration',
   'nav.teamContext': 'Team context',

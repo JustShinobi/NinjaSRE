@@ -43,6 +43,13 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Agir e reportar — roda sozinho e avisa alguém depois, seja qual for o risco.',
   'autonomy.level.act_silently':
     'Agir em silêncio — roda sozinho e não reporta nada. Escolha este nível de propósito.',
+  // As mesmas quatro posturas, na forma curta que um subtítulo ou um título
+  // usa ao lado do nome de um nó — nunca a frase acima, que carrega seu
+  // próprio ponto final e vira um fragmento quando outra oração a segue.
+  'autonomy.level.propose_only.short': 'Apenas propor',
+  'autonomy.level.act_on_low_risk.short': 'Agir em baixo risco',
+  'autonomy.level.act_and_report.short': 'Agir e reportar',
+  'autonomy.level.act_silently.short': 'Agir em silêncio',
   'nav.autonomy': 'Autonomia',
   'nav.catalogue': 'Catálogo',
   'nav.administration': 'Administração',
