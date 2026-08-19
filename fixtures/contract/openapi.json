@@ -1375,6 +1375,25 @@
         "title": "CreateScheduleRequest",
         "type": "object"
       },
+      "CredentialDeleteView": {
+        "description": "What disconnecting removed. Nothing here a value could ever have sat in.",
+        "properties": {
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "versions_removed": {
+            "title": "Versions Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "integration",
+          "versions_removed"
+        ],
+        "title": "CredentialDeleteView",
+        "type": "object"
+      },
       "CredentialWriteRequest": {
         "description": "A flat map of field name to value, checked against the vendor's own schema.\n\nFlat rather than nested, because a credential is a set of named strings and\na shape with room for anything else would be a shape a secret could be\nsmuggled through under a key nothing validates.",
         "properties": {
@@ -11877,6 +11896,63 @@
       }
     },
     "/v1/integrations/{name}/credential": {
+      "delete": {
+        "description": "Disconnect: remove this team's stored credential for ``name``, every version.\n\nThe same permission as the write beside it (``credential.write``), because\nwhoever may put a credential in the vault is whoever may take it back out —\na narrower rule here would be a second, undocumented gate on the same\nmaterial. Idempotent: disconnecting an integration with nothing stored\nremoves zero versions rather than refusing, so a viewer who reloads a stale\npanel and presses it again does not meet an error over a fact that is\nalready true.\n\nRaises:\n    ApiProblem: nothing answers to ``name`` (404) — the same refusal the\n        write beside it gives, for the same reason.",
+        "operationId": "delete_credential_v1_integrations__name__credential_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialDeleteView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Credential",
+        "tags": [
+          "integrations"
+        ]
+      },
       "put": {
         "description": "Store this team's credential for ``name`` and report what it now is.\n\n``name`` is an installed integration or a supported model provider. One\nroute for both, because a provider key that took a different path would be\na second place credentials live and the one the audit misses.\n\nThe team is the token's, exactly as it is for every other write on this\nsurface: a body field naming somebody else's team would be a permission\ndecision taken by the client.\n\nRaises:\n    ApiProblem: nothing answers to ``name`` (404), or the values do not fit\n        the declared schema (400). The refusal names the fields and never\n        quotes one.",
         "operationId": "store_credential_v1_integrations__name__credential_put",

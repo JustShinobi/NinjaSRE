@@ -59,6 +59,12 @@ function asWrite(body: unknown): CredentialWrite | null {
   return { integration, values: flat };
 }
 
+/** Which integration a disconnect targets, or `null` when the body names none. */
+function asIntegrationName(body: unknown): string | null {
+  const integration: unknown = Reflect.get(Object(body), 'integration');
+  return typeof integration === 'string' && integration !== '' ? integration : null;
+}
+
 /** One field of an answer that crossed a process, or a stated fallback. */
 function pick(record: unknown, name: string, fallback: unknown): unknown {
   const found: unknown = Reflect.get(Object(record), name);
@@ -107,6 +113,51 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch {
     // The deployment, not this process. Saying "refused" would send somebody to
     // look at the wrong machine, and they would find nothing wrong with it.
+    return NextResponse.json({ ok: false, reachable: false }, { status: 502 });
+  }
+}
+
+/**
+ * Disconnect: remove one integration's stored credential, every version.
+ *
+ * Same courier, same guarantee — the integration name is read out of the body
+ * and used once, in the outbound path; nothing here is a value a credential
+ * could have sat in, so there is nothing this handler could leak even by
+ * accident.
+ */
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  const credential = request.cookies.get(SESSION_COOKIE)?.value;
+  if (credential === undefined || credential === '') {
+    return NextResponse.json({ ok: false, reachable: true }, { status: 401 });
+  }
+
+  const integration = asIntegrationName(await request.json().catch(() => null));
+  if (integration === null) {
+    return NextResponse.json({ ok: false, reachable: true }, { status: 400 });
+  }
+
+  const address = `${apiOrigin()}/v1/integrations/${encodeURIComponent(integration)}/credential`;
+  try {
+    const answer = await fetch(address, {
+      method: 'DELETE',
+      headers: {
+        authorization: `Bearer ${credential}`,
+        accept: 'application/json',
+      },
+      cache: 'no-store',
+    });
+    const removed: unknown = await answer.json().catch(() => ({}));
+    const detail: unknown = Reflect.get(Object(removed), 'detail');
+    return NextResponse.json(
+      {
+        ok: answer.ok,
+        reachable: true,
+        reason: typeof detail === 'string' ? detail : '',
+        versionsRemoved: pick(removed, 'versions_removed', 0),
+      },
+      { status: answer.status },
+    );
+  } catch {
     return NextResponse.json({ ok: false, reachable: false }, { status: 502 });
   }
 }

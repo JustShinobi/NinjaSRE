@@ -1499,6 +1499,17 @@ export const EN = {
     'Stored in the vault; never shown again. Testing it makes a real request — stored and working are different states.',
   'catalogue.integrations.panel.saveAndTest': 'Save and test',
   'catalogue.integrations.panel.testing': 'Saving and testing…',
+  // --- A connected integration's panel: state and actions, not an empty form ------
+  'catalogue.integrations.panel.storedInVault':
+    'This credential is stored in the vault.',
+  'catalogue.integrations.panel.testAgain': 'Test again',
+  'catalogue.integrations.panel.replaceCredential': 'Replace credential',
+  // Shared by two exits: leaving "Replace credential" without saving, and
+  // leaving the disconnect confirmation without disconnecting.
+  'catalogue.integrations.panel.cancel': 'Cancel',
+  'catalogue.integrations.panel.disconnect': 'Disconnect',
+  'catalogue.integrations.panel.disconnect.consequence':
+    'This removes the stored credential from the vault. The integration returns to Available until it is reconnected.',
 
   // --- The reference page for vendors this catalogue does not cover ----------------
   'catalogue.notCovered.title': 'Not covered, and why',

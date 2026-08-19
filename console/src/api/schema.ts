@@ -1454,7 +1454,23 @@ export interface paths {
          */
         put: operations["store_credential_v1_integrations__name__credential_put"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete Credential
+         * @description Disconnect: remove this team's stored credential for ``name``, every version.
+         *
+         *     The same permission as the write beside it (``credential.write``), because
+         *     whoever may put a credential in the vault is whoever may take it back out —
+         *     a narrower rule here would be a second, undocumented gate on the same
+         *     material. Idempotent: disconnecting an integration with nothing stored
+         *     removes zero versions rather than refusing, so a viewer who reloads a stale
+         *     panel and presses it again does not meet an error over a fact that is
+         *     already true.
+         *
+         *     Raises:
+         *         ApiProblem: nothing answers to ``name`` (404) — the same refusal the
+         *             write beside it gives, for the same reason.
+         */
+        delete: operations["delete_credential_v1_integrations__name__credential_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3496,6 +3512,16 @@ export interface components {
              * @default UTC
              */
             timezone: string;
+        };
+        /**
+         * CredentialDeleteView
+         * @description What disconnecting removed. Nothing here a value could ever have sat in.
+         */
+        CredentialDeleteView: {
+            /** Integration */
+            integration: string;
+            /** Versions Removed */
+            versions_removed: number;
         };
         /**
          * CredentialWriteRequest
@@ -9020,6 +9046,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CredentialWriteView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_credential_v1_integrations__name__credential_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialDeleteView"];
                 };
             };
             /** @description Validation Error */

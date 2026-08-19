@@ -1277,6 +1277,17 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Guardada no vault; nunca é exibida de novo. O teste faz uma requisição real — armazenada e funcionando são estados diferentes.',
   'catalogue.integrations.panel.saveAndTest': 'Salvar e testar',
   'catalogue.integrations.panel.testing': 'Salvando e testando…',
+  // --- Painel de uma integração conectada: estado e ações, nunca um formulário vazio ---
+  'catalogue.integrations.panel.storedInVault':
+    'Esta credencial está guardada no vault.',
+  'catalogue.integrations.panel.testAgain': 'Testar de novo',
+  'catalogue.integrations.panel.replaceCredential': 'Substituir credencial',
+  // Compartilhado por duas saídas: sair de "Substituir credencial" sem
+  // salvar, e sair da confirmação de desconexão sem desconectar.
+  'catalogue.integrations.panel.cancel': 'Cancelar',
+  'catalogue.integrations.panel.disconnect': 'Desconectar',
+  'catalogue.integrations.panel.disconnect.consequence':
+    'Isso remove a credencial guardada no vault. A integração volta para Disponíveis até ser reconectada.',
 
   // --- A página de referência dos vendors que este catálogo não cobre --------------
   'catalogue.notCovered.title': 'Não coberto, e por quê',

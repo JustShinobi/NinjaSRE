@@ -4,10 +4,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { Drawer } from '@/components/overlay';
+import { Button } from '@/components/action';
+import { ConfirmDestructive, Drawer } from '@/components/overlay';
 import { StatusChip } from '@/components/status';
+import { credentialStatus } from '@/design/status';
 import type { Locale } from '@/i18n/messages';
 import {
+  CREDENTIAL_ENDPOINT,
   CredentialField,
   type CredentialFieldSpec,
   type CredentialLabels,
@@ -27,6 +30,18 @@ import { consumeScrollPosition, peekScrollPosition } from './scroll-memory';
  * storing, then testing — are both visible, and the button's own label is the
  * one it started with: "Save and test" is what was asked for, and it stays
  * true the whole time the click is being honoured.
+ *
+ * A connected integration never opens on this write form. `credentialStatus`
+ * — the one place the console already reconciles every backend spelling of a
+ * credential's state onto five canonical words — decides whether *anything*
+ * is stored; every value but `'not_connected'` means something is, including
+ * `'degraded'` and `'failing'`, because losing a credential's verification
+ * does not lose the credential. What such a panel shows instead is the state
+ * and three actions that make sense on top of it: test it again, replace it
+ * through the identical write-only form ("Replace credential" only toggles
+ * which half of this component is on screen — no second form exists), or
+ * disconnect it through the confirmation the component library already
+ * imposes on every destructive write in this console.
  */
 
 /**
@@ -53,6 +68,17 @@ export interface IntegrationPanelItem {
   readonly healthDetail: string;
   readonly fields: readonly CredentialFieldSpec[];
   readonly permissions: readonly PermissionSpec[];
+  /**
+   * The address the estate's own discovery already found this service
+   * running at, when it found one.
+   *
+   * Empty is the ordinary case, and it renders nothing at all — never a
+   * guessed address and never another deployment's. The only legitimate
+   * source for a non-empty value is the catalogue's own `suggested.address`,
+   * the same field the Suggested section already reads; nothing here ever
+   * invents one from a vendor's default port or a constant on the screen.
+   */
+  readonly discoveredAddress: string;
 }
 
 export interface IntegrationPanelLabels {
@@ -62,6 +88,8 @@ export interface IntegrationPanelLabels {
   readonly security: string;
   readonly notFound: string;
   readonly notFoundAction: string;
+  /** The second link a missing integration's panel offers: the roadmap list. */
+  readonly notFoundRoadmap: string;
   readonly testing: string;
   readonly unreachable: string;
   /** Shown instead of the form for a viewer who reached this without `writable`. */
@@ -69,6 +97,17 @@ export interface IntegrationPanelLabels {
   readonly permissionsHeading: string;
   /** The prefix before `permission.where` — "Granted at", never a full sentence. */
   readonly grantedAt: string;
+  /** What precedes the estate's own discovered address, when there is one. */
+  readonly foundHere: string;
+  /** What a connected integration's panel says about where its credential lives. */
+  readonly storedInVault: string;
+  readonly testAgain: string;
+  readonly replaceCredential: string;
+  /** Leaving "Replace credential" unsaved, and leaving the disconnect confirmation unconfirmed. */
+  readonly cancel: string;
+  readonly disconnect: string;
+  /** What "Disconnect" removes, said before the write happens. */
+  readonly disconnectConsequence: string;
 }
 
 export interface IntegrationPanelProps {
@@ -77,6 +116,8 @@ export interface IntegrationPanelProps {
   readonly requestedName: string;
   readonly item: IntegrationPanelItem | null;
   readonly closeHref: string;
+  /** Where the roadmap's reference page lives — offered beside the way back, for a name the cut removed. */
+  readonly notCoveredHref: string;
   /**
    * Whether this viewer holds `integration.manage`. The area itself is gated
    * on the same permission, so a viewer without it cannot reach this panel in
@@ -98,6 +139,7 @@ export function IntegrationPanel({
   requestedName,
   item,
   closeHref,
+  notCoveredHref,
   writable,
   labels,
 }: IntegrationPanelProps): ReactNode {
@@ -105,6 +147,20 @@ export function IntegrationPanel({
   const [testing, setTesting] = useState(false);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [unreachable, setUnreachable] = useState(false);
+  // Toggles which half of the writable branch is on screen: the connected
+  // state and its three actions, or the write-only form underneath
+  // "Replace credential". Never true for an integration that opened with
+  // nothing stored — that case already shows the form, with nothing to
+  // replace it with.
+  const [replacing, setReplacing] = useState(false);
+  // Set the moment a disconnect succeeds, ahead of the server round-trip
+  // `router.refresh()` starts below. Without this the actions view would
+  // keep reading "connected" against a credential that is already gone,
+  // for however long the refetch takes.
+  const [disconnected, setDisconnected] = useState(false);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectFailure, setDisconnectFailure] = useState('');
 
   // Two corrections, one effect. On mount: the RSC swap that brought this
   // panel in can leave the browser having clamped `window.scrollY` down to a
@@ -161,6 +217,51 @@ export function IntegrationPanel({
     setTesting(false);
   }
 
+  /** Remove the stored credential, every version, after the confirmation. */
+  async function disconnect(name: string): Promise<void> {
+    if (disconnecting) return;
+    setDisconnecting(true);
+    setDisconnectFailure('');
+    let answer: Response;
+    try {
+      answer = await fetch(CREDENTIAL_ENDPOINT, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ integration: name }),
+      });
+    } catch {
+      setDisconnecting(false);
+      setConfirmingDisconnect(false);
+      setDisconnectFailure(labels.credential.unreachable);
+      return;
+    }
+    const body: unknown = await answer.json().catch(() => ({}));
+    setDisconnecting(false);
+    // Closed here, success or failure, the same way the confirmation this
+    // component reuses is closed everywhere else it appears — the failure,
+    // if there is one, is said below rather than held behind a dialog that
+    // is still open over it.
+    setConfirmingDisconnect(false);
+    if (!answer.ok) {
+      const reason: unknown = Reflect.get(Object(body), 'reason');
+      setDisconnectFailure(
+        `${labels.credential.refused} ${typeof reason === 'string' ? reason : ''}`.trim(),
+      );
+      return;
+    }
+    setDisconnected(true);
+    setVerdict(null);
+    setUnreachable(false);
+    // What the vault now holds is a fact the next render has to ask for
+    // again, not a client guess about it — the same discipline the
+    // guardrails table already applies after a write of its own.
+    router.refresh();
+  }
+
+  const connected =
+    item !== null && credentialStatus(item.health) !== 'not_connected' && !disconnected;
+  const showForm = item !== null && (!connected || replacing);
+
   return (
     <Drawer
       open
@@ -175,9 +276,17 @@ export function IntegrationPanel({
           <NextLink
             href={closeHref}
             scroll={false}
+            data-testid="panel-not-found-back"
             className="text-accent underline underline-offset-2 motion-hover hover:opacity-80"
           >
             {labels.notFoundAction}
+          </NextLink>
+          <NextLink
+            href={notCoveredHref}
+            data-testid="panel-not-found-roadmap"
+            className="text-accent underline underline-offset-2 motion-hover hover:opacity-80"
+          >
+            {labels.notFoundRoadmap}
           </NextLink>
         </div>
       ) : (
@@ -218,14 +327,82 @@ export function IntegrationPanel({
           )}
           {writable ? (
             <>
-              <CredentialField
-                integration={item.name}
-                fields={item.fields}
-                labels={labels.credential}
-                onStored={(name) => {
-                  void testNow(name);
-                }}
-              />
+              {showForm ? (
+                <>
+                  {item.discoveredAddress === '' ? null : (
+                    <p
+                      className="text-meta text-accent"
+                      data-testid="panel-discovered-address"
+                    >
+                      {labels.foundHere} {item.discoveredAddress}
+                    </p>
+                  )}
+                  <CredentialField
+                    integration={item.name}
+                    fields={item.fields}
+                    labels={labels.credential}
+                    onStored={(name) => {
+                      setReplacing(false);
+                      void testNow(name);
+                    }}
+                  />
+                  {replacing ? (
+                    <div>
+                      <Button
+                        variant="quiet"
+                        data-testid="cancel-replace"
+                        onClick={() => {
+                          setReplacing(false);
+                        }}
+                      >
+                        {labels.cancel}
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div className="flex flex-col gap-3" data-testid="credential-connected">
+                  <p
+                    className="text-meta text-muted"
+                    data-testid="credential-stored-note"
+                  >
+                    {labels.storedInVault}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      variant="secondary"
+                      data-testid="test-again"
+                      state={testing ? 'loading' : 'default'}
+                      onClick={() => {
+                        void testNow(item.name);
+                      }}
+                    >
+                      {labels.testAgain}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      data-testid="replace-credential"
+                      onClick={() => {
+                        setReplacing(true);
+                        setVerdict(null);
+                        setUnreachable(false);
+                      }}
+                    >
+                      {labels.replaceCredential}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      data-testid="disconnect-credential"
+                      onClick={() => {
+                        setConfirmingDisconnect(true);
+                      }}
+                    >
+                      {labels.disconnect}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {testing ? (
                 <p
                   className="text-meta text-muted"
@@ -256,12 +433,36 @@ export function IntegrationPanel({
                   {labels.unreachable}
                 </p>
               ) : null}
+              {disconnectFailure === '' ? null : (
+                <p
+                  role="alert"
+                  className="text-meta text-danger"
+                  data-testid="disconnect-outcome"
+                >
+                  {disconnectFailure}
+                </p>
+              )}
+
               <p
                 className="text-meta text-muted"
                 data-testid="credential-security-note"
               >
                 {labels.security}
               </p>
+
+              <ConfirmDestructive
+                open={confirmingDisconnect}
+                target={item.displayName}
+                action={labels.disconnect}
+                consequence={labels.disconnectConsequence}
+                labels={{ close: labels.close, cancel: labels.cancel }}
+                onConfirm={() => {
+                  void disconnect(item.name);
+                }}
+                onCancel={() => {
+                  setConfirmingDisconnect(false);
+                }}
+              />
             </>
           ) : (
             // Absent, not disabled: the same rule the area's own gate already

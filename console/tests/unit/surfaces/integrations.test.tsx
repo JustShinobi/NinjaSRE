@@ -847,6 +847,55 @@ describe('the credential panel, opened by a deep link', () => {
 
     expect(screen.getByRole('dialog')).toHaveTextContent('not in the catalogue');
   });
+
+  it('offers both a way back to the catalogue and the roadmap list, for a name that does not resolve', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'not-a-real-vendor'));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByTestId('panel-not-found-back')).toHaveAttribute(
+      'href',
+      '/integrations',
+    );
+    expect(within(dialog).getByTestId('panel-not-found-roadmap')).toHaveAttribute(
+      'href',
+      '/integrations/not-covered',
+    );
+  });
+
+  it('shows the estate’s own discovered address as a placeholder sentence, read from the payload the estate actually served', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'grafana'));
+
+    expect(screen.getByTestId('panel-discovered-address')).toHaveTextContent(
+      '192.168.68.159:3000',
+    );
+  });
+
+  it('shows no placeholder sentence at all for an integration the estate never found', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'telegram'));
+
+    expect(screen.queryByTestId('panel-discovered-address')).toBeNull();
+  });
+
+  it('shows the connected-actions view rather than an empty form, for a verified integration', async () => {
+    serve({});
+    render(await IntegrationsScreen(await surfaceContext({}), 'prometheus'));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByTestId('credential-connected')).toBeInTheDocument();
+    expect(within(dialog).queryByTestId('credential')).toBeNull();
+    expect(
+      within(dialog).getByRole('button', { name: /^Test again$/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: /^Replace credential$/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: /^Disconnect/ }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe('the advanced integrations-config section', () => {

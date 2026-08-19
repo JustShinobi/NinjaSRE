@@ -472,9 +472,16 @@ export async function IntegrationsScreen(
                   healthDetail: panelItem.healthDetail,
                   fields: panelItem.fields,
                   permissions: panelItem.permissions,
+                  // The estate's own discovery, never a vendor's default port
+                  // or a constant on this screen — the same field the
+                  // Suggested section above already reads. Empty for
+                  // anything the estate has not found, which renders no
+                  // placeholder at all rather than an invented one.
+                  discoveredAddress: panelItem.suggested?.address ?? '',
                 }
           }
           closeHref={closeHref}
+          notCoveredHref={notCoveredHref}
           writable={writable}
           labels={{
             close: message(locale, 'catalogue.integrations.panel.close'),
@@ -489,6 +496,7 @@ export async function IntegrationsScreen(
               locale,
               'catalogue.integrations.panel.notFound.action',
             ),
+            notFoundRoadmap: message(locale, 'catalogue.notCovered.title'),
             testing: message(locale, 'catalogue.integrations.panel.testing'),
             unreachable: message(locale, 'firstRun.unreachable'),
             readOnly: message(locale, 'catalogue.integrations.panel.readOnly'),
@@ -499,6 +507,22 @@ export async function IntegrationsScreen(
             grantedAt: message(
               locale,
               'catalogue.integrations.panel.permissions.grantedAt',
+            ),
+            foundHere: message(locale, 'firstRun.integrations.foundHere'),
+            storedInVault: message(
+              locale,
+              'catalogue.integrations.panel.storedInVault',
+            ),
+            testAgain: message(locale, 'catalogue.integrations.panel.testAgain'),
+            replaceCredential: message(
+              locale,
+              'catalogue.integrations.panel.replaceCredential',
+            ),
+            cancel: message(locale, 'catalogue.integrations.panel.cancel'),
+            disconnect: message(locale, 'catalogue.integrations.panel.disconnect'),
+            disconnectConsequence: message(
+              locale,
+              'catalogue.integrations.panel.disconnect.consequence',
             ),
           }}
         />
