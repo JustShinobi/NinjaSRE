@@ -585,6 +585,62 @@ describe('the Alertmanager receiver YAML', () => {
   });
 });
 
+describe('security: no stored secret ever reaches the copied receiver block', () => {
+  it('never carries a secret into the clipboard, even one sitting in a field this screen has no reason to read', async () => {
+    // `receiver_yaml()` (gateway/webhooks/sources/alertmanager.py) has no
+    // parameter a secret could travel through in the first place —
+    // tests/contract/console/test_ingress_receiver_yaml_contract.py pins
+    // that generator's own signature closed. This plants one on the wire
+    // anyway, on a field this screen never reads into `receiverYaml`, so the
+    // assertion below is about what this component does with what it is
+    // given — the same idiom `integration-panel.test.tsx` already uses for
+    // a credential value — not about what a well-behaved gateway would ever
+    // actually send.
+    const secret = 'ninja_wh_9f2b7c1e0d3a';
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      const response = await base(input as string, init);
+      if (path !== '/v1/ingress/sources') return response;
+      const body = (await response.json()) as {
+        readonly sources: readonly Record<string, unknown>[];
+      };
+      return new Response(
+        JSON.stringify({
+          ...body,
+          sources: body.sources.map((row) =>
+            row.source === 'alertmanager' ? { ...row, credential_value: secret } : row,
+          ),
+        }),
+        { status: response.status, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    const live = requireSourceRow('alertmanager');
+    await userEvent.click(
+      within(live).getByRole('button', { name: 'Copy Alertmanager receiver YAML' }),
+    );
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const copied = writeText.mock.calls[0]?.[0] as string;
+    expect(copied).not.toContain(secret);
+    // FR-058: outside the issuance gesture, this marker stands in for the
+    // value instead — still exactly what the gateway generated, unchanged
+    // by the plant above.
+    expect(copied).toContain('paste the value of delivery token');
+
+    for (const element of document.body.querySelectorAll('*')) {
+      expect(element.outerHTML).not.toContain(secret);
+    }
+    vi.unstubAllGlobals();
+  });
+});
+
 describe('a webhook address that is not safe to announce', () => {
   it('never prints an http:// address on this page', async () => {
     serveWithUnsafeIngressUrl();
@@ -610,10 +666,13 @@ describe('a webhook address that is not safe to announce', () => {
 
 describe('the delivery token control', () => {
   it('sits beside what it is scoped to, rather than orphaned below the rows', async () => {
+    // The default fixture already has a delivery token issued, so the
+    // control this row offers is the navigation to rotate it, not the
+    // inline mint — see the next few tests for both shapes named directly.
     await page();
 
     const group = screen.getByTestId('delivery-token-group');
-    expect(within(group).getByTestId('delivery-token')).toBeInTheDocument();
+    expect(within(group).getByTestId('delivery-token-rotate')).toBeInTheDocument();
   });
 
   it('never names the raw delivery permission, before or after a token authenticates it', async () => {
@@ -650,15 +709,23 @@ describe('the delivery token control', () => {
   });
 
   it('offers to rotate, not to issue a second one, once a delivery token already exists', async () => {
+    // FR-062: the offer is a navigation to Machine tokens, already narrowed
+    // to the delivery scope — not a second mint behind this row. The inline
+    // issue control (`delivery-token`) is exactly what "not to issue a
+    // second one" rules out, so its absence is asserted directly.
     serveWithDeliveryTokens(
       deliveryToken({ name: 'am-cluster', createdAt: '2026-08-01T00:00:00+00:00' }),
     );
     render(await AlertIntakeScreen(await surfaceContext({})));
 
     const group = screen.getByTestId('delivery-token-group');
-    expect(within(group).getByTestId('delivery-token')).toHaveTextContent('Rotate');
-    expect(within(group).getByTestId('delivery-token')).not.toHaveTextContent(
-      'Issue a delivery token',
+    expect(within(group).queryByTestId('delivery-token')).toBeNull();
+    const rotate = within(group).getByTestId('delivery-token-rotate');
+    expect(rotate).toHaveTextContent('Rotate');
+    expect(rotate).not.toHaveTextContent('Issue a delivery token');
+    expect(rotate.tagName).toBe('A');
+    expect(rotate.getAttribute('href')).toBe(
+      `/settings/machine-tokens?scope=${DELIVERY_SCOPE}`,
     );
   });
 

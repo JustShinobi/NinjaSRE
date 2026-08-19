@@ -1427,7 +1427,6 @@ export const EN = {
   'ingress.token.issue': 'Issue a delivery token',
   'ingress.token.issuing': 'Issuing\u2026',
   'ingress.token.rotate': 'Rotate',
-  'ingress.token.rotating': 'Rotating\u2026',
   'ingress.token.shownOnce':
     'Copy it now. It is shown once and is never readable again \u2014 the deployment keeps only a hash of it.',
   'ingress.token.failed': 'The deployment refused to issue it.',
@@ -2092,6 +2091,10 @@ export const EN = {
   'settings.machineTokens.count': '{count} tokens',
   'settings.machineTokens.lastUsed': 'Last used',
   'settings.machineTokens.neverUsed': 'Never used',
+  // The list this screen shows once a caller — Alert intake's own "Rotate",
+  // today — arrives with a scope already named in the address.
+  'settings.machineTokens.filteredBy': 'Showing tokens scoped to {scope}.',
+  'settings.machineTokens.clearFilter': 'Show all tokens',
   'settings.machineTokens.empty.heading': 'No machine tokens yet',
   'settings.machineTokens.empty.body':
     'Tokens issued for a script or a service appear here, grouped by what they were issued for.',

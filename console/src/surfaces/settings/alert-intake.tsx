@@ -4,6 +4,7 @@ import type { MessageKey } from '@/i18n/en';
 import { Reference } from '@/design/reference';
 import { formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
+import { Link } from '@/components/action';
 import { Badge } from '@/components/status';
 import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
@@ -214,6 +215,17 @@ function deliveryTokenNamed(
     );
   const name = holders[0] === undefined ? '' : text(holders[0], 'name');
   return name === '' ? undefined : name;
+}
+
+/**
+ * Machine tokens, already narrowed to the tokens scoped to `permission`.
+ *
+ * A screen's filter lives in its own address, so "already filtered" is a
+ * query string this link writes rather than a client-side state Machine
+ * tokens would have to be told about some other way.
+ */
+function rotateHref(permission: string): string {
+  return `/settings/machine-tokens?${new URLSearchParams({ scope: permission }).toString()}`;
 }
 
 // Built from parts rather than written whole, so the scheme this checks for
@@ -484,15 +496,24 @@ async function content(
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-small text-strong">{name}</span>
                   {silent ? (
-                    // Neutral, not danger — the ordinary shape of a
-                    // deployment nobody has pointed an alert router at yet,
-                    // never the seven-faults reading a colour would give it.
-                    <span
-                      className="text-meta text-muted"
-                      data-testid="never-delivered"
-                    >
-                      {message(locale, 'data.ingress.ready')}
-                    </span>
+                    <>
+                      {/* Neutral, not danger — the ordinary shape of a
+                          deployment nobody has pointed an alert router at
+                          yet, never the seven-faults reading a colour
+                          would give it. */}
+                      <span
+                        className="text-meta text-muted"
+                        data-testid="never-delivered"
+                      >
+                        {message(locale, 'data.ingress.ready')}
+                      </span>
+                      {/* A silent row has nothing else asking for this
+                          line, so its own disclosure joins the one line
+                          FR-049 asks for instead of sitting as a row of
+                          its own — unlike the receiving row below, whose
+                          header is already carrying what it delivered. */}
+                      {provenance}
+                    </>
                   ) : (
                     <>
                       <span className="text-meta text-strong">
@@ -542,19 +563,21 @@ async function content(
                   // row's own detail already keeps — which a plain
                   // `<details>` cannot promise: its content stays in the
                   // DOM, visually hidden by the browser alone. Provenance
-                  // stays outside the disclosure, matching every other row.
-                  <>
-                    {provenance}
-                    <Reference
-                      title={message(locale, 'data.ingress.detail.title')}
-                      summary={message(locale, 'data.ingress.detail.summary')}
-                    >
-                      <div className="flex flex-col gap-2">
-                        {endpoint}
-                        {detailBody}
-                      </div>
-                    </Reference>
-                  </>
+                  // already rendered above, on the row's one line.
+                  // No second line under the title here: the mockup draws a
+                  // silent card as the name, the chip and nothing else ahead
+                  // of its own disclosure arrow, and the explanation this
+                  // summary would repeat is the same one the receiving row
+                  // beside it already carries.
+                  <Reference
+                    title={message(locale, 'data.ingress.detail.title')}
+                    summary=""
+                  >
+                    <div className="flex flex-col gap-2">
+                      {endpoint}
+                      {detailBody}
+                    </div>
+                  </Reference>
                 ) : (
                   <>
                     {endpoint}
@@ -591,26 +614,33 @@ async function content(
                 </>
               )}
             </span>
-            <DeliveryToken
-              permission={deliveryPermission}
-              labels={{
-                issue: message(
-                  locale,
-                  deliveryTokenName === undefined
-                    ? 'ingress.token.issue'
-                    : 'ingress.token.rotate',
-                ),
-                issuing: message(
-                  locale,
-                  deliveryTokenName === undefined
-                    ? 'ingress.token.issuing'
-                    : 'ingress.token.rotating',
-                ),
-                shownOnce: message(locale, 'ingress.token.shownOnce'),
-                failed: message(locale, 'ingress.token.failed'),
-                unreachable: message(locale, 'ingress.token.unreachable'),
-              }}
-            />
+            {deliveryTokenName === undefined ? (
+              <DeliveryToken
+                permission={deliveryPermission}
+                labels={{
+                  issue: message(locale, 'ingress.token.issue'),
+                  issuing: message(locale, 'ingress.token.issuing'),
+                  shownOnce: message(locale, 'ingress.token.shownOnce'),
+                  failed: message(locale, 'ingress.token.failed'),
+                  unreachable: message(locale, 'ingress.token.unreachable'),
+                }}
+              />
+            ) : (
+              // Rotating an existing delivery token is a Machine tokens
+              // operation, not a second mint offered inline here: the
+              // credential this deployment already trusts gets revoked and
+              // replaced from the one screen every other token is managed
+              // from, not minted a second time behind a receiver row. The
+              // address carries the scope this receiver needs, so the list
+              // an operator lands on is already narrowed to the token that
+              // matters here, not the full undifferentiated one.
+              <Link
+                href={rotateHref(deliveryPermission)}
+                data-testid="delivery-token-rotate"
+              >
+                {message(locale, 'ingress.token.rotate')}
+              </Link>
+            )}
           </div>
         )}
 

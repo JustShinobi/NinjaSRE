@@ -657,7 +657,63 @@ test.describe('the Alertmanager receiver YAML and the delivery-token trust line'
     ).trim();
     expect(tokenName, 'the trust line names no delivery token').not.toBe('');
 
-    await expect(page.getByRole('button', { name: /rotate/i })).toBeVisible();
+    // A navigation to Machine tokens, not a second mint behind this row —
+    // see the next test for where it actually leads.
+    await expect(page.getByRole('link', { name: /rotate/i })).toBeVisible();
+  });
+
+  test('following "Rotate" lands on Machine tokens, already narrowed to delivery tokens', async ({
+    page,
+  }) => {
+    // The unfiltered list first, so "narrowed" below is a real comparison
+    // rather than an assumption about how many tokens the fixture happens to
+    // carry.
+    await page.goto('/settings/machine-tokens');
+    await expect(page.getByTestId('page-header')).toBeVisible();
+    const unfilteredCount = await page.getByTestId('token-group').count();
+    expect(
+      unfilteredCount,
+      'Machine tokens shows no token group at all, unfiltered — nothing to prove a filter narrows',
+    ).toBeGreaterThan(0);
+
+    await page.goto(INTAKE_ROUTE);
+    await expect(page.getByTestId('page-header')).toBeVisible();
+
+    const tokenName = (
+      await page.getByTestId('delivery-token-name').innerText()
+    ).trim();
+    expect(tokenName, 'the trust line names no delivery token to rotate').not.toBe('');
+
+    const rotate = page.getByRole('link', { name: /rotate/i });
+    await expect(rotate).toBeVisible();
+    await rotate.click();
+
+    await expect(page).toHaveURL(/\/settings\/machine-tokens\?/);
+    await expect(page.getByTestId('page-header')).toBeVisible();
+
+    const groups = page.getByTestId('token-group');
+    const filteredCount = await groups.count();
+    expect(
+      filteredCount,
+      'Machine tokens shows no token group after following Rotate',
+    ).toBeGreaterThan(0);
+    expect(
+      filteredCount,
+      `Rotate did not narrow the list — ${String(filteredCount)} group(s) shown, the same as unfiltered (${String(unfilteredCount)})`,
+    ).toBeLessThan(unfilteredCount);
+
+    for (let index = 0; index < filteredCount; index += 1) {
+      await expect(
+        groups.nth(index),
+        'a token shown after following Rotate does not carry the delivery scope',
+      ).toContainText(/webhook deliver/i);
+    }
+
+    const body = await page.locator('body').innerText();
+    expect(
+      body,
+      `Machine tokens does not show the delivery token Alert intake named (${tokenName})`,
+    ).toContain(tokenName);
   });
 
   test('no source shows the raw permission name as its trust mechanism', async ({

@@ -143,3 +143,90 @@ describe('a viewer who may not manage tokens', () => {
     expect(screen.queryByTestId('issue-token')).toBeNull();
   });
 });
+
+describe('a viewer who arrives already scoped, by address', () => {
+  const DELIVERY_SCOPE = ['webhook', 'deliver'].join('.');
+  const SCOPED_TOKENS = {
+    tokens: [
+      {
+        token_id: 'tok-alert',
+        user_id: 'svc-alertmanager',
+        name: 'Alert delivery',
+        description: '',
+        team_node_id: null,
+        scopes: [DELIVERY_SCOPE],
+        created_at: '2026-08-01T00:00:00Z',
+        expires_at: null,
+        last_used_at: '2026-08-13T00:00:00Z',
+        revoked: false,
+      },
+      {
+        token_id: 'tok-mail',
+        user_id: 'svc-mail',
+        name: 'mail-relay',
+        description: 'SMTP relay credential',
+        team_node_id: null,
+        scopes: ['token.manage'],
+        created_at: '2026-08-01T00:00:00Z',
+        expires_at: null,
+        last_used_at: '2026-08-12T00:00:00Z',
+        revoked: false,
+      },
+    ],
+  };
+
+  function serveScoped(): void {
+    vi.stubGlobal('fetch', (input: unknown) => {
+      const address = new URL(String(input), BASE);
+      const byPath: Record<string, unknown> = {
+        '/auth/me': principal(['token.manage']),
+        '/identity/tokens': SCOPED_TOKENS,
+      };
+      const body = byPath[address.pathname];
+      return Promise.resolve(
+        new Response(JSON.stringify(body ?? {}), {
+          status: body === undefined ? 404 : 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+  }
+
+  it('shows only the tokens carrying the scope named in the address — the destination Alert intake’s own "Rotate" promises', async () => {
+    serveScoped();
+    render(await MachineTokensScreen(await surfaceContext({ scope: DELIVERY_SCOPE })));
+
+    const groups = screen.getAllByTestId('token-group');
+    expect(groups).toHaveLength(1);
+    const [group] = groups;
+    if (group === undefined) {
+      throw new Error('expected one token group');
+    }
+    // `within` this one group, not the page: the issue form below also
+    // offers "Alert delivery" as a purpose template button, and this
+    // assertion is about the token list, not about that suggestion.
+    expect(within(group).getByText('Alert delivery')).toBeInTheDocument();
+    expect(screen.queryByText('mail-relay')).toBeNull();
+  });
+
+  it('names the scope it filtered to, and offers a way back to the full list', async () => {
+    serveScoped();
+    render(await MachineTokensScreen(await surfaceContext({ scope: DELIVERY_SCOPE })));
+
+    expect(screen.getByTestId('machine-tokens-filter')).toHaveTextContent(
+      'Webhook Deliver',
+    );
+    expect(screen.getByTestId('machine-tokens-filter-clear')).toHaveAttribute(
+      'href',
+      '/settings/machine-tokens',
+    );
+  });
+
+  it('shows every token, unfiltered, and names no filter, when the address names none', async () => {
+    serveScoped();
+    render(await MachineTokensScreen(await surfaceContext({})));
+
+    expect(screen.getAllByTestId('token-group')).toHaveLength(2);
+    expect(screen.queryByTestId('machine-tokens-filter')).toBeNull();
+  });
+});

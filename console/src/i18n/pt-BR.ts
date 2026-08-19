@@ -1191,7 +1191,6 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'ingress.token.issue': 'Emitir um token de entrega',
   'ingress.token.issuing': 'Emitindo\u2026',
   'ingress.token.rotate': 'Rotacionar',
-  'ingress.token.rotating': 'Rotacionando\u2026',
   'ingress.token.shownOnce':
     'Copie agora. \u00c9 mostrado uma vez e nunca mais pode ser lido \u2014 o deployment guarda apenas um hash dele.',
   'ingress.token.failed': 'O deployment recusou a emiss\u00e3o.',
@@ -1908,6 +1907,8 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.machineTokens.count': '{count} tokens',
   'settings.machineTokens.lastUsed': 'Último uso',
   'settings.machineTokens.neverUsed': 'Nunca usado',
+  'settings.machineTokens.filteredBy': 'Mostrando tokens com o escopo {scope}.',
+  'settings.machineTokens.clearFilter': 'Mostrar todos os tokens',
   'settings.machineTokens.empty.heading': 'Nenhum token de máquina ainda',
   'settings.machineTokens.empty.body':
     'Tokens emitidos para um script ou serviço aparecem aqui, agrupados pela finalidade com que foram emitidos.',

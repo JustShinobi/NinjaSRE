@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { Link } from '@/components/action';
 import { timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { may } from '@/session/viewer';
@@ -21,6 +22,7 @@ import {
   text,
 } from '../read';
 import { isConsoleSession } from '../token-identity';
+import { readViewState, type FilterName } from '../url-state';
 
 /**
  * Machine tokens, grouped by purpose, with the causes of accumulation treated
@@ -43,6 +45,27 @@ const ID = 'settings-machine-tokens';
  * `PeopleTab`'s own token panel already follows for its own write control.
  */
 const TOKENS = 'token.manage';
+
+/**
+ * The one filter this screen answers to: which scope its tokens must carry.
+ *
+ * Declared and read through the address, per the console's own rule that a
+ * screen's state lives in its URL rather than in memory a link cannot carry.
+ * Alert intake's own "Rotate" is the first caller: it names the delivery
+ * permission on its way here so the list an operator lands on is already the
+ * token it meant, not the full, undifferentiated one they would have to
+ * search by hand.
+ */
+const MACHINE_TOKENS_FILTERS: readonly FilterName[] = ['scope'];
+
+/** `scope`, with its separators opened into spaces — never the raw spelling. */
+function humanizedScope(scope: string): string {
+  const words = scope.split(/[._-]+/).filter((word) => word.length > 0);
+  if (words.length === 0) return scope;
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
 
 function machineToken(
   record: unknown,
@@ -67,14 +90,18 @@ function machineToken(
 }
 
 async function content(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, viewer, now, zone } = context;
+  const { credential, locale, viewer, now, zone, search } = context;
+  const scope = readViewState(search, MACHINE_TOKENS_FILTERS).filters.scope;
 
   const answer = await panelRead('/identity/tokens', () =>
     read('/identity/tokens', authorised(credential)),
   );
-  const records = list(dataOf(answer), 'tokens').filter(
-    (record) => !isConsoleSession({ name: text(record, 'name') }),
-  );
+  const records = list(dataOf(answer), 'tokens')
+    .filter((record) => !isConsoleSession({ name: text(record, 'name') }))
+    .filter(
+      (record) =>
+        scope === undefined || list(record, 'scopes').map(String).includes(scope),
+    );
   const tokens = records.map((record) => machineToken(record, locale, now, zone));
 
   const labels = {
@@ -125,12 +152,27 @@ async function content(context: SurfaceContext): Promise<ReactNode> {
       }}
     >
       {may(viewer, TOKENS) ? (
-        <MachineTokenGroups
-          tokens={tokens}
-          issuedScopes={viewer.permissions}
-          labels={labels}
-          locale={locale}
-        />
+        <>
+          {scope === undefined ? null : (
+            <p className="text-meta text-muted" data-testid="machine-tokens-filter">
+              {message(locale, 'settings.machineTokens.filteredBy', {
+                scope: humanizedScope(scope),
+              })}{' '}
+              <Link
+                href="/settings/machine-tokens"
+                data-testid="machine-tokens-filter-clear"
+              >
+                {message(locale, 'settings.machineTokens.clearFilter')}
+              </Link>
+            </p>
+          )}
+          <MachineTokenGroups
+            tokens={tokens}
+            issuedScopes={viewer.permissions}
+            labels={labels}
+            locale={locale}
+          />
+        </>
       ) : null}
     </Panel>
   );
