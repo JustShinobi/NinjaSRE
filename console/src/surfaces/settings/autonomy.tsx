@@ -508,7 +508,13 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
                   href: ruleEditorHref,
                 }}
               >
-                <div className="w-full overflow-x-auto">
+                {/* The rules list is the region that scrolls when a node
+                    accumulates many of them — bounded on its own, so a
+                    heavily-ruled node never grows the tab past its budget. */}
+                <div
+                  data-testid="rules-scroll"
+                  className="w-full max-h-96 overflow-auto"
+                >
                   <table className="w-full text-small">
                     <caption className="sr-only">
                       {message(locale, 'autonomy.rules.title')}

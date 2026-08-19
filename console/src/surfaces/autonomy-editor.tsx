@@ -470,7 +470,15 @@ export function AutonomyEditor({
 
   return (
     <div data-testid="autonomy-editor" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3">
+      {/* The rules list is the region that scrolls when a node accumulates
+          many of them — bounded on its own, so the tab's budget is never
+          the rule count times a row's height. The creation controls and the
+          simulation section below stay outside this box, at their own
+          height, reachable without scrolling past every row first. */}
+      <div
+        data-testid="rule-editor-list"
+        className="flex flex-col gap-3 max-h-96 overflow-y-auto"
+      >
         {allRules.map((rule) => (
           <div
             key={rule.ruleId}

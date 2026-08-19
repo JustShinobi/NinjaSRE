@@ -621,6 +621,128 @@ describe('the rules table, over every scope kind the deployment may send', () =>
   });
 });
 
+describe('rule, freeze and cap creation, all reached from the same tab', () => {
+  it('brings all three creation controls onto Rules & windows', async () => {
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        rules: [
+          { rule_id: 'r1', scope: { kind: 'deployment' }, level: 'propose_only' },
+        ],
+      },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    expect(screen.getByTestId('new-rule')).toBeInTheDocument();
+    expect(screen.getByTestId('new-freeze')).toBeInTheDocument();
+    expect(screen.getByTestId('new-budget')).toBeInTheDocument();
+  });
+});
+
+describe('the rules list, in resolution order regardless of the order the deployment sent it in', () => {
+  it('renders least-specific first even when the deployment sends the most specific rule first', async () => {
+    serveAutonomy({
+      policy: {
+        ...EMPTY_POLICY,
+        // Deliberately sent most-specific first — the reverse of resolution
+        // order — so a missing or broken sort would render this exact order
+        // instead of being masked by an already-sorted fixture.
+        rules: [
+          {
+            rule_id: 'r7',
+            scope: {
+              kind: 'capability_resource',
+              capability: 'estate.restart',
+              resource_id: 'vm-9',
+            },
+            level: 'act_on_low_risk',
+            risk_bound: 'low',
+          },
+          {
+            rule_id: 'r6',
+            scope: { kind: 'resource', resource_id: 'vm-9' },
+            level: 'propose_only',
+          },
+          {
+            rule_id: 'r5',
+            scope: { kind: 'capability', capability: 'estate.restart' },
+            level: 'act_and_report',
+          },
+          {
+            rule_id: 'r4',
+            scope: { kind: 'labels', labels: { tier: 'critical' } },
+            level: 'propose_only',
+          },
+          {
+            rule_id: 'r3',
+            scope: { kind: 'resource_kind', resource_kind: 'vm' },
+            level: 'propose_only',
+          },
+          {
+            rule_id: 'r2',
+            scope: { kind: 'team', team_node_id: 'team-payments' },
+            level: 'propose_only',
+          },
+          { rule_id: 'r1', scope: { kind: 'deployment' }, level: 'propose_only' },
+        ],
+      },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    const rows = screen.getAllByTestId('autonomy-rule');
+    expect(rows).toHaveLength(7);
+    // The scope-kind cell, read in row order — not a substring match against
+    // the whole row, which "capability" would also match inside
+    // "capability_resource".
+    const kinds = rows.map((row) => row.querySelector('td')?.textContent);
+    expect(kinds).toEqual([
+      'deployment',
+      'team',
+      'resource_kind',
+      'labels',
+      'capability',
+      'resource',
+      'capability_resource',
+    ]);
+  });
+});
+
+describe('the rules list scrolls on its own, not the whole tab, when a node has many rules', () => {
+  it('bounds only the rules list, leaving the creation controls and the simulation section unconstrained', async () => {
+    const manyRules = Array.from({ length: 40 }, (_, index) => ({
+      rule_id: `r${String(index)}`,
+      scope: { kind: 'resource', resource_id: `vm-${String(index)}` },
+      level: 'propose_only',
+    }));
+    serveAutonomy({
+      policy: { ...EMPTY_POLICY, rules: manyRules },
+      bounds: EMPTY_BOUNDS,
+    });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    const rows = screen.getAllByTestId('autonomy-rule');
+    expect(rows).toHaveLength(40);
+
+    const scrollRegion = screen.getByTestId('rules-scroll');
+    expect(scrollRegion.className).toMatch(/overflow-(y-)?auto/);
+    expect(scrollRegion.className).toMatch(/max-h-/);
+    for (const row of rows) {
+      expect(scrollRegion).toContainElement(row);
+    }
+
+    // The boundary is drawn narrowly around the list: the rest of the tab is
+    // a sibling of the scrolling region, never a descendant swallowed by it.
+    const simulation = screen.getByTestId('autonomy-simulation');
+    expect(scrollRegion).not.toContainElement(simulation);
+    expect(scrollRegion.contains(simulation)).toBe(false);
+  });
+});
+
 describe('the simulation section, on Rules & windows', () => {
   const ONE_RULE = {
     rule_id: 'r1',
@@ -1200,6 +1322,23 @@ describe('the loop into the raw editor', () => {
     const link = screen.getByTestId('way-back');
     expect(link).toHaveAttribute('href', '#new-rule');
     expect(document.getElementById('new-rule')).toBeInTheDocument();
+  });
+
+  it('lands on the live rule-creation control, not merely an id that happens to exist somewhere', async () => {
+    serveAutonomy({ policy: EMPTY_POLICY, bounds: EMPTY_BOUNDS });
+
+    await renderAutonomy({ tab: 'rules-windows' });
+
+    const link = screen.getByTestId('way-back');
+    expect(link).toHaveTextContent('Create the first rule');
+
+    const target = document.getElementById('new-rule');
+    if (target === null) throw new Error('the #new-rule target was not rendered');
+    // The target is the actual "Create a rule" control, reachable right
+    // there, with its own submit button inside it — never a decoy anchor
+    // that merely shares the id's name while the real control sits
+    // elsewhere.
+    expect(within(target).getByTestId('add-rule')).toBeInTheDocument();
   });
 });
 

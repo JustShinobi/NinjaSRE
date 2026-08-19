@@ -387,6 +387,13 @@ describe('freezes and budgets, carried through and created', () => {
     },
   ];
 
+  const BUDGETS: readonly EditableBound[] = [
+    {
+      name: 'restart-cap',
+      record: { name: 'restart-cap', limit: 5, counted_by: 'action' },
+    },
+  ];
+
   it('carries an existing freeze through a save that only changed a rule level, rather than wiping it', async () => {
     render(
       <AutonomyEditor
@@ -405,6 +412,26 @@ describe('freezes and budgets, carried through and created', () => {
     const written = sent.find((each) => each.operation === 'save')?.payload;
     const freezes: unknown = Reflect.get(Object(written), 'freezes');
     expect(freezes).toEqual([FREEZES[0]?.record]);
+  });
+
+  it('carries an existing budget through a save that only changed a rule level, rather than wiping it', async () => {
+    render(
+      <AutonomyEditor
+        nodeId="team-platform"
+        rules={RULES}
+        levels={LEVELS}
+        dryRun={false}
+        budgets={BUDGETS}
+        labels={LABELS}
+      />,
+    );
+    await raiseTheLevel();
+    await userEvent.click(screen.getByTestId('ask-autonomy-preview'));
+    await userEvent.click(await screen.findByTestId('save-autonomy'));
+
+    const written = sent.find((each) => each.operation === 'save')?.payload;
+    const budgets: unknown = Reflect.get(Object(written), 'budgets');
+    expect(budgets).toEqual([BUDGETS[0]?.record]);
   });
 
   it('adds a new freeze window to the document a save carries', async () => {
@@ -434,6 +461,55 @@ describe('freezes and budgets, carried through and created', () => {
     const budgets = Reflect.get(Object(previewed), 'budgets') as readonly unknown[];
     const names = budgets.map((each): unknown => Reflect.get(Object(each), 'name'));
     expect(names).toContain('restart-cap');
+  });
+});
+
+describe('the rule editor list scrolls on its own when a node holds many rules', () => {
+  it('bounds the per-row editor list without bounding the creation controls or the simulation section beside it', () => {
+    const manyRules: readonly EditableRule[] = Array.from(
+      { length: 40 },
+      (_, index) => ({
+        ruleId: `r${String(index)}`,
+        scope: 'resource',
+        matcher: `vm-${String(index)}`,
+        level: 'propose_only',
+        riskBound: 'low',
+        record: {
+          scope: { kind: 'resource', resource_id: `vm-${String(index)}` },
+          level: 'propose_only',
+          risk_bound: 'low',
+        },
+      }),
+    );
+    render(
+      <AutonomyEditor
+        nodeId="team-platform"
+        rules={manyRules}
+        levels={LEVELS}
+        dryRun={false}
+        labels={LABELS}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('rule-editor');
+    expect(rows).toHaveLength(40);
+
+    const scrollRegion = screen.getByTestId('rule-editor-list');
+    expect(scrollRegion.className).toMatch(/overflow-y-auto/);
+    expect(scrollRegion.className).toMatch(/max-h-/);
+    for (const row of rows) {
+      expect(scrollRegion).toContainElement(row);
+    }
+
+    // The creation controls and the simulation section sit beside the list,
+    // not inside the box that bounds it — scrolling through every rule is
+    // never the price of reaching "Create a rule" or the simulation CTA.
+    expect(scrollRegion).not.toContainElement(screen.getByTestId('new-rule'));
+    expect(scrollRegion).not.toContainElement(screen.getByTestId('new-freeze'));
+    expect(scrollRegion).not.toContainElement(screen.getByTestId('new-budget'));
+    expect(scrollRegion).not.toContainElement(
+      screen.getByTestId('autonomy-simulation'),
+    );
   });
 });
 
