@@ -39,6 +39,8 @@ from core.llm.types import LLMClient
 from core.pipeline.build import investigation_hooks
 from core.pipeline.ports import IncidentSignals
 from gateway.http.services import InvestigationStart
+from gateway.runtime.recording import InvestigationRecorder
+from platform.incidents.lifecycle import IncidentLifecycle
 
 
 class InvestigationDidNotComplete(RuntimeError):
@@ -82,10 +84,19 @@ class ReActInvestigationRunner:
     this object; everything that varies per investigation — which tools are
     offered, the session identity, mid-run messages — is built inside
     ``investigate``.
+
+    ``incidents`` is the one collaborator this composition does not build for
+    itself: a tenant-scoped persistence handle is not something a
+    no-argument factory holds (the same gap already named for the credential
+    proxy binding — see ``_select_tools``). Left unset, ``investigate``
+    records nothing and behaves exactly as it did before this field existed;
+    a caller that composes one gets a real receipt entry for any run whose
+    request names an incident and a delivery credential.
     """
 
     llm: LLMClient
     registry: Registry
+    incidents: IncidentLifecycle | None = None
     _live: dict[str, _LiveRun] = field(default_factory=dict)
 
     async def investigate(self, request: InvestigationStart) -> str:
@@ -95,6 +106,8 @@ class ReActInvestigationRunner:
         outcome is ``FAILED`` — the loop ran and produced nothing usable — so
         the caller records the run as failed rather than completed.
         """
+        await self._record_receipt(request)
+
         queue = MessageQueue(run_id=request.run_id)
         loop = self._build_runtime(request, messages=queue)
         live = _LiveRun(loop=loop, messages=queue)
@@ -107,6 +120,20 @@ class ReActInvestigationRunner:
                 result.failure or "the investigation produced no answer"
             )
         return result.answer or f"investigation ended {result.status.value}"
+
+    async def _record_receipt(self, request: InvestigationStart) -> None:
+        """Record what arrived, before the loop takes its first turn.
+
+        A quiet no-op unless this runner was composed with somewhere to
+        write to (``incidents``) *and* the request names both an incident
+        and the delivery credential that authenticated it — an
+        operator-triggered investigation has neither, and is not an error
+        for lacking them.
+        """
+        if self.incidents is None or not request.incident_id or not request.credential_name:
+            return
+        recorder = InvestigationRecorder(lifecycle=self.incidents, incident_id=request.incident_id)
+        await recorder.receipt(labels=request.alert_labels, credential_name=request.credential_name)
 
     async def cancel(self, run_id: str) -> None:
         """Ask ``run_id`` to stop at its next safe point.

@@ -15,6 +15,8 @@ assertion standing in for all three:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
 from capabilities.registry.catalogue import Registry
@@ -32,6 +34,15 @@ from gateway.runtime.investigator import (
     NoPendingInteraction,
     ReActInvestigationRunner,
     _LiveRun,
+)
+from platform.incidents.lifecycle import IncidentLifecycle, IncidentRaise
+from platform.persistence.fakes import FakePersistence
+from platform.persistence.ports import (
+    IncidentOrigin,
+    IncidentSubject,
+    PersistenceGateway,
+    TenantScope,
+    TimelineKind,
 )
 from tests.unit.gateway.runtime.conftest import ScriptedLLM, failed_turn, fixture_tool, text_turn
 
@@ -302,3 +313,135 @@ class TestInteractionsAreHonestlyAbsent:
             await runner.answer_interaction(
                 "interaction-1", text="approved", principal="operator-1"
             )
+
+
+# -- A real run records receipt, when given somewhere to write it ------------
+
+
+@pytest.fixture
+async def gateway() -> PersistenceGateway:
+    store = FakePersistence()
+    async with store.begin_system() as system:
+        await system.orgs.create_organisation("acme", "Acme")
+    return store
+
+
+def _epoch() -> datetime:
+    return datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+
+
+def _a_raise() -> IncidentRaise:
+    return IncidentRaise(
+        correlation_key="alert:instance-down:host-1",
+        title="InstanceDown",
+        summary="host-1 stopped responding to scrapes",
+        origin=IncidentOrigin.ALERT,
+        origin_id="alertmanager",
+        severity="critical",
+        subjects=(IncidentSubject(resource_id="host-1", detail="down"),),
+    )
+
+
+class TestRecordsReceiptWhenComposedWithAnIncidentLifecycle:
+    """Receipt recording, wired into a real ``investigate()`` call rather than proven in isolation.
+
+    ``ReActInvestigationRunner.incidents`` and ``InvestigationStart``'s
+    ``incident_id``/``alert_labels``/``credential_name`` are all optional —
+    every test above this class, none of which sets any of them, keeps
+    passing unchanged (proven by running this whole file, not asserted
+    here). This class is the proof that when they *are* given, a real run —
+    a real ``ReActLoop``, stubbed only at the model boundary, exactly like
+    every other test in this file — writes a real receipt entry onto the
+    named incident's own timeline.
+    """
+
+    async def test_a_run_started_with_an_incident_records_its_receipt(
+        self, gateway: PersistenceGateway
+    ) -> None:
+        async with gateway.begin(TenantScope(org_id="acme")) as uow:
+            lifecycle = IncidentLifecycle(store=uow.incidents)
+            incident = await lifecycle.raise_incident(_a_raise(), now=_epoch())
+
+            runner = ReActInvestigationRunner(
+                llm=ScriptedLLM([text_turn("no evidence gathered")]),
+                registry=_registry("fixture_probe"),
+                incidents=lifecycle,
+            )
+            request = InvestigationStart(
+                run_id="run-1",
+                objective="disk on host-1 is at 98%",
+                team_node_id="platform",
+                principal_id="operator-1",
+                alert_source="prometheus",
+                incident_id=incident.incident_id,
+                alert_labels={"alertname": "InstanceDown", "severity": "critical"},
+                credential_name="delivery token am-cluster",
+            )
+
+            await runner.investigate(request)
+
+            history = await lifecycle.timeline(incident.incident_id)
+
+        receipts = [item for item in history if item.kind is TimelineKind.ALERT_RECEIVED]
+        assert len(receipts) == 1
+        assert "am-cluster" in receipts[0].cause
+        assert "alertname=InstanceDown" in receipts[0].detail
+
+    async def test_without_a_credential_name_nothing_is_recorded_and_the_run_still_completes(
+        self, gateway: PersistenceGateway
+    ) -> None:
+        """An operator-triggered investigation has no delivery to name.
+
+        A silent no-op rather than a refusal: ``record_alert_received``
+        itself requires a credential name (``record_alert_received``'s own guard), and an
+        investigation with nothing to name there must still complete.
+        """
+        async with gateway.begin(TenantScope(org_id="acme")) as uow:
+            lifecycle = IncidentLifecycle(store=uow.incidents)
+            incident = await lifecycle.raise_incident(_a_raise(), now=_epoch())
+
+            runner = ReActInvestigationRunner(
+                llm=ScriptedLLM([text_turn("no evidence gathered")]),
+                registry=_registry("fixture_probe"),
+                incidents=lifecycle,
+            )
+            request = InvestigationStart(
+                run_id="run-1",
+                objective="disk on host-1 is at 98%",
+                team_node_id="platform",
+                principal_id="operator-1",
+                incident_id=incident.incident_id,
+                # alert_labels and credential_name are left at their defaults.
+            )
+
+            summary = await runner.investigate(request)
+
+            history = await lifecycle.timeline(incident.incident_id)
+
+        assert summary == "no evidence gathered"
+        assert not any(item.kind is TimelineKind.ALERT_RECEIVED for item in history)
+
+    async def test_without_an_incidents_collaborator_composed_nothing_is_recorded(self) -> None:
+        """Today's actual composition: no persistence handle, so no recording — and no error.
+
+        ``gateway.runtime.factory.build_investigator`` does not compose
+        ``incidents`` yet (see this feature's report); this is the honest
+        characterisation of what that means for a real run today.
+        """
+        runner = ReActInvestigationRunner(
+            llm=ScriptedLLM([text_turn("no evidence gathered")]),
+            registry=_registry("fixture_probe"),
+        )
+        request = InvestigationStart(
+            run_id="run-1",
+            objective="disk on host-1 is at 98%",
+            team_node_id="platform",
+            principal_id="operator-1",
+            incident_id="inc-1",
+            alert_labels={"alertname": "InstanceDown"},
+            credential_name="delivery token am-cluster",
+        )
+
+        summary = await runner.investigate(request)  # must not raise despite no `incidents`
+
+        assert summary == "no evidence gathered"

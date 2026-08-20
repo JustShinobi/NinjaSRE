@@ -29,6 +29,14 @@ class InvestigationStart:
     ``run_id`` is already reserved — ``RunRecorder.start_run`` has already
     written the row — by the time a runner sees this, which is what lets the
     route respond with the run's identity before this ever executes.
+
+    ``incident_id``, ``alert_labels`` and ``credential_name`` are all
+    optional and all empty by default: an operator-triggered investigation
+    has no incident to attach a receipt to and no delivery to name, and a
+    runner that was not composed with somewhere to record one ignores them
+    regardless. A runner that *can* record and *is* given these writes the
+    investigation's receipt onto the named incident's timeline before it
+    starts reasoning.
     """
 
     run_id: str
@@ -37,6 +45,10 @@ class InvestigationStart:
     principal_id: str
     alert_source: str = ""
     context: Mapping[str, str] = field(default_factory=dict)
+    incident_id: str = ""
+    alert_labels: Mapping[str, str] = field(default_factory=dict)
+    #: The delivery credential's *display* name — never its value.
+    credential_name: str = ""
 
 
 @runtime_checkable
