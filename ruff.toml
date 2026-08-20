@@ -73,6 +73,12 @@ ignore = [
 # it keeps the port's full signature so the real runner is a drop-in for it and
 # the routes keep one collaborator rather than a branch.
 "gateway/http/asgi.py" = ["ARG002"]
+# The first-party runtime does not bind an interaction desk (see the module's
+# own docstring), so the three methods that would serve a mid-run question to
+# a human read none of their arguments — that is what "nothing is ever
+# pending" means. It keeps the port's full signature so this stays a drop-in
+# for the stand-in above, and for whatever wires a desk later.
+"gateway/runtime/investigator.py" = ["ARG002"]
 # Alembic dictates ``include_object``'s signature and calls it with all five
 # arguments; this one decides from the first four. Narrowing it would stop
 # Alembic being able to call it.
