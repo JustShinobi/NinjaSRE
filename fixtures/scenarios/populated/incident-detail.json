@@ -12,7 +12,7 @@
           "incident_id": "inc-0001",
           "opened_at": "2026-08-07T12:00:00+00:00",
           "origin": "detector",
-          "run_id": null,
+          "run_id": "run-0005",
           "self_resolved": false,
           "severity": "critical",
           "state": "open",
@@ -60,6 +60,60 @@
             "cause": "2 subjects: primary baseline exists on schedule 08:00 and is disabled",
             "detail": "backup-job-disabled found 2 subject(s)",
             "kind": "opened"
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:01:00+00:00",
+            "cause": "an investigation was started for this incident",
+            "detail": "run-0005",
+            "kind": "run_started",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:02:00+00:00",
+            "cause": "the backup coverage sweep flagged backup-1f376301, backup-7d831311",
+            "detail": "detector:backup-job-disabled — raised by the deployment's own detector, not a delivered webhook, so no delivery token authenticated it",
+            "kind": "alert_received",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:03:00+00:00",
+            "cause": "considered before any integration was queried",
+            "detail": "paused for a maintenance window; never enabled after being created; failed to re-enable after the last restore",
+            "kind": "hypotheses_drawn",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:04:00+00:00",
+            "cause": "both jobs covering backup-1f376301, backup-7d831311 are disabled, not merely quiet",
+            "detail": "",
+            "kind": "evidence",
+            "query": "pvesh get /cluster/backup",
+            "result": "backup-7d831311: schedule 08:00, enabled=false, covers_all=true; backup-1f376301: schedule 02:30,22:30, enabled=false, covers_all=false"
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:05:00+00:00",
+            "cause": "both backup jobs are disabled, not paused for a maintenance window — nothing scheduled to re-enable them",
+            "detail": "",
+            "kind": "diagnosis",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:06:00+00:00",
+            "cause": "report delivered",
+            "detail": "#backups, amber.rowan@example.invalid",
+            "kind": "report_delivered",
+            "query": "",
+            "result": ""
           }
         ]
       },

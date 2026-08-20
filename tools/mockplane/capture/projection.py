@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, Final
 
 from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
@@ -49,6 +50,14 @@ POOL_METADATA_HIGH_PERCENT: Final = 30.0
 #: Retention this shallow means the second failed backup destroys the recovery
 #: point the first one left.
 SHALLOW_RETENTION_KEEP_LAST: Final = 2
+
+#: The run the one investigated incident in ``populated`` points at. Not a new
+#: run: ``run-0005`` (``tools/mockplane/dataset/served.py``) already exists,
+#: ``awaiting_approval``, with a proposed action (``apr-0001``) that enables a
+#: disabled backup job — which is this detector's own subject matter — so
+#: attaching it here reuses an already-coherent run rather than inventing a
+#: second one nothing else references.
+_INVESTIGATED_RUN_ID: Final = "run-0005"
 
 
 @dataclass(frozen=True, slots=True)
@@ -320,6 +329,17 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     observations = tuple(_observations(reading))
     base_incidents = (*_incidents(reading, observations), *_alert_incidents(reading))
     incidents = (*base_incidents, *_unattended_alert_incident(reading, base_incidents))
+    # The demonstration seeder gives a full timeline to exactly one incident:
+    # the first body ``incident-detail.json`` records
+    # (``platform/startup/demo/seeder.py``'s ``_seed_incidents`` reads only
+    # the first ``incident-detail`` response any fixture file holds). That
+    # first incident has to BE the investigated one, not a second one added
+    # beside it — an incident added alongside would render an empty
+    # investigation card against a real deployment while looking complete
+    # against this mock plane. So the run attaches to ``incidents[0]``
+    # specifically, whatever detector produced it.
+    if incidents:
+        incidents = (_investigated(incidents[0]), *incidents[1:])
     records: list[CapturedRecord] = [
         _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
         _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
@@ -340,7 +360,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
             Provenance.GATEWAY,
         ),
     ]
-    for incident in incidents:
+    for index, incident in enumerate(incidents):
         records.append(
             _record(
                 "incident-detail",
@@ -353,7 +373,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
                         if item.detector == incident["detector"]
                         and item.subject in incident["subjects"]
                     ],
-                    "timeline": _timeline(incident),
+                    "timeline": _timeline(incident, investigated=index == 0),
                 },
                 Provenance.GATEWAY,
             )
@@ -1122,16 +1142,26 @@ def _incidents(
         }
 
 
-def _timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
-    """Return the one entry an incident starts with, in the route's own shape.
+def _investigated(incident: dict[str, Any]) -> dict[str, Any]:
+    """Return ``incident`` with the run its investigation produced attached."""
+    return {**incident, "run_id": _INVESTIGATED_RUN_ID}
+
+
+def _timeline(incident: Mapping[str, Any], *, investigated: bool = False) -> list[dict[str, str]]:
+    """Return the timeline an incident starts with, in the route's own shape.
 
     The actor and the cause are not decoration: every timeline entry carries
     both, because "it opened" is not an answer to the question a timeline is
     read to answer.
+
+    ``investigated`` appends a run-started entry and the five reasoning steps
+    the investigation produces — for the one incident the demonstration seeder ever
+    gives a timeline to at all (see ``estate``). Every other incident keeps
+    the single ``opened`` entry it always had.
     """
     subjects = len(incident["subjects"])
     raised_by_alert = incident["origin"] == "alert"
-    return [
+    entries: list[dict[str, str]] = [
         {
             "at": str(incident["opened_at"]),
             "kind": "opened",
@@ -1143,6 +1173,94 @@ def _timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
                 else f"{incident['detector']} found {subjects} subject(s)"
             ),
         }
+    ]
+    if investigated:
+        entries.extend(_investigation_timeline(incident))
+    return entries
+
+
+def _investigation_timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Return a run-started entry and the five reasoning steps, in the order they happen.
+
+    Grounded in what this detector actually found rather than invented for
+    the timeline alone: the evidence step's query and result name the same
+    two disabled jobs the incident's own ``observations`` already carry, read
+    a second way — the query text and the result text, not a sentence about
+    them.
+    """
+    opened = datetime.fromisoformat(str(incident["opened_at"]))
+    subjects = ", ".join(str(subject) for subject in incident["subjects"])
+
+    def _at(minutes: float) -> str:
+        return (opened + timedelta(minutes=minutes)).isoformat()
+
+    return [
+        {
+            "at": _at(1),
+            "kind": "run_started",
+            "actor": "system:observation",
+            "cause": "an investigation was started for this incident",
+            "detail": _INVESTIGATED_RUN_ID,
+            "query": "",
+            "result": "",
+        },
+        {
+            "at": _at(2),
+            "kind": "alert_received",
+            "actor": "system:observation",
+            "cause": f"the backup coverage sweep flagged {subjects}",
+            "detail": (
+                "detector:backup-job-disabled — raised by the deployment's own detector, "
+                "not a delivered webhook, so no delivery token authenticated it"
+            ),
+            "query": "",
+            "result": "",
+        },
+        {
+            "at": _at(3),
+            "kind": "hypotheses_drawn",
+            "actor": "system:observation",
+            "cause": "considered before any integration was queried",
+            "detail": (
+                "paused for a maintenance window; never enabled after being created; "
+                "failed to re-enable after the last restore"
+            ),
+            "query": "",
+            "result": "",
+        },
+        {
+            "at": _at(4),
+            "kind": "evidence",
+            "actor": "system:observation",
+            "cause": f"both jobs covering {subjects} are disabled, not merely quiet",
+            "detail": "",
+            "query": "pvesh get /cluster/backup",
+            "result": (
+                "backup-7d831311: schedule 08:00, enabled=false, covers_all=true; "
+                "backup-1f376301: schedule 02:30,22:30, enabled=false, covers_all=false"
+            ),
+        },
+        {
+            "at": _at(5),
+            "kind": "diagnosis",
+            "actor": "system:observation",
+            "cause": (
+                "both backup jobs are disabled, not paused for a maintenance window — "
+                "nothing scheduled to re-enable them"
+            ),
+            "detail": "",
+            "query": "",
+            "result": "",
+        },
+        {
+            "at": _at(6),
+            "kind": "report_delivered",
+            "actor": "system:observation",
+            "cause": "report delivered",
+            "detail": "#backups, oncall@example.test",
+            "query": "",
+            "result": "",
+        },
     ]
 
 

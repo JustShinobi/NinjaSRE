@@ -11,7 +11,7 @@
             "incident_id": "inc-0001",
             "opened_at": "2026-08-07T12:00:00+00:00",
             "origin": "detector",
-            "run_id": null,
+            "run_id": "run-0005",
             "self_resolved": false,
             "severity": "critical",
             "state": "open",
