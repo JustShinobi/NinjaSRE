@@ -165,6 +165,29 @@ class Deployment:
     store: PostgresPersistence
 
 
+def _investigator_of(source: Mapping[str, str]) -> InvestigationRunner:
+    """Return the runner this deployment's configuration names, or the stand-in.
+
+    A reference that is set but will not load does not stop the process from
+    coming up: the failure is logged, naming the setting to fix, and this
+    returns the same stand-in an unset reference would — a deployment whose
+    console, history, configuration, and health all work is worth having up
+    while somebody fixes it, exactly as for an unset reference. Only
+    ``validate(source)`` above this, in ``build_deployment``, is allowed to
+    refuse to boot at all.
+    """
+    reference = source.get(NINJASRE_INVESTIGATOR_ENV, "").strip()
+    if not reference:
+        return UnconfiguredInvestigator()
+    try:
+        return load_investigator(reference)
+    except ConfigurationInvalid as error:
+        _LOGGER.warning(
+            "deployment.investigator_unavailable", reference=reference, error=str(error)
+        )
+        return UnconfiguredInvestigator()
+
+
 def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
     """Return the composition root this deployment's configuration describes.
 
@@ -184,10 +207,7 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
 
     store = PostgresPersistence.from_url(source[NINJASRE_DATABASE_URL_ENV])
 
-    reference = source.get(NINJASRE_INVESTIGATOR_ENV, "").strip()
-    investigator: InvestigationRunner = (
-        load_investigator(reference) if reference else UnconfiguredInvestigator()
-    )
+    investigator: InvestigationRunner = _investigator_of(source)
 
     # Without a recorder, `TokenService._audit` is a no-op — every issuance,
     # revocation and rejection stays out of the audit trail regardless of what

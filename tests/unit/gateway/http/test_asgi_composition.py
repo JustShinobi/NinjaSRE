@@ -102,6 +102,63 @@ def build_stand_in() -> InvestigationRunner:
     return UnconfiguredInvestigator()
 
 
+class _MarkerInvestigator:
+    """Distinguishable from ``UnconfiguredInvestigator`` by identity alone.
+
+    Not a real ``InvestigationRunner`` — nothing here calls any of its methods
+    — it exists only so a test can tell "the factory's own object was
+    installed" apart from "the stand-in was silently substituted for it".
+    """
+
+    marker = True
+
+
+def build_marker() -> InvestigationRunner:
+    """A factory whose runner is never the stand-in, for the tests below."""
+    return _MarkerInvestigator()  # type: ignore[return-value]
+
+
+def test_a_reference_that_will_not_load_keeps_the_deployment_up() -> None:
+    """A named but unloadable factory degrades to the stand-in instead of crashing boot.
+
+    This is the runtime user story's own acceptance scenario for a broken
+    reference: the process still comes up, behaving like a deployment with no
+    runtime — never crashing, and never behaving like one that has a runtime
+    after all. Only ``validate(source)`` may refuse to boot outright.
+    """
+    from gateway.http.asgi import build_deployment
+    from gateway.http.runtime import runtime_composed
+
+    environ = {**STANDARD, NINJASRE_INVESTIGATOR_ENV: "not-a-real-module:not-a-real-factory"}
+
+    deployment = build_deployment(environ)
+
+    assert isinstance(deployment.state.investigator, UnconfiguredInvestigator)
+    assert runtime_composed(deployment.state) is False
+
+
+def test_a_working_reference_is_installed_verbatim_not_substituted() -> None:
+    """A factory that does load is what the deployment composes — no silent swap.
+
+    Paired with the test above so neither claim is provable by the other: a
+    broken reference degrading to the stand-in says nothing about whether a
+    *working* reference reaches the deployment untouched.
+    """
+    from gateway.http.asgi import build_deployment
+    from gateway.http.runtime import runtime_composed
+
+    environ = {
+        **STANDARD,
+        NINJASRE_INVESTIGATOR_ENV: "tests.unit.gateway.http.test_asgi_composition:build_marker",
+    }
+
+    deployment = build_deployment(environ)
+
+    assert not isinstance(deployment.state.investigator, UnconfiguredInvestigator)
+    assert getattr(deployment.state.investigator, "marker", False) is True
+    assert runtime_composed(deployment.state) is True
+
+
 def test_composition_validates_before_it_opens_a_connection() -> None:
     """An unset database URL must report as an unset database URL."""
     from gateway.http.asgi import build_deployment
