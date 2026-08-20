@@ -419,7 +419,15 @@ def compose_stack() -> Iterator[Backing]:
     # failed partway, still leaves something running. ``down --volumes`` is
     # harmless to run over a project nothing was ever created for.
     try:
-        subprocess.run([*base, "up", "--detach"], check=True, cwd=REPO_ROOT, env=up_environment)
+        # ``--build`` rather than plain ``up``: compose reuses an existing image,
+        # so without it the stack serves whatever the image was built from and
+        # the run reports a confident answer about code nobody has. That cost a
+        # slice of this feature nine red assertions against a backend image
+        # built before the routes it was being asked about existed. Rebuilding
+        # is cheap when nothing changed, because the layers cache.
+        subprocess.run(
+            [*base, "up", "--build", "--detach"], check=True, cwd=REPO_ROOT, env=up_environment
+        )
         _wait_for_service_healthy(base, "postgres")
         _wait_for_service_healthy(base, "app")
         _seed(base)

@@ -17,10 +17,12 @@ from __future__ import annotations
 import contextlib
 import socket
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
 from config.constants.console import CONSOLE_E2E_MOCK_PORT, CONSOLE_E2E_PORT
+from tools import console_e2e
 from tools.console_e2e import ports
 
 pytestmark = pytest.mark.unit
@@ -104,3 +106,27 @@ def test_one_port_is_returned_for_each_one_asked_for() -> None:
     """In order, because the caller unpacks them positionally."""
     assert len(ports(CONSOLE_E2E_MOCK_PORT, CONSOLE_E2E_PORT)) == 2
     assert ports() == ()
+
+
+def test_the_compose_backing_builds_the_images_it_is_about_to_run() -> None:
+    """A stack brought up from a stale image tests code nobody has in their tree.
+
+    ``docker compose up`` reuses an existing image rather than rebuilding it, so
+    a backing that only brought the stack up would serve whatever the image was
+    built from — which is the same failure as a gate that reports success
+    without doing the work, and harder to notice because the result looks like
+    a real answer about the current code.
+
+    Asserted against the command itself rather than by starting anything, so
+    this runs on a machine with no container runtime.
+    """
+    source = Path(console_e2e.__file__).read_text(encoding="utf-8")
+    start = source.index("def compose_stack(")
+    end = source.index("\ndef ", start)
+    body = source[start:end]
+
+    up_call = next(line for line in body.splitlines() if '"up"' in line)
+
+    assert "--build" in up_call, (
+        f"the compose backing brings the stack up without rebuilding: {up_call.strip()}"
+    )
