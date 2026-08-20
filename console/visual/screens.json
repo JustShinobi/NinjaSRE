@@ -215,14 +215,13 @@
     {
       "id": "integrations-1440-light",
       "route": "/integrations",
-      "status": "pending",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
-        "against": null,
-        "reason": "The catalogue, rebuilt: Connected and Suggested above a compact, searchable grid, against the full installed catalogue rather than a handful of mock entries. Reviewed against the catalogue mockup for layout, hierarchy, grouping and vocabulary. Needs a fresh capture — the previous baseline photographed the collapsed-card design this redesign replaces, and comparing against it would report every card in the document as a difference rather than the specific ones that matter."
-      },
-      "pending_because": "The catalogue rework changed this screen substantially and the migration that retires the raw configuration editor will change it again. Its baseline is the pre-rework one, deliberately: reviewing these pixels now buys a second review of the same screen a feature later."
+        "against": "specs_v6 mockup M4",
+        "reason": "The catalogue at the size the shipped product actually is: Connected, Suggested by your estate and Available, in that order, each absent rather than empty, under one count that agrees with what the page lists. No pagination control, because fifteen integrations never filled a page of twenty-four and the control had stopped rendering long before it was removed. Search reaches all three sections, so what this capture protects is that a match stays inside the section it belongs to instead of collapsing the page into one list."
+      }
     },
     {
       "id": "integrations-panel-1440-light",
@@ -382,14 +381,13 @@
     {
       "id": "signals-1440-light",
       "route": "/settings/alert-intake",
-      "status": "pending",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
-        "against": null,
-        "reason": "The Intake tab, and the default one now that ingress, routing, continuous observation and destinations are four tabs of a single screen: what arrives and what happens to it, in the order data moves through them. No reference is drawn for it; the baseline exists because the one thing this tab has to get right is *emphasis without alarm* — a receiver that has never delivered is drawn first, in the same neutral tone as everything else, and a change that lost either the ordering or the neutrality would be invisible to every other check while undoing the whole reason the tab reads this way."
-      },
-      "pending_because": "The page now exists at this address and is no longer a stand-in, but the committed baseline predates both this rebuild and the palette change, so it is awaiting the same single review the other divergent baselines are held for. Repointing the address is a factual correction; accepting the pixels is not, and is not made here."
+        "against": "specs_v6 mockup M3",
+        "reason": "Three intake sources, each saying what it is actually doing rather than all saying the same nothing. Alertmanager, which is delivering, is expanded: its full delivery URL, Copy URL beside it, Copy Alertmanager receiver YAML, the last delivery in relative time and the week's count. Generic, which has never received anything, is a header line and a closed Format & test disclosure and nothing else. Grafana is the case worth protecting: it is neither of those, because things do arrive there and are turned away, so it keeps its rejection and the reason for it in full. What a capture is for here is the difference in weight between the three — a change that gave silence the same room as delivery would pass every other check while undoing the reason the screen reads this way. Below them the trust line names the delivery token in use and offers to rotate it, and the chain runs arrival, rule, action, destination in one line."
+      }
     },
     {
       "id": "signals-observation-1440-light",
