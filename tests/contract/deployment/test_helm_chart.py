@@ -274,3 +274,29 @@ def test_the_application_still_receives_a_provider_credential() -> None:
     provider is also the one workload that still needs to authenticate to it.
     """
     assert 'include "ninjasre.providerEnv"' in template_text("app-deployment.yaml")
+
+
+def test_every_workload_that_validates_a_provider_is_given_its_credential() -> None:
+    """Three of this chart's workloads boot through the same entry point.
+
+    ``app``, ``console`` and the migration Job all run ``gateway.http.serve``,
+    which composes the deployment — and that composition validates the whole
+    configuration, a model provider included, before it does anything else. The
+    migration Job validates before it even reaches its own migrate-and-exit
+    branch, so a chart that withheld the credential from it would fail to
+    install rather than fail to serve.
+
+    Asserted over the set of workloads rather than one at a time: the defect
+    this closes was two templates that never included the helper at all, which a
+    test naming only the templates that already did could not have seen.
+    """
+    withheld = [
+        name
+        for name in ("app-deployment.yaml", "console-deployment.yaml", "migration-job.yaml")
+        if 'include "ninjasre.providerEnv"' not in template_text(name)
+    ]
+
+    assert not withheld, (
+        f"these workloads run gateway.http.serve, which refuses to start without a "
+        f"provider, and are never given one: {withheld}"
+    )
