@@ -715,6 +715,12 @@ SECURITY_POLICY_AUDIT_ACTION_CHANGE: Final = "security_policy.change"
 #: What an approval action names as the thing it acted on.
 APPROVAL_AUDIT_RESOURCE_KIND_CHANGE: Final = "pending_change"
 APPROVAL_AUDIT_RESOURCE_KIND_POLICY: Final = "security_policy"
+#: A raw approval request decided directly at the store — a remediation
+#: proposal from an incident's investigation, not a governance ``PendingChange``
+#: routed through the approval service. Named separately so an audit query for
+#: "what changed configuration" does not also return "what an operator decided
+#: on an incident".
+APPROVAL_AUDIT_RESOURCE_KIND_REQUEST: Final = "approval_request"
 
 #: The keys an approval record puts in its audit detail. ``AUDIT_DETAIL_DIFF``
 #: is the one that makes a past decision reconstructable: the record holds the
@@ -817,6 +823,7 @@ __all__ = [
     "APPROVAL_AUDIT_ACTION_QUEUE",
     "APPROVAL_AUDIT_RESOURCE_KIND_CHANGE",
     "APPROVAL_AUDIT_RESOURCE_KIND_POLICY",
+    "APPROVAL_AUDIT_RESOURCE_KIND_REQUEST",
     "APPROVAL_EXPIRY_SECONDS",
     "AUDIT_DETAIL_BREAK_GLASS",
     "AUDIT_DETAIL_CHANGE_TYPE",

@@ -62,9 +62,18 @@ CONSOLE_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/config/{node_id}/operating-context/preview",
         permission=Permission.CONFIG_READ,
     ),
-    # --- Approvals, and the rollback that follows one -------------------------
+    # --- Approvals, the deciding of one, and the rollback that follows -------
     Route(method="GET", path="/v1/approvals", permission=Permission.APPROVAL_READ),
     Route(method="GET", path="/v1/approvals/{approval_id}", permission=Permission.APPROVAL_READ),
+    # Deciding takes ``approval.review``, the same narrower right the proposal
+    # queue's own decision route asks for below — a reviewer is being trusted
+    # with the decision, not with executing anything, and this route never
+    # does the latter.
+    Route(
+        method="POST",
+        path="/v1/approvals/{approval_id}/decision",
+        permission=Permission.APPROVAL_REVIEW,
+    ),
     Route(
         method="POST",
         path="/v1/approvals/{approval_id}/rollback",
