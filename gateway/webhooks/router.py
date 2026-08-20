@@ -221,6 +221,7 @@ def _handler(
                 source=path_name,
                 occurred_at=received_at,
                 reason=message,
+                known_token_refusal=await _known_token_refusal(state, headers=request.headers),
             )
             raise ApiProblem(status_code=401, error_type="unverified", message=message)
 
@@ -593,19 +594,43 @@ async def _ledger_refusal(
     source: str,
     occurred_at: datetime,
     reason: str,
+    known_token_refusal: tuple[TenantScope, str] | None = None,
 ) -> None:
     """Record a refusal that happened before anything established a tenant.
 
-    Against the organisation of the *first* route configured for this path. A
-    refusal is a fact about the endpoint, and the endpoint's owner is whoever
-    configured it; writing one row per tenant instead would multiply an
-    unauthenticated request's storage cost by the number of tenants, which is a
-    denial-of-service surface rather than a feature.
+    ``known_token_refusal`` takes priority when the caller has one. A
+    delivery token this deployment issued and later revoked or let expire
+    still names its own tenant — resolved by ``_known_token_refusal`` below —
+    independent of whatever ``WebhookSourceConfig`` this path happens to have
+    configured. That matters because a real deployment configures none: both
+    serving entry points call ``create_app`` with no ``webhook_routes`` at
+    all, and the delivery token is the trust mechanism this feature asks an
+    operator to use. Without this, a revoked token's next delivery would fall
+    through to the fallback below, find no configured route either, and write
+    nothing — the exact silence the revoked-token edge case exists to avoid.
 
-    A path nobody configured has no tenant to attribute anything to, and the
-    warning in the log is the whole of the record — which is honest: nothing
-    here was ever asked for.
+    Otherwise, against the organisation of the *first* route configured for
+    this path. A refusal is a fact about the endpoint, and the endpoint's
+    owner is whoever configured it; writing one row per tenant instead would
+    multiply an unauthenticated request's storage cost by the number of
+    tenants, which is a denial-of-service surface rather than a feature.
+
+    A path with neither a resolved token nor a configured route has no tenant
+    to attribute anything to, and the warning in the log is the whole of the
+    record — which is honest: nothing here was ever asked for, and that is
+    the same "nothing has arrived" a blocked network route produces.
     """
+    if known_token_refusal is not None:
+        scope, token_reason = known_token_refusal
+        await _Ledgering(
+            state=state,
+            scope=scope,
+            delivery_id=delivery_id,
+            source=source,
+            occurred_at=occurred_at,
+            team_node_id=scope.team_node_id or "",
+        ).refused(token_reason)
+        return
     if not source_routes:
         return
     owner = source_routes[0]
@@ -617,6 +642,57 @@ async def _ledger_refusal(
         occurred_at=occurred_at,
         team_node_id="",
     ).refused(reason)
+
+
+async def _known_token_refusal(
+    state: GatewayState, *, headers: Mapping[str, str]
+) -> tuple[TenantScope, str] | None:
+    """Return the tenant and cause for a delivery this deployment once issued
+    a credential for, but which just failed to authenticate — or ``None``
+    when the presented value was never a token this deployment issued.
+
+    ``TokenService.authenticate`` (used by ``_delivery_token_route`` above)
+    deliberately forgets whether a rejected token was unknown, revoked, or
+    expired before that answer ever reaches an audit trail — right on the
+    authentication path, so a guess against this endpoint learns nothing from
+    the difference. ``TokenDirectory.find_token_by_hash`` is the one place
+    that answer is allowed to exist, and its own docstring names exactly one
+    legitimate caller: writing the audit row for a rejection already decided
+    on. This is that caller. Without it, a delivery token an operator
+    configured and later revoked reads on Alert intake as silence
+    indistinguishable from a route nobody ever pointed here — precisely the
+    outcome the revoked-token edge case exists to prevent.
+
+    A missing, garbage, or never-issued value returns ``None`` and stays
+    silent. That silence is correct, not a gap: nothing this deployment ever
+    trusted attempted the delivery, which is the same "nothing has arrived" a
+    blocked network route produces, and there is no tenant to charge it to.
+    """
+    presented = headers.get("authorization", "")
+    if not presented.lower().startswith(_BEARER):
+        return None
+    secret = presented[len(_BEARER) :].strip()
+    if not secret:
+        return None
+
+    token_hash = state.tokens.hasher.hash(secret)
+    async with state.gateway.begin_system() as system:
+        location = await system.tokens.find_token_by_hash(token_hash)
+    if location is None:
+        return None
+
+    token = location.token
+    if token.is_revoked:
+        reason = f"the delivery token {token.name!r} has been revoked"
+    elif token.expires_at is not None and token.expires_at <= _utc_now():
+        reason = f"the delivery token {token.name!r} has expired"
+    elif Permission.WEBHOOK_DELIVER.value not in token.scopes:
+        reason = f"the delivery token {token.name!r} is not scoped to deliver alerts"
+    else:
+        reason = f"the delivery token {token.name!r} did not verify"
+
+    scope = TenantScope(org_id=location.org_id, team_node_id=token.team_node_id or "")
+    return scope, reason
 
 
 async def _settings(state: GatewayState, matched: WebhookSourceConfig) -> RootConfig:

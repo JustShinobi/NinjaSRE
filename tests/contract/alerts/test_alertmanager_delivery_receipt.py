@@ -6,14 +6,17 @@ Four things live here, none of them duplicating the five claims that file
 already covers:
 
 1. A refusal through the delivery-token path is checked against the transit
-   ledger, not only the wire. What is found here is a real gap, not a
-   confirmation: on a deployment with no shared-secret route configured for
-   the path — which both real serving entry points
-   (``gateway/http/asgi.py:application`` and ``gateway/http/serve.py``) are —
-   ``gateway/webhooks/router.py``'s ``_ledger_refusal`` has nobody to
-   attribute the row to and writes nothing durable, only a log line. Both
-   tests below prove today's real behaviour, deliberately, rather than
-   asserting a durable record as though it already existed.
+   ledger, not only the wire. A **missing** token still leaves no durable row
+   — correctly: nothing this deployment ever trusted attempted the delivery,
+   and there is no tenant to charge that silence to (the same "nothing has
+   arrived" a blocked network route produces). A **revoked** token is
+   different: this deployment did once issue it, and
+   ``gateway/webhooks/router.py``'s ``_known_token_refusal`` now resolves the
+   tenant it belonged to via ``TokenDirectory.find_token_by_hash`` — the port
+   method that exists for exactly this — so the refusal lands as a durable,
+   correctly-scoped row instead of a log line nobody's screen can read. The
+   two tests below prove the two behaviours are genuinely different, not
+   merely differently worded.
 2. "Duplicate" is a claim about the investigation, not only about the
    incident: an identical redelivery must start no *second investigation*,
    counted directly against what the investigator was asked to do, rather
@@ -160,21 +163,19 @@ def _leak_scan(obj: object, *, secret: str) -> bool:
 # --- What a refusal actually leaves behind, on the delivery-token path -----------
 #
 # A refused delivery is supposed to be recorded with the reason for the
-# refusal, durably, not only as a log line. ``gateway/webhooks/router.py``'s
-# ``_ledger_refusal`` writes that record against the *first configured
-# route*'s tenant — and when the delivery-token path is the only verifier a
-# deployment has (both real serving entry points call
-# ``create_app``/``build_state`` with no ``webhook_routes`` at all:
-# ``gateway/http/asgi.py:253`` and ``gateway/http/serve.py:170``), there is no
-# configured route to attribute the row to, and the function returns without
-# writing one. Both tests below prove today's real behaviour — a log line, no
-# durable row — rather than assert a durable record as though it already
-# existed. Reported as a finding, not fixed here: see the slice report.
+# refusal, durably, not only as a log line. The two tests below prove the two
+# real cases genuinely diverge: a value nothing here ever trusted stays
+# silent, and a value this deployment once issued — now revoked — does not.
 
 
 async def test_a_missing_tokens_refusal_leaves_no_ledger_row_on_a_token_only_deployment(
     deployment: Deployment,
 ) -> None:
+    """No credential was ever presented, so there is nothing this deployment
+    could resolve a tenant from — the same silence a blocked network route
+    would leave. Unlike the revoked case below, this stays silence by design,
+    not by gap.
+    """
     response = await _deliver(deployment, ALERTMANAGER_FIRING_GROUPED, token=None)
     assert response.status_code == 401, response.text
 
@@ -182,11 +183,14 @@ async def test_a_missing_tokens_refusal_leaves_no_ledger_row_on_a_token_only_dep
     assert rows == (), rows
 
 
-async def test_a_revoked_tokens_refusal_leaves_no_ledger_row_on_a_token_only_deployment(
+async def test_a_revoked_tokens_refusal_lands_a_durable_row_on_its_own_tenant(
     deployment: Deployment,
 ) -> None:
-    """A separate test from the missing-token one above, proving the same gap
-    holds for revocation specifically, not merely for absence.
+    """The claim the missing-token test above does *not* make: a token this
+    deployment actually issued, then revoked, is not the same silence. Its
+    refusal is found and recorded against the tenant it used to belong to,
+    naming the revocation — so a revoked delivery token reads on Alert
+    intake as a refusal with a cause, not as a source that never delivered.
     """
     token_id, secret = await _delivery_token(deployment)
     scope = TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)
@@ -199,7 +203,68 @@ async def test_a_revoked_tokens_refusal_leaves_no_ledger_row_on_a_token_only_dep
     assert response.status_code == 401, response.text
 
     rows = await _rows(deployment)
-    assert rows == (), rows
+    assert len(rows) == 1, rows
+    row = rows[0]
+    assert row.outcome.value == "rejected"
+    assert "revoked" in row.reason
+    assert "alertmanager-delivery-token" in row.reason
+
+
+async def test_a_revoked_tokens_refusal_reads_on_alert_intake_as_a_refusal_not_silence(
+    deployment: Deployment,
+) -> None:
+    """The claim Alert intake actually makes: ``GET /v1/transit/ingress`` is
+    the exact route the screen reads, unmodified. Before the fix above, a
+    revoked token's next delivery left this source looking exactly like one
+    nobody had ever pointed here — ``never_delivered`` stayed ``True`` and
+    ``recent_rejections`` stayed empty, because the ledger held nothing to
+    read. This proves it no longer does: the row lands, and it carries a
+    cause.
+    """
+    token_id, secret = await _delivery_token(deployment)
+    scope = TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)
+    await deployment.tokens.revoke(
+        scope, AuditContext(actor_kind=ActorKind.USER, actor_id="operator"), token_id
+    )
+
+    response = await _deliver(deployment, ALERTMANAGER_FIRING_GROUPED, token=secret)
+    assert response.status_code == 401, response.text
+
+    reader_id = "reader"
+    async with deployment.gateway.begin(scope) as uow:
+        await uow.identity.upsert_user(
+            User(user_id=reader_id, email=f"{reader_id}@acme.test", display_name=reader_id)
+        )
+        await uow.identity.upsert_role_binding(
+            RoleBinding(
+                binding_id=f"grant-{reader_id}",
+                user_id=reader_id,
+                role=Role.VIEWER.value,
+                node_id=TEAM_PAYMENTS,
+            )
+        )
+    reader = await deployment.tokens.issue(
+        scope,
+        AuditContext(actor_kind=ActorKind.USER, actor_id=reader_id),
+        user_id=reader_id,
+        name="reader-session",
+        node_id=TEAM_PAYMENTS,
+        unscoped=True,
+    )
+
+    screen = await deployment.client.get(
+        "/v1/transit/ingress", headers={"Authorization": f"Bearer {reader.secret}"}
+    )
+    assert screen.status_code == 200, screen.text
+    source = next(row for row in screen.json()["sources"] if row["source"] == "alertmanager")
+
+    # Not the claim the missing-token test proves — that one stays exactly
+    # this shape, correctly. This one must not.
+    assert source["never_delivered"] is False, source
+    assert source["last_outcome"] == "rejected", source
+    assert source["last_delivery_at"] != "", source
+    assert len(source["recent_rejections"]) == 1, source
+    assert "revoked" in source["recent_rejections"][0]["reason"]
 
 
 # --- No second investigation, counted directly against the investigator ---------
