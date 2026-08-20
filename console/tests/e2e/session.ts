@@ -13,8 +13,18 @@ import type { BrowserContext } from '@playwright/test';
  * the one that drives it.
  */
 
-/** The credential the mock data plane accepts, which is any credential. */
-export const CREDENTIAL = 'tok_e2e';
+/**
+ * The credential a browser signs in with.
+ *
+ * Against the mock data plane this is a name, not a secret — the mock accepts
+ * any credential. Against the `compose` backing a real gateway is behind the
+ * guard, so the Python harness mints a real one (exchanging the deployment's
+ * own bootstrap credential for a durable one) and passes it through
+ * `NINJASRE_CONSOLE_E2E_CREDENTIAL`. Reading it here, once, is what lets every
+ * spec that calls `signIn` stay unaware of which backing it is running
+ * against.
+ */
+export const CREDENTIAL = process.env.NINJASRE_CONSOLE_E2E_CREDENTIAL ?? 'tok_e2e';
 
 /** Give `context` a session, so the guard lets it through. */
 export async function signIn(context: BrowserContext, baseURL: string): Promise<void> {

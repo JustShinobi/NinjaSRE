@@ -32,6 +32,12 @@ NINJASRE_CONSOLE_BASE_URL_ENV: Final = "NINJASRE_CONSOLE_BASE_URL"
 #: gateway behind its own proxy.
 NINJASRE_CONSOLE_API_URL_ENV: Final = "NINJASRE_CONSOLE_API_URL"
 
+#: A real credential for the browser suite to sign in with, set by the harness
+#: only against the ``compose`` backing. The mock data plane accepts any
+#: credential (see ``console/tests/e2e/session.ts``), so a run against it leaves
+#: this unset and the suite falls back to its own mock-plane value.
+NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV: Final = "NINJASRE_CONSOLE_E2E_CREDENTIAL"
+
 #: The path the built console is served under, for a deployment that puts it
 #: somewhere other than the root of its reverse proxy.
 NINJASRE_CONSOLE_BASE_PATH_ENV: Final = "NINJASRE_CONSOLE_BASE_PATH"
@@ -316,6 +322,7 @@ __all__ = [
     "NINJASRE_CONSOLE_API_URL_ENV",
     "NINJASRE_CONSOLE_BASE_PATH_ENV",
     "NINJASRE_CONSOLE_BASE_URL_ENV",
+    "NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV",
     "NINJASRE_CONSOLE_TOOLCHAIN_ENV",
     "NINJASRE_NODE_MIRROR_ENV",
     "PLAYWRIGHT_BROWSERS_PATH_ENV",

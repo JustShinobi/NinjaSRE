@@ -14,7 +14,12 @@ different questions:
     The deployment's own compose definition: a real gateway against a real
     database. Slower, needs a container runtime, and is the one that would catch
     a console which works against the dataset and not against the application.
-    Run by its own CI job rather than by every ``make verify``.
+    Run by its own CI job rather than by every ``make verify``. The stack comes
+    up with an empty database, so it is seeded with the same demonstration
+    dataset the mock plane serves — through ``setup load-demo``, the command an
+    operator runs on a fresh deployment, not a route built for this harness.
+    Needs a model provider configured in the environment, the same prerequisite
+    the compose file's own header names for any ``docker compose up``.
 
 Neither the browser nor the ports are assumed. The browser is provisioned
 through the same toolchain that provisions Node, so a checkout that never ran
@@ -38,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import json
 import os
 import shutil
 import socket
@@ -47,6 +53,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from typing import Final
 
 from config.constants.console import (
@@ -54,8 +61,15 @@ from config.constants.console import (
     CONSOLE_E2E_PORT,
     NINJASRE_CONSOLE_API_URL_ENV,
     NINJASRE_CONSOLE_BASE_URL_ENV,
+    NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV,
 )
-from config.constants.fixtures import DEFAULT_FIXTURE_SCENARIO
+from config.constants.first_run import NINJASRE_ORGANISATION_ENV
+from config.constants.fixtures import (
+    DEFAULT_FIXTURE_SCENARIO,
+    FIXTURE_ROOT_DIR_NAME,
+    NINJASRE_FIXTURE_ROOT_ENV,
+)
+from platform.startup.demo.dataset import load_dataset
 from tools.console_toolchain import (
     REPO_ROOT,
     Toolchain,
@@ -82,6 +96,21 @@ _COMPOSE_API_URL: Final = "http://127.0.0.1:8420"
 
 class HarnessError(RuntimeError):
     """The backing or the console could not be started, so nothing was run."""
+
+
+@dataclass(frozen=True, slots=True)
+class Backing:
+    """Where the gateway answers, and a credential to sign in with.
+
+    The mock plane accepts any credential at all — see
+    ``console/tests/e2e/session.ts`` — so it mints none. The compose backing is
+    a real gateway behind a real guard, so it exchanges the bootstrap
+    credential ``bring_up`` issued for a durable one the browser can actually
+    sign in with, and hands that back here.
+    """
+
+    api_url: str
+    credential: str | None = None
 
 
 def ports(*preferred: int) -> tuple[int, ...]:
@@ -147,6 +176,48 @@ def _wait_for(url: str, process: subprocess.Popen[bytes], what: str) -> None:
     raise HarnessError(f"{what} did not serve {url} within {_STARTUP_TIMEOUT_SECONDS:.0f}s")
 
 
+def _container_health(base: Sequence[str], service: str) -> str | None:
+    """Return one compose service's container health, or ``None`` if it has none yet."""
+    found = subprocess.run(
+        [*base, "ps", "--quiet", service], capture_output=True, text=True, check=False
+    )
+    container_id = found.stdout.strip()
+    if not container_id:
+        return None
+    probe = subprocess.run(
+        ["docker", "inspect", "--format", "{{.State.Health.Status}}", container_id],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return probe.stdout.strip() or None
+
+
+def _wait_for_service_healthy(base: Sequence[str], service: str) -> None:
+    """Block until one compose service reports healthy, or raise saying why not.
+
+    Polled directly with ``docker inspect``, one service at a time, rather than
+    through ``up --wait`` for the whole project. ``--wait`` watches every
+    container the compose file starts, including ones this harness never talks
+    to — and a service that fails its own configuration check for a reason that
+    has nothing to do with the gateway would otherwise block every backing this
+    function exists to provide, forever, regardless of what this harness
+    actually needs running.
+    """
+    deadline = time.monotonic() + _STARTUP_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        health = _container_health(base, service)
+        if health == "healthy":
+            return
+        if health == "unhealthy":
+            raise HarnessError(f"the compose {service!r} container is unhealthy")
+        time.sleep(_POLL_SECONDS)
+    raise HarnessError(
+        f"the compose {service!r} container did not become healthy within "
+        f"{_STARTUP_TIMEOUT_SECONDS:.0f}s"
+    )
+
+
 @contextlib.contextmanager
 def _terminating(process: subprocess.Popen[bytes]) -> Iterator[subprocess.Popen[bytes]]:
     """Yield ``process`` and make sure it is gone afterwards, killed if need be."""
@@ -163,7 +234,7 @@ def _terminating(process: subprocess.Popen[bytes]) -> Iterator[subprocess.Popen[
 
 
 @contextlib.contextmanager
-def mock_plane(scenario: str, port: int) -> Iterator[str]:
+def mock_plane(scenario: str, port: int) -> Iterator[Backing]:
     """Serve the committed dataset and yield the address it answers on."""
     url = f"http://127.0.0.1:{port}"
     process = subprocess.Popen(
@@ -182,16 +253,158 @@ def mock_plane(scenario: str, port: int) -> Iterator[str]:
     )
     with _terminating(process):
         _wait_for(f"{url}/v1/runs", process, "the mock data plane")
-        yield url
+        yield Backing(api_url=url)
+
+
+#: Where the fixture tree lands inside the ``app`` container. Under ``/tmp``
+#: because it is scratch for this one run, never a path anything else in the
+#: image reserves.
+_CONTAINER_FIXTURE_ROOT: Final = "/tmp/fixtures"
+
+
+def _seed(base: Sequence[str]) -> None:
+    """Load the demonstration dataset into a freshly-started compose stack.
+
+    Runs ``setup load-demo`` inside the ``app`` container — the exact command
+    named in ``surfaces/cli/commands/setup.py``, the one an operator runs on a
+    fresh deployment. Nothing here is a route or a code path built for this
+    harness.
+
+    The deployment image never ships ``fixtures/`` (it is data, not one of the
+    packaged tiers — see the root ``AGENTS.md``), so the tree this process's own
+    checkout already holds is copied in first. ``NINJASRE_FIXTURE_ROOT`` is not
+    a harness invention either: it is the setting ``load_dataset`` names in its
+    own refusal message for exactly this case, "the fixture tree lives
+    elsewhere in this deployment".
+
+    Raises:
+        HarnessError: the copy or the seeding command failed.
+    """
+    try:
+        subprocess.run(
+            [*base, "cp", str(REPO_ROOT / FIXTURE_ROOT_DIR_NAME), f"app:{_CONTAINER_FIXTURE_ROOT}"],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+        subprocess.run(
+            [
+                *base,
+                "exec",
+                "--env",
+                f"{NINJASRE_FIXTURE_ROOT_ENV}={_CONTAINER_FIXTURE_ROOT}",
+                "app",
+                "ninjasre",
+                "setup",
+                "load-demo",
+            ],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+    except subprocess.CalledProcessError as error:
+        raise HarnessError(f"seeding the compose stack failed: {error}") from error
+
+
+def _bootstrap_secret(base: Sequence[str]) -> str:
+    """Return the bootstrap credential's secret, read through the CLI itself.
+
+    ``ninjasre --json setup credential`` — the exact command an operator who
+    closed the terminal before reading the token runs, never the host state
+    file directly: this harness has no more of a right to reach into that file
+    than an operator does.
+
+    Raises:
+        HarnessError: there is no bootstrap credential to read, or the command
+            failed.
+    """
+    found = subprocess.run(
+        [*base, "exec", "app", "ninjasre", "--json", "setup", "credential"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    if found.returncode != 0:
+        raise HarnessError(
+            "reading the bootstrap credential failed: "
+            f"{found.stderr.strip() or found.stdout.strip()}"
+        )
+    try:
+        envelope = json.loads(found.stdout)
+        secret = envelope["data"]["secret"]
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        raise HarnessError(
+            f"the bootstrap credential envelope carried no secret: {found.stdout!r}"
+        ) from error
+    if not isinstance(secret, str) or secret == "":
+        raise HarnessError(f"the bootstrap credential envelope carried no secret: {envelope!r}")
+    return secret
+
+
+#: Who the browser harness identifies as, exchanging the bootstrap credential
+#: for a durable one. Not a real operator — a fixed identity this harness owns,
+#: same as any other automated caller of the first-run route.
+_HARNESS_PRINCIPAL: Final = {
+    "user_id": "console-e2e",
+    "email": "console-e2e@ninjasre.invalid",
+    "display_name": "Console end-to-end harness",
+}
+
+
+def _durable_secret(api_url: str, bootstrap_secret: str) -> str:
+    """Exchange the bootstrap credential for one the browser can sign in with.
+
+    Calls the exact route a real first sign-in calls,
+    ``POST /v1/setup/durable-credential`` — never a shortcut invented for this
+    harness. Spends the bootstrap credential, the same as a real exchange
+    would.
+
+    Raises:
+        HarnessError: the exchange was refused.
+    """
+    request = urllib.request.Request(
+        f"{api_url}/v1/setup/durable-credential",
+        data=json.dumps(_HARNESS_PRINCIPAL).encode("utf-8"),
+        method="POST",
+        headers={
+            "content-type": "application/json",
+            "authorization": f"Bearer {bootstrap_secret}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            issued = json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", "replace")
+        raise HarnessError(
+            f"exchanging the bootstrap credential failed: {error.code} {detail}"
+        ) from error
+    secret = issued.get("secret")
+    if not isinstance(secret, str) or secret == "":
+        raise HarnessError(f"the durable credential response carried no secret: {issued!r}")
+    return secret
 
 
 @contextlib.contextmanager
-def compose_stack() -> Iterator[str]:
+def compose_stack() -> Iterator[Backing]:
     """Bring the deployment's own compose stack up and yield the gateway's address.
 
     The same file the deployment ships, with no test-only override: a stack
     assembled differently from the one an operator runs is a stack that proves
-    something about a configuration nobody has.
+    something about a configuration nobody has. Every one of its four services
+    is started, exactly as ``docker compose up`` with no service list would
+    start them. Seeding happens after the stack is already up, through the same
+    command line an operator has — it does not change what was assembled, only
+    what the running deployment is asked to do with it.
+
+    Readiness is judged by ``postgres`` and ``app`` alone, polled directly
+    rather than through ``up --wait`` — see ``_wait_for_service_healthy`` for
+    why the blanket form cannot be used here today.
+
+    The tenant this harness signs into is the demonstration dataset's own, not
+    the compose file's unqualified default: without this, bring-up creates
+    ``default`` while the seeded dataset lands in the tenant its own
+    configuration tree declares, and a browser signed into the former would see
+    an organisation nothing was ever written into.
     """
     docker = shutil.which("docker")
     if docker is None:
@@ -199,12 +412,21 @@ def compose_stack() -> Iterator[str]:
 
     compose_file = REPO_ROOT / "deploy" / "compose" / "docker-compose.yml"
     base = [docker, "compose", "--file", str(compose_file)]
+    tenant = load_dataset().organisation_id
+    up_environment = {**os.environ, NINJASRE_ORGANISATION_ENV: tenant}
+    # One try/finally around the whole sequence, not the ``up`` call alone: a
+    # container that failed its own health check, or a seeding step that
+    # failed partway, still leaves something running. ``down --volumes`` is
+    # harmless to run over a project nothing was ever created for.
     try:
-        subprocess.run([*base, "up", "--detach", "--wait"], check=True, cwd=REPO_ROOT)
+        subprocess.run([*base, "up", "--detach"], check=True, cwd=REPO_ROOT, env=up_environment)
+        _wait_for_service_healthy(base, "postgres")
+        _wait_for_service_healthy(base, "app")
+        _seed(base)
+        credential = _durable_secret(_COMPOSE_API_URL, _bootstrap_secret(base))
+        yield Backing(api_url=_COMPOSE_API_URL, credential=credential)
     except subprocess.CalledProcessError as error:
         raise HarnessError(f"the compose stack did not come up: {error}") from error
-    try:
-        yield _COMPOSE_API_URL
     finally:
         subprocess.run([*base, "down", "--volumes"], check=False, cwd=REPO_ROOT)
 
@@ -235,11 +457,19 @@ def playwright(
     project: str,
     base_url: str,
     *,
+    credential: str | None = None,
     extra: Sequence[str] = (),
 ) -> int:
-    """Run one Playwright project against ``base_url`` and return its exit status."""
+    """Run one Playwright project against ``base_url`` and return its exit status.
+
+    ``credential``, when given, is what ``console/tests/e2e/session.ts`` signs
+    into the browser instead of the mock-plane value it otherwise falls back
+    to — see ``NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV``.
+    """
     env = environment(toolchain)
     env[NINJASRE_CONSOLE_BASE_URL_ENV] = base_url
+    if credential is not None:
+        env[NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV] = credential
     finished = subprocess.run(
         [
             str(toolchain.node),
@@ -279,14 +509,16 @@ def run(
 
     mock_port, console_port = ports(CONSOLE_E2E_MOCK_PORT, CONSOLE_E2E_PORT)
     backing_context = compose_stack() if backing == "compose" else mock_plane(scenario, mock_port)
-    with backing_context as api_url, console(toolchain, api_url, console_port) as base_url:
+    with backing_context as target, console(toolchain, target.api_url, console_port) as base_url:
         # Named, because under concurrency these are not the pinned ports and a
         # reader of the log should not have to guess which console was driven.
-        print(f"driving the console at {base_url} against {api_url}", flush=True)
+        print(f"driving the console at {base_url} against {target.api_url}", flush=True)
         for attempt in range(1, repeat + 1):
             if repeat > 1:
                 print(f"--- run {attempt} of {repeat} ---", flush=True)
-            status = playwright(toolchain, project, base_url, extra=extra)
+            status = playwright(
+                toolchain, project, base_url, credential=target.credential, extra=extra
+            )
             if status != 0:
                 return status
     return 0
