@@ -377,3 +377,52 @@ describe('the advanced surfaces-destinations section', () => {
     expect(paths).toEqual(['surfaces.channels']);
   });
 });
+
+describe('the two advanced section names', () => {
+  /**
+   * Every content word `label` uses, lowercased, with punctuation and a
+   * handful of function words dropped.
+   *
+   * Close enough to "the nouns" that a word shared between the two titles is
+   * the defect the property forbids — asserting the relationship rather than
+   * either title as a literal string, so this keeps proving the property the
+   * next time either one is reworded, instead of just pinning today's wording.
+   */
+  function contentWords(label: string): ReadonlySet<string> {
+    const stopWords = new Set(['advanced', 'and', 'the', 'a', 'an', 'of', 'or', 'for']);
+    return new Set(
+      label
+        .toLowerCase()
+        .replace(/[^a-z\s]/g, ' ')
+        .split(/\s+/)
+        .filter((word) => word.length > 0 && !stopWords.has(word)),
+    );
+  }
+
+  /** The visible heading of the advanced section addressed as `testId`. */
+  function sectionTitle(testId: string): string {
+    const summary = screen.getByTestId(testId).querySelector('summary');
+    if (summary === null) throw new Error(`no <summary> inside ${testId}`);
+    return summary.textContent;
+  }
+
+  it('share no noun between the transit section and the surfaces section', async () => {
+    await page();
+
+    const transitTitle = sectionTitle('advanced-config-transit');
+    const surfacesTitle = sectionTitle('advanced-config-surfaces-destinations');
+
+    // Guards the property test itself: a title that read as empty would make
+    // "no word in common" true for the wrong reason.
+    expect(transitTitle).not.toBe('');
+    expect(surfacesTitle).not.toBe('');
+
+    const shared = [...contentWords(transitTitle)].filter((word) =>
+      contentWords(surfacesTitle).has(word),
+    );
+    expect(
+      shared,
+      `both section names use: ${shared.join(', ')} ("${transitTitle}" / "${surfacesTitle}")`,
+    ).toEqual([]);
+  });
+});

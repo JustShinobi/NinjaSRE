@@ -1579,6 +1579,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'data.rules.empty.body':
     'Toda entrega verificada vira investiga\u00e7\u00e3o da equipe que a verificou.',
   'data.rules.empty.action': 'Abrir a configura\u00e7\u00e3o',
+  'data.chain.label': 'O que acontece com um alerta aqui',
+  'data.chain.intake.empty': 'Nenhuma fonte entregou ainda',
+  'data.chain.rule.empty': 'Nenhuma regra configurada ainda',
+  'data.chain.action.empty': 'Nenhuma a\u00e7\u00e3o roda ainda',
+  'data.chain.destination.empty': 'Nenhum destino configurado ainda',
   'data.simulate.title': 'Testar uma entrega',
   'data.simulate.purpose':
     'Veja qual regra pegaria um payload e qual equipe ele alcan\u00e7aria, antes de salvar qualquer coisa.',
@@ -1596,7 +1601,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'settings.schedulesDestinations.advanced.transit.title':
     'Avan\u00e7ado: regras de roteamento e destinos de entrega',
   'settings.schedulesDestinations.advanced.surfaces.title':
-    'Avan\u00e7ado: canais de chat, destinos de relat\u00f3rio e alvos de notifica\u00e7\u00e3o',
+    'Avan\u00e7ado: canais de chat, destinat\u00e1rios de relat\u00f3rio e alvos de notifica\u00e7\u00e3o',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Regras de roteamento',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Destinos de entrega',

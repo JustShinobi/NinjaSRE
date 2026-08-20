@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
 import type { MessageKey } from '@/i18n/en';
 import { Reference } from '@/design/reference';
@@ -10,7 +10,10 @@ import { may } from '@/session/viewer';
 import { SettingsPageHeader } from '@/shell/area';
 import { settingsPageFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { AdvancedConfigSection } from '../advanced-config-section';
+import {
+  AdvancedConfigSection,
+  advancedConfigSectionId,
+} from '../advanced-config-section';
 import { CopyAction, CopyValue } from '../screens/data-copy';
 import { emptyBecause, readSetupState, setupCause, type Cause } from '../emptiness';
 import { requestedSetupReturn, SetupReturnBanner } from '../first-run/return-banner';
@@ -269,6 +272,82 @@ function chainOf(source: string, arrivals: readonly unknown[]): ProvenanceChain 
   };
 }
 
+/** One node of the intake → rule → action → destination summary (#m3). */
+interface ChainNodeSpec {
+  readonly role: 'intake' | 'rule' | 'action' | 'destination';
+  /** This deployment's own effective value. Empty means nothing is configured yet. */
+  readonly value: string;
+  /** The screen that owns this node's setting — followed on click, whatever `value` holds. */
+  readonly href: string;
+}
+
+/**
+ * Where routing rules and delivery destinations are edited.
+ *
+ * The rule, action and destination nodes below all point here: `transit.rules`
+ * carries the rule and its action, `transit.destinations` carries the
+ * destination, and both live in this one section now that its name shares no
+ * noun with the other advanced section on the same page — the whole reason a
+ * node can promise a place and land on it.
+ */
+const CHAIN_ROUTING_HREF = `/settings/schedules-destinations#${advancedConfigSectionId('transit.')}`;
+
+/** What each node says when its `value` is empty. */
+const CHAIN_EMPTY_LABELS: Readonly<Record<ChainNodeSpec['role'], MessageKey>> = {
+  intake: 'data.chain.intake.empty',
+  rule: 'data.chain.rule.empty',
+  action: 'data.chain.action.empty',
+  destination: 'data.chain.destination.empty',
+};
+
+/**
+ * The one-line summary of what happens to an alert here, read from the same
+ * rows the panels above and Schedules & destinations already fetch — no
+ * endpoint of its own.
+ *
+ * The gateway always answers with at least the catch-all rule, and a
+ * catch-all is a real decision rather than an example, so the rule and action
+ * nodes read as unconfigured only when the rule list itself is empty. Every
+ * node still renders even then: an unconfigured one names what is missing
+ * rather than the chain dropping below four.
+ */
+function handlingChain(
+  ordered: readonly unknown[],
+  ruleRows: readonly unknown[],
+  destinationRows: readonly unknown[],
+): readonly ChainNodeSpec[] {
+  const receiving = ordered.find((source) => !flag(source, 'never_delivered'));
+  // The catch-all is always last, so the first row is the rule that actually
+  // decides — an explicit one where the deployment configured one, the
+  // catch-all itself otherwise.
+  const decisive = ruleRows[0];
+  const usable = destinationRows.find(
+    (destination) => text(destination, 'unconfigurable_reason') === '',
+  );
+  return [
+    {
+      role: 'intake',
+      value: receiving === undefined ? '' : text(receiving, 'source'),
+      href: '/integrations',
+    },
+    {
+      role: 'rule',
+      value: decisive === undefined ? '' : text(decisive, 'rule_id'),
+      href: CHAIN_ROUTING_HREF,
+    },
+    {
+      role: 'action',
+      value: decisive === undefined ? '' : text(decisive, 'action'),
+      href: CHAIN_ROUTING_HREF,
+    },
+    {
+      role: 'destination',
+      value: usable === undefined ? '' : text(usable, 'destination_id'),
+      href: CHAIN_ROUTING_HREF,
+    },
+  ];
+}
+
 /** The page's own body: the receivers, and the routing rules beneath them. */
 async function content(
   context: SurfaceContext,
@@ -279,21 +358,27 @@ async function content(
   const writable = may(viewer, WRITE);
   const state = readViewState(search, ALERT_INTAKE_FILTERS);
 
-  const [ingress, rules, deliveries, receivers, tree, identity] = await Promise.all([
-    panelRead('/v1/transit/ingress', () => read('/v1/transit/ingress', init)),
-    panelRead('/v1/transit/rules', () => read('/v1/transit/rules', init)),
-    panelRead('/v1/transit/deliveries', () => read('/v1/transit/deliveries', init)),
-    optionalRead('/v1/ingress/sources', () => read('/v1/ingress/sources', init)),
-    panelRead('/v1/config', () => read('/v1/config', init)),
-    // Naming the delivery token needs an extra read this page did not make
-    // before — justified because it is the one thing left between "who is
-    // trusted" reading as a permission string and reading as a credential a
-    // person issued. A failed read degrades to "not yet authenticated"
-    // rather than an error state for the whole panel: which token, if any,
-    // is doing the authenticating is a detail of this group, not the reason
-    // the receiver list itself would fail to render.
-    optionalRead('/identity/tokens', () => read('/identity/tokens', init)),
-  ]);
+  const [ingress, rules, deliveries, transitDestinations, receivers, tree, identity] =
+    await Promise.all([
+      panelRead('/v1/transit/ingress', () => read('/v1/transit/ingress', init)),
+      panelRead('/v1/transit/rules', () => read('/v1/transit/rules', init)),
+      panelRead('/v1/transit/deliveries', () => read('/v1/transit/deliveries', init)),
+      // The chain's destination node reads the same row Schedules &
+      // destinations already shows — no endpoint of its own.
+      panelRead('/v1/transit/destinations', () =>
+        read('/v1/transit/destinations', init),
+      ),
+      optionalRead('/v1/ingress/sources', () => read('/v1/ingress/sources', init)),
+      panelRead('/v1/config', () => read('/v1/config', init)),
+      // Naming the delivery token needs an extra read this page did not make
+      // before — justified because it is the one thing left between "who is
+      // trusted" reading as a permission string and reading as a credential a
+      // person issued. A failed read degrades to "not yet authenticated"
+      // rather than an error state for the whole panel: which token, if any,
+      // is doing the authenticating is a detail of this group, not the reason
+      // the receiver list itself would fail to render.
+      optionalRead('/identity/tokens', () => read('/identity/tokens', init)),
+    ]);
 
   const nodeId = resolveNode(state, viewer, placedTree(dataOf(tree)));
 
@@ -332,6 +417,7 @@ async function content(
 
   const ruleRows = list(dataOf(rules), 'rules');
   const explicitRules = ruleRows.some((rule) => !flag(rule, 'is_catch_all'));
+  const destinationRows = list(dataOf(transitDestinations), 'destinations');
   const ledger = rowsOf(dataOf(deliveries));
   const arrivalRows = ledger.filter((row) => text(row, 'direction') === 'ingress');
 
@@ -648,6 +734,38 @@ async function content(
           {message(locale, 'data.ingress.retired')}
         </p>
       </Panel>
+
+      {/* --- The chain: intake, rule, action, destination, in one line ------
+          Deliberately outside any `Panel`'s `ready`/`empty`/`error` state: a
+          failed or genuinely empty rules read must not take the whole
+          four-node summary down with it — an unconfigured node is
+          information, not an absence. */}
+      <div
+        className="flex flex-wrap items-center gap-2 text-meta"
+        data-testid="alert-chain"
+        aria-label={message(locale, 'data.chain.label')}
+      >
+        {handlingChain(ordered, ruleRows, destinationRows).map((node, index) => (
+          <Fragment key={node.role}>
+            {index === 0 ? null : (
+              <span aria-hidden="true" className="text-muted">
+                →
+              </span>
+            )}
+            <span
+              data-testid="chain-node"
+              data-role={node.role}
+              className="inline-flex items-center edge border-border rounded-2 px-2 py-1"
+            >
+              <Link href={node.href}>
+                {node.value === ''
+                  ? message(locale, CHAIN_EMPTY_LABELS[node.role])
+                  : node.value}
+              </Link>
+            </span>
+          </Fragment>
+        ))}
+      </div>
 
       {/* --- What happens to it --------------------------------------------- */}
       <Panel

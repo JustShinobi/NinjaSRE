@@ -1006,3 +1006,141 @@ describe('the advanced observation-settings section', () => {
     }
   });
 });
+
+/** The chain node addressed as `role` — narrowed by failing the test rather than by asserting. */
+function requireChainNode(role: string): HTMLElement {
+  const node = screen
+    .getAllByTestId('chain-node')
+    .find((candidate) => candidate.getAttribute('data-role') === role);
+  if (node === undefined) throw new Error(`no chain node for role ${role}`);
+  return node;
+}
+
+/** The `href` of the one link inside `node` — narrowed the same way. */
+function chainNodeHref(node: HTMLElement): string {
+  return within(node).getByRole('link').getAttribute('href') ?? '';
+}
+
+describe('the chain: intake, rule, action and destination', () => {
+  it('renders four nodes in order, each naming this deployment’s own value', async () => {
+    await page();
+
+    const nodes = screen.getAllByTestId('chain-node');
+    expect(nodes).toHaveLength(4);
+    expect(nodes.map((node) => node.getAttribute('data-role'))).toEqual([
+      'intake',
+      'rule',
+      'action',
+      'destination',
+    ]);
+
+    expect(requireChainNode('intake')).toHaveTextContent('alertmanager');
+    expect(requireChainNode('rule')).toHaveTextContent('critical-to-platform');
+    expect(requireChainNode('action')).toHaveTextContent('investigate');
+    expect(requireChainNode('destination')).toHaveTextContent('chat-incidents');
+  });
+
+  it('the rule node names a rule the routing-rules panel actually lists, not a value this test invented', async () => {
+    await page();
+
+    const ruleText = requireChainNode('rule').textContent.trim();
+    const combined = [
+      ...screen.getAllByTestId('routing-rule'),
+      ...screen.getAllByTestId('catch-all-rule'),
+    ]
+      .map((row) => row.textContent)
+      .join(' | ');
+
+    expect(ruleText).not.toBe('');
+    expect(combined).toContain(ruleText);
+  });
+
+  it('picks the first destination this deployment can actually deliver to, skipping one it cannot', async () => {
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      if (path !== '/v1/transit/destinations') return base(input as string, init);
+      const response = await base(input as string, init);
+      const body = (await response.json()) as {
+        readonly destinations: readonly Record<string, unknown>[];
+      };
+      // The unconfigurable destination first, so a chain that just took row
+      // zero without reading `unconfigurable_reason` would name it instead.
+      return new Response(
+        JSON.stringify({ ...body, destinations: [...body.destinations].reverse() }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    expect(requireChainNode('destination')).toHaveTextContent('chat-incidents');
+  });
+
+  it('each node links to the screen that owns its setting', async () => {
+    await page();
+
+    expect(chainNodeHref(requireChainNode('intake'))).toBe('/integrations');
+    expect(chainNodeHref(requireChainNode('rule'))).toBe(
+      '/settings/schedules-destinations#advanced-config-transit',
+    );
+    expect(chainNodeHref(requireChainNode('action'))).toBe(
+      '/settings/schedules-destinations#advanced-config-transit',
+    );
+    expect(chainNodeHref(requireChainNode('destination'))).toBe(
+      '/settings/schedules-destinations#advanced-config-transit',
+    );
+  });
+
+  it('still shows four nodes, naming what is missing, when the deployment has configured no rule', async () => {
+    serveScenario('populated');
+    const base = globalThis.fetch;
+    vi.stubGlobal('fetch', async (input: unknown, init?: RequestInit) => {
+      const path = new URL(String(input), FIXTURE_BASE).pathname;
+      if (path !== '/v1/transit/rules') return base(input as string, init);
+      return new Response(JSON.stringify({ rules: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    expect(screen.getAllByTestId('chain-node')).toHaveLength(4);
+    expect(requireChainNode('rule')).toHaveTextContent('No rule is configured yet');
+    expect(requireChainNode('action')).toHaveTextContent('No action runs yet');
+    // Unconfigured is still a link to where it gets configured, never a dead label.
+    expect(chainNodeHref(requireChainNode('rule'))).toBe(
+      '/settings/schedules-destinations#advanced-config-transit',
+    );
+  });
+
+  it('still shows four nodes, naming what is missing, on a deployment that has configured nothing', async () => {
+    await page('empty');
+
+    expect(screen.getAllByTestId('chain-node')).toHaveLength(4);
+    expect(requireChainNode('intake')).toHaveTextContent('No source has delivered yet');
+    expect(requireChainNode('destination')).toHaveTextContent(
+      'No destination is configured yet',
+    );
+    // The gateway's own default catch-all is still a real decision, not an
+    // absence — the empty scenario configures nothing beyond it.
+    expect(requireChainNode('rule')).toHaveTextContent('catch-all');
+    expect(requireChainNode('action')).toHaveTextContent('investigate');
+  });
+
+  it('does not disappear when the routing-rules read itself fails', async () => {
+    serveScenarioExcept('populated', ['/v1/transit/rules']);
+    render(await AlertIntakeScreen(await surfaceContext({})));
+
+    // The rules panel goes to its own error state; the chain, deliberately
+    // outside it, still names all four nodes.
+    expect(
+      screen
+        .getAllByTestId('panel')
+        .filter((panel) => panel.getAttribute('data-state') === 'error'),
+    ).toHaveLength(1);
+    expect(screen.getAllByTestId('chain-node')).toHaveLength(4);
+  });
+});

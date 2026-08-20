@@ -206,6 +206,11 @@ export const EN = {
   'data.rules.empty.body':
     'Every verified delivery is investigated by the team that verified it.',
   'data.rules.empty.action': 'Open configuration',
+  'data.chain.label': 'What happens to an alert here',
+  'data.chain.intake.empty': 'No source has delivered yet',
+  'data.chain.rule.empty': 'No rule is configured yet',
+  'data.chain.action.empty': 'No action runs yet',
+  'data.chain.destination.empty': 'No destination is configured yet',
   'data.simulate.title': 'Test a delivery',
   'data.simulate.purpose':
     'See which rule would catch a payload and which team it would reach, before anything is saved.',
@@ -222,8 +227,11 @@ export const EN = {
   'data.delivery.title': 'Where the result goes',
   'settings.schedulesDestinations.advanced.transit.title':
     'Advanced: routing rules and delivery destinations',
+  // No noun in this title may repeat one from `advanced.transit.title` above
+  // — the chain on Alert intake promises "destination" and has to land on
+  // the one section that owns it, unambiguously.
   'settings.schedulesDestinations.advanced.surfaces.title':
-    'Advanced: chat channels, report destinations and notification sinks',
+    'Advanced: chat channels, report recipients and notification sinks',
   'settings.schedulesDestinations.advanced.field.transitRules': 'Routing rules',
   'settings.schedulesDestinations.advanced.field.transitDestinations':
     'Delivery destinations',
