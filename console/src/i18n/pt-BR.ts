@@ -1571,7 +1571,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
     'Formato esperado, mecanismo de confian\u00e7a, e um teste de entrega.',
   'data.ingress.detail.format': 'Espera:',
   'data.ingress.retired':
-    'A entrada de Sentry, PagerDuty, Opsgenie e Datadog foi para o roadmap \u2014 eles voltam com um ambiente que consiga valid\u00e1-los.',
+    'Outras quatro fontes de entrada foram para o roadmap \u2014 elas voltam com um ambiente que consiga valid\u00e1-las.',
   'data.rules.title': 'O que fazer com isso',
   'data.rules.action': 'A\u00e7\u00e3o:',
   'data.rules.catchAll': 'Tudo o que nenhuma regra acima pegou termina aqui.',

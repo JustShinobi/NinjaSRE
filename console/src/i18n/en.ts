@@ -196,9 +196,11 @@ export const EN = {
     'Expected format, trust mechanism, and a delivery test.',
   'data.ingress.detail.format': 'Expects:',
   // The intake sources the environment-validated scope could not carry \u2014
-  // named on the screen the gap is felt on, not only in the catalogue.
+  // said on the screen the gap is felt on, not only in the catalogue. The
+  // vendors are not named here: a surface that lists them is a surface still
+  // offering them, and the roadmap is where that list belongs.
   'data.ingress.retired':
-    'Sentry, PagerDuty, Opsgenie and Datadog intake moved to the roadmap \u2014 they return with an environment that can validate them.',
+    'Four other intake sources moved to the roadmap \u2014 they return with an environment that can validate them.',
   'data.rules.title': 'What happens to it',
   'data.rules.action': 'Action:',
   'data.rules.catchAll': 'Everything no rule above matched ends here.',

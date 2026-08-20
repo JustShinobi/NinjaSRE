@@ -219,7 +219,7 @@
       "viewport": 1440,
       "theme": "light",
       "accepted": {
-        "against": "specs_v6 mockup M4",
+        "against": null,
         "reason": "The catalogue at the size the shipped product actually is: Connected, Suggested by your estate and Available, in that order, each absent rather than empty, under one count that agrees with what the page lists. No pagination control, because fifteen integrations never filled a page of twenty-four and the control had stopped rendering long before it was removed. Search reaches all three sections, so what this capture protects is that a match stays inside the section it belongs to instead of collapsing the page into one list."
       }
     },
@@ -231,7 +231,7 @@
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The credential panel, registered again at a surviving integration after the vendor cut removed both `/integrations/slack` and this entry along with it: alertmanager, verified in the dataset on purpose, so the capture shows the connected state and its three actions — test again, replace credential, disconnect — rather than an empty form with a disabled button. The panel itself is reviewed as a slide-over overlaid on the catalogue, never a block in the document's flow. Reviewed against the credential-panel mockup for layout, hierarchy, grouping and vocabulary. No committed baseline exists yet — this is a new capture and the first acceptance is a deliberate, reviewed one rather than something a gate should manufacture."
+        "reason": "The credential panel, registered again at a surviving integration after the vendor cut removed both the old entry and the vendor it pointed at: alertmanager, verified in the dataset on purpose, so the capture shows the connected state and its three actions — test again, replace credential, disconnect — rather than an empty form with a disabled button. The panel is reviewed as a slide-over overlaid on the catalogue, never a block in the document's flow. No committed baseline exists yet; the first acceptance is a deliberate, reviewed one rather than something a gate should manufacture."
       },
       "pending_because": "Registered so the screen is not forgotten, and deliberately left out of the capture set until a person accepts its first baseline. Carrying it as baselined instead would fail the committed-baseline contract on every run, and — worse — each full gate run would regenerate the missing PNG as a real-looking capture nobody reviewed, which is how an unreviewed baseline gets committed by the next person who stages this directory. It leaves pending the moment someone captures it under review."
     },
@@ -385,7 +385,7 @@
       "viewport": 1440,
       "theme": "light",
       "accepted": {
-        "against": "specs_v6 mockup M3",
+        "against": null,
         "reason": "Three intake sources, each saying what it is actually doing rather than all saying the same nothing. Alertmanager, which is delivering, is expanded: its full delivery URL, Copy URL beside it, Copy Alertmanager receiver YAML, the last delivery in relative time and the week's count. Generic, which has never received anything, is a header line and a closed Format & test disclosure and nothing else. Grafana is the case worth protecting: it is neither of those, because things do arrive there and are turned away, so it keeps its rejection and the reason for it in full. What a capture is for here is the difference in weight between the three — a change that gave silence the same room as delivery would pass every other check while undoing the reason the screen reads this way. Below them the trust line names the delivery token in use and offers to rotate it, and the chain runs arrival, rule, action, destination in one line."
       }
     },

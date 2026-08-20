@@ -822,15 +822,25 @@ describe('the setup wizard handover', () => {
 });
 
 describe('the retired intake sources', () => {
-  it('names what moved to the roadmap, and why', async () => {
+  /**
+   * The footer says intake sources moved and why, without naming them.
+   *
+   * Naming them is what the earlier version of this test required, and it is
+   * the thing the architecture sweep forbids: a surface that lists the vendors
+   * this build cannot validate is a surface still offering them. The roadmap
+   * holds that list. So the claim here is the answer an operator needs — some
+   * sources went somewhere, for a reason — and the assertion is that no
+   * removed vendor is named, which is the half a wording change could lose.
+   */
+  it('says sources moved to the roadmap and why, naming none of them', async () => {
     await page();
 
     const footer = screen.getByTestId('ingress-retired');
-    expect(footer).toHaveTextContent('Sentry');
-    expect(footer).toHaveTextContent('PagerDuty');
-    expect(footer).toHaveTextContent('Opsgenie');
-    expect(footer).toHaveTextContent('Datadog');
     expect(footer).toHaveTextContent('roadmap');
+    expect(footer).toHaveTextContent(/validate/i);
+    for (const removed of ['Sentry', 'PagerDuty', 'Opsgenie', 'Datadog']) {
+      expect(footer).not.toHaveTextContent(removed);
+    }
   });
 });
 
