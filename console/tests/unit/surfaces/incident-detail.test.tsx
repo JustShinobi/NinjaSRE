@@ -257,12 +257,17 @@ describe('an incident whose investigation is still running', () => {
     expect(screen.getByTestId('evidence-query')).toHaveTextContent('Not recorded');
     expect(screen.getByTestId('evidence-result')).toHaveTextContent('Not recorded');
 
-    // A decision already made shows as decided, not "awaiting" — and one
-    // resource, not the plural form.
+    // A decision already made shows as decided, not "awaiting".
     const card = screen.getByTestId('proposed-action');
     expect(within(card).getByTestId('decision-state')).toHaveTextContent('Approved');
+
+    // This proposal carries no blast radius of its own, and the card says so
+    // rather than counting the incident's subjects. The two are different
+    // questions: how far the *action* reaches is not how many things the
+    // incident is about, and answering the second while appearing to answer
+    // the first is the failure this states plainly instead.
     expect(within(card).getByTestId('radius-resources')).toHaveTextContent(
-      '1 resource',
+      'Not recorded',
     );
     expect(within(card).getByTestId('radius-zone')).toHaveTextContent('lab');
     expect(within(card).getByTestId('radius-criticality')).toHaveTextContent('high');
@@ -271,5 +276,106 @@ describe('an incident whose investigation is still running', () => {
       'href',
       '/runs/run-cedar-1',
     );
+  });
+});
+
+describe('what the proposed-action card is allowed to claim', () => {
+  const incident = () => ({
+    incident_id: 'inc-claim-01',
+    title: 'birch is unreachable',
+    summary: 'the probe against birch has failed',
+    state: 'investigating',
+    severity: 'critical',
+    origin: 'alert',
+    detector: 'InstanceDown',
+    subjects: ['birch', 'cedar', 'anchor'],
+    opened_at: '2026-08-07T06:00:00+00:00',
+    closed_at: null,
+    run_id: 'run-birch-1',
+  });
+
+  const timelineOf = (kinds: readonly string[]) =>
+    kinds.map((kind, index) => ({
+      at: `2026-08-07T06:00:0${String(index + 1)}+00:00`,
+      kind,
+      actor: 'system:observation',
+      cause: `a ${kind} step`,
+      detail: '',
+      query: '',
+      result: '',
+    }));
+
+  function seed(kinds: readonly string[], blastRadiusCount: number | null): void {
+    const body = incident();
+    serve({
+      '/auth/me': PRINCIPAL,
+      '/v1/incidents/inc-claim-01': {
+        incident: body,
+        subjects: [],
+        observations: [],
+        timeline: timelineOf(kinds),
+        actions: [],
+        investigation: { step_count: kinds.length, duration_ms: 5000, cost: 0.5 },
+      },
+      '/v1/estate/resources/birch': {
+        resource: {
+          resource_id: 'birch',
+          kind: 'container',
+          display_name: 'birch',
+          health: 'unhealthy',
+          stored_health: 'unhealthy',
+          is_stale: false,
+          source: 'demo',
+          attributes: { zone: 'apps', criticality: 'medium' },
+        },
+      },
+      '/v1/approvals?run_id=run-birch-1': {
+        approvals: [
+          {
+            approval_id: 'apr-birch-1',
+            run_id: 'run-birch-1',
+            action: 'proxmox.start_guest',
+            side_effect_level: 'write_reversible',
+            summary: 'Start birch again.',
+            requested_at: '2026-08-07T06:01:00+00:00',
+            expires_at: '2026-08-07T07:01:00+00:00',
+            state: 'pending',
+            arguments: {},
+            decided_at: null,
+            decided_by: null,
+            reason: null,
+            rollback_plan: null,
+            blast_radius_count: blastRadiusCount,
+          },
+        ],
+      },
+    });
+  }
+
+  it('shows the action own reach when the proposal carries one', async () => {
+    // Three subjects on the incident, two resources in the action's reach.
+    // The card must report the second, so a screen that quietly counted
+    // subjects would read "3 resources" here and fail.
+    seed(['alert_received', 'hypotheses_drawn', 'evidence', 'diagnosis'], 2);
+    await renderIncident('inc-claim-01');
+
+    const card = screen.getByTestId('proposed-action');
+    expect(within(card).getByTestId('radius-resources')).toHaveTextContent(
+      '2 resources',
+    );
+  });
+
+  it('does not offer a proposal when no conclusion was ever supported', async () => {
+    // The same pending approval is served, and the timeline stops at the
+    // hypotheses. A conclusion with nothing under it is recorded as a
+    // hypothesis rather than a diagnosis, so the absence of a diagnosis step
+    // is what "nothing was ever supported" looks like from here — and a
+    // proposal raised over that must not be offered for decision.
+    seed(['alert_received', 'hypotheses_drawn', 'evidence'], 2);
+    await renderIncident('inc-claim-01');
+
+    expect(screen.queryByTestId('proposed-action')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('decision-control')).not.toBeInTheDocument();
+    expect(screen.getByText('Nothing proposed yet')).toBeInTheDocument();
   });
 });

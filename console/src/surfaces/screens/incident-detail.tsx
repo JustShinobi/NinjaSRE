@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { CONTROL_SHAPE, STATE_SKIN, VARIANT_SKIN } from '@/components/action';
 import { Breadcrumb } from '@/components/navigation';
 import { ResolvedChip } from '@/components/status';
-import { cx } from '@/design/cx';
 import type { Shape } from '@/design/status';
 import { statusPresentation } from '@/design/status';
 import type { SemanticRole } from '@/design/tokens';
@@ -25,6 +23,7 @@ import {
   stateOf,
   text,
 } from '../read';
+import { IncidentDecisionControls } from './incident-decision-controls';
 import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
 
 /**
@@ -151,6 +150,11 @@ export async function IncidentDetailScreen(
     .map((entry) => ({ entry, kind: REASONING_KIND[text(entry, 'kind')] ?? '' }))
     .filter((row) => row.kind !== '');
   const hasReportDelivered = steps.some((row) => row.kind === 'delivery');
+  // A diagnosis is the one reasoning step Article I lets a remediation stand
+  // on. Without one, whatever is in the store is a hypothesis at best — and
+  // proposing a remediation over that is the one outcome this page must never
+  // render, whatever a pending approval happens to say (see below).
+  const hasDiagnosis = steps.some((row) => row.kind === 'diagnosis');
 
   const stepCount = hasInvestigation ? numberOrNull(investigation, 'step_count') : null;
   const durationMs = hasInvestigation
@@ -203,17 +207,23 @@ export async function IncidentDetailScreen(
   const hostText = subjectKind === '' ? subjectName : `${subjectKind} ${subjectName}`;
 
   // --- Proposed action: what is on the table, its reach, and the posture ------
+  // A proposal that exists in the store is not enough to show the card: an
+  // approval raised over a diagnosis that never solidified is exactly the
+  // outcome Article I forbids (see `hasDiagnosis` above), so the card treats
+  // that combination the same as no proposal at all.
+  const proposalId = text(proposal, 'approval_id');
+  const hasProposal = proposal !== undefined && proposalId !== '' && hasDiagnosis;
   const decisionState = text(proposal, 'state');
   const decisionLabel = message(
     locale,
     DECISION_STATE_LABEL[decisionState] ?? 'incident.proposedAction.state.pending',
   );
   const actionSentence = text(proposal, 'summary');
-  // The action's own blast radius is not yet a field this route serves (that is
-  // the decision routes' job — see the ledger). Approximated here from the
-  // incident's own subjects and the subject already read for the header, both
-  // real data, rather than a number this screen invents.
-  const radiusResources = subjects.length;
+  // The action's own blast radius — how many resources the topology graph
+  // says depend on the target, not how many subjects this incident carries,
+  // a different number answering a different question. `None` when nothing
+  // has computed one for this request yet: never a fabricated count.
+  const radiusResourceCount = numberOrNull(proposal, 'blast_radius_count');
   const radiusCriticality = criticalityOf(subjectRecord);
   const radiusCriticalityText =
     radiusCriticality === ''
@@ -418,7 +428,7 @@ export async function IncidentDetailScreen(
         <div data-testid="incident-column" className="flex flex-col gap-5 min-w-0">
           <Panel
             title={message(locale, 'incident.proposedAction.title')}
-            state={stateOf(approvals, proposal === undefined)}
+            state={stateOf(approvals, !hasProposal)}
             dependency={dependencyOf(approvals)}
             labels={panelLabels(
               locale,
@@ -431,6 +441,9 @@ export async function IncidentDetailScreen(
               href: hasInvestigation ? `/runs/${runId}` : '/first-run',
             }}
           >
+            {/* This panel's own `state` is gated on `!hasProposal` above, so by
+                the time children render here `proposal` is always defined and
+                its diagnosis is always real. */}
             <div data-testid="proposed-action" className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <span data-testid="decision-state" className="text-strong">
@@ -442,13 +455,15 @@ export async function IncidentDetailScreen(
               </p>
               <p data-testid="blast-radius" className="text-meta text-muted">
                 <span data-testid="radius-resources">
-                  {message(
-                    locale,
-                    radiusResources === 1
-                      ? 'incident.proposedAction.radius.resources.one'
-                      : 'incident.proposedAction.radius.resources.other',
-                    { count: radiusResources === 0 ? 1 : radiusResources },
-                  )}
+                  {radiusResourceCount === null
+                    ? none
+                    : message(
+                        locale,
+                        radiusResourceCount === 1
+                          ? 'incident.proposedAction.radius.resources.one'
+                          : 'incident.proposedAction.radius.resources.other',
+                        { count: radiusResourceCount },
+                      )}
                 </span>
                 {', '}
                 <span data-testid="radius-zone">
@@ -468,35 +483,21 @@ export async function IncidentDetailScreen(
                   posture: message(locale, 'shell.guardian.posture.propose'),
                 })}
               </p>
-              {/* Not yet wired to a decision route — that is a later slice's job.
-                  Disabled rather than merely styled inert, so a control that does
-                  not work yet cannot be mistaken for one that does. */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled
-                  data-testid="decision-control"
-                  className={cx(
-                    CONTROL_SHAPE,
-                    VARIANT_SKIN.primary,
-                    STATE_SKIN.disabled,
-                  )}
-                >
-                  {message(locale, 'incident.proposedAction.approve')}
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  data-testid="decision-control"
-                  className={cx(
-                    CONTROL_SHAPE,
-                    VARIANT_SKIN.secondary,
-                    STATE_SKIN.disabled,
-                  )}
-                >
-                  {message(locale, 'incident.proposedAction.reject')}
-                </button>
-              </div>
+              {decisionState === 'pending' ? (
+                <IncidentDecisionControls
+                  approvalId={proposalId}
+                  labels={{
+                    approve: message(locale, 'incident.proposedAction.approve'),
+                    reject: message(locale, 'incident.proposedAction.reject'),
+                    reason: message(locale, 'incident.proposedAction.reason'),
+                    reasonRequired: message(
+                      locale,
+                      'incident.proposedAction.reasonRequired',
+                    ),
+                    failed: message(locale, 'incident.proposedAction.decisionFailed'),
+                  }}
+                />
+              ) : null}
             </div>
           </Panel>
 

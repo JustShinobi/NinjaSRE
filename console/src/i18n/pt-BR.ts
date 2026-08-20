@@ -690,6 +690,10 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.proposedAction.posture': 'A postura é {posture} — nada executa sem você.',
   'incident.proposedAction.approve': 'Aprovar e executar',
   'incident.proposedAction.reject': 'Rejeitar',
+  'incident.proposedAction.reason': 'Motivo',
+  'incident.proposedAction.reasonRequired': 'Um motivo é obrigatório para rejeitar.',
+  'incident.proposedAction.decisionFailed':
+    'A decisão não foi registrada. Tente novamente.',
   'incident.proposedAction.radius.resources.one': '{count} recurso',
   'incident.proposedAction.radius.resources.other': '{count} recursos',
   'incident.proposedAction.radius.zone': 'zona {zone}',
