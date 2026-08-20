@@ -1,12 +1,18 @@
 import type { ReactNode } from 'react';
 
-import { Badge } from '@/components/status';
-import { formatCount, formatNumber, timestamp } from '@/i18n/format';
+import { CONTROL_SHAPE, STATE_SKIN, VARIANT_SKIN } from '@/components/action';
+import { Breadcrumb } from '@/components/navigation';
+import { ResolvedChip } from '@/components/status';
+import { cx } from '@/design/cx';
+import type { Shape } from '@/design/status';
+import { statusPresentation } from '@/design/status';
+import type { SemanticRole } from '@/design/tokens';
+import { formatCurrency, formatDuration, timestamp } from '@/i18n/format';
+import type { MessageKey } from '@/i18n/en';
 import { message } from '@/i18n/messages';
-import { AreaHeader } from '@/shell/area';
-import { areaFor } from '@/shell/routes';
+import { areaFor, trailFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { eventTimes, panelLabels, transcriptLabels } from '../labels';
+import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
   authorised,
@@ -14,25 +20,88 @@ import {
   dependencyOf,
   field,
   list,
-  pairs,
   panelRead,
   read,
   stateOf,
   text,
 } from '../read';
-import { eventsFromReplay } from '../transcript';
-import { Transcript } from '../transcript-view';
+import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
 
 /**
- * One incident: what is wrong, what is being proposed about it, and how the
- * conclusion was reached.
+ * One incident: what arrived, what was reasoned about it, what was found, what
+ * was concluded, what was delivered — and, when a remediation is on the table,
+ * what is proposed and what it would reach.
  *
- * The rail carries the derivation rather than a provider's word for it. That
- * panel is the visible form of "health is derived, not declared": named signals,
- * their values, their thresholds, and a note that the raw provider status is
- * retained. A console that showed `status: unknown` and stopped would be asking
- * an operator to trust a string.
+ * The mockup this screen answers to draws two columns: the investigation on
+ * the left, as a timeline that reads top to bottom in the order an
+ * investigation actually produces it; the proposed action and the evidence
+ * trail on the right, because a decision and the receipt for it belong beside
+ * each other rather than beneath a scroll.
+ *
+ * Every card here fails alone. An incident with no investigation attached
+ * names that absence and the setup step that resolves it — never a blank
+ * card — because "this deployment cannot investigate yet" and "this
+ * investigation found nothing" are opposite facts and must not render the
+ * same way.
  */
+
+const CURRENCY = 'USD';
+
+/** The five reasoning kinds `TimelineKind` carries, mapped to the short,
+ * stable name this screen's own test hooks use — see `data-kind` below. */
+const REASONING_KIND: Readonly<Record<string, string>> = {
+  alert_received: 'receipt',
+  hypotheses_drawn: 'hypotheses',
+  evidence: 'evidence',
+  diagnosis: 'diagnosis',
+  report_delivered: 'delivery',
+};
+
+const STEP_HEADING: Readonly<Record<string, MessageKey>> = {
+  receipt: 'incident.investigation.step.receipt',
+  hypotheses: 'incident.investigation.step.hypotheses',
+  evidence: 'incident.investigation.step.evidence',
+  diagnosis: 'incident.investigation.step.diagnosis',
+  delivery: 'incident.investigation.step.delivery',
+};
+
+const INCIDENT_STATE_LABEL: Readonly<Record<string, MessageKey>> = {
+  open: 'incident.chip.state.open',
+  investigating: 'incident.chip.state.investigating',
+  awaiting_human: 'incident.chip.state.awaitingHuman',
+  remediating: 'incident.chip.state.remediating',
+  resolved: 'incident.chip.state.resolved',
+  suppressed: 'incident.chip.state.suppressed',
+  closed_without_action: 'incident.chip.state.closedWithoutAction',
+};
+
+const ORIGIN_LABEL: Readonly<Record<string, MessageKey>> = {
+  alert: 'incident.origin.alert',
+  detector: 'incident.origin.detector',
+  human: 'incident.origin.human',
+};
+
+const DECISION_STATE_LABEL: Readonly<Record<string, MessageKey>> = {
+  pending: 'incident.proposedAction.state.pending',
+  approved: 'incident.proposedAction.state.approved',
+  rejected: 'incident.proposedAction.state.rejected',
+  expired: 'incident.proposedAction.state.expired',
+};
+
+/** `record.name` when it is a finite number, and `null` — never a fabricated
+ * zero — when it is missing or not a number. */
+function numberOrNull(record: unknown, name: string): number | null {
+  const found = field(record, name);
+  return typeof found === 'number' && Number.isFinite(found) ? found : null;
+}
+
+/** Every non-empty piece of `text`, split on `separator` and trimmed. */
+function splitNonEmpty(source: string, separator: string): readonly string[] {
+  return source
+    .split(separator)
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+}
 
 export async function IncidentDetailScreen(
   context: SurfaceContext,
@@ -40,6 +109,7 @@ export async function IncidentDetailScreen(
 ): Promise<ReactNode> {
   const { credential, locale, now, zone } = context;
   const init = authorised(credential);
+  const none = message(locale, 'surface.none');
 
   const detail = await panelRead('/v1/incidents/{incident_id}', () =>
     read('/v1/incidents/{incident_id}', {
@@ -49,123 +119,295 @@ export async function IncidentDetailScreen(
   );
   const body = dataOf(detail);
   const incident = field(body, 'incident');
-  const observations = list(body, 'observations');
-  const runId = text(incident, 'run_id');
-  const [first] = list(incident, 'subjects');
-  const subject = typeof first === 'string' ? first : '';
-
-  const [replay, resource] = await Promise.all([
-    // An incident with no run has no transcript, and asking for one at an empty
-    // address would be a 404 dressed up as a failure.
-    panelRead<unknown>('/v1/runs/{run_id}/replay', () =>
-      runId === ''
-        ? Promise.resolve({})
-        : read('/v1/runs/{run_id}/replay', { ...init, params: { run_id: runId } }),
-    ),
-    // An incident with no subject has no resource, and the same reasoning as
-    // the replay above applies: an empty address answers 404, which would read
-    // on the screen as a resource that has gone.
-    panelRead<unknown>('/v1/estate/resources/{resource_id}', () =>
-      subject === ''
-        ? Promise.resolve({})
-        : read('/v1/estate/resources/{resource_id}', {
-            ...init,
-            params: { resource_id: subject },
-          }),
-    ),
-  ]);
-
-  const events = eventsFromReplay(dataOf(replay));
-  // The named signals the state was derived from. This is the visible form of
-  // "health is derived, not declared": the endpoint says what it concluded and
-  // what it concluded it from, and this panel shows both.
-  const health = list(field(dataOf(resource), 'derivation'), 'signals');
-  const record = field(dataOf(resource), 'resource');
   const timeline = list(body, 'timeline');
+  const investigation = field(body, 'investigation');
+  const hasInvestigation = investigation !== null && investigation !== undefined;
+  const runId = text(incident, 'run_id');
+  const subjects = list(incident, 'subjects');
+  const subject = typeof subjects[0] === 'string' ? subjects[0] : '';
+
+  const resource = await panelRead<unknown>('/v1/estate/resources/{resource_id}', () =>
+    subject === ''
+      ? Promise.resolve({})
+      : read('/v1/estate/resources/{resource_id}', {
+          ...init,
+          params: { resource_id: subject },
+        }),
+  );
+  const subjectRecord = field(dataOf(resource), 'resource');
+
+  const approvals = await panelRead<unknown>('/v1/approvals', () =>
+    runId === ''
+      ? Promise.resolve({ approvals: [] })
+      : read('/v1/approvals', {
+          ...init,
+          query: `?run_id=${encodeURIComponent(runId)}`,
+        }),
+  );
+  const [proposal] = list(dataOf(approvals), 'approvals');
+
+  // --- The five reasoning steps, in the order they happened -------------------
+  const steps = timeline
+    .map((entry) => ({ entry, kind: REASONING_KIND[text(entry, 'kind')] ?? '' }))
+    .filter((row) => row.kind !== '');
+  const hasReportDelivered = steps.some((row) => row.kind === 'delivery');
+
+  const stepCount = hasInvestigation ? numberOrNull(investigation, 'step_count') : null;
+  const durationMs = hasInvestigation
+    ? numberOrNull(investigation, 'duration_ms')
+    : null;
+  const cost = hasInvestigation ? numberOrNull(investigation, 'cost') : null;
+
+  // --- Header: trail, title, the two chips -------------------------------------
+  const title = text(incident, 'title') || incidentId;
+  const trail = trailFor(areaFor('incidents'), [{ label: title }]);
+
+  const incidentState = text(incident, 'state');
+  const incidentPresented = statusPresentation(incidentState);
+  const incidentStateLabel = message(
+    locale,
+    INCIDENT_STATE_LABEL[incidentState] ?? 'incident.chip.state.open',
+  );
+
+  const investigationChip: { role: SemanticRole; shape: Shape; label: string } =
+    !hasInvestigation
+      ? {
+          role: 'neutral',
+          shape: 'dash',
+          label: message(locale, 'incident.chip.investigation.none'),
+        }
+      : hasReportDelivered
+        ? {
+            role: 'success',
+            shape: 'filled-circle',
+            label: message(locale, 'incident.chip.investigation.finished'),
+          }
+        : {
+            role: 'info',
+            shape: 'rotated-square',
+            label: message(locale, 'incident.chip.investigation.running'),
+          };
+
+  // --- Subtitle: rule, source, instant, zone, host -----------------------------
+  const rule = text(incident, 'detector');
+  const source = message(
+    locale,
+    ORIGIN_LABEL[text(incident, 'origin')] ?? 'incident.origin.detector',
+  );
   const opened = timestamp(locale, text(incident, 'opened_at'), now, zone);
-  const none = message(locale, 'surface.none');
+  const subjectZone = zoneOf(subjectRecord);
+  const zoneText =
+    subjectZone === UNPLACED ? message(locale, 'resources.zone.unplaced') : subjectZone;
+  const subjectKind = text(subjectRecord, 'kind');
+  const subjectName = text(subjectRecord, 'display_name') || subject;
+  const hostText = subjectKind === '' ? subjectName : `${subjectKind} ${subjectName}`;
+
+  // --- Proposed action: what is on the table, its reach, and the posture ------
+  const decisionState = text(proposal, 'state');
+  const decisionLabel = message(
+    locale,
+    DECISION_STATE_LABEL[decisionState] ?? 'incident.proposedAction.state.pending',
+  );
+  const actionSentence = text(proposal, 'summary');
+  // The action's own blast radius is not yet a field this route serves (that is
+  // the decision routes' job — see the ledger). Approximated here from the
+  // incident's own subjects and the subject already read for the header, both
+  // real data, rather than a number this screen invents.
+  const radiusResources = subjects.length;
+  const radiusCriticality = criticalityOf(subjectRecord);
+  const radiusCriticalityText =
+    radiusCriticality === ''
+      ? message(locale, 'resources.criticality.ungraded')
+      : radiusCriticality;
 
   return (
     <>
-      <AreaHeader
-        area={areaFor('incidents')}
-        locale={locale}
-        nested={[
-          {
-            label:
-              text(incident, 'title') === '' ? incidentId : text(incident, 'title'),
-          },
-        ]}
-        actions={
-          <>
-            <Badge status={text(incident, 'severity')} />
-            <Badge status={text(incident, 'state')} />
-          </>
-        }
-      />
+      <div data-testid="page-header" data-area={areaFor('incidents').id}>
+        <div data-testid="incident-trail">
+          <Breadcrumb
+            label={message(locale, 'breadcrumb.label')}
+            trail={trail.map((crumb) => ({
+              label: crumb.translate ? message(locale, crumb.label) : crumb.label,
+              ...(crumb.href === undefined ? {} : { href: crumb.href }),
+            }))}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <h1 data-testid="incident-title" className="text-title">
+            {title}
+          </h1>
+          <ResolvedChip
+            testId="incident-chip"
+            role={incidentPresented.role}
+            shape={incidentPresented.shape}
+            label={incidentStateLabel}
+          />
+          <ResolvedChip
+            testId="incident-chip"
+            role={investigationChip.role}
+            shape={investigationChip.shape}
+            label={investigationChip.label}
+          />
+        </div>
+        <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
+          <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>
+          {' · '}
+          <span data-testid="subtitle-source">{source}</span>
+          {' · '}
+          <span data-testid="subtitle-instant">
+            {message(locale, 'incident.subtitle.started', { when: opened.relative })}
+          </span>
+          {' · '}
+          <span data-testid="subtitle-zone">
+            {message(locale, 'incident.subtitle.zone', { zone: zoneText })}
+          </span>
+          {' · '}
+          <span data-testid="subtitle-host">{hostText === '' ? none : hostText}</span>
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="lg:col-span-2 min-w-0 flex flex-col gap-5">
+        <div
+          data-testid="incident-column"
+          className="lg:col-span-2 min-w-0 flex flex-col gap-5"
+        >
           <Panel
-            title={message(locale, 'transcript.title')}
-            state={stateOf(replay, events.length === 0)}
-            dependency={dependencyOf(replay)}
-            labels={panelLabels(locale, message(locale, 'transcript.title'))}
-            empty={{
-              heading: message(locale, 'transcript.empty.heading'),
-              body: message(locale, 'transcript.empty.body'),
-              actionLabel: message(locale, 'transcript.empty.action'),
-              href: '/runs',
-            }}
-            action={
-              <span className="text-meta text-muted">
-                {formatCount(
-                  locale,
-                  events.length,
-                  'transcript.events.one',
-                  'transcript.events',
-                )}
-              </span>
-            }
-          >
-            <Transcript
-              events={events}
-              labels={transcriptLabels(locale, events)}
-              times={eventTimes(locale, events, now, zone)}
-            />
-          </Panel>
-
-          <Panel
-            title={message(locale, 'incident.timeline.title')}
-            state={stateOf(detail, timeline.length === 0)}
+            title={message(locale, 'incident.investigation.title')}
+            state={stateOf(detail, steps.length === 0)}
             dependency={dependencyOf(detail)}
-            labels={panelLabels(locale, message(locale, 'incident.timeline.title'))}
+            labels={panelLabels(
+              locale,
+              message(locale, 'incident.investigation.title'),
+            )}
+            action={
+              hasInvestigation ? (
+                <span
+                  data-testid="investigation-summary"
+                  className="flex items-center gap-2 text-meta text-muted"
+                >
+                  <span data-testid="summary-steps">
+                    {stepCount === null
+                      ? none
+                      : message(
+                          locale,
+                          stepCount === 1
+                            ? 'incident.investigation.steps.one'
+                            : 'incident.investigation.steps.other',
+                          { count: stepCount },
+                        )}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span data-testid="summary-duration">
+                    {durationMs === null
+                      ? none
+                      : formatDuration(locale, durationMs / 1000)}
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span data-testid="summary-cost">
+                    {cost === null ? none : formatCurrency(locale, cost, CURRENCY)}
+                  </span>
+                </span>
+              ) : undefined
+            }
             empty={{
-              heading: message(locale, 'incident.timeline.empty.heading'),
-              body: message(locale, 'incident.timeline.empty.body'),
-              actionLabel: message(locale, 'incident.timeline.empty.action'),
-              href: '/incidents',
+              heading: message(locale, 'incident.investigation.empty.heading'),
+              body: message(locale, 'incident.investigation.empty.body'),
+              actionLabel: message(locale, 'incident.investigation.empty.action'),
+              href: '/first-run',
             }}
           >
-            <ol className="flex flex-col gap-3">
-              {timeline.map((entry) => {
+            <ol className="flex flex-col gap-4">
+              {steps.map(({ entry, kind }, index) => {
                 const at = timestamp(locale, text(entry, 'at'), now, zone);
+                const cause = text(entry, 'cause');
+                const detailText = text(entry, 'detail');
                 return (
                   <li
-                    key={`${text(entry, 'kind')}-${text(entry, 'at')}`}
+                    key={`${kind}-${String(index)}`}
+                    data-testid="investigation-step"
+                    data-kind={kind}
                     className="flex gap-3"
                   >
                     <time
+                      data-testid="step-time"
                       dateTime={at.iso}
                       title={at.absolute}
                       className="text-meta text-muted tabular-nums shrink-0"
                     >
                       {at.relative}
                     </time>
-                    <span className="min-w-0 flex flex-col gap-1">
-                      <Badge status={text(entry, 'kind')} />
-                      <span className="text-small">{text(entry, 'detail')}</span>
-                    </span>
+                    <div className="min-w-0 flex flex-col gap-1">
+                      <p className="text-small">
+                        <span className="text-strong">
+                          {message(
+                            locale,
+                            STEP_HEADING[kind] ??
+                              'incident.investigation.step.evidence',
+                          )}
+                        </span>
+                        {' — '}
+                        <span data-testid="step-detail">
+                          {cause === '' ? none : cause}
+                        </span>
+                      </p>
+                      {kind === 'receipt' ? (
+                        <>
+                          <span
+                            data-testid="step-labels"
+                            className="font-mono text-meta"
+                          >
+                            {detailText === '' ? none : detailText}
+                          </span>
+                          <p className="text-meta text-muted">
+                            {message(
+                              locale,
+                              'incident.investigation.step.receipt.tokenLabel',
+                            )}{' '}
+                            <span data-testid="delivery-token-name">
+                              {detailText === '' ? none : detailText}
+                            </span>
+                          </p>
+                        </>
+                      ) : null}
+                      {kind === 'hypotheses' ? (
+                        <ul className="flex flex-col gap-1">
+                          {splitNonEmpty(detailText, '; ').map((hypothesis) => (
+                            <li
+                              key={hypothesis}
+                              data-testid="hypothesis"
+                              className="text-small"
+                            >
+                              {hypothesis}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {kind === 'evidence' ? (
+                        <div className="font-mono text-meta bg-sunken rounded-2 p-2 flex flex-col gap-1">
+                          <p data-testid="evidence-query">
+                            {text(entry, 'query') || none}
+                          </p>
+                          <p data-testid="evidence-result">
+                            {text(entry, 'result') || none}
+                          </p>
+                        </div>
+                      ) : null}
+                      {kind === 'delivery' ? (
+                        <p className="text-meta text-muted">
+                          {splitNonEmpty(detailText, ', ').map(
+                            (destination, position, all) => (
+                              <span
+                                key={destination}
+                                data-testid="delivery-destination"
+                              >
+                                {destination}
+                                {position < all.length - 1 ? ', ' : ''}
+                              </span>
+                            ),
+                          )}
+                        </p>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}
@@ -173,112 +415,121 @@ export async function IncidentDetailScreen(
           </Panel>
         </div>
 
-        <div className="flex flex-col gap-5 min-w-0">
+        <div data-testid="incident-column" className="flex flex-col gap-5 min-w-0">
           <Panel
-            title={message(locale, 'incident.subject.title')}
-            state={stateOf(detail, subject === '')}
+            title={message(locale, 'incident.proposedAction.title')}
+            state={stateOf(approvals, proposal === undefined)}
+            dependency={dependencyOf(approvals)}
+            labels={panelLabels(
+              locale,
+              message(locale, 'incident.proposedAction.title'),
+            )}
+            empty={{
+              heading: message(locale, 'incident.proposedAction.empty.heading'),
+              body: message(locale, 'incident.proposedAction.empty.body'),
+              actionLabel: message(locale, 'incident.proposedAction.empty.action'),
+              href: hasInvestigation ? `/runs/${runId}` : '/first-run',
+            }}
+          >
+            <div data-testid="proposed-action" className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span data-testid="decision-state" className="text-strong">
+                  {decisionLabel}
+                </span>
+              </div>
+              <p data-testid="action-sentence" className="text-small">
+                {actionSentence === '' ? none : actionSentence}
+              </p>
+              <p data-testid="blast-radius" className="text-meta text-muted">
+                <span data-testid="radius-resources">
+                  {message(
+                    locale,
+                    radiusResources === 1
+                      ? 'incident.proposedAction.radius.resources.one'
+                      : 'incident.proposedAction.radius.resources.other',
+                    { count: radiusResources === 0 ? 1 : radiusResources },
+                  )}
+                </span>
+                {', '}
+                <span data-testid="radius-zone">
+                  {message(locale, 'incident.proposedAction.radius.zone', {
+                    zone: zoneText,
+                  })}
+                </span>
+                {', '}
+                <span data-testid="radius-criticality">
+                  {message(locale, 'incident.proposedAction.radius.criticality', {
+                    criticality: radiusCriticalityText,
+                  })}
+                </span>
+              </p>
+              <p data-testid="posture" className="text-meta text-muted">
+                {message(locale, 'incident.proposedAction.posture', {
+                  posture: message(locale, 'shell.guardian.posture.propose'),
+                })}
+              </p>
+              {/* Not yet wired to a decision route — that is a later slice's job.
+                  Disabled rather than merely styled inert, so a control that does
+                  not work yet cannot be mistaken for one that does. */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled
+                  data-testid="decision-control"
+                  className={cx(
+                    CONTROL_SHAPE,
+                    VARIANT_SKIN.primary,
+                    STATE_SKIN.disabled,
+                  )}
+                >
+                  {message(locale, 'incident.proposedAction.approve')}
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  data-testid="decision-control"
+                  className={cx(
+                    CONTROL_SHAPE,
+                    VARIANT_SKIN.secondary,
+                    STATE_SKIN.disabled,
+                  )}
+                >
+                  {message(locale, 'incident.proposedAction.reject')}
+                </button>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel
+            title={message(locale, 'incident.evidenceTrail.title')}
+            state={stateOf(detail, runId === '')}
             dependency={dependencyOf(detail)}
-            labels={panelLabels(locale, message(locale, 'incident.subject.title'))}
+            labels={panelLabels(
+              locale,
+              message(locale, 'incident.evidenceTrail.title'),
+            )}
             empty={{
-              heading: message(locale, 'incidents.empty.heading'),
-              body: message(locale, 'incidents.empty.body'),
-              actionLabel: message(locale, 'incidents.empty.action'),
-              href: '/resources',
+              heading: message(locale, 'incident.evidenceTrail.empty.heading'),
+              body: message(locale, 'incident.evidenceTrail.empty.body'),
+              actionLabel: message(locale, 'incident.evidenceTrail.empty.action'),
+              href: '/first-run',
             }}
           >
-            <dl className="flex flex-col gap-2 text-small">
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'incident.subject.resource')}
-                </dt>
-                <dd className="ml-auto font-mono break-all">{subject}</dd>
-              </div>
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'incident.subject.kind')}
-                </dt>
-                <dd className="ml-auto">
-                  {text(record, 'kind') === '' ? none : text(record, 'kind')}
-                </dd>
-              </div>
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'incident.subject.health')}
-                </dt>
-                <dd className="ml-auto">
-                  <Badge
-                    status={
-                      text(record, 'health') === '' ? 'unknown' : text(record, 'health')
-                    }
-                  />
-                </dd>
-              </div>
-              <div className="flex items-center gap-3">
-                <dt className="text-muted">
-                  {message(locale, 'incident.subject.lastSeen')}
-                </dt>
-                <dd className="ml-auto">
-                  {text(record, 'last_seen_at') === ''
-                    ? none
-                    : timestamp(locale, text(record, 'last_seen_at'), now, zone)
-                        .relative}
-                </dd>
-              </div>
-            </dl>
+            {/* This panel's own `state` is gated on `runId === ''` above, so by
+                the time children render here a run is always attached — the
+                link never has nothing to point at. */}
+            <div data-testid="evidence-trail" className="flex flex-col gap-2">
+              <p className="text-meta text-muted">
+                {message(locale, 'incident.evidenceTrail.body')}
+              </p>
+              <a
+                href={`/runs/${runId}`}
+                className="text-small underline underline-offset-2"
+              >
+                {message(locale, 'incident.evidenceTrail.link')}
+              </a>
+            </div>
           </Panel>
-
-          <Panel
-            title={message(locale, 'incident.derivation.title')}
-            state={stateOf(resource, health.length === 0 && observations.length === 0)}
-            dependency={dependencyOf(resource)}
-            labels={panelLabels(locale, message(locale, 'incident.derivation.title'))}
-            empty={{
-              heading: message(locale, 'incident.derivation.empty.heading'),
-              body: message(locale, 'incident.derivation.empty.body'),
-              actionLabel: message(locale, 'incident.derivation.empty.action'),
-              href: '/signals?tab=observation',
-            }}
-          >
-            <p className="text-meta text-muted mb-2">
-              {message(locale, 'incident.derivation.lead', {
-                count: formatNumber(locale, health.length + observations.length),
-              })}
-            </p>
-            <ul data-testid="derivation" className="flex flex-col gap-2 text-small">
-              {health.map((check) => (
-                <li key={text(check, 'name')} className="flex items-center gap-2">
-                  <span className="font-mono min-w-0 truncate">
-                    {text(check, 'name')}
-                  </span>
-                  <Badge status={text(check, 'value')} className="ml-auto" />
-                  <span className="text-meta text-muted">{text(check, 'source')}</span>
-                </li>
-              ))}
-              {observations.map((observation) =>
-                pairs(observation, 'evidence').map(([name, value]) => (
-                  <li
-                    key={`${text(observation, 'observation_id')}-${name}`}
-                    className="flex items-center gap-2"
-                  >
-                    <span className="font-mono min-w-0 truncate">{name}</span>
-                    <span className="ml-auto tabular-nums">{value}</span>
-                  </li>
-                )),
-              )}
-            </ul>
-            {/* Said out loud, because the whole point of this panel is that the
-                verdict is derived rather than repeated from a provider. */}
-            <p className="text-meta text-muted mt-2">
-              {message(locale, 'incident.derivation.retained')}
-            </p>
-          </Panel>
-
-          <p className="text-meta text-muted">
-            <time dateTime={opened.iso} title={opened.absolute}>
-              {opened.relative}
-            </time>{' '}
-            · {text(incident, 'detector')}
-          </p>
         </div>
       </div>
     </>

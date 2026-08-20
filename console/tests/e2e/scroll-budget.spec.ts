@@ -133,3 +133,50 @@ for (const tab of AUTONOMY_TABS) {
     ).toBeLessThanOrEqual(TAB_BUDGET_PX);
   });
 }
+
+// --- The incident page (M6): two columns, held to the same budget ----------
+
+/**
+ * The incident the dataset details, read the same way the M6 acceptance spec
+ * reads it — from the capture, never as a literal — so this measurement keeps
+ * pointing at whichever incident actually carries a timeline.
+ */
+function detailedIncidentId(): string {
+  const source = readFileSync(
+    fileURLToPath(
+      new URL(
+        '../../../fixtures/scenarios/populated/incident-detail.json',
+        import.meta.url,
+      ),
+    ),
+    'utf8',
+  );
+  const captured = JSON.parse(source) as {
+    responses: { body?: { incident?: { incident_id?: string } } }[];
+  };
+  for (const response of captured.responses) {
+    const found = response.body?.incident?.incident_id;
+    if (typeof found === 'string' && found !== '') {
+      return found;
+    }
+  }
+  throw new Error(
+    'the incident-detail capture names no incident, so no timeline is ever seeded',
+  );
+}
+
+test(`/incidents/${detailedIncidentId()} stays within the scroll budget`, async ({
+  page,
+}) => {
+  await page.goto(`/incidents/${detailedIncidentId()}`);
+  await expect(page.getByTestId('page-header')).toBeVisible();
+
+  const height = await page.evaluate(() => document.documentElement.scrollHeight);
+
+  expect(
+    height,
+    `/incidents/${detailedIncidentId()} is ${String(height)}px tall against a ` +
+      `${String(BUDGET_PX)}px budget (${String(BUDGET_VIEWPORTS)} viewports of ` +
+      `${String(VIEWPORT_HEIGHT)}px)`,
+  ).toBeLessThanOrEqual(BUDGET_PX);
+});

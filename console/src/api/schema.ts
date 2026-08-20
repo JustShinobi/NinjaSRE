@@ -4321,6 +4321,7 @@ export interface components {
             /** Actions */
             actions?: string[];
             incident: components["schemas"]["IncidentSummaryView"];
+            investigation?: components["schemas"]["InvestigationSummaryView"] | null;
             /** Observations */
             observations?: components["schemas"]["ObservationView"][];
             /** Subjects */
@@ -4621,6 +4622,23 @@ export interface components {
             summary?: string | null;
             /** Trigger */
             trigger: string;
+        };
+        /**
+         * InvestigationSummaryView
+         * @description How many steps the investigation took, how long it ran, and what it cost.
+         *
+         *     ``duration_ms`` and ``cost`` are ``None`` — never a fabricated zero — while
+         *     the run has not finished, or while nothing it did carried a priced figure.
+         *     ``step_count`` gets no such treatment: a run that has taken no turns yet
+         *     has taken zero turns, which is a fact worth showing exactly as it is.
+         */
+        InvestigationSummaryView: {
+            /** Cost */
+            cost?: number | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Step Count */
+            step_count: number;
         };
         /** IssueTokenRequest */
         IssueTokenRequest: {
@@ -6545,6 +6563,16 @@ export interface components {
             detail: string;
             /** Kind */
             kind: string;
+            /**
+             * Query
+             * @default
+             */
+            query: string;
+            /**
+             * Result
+             * @default
+             */
+            result: string;
         };
         /** TokenList */
         TokenList: {

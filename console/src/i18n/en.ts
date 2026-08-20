@@ -828,6 +828,71 @@ export const EN = {
     'State changes are recorded here as they happen. This incident has had none since it opened.',
   'incident.timeline.empty.action': 'Back to the incident list',
 
+  // --- The incident page (M6): header chips, subtitle, investigation, ---------
+  // --- proposed action and the evidence trail ----------------------------------
+  // The incident's own state, and the two words a chip carries for it. Kept
+  // separate from `Badge`'s raw-status vocabulary, because this chip is read
+  // in the viewer's language rather than in the wire's.
+  'incident.chip.state.open': 'Open',
+  'incident.chip.state.investigating': 'Investigating',
+  'incident.chip.state.awaitingHuman': 'Awaiting a person',
+  'incident.chip.state.remediating': 'Remediating',
+  'incident.chip.state.resolved': 'Resolved',
+  'incident.chip.state.suppressed': 'Suppressed',
+  'incident.chip.state.closedWithoutAction': 'Closed without action',
+  // Whether an investigation has run against this incident at all, and
+  // whether it has delivered its report — read from the timeline itself
+  // rather than from a run status this route does not carry.
+  'incident.chip.investigation.none': 'No investigation',
+  'incident.chip.investigation.running': 'Investigation running',
+  'incident.chip.investigation.finished': 'Investigation finished',
+
+  'incident.origin.alert': 'Alertmanager',
+  'incident.origin.detector': "this deployment's own detectors",
+  'incident.origin.human': 'a person',
+  'incident.subtitle.started': 'started {when}',
+  'incident.subtitle.zone': 'zone {zone}',
+
+  'incident.investigation.title': 'Investigation',
+  'incident.investigation.steps.one': '{count} step',
+  'incident.investigation.steps.other': '{count} steps',
+  'incident.investigation.empty.heading': 'No investigation has run',
+  'incident.investigation.empty.body':
+    'This incident has no investigation attached yet. The runtime step in setup names what is pending before one can start.',
+  'incident.investigation.empty.action': 'Check the runtime step',
+  'incident.investigation.step.receipt': 'Alert received',
+  'incident.investigation.step.hypotheses': 'Hypotheses drawn',
+  'incident.investigation.step.evidence': 'Evidence',
+  'incident.investigation.step.diagnosis': 'Diagnosis',
+  'incident.investigation.step.delivery': 'Report delivered',
+  'incident.investigation.step.receipt.tokenLabel': 'Delivery credential:',
+
+  'incident.evidenceTrail.title': 'Evidence trail',
+  'incident.evidenceTrail.body':
+    'Every query, answer and token spent, in order. Nothing here is prose without a source.',
+  'incident.evidenceTrail.link': 'Open the full run',
+  'incident.evidenceTrail.empty.heading': 'No run to trace yet',
+  'incident.evidenceTrail.empty.body':
+    'This incident has no investigation run attached, so there is no evidence trail to open.',
+  'incident.evidenceTrail.empty.action': 'Check the runtime step',
+
+  'incident.proposedAction.title': 'Proposed action',
+  'incident.proposedAction.state.pending': 'Awaiting decision',
+  'incident.proposedAction.state.approved': 'Approved',
+  'incident.proposedAction.state.rejected': 'Rejected',
+  'incident.proposedAction.state.expired': 'Expired',
+  'incident.proposedAction.posture': 'Posture is {posture} — nothing runs without you.',
+  'incident.proposedAction.approve': 'Approve and run',
+  'incident.proposedAction.reject': 'Reject',
+  'incident.proposedAction.radius.resources.one': '{count} resource',
+  'incident.proposedAction.radius.resources.other': '{count} resources',
+  'incident.proposedAction.radius.zone': 'zone {zone}',
+  'incident.proposedAction.radius.criticality': 'criticality {criticality}',
+  'incident.proposedAction.empty.heading': 'Nothing proposed yet',
+  'incident.proposedAction.empty.body':
+    'No investigation has concluded with a remediation to decide on for this incident.',
+  'incident.proposedAction.empty.action': 'See the investigation',
+
   // --- Approvals ---------------------------------------------------------------------
   'approvals.title': 'Actions awaiting approval',
   'approvals.group.overdue': 'Past its expiry',
