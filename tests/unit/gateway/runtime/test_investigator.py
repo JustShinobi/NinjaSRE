@@ -178,7 +178,7 @@ class TestInvestigate:
     async def test_a_runtime_reported_as_failed_raises_rather_than_reads_as_completed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """FR-015's backbone: a run that produced nothing must not read as completed.
+        """A run that produced nothing must not read as completed.
 
         ``gateway.http.orchestration._drive`` marks a run ``COMPLETED`` on any
         normal return and ``FAILED`` only on a raise — so an ``investigate``

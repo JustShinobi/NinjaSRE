@@ -24,10 +24,10 @@ pytestmark = pytest.mark.unit
 
 
 async def test_the_pendency_is_named_when_no_runtime_is_composed(deployment: Deployment) -> None:
-    """FR-014's half of the claim: the setup checklist's own runtime step names it.
+    """One half of the claim: the setup checklist's own runtime step names it.
 
     Text a console screen renders verbatim, from the same source the
-    investigation route consults — never a variable name (FR-016).
+    investigation route consults — never a variable name.
     """
     deployment.state.investigator = UnconfiguredInvestigator()
 
@@ -41,7 +41,7 @@ async def test_the_pendency_is_named_when_no_runtime_is_composed(deployment: Dep
 async def test_an_incident_whose_investigation_could_not_start_never_reads_as_investigating(
     deployment: Deployment,
 ) -> None:
-    """FR-015's other half: the run itself must not be left, or later read, as running.
+    """The other half: the run itself must not be left, or later read, as running.
 
     ``start_investigation`` writes the run row ``RUNNING`` before anything is
     attempted (acceptance scenario 1 — the caller is told the run's identity
