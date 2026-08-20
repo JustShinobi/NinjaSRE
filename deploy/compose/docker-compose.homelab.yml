@@ -46,7 +46,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
       POSTGRES_DB: ${POSTGRES_DB:-ninjasre}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # A single mount at the parent directory, not at `.../data` — see
+      # docker-compose.yml's postgres service for why 18+ needs this shape.
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ninjasre} -d ${POSTGRES_DB:-ninjasre}"]
       interval: 5s
@@ -95,6 +97,10 @@ services:
       NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
       NINJASRE_CREDENTIAL_PROXY_TOKEN: ${NINJASRE_CREDENTIAL_PROXY_TOKEN:-}
       NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
+      # The tenant bring-up creates. Missing from this file until now, so every
+      # deployment bootstrapped into `default` regardless of what an operator
+      # might otherwise want the first organisation called.
+      NINJASRE_ORGANISATION: ${NINJASRE_ORGANISATION:-default}
       NINJASRE_SETUP_TEMPLATE: ${NINJASRE_SETUP_TEMPLATE:-}
       NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
       # Local first. A homelab runs the model on its own hardware, so the
@@ -131,14 +137,36 @@ services:
     build:
       <<: *image-build
       dockerfile: deploy/images/console.Dockerfile
+    # The same wheel as `app`, started at a different entry point (see
+    # deploy/images/console.Dockerfile) — a second `gateway.http.serve`, not a
+    # thin front end. It composes the same deployment `app` does, provider
+    # included, so it needs the same configuration `app` gets above, plus the
+    # one setting that is only its own.
     environment:
       NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-homelab}
       NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
       NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
       NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
-      NINJASRE_ENDPOINT: ${NINJASRE_ENDPOINT:-http://app:8420}
+      NINJASRE_CREDENTIAL_PROXY_TOKEN: ${NINJASRE_CREDENTIAL_PROXY_TOKEN:-}
+      NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
+      NINJASRE_ORGANISATION: ${NINJASRE_ORGANISATION:-default}
+      NINJASRE_SETUP_TEMPLATE: ${NINJASRE_SETUP_TEMPLATE:-}
+      NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
+      NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-ollama}
+      NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      NINJASRE_AIR_GAPPED: ${NINJASRE_AIR_GAPPED:-false}
+      NINJASRE_EGRESS_ALLOWLIST: ${NINJASRE_EGRESS_ALLOWLIST:-}
+      NINJASRE_CA_BUNDLE: ${NINJASRE_CA_BUNDLE:-}
+      NINJASRE_OTEL_ENDPOINT: ${NINJASRE_OTEL_ENDPOINT:-}
       NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
       NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+      # The one setting that is only console's own: where the deployment it
+      # fronts is, for whatever in this image still reads it.
+      NINJASRE_ENDPOINT: ${NINJASRE_ENDPOINT:-http://app:8420}
     ports:
       - "127.0.0.1:${NINJASRE_CONSOLE_PORT:-8421}:8421"
     depends_on:
