@@ -116,6 +116,13 @@ class WebhookSourceConfig:
     org_id: str
     team_node_id: str
     principal_id: str = "system:webhook"
+    #: The delivery credential's *display* name — never its value. Empty for
+    #: a route configured with a shared secret, which names no credential of
+    #: its own; set from the token's own stored name when a delivery token
+    #: authenticated the request (see ``_delivery_token_route``). Carried
+    #: through to the investigation's receipt so a person reading the
+    #: incident later knows which credential let this delivery in.
+    credential_name: str = ""
 
 
 #: The scheme a delivery token is presented under, lower-cased for comparison.
@@ -359,6 +366,9 @@ def _handler(
             alert_source=profile.source.value,
             alert_id=key,
             context=_investigation_context(resolution),
+            incident_id=incident.incident_id,
+            alert_labels=alert.labels,
+            credential_name=routed.credential_name,
         )
         state.webhook_dedup.link(key, run_id)
         await _link_resource(
@@ -681,6 +691,7 @@ async def _delivery_token_route(
         org_id=token.scope.org_id,
         team_node_id=token.scope.team_node_id or "",
         principal_id=token.principal.principal_id,
+        credential_name=token.token.name,
     )
 
 
