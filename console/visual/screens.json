@@ -225,6 +225,18 @@
       "pending_because": "The catalogue rework changed this screen substantially and the migration that retires the raw configuration editor will change it again. Its baseline is the pre-rework one, deliberately: reviewing these pixels now buys a second review of the same screen a feature later."
     },
     {
+      "id": "integrations-panel-1440-light",
+      "route": "/integrations/alertmanager",
+      "status": "pending",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": null,
+        "reason": "The credential panel, registered again at a surviving integration after the vendor cut removed both `/integrations/slack` and this entry along with it: alertmanager, verified in the dataset on purpose, so the capture shows the connected state and its three actions — test again, replace credential, disconnect — rather than an empty form with a disabled button. The panel itself is reviewed as a slide-over overlaid on the catalogue, never a block in the document's flow. Reviewed against the credential-panel mockup for layout, hierarchy, grouping and vocabulary. No committed baseline exists yet — this is a new capture and the first acceptance is a deliberate, reviewed one rather than something a gate should manufacture."
+      },
+      "pending_because": "Registered so the screen is not forgotten, and deliberately left out of the capture set until a person accepts its first baseline. Carrying it as baselined instead would fail the committed-baseline contract on every run, and — worse — each full gate run would regenerate the missing PNG as a real-looking capture nobody reviewed, which is how an unreviewed baseline gets committed by the next person who stages this directory. It leaves pending the moment someone captures it under review."
+    },
+    {
       "id": "knowledge-1440-light",
       "route": "/knowledge",
       "status": "baselined",

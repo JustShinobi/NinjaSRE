@@ -75,14 +75,18 @@ test('search narrows the grid without a full page reload', async ({ page }) => {
   const before = await page.getByTestId('catalogue-item').count();
   expect(before).toBeGreaterThan(1);
 
-  await page.getByTestId('catalogue-search').getByRole('searchbox').fill('logql');
+  // Prometheus rather than Loki: the dataset now stores a credential for Loki,
+  // so it sits in Connected and is no longer one of the grid's own items. Both
+  // are named by their query language in a summary and by nothing else, so the
+  // needle still reaches exactly one integration through the same field.
+  await page.getByTestId('catalogue-search').getByRole('searchbox').fill('promql');
   await expect(page.getByTestId('catalogue-item')).toHaveCount(1);
   await expect(
-    page.locator('[data-testid="catalogue-item"][data-integration="loki"]'),
+    page.locator('[data-testid="catalogue-item"][data-integration="prometheus"]'),
   ).toBeVisible();
 
   // The address carries the search, so the exact view can be sent to a colleague.
-  await expect(page).toHaveURL(/[?&]q=logql/);
+  await expect(page).toHaveURL(/[?&]q=promql/);
 });
 
 test('a search with no result offers to clear it, and links to the reference page', async ({
