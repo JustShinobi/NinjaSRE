@@ -2829,6 +2829,16 @@
           "incident": {
             "$ref": "#/components/schemas/IncidentSummaryView"
           },
+          "investigation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvestigationSummaryView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "observations": {
             "items": {
               "$ref": "#/components/schemas/ObservationView"
@@ -3538,6 +3548,42 @@
           "status"
         ],
         "title": "InvestigationSummary",
+        "type": "object"
+      },
+      "InvestigationSummaryView": {
+        "description": "How many steps the investigation took, how long it ran, and what it cost.\n\n``duration_ms`` and ``cost`` are ``None`` — never a fabricated zero — while\nthe run has not finished, or while nothing it did carried a priced figure.\n``step_count`` gets no such treatment: a run that has taken no turns yet\nhas taken zero turns, which is a fact worth showing exactly as it is.",
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "step_count": {
+            "title": "Step Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_count"
+        ],
+        "title": "InvestigationSummaryView",
         "type": "object"
       },
       "IssueTokenRequest": {
@@ -7182,6 +7228,16 @@
           },
           "kind": {
             "title": "Kind",
+            "type": "string"
+          },
+          "query": {
+            "default": "",
+            "title": "Query",
+            "type": "string"
+          },
+          "result": {
+            "default": "",
+            "title": "Result",
             "type": "string"
           }
         },

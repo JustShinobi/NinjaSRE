@@ -8,19 +8,18 @@ evidence step names the query that was actually run and the result it
 returned; and the investigation is summarised by how many steps it took, how
 long it ran and what it cost.
 
-The first of the three now exists at the persistence layer; the other two do
-not. ``TimelineKind`` (``platform/persistence/ports/incident_store.py``) now
-declares the five reasoning kinds beside the ten lifecycle ones, on the same
-enum rather than a parallel one, and ``TimelineEntry`` now carries
-``query``/``result`` alongside ``cause``/``detail``. What still carries
-neither is the *route*: ``TimelineEntryView`` — the model
-``gateway/http/routes/incidents.py`` serialises every timeline entry through —
-still carries no ``query``/``result`` pair, and ``IncidentDetailView`` still
-carries no investigation summary at all. Wiring the route to the port is a
-later phase of this feature to own, not this one's, so the first claim below
-is proved by appending reasoning-kind entries straight through the store —
-the same seam the demonstration seeder writes through — rather than through
-an investigation runtime, which does not record one on its own yet either.
+All three now exist. ``TimelineKind``
+(``platform/persistence/ports/incident_store.py``) declares the five
+reasoning kinds beside the ten lifecycle ones, on the same enum rather than a
+parallel one, and ``TimelineEntry`` carries ``query``/``result`` alongside
+``cause``/``detail``. The route mirrors both: ``TimelineEntryView`` — the
+model ``gateway/http/routes/incidents.py`` serialises every timeline entry
+through — carries ``query``/``result``, and ``IncidentDetailView`` carries an
+investigation summary. The first claim below is still proved by appending
+reasoning-kind entries straight through the store — the same seam the
+demonstration seeder writes through — rather than through an investigation
+runtime, which does not record one on its own yet either; that choice did not
+change when the route did.
 
 The five spellings below (``alert_received``, ``hypotheses_drawn``,
 ``evidence``, ``diagnosis``, ``report_delivered``) are the ones the real
@@ -40,6 +39,7 @@ from typing import Any
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from config.constants.runs import TRIGGER_ALERT, TURN_USAGE_COST
 from gateway.http.app import create_app
 from gateway.http.routes.incidents import TimelineEntryView
 from gateway.http.state import GatewayState
@@ -56,6 +56,7 @@ from platform.persistence.ports.incident_store import (
     TimelineKind,
     timeline_key,
 )
+from platform.persistence.ports.run_trace_store import AgentRun, TurnRecord
 from platform.persistence.ports.transaction import TenantScope
 from tests.unit.gateway.http.conftest import (
     ORG,
@@ -245,16 +246,17 @@ async def test_the_timeline_carries_the_five_reasoning_step_kinds(deployment: De
 
 
 def test_the_timeline_entry_schema_has_nowhere_to_carry_a_query_or_a_result() -> None:
-    """At the one level this slice can prove it at.
+    """The one level this test can prove the claim at.
 
-    The live half of this claim — a real evidence step, in a real response,
-    carrying a non-empty query and result — needs a timeline entry of a kind
-    that cannot be produced yet, exactly as in the test above; asserting it
-    here would either explode on a malformed ``TimelineEntry`` (a red for the
-    wrong reason) or pass vacuously over an empty list (no red at all, dressed
-    up as one). Neither proves anything. What is provable without touching
-    production code is the schema itself: ``TimelineEntryView`` has no field
-    to carry either value in the first place, for any entry.
+    The live half of the claim — a real evidence step, in a real response,
+    carrying a non-empty query and result — still needs a timeline entry of a
+    kind that cannot be produced through a real investigation yet, exactly as
+    in the test above; asserting it here would either explode on a malformed
+    ``TimelineEntry`` (a red for the wrong reason) or pass vacuously over an
+    empty list (no red at all, dressed up as one). Neither would prove
+    anything. What this test proves instead is the schema itself:
+    ``TimelineEntryView`` now carries a field for each, for every entry — not
+    only for the one chosen by hand.
     """
     fields = set(TimelineEntryView.model_fields)
     missing = {"query", "result"} - fields
@@ -269,12 +271,9 @@ async def test_the_response_carries_the_investigations_step_count_duration_and_c
 ) -> None:
     """Legible next to the incident, not on a second screen.
 
-    ``IncidentDetailView`` has no field carrying any of the three today, so
-    the first assertion below — that the response has anywhere to carry an
-    investigation summary at all — is the one this slice actually proves red.
-    The three per-field checks after it name the rest of the claim for
-    whoever makes the first assertion pass; they cannot be exercised before
-    that, because there is nothing in the response for them to read yet.
+    ``IncidentDetailView`` now carries an investigation summary, and the
+    three per-field checks below exercise it against a real incident with a
+    real run attached: step count, duration, and cost.
     """
     incident_id = await _investigated_incident(deployment)
 
@@ -292,6 +291,178 @@ async def test_the_response_carries_the_investigations_step_count_duration_and_c
         assert field_name in investigation, (
             f"investigation summary is missing {field_name!r}; has {sorted(investigation)}"
         )
+
+
+# --- Claim: an incident nothing has ever investigated has no summary --------------
+
+
+async def _bare_incident(deployment: Deployment, correlation_key: str) -> str:
+    """Raise an incident and return its id, without ever attaching a run."""
+    now = datetime.now(UTC)
+    async with deployment.gateway.begin(TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(
+            IncidentRaise(
+                correlation_key=correlation_key,
+                title="a probe failed",
+                summary="the blackbox probe has failed",
+                origin=IncidentOrigin.ALERT,
+                origin_id="InstanceDown",
+                severity="critical",
+                subjects=(
+                    IncidentSubject(
+                        resource_id="birch", detail="the blackbox probe has failed", observed_at=now
+                    ),
+                ),
+                team_node_id=TEAM_PAYMENTS,
+                cause="InstanceDown fired for birch",
+            ),
+            now=now,
+        )
+    return incident.incident_id
+
+
+async def test_an_incident_with_no_run_attached_has_no_investigation_summary(
+    deployment: Deployment,
+) -> None:
+    """The mirror of the claim above: the field exists, and here its value is
+    ``None`` — a real absence, not an object full of absent numbers. Nothing
+    has ever investigated this incident, so there is nothing to summarise.
+    """
+    incident_id = await _bare_incident(deployment, "alert:InstanceDown:birch")
+
+    body = await _detail(deployment, incident_id)
+
+    assert "investigation" in body, f"top-level keys are {sorted(body)}"
+    assert body["investigation"] is None, (
+        f"an incident with no run attached must summarise to nothing, got {body['investigation']!r}"
+    )
+
+
+# --- Claim: an unknown duration or cost is omitted, never a fabricated zero -------
+
+
+async def _incident_with_a_traced_run(
+    deployment: Deployment,
+    *,
+    run_id: str,
+    started_at: datetime,
+    finished_at: datetime | None,
+    turns: tuple[TurnRecord, ...],
+) -> str:
+    """Raise an incident, attach ``run_id``, and record its trace directly.
+
+    ``started_at``/``finished_at`` are the caller's, not derived from the
+    instant this helper happens to run at — a duration assertion has to be
+    exact, and deriving both ends from ``datetime.now()`` calls made
+    microseconds apart would make it a coin flip on a slow machine.
+
+    Two independent stores, written the same way production eventually will:
+    the incident links to the run, and the run's own turns land in the trace
+    store. Through ``run_traces`` directly rather than a real investigation
+    runtime, for the same reason the module docstring gives for the timeline
+    entries above — no runtime records one on its own yet either.
+    """
+    now = datetime.now(UTC)
+    async with deployment.gateway.begin(TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(
+            IncidentRaise(
+                correlation_key=f"alert:InstanceDown:{run_id}",
+                title="a probe failed",
+                summary="the blackbox probe has failed",
+                origin=IncidentOrigin.ALERT,
+                origin_id="InstanceDown",
+                severity="critical",
+                subjects=(
+                    IncidentSubject(
+                        resource_id=run_id, detail="the blackbox probe has failed", observed_at=now
+                    ),
+                ),
+                team_node_id=TEAM_PAYMENTS,
+                cause="InstanceDown fired",
+            ),
+            now=now,
+        )
+        await lifecycle.attach_run(incident.incident_id, run_id, objective="diagnose", now=now)
+        await uow.run_traces.start_run(
+            AgentRun(
+                run_id=run_id, trigger=TRIGGER_ALERT, started_at=started_at, finished_at=finished_at
+            )
+        )
+        for turn in turns:
+            await uow.run_traces.record_turn(turn)
+    return incident.incident_id
+
+
+async def test_duration_and_cost_are_omitted_not_zeroed_while_a_run_has_no_price_or_end(
+    deployment: Deployment,
+) -> None:
+    """A run still going, whose turns carry no priced figure at all.
+
+    ``step_count`` is a real, non-zero count — the two turns genuinely
+    happened. ``duration_ms`` and ``cost`` are the two numbers this run
+    cannot yet honestly report, and the claim is that they come back absent
+    (``None``, JSON ``null``) rather than as ``0`` — the exact confusion a
+    fabricated zero would create for an operator reading the header.
+    """
+    incident_id = await _incident_with_a_traced_run(
+        deployment,
+        run_id="run-omitted",
+        started_at=datetime.now(UTC),
+        finished_at=None,
+        turns=(
+            TurnRecord(turn_id="turn-1", run_id="run-omitted", index=0, usage={}),
+            TurnRecord(turn_id="turn-2", run_id="run-omitted", index=1, usage={}),
+        ),
+    )
+
+    body = await _detail(deployment, incident_id)
+
+    investigation = body["investigation"]
+    assert investigation is not None, "a run with two recorded turns must summarise to something"
+    assert investigation["step_count"] == 2, investigation
+    assert investigation["duration_ms"] is None, (
+        f"a run with no finished_at must omit duration, not zero it: {investigation}"
+    )
+    assert investigation["cost"] is None, (
+        f"turns that carry no priced figure must omit cost, not zero it: {investigation}"
+    )
+
+
+async def test_a_run_priced_at_exactly_zero_and_finished_reports_real_numbers_not_absence(
+    deployment: Deployment,
+) -> None:
+    """The other half of the same claim: a real zero must survive as one.
+
+    A finished run has a real duration, and a turn genuinely priced at
+    ``0.0`` is a fact, not a missing figure — collapsing it into ``None``
+    would be exactly as dishonest as fabricating a zero for a run that never
+    reported a price at all.
+    """
+    started = datetime.now(UTC)
+    incident_id = await _incident_with_a_traced_run(
+        deployment,
+        run_id="run-priced",
+        started_at=started,
+        finished_at=started + timedelta(seconds=5),
+        turns=(
+            TurnRecord(
+                turn_id="turn-1", run_id="run-priced", index=0, usage={TURN_USAGE_COST: 0.0}
+            ),
+        ),
+    )
+
+    body = await _detail(deployment, incident_id)
+
+    investigation = body["investigation"]
+    assert investigation is not None
+    assert investigation["duration_ms"] == 5000, (
+        f"a finished run has a real duration, not an absent one: {investigation}"
+    )
+    assert investigation["cost"] == 0.0, (
+        f"a turn priced at exactly zero is a real zero, not an absent cost: {investigation}"
+    )
 
 
 __all__: list[str] = []
