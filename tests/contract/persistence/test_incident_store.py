@@ -334,6 +334,59 @@ async def test_a_lifecycle_entrys_query_and_result_are_empty_not_absent(
     assert history[0].result == ""
 
 
+async def test_all_five_reasoning_kinds_round_trip_through_the_store(
+    gateway: PersistenceGateway,
+) -> None:
+    """The four reasoning kinds the evidence round-trip above did not exercise.
+
+    ``IncidentLifecycle``'s reasoning-recording methods are thin wrappers over
+    exactly this ``append``/``timeline`` pair — this is the backend claim
+    underneath every one of them, kind by kind, rather than trusting that
+    ``EVIDENCE`` (already covered above) stands in for the other four.
+    """
+    stored = incident()
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        await uow.incidents.upsert(stored)
+        await uow.incidents.append(
+            (
+                entry(
+                    stored.incident_id,
+                    TimelineKind.ALERT_RECEIVED,
+                    minutes=1,
+                    cause="the delivery was authenticated by delivery token am-cluster",
+                ),
+                entry(
+                    stored.incident_id,
+                    TimelineKind.HYPOTHESES_DRAWN,
+                    minutes=2,
+                    cause="the datastore is over-provisioned; a snapshot is holding blocks",
+                ),
+                entry(
+                    stored.incident_id,
+                    TimelineKind.DIAGNOSIS,
+                    minutes=3,
+                    cause="a snapshot from last Tuesday is holding the freed blocks",
+                ),
+                entry(
+                    stored.incident_id,
+                    TimelineKind.REPORT_DELIVERED,
+                    minutes=4,
+                    cause="the investigation's report was delivered",
+                ),
+            )
+        )
+
+        history = await uow.incidents.timeline(stored.incident_id)
+
+    assert [item.kind for item in history] == [
+        TimelineKind.ALERT_RECEIVED,
+        TimelineKind.HYPOTHESES_DRAWN,
+        TimelineKind.DIAGNOSIS,
+        TimelineKind.REPORT_DELIVERED,
+    ]
+    assert history[1].cause == "the datastore is over-provisioned; a snapshot is holding blocks"
+
+
 # --- Retention -------------------------------------------------------------------------
 
 
