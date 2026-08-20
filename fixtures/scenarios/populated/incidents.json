@@ -252,6 +252,25 @@
             "suppressed_by": "",
             "team_node_id": "",
             "title": "ContainerMemoryHigh"
+          },
+          {
+            "close_reason": "",
+            "closed_at": null,
+            "detector": "alertmanager",
+            "incident_id": "inc-alert-0002",
+            "opened_at": "2026-08-07T12:00:00+00:00",
+            "origin": "alert",
+            "run_id": null,
+            "self_resolved": false,
+            "severity": "high",
+            "state": "open",
+            "subjects": [
+              "ct-102"
+            ],
+            "summary": "an alert opened this incident about anchor, and nothing has investigated it yet",
+            "suppressed_by": "",
+            "team_node_id": "",
+            "title": "anchor is not responding"
           }
         ]
       },

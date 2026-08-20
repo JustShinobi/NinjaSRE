@@ -1544,6 +1544,52 @@
         "query": {}
       },
       "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-alert-0002"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "alertmanager",
+          "incident_id": "inc-alert-0002",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "alert",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "ct-102"
+          ],
+          "summary": "an alert opened this incident about anchor, and nothing has investigated it yet",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "anchor is not responding"
+        },
+        "observations": [],
+        "timeline": [
+          {
+            "actor": "user-lagoon",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "an alert opened this incident about anchor, and nothing has investigated it yet",
+            "detail": "alertmanager delivered an alert about 1 target(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
     }
   ],
   "slug": "incident-detail"

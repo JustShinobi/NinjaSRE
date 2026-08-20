@@ -318,7 +318,8 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     to turn a reading into a resource is here.
     """
     observations = tuple(_observations(reading))
-    incidents = (*_incidents(reading, observations), *_alert_incidents(reading))
+    base_incidents = (*_incidents(reading, observations), *_alert_incidents(reading))
+    incidents = (*base_incidents, *_unattended_alert_incident(reading, base_incidents))
     records: list[CapturedRecord] = [
         _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
         _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
@@ -495,6 +496,52 @@ def _alert_incidents(reading: ClusterReading) -> tuple[dict[str, Any], ...]:
                 f"the alert is about hypervisor guest {absent}, and no guest in this estate "
                 f"carries that identifier. Either it was created since the last sweep, or "
                 f"this receiver is pointed at a deployment that does not watch that cluster"
+            ),
+        },
+    )
+
+
+def _unattended_alert_incident(
+    reading: ClusterReading, prior: Sequence[Mapping[str, Any]]
+) -> tuple[dict[str, Any], ...]:
+    """Return the one incident an alert opened that nothing has investigated.
+
+    Every incident built above traces to a detector's own finding, and every
+    one of them already carries ``run_id: None`` — but none of them was built
+    to demonstrate that particular fact on its own. This one is: a single
+    incident aimed at a resource nothing else in this dataset already claims,
+    so a reader following its one subject finds one story rather than a
+    collision with an unrelated finding. Its investigation has nothing to
+    show, on purpose — that absence is itself what this fixture is for,
+    wherever something reads an incident and has to name the absence instead
+    of leaving a panel blank.
+    """
+    claimed = {subject for incident in prior for subject in incident["subjects"]}
+    guest = next(
+        (candidate for candidate in reading.guests if resource_id_of(candidate) not in claimed),
+        None,
+    )
+    if guest is None:
+        return ()
+    return (
+        {
+            "incident_id": "inc-alert-0002",
+            "title": f"{guest.name} is not responding",
+            "severity": "high",
+            "state": "open",
+            "origin": "alert",
+            "opened_at": reading.captured_at,
+            "closed_at": None,
+            "subjects": [resource_id_of(guest)],
+            "detector": "alertmanager",
+            "run_id": None,
+            "team_node_id": "",
+            "self_resolved": False,
+            "suppressed_by": "",
+            "close_reason": "",
+            "summary": (
+                f"an alert opened this incident about {guest.name}, and nothing has "
+                f"investigated it yet"
             ),
         },
     )
