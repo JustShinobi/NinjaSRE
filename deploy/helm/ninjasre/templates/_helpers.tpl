@@ -118,17 +118,52 @@ produce a deployment whose sandbox and concurrency did not match its shape.
 {{- end }}
 {{- end -}}
 
-{{/* The provider credential, which only the proxy and the application need. */}}
+{{/*
+The provider's credential — needed by the application, which is the one
+workload that composes an investigation runtime and calls the provider. The
+credential proxy stopped needing this once it stopped validating the
+deployment's own provider (see `ninjasre.providerEnv`'s one remaining include
+site, in app-deployment.yaml): handing it a model credential would spread a
+secret to a process that never calls a model.
+
+The environment-variable NAME depends on which provider is selected. A chart
+cannot import `platform.startup.validation.PROVIDER_CREDENTIAL_ENV`, so the
+mapping below restates it by hand; a contract test reads that constant and
+checks this block against it, which is what keeps the two from drifting apart
+silently rather than this comment. Ollama needs no credential at all and has
+no branch here: mounting a secret reference for a provider that reads none
+would be exactly the unneeded exposure this chart elsewhere avoids.
+*/}}
+{{- define "ninjasre.providerCredentialEnvName" -}}
+{{- if eq .Values.provider.id "anthropic" -}}
+ANTHROPIC_API_KEY
+{{- else if eq .Values.provider.id "openai" -}}
+OPENAI_API_KEY
+{{- else if eq .Values.provider.id "azure_openai" -}}
+AZURE_OPENAI_API_KEY
+{{- else if eq .Values.provider.id "aws_bedrock" -}}
+AWS_ACCESS_KEY_ID
+{{- else if eq .Values.provider.id "google_gemini" -}}
+GOOGLE_API_KEY
+{{- else if eq .Values.provider.id "google_vertex_ai" -}}
+GOOGLE_API_KEY
+{{- else if eq .Values.provider.id "openrouter" -}}
+OPENROUTER_API_KEY
+{{- else if eq .Values.provider.id "nvidia_nim" -}}
+NVIDIA_API_KEY
+{{- else -}}
+{{ fail (printf "provider.id %q has no known credential variable. Set it to one of: anthropic, openai, azure_openai, aws_bedrock, google_gemini, google_vertex_ai, openrouter, nvidia_nim, ollama." .Values.provider.id) }}
+{{- end -}}
+{{- end -}}
+
 {{- define "ninjasre.providerEnv" -}}
-{{- if .Values.provider.baseUrl }}
-- name: NINJASRE_LLM_BASE_URL
-  value: {{ .Values.provider.baseUrl | quote }}
-{{- end }}
-- name: NINJASRE_PROVIDER_CREDENTIAL
+{{- if ne .Values.provider.id "ollama" }}
+- name: {{ include "ninjasre.providerCredentialEnvName" . }}
   valueFrom:
     secretKeyRef:
       name: {{ .Values.provider.credentialSecret.name }}
       key: {{ .Values.provider.credentialSecret.key }}
+{{- end -}}
 {{- end -}}
 
 {{/* The trust bundle mount, when the operator supplied one. */}}

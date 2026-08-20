@@ -46,7 +46,9 @@ spec:
               containerPort: {{ .Values.proxy.port }}
           env:
             {{- include "ninjasre.env" . | nindent 12 }}
-            {{- include "ninjasre.providerEnv" . | nindent 12 }}
+            # No provider credential here: the proxy brokers credentials for
+            # other processes and never calls a model itself, so it does not
+            # validate a provider and must not be handed one to mount.
           readinessProbe:
             httpGet:
               path: /health

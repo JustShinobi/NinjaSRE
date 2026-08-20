@@ -149,9 +149,11 @@ provider:
   credentialSecret:
     name: ninjasre-provider
     key: api-key
-  # Point this at a model running in the cluster to make the deployment
-  # air-gapped. With a local model and no other endpoint configured, nothing
-  # this chart deploys has a reason to leave the cluster.
+  # Not yet wired to a setting the deployment reads: every provider adapter
+  # takes its own endpoint variable (`ANTHROPIC_BASE_URL`, `OLLAMA_BASE_URL`,
+  # and so on — `config/constants/llm.py` names them all), and none of them is
+  # this one. Left declared rather than removed so the eventual per-provider
+  # wiring has a place to land; setting it today does nothing.
   baseUrl: ""
 
 # --- Identity ------------------------------------------------------------------
