@@ -444,7 +444,7 @@
       "theme": "light",
       "accepted": {
         "against": "09-area-settings.html",
-        "reason": "Machine tokens grouped by what they are for, with a count and the last use, so fifteen accumulated bring-up credentials read as one group with a history rather than as fifteen unexplained rows. Scopes are chosen from a list, never typed."
+        "reason": "Machine tokens grouped by what they are for, with a count and the last use, so fifteen accumulated bring-up credentials read as one group with a history rather than as fifteen unexplained rows. Scopes are chosen from a list, never typed. Recaptured when the dataset began issuing a delivery token, which adds one group — Alert delivery, in use, one token, scoped to webhook delivery — between the scheduler and bootstrap groups, both of which are unchanged. The two images were opened and compared before this was accepted: the added group is the whole difference, and everything below it is the same content moved down."
       }
     },
     {
