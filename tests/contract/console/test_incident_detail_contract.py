@@ -8,32 +8,33 @@ evidence step names the query that was actually run and the result it
 returned; and the investigation is summarised by how many steps it took, how
 long it ran and what it cost.
 
-None of the three exists yet. ``TimelineKind``
-(``platform/persistence/ports/incident_store.py``) declares ten lifecycle
-kinds and none of the five reasoning ones; ``TimelineEntryView`` — the model
+The first of the three now exists at the persistence layer; the other two do
+not. ``TimelineKind`` (``platform/persistence/ports/incident_store.py``) now
+declares the five reasoning kinds beside the ten lifecycle ones, on the same
+enum rather than a parallel one, and ``TimelineEntry`` now carries
+``query``/``result`` alongside ``cause``/``detail``. What still carries
+neither is the *route*: ``TimelineEntryView`` — the model
 ``gateway/http/routes/incidents.py`` serialises every timeline entry through —
-carries no ``query``/``result`` pair; ``IncidentDetailView`` carries no
-investigation summary at all. Adding the five kinds is this feature's own
-later phase to own, not this one's: a ``TimelineEntry`` built with a ``kind``
-that is not a real ``TimelineKind`` member would crash that same route's own
-serialisation (``entry.kind.value`` on a plain ``str``) rather than
-demonstrate anything about this feature, so this file does not attempt it.
+still carries no ``query``/``result`` pair, and ``IncidentDetailView`` still
+carries no investigation summary at all. Wiring the route to the port is a
+later phase of this feature to own, not this one's, so the first claim below
+is proved by appending reasoning-kind entries straight through the store —
+the same seam the demonstration seeder writes through — rather than through
+an investigation runtime, which does not record one on its own yet either.
 
-The five spellings named below (``alert_received``, ``hypotheses_drawn``,
-``evidence``, ``diagnosis``, ``report_delivered``) are this file's own design
-choice, following the existing members' own convention — English,
-``lower_snake_case``, naming the moment — not a value copied from any
-committed source, because none exists yet. Whoever adds the real enum member
-either matches this spelling or updates this set in the same change, the same
-way a screen built against an acceptance spec is expected to make its
-assertions pass rather than have them rewritten from nothing.
+The five spellings below (``alert_received``, ``hypotheses_drawn``,
+``evidence``, ``diagnosis``, ``report_delivered``) are the ones the real
+``TimelineKind`` members now carry — the same spelling this file chose before
+the enum existed, matched rather than renegotiated, the same way a screen
+built against an acceptance spec is expected to make its assertions pass
+rather than have them rewritten from nothing.
 """
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -47,7 +48,14 @@ from platform.identity.tokens import TokenService
 from platform.incidents.lifecycle import IncidentLifecycle, IncidentRaise
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.config_repository import ConfigNode, ConfigNodeKind
-from platform.persistence.ports.incident_store import IncidentOrigin, IncidentSubject
+from platform.persistence.ports.incident_store import (
+    SYSTEM_ACTOR,
+    IncidentOrigin,
+    IncidentSubject,
+    TimelineEntry,
+    TimelineKind,
+    timeline_key,
+)
 from platform.persistence.ports.transaction import TenantScope
 from tests.unit.gateway.http.conftest import (
     ORG,
@@ -101,14 +109,16 @@ async def deployment() -> AsyncIterator[Deployment]:
 
 
 async def _investigated_incident(deployment: Deployment) -> str:
-    """Raise an incident and attach a run to it, using only the lifecycle
-    kinds ``TimelineKind`` declares today, and return the incident's id.
+    """Raise an incident, attach a run, and give it a full reasoning timeline.
 
-    This is the closest state this slice can build to "an incident
-    investigated": a real origin, a real severity, a real run attached and the
-    incident moved to ``investigating`` — everything except the five
-    reasoning steps themselves, which nothing in this deployment can produce
-    yet (see the module docstring).
+    A real origin, a real severity, a real run attached, the incident moved to
+    ``investigating``, and — now that ``TimelineKind`` carries them — one
+    entry of each of the five reasoning kinds. Appended straight through the
+    store rather than through ``IncidentLifecycle``, because the lifecycle has
+    no method yet that records a hypothesis or a piece of evidence; that is a
+    later phase's job, not this one's. The store does not care who calls it,
+    which is exactly what lets this helper prove the first claim below
+    without waiting for the phase that adds that caller.
     """
     now = datetime.now(UTC)
     async with deployment.gateway.begin(TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)) as uow:
@@ -136,7 +146,68 @@ async def _investigated_incident(deployment: Deployment) -> str:
         await lifecycle.attach_run(
             incident.incident_id, "run-1", objective="diagnose cedar", now=now
         )
+        await uow.incidents.append(_reasoning_timeline(incident.incident_id, now))
     return incident.incident_id
+
+
+def _reasoning_timeline(incident_id: str, started_at: datetime) -> tuple[TimelineEntry, ...]:
+    """Return one entry of each of the five reasoning kinds, in the order an investigation produces them.
+
+    Only the evidence step carries a query and a result — every other kind
+    leaves them empty, the same as every lifecycle entry always has.
+    """
+    # kind, cause, detail, query, result
+    steps: tuple[tuple[TimelineKind, str, str, str, str], ...] = (
+        (
+            TimelineKind.ALERT_RECEIVED,
+            "InstanceDown fired for cedar, delivered by the cluster's Alertmanager",
+            "delivery token am-cluster",
+            "",
+            "",
+        ),
+        (
+            TimelineKind.HYPOTHESES_DRAWN,
+            "considered before any integration was queried",
+            "node reboot; network partition between zones; probe agent crashed",
+            "",
+            "",
+        ),
+        (
+            TimelineKind.EVIDENCE,
+            "cedar has not answered its own probe in 6 minutes",
+            "",
+            'up{instance="cedar"}',
+            "0 (last seen 1 at 06:41 UTC, 6m ago)",
+        ),
+        (
+            TimelineKind.DIAGNOSIS,
+            "cedar is down: it stopped responding to its own probe and has not recovered",
+            "",
+            "",
+            "",
+        ),
+        (
+            TimelineKind.REPORT_DELIVERED,
+            "report delivered",
+            "#incidents, oncall@example.test",
+            "",
+            "",
+        ),
+    )
+    return tuple(
+        TimelineEntry(
+            entry_id=timeline_key(incident_id, kind, started_at + timedelta(minutes=index + 1)),
+            incident_id=incident_id,
+            kind=kind,
+            at=started_at + timedelta(minutes=index + 1),
+            actor=SYSTEM_ACTOR,
+            cause=cause,
+            detail=detail,
+            query=query,
+            result=result,
+        )
+        for index, (kind, cause, detail, query, result) in enumerate(steps)
+    )
 
 
 async def _detail(deployment: Deployment, incident_id: str) -> Any:

@@ -75,6 +75,8 @@ def entry(
     minutes: float = 0.0,
     actor: str = "system:observation",
     cause: str = "the condition held for its declared duration",
+    query: str = "",
+    result: str = "",
 ) -> TimelineEntry:
     """Return one timeline entry."""
     return TimelineEntry(
@@ -84,6 +86,8 @@ def entry(
         at=at(minutes),
         actor=actor,
         cause=cause,
+        query=query,
+        result=result,
     )
 
 
@@ -281,6 +285,53 @@ async def test_every_entry_names_an_actor_and_a_cause(
 
     assert history[0].actor == "ada@example.test"
     assert history[0].cause == "it was noise"
+
+
+async def test_an_evidence_entrys_query_and_result_survive_the_round_trip(
+    gateway: PersistenceGateway,
+) -> None:
+    """Both are asserted, separately: an entry carrying one without the other
+    must fail this claim rather than pass it looking at only one field.
+    """
+    stored = incident()
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        await uow.incidents.upsert(stored)
+        await uow.incidents.append(
+            (
+                entry(
+                    stored.incident_id,
+                    TimelineKind.EVIDENCE,
+                    minutes=1,
+                    cause="cedar has not answered its own probe in 6 minutes",
+                    query='up{instance="cedar"}',
+                    result="0 (last seen 1 at 06:41 UTC, 6m ago)",
+                ),
+            )
+        )
+
+        history = await uow.incidents.timeline(stored.incident_id)
+
+    assert len(history) == 1
+    assert history[0].kind is TimelineKind.EVIDENCE
+    assert history[0].query == 'up{instance="cedar"}'
+    assert history[0].result == "0 (last seen 1 at 06:41 UTC, 6m ago)"
+
+
+async def test_a_lifecycle_entrys_query_and_result_are_empty_not_absent(
+    gateway: PersistenceGateway,
+) -> None:
+    """Every entry has somewhere to carry them; a lifecycle entry just carries
+    nothing there, the same as it already does for an unused ``detail``.
+    """
+    stored = incident()
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        await uow.incidents.upsert(stored)
+        await uow.incidents.append((entry(stored.incident_id, TimelineKind.OPENED),))
+
+        history = await uow.incidents.timeline(stored.incident_id)
+
+    assert history[0].query == ""
+    assert history[0].result == ""
 
 
 # --- Retention -------------------------------------------------------------------------

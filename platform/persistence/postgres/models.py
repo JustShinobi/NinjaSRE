@@ -969,6 +969,10 @@ class IncidentTimelineRow(Base):
     actor: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     cause: Mapped[str] = mapped_column(Text, nullable=False, default="")
     detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    #: The query an evidence entry ran. Empty for every other kind.
+    query: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    #: What that query returned.
+    result: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
 class RemediationOutcomeRow(Base):
