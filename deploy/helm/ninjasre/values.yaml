@@ -144,10 +144,26 @@ encryptionKey:
     key: key
 
 provider:
-  id: anthropic
+  # Empty on purpose, and this is the one default in the file that is an
+  # absence rather than a value.
+  #
+  # Connecting a model provider is a first-run step. The operator opens the
+  # console, chooses one, and enters the key — which is stored in the vault,
+  # encrypted with `encryptionKey.secret`, and rotated by writing to the vault
+  # rather than by redeploying. A release that shipped a provider here would be
+  # a release that puts a credential's home in a values file.
+  #
+  # Everything below is the other way, for a deployment that would rather be
+  # handed its provider than click one. Set `id` and nothing else changes; set
+  # `credentialSecret.name` too and the container also receives that provider's
+  # own key variable. Leave both alone and the deployment starts, reports that
+  # it has no provider, and shows where to connect one.
+  id: ""
   model: ""
   credentialSecret:
-    name: ninjasre-provider
+    # Referenced only when `name` is set. A chart that demanded a Secret nobody
+    # created would refuse to start a deployment that was configured correctly.
+    name: ""
     key: api-key
   # Point this at a model running in the cluster to make the deployment
   # air-gapped. With a local model and no other endpoint configured, nothing

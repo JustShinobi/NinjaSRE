@@ -44,9 +44,11 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.proxy.port }}
+          # No provider credential. The proxy brokers credentials for other
+          # processes and never calls a model itself, so handing it one would
+          # spread a secret to the one container that has no use for it.
           env:
             {{- include "ninjasre.env" . | nindent 12 }}
-            {{- include "ninjasre.providerEnv" . | nindent 12 }}
           readinessProbe:
             httpGet:
               path: /health
