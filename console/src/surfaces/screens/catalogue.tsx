@@ -6,8 +6,8 @@ import { may } from '@/session/viewer';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { CredentialField } from '../credential';
-import { panelLabels } from '../labels';
+import { CredentialField, type CredentialFieldSpec } from '../credential';
+import { credentialLabels, panelLabels } from '../labels';
 import { Panel } from '../panel';
 import {
   authorised,
@@ -32,6 +32,30 @@ import {
  */
 
 /** The permission the gateway requires to manage an integration. */
+/**
+ * Return the credential fields this integration declares, as the form asks for them.
+ *
+ * Read from the vendor's own entry in the same `/v1/integrations` payload this
+ * screen already has, rather than from `required_credentials`, which carries
+ * names and nothing a form can label or explain. A field this console invented
+ * would be a field the deployment never asked for.
+ */
+function credentialFieldsOf(record: unknown): readonly CredentialFieldSpec[] {
+  return list(record, 'fields').map((declared) => {
+    const minScope = text(declared, 'min_scope');
+    const guideUrl = text(declared, 'guide_url');
+    return {
+      name: text(declared, 'name'),
+      label: text(declared, 'label'),
+      help: text(declared, 'help'),
+      secret: flag(declared, 'secret'),
+      required: flag(declared, 'required'),
+      ...(minScope === '' ? {} : { minScope }),
+      ...(guideUrl === '' ? {} : { guideUrl }),
+    };
+  });
+}
+
 const MANAGE = 'integration.manage';
 
 export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNode> {
@@ -186,14 +210,8 @@ export async function CatalogueScreen(context: SurfaceContext): Promise<ReactNod
                     </span>
                     <CredentialField
                       integration={name}
-                      required={list(integration, 'required_credentials').map(String)}
-                      labels={{
-                        title: message(locale, 'catalogue.credential.title'),
-                        replace: message(locale, 'catalogue.credential.replace'),
-                        stored: message(locale, 'catalogue.credential.stored'),
-                        absent: message(locale, 'catalogue.credential.absent'),
-                        verify: message(locale, 'catalogue.integrations.verify'),
-                      }}
+                      fields={credentialFieldsOf(integration)}
+                      labels={credentialLabels(locale)}
                     />
                   </li>
                 );
