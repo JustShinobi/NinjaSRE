@@ -16,7 +16,13 @@
 import type { SemanticRole } from '@/design/tokens';
 
 /** Where an attention item came from, which is also where following it goes. */
-export const ATTENTION_KINDS = ['approval', 'question', 'incident', 'failure'] as const;
+export const ATTENTION_KINDS = [
+  'approval',
+  'proposal',
+  'question',
+  'incident',
+  'failure',
+] as const;
 
 export type AttentionKind = (typeof ATTENTION_KINDS)[number];
 
@@ -35,6 +41,11 @@ export interface AttentionItem {
 /** The role each kind is rendered in. Colour is never the only signal. */
 export const ATTENTION_ROLE: Readonly<Record<AttentionKind, SemanticRole>> = {
   approval: 'warning',
+  // Info rather than warning: a proposal is an improvement waiting, not a
+  // production change waiting. Colouring it the same as a remediation approval
+  // would teach people that the amber row is sometimes not urgent, which is how
+  // the urgent one stops being read.
+  proposal: 'info',
   question: 'info',
   incident: 'danger',
   failure: 'danger',

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { areaMetadata } from '@/shell/area';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
-import { TopologyScreen } from '@/surfaces/screens/topology';
+import { TopologyTab } from '@/surfaces/screens/topology';
 
 /** One area of the product. What it is, and what it is for, come from the manifest. */
 export function generateMetadata(): Promise<Metadata> {
@@ -15,5 +15,5 @@ export default async function Page({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }): Promise<ReactNode> {
-  return TopologyScreen(await surfaceContext(await searchParams));
+  return TopologyTab(await surfaceContext(await searchParams));
 }

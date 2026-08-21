@@ -8,7 +8,7 @@ import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
-import { ConfigPreview } from '../preview';
+import { ConfigPreview } from '../config-preview';
 import {
   authorised,
   dataOf,

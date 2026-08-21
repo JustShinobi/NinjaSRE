@@ -1,28 +1,46 @@
 import type { ReactNode } from 'react';
 
-import { formatNumber, timestamp } from '@/i18n/format';
+import { isSettled } from '@/design/status';
+import { formatCount, formatNumber, timestamp } from '@/i18n/format';
 import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import { ActivityFeed, type ActivityEntry } from '../activity';
 import { AttentionBlock, type AttentionRow } from '../attention';
+import { readFailure } from '../failures';
 import { Figure } from '../figure';
 import { Panel } from '../panel';
 import { panelLabels } from '../labels';
+import { DashboardQuickActions } from '../quick-actions';
+import { SetupHero } from '../setup-hero';
 import {
   authorised,
   countOf,
   counts,
   dataOf,
   dependencyOf,
+  field,
   flag,
   list,
   number,
+  optionalRead,
   panelRead,
   read,
   stateOf,
   text,
 } from '../read';
+import { NoProviderNotice } from '../first-run/no-provider';
+import { outstanding, readSetup } from '../first-run/plan';
+import { Tutorial } from '../first-run/tutorial';
+// From the plain module rather than from the overlay: this screen renders on
+// the server, and reading the flag out of a `'use client'` file made the whole
+// dashboard throw before it painted anything.
+import {
+  TUTORIAL_QUERY_PARAM,
+  TUTORIAL_REPLAY_VALUE,
+  tutorialDismissed,
+} from '../first-run/tutorial-setting';
+import { viewerNode } from '../tree';
 import type { SurfaceContext } from '../context';
 
 /**
@@ -34,11 +52,16 @@ import type { SurfaceContext } from '../context';
  * a console teaches people that the top of the page is where the decoration
  * lives.
  *
- * Six panels, six reads, six boundaries. The detector and incident counts come
- * from endpoints the deployment does not serve yet; each of those panels says so
- * as an empty state naming the next action rather than as an error, because a
- * deployment nobody has connected anything to is new rather than broken. The
- * estate is served, so an empty one there means an estate with nothing in it.
+ * Each panel has its own read and its own boundary. The detector and incident
+ * counts come from endpoints the deployment does not serve yet; each of those
+ * panels says so as an empty state naming the next action rather than as an
+ * error, because a deployment nobody has connected anything to is new rather
+ * than broken. The estate is served, so an empty one there means an estate
+ * with nothing in it.
+ *
+ * While setup is incomplete, finishing it is the page: a hero dominates the
+ * centre, above the figures, and gives way to nothing but its own absence the
+ * moment there is nothing left to do (`setup-hero.tsx`).
  */
 
 /** The statuses that mean a run needs somebody rather than that it is working. */
@@ -47,21 +70,62 @@ const FAILED = new Set(['failed', 'error', 'cancelled']);
 /** How many activity entries the feed shows before it is a list rather than a narrative. */
 const FEED_LENGTH = 8;
 
-export async function DashboardScreen(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, now, zone } = context;
-  const init = authorised(credential);
+/** Return the attention row whose source timestamp is the earliest valid instant. */
+export function oldestAttention(
+  rows: readonly AttentionRow[],
+): AttentionRow | undefined {
+  let oldest: AttentionRow | undefined;
+  let oldestAt = Number.POSITIVE_INFINITY;
+  for (const row of rows) {
+    const at = Date.parse(row.at ?? '');
+    if (Number.isNaN(at) || at >= oldestAt) continue;
+    oldest = row;
+    oldestAt = at;
+  }
+  return oldest;
+}
 
-  const [approvals, runs, estate, health, detectors, incidents] = await Promise.all([
+export async function DashboardScreen(context: SurfaceContext): Promise<ReactNode> {
+  const { credential, locale, now, search, viewer, zone } = context;
+  const init = authorised(credential);
+  // The tutorial's dismissal is written at this node and read back from it, so
+  // it has to resolve to a node that exists rather than to the empty string.
+  const node = await viewerNode(viewer, init);
+
+  const [
+    approvals,
+    proposals,
+    runs,
+    estate,
+    health,
+    detectors,
+    incidents,
+    checklist,
+    effective,
+  ] = await Promise.all([
     panelRead('/v1/approvals', () => read('/v1/approvals', init)),
+    // The same list the sidebar badge counts, so the band and the badge
+    // cannot disagree about how many are waiting.
+    panelRead('/v1/proposals', () => read('/v1/proposals', init)),
     panelRead('/v1/runs', () => read('/v1/runs', init)),
     panelRead('/v1/estate/summary', () => read('/v1/estate/summary', init)),
     panelRead('/health/ready', () => read('/health/ready', init)),
     panelRead('/v1/detectors', () => read('/v1/detectors', authorised(credential))),
     panelRead('/v1/incidents', () => read('/v1/incidents', authorised(credential))),
+    panelRead('/v1/setup/checklist', () => read('/v1/setup/checklist', init)),
+    optionalRead('/v1/config/{node_id}', () =>
+      node === ''
+        ? Promise.resolve({})
+        : read('/v1/config/{node_id}', { ...init, params: { node_id: node } }),
+    ),
   ]);
+
+  const setup = readSetup(dataOf(checklist), field(dataOf(effective), 'values'));
+  const replay = search.get(TUTORIAL_QUERY_PARAM) === TUTORIAL_REPLAY_VALUE;
 
   const runRecords = list(dataOf(runs), 'runs');
   const approvalRecords = list(dataOf(approvals), 'approvals');
+  const proposalRecords = list(dataOf(proposals), 'proposals');
   const incidentRecords = list(dataOf(incidents), 'incidents');
   const detectorRecords = list(dataOf(detectors), 'detectors');
   const summary = dataOf(estate);
@@ -76,8 +140,22 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       kind: 'approval',
       title: text(record, 'summary'),
       detail: text(record, 'action'),
-      href: `/approvals?selected=${id}`,
+      href: `/decisions?tab=actions&selected=${id}`,
       since: timestamp(locale, text(record, 'requested_at'), now, zone).relative,
+      at: text(record, 'requested_at'),
+    });
+  }
+  for (const record of proposalRecords) {
+    const id = text(record, 'proposal_id');
+    if (id === '') continue;
+    attention.push({
+      id,
+      kind: 'proposal',
+      title: text(record, 'summary'),
+      detail: text(record, 'proposal_type'),
+      href: `/decisions?tab=changes&selected=${id}`,
+      since: timestamp(locale, text(record, 'proposed_at'), now, zone).relative,
+      at: text(record, 'proposed_at'),
     });
   }
   for (const record of incidentRecords) {
@@ -90,22 +168,31 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
       detail: text(record, 'summary'),
       href: `/incidents/${id}`,
       since: timestamp(locale, text(record, 'opened_at'), now, zone).relative,
+      at: text(record, 'opened_at'),
     });
   }
   for (const record of runRecords) {
     if (!FAILED.has(text(record, 'status'))) continue;
     const id = text(record, 'run_id');
+    // A failed run's summary is whatever the deployment put there, and for the
+    // failure that matters most that is a raised exception naming an
+    // environment variable. It was the first thing on this page: a sentence
+    // written for whoever deploys the product, shown to whoever opened the
+    // console, on a screen that has a button leading to the fix.
+    const said = readFailure(text(record, 'summary'), locale);
+    const raised = said.technical !== '';
     attention.push({
       id,
       kind: 'failure',
-      title: text(record, 'summary'),
-      detail: text(record, 'status'),
-      href: `/runs/${id}`,
+      title: raised ? said.title : text(record, 'summary'),
+      detail: raised ? said.action : text(record, 'status'),
+      href: raised && said.href !== '' ? said.href : `/runs/${id}`,
       since: timestamp(locale, text(record, 'started_at'), now, zone).relative,
+      at: text(record, 'started_at'),
     });
   }
 
-  const oldest = attention[attention.length - 1];
+  const oldest = oldestAttention(attention);
 
   // --- The narrative ---------------------------------------------------------
   const feed: ActivityEntry[] = [];
@@ -125,6 +212,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   for (const record of runRecords) {
     const id = text(record, 'run_id');
     const status = text(record, 'status');
+    // Same translation as the band above, for the same reason: this was the
+    // fourth surface repeating the identical stack trace, and a narrative of
+    // what happened here reads worst of all as an exception message.
+    const said = readFailure(text(record, 'summary'), locale);
     feed.push({
       id: `run-${id}`,
       kind: 'run',
@@ -134,8 +225,8 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         : status === 'succeeded'
           ? 'success'
           : 'info',
-      title: text(record, 'summary') === '' ? id : text(record, 'summary'),
-      detail: status,
+      title: said.title === '' ? id : said.title,
+      detail: said.technical === '' ? status : said.action,
       href: `/runs/${id}`,
       ...timestamp(locale, text(record, 'started_at'), now, zone),
     });
@@ -146,13 +237,10 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   // --- The estate ------------------------------------------------------------
   const watched = number(summary, 'total');
   const healthy = countOf(summary, 'by_health', 'healthy');
-  // Not knowing and being broken are different facts, and the tile is the one
-  // place they are added together — because the question it answers is "how
-  // much of the estate am I not confident about".
-  const degraded =
-    number(summary, 'problems') +
-    countOf(summary, 'by_health', 'unknown') +
-    countOf(summary, 'by_health', 'stale');
+  // The persistence contract defines `problems` as degraded or unhealthy. Keep
+  // unknown and stale out: they are gaps in observation, not estate faults, and
+  // the problem drill-down must contain exactly what this number counts.
+  const degraded = number(summary, 'problems');
   const kinds = counts(summary, 'by_kind')
     .map(([kind, count]) => `${formatNumber(locale, count)} ${kind}`)
     .join(' · ');
@@ -164,14 +252,46 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
     FAILED.has(text(record, 'status')),
   ).length;
 
+  // --- The agent, rather than the estate --------------------------------------
+  // Every other figure on this page is about what is being watched. This one is
+  // about whether the product itself is doing its job — the fact the reference
+  // design leads with and this page, until now, never asked.
+  const settledRuns = runRecords.filter((record) => isSettled(text(record, 'status')));
+  const succeededRuns = settledRuns.filter(
+    (record) => text(record, 'status') === 'succeeded',
+  );
+  const successRate =
+    settledRuns.length === 0
+      ? null
+      : Math.round((succeededRuns.length / settledRuns.length) * 100);
+
   return (
     <>
+      {/* Only while something is outstanding, and never once the effective
+          configuration records a dismissal. A dismissal that never reached the
+          deployment therefore cannot leave a configured one behind an overlay:
+          the worst it can do is show this a second time. */}
+      {replay ||
+      (outstanding(setup) !== 0 &&
+        !tutorialDismissed(field(dataOf(effective), 'values'))) ? (
+        <Tutorial locale={locale} nodeId={node} replay={replay} />
+      ) : null}
+
       <AreaHeader area={areaFor('dashboard')} locale={locale} />
 
+      {/* Above the attention block and inside the page. A deployment with no
+          provider genuinely cannot investigate, and it is told so here rather
+          than by a door it cannot open — the figures below stay visible and
+          honest at zero. */}
+      <NoProviderNotice locale={locale} setup={setup} />
+
       <AttentionBlock
-        heading={message(locale, 'dashboard.attention.count', {
-          count: formatNumber(locale, attention.length),
-        })}
+        heading={formatCount(
+          locale,
+          attention.length,
+          'dashboard.attention.count.one',
+          'dashboard.attention.count',
+        )}
         oldest={message(locale, 'dashboard.attention.oldest', {
           age: oldest === undefined ? '' : oldest.since,
         })}
@@ -196,9 +316,17 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         </div>
       ) : null}
 
-      {/* Every figure has a period, a comparison and a list behind it. A figure
-          that had none of those would not compile — see `figure.tsx`. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5">
+      {/* While anything remains, finishing setup dominates the page rather
+          than sitting in a small side card beside an empty centre. It is
+          absent, not shrunk, the moment nothing is left. */}
+      <SetupHero locale={locale} setup={setup} source={checklist} />
+
+      {/* Every figure has context and a list behind it. A figure that had neither
+          would not compile — see `figure.tsx`. */}
+      <div
+        data-testid="main-figures"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-5"
+      >
         <Figure
           label={message(locale, 'dashboard.stat.watched')}
           value={formatNumber(locale, watched)}
@@ -222,10 +350,16 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
         <Figure
           label={message(locale, 'dashboard.stat.degraded')}
           value={formatNumber(locale, degraded)}
+          // A degraded count with nothing beside it is where "24 unhealthy"
+          // and "Incidents: none" stopped making sense together. Naming how
+          // many detectors are actually switched on is the bridge: a finding
+          // is not an incident until one of these turns it into one.
           context={message(locale, 'dashboard.stat.degraded.context', {
             count: formatNumber(locale, number(summary, 'problems')),
+            live: formatNumber(locale, liveDetectors),
+            total: formatNumber(locale, detectorRecords.length),
           })}
-          href="/resources?health=degraded"
+          href="/resources?health=problem"
           drillLabel={message(locale, 'dashboard.stat.drill')}
           trend={degraded > 0 ? 'down' : 'flat'}
         />
@@ -238,6 +372,25 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
           href="/runs"
           drillLabel={message(locale, 'dashboard.stat.drill')}
           trend={failedRuns > 0 ? 'down' : 'flat'}
+        />
+        {/* The one figure on this page about the agent rather than the
+            estate: whether the product itself is doing its job. */}
+        <Figure
+          label={message(locale, 'dashboard.stat.successRate')}
+          value={successRate === null ? '—' : `${formatNumber(locale, successRate)}%`}
+          context={
+            successRate === null
+              ? message(locale, 'dashboard.stat.successRate.context.none')
+              : message(locale, 'dashboard.stat.successRate.context', {
+                  succeeded: formatNumber(locale, succeededRuns.length),
+                  settled: formatNumber(locale, settledRuns.length),
+                })
+          }
+          href={
+            successRate !== null && successRate < 100 ? '/runs?status=failed' : '/runs'
+          }
+          drillLabel={message(locale, 'dashboard.stat.drill')}
+          trend={successRate === null ? 'flat' : successRate === 100 ? 'up' : 'down'}
         />
       </div>
 
@@ -252,36 +405,19 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
               heading: message(locale, 'dashboard.activity.empty.heading'),
               body: message(locale, 'dashboard.activity.empty.body'),
               actionLabel: message(locale, 'dashboard.activity.empty.action'),
-              href: '/configuration',
+              // "Connect a source" is the catalogue's own job, not the
+              // retired editor's.
+              href: '/integrations',
             }}
           >
             <ActivityFeed entries={recent} />
           </Panel>
         </div>
         <div className="flex flex-col gap-5 min-w-0">
-          <Panel
-            title={message(locale, 'dashboard.estate.title')}
-            state={stateOf(estate, watched === 0)}
-            dependency={dependencyOf(estate)}
-            labels={panelLabels(locale, message(locale, 'dashboard.estate.title'))}
-            empty={{
-              heading: message(locale, 'dashboard.estate.empty.heading'),
-              body: message(locale, 'dashboard.estate.empty.body'),
-              actionLabel: message(locale, 'dashboard.estate.empty.action'),
-              href: '/configuration',
-            }}
-          >
-            <dl className="flex flex-col gap-2 text-small">
-              {counts(summary, 'by_kind').map(([kind, count]) => (
-                <div key={kind} className="flex items-center gap-3">
-                  <dt className="min-w-0 truncate">{kind}</dt>
-                  <dd className="ml-auto tabular-nums">
-                    {formatNumber(locale, count)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
+          {/* The remaining plan is the hero above, not a second copy of itself
+              down here. Two checklists on one page is the page disagreeing with
+              itself about where the operator should look. */}
+          <DashboardQuickActions locale={locale} />
 
           <Panel
             title={message(locale, 'dashboard.guardian.title')}

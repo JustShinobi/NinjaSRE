@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SHELL, SIDEBAR_BREAKPOINT } from '@/design/tokens';
 import { EN } from '@/i18n/en';
@@ -26,24 +26,54 @@ import { owner, viewerAt } from './support';
 
 const GUARDIAN = { live: true, posture: 'propose' } as const;
 
+/**
+ * The open path, driven the way the sidebar reads it.
+ *
+ * The navigation asks the router rather than taking a prop, because a layout
+ * above it is not re-rendered by a segment navigation. So a file about the
+ * navigation declares its own mock, which is what the shared setup expects of
+ * exactly this case.
+ */
+const nav = vi.hoisted(() => ({ pathname: '/' }));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+  }),
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(),
+  notFound: () => {
+    throw new Error('not found');
+  },
+  redirect: (href: string) => {
+    throw new Error(`redirected to ${href}`);
+  },
+}));
+
 function nothing(): void {
   // The chrome's handlers are not what this file is about.
 }
 
 function renderSidebar(current = '/'): void {
-  render(
-    <Sidebar viewer={owner()} locale="en" current={current} guardian={GUARDIAN} />,
-  );
+  nav.pathname = current;
+  render(<Sidebar viewer={owner()} locale="en" guardian={GUARDIAN} />);
 }
 
 describe('the sidebar', () => {
   it('draws the four groups the design draws, in the documented order', () => {
     renderSidebar();
+    // Scoped to the heading elements themselves: the Settings hub's own nav
+    // entry is now labelled "Settings" too (the hybrid navigation's own
+    // entry, not the zone it sits in), and an unscoped query would count that
+    // label a second time.
     const headings = screen
       .getAllByText(
         new RegExp(
           `^(${NAV_GROUPS.map((group) => message('en', `nav.group.${group}`)).join('|')})$`,
         ),
+        { selector: 'p' },
       )
       .map((element) => element.textContent);
 
@@ -70,13 +100,16 @@ describe('the sidebar', () => {
   });
 
   it('marks exactly one entry as current, and marks the right one', () => {
-    renderSidebar('/audit');
+    // `/administration` no longer names a sidebar entry — the hybrid
+    // navigation retired it — so this exercises an entry the sidebar still
+    // carries; `integrations` keeps its own place next to Settings.
+    renderSidebar('/integrations');
     const marked = screen
       .getAllByTestId('nav-entry')
       .filter((entry) => entry.getAttribute('aria-current') === 'page');
 
     expect(marked).toHaveLength(1);
-    expect(marked[0]?.getAttribute('data-area')).toBe('audit');
+    expect(marked[0]?.getAttribute('data-area')).toBe('integrations');
   });
 
   it('marks the area a nested route belongs to, not nothing at all', () => {
@@ -118,12 +151,20 @@ describe('the sidebar', () => {
     expect(footer.textContent).toContain(EN['shell.guardian.posture.propose']);
   });
 
+  it('is a link to the screen that explains and controls the posture, with a tooltip', () => {
+    renderSidebar();
+    const footer = screen.getByTestId('guardian');
+
+    expect(footer.tagName).toBe('A');
+    expect(footer).toHaveAttribute('href', '/autonomy');
+    expect(footer).toHaveAttribute('title', EN['shell.guardian.tooltip']);
+  });
+
   it('says so when the guardian is not alive, rather than saying nothing', () => {
     render(
       <Sidebar
         viewer={owner()}
         locale="en"
-        current="/"
         guardian={{ live: false, posture: 'frozen' }}
       />,
     );
@@ -139,21 +180,35 @@ describe('the sidebar', () => {
       <Sidebar
         viewer={owner()}
         locale="en"
-        current="/"
         guardian={GUARDIAN}
-        counts={{ approvals: 2, incidents: 3, runs: 0 }}
+        counts={{ decisions: 2, incidents: 3, runs: 4 }}
       />,
     );
 
     const counts = screen.getAllByTestId('nav-count').map((each) => each.textContent);
-    expect(counts).toEqual(['3', '2']);
+    expect(counts).toEqual(['3', '4', '2']);
+    const runs = screen
+      .getAllByTestId('nav-entry')
+      .find((entry) => entry.getAttribute('data-area') === 'runs');
+    expect(runs?.querySelector('[data-testid="nav-count"]')).toHaveAttribute(
+      'aria-label',
+      '4 failed investigations',
+    );
   });
 
   it('renders every label from the catalogue, in whichever language the viewer reads', () => {
-    render(<Sidebar viewer={owner()} locale="pt-BR" current="/" guardian={GUARDIAN} />);
+    render(<Sidebar viewer={owner()} locale="pt-BR" guardian={GUARDIAN} />);
 
-    expect(screen.getByText(message('pt-BR', 'nav.audit'))).toBeInTheDocument();
-    expect(screen.queryByText(EN['nav.audit'])).toBeNull();
+    // `nav.administration` is no longer a sidebar label — the hybrid
+    // navigation retired the entry it named — so `nav.settings` (the Settings
+    // hub that replaced it) carries this proof instead. Scoped to the nav
+    // entry's own element: the Settings zone heading (`nav.group.settings`)
+    // translates to the same Portuguese word, and an unscoped query would
+    // find both and throw on the ambiguity.
+    expect(
+      screen.getByText(message('pt-BR', 'nav.settings'), { selector: 'span' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(EN['nav.settings'], { selector: 'span' })).toBeNull();
   });
 });
 
@@ -197,6 +252,12 @@ describe('the utility bar', () => {
     expect(screen.getByTestId('account')).toBeInTheDocument();
   });
 
+  it('offers the dismissed tour again from the account menu', () => {
+    renderTopbar();
+
+    expect(screen.getByTestId('view-tour')).toHaveAttribute('href', '/?tour=1');
+  });
+
   it('shows no unread count when nothing is waiting', () => {
     renderTopbar();
     expect(screen.queryByTestId('unread-count')).toBeNull();
@@ -230,6 +291,25 @@ describe('the utility bar', () => {
     expect(control).toHaveAttribute('data-theme-choice', 'system');
   });
 
+  it('switches the density between the two steps, and reaches the document', async () => {
+    // The defect this covers is not a wrong value: it is that every piece of
+    // the density existed and nothing called any of it, so the compact step
+    // was unreachable from the console it was built for.
+    window.localStorage.clear();
+    document.documentElement.removeAttribute('data-density');
+    renderTopbar();
+    const control = screen.getByTestId('density-switch');
+
+    expect(control).toHaveAttribute('data-density-choice', 'comfortable');
+    await userEvent.click(control);
+    expect(control).toHaveAttribute('data-density-choice', 'compact');
+    expect(document.documentElement).toHaveAttribute('data-density', 'compact');
+
+    await userEvent.click(control);
+    expect(control).toHaveAttribute('data-density-choice', 'comfortable');
+    expect(document.documentElement).toHaveAttribute('data-density', 'comfortable');
+  });
+
   it('opens the palette and the drawer through the controls that say so', async () => {
     const { palette, drawer } = renderTopbar();
 
@@ -238,6 +318,54 @@ describe('the utility bar', () => {
 
     expect(palette).toHaveBeenCalledOnce();
     expect(drawer).toHaveBeenCalledOnce();
+  });
+
+  it('names the theme and the density switch in a tooltip, not only to a screen reader', () => {
+    renderTopbar();
+
+    expect(screen.getByTestId('theme-switch')).toHaveAttribute(
+      'title',
+      EN['shell.theme'],
+    );
+    expect(screen.getByTestId('density-switch')).toHaveAttribute(
+      'title',
+      EN['shell.density.compact'],
+    );
+  });
+
+  it('names the organisation switcher and the avatar, so neither reads as an unnamed button', () => {
+    renderTopbar();
+
+    // The account control is the summary of a disclosure — its own accessible
+    // name, and the avatar inside it names the person it stands for.
+    expect(screen.getByLabelText(EN['shell.account'])).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Avery Lockhart' })).toBeInTheDocument();
+  });
+
+  describe('the language selector in the account menu', () => {
+    afterEach(() => {
+      document.cookie = 'ninjasre_locale=; max-age=0';
+    });
+
+    it('offers every locale the console carries, marking the current one', () => {
+      renderTopbar();
+
+      const english = screen.getByTestId('language-en');
+      const portuguese = screen.getByTestId('language-pt-BR');
+      expect(english).toHaveAttribute('aria-pressed', 'true');
+      expect(portuguese).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('persists the choice and reloads so the server renders it', async () => {
+      const reload = vi.fn();
+      vi.stubGlobal('location', { reload });
+      renderTopbar();
+
+      await userEvent.click(screen.getByTestId('language-pt-BR'));
+
+      expect(document.cookie).toContain('ninjasre_locale=pt-BR');
+      expect(reload).toHaveBeenCalledOnce();
+    });
   });
 });
 

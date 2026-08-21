@@ -19,6 +19,7 @@
   --color-surface: var(--surface);
   --color-sunken: var(--sunken);
   --color-raised: var(--raised);
+  --color-hover: var(--hover);
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-accent: var(--accent);

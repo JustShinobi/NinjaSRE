@@ -20,20 +20,38 @@ import { ROLE_ORDER, viewerAt } from './support';
 
 const GUARDIAN = { live: true, posture: 'propose' } as const;
 
+/**
+ * Areas the hybrid navigation retires from the sidebar unconditionally — an
+ * unconditional `visible: () => false`, not a permission question — so the
+ * "present only if held" property below does not hold for them: holding the
+ * permission is no longer sufficient, by design. Their own screens are
+ * covered where they now live, under the Settings subnav; the manifest's own
+ * `the areas the Settings subnav replaced` suite in `routes.test.ts` covers
+ * the retirement itself.
+ */
+const RETIRED_FROM_SIDEBAR = new Set([
+  'first-run',
+  'signals',
+  'autonomy',
+  'configuration',
+  'administration',
+  // Reference-only: reached from the catalogue's own footer and its
+  // search-empty state, never from the sidebar.
+  'integrations-not-covered',
+]);
+
 function nothing(): void {
   // Every control the shell hands out needs a handler; none of them is what
   // this file is about.
 }
 
 function renderSidebar(role: string): void {
-  render(
-    <Sidebar viewer={viewerAt(role)} locale="en" current="/" guardian={GUARDIAN} />,
-  );
+  render(<Sidebar viewer={viewerAt(role)} locale="en" guardian={GUARDIAN} />);
 }
 
 describe('the navigation, per role', () => {
   for (const role of ROLE_ORDER) {
-    for (const area of AREAS) {
+    for (const area of AREAS.filter((each) => !RETIRED_FROM_SIDEBAR.has(each.id))) {
       it(`${role}: ${area.id} is ${area.permission} and is present only if held`, () => {
         renderSidebar(role);
         const viewer = viewerAt(role);
@@ -52,6 +70,19 @@ describe('the navigation, per role', () => {
         }
       });
     }
+  }
+
+  for (const role of ROLE_ORDER) {
+    it(`${role}: none of the areas the hybrid navigation retired is ever in the sidebar`, () => {
+      renderSidebar(role);
+      const entries = screen
+        .queryAllByTestId('nav-entry')
+        .map((element) => element.getAttribute('data-area'));
+
+      for (const id of RETIRED_FROM_SIDEBAR) {
+        expect(entries, `${role}: ${id}`).not.toContain(id);
+      }
+    });
   }
 
   it('shows the least privileged role strictly fewer areas than the most', () => {

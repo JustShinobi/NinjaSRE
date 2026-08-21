@@ -28,6 +28,8 @@ export interface AttentionRow {
   readonly href: string;
   /** How long it has been waiting, already phrased. */
   readonly since: string;
+  /** The source instant used to decide which row has waited longest. */
+  readonly at?: string;
 }
 
 export interface AttentionBlockProps {
@@ -59,7 +61,10 @@ export function AttentionBlock({
           <AlertTriangleIcon />
         </span>
         <h2 className="text-section text-danger">{heading}</h2>
-        <span className="ml-auto text-micro uppercase text-muted edge border-border-strong rounded-1 px-2">
+        {/* Not shouted in capitals: this says which of the rows below has
+            been waiting longest, which is the reason to look at this row
+            first rather than decoration on top of the count. */}
+        <span className="ml-auto text-micro text-muted edge border-border-strong rounded-1 px-2">
           {oldest}
         </span>
       </header>
@@ -68,7 +73,7 @@ export function AttentionBlock({
           <li key={row.id} data-testid="attention-row" data-kind={row.kind}>
             <a
               href={row.href}
-              className="flex items-center gap-3 px-4 py-3 bg-raised edge border-border border-x-0 border-b-0 motion-hover hover:bg-sunken"
+              className="flex items-center gap-3 px-4 py-3 bg-raised edge border-border border-x-0 border-b-0 motion-hover hover:bg-hover"
             >
               <Badge status={row.kind} />
               <span className="min-w-0 flex flex-col">

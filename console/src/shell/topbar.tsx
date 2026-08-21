@@ -2,16 +2,27 @@
 
 import type { ReactNode } from 'react';
 
-import { Button, IconButton } from '@/components/action';
+import { Button, IconButton, Link } from '@/components/action';
 import { Avatar } from '@/components/navigation';
-import { BellIcon, ContrastIcon, MenuIcon, PlusIcon, SearchIcon } from '@/design/icons';
+import {
+  BellIcon,
+  ContrastIcon,
+  ListIcon,
+  MenuIcon,
+  PlusIcon,
+  SearchIcon,
+} from '@/design/icons';
+import { storeDensity } from '@/design/density';
 import { applyTheme, storeTheme } from '@/design/theme';
 import type { Theme } from '@/design/tokens';
-import { message, type Locale } from '@/i18n/messages';
+import { LOCALES, message, type Locale } from '@/i18n/messages';
 import { may, type Viewer } from '@/session/viewer';
 import type { AttentionItem } from './attention';
-import { useChosenTheme } from './browser';
+import { storeLocale, useChosenTheme, useDensity } from './browser';
 import type { Deployment } from './deployment';
+import type { Stoppage } from './load';
+import { KillSwitchControl } from './stop';
+import { TUTORIAL_REPLAY_HREF } from '@/surfaces/first-run/tutorial-setting';
 
 /**
  * The utility bar: what deployment this is, the palette, the theme, what is
@@ -34,11 +45,21 @@ export interface TopbarProps {
   readonly onOpenDrawer: () => void;
   /** Open the drawer that starts an investigation, from wherever this is. */
   readonly onInvestigate: () => void;
+  /** Whether automated writes are currently stopped, and who did it, as the deployment says. */
+  readonly stopped?: Stoppage;
   readonly onSignOut: () => void;
 }
 
 /** The three theme choices, of which one is "stop overriding". */
 const THEME_ORDER: readonly (Theme | null)[] = ['light', 'dark', null];
+
+/** The catalogue key naming each locale, in the language it names. */
+const LOCALE_LABEL: Readonly<
+  Record<Locale, 'shell.language.en' | 'shell.language.pt-BR'>
+> = {
+  en: 'shell.language.en',
+  'pt-BR': 'shell.language.pt-BR',
+};
 
 export function Topbar({
   viewer,
@@ -49,6 +70,7 @@ export function Topbar({
   onOpenNotifications,
   onOpenDrawer,
   onInvestigate,
+  stopped = { engaged: false, by: null, since: null },
   onSignOut,
 }: TopbarProps): ReactNode {
   // The stored choice lives in the browser, and the server has no answer for
@@ -61,6 +83,14 @@ export function Topbar({
     const next = THEME_ORDER[(index + 1) % THEME_ORDER.length] ?? null;
     storeTheme(next);
     applyTheme(next);
+  }
+
+  const density = useDensity();
+
+  function toggleDensity(): void {
+    // Two steps and no third, so this is a toggle rather than a cycle: there is
+    // no system preference about row height to hand back to.
+    storeDensity(density === 'compact' ? 'comfortable' : 'compact');
   }
 
   const waiting = attention.length;
@@ -102,10 +132,36 @@ export function Topbar({
       <span className="hidden sm:inline-flex">
         <IconButton
           label={message(locale, 'shell.theme')}
+          title={message(locale, 'shell.theme')}
           icon={<ContrastIcon />}
           onClick={cycleTheme}
           data-testid="theme-switch"
           data-theme-choice={chosen ?? 'system'}
+        />
+      </span>
+
+      {/* Beside the theme, because they are the same kind of thing: how this
+          viewer reads, kept for them, changing nothing anybody else sees.
+          Hidden on a phone with the theme, where the tables it governs are
+          already stacked. */}
+      <span className="hidden sm:inline-flex">
+        <IconButton
+          label={message(
+            locale,
+            density === 'compact'
+              ? 'shell.density.comfortable'
+              : 'shell.density.compact',
+          )}
+          title={message(
+            locale,
+            density === 'compact'
+              ? 'shell.density.comfortable'
+              : 'shell.density.compact',
+          )}
+          icon={<ListIcon />}
+          onClick={toggleDensity}
+          data-testid="density-switch"
+          data-density-choice={density}
         />
       </span>
 
@@ -126,6 +182,19 @@ export function Topbar({
           </span>
         )}
       </span>
+
+      {/* Beside the investigate control rather than on a settings page. What
+          somebody is looking at when they decide to stop everything is the
+          reason they are stopping it, and a navigation loses both the reason
+          and the seconds. */}
+      <KillSwitchControl
+        viewer={viewer}
+        locale={locale}
+        engaged={stopped.engaged}
+        by={stopped.by}
+        since={stopped.since}
+        zone={deployment.timezone}
+      />
 
       {may(viewer, 'investigation.run') ? (
         <Button variant="primary" data-testid="investigate" onClick={onInvestigate}>
@@ -156,6 +225,33 @@ export function Topbar({
               {message(locale, 'shell.account.impersonate')}
             </Button>
           ) : null}
+          <Link href={TUTORIAL_REPLAY_HREF} data-testid="view-tour">
+            {message(locale, 'shell.viewTour')}
+          </Link>
+          {/* Persisted the way the theme and the density are: kept on this
+              origin, applied, and the choice survives a reload. Unlike those
+              two this one has to reach the server — every string on the page
+              comes from `message()` called in a server component — so what is
+              kept is a cookie the next request already reads, and changing it
+              reloads rather than only updating what is on screen. */}
+          <span className="pt-2 text-micro uppercase text-muted" id="language-label">
+            {message(locale, 'shell.account.language')}
+          </span>
+          <span className="flex gap-1" role="group" aria-labelledby="language-label">
+            {LOCALES.map((option) => (
+              <Button
+                key={option}
+                data-testid={`language-${option}`}
+                variant={option === locale ? 'primary' : 'secondary'}
+                aria-pressed={option === locale}
+                onClick={() => {
+                  storeLocale(option);
+                }}
+              >
+                {message(locale, LOCALE_LABEL[option])}
+              </Button>
+            ))}
+          </span>
           <Button onClick={onSignOut} data-testid="sign-out">
             {message(locale, 'shell.account.signOut')}
           </Button>

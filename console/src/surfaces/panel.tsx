@@ -171,24 +171,20 @@ export function Panel({
           </div>
         ) : null}
         {resolved === 'empty' ? (
-          <>
-            <EmptyState
-              heading={empty.heading}
-              body={empty.body}
-              {...(icon === undefined ? {} : { icon })}
-              action={{
-                label: empty.actionLabel,
-                onSelect: () => {
-                  window.location.assign(empty.href);
-                },
-              }}
-            />
-            {/* The same destination as a real link, for anything that reads
-                edges rather than presses buttons. */}
-            <a href={empty.href} className="sr-only" data-testid="way-back">
-              {empty.actionLabel}
-            </a>
-          </>
+          // One control. This used to be a button firing a navigation with a
+          // visually-hidden anchor beside it carrying the identical label, so
+          // that anything reading edges rather than pressing buttons still had
+          // a real link. Well meant, and it announced every empty state's
+          // action twice — a defect three specs reported independently, from
+          // three screens, none of which could fix it from where they stood.
+          // The action was always a navigation; now it is a link, and one
+          // element is both.
+          <EmptyState
+            heading={empty.heading}
+            body={empty.body}
+            {...(icon === undefined ? {} : { icon })}
+            action={{ label: empty.actionLabel, href: empty.href }}
+          />
         ) : null}
         {resolved === 'error' ? (
           <ErrorState

@@ -6,9 +6,104 @@
         "integrations": [
           {
             "capabilities": [
+              "prometheus_active_alerts",
+              "prometheus_metric_statistics",
+              "prometheus_resource_pressure"
+            ],
+            "category": "metrics",
+            "display_name": "Prometheus",
+            "fields": [
+              {
+                "guide_url": "",
+                "help": "Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own",
+                "label": "Token",
+                "min_scope": "",
+                "name": "token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "health": "healthy",
+            "health_detail": "a live request reached this endpoint",
+            "hosts": [
+              "prometheus.example.com"
+            ],
+            "missing_artefacts": [],
+            "name": "prometheus",
+            "parity": "complete",
+            "permissions": [
+              {
+                "capabilities": [
+                  "prometheus_metric_statistics"
+                ],
+                "grants": "evaluate PromQL over the stored series",
+                "name": "query",
+                "where": "Your reverse proxy, ingress, or Grafana Cloud access policy"
+              }
+            ],
+            "regions": [
+              "self-hosted"
+            ],
+            "summary": "PromQL evaluation and the alert rules currently firing, from the server that holds the series rather than from a dashboard on top of it."
+          },
+          {
+            "capabilities": [
+              "proxmox_cluster_health",
+              "proxmox_guest_pressure"
+            ],
+            "category": "cloud_control_plane",
+            "display_name": "Proxmox VE",
+            "fields": [
+              {
+                "guide_url": "",
+                "help": "Proxmox API token as one line: user@realm!tokenid=secret",
+                "label": "API Token",
+                "min_scope": "",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
+            "health": "healthy",
+            "health_detail": "a live request reached this endpoint",
+            "hosts": [
+              "proxmox.example.com"
+            ],
+            "missing_artefacts": [],
+            "name": "proxmox",
+            "parity": "complete",
+            "permissions": [
+              {
+                "capabilities": [
+                  "proxmox_cluster_health"
+                ],
+                "grants": "read cluster status, quorum and the cluster log",
+                "name": "Sys.Audit on /",
+                "where": "Datacenter → Permissions"
+              }
+            ],
+            "regions": [
+              "self-hosted"
+            ],
+            "summary": "A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, datastores, thin pools, backups and replication."
+          },
+          {
+            "capabilities": [
               "metrics.range_query"
             ],
             "category": "observability",
+            "display_name": "Metrics store",
+            "fields": [
+              {
+                "guide_url": "/integrations/metrics-store/guide",
+                "help": "Generated from the metrics store's own settings page.",
+                "label": "API token",
+                "min_scope": "read-only",
+                "name": "api_token",
+                "required": true,
+                "secret": true
+              }
+            ],
             "health": "unconfigured",
             "health_detail": "no credential is stored anywhere in this deployment",
             "hosts": [
@@ -17,14 +112,92 @@
             "missing_artefacts": [],
             "name": "metrics-store",
             "parity": "full",
+            "permissions": [
+              {
+                "capabilities": [
+                  "metrics.range_query"
+                ],
+                "grants": "run range queries against stored series",
+                "name": "metrics:read",
+                "where": "Metrics store → Settings → API tokens → Scopes"
+              }
+            ],
             "regions": [],
-            "required_credentials": [
-              "api_token"
-            ],
-            "required_permissions": [
-              "metrics:read"
-            ],
             "summary": "Range queries against the metrics store."
+          }
+        ],
+        "known_gaps": [
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "PostgreSQL",
+            "integration": "postgresql",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "A protocol bridge that terminates the credential outside the agent process, the way the HTTP proxy does. Nothing in the catalogue reaches a managed PostgreSQL's control plane today."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "MySQL",
+            "integration": "mysql",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "The same bridge PostgreSQL needs. Nothing in the catalogue reaches a managed MySQL's control plane today."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "MariaDB",
+            "integration": "mariadb",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "The same bridge MySQL needs — MariaDB speaks the MySQL protocol and has the same constraint for the same reason."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "MongoDB",
+            "integration": "mongodb",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "A protocol bridge. Nothing in the catalogue reaches a hosted deployment's administration API today, and a self-hosted replica set on port 27017 has no equivalent either way."
+          },
+          {
+            "category": "database",
+            "cause": "unreachable",
+            "display_name": "Redis (self-hosted)",
+            "integration": "redis_server",
+            "reason": "The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.",
+            "resolution": "A protocol bridge. `redis` is in the catalogue and reads Redis Cloud's control plane over HTTP; the keyspace, the slow log, and `INFO` on a self-hosted server are RESP and are not reachable."
+          },
+          {
+            "category": "communication",
+            "cause": "unreachable",
+            "display_name": "SMTP",
+            "integration": "smtp",
+            "reason": "SMTP is a stateful line protocol over its own port, not a request-response API. The credential proxy attaches a secret to an HTTP request; an SMTP session has no such request, and authentication happens inside a conversation the proxy cannot participate in.",
+            "resolution": "Either a protocol bridge that terminates the SMTP credential outside the agent process, or delivery through a vendor with an HTTP API — `pushover` is in the catalogue and reaches a person without an SMTP session."
+          },
+          {
+            "category": "cicd",
+            "cause": "unreachable",
+            "display_name": "Helm",
+            "integration": "helm",
+            "reason": "Helm 3 has no server component. A release is a Secret in the cluster and the CLI is what reads it, so there is no API for an integration to hold a credential against — the credential that matters is the cluster's.",
+            "resolution": "Nothing about Helm. Release history is already reachable: `kubernetes` reads the release Secrets in a namespace, and `argocd` answers the same question for the estates that deploy charts through it."
+          },
+          {
+            "category": "observability",
+            "cause": "not_built",
+            "display_name": "Gatus",
+            "integration": "gatus",
+            "reason": "Gatus answers one question — is this endpoint responding — and two configured sources already answer it by different routes: the hypervisor reports each guest's own state, and a blackbox exporter reports reachability from outside, both reaching the platform through Prometheus. A third path to the same answer is a third thing to keep credentials for and no new signal, and an investigation offered three sources for one question spends turns choosing between them.",
+            "resolution": "A synthetic check that asserts something neither of the other two can — a login flow, a certificate chain, a response body — or an estate where Gatus is the only thing watching a class of endpoint the hypervisor cannot see."
+          },
+          {
+            "category": "infrastructure",
+            "cause": "not_built",
+            "display_name": "NetBox",
+            "integration": "netbox",
+            "reason": "NetBox is a source of truth for network and addressing, and both already reach the platform: the addressing comes from the hypervisor with each guest, and the zones come from the declared inventory the estate is reconciled against. Ingesting the same facts from a third place is a third answer to 'which network is this on', and the failure that produces is two of them disagreeing quietly.",
+            "resolution": "An estate that grows past what the repository's own inventory describes — hardware, circuits, addressing NetBox is the only record of — at which point it stops being a duplicate and becomes the source for facts nothing else holds."
           }
         ]
       },

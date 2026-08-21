@@ -125,7 +125,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
             empty={{
               heading: message(locale, 'autonomy.empty.heading'),
               body: message(locale, 'autonomy.empty.body'),
-              actionLabel: message(locale, 'autonomy.empty.action'),
+              actionLabel: message(locale, 'autonomy.cta.createRule'),
               href: '/configuration',
             }}
           >
@@ -206,7 +206,7 @@ export async function AutonomyScreen(context: SurfaceContext): Promise<ReactNode
             empty={{
               heading: message(locale, 'autonomy.empty.heading'),
               body: message(locale, 'autonomy.empty.body'),
-              actionLabel: message(locale, 'autonomy.empty.action'),
+              actionLabel: message(locale, 'autonomy.cta.recordBound'),
               href: '/configuration',
             }}
           >

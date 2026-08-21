@@ -7,15 +7,77 @@
       "body": {
         "node_id": "env-production",
         "provenance": {
+          "agents.prompts.investigator": "env-production",
+          "agents.subagents": "env-production",
           "approval.required_above": "org-northwind",
+          "capabilities.protocol_servers": "env-production",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "env-production",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
+          "agents": {
+            "max_iterations": 12,
+            "max_parallel_subagents": 3,
+            "max_subagent_depth": 1,
+            "prompts": {
+              "investigator": "Prefer the storage evidence before the network evidence on this estate."
+            },
+            "subagents": [
+              {
+                "capabilities": [
+                  "estate.storage_pressure",
+                  "estate.enable_backup_job"
+                ],
+                "description": "Datastore fill, volume fill, and what a backup job is protecting.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "storage"
+              },
+              {
+                "capabilities": [
+                  "estate.failed_units"
+                ],
+                "description": "What is failed on a node, and what quorum costs if it goes.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "cluster-health"
+              },
+              {
+                "capabilities": [],
+                "description": "Reads the change history around the incident window.",
+                "enabled": false,
+                "max_iterations": 4,
+                "model_role": "subagent",
+                "name": "change-historian"
+              }
+            ],
+            "tool_budget": 40
+          },
           "approval.required_above": "read",
+          "capabilities": {
+            "protocol_servers": [
+              {
+                "enabled": true,
+                "name": "runbooks",
+                "protocol": "mcp",
+                "transport": "http",
+                "url": "https://runbooks.rushes.example.invalid/mcp"
+              }
+            ]
+          },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -37,15 +99,77 @@
       "body": {
         "node_id": "env-staging",
         "provenance": {
+          "agents.prompts.investigator": "env-staging",
+          "agents.subagents": "env-staging",
           "approval.required_above": "org-northwind",
+          "capabilities.protocol_servers": "env-staging",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "env-staging",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
+          "agents": {
+            "max_iterations": 12,
+            "max_parallel_subagents": 3,
+            "max_subagent_depth": 1,
+            "prompts": {
+              "investigator": "Prefer the storage evidence before the network evidence on this estate."
+            },
+            "subagents": [
+              {
+                "capabilities": [
+                  "estate.storage_pressure",
+                  "estate.enable_backup_job"
+                ],
+                "description": "Datastore fill, volume fill, and what a backup job is protecting.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "storage"
+              },
+              {
+                "capabilities": [
+                  "estate.failed_units"
+                ],
+                "description": "What is failed on a node, and what quorum costs if it goes.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "cluster-health"
+              },
+              {
+                "capabilities": [],
+                "description": "Reads the change history around the incident window.",
+                "enabled": false,
+                "max_iterations": 4,
+                "model_role": "subagent",
+                "name": "change-historian"
+              }
+            ],
+            "tool_budget": 40
+          },
           "approval.required_above": "read",
+          "capabilities": {
+            "protocol_servers": [
+              {
+                "enabled": true,
+                "name": "runbooks",
+                "protocol": "mcp",
+                "transport": "http",
+                "url": "https://runbooks.rushes.example.invalid/mcp"
+              }
+            ]
+          },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -67,15 +191,77 @@
       "body": {
         "node_id": "org-northwind",
         "provenance": {
+          "agents.prompts.investigator": "org-northwind",
+          "agents.subagents": "org-northwind",
           "approval.required_above": "org-northwind",
+          "capabilities.protocol_servers": "org-northwind",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "org-northwind",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
+          "agents": {
+            "max_iterations": 12,
+            "max_parallel_subagents": 3,
+            "max_subagent_depth": 1,
+            "prompts": {
+              "investigator": "Prefer the storage evidence before the network evidence on this estate."
+            },
+            "subagents": [
+              {
+                "capabilities": [
+                  "estate.storage_pressure",
+                  "estate.enable_backup_job"
+                ],
+                "description": "Datastore fill, volume fill, and what a backup job is protecting.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "storage"
+              },
+              {
+                "capabilities": [
+                  "estate.failed_units"
+                ],
+                "description": "What is failed on a node, and what quorum costs if it goes.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "cluster-health"
+              },
+              {
+                "capabilities": [],
+                "description": "Reads the change history around the incident window.",
+                "enabled": false,
+                "max_iterations": 4,
+                "model_role": "subagent",
+                "name": "change-historian"
+              }
+            ],
+            "tool_budget": 40
+          },
           "approval.required_above": "read",
+          "capabilities": {
+            "protocol_servers": [
+              {
+                "enabled": true,
+                "name": "runbooks",
+                "protocol": "mcp",
+                "transport": "http",
+                "url": "https://runbooks.rushes.example.invalid/mcp"
+              }
+            ]
+          },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "gemini-2.5-flash",
+              "provider": "google_gemini"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -97,15 +283,77 @@
       "body": {
         "node_id": "team-platform",
         "provenance": {
+          "agents.prompts.investigator": "team-platform",
+          "agents.subagents": "team-platform",
           "approval.required_above": "org-northwind",
+          "capabilities.protocol_servers": "team-platform",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "team-platform",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
+          "agents": {
+            "max_iterations": 12,
+            "max_parallel_subagents": 3,
+            "max_subagent_depth": 1,
+            "prompts": {
+              "investigator": "Prefer the storage evidence before the network evidence on this estate."
+            },
+            "subagents": [
+              {
+                "capabilities": [
+                  "estate.storage_pressure",
+                  "estate.enable_backup_job"
+                ],
+                "description": "Datastore fill, volume fill, and what a backup job is protecting.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "storage"
+              },
+              {
+                "capabilities": [
+                  "estate.failed_units"
+                ],
+                "description": "What is failed on a node, and what quorum costs if it goes.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "cluster-health"
+              },
+              {
+                "capabilities": [],
+                "description": "Reads the change history around the incident window.",
+                "enabled": false,
+                "max_iterations": 4,
+                "model_role": "subagent",
+                "name": "change-historian"
+              }
+            ],
+            "tool_budget": 40
+          },
           "approval.required_above": "read",
+          "capabilities": {
+            "protocol_servers": [
+              {
+                "enabled": true,
+                "name": "runbooks",
+                "protocol": "mcp",
+                "transport": "http",
+                "url": "https://runbooks.rushes.example.invalid/mcp"
+              }
+            ]
+          },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },
@@ -127,15 +375,77 @@
       "body": {
         "node_id": "team-storage",
         "provenance": {
+          "agents.prompts.investigator": "team-storage",
+          "agents.subagents": "team-storage",
           "approval.required_above": "org-northwind",
+          "capabilities.protocol_servers": "team-storage",
           "investigation.max_loops": "org-northwind",
           "investigation.reasoning_effort": "team-storage",
+          "models.investigator.model": "org-northwind",
+          "models.investigator.provider": "org-northwind",
           "retention.audit_days": "org-northwind"
         },
         "values": {
+          "agents": {
+            "max_iterations": 12,
+            "max_parallel_subagents": 3,
+            "max_subagent_depth": 1,
+            "prompts": {
+              "investigator": "Prefer the storage evidence before the network evidence on this estate."
+            },
+            "subagents": [
+              {
+                "capabilities": [
+                  "estate.storage_pressure",
+                  "estate.enable_backup_job"
+                ],
+                "description": "Datastore fill, volume fill, and what a backup job is protecting.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "storage"
+              },
+              {
+                "capabilities": [
+                  "estate.failed_units"
+                ],
+                "description": "What is failed on a node, and what quorum costs if it goes.",
+                "enabled": true,
+                "max_iterations": 6,
+                "model_role": "subagent",
+                "name": "cluster-health"
+              },
+              {
+                "capabilities": [],
+                "description": "Reads the change history around the incident window.",
+                "enabled": false,
+                "max_iterations": 4,
+                "model_role": "subagent",
+                "name": "change-historian"
+              }
+            ],
+            "tool_budget": 40
+          },
           "approval.required_above": "read",
+          "capabilities": {
+            "protocol_servers": [
+              {
+                "enabled": true,
+                "name": "runbooks",
+                "protocol": "mcp",
+                "transport": "http",
+                "url": "https://runbooks.rushes.example.invalid/mcp"
+              }
+            ]
+          },
           "investigation.max_loops": 12,
           "investigation.reasoning_effort": "medium",
+          "models": {
+            "investigator": {
+              "model": "claude-sonnet-5",
+              "provider": "anthropic"
+            }
+          },
           "retention.audit_days": 365
         }
       },

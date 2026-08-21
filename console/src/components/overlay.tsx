@@ -30,6 +30,22 @@ function focusable(root: HTMLElement): HTMLElement[] {
   ];
 }
 
+/**
+ * The geometry a caller opts into: anchored to the page rather than sitting
+ * wherever it was written in the document.
+ *
+ * Left off `Overlay`'s own default because two of `Drawer`'s existing callers
+ * already solved "beside the content, not on top of it" themselves — the
+ * shell's nav drawer wraps it in its own `fixed inset-y-0 left-0` box, the
+ * investigate drawer in its own `fixed inset-y-0 right-0` box, each with a
+ * different anchor and width — and a third renders it bare inside a static
+ * list of component demos. Making this the default would nest a second,
+ * conflicting `fixed` box inside the first two and break the third outright.
+ * A caller asks for it instead.
+ */
+const FLOATING_DRAWER_CLASS_NAME =
+  'fixed inset-y-0 right-0 z-10 w-full max-w-prose overflow-y-auto';
+
 interface OverlayProps {
   readonly open: boolean;
   readonly title: string;
@@ -42,6 +58,12 @@ interface OverlayProps {
   readonly className?: string;
   /** Named only so a caller can say where focus goes back to. */
   readonly returnFocusTo?: string;
+  /**
+   * Whether this overlay is anchored above the page rather than rendered as
+   * a block in its own document flow. Defaults to `false`: a caller that
+   * says nothing gets exactly today's rendering.
+   */
+  readonly floating?: boolean;
 }
 
 function Overlay({
@@ -52,6 +74,7 @@ function Overlay({
   modal,
   closeLabel,
   className,
+  floating = false,
 }: OverlayProps): ReactNode {
   const headingId = useId();
   const panel = useRef<HTMLDivElement>(null);
@@ -108,8 +131,10 @@ function Overlay({
       aria-modal={modal ? true : undefined}
       aria-labelledby={headingId}
       ref={panel}
+      data-floating={floating ? 'true' : undefined}
       className={cx(
         'bg-raised edge border-border rounded-4 shadow-2 p-5 flex flex-col gap-4 motion-overlay',
+        floating && FLOATING_DRAWER_CLASS_NAME,
         className,
       )}
     >
@@ -165,6 +190,15 @@ export interface DrawerProps {
   readonly children: ReactNode;
   /** What the dismiss control is called, in the viewer's language. */
   readonly closeLabel: string;
+  /**
+   * Whether this drawer floats above the page, anchored to it, instead of
+   * rendering as a block wherever the screen wrote it.
+   *
+   * Opt-in, not the default: see `FLOATING_DRAWER_CLASS_NAME`'s own comment
+   * for why the other callers of this component cannot have that decision
+   * made for them.
+   */
+  readonly floating?: boolean;
 }
 
 /** Detail, beside the thing it is about rather than on top of it. */
@@ -174,6 +208,7 @@ export function Drawer({
   onClose,
   closeLabel,
   children,
+  floating = false,
 }: DrawerProps): ReactNode {
   return (
     <Overlay
@@ -182,6 +217,7 @@ export function Drawer({
       onClose={onClose}
       closeLabel={closeLabel}
       modal={false}
+      floating={floating}
     >
       {children}
     </Overlay>

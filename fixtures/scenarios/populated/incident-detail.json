@@ -12,7 +12,7 @@
           "incident_id": "inc-0001",
           "opened_at": "2026-08-07T12:00:00+00:00",
           "origin": "detector",
-          "run_id": null,
+          "run_id": "run-0005",
           "self_resolved": false,
           "severity": "critical",
           "state": "open",
@@ -24,6 +24,11 @@
           "suppressed_by": "",
           "team_node_id": "",
           "title": "Backup job exists and is disabled"
+        },
+        "investigation": {
+          "cost": 0.004,
+          "duration_ms": 41000,
+          "step_count": 6
         },
         "observations": [
           {
@@ -60,6 +65,60 @@
             "cause": "2 subjects: primary baseline exists on schedule 08:00 and is disabled",
             "detail": "backup-job-disabled found 2 subject(s)",
             "kind": "opened"
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:01:00+00:00",
+            "cause": "an investigation was started for this incident",
+            "detail": "run-0005",
+            "kind": "run_started",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:02:00+00:00",
+            "cause": "raised by this deployment's own detector rather than delivered, so no delivery token authenticated it",
+            "detail": "detector=backup-job-disabled, subjects=backup-1f376301, backup-7d831311",
+            "kind": "alert_received",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:03:00+00:00",
+            "cause": "considered before any integration was queried",
+            "detail": "paused for a maintenance window; never enabled after being created; failed to re-enable after the last restore",
+            "kind": "hypotheses_drawn",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:04:00+00:00",
+            "cause": "both jobs covering backup-1f376301, backup-7d831311 are disabled, not merely quiet",
+            "detail": "",
+            "kind": "evidence",
+            "query": "pvesh get /cluster/backup",
+            "result": "backup-7d831311: schedule 08:00, enabled=false, covers_all=true; backup-1f376301: schedule 02:30,22:30, enabled=false, covers_all=false"
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:05:00+00:00",
+            "cause": "both backup jobs are disabled, not paused for a maintenance window — nothing scheduled to re-enable them",
+            "detail": "",
+            "kind": "diagnosis",
+            "query": "",
+            "result": ""
+          },
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:06:00+00:00",
+            "cause": "report delivered",
+            "detail": "#backups, amber.rowan@example.invalid",
+            "kind": "report_delivered",
+            "query": "",
+            "result": ""
           }
         ]
       },
@@ -99,6 +158,7 @@
           "team_node_id": "",
           "title": "Datastore near full"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "store-cove is 95.65% full",
@@ -245,6 +305,7 @@
           "team_node_id": "",
           "title": "Guest covered by no enabled backup job"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "amber is named by no enabled backup job",
@@ -1182,6 +1243,7 @@
           "team_node_id": "",
           "title": "Guest volume near full"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "vm-100-disk-0 is at 99.6% of its own volume",
@@ -1269,6 +1331,7 @@
           "team_node_id": "",
           "title": "Kernel installed and never booted"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
@@ -1342,6 +1405,7 @@
           "team_node_id": "",
           "title": "No replication with node-local guest storage"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "no replication job exists while guests are on node-local storage",
@@ -1401,6 +1465,7 @@
           "team_node_id": "",
           "title": "Quorum device configured but contributing nothing"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "a quorum device appears in the membership view and the configuration declares none",
@@ -1461,6 +1526,7 @@
           "team_node_id": "",
           "title": "Quorum margin is zero"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
@@ -1484,6 +1550,100 @@
             "at": "2026-08-07T12:00:00+00:00",
             "cause": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
             "detail": "quorum-margin-zero found 1 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-alert-0001"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "alertmanager",
+          "incident_id": "inc-alert-0001",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "alert",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "unresolved-target:184"
+          ],
+          "summary": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "ContainerMemoryHigh"
+        },
+        "investigation": null,
+        "observations": [],
+        "timeline": [
+          {
+            "actor": "user-lagoon",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
+            "detail": "alertmanager delivered an alert about 1 target(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc-alert-0002"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "alertmanager",
+          "incident_id": "inc-alert-0002",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "alert",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "ct-102"
+          ],
+          "summary": "an alert opened this incident about anchor, and nothing has investigated it yet",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "anchor is not responding"
+        },
+        "investigation": null,
+        "observations": [],
+        "timeline": [
+          {
+            "actor": "user-lagoon",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "an alert opened this incident about anchor, and nothing has investigated it yet",
+            "detail": "alertmanager delivered an alert about 1 target(s)",
             "kind": "opened"
           }
         ]

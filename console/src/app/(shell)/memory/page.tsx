@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { areaMetadata } from '@/shell/area';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
-import { MemoryScreen } from '@/surfaces/screens/memory';
+import { LearnedTab } from '@/surfaces/screens/memory';
 
 /** One area of the product. What it is, and what it is for, come from the manifest. */
 export function generateMetadata(): Promise<Metadata> {
@@ -15,5 +15,5 @@ export default async function Page({
 }: {
   readonly searchParams: Promise<SearchParams>;
 }): Promise<ReactNode> {
-  return MemoryScreen(await surfaceContext(await searchParams));
+  return LearnedTab(await surfaceContext(await searchParams));
 }

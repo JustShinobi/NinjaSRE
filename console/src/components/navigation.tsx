@@ -107,6 +107,61 @@ export function Tabs({
   );
 }
 
+/** One section of a screen, and the address that shows it. */
+export interface TabLink {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+
+export interface TabLinksProps {
+  readonly tabs: readonly TabLink[];
+  readonly selected: string;
+  readonly label: string;
+}
+
+/**
+ * The same row of tabs, as links, for a screen whose section is in its address.
+ *
+ * Two components rather than a prop on one, because the keyboard contracts are
+ * different and both are right. `Tabs` owns its selection, so only the selected
+ * tab is in the tab order and the arrow keys move between them. These are
+ * links: every one is in the tab order, Enter follows, and the arrow keys are
+ * the browser's. Giving links roving focus would be borrowing a pattern that
+ * only makes sense when the widget owns the state.
+ *
+ * The reason to have it at all is `url-state.ts`: whatever a screen is showing
+ * is in its address, so that a section can be sent to somebody. A tab holding
+ * its selection in component state passes every test about tabs and fails the
+ * one that matters at three in the morning.
+ */
+export function TabLinks({ tabs, selected, label }: TabLinksProps): ReactNode {
+  return (
+    <nav aria-label={label} data-testid="tab-links">
+      <ul className="flex gap-1 edge border-border border-t-0 border-x-0">
+        {tabs.map((tab) => (
+          <li key={tab.id}>
+            <a
+              href={tab.href}
+              data-testid="tab-link"
+              data-tab={tab.id}
+              aria-current={tab.id === selected ? 'page' : undefined}
+              className={cx(
+                'block px-3 py-2 text-small motion-hover edge border-t-0 border-x-0',
+                tab.id === selected
+                  ? 'text-accent border-accent'
+                  : 'text-muted border-transparent',
+              )}
+            >
+              {tab.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 export interface Crumb {
   readonly label: string;
   readonly href?: string;

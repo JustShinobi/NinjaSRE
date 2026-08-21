@@ -7,13 +7,16 @@
         "email": "reese.underhill@example.invalid",
         "impersonated_by": null,
         "impersonating": false,
-        "kind": "person",
+        "kind": "user",
         "permissions": [
           "approval.read",
           "config.read",
+          "estate.read",
+          "incident.read",
           "investigation.read",
           "knowledge.read",
-          "memory.read"
+          "memory.read",
+          "report.read"
         ],
         "principal_id": "user-viewer",
         "roles": [

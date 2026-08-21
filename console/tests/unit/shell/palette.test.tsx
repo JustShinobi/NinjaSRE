@@ -2,9 +2,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { commandsFor, matching, navigationCommands } from '@/shell/commands';
+import {
+  commandsFor,
+  matching,
+  navigationCommands,
+  type SearchAnswer,
+} from '@/shell/commands';
+import { message } from '@/i18n/messages';
 import { isPaletteShortcut, Palette } from '@/shell/palette';
-import { visibleAreas } from '@/shell/routes';
+import { visibleAreas, visibleSettingsPages } from '@/shell/routes';
 
 import { owner, ROLE_ORDER, viewerAt } from './support';
 
@@ -32,13 +38,39 @@ describe('the registry areas contribute to', () => {
     expect(offered).toEqual(visibleAreas(VIEWER).map((area) => area.path));
   });
 
+  it('offers every Settings page by its display name, not only the areas', () => {
+    // A page reached by opening Settings and then picking from a second
+    // navigation is two steps away from somebody who already knows its name.
+    // The palette is what makes the name enough, so every page the viewer may
+    // reach is offered by the words on it — "Single sign-on", not "Settings".
+    const offered = commandsFor(VIEWER, 'en');
+    const reachable = visibleSettingsPages(VIEWER);
+
+    expect(reachable.length).toBeGreaterThan(0);
+    for (const page of reachable) {
+      const found = offered.find((command) => command.href === page.path);
+      expect(found, `no palette command reaches ${page.path}`).toBeDefined();
+      expect(found?.label).toBe(message('en', page.label));
+    }
+  });
+
+  it('drops a Settings page command the viewer may not reach', () => {
+    const least = ROLE_ORDER[0];
+    if (least === undefined) throw new Error('the role catalogue is empty');
+    const offered = commandsFor(viewerAt(least), 'en').map((command) => command.href);
+
+    // Absent, not disabled — the same rule the subnav and the sidebar keep.
+    expect(offered).not.toContain('/settings/members-roles');
+    expect(offered).not.toContain('/settings/audit-log');
+  });
+
   it('drops an area command the viewer may not run', () => {
     const least = ROLE_ORDER[0];
     if (least === undefined) throw new Error('the role catalogue is empty');
     const offered = commandsFor(viewerAt(least), 'en').map((command) => command.id);
 
     expect(offered).toContain('go:dashboard');
-    expect(offered).not.toContain('go:audit');
+    expect(offered).not.toContain('go:administration');
     // The action, too: a palette entry that refuses is a palette entry that has
     // told somebody the capability exists.
     expect(offered).not.toContain('act:investigate');
@@ -46,6 +78,12 @@ describe('the registry areas contribute to', () => {
 
   it('offers recent runs by identifier, which is what three letters are for', () => {
     expect(commands().map((command) => command.id)).toContain('run:run-0001');
+  });
+
+  it('offers the tour again as an explicit action', () => {
+    const tour = commands().find((command) => command.id === 'act:view-tour');
+
+    expect(tour).toMatchObject({ group: 'actions', href: '/?tour=1' });
   });
 
   it('groups navigation, then runs, then actions', () => {
@@ -62,7 +100,7 @@ describe('the registry areas contribute to', () => {
   });
 
   it('matches without regard to case, because nobody types the case', () => {
-    expect(matching(commands(), 'AUDIT').length).toBeGreaterThan(0);
+    expect(matching(commands(), 'KNOWLEDGE').length).toBeGreaterThan(0);
   });
 });
 
@@ -102,12 +140,12 @@ describe('the palette, from the keyboard alone', () => {
 
   it('filters as somebody types', async () => {
     open();
-    await userEvent.keyboard('audit');
+    await userEvent.keyboard('knowledge');
 
     const shown = screen
       .getAllByTestId('palette-command')
       .map((command) => command.getAttribute('data-command'));
-    expect(shown).toEqual(['go:audit']);
+    expect(shown).toEqual(['go:knowledge']);
   });
 
   it('says nothing matches rather than showing an empty list', async () => {
@@ -137,10 +175,10 @@ describe('the palette, from the keyboard alone', () => {
 
   it('runs the highlighted command on Enter', async () => {
     const { onRun } = open();
-    await userEvent.keyboard('audit{Enter}');
+    await userEvent.keyboard('knowledge{Enter}');
 
     expect(onRun).toHaveBeenCalledOnce();
-    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/audit' });
+    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/knowledge' });
   });
 
   it('runs nothing at all when nothing matches', async () => {
@@ -178,5 +216,215 @@ describe('the palette, from the keyboard alone', () => {
     expect(
       screen.getByRole('dialog', { name: /command palette/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('searching the deployment from the palette', () => {
+  /**
+   * The placeholder promised "Search resources, runs, incidents" while the list
+   * held the navigation, the recent runs and one action — so typing the name of
+   * a resource sitting on the Resources screen answered "Nothing matches that".
+   * In an operations tool that is the shortest path there is.
+   */
+
+  function found(label: string): SearchAnswer {
+    return {
+      commands: [
+        {
+          id: 'resource:r1',
+          group: 'resources' as const,
+          label,
+          href: '/resources?selected=r1',
+          permission: 'estate.read',
+        },
+      ],
+      partial: false,
+    };
+  }
+
+  it('asks the deployment and shows what it found', async () => {
+    const search = vi.fn().mockResolvedValue(found('signoz-collector'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'signoz');
+
+    expect(await screen.findByText('signoz-collector')).toBeTruthy();
+    expect(search).toHaveBeenCalled();
+    expect(search.mock.calls[0]?.[0]).toBe('signoz');
+  });
+
+  it('puts what was found above the navigation', async () => {
+    // Somebody who typed a name is looking for a thing. Putting the navigation
+    // first would send the first Enter to a page instead.
+    const search = vi.fn().mockResolvedValue(found('signoz-collector'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'signoz');
+    await screen.findByText('signoz-collector');
+
+    const shown = screen
+      .getAllByTestId('palette-command')
+      .map((node) => node.getAttribute('data-command'));
+    expect(shown[0]).toBe('resource:r1');
+  });
+
+  it('does not ask about a single character', async () => {
+    // One character matches most of an estate: three reads to hand back what
+    // the operator is already looking at.
+    const search = vi.fn().mockResolvedValue(found('anything'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 's');
+
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('never shows an answer to a question that is no longer being asked', async () => {
+    // The property that keeps a slow answer from landing under somebody's Enter
+    // key: results are held with the query they answer, and read back only when
+    // the two still agree.
+    const search = vi.fn().mockResolvedValue(found('stale-result'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    const box = screen.getByTestId('palette-query');
+    await person.type(box, 'signoz');
+    await screen.findByText('stale-result');
+    await person.clear(box);
+    await person.type(box, 'signals');
+
+    expect(screen.queryByText('stale-result')).toBeNull();
+  });
+
+  it('still works as a palette when the deployment cannot be asked', async () => {
+    // The half that does not need the network keeps working, and there is no
+    // dialog in the way of it: the person typing is usually the one whose
+    // deployment is already having a bad day.
+    const search = vi.fn().mockRejectedValue(new Error('unreachable'));
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        search={search}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'knowledge');
+
+    expect(screen.getAllByTestId('palette-command').length).toBeGreaterThan(0);
+  });
+
+  it('says when it only searched part of what there is', async () => {
+    // "Nothing matches" and "nothing matches in the first two hundred" are
+    // different answers, and only one of them means the thing is not there.
+    const search = vi.fn().mockResolvedValue({ commands: [], partial: true });
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={[]}
+        search={search}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    await person.type(screen.getByTestId('palette-query'), 'nothing-like-this');
+
+    expect(await screen.findByText(/more than one page/)).toBeTruthy();
+  });
+});
+
+describe('the palette with a pointer, which people also use', () => {
+  // Keyboard-only *operable* is the requirement; pointer-usable is what
+  // everybody actually does half the time, and clicking a row has to run the
+  // same command Enter would have.
+  it('runs the command that was clicked', async () => {
+    const onRun = vi.fn();
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        onClose={vi.fn()}
+        onRun={onRun}
+      />,
+    );
+
+    const knowledge = screen
+      .getAllByTestId('palette-command')
+      .find((node) => node.getAttribute('data-command') === 'go:knowledge');
+    if (knowledge === undefined) {
+      throw new Error('the palette did not offer the knowledge row');
+    }
+    await person.click(knowledge);
+
+    expect(onRun).toHaveBeenCalledOnce();
+    expect(onRun.mock.calls[0]?.[0]).toMatchObject({ href: '/knowledge' });
+  });
+
+  it('follows the pointer with the highlight, so Enter runs what is under it', async () => {
+    const person = userEvent.setup();
+    render(
+      <Palette
+        open
+        locale="en"
+        commands={commands()}
+        onClose={vi.fn()}
+        onRun={vi.fn()}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('palette-command');
+    const second = rows[1];
+    if (second === undefined) throw new Error('the palette offered one row');
+    await person.hover(second);
+
+    expect(second.getAttribute('aria-selected')).toBe('true');
   });
 });

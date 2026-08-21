@@ -128,4 +128,35 @@ describe('what a row and a header are', () => {
       'Cost',
     ]);
   });
+
+  it('exposes the complete value as a tooltip when a cell is truncated', () => {
+    render(
+      <RowList
+        columns={COLUMNS}
+        rows={[
+          {
+            id: 'run-long',
+            href: '/runs/run-long',
+            cells: [
+              {
+                kind: 'text',
+                text: 'A long subject…',
+                title: 'A long subject that does not fit in the row',
+              },
+              { kind: 'status', text: 'succeeded' },
+              { kind: 'numeric', text: '0.12' },
+            ],
+          },
+        ]}
+        labels={LABELS}
+        path="/runs"
+        state={DEFAULT_VIEW_STATE}
+        filters={['status']}
+      />,
+    );
+
+    expect(
+      screen.getByTitle('A long subject that does not fit in the row'),
+    ).toBeInTheDocument();
+  });
 });

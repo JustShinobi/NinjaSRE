@@ -7,9 +7,10 @@ import { EN } from '@/i18n/en';
 import { sessionController } from '@/session/controller';
 import { SESSION_WARNING_SECONDS } from '@/session/cookies';
 import { publishResolved, type AttentionItem } from '@/shell/attention';
+import type { SearchResults } from '@/shell/search';
 import { Shell } from '@/shell/shell';
 
-import { owner, viewerAt } from './support';
+import { owner, ROLE_ORDER, viewerAt } from './support';
 
 /**
  * The frame, and the four behaviours that have to be identical on every page.
@@ -22,6 +23,32 @@ import { owner, viewerAt } from './support';
 
 const GUARDIAN = { live: true, posture: 'propose' } as const;
 
+/**
+ * The open path, driven the way the frame reads it.
+ *
+ * The frame asks the router rather than taking a prop, because a layout above
+ * it is not re-rendered by a segment navigation. Three things here depend on
+ * that value — the marked area, where signing out returns the viewer, and what
+ * staying signed in reloads — so this file declares its own mock.
+ */
+const nav = vi.hoisted(() => ({ pathname: '/' }));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+  }),
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(),
+  notFound: () => {
+    throw new Error('not found');
+  },
+  redirect: (href: string) => {
+    throw new Error(`redirected to ${href}`);
+  },
+}));
+
 const WAITING: readonly AttentionItem[] = [
   {
     id: 'apr-0001',
@@ -33,21 +60,24 @@ const WAITING: readonly AttentionItem[] = [
   },
 ];
 
-function renderShell(overrides: Partial<Parameters<typeof Shell>[0]> = {}): {
+function renderShell(
+  overrides: Partial<Parameters<typeof Shell>[0]> & { at?: string } = {},
+): {
   navigate: ReturnType<typeof vi.fn>;
 } {
+  const { at = '/', ...props } = overrides;
+  nav.pathname = at;
   const navigate = vi.fn();
   render(
     <Shell
       viewer={owner()}
       locale="en"
       deployment={{ name: 'HAL9000', timezone: 'UTC' }}
-      current="/"
       guardian={GUARDIAN}
       attention={WAITING}
       recentRuns={[]}
       navigate={navigate}
-      {...overrides}
+      {...props}
     >
       <p data-testid="page">the page</p>
     </Shell>,
@@ -81,7 +111,6 @@ describe('the shell renders before the page does', () => {
         viewer={owner()}
         locale="en"
         deployment={{ name: 'HAL9000', timezone: 'UTC' }}
-        current="/"
         guardian={GUARDIAN}
         attention={[]}
         recentRuns={[]}
@@ -140,9 +169,9 @@ describe('the palette, from anywhere', () => {
   it('navigates when a command is run, and closes behind itself', async () => {
     const { navigate } = renderShell();
     await userEvent.keyboard('{Control>}k{/Control}');
-    await userEvent.keyboard('audit{Enter}');
+    await userEvent.keyboard('knowledge{Enter}');
 
-    expect(navigate).toHaveBeenCalledWith('/audit');
+    expect(navigate).toHaveBeenCalledWith('/knowledge');
     await waitFor(() => {
       expect(screen.queryByTestId('palette')).toBeNull();
     });
@@ -217,7 +246,7 @@ describe('the notification centre, inside the shell', () => {
 
 describe('the session, from inside the shell', () => {
   it('sends the viewer to the sign-in once, however many calls were refused', async () => {
-    const { navigate } = renderShell({ current: '/approvals' });
+    const { navigate } = renderShell({ at: '/approvals' });
 
     sessionController.unauthorized('/approvals');
     sessionController.unauthorized('/approvals');
@@ -233,7 +262,7 @@ describe('the session, from inside the shell', () => {
   it('ends the session on the server before it leaves', async () => {
     const ending = vi.fn(() => Promise.resolve(new Response('{}', { status: 200 })));
     vi.stubGlobal('fetch', ending);
-    const { navigate } = renderShell({ current: '/knowledge' });
+    const { navigate } = renderShell({ at: '/knowledge' });
 
     await userEvent.click(screen.getByTestId('sign-out'));
 
@@ -256,7 +285,7 @@ describe('the session, from inside the shell', () => {
       'fetch',
       vi.fn(() => Promise.reject(new TypeError('network'))),
     );
-    const { navigate } = renderShell({ current: '/knowledge' });
+    const { navigate } = renderShell({ at: '/knowledge' });
 
     await userEvent.click(screen.getByTestId('sign-out'));
 
@@ -310,5 +339,114 @@ describe('what the shell renders in Portuguese', () => {
   it('takes the chrome from the catalogue rather than from the source language', () => {
     renderShell({ locale: 'pt-BR' });
     expect(screen.queryByText(EN['nav.audit'])).toBeNull();
+  });
+});
+
+describe('what a search may show the person doing it', () => {
+  /**
+   * The frame is where the viewer is, so the frame is where a search result is
+   * judged. Otherwise the palette becomes a way of reaching a screen the
+   * sidebar would not have offered — the presence rule inverted by a text box.
+   */
+
+  function searchAnswering(): (
+    query: string,
+    signal: AbortSignal,
+  ) => Promise<SearchResults> {
+    return vi.fn(() =>
+      Promise.resolve({
+        found: [
+          {
+            id: 'resource:r1',
+            group: 'resources' as const,
+            label: 'signoz-collector',
+            hint: 'container',
+            href: '/resources?selected=r1',
+          },
+          {
+            id: 'incident:i1',
+            group: 'incidents' as const,
+            label: 'checkout is out of memory',
+            hint: 'high',
+            href: '/incidents/i1',
+          },
+        ],
+        partial: false,
+      }),
+    );
+  }
+
+  async function openPaletteAndType(
+    viewer: ReturnType<typeof owner>,
+    askSearch: (query: string, signal: AbortSignal) => Promise<SearchResults>,
+  ): Promise<void> {
+    const person = userEvent.setup();
+    render(
+      <Shell
+        viewer={viewer}
+        locale="en"
+        deployment={{ name: 'HAL9000', timezone: 'UTC' }}
+        guardian={GUARDIAN}
+        attention={[]}
+        recentRuns={[]}
+        navigate={vi.fn()}
+        askSearch={askSearch}
+      >
+        <p data-testid="page">the page</p>
+      </Shell>,
+    );
+    await person.keyboard('{Control>}k{/Control}');
+    await person.type(screen.getByTestId('palette-query'), 'signoz');
+  }
+
+  it('shows an owner what the deployment found', async () => {
+    await openPaletteAndType(owner(), searchAnswering());
+
+    expect(await screen.findByText('signoz-collector')).toBeInTheDocument();
+  });
+
+  it('drops a result the viewer may not reach', async () => {
+    // The least-privileged role holds neither estate.read nor incident.read, so
+    // a search must not be how they arrive at either screen.
+    const least = ROLE_ORDER[0];
+    if (least === undefined) throw new Error('the role catalogue is empty');
+
+    await openPaletteAndType(viewerAt(least), searchAnswering());
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('palette-query')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('signoz-collector')).toBeNull();
+    expect(screen.queryByText('checkout is out of memory')).toBeNull();
+  });
+});
+
+describe('the investigation drawer this frame owns', () => {
+  it('passes the runtime fact through, so the drawer can warn before the click', async () => {
+    renderShell({
+      setup: {
+        checklistComplete: true,
+        integrationsConfigured: true,
+        runtimeComposed: false,
+      },
+    });
+
+    await userEvent.click(screen.getByTestId('investigate'));
+
+    expect(screen.getByTestId('investigate-runtime-gap')).toBeInTheDocument();
+  });
+
+  it('says nothing about the runtime once this process actually holds one', async () => {
+    renderShell({
+      setup: {
+        checklistComplete: true,
+        integrationsConfigured: true,
+        runtimeComposed: true,
+      },
+    });
+
+    await userEvent.click(screen.getByTestId('investigate'));
+
+    expect(screen.queryByTestId('investigate-runtime-gap')).toBeNull();
   });
 });
