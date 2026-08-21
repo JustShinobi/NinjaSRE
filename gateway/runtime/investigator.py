@@ -163,6 +163,7 @@ class ReActInvestigationRunner:
         into this composition (see the module docstring and this slice's
         report).
         """
+        del principal  # the loop pauses the run; who asked is the trace's business
         live = self._live.get(run_id)
         if live is None:
             return
@@ -197,10 +198,12 @@ class ReActInvestigationRunner:
 
     async def pending_interactions(self, run_id: str) -> tuple[Interaction, ...]:
         """Return no interactions: this composition raises none to answer."""
+        del run_id  # nothing is pending for any run, so the run does not narrow it
         return ()
 
     async def find_interaction(self, interaction_id: str) -> Interaction | None:
         """Return ``None``: no interaction desk is bound in this composition."""
+        del interaction_id  # there is no desk to look one up in
         return None
 
     async def answer_interaction(
@@ -212,6 +215,7 @@ class ReActInvestigationRunner:
         selected_option: str = "",
     ) -> Interaction:
         """Raise: nothing is ever pending, so nothing can be closed."""
+        del text, principal, selected_option  # the refusal is about the id alone
         raise NoPendingInteraction(
             f"no interaction {interaction_id!r} is pending — this composition "
             "does not put a mid-run question to a human"
