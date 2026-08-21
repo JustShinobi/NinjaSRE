@@ -145,13 +145,30 @@ def test_the_standard_profiles_whole_project_boots_with_no_credential_at_all() -
     try:
         _compose("down", "--volumes")
         try:
+            # Rebuild only what carries this repository's source. The images
+            # this machine already has may predate the tree, so a plain ``up``
+            # would test code nobody has — but rebuilding the database image
+            # too fetches a graph extension over the network on every run, and
+            # fails the whole test on a machine that cannot reach it, for an
+            # image that holds none of our code.
+            built = subprocess.run(  # noqa: S603 — fixed argv, no shell, no interpolation
+                ["docker", "compose", *_FILE_ARGS, "build", "app", "console", "proxy"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+                timeout=_STACK_WAIT_TIMEOUT_SECONDS + 300,
+                check=False,
+            )
+            assert built.returncode == 0, (
+                f"`docker compose build` exited {built.returncode}; stderr:\n{built.stderr}"
+            )
+
             result = subprocess.run(  # noqa: S603 — fixed argv, no shell, no interpolation
                 [
                     "docker",
                     "compose",
                     *_FILE_ARGS,
                     "up",
-                    "--build",  # the images this machine already has may predate this tree
                     "--wait",
                     "--wait-timeout",
                     str(_STACK_WAIT_TIMEOUT_SECONDS),
@@ -161,6 +178,12 @@ def test_the_standard_profiles_whole_project_boots_with_no_credential_at_all() -
                 text=True,
                 timeout=_STACK_WAIT_TIMEOUT_SECONDS + 300,
                 check=False,
+            )
+            # Checked before the containers are looked up: reading ids first
+            # turns a failed bring-up into "ps returned nothing", which names
+            # the symptom and hides the cause.
+            assert result.returncode == 0, (
+                f"`docker compose up --wait` exited {result.returncode}; stderr:\n{result.stderr}"
             )
 
             services = ("postgres", "proxy", "app", "console")

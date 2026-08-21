@@ -164,7 +164,13 @@ services:
       - "127.0.0.1:${NINJASRE_CONSOLE_PORT:-8421}:8421"
     depends_on:
       app:
-        condition: service_started
+        # Healthy rather than merely started. This service runs the same entry
+        # point the application does, and that entry point migrates — so two of
+        # them coming up together are two writers racing for the schema lock,
+        # which is exactly what the proxy refuses to be. Waiting until the
+        # application is serving means the schema is already at head and this
+        # one's own migration step finds nothing to do.
+        condition: service_healthy
     restart: unless-stopped
     networks: [internal]
 

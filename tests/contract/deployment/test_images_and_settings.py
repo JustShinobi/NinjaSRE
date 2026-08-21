@@ -214,3 +214,53 @@ def test_the_rendered_file_comments_out_everything_optional() -> None:
     assert {line.split("=")[0] for line in live} == {
         setting.name for setting in required_settings()
     }
+
+
+def test_the_console_image_installs_what_its_own_entry_point_imports() -> None:
+    """The console runs the application's entry point, so it needs its wheel.
+
+    ``console.Dockerfile``'s own comment says it ships "the same wheel as the
+    application, started at a different entry point" — and it did not: the
+    application installed the provider extras and the console installed the
+    bare package. The console's first request reaches the providers route,
+    which imports the model catalogue, which imports an HTTP client that only
+    the extras carry, and the container died on import before serving
+    anything.
+
+    Asserted against the two Dockerfiles rather than by building them, so it
+    runs where there is no container runtime — and against each other rather
+    than against a literal, so an extra added to one is required of the other
+    without anybody remembering this file exists.
+    """
+    application = (IMAGES / "app.Dockerfile").read_text(encoding="utf-8")
+    console = (IMAGES / "console.Dockerfile").read_text(encoding="utf-8")
+
+    def installed(dockerfile: str) -> str:
+        line = next(row for row in dockerfile.splitlines() if "pip install --no-cache-dir" in row)
+        return line.split("pip install --no-cache-dir", 1)[1].strip().rstrip("\\").strip()
+
+    assert installed(console) == installed(application), (
+        "the console runs gateway.http.serve, the same entry point the application "
+        "runs, so it needs the same package and the same extras"
+    )
+
+
+def test_every_healthcheck_asks_a_path_its_own_service_serves() -> None:
+    """A check that can never pass is worse than no check at all.
+
+    The credential proxy's image asked ``/health`` and the proxy serves its
+    health at the path the code names, so the container reported unhealthy for
+    its whole life while answering every real request correctly — and any
+    ``depends_on: service_healthy`` on it could never be satisfied.
+
+    Read from the constant rather than repeated here, so moving the path moves
+    this test with it.
+    """
+    from config.constants.security import PROXY_HEALTH_PATH
+
+    proxy = (IMAGES / "proxy.Dockerfile").read_text(encoding="utf-8")
+    check = next(row for row in proxy.splitlines() if "urlopen" in row and "HEALTHCHECK" not in row)
+
+    assert PROXY_HEALTH_PATH in check, (
+        f"the proxy image's health check asks a path the proxy does not serve: {check.strip()}"
+    )

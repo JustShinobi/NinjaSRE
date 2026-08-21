@@ -27,7 +27,7 @@ COPY platform ./platform
 COPY surfaces ./surfaces
 
 RUN python -m venv /opt/ninjasre \
-    && /opt/ninjasre/bin/pip install --no-cache-dir . \
+    && /opt/ninjasre/bin/pip install --no-cache-dir ".[all-providers]" \
     && ln -s "$(/opt/ninjasre/bin/python -c 'import site; print(site.getsitepackages()[0])')" \
         /opt/ninjasre/site-packages
 
