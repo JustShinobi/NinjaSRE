@@ -209,22 +209,6 @@ describe('every control reports what a person did to it', () => {
     expect(written).toHaveBeenLastCalledWith('no');
   });
 
-  it('reports a text input settling, once focus leaves it', async () => {
-    const settled = vi.fn();
-    render(
-      <>
-        <Input label="Cron" name="cron" onBlur={settled} />
-        <button type="button">Elsewhere</button>
-      </>,
-    );
-
-    await userEvent.type(screen.getByLabelText('Cron'), '0 8 * * 1');
-    expect(settled).not.toHaveBeenCalled();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Elsewhere' }));
-    expect(settled).toHaveBeenCalledTimes(1);
-  });
-
   it('reports ticking and selecting', async () => {
     const ticked = vi.fn();
     const selected = vi.fn();

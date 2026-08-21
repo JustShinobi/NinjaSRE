@@ -145,85 +145,23 @@ MAX_SYNC_DOCUMENTS_PER_RUN: Final[int] = 200
 #: The scheduled-job kind a knowledge sync is registered under.
 KNOWLEDGE_SYNC_JOB_KIND: Final = "knowledge.sync"
 
-#: What a scheduled pass over a repository's documentation is called. Distinct
-#: from the plain document sync because of what follows it: the estate links and
-#: the detector proposals a person then works through.
-CORPUS_SYNC_JOB_KIND: Final = "knowledge.corpus_sync"
-
-# --- The documentation corpus ------------------------------------------------
-
-#: The directory a repository's prose lives in, and the only Markdown root the
-#: corpus source will walk. Named rather than configured because the whole point
-#: of the source is that it reads two directories of a repository that holds
-#: fifteen thousand files, and a configurable root is one somebody eventually
-#: points at the repository.
-CORPUS_DOCUMENT_ROOT: Final = "docs"
-
-#: The directory a repository's declarative policy lives in. Firewall rules are
-#: operational knowledge: half of "I cannot reach X" is answered there.
-CORPUS_POLICY_ROOT: Final = "policies"
-
-#: Files one corpus may hold across both roots. A tree past this is a repository
-#: somebody pointed the source at rather than a documentation directory, and
-#: reading it would be an embedding bill for lockfiles. Refused rather than
-#: truncated: a corpus silently missing its second half is one nobody detects.
-MAX_CORPUS_FILES: Final[int] = 2_000
-
-#: Bytes one corpus file may carry. Past this the file is a manual or a data
-#: dump that happens to end in ``.md``; it is skipped by name, with the constant
-#: in the reason, rather than failing the other sixty-six documents.
-MAX_CORPUS_FILE_BYTES: Final[int] = 512_000
-
-#: Characters one extracted post-mortem field may carry. A field is a sentence
-#: or two an operator reads beside a search result; past this it is the section
-#: itself, which the document already holds and a citation already points at.
-MAX_POSTMORTEM_FIELD_CHARS: Final[int] = 1_500
-
-#: Ceiling on the reply to the one post-mortem extraction call. Five fields of
-#: a sentence or two, with room for a model that pads.
-POSTMORTEM_EXTRACTION_MAX_TOKENS: Final[int] = 800
-
-#: Characters of a verification query's own text quoted onto the candidate
-#: detector it becomes. Enough that an operator deciding whether to enable it
-#: reads the sentence the author wrote; short enough to sit in a table row.
-MAX_DETECTOR_ORIGIN_EXCERPT_CHARS: Final[int] = 400
-
-#: Candidate detectors one document may propose. A verification document past
-#: this is a signal catalogue, and importing it wholesale would bury the
-#: detectors somebody actually enabled.
-MAX_DETECTOR_CANDIDATES: Final[int] = 50
-
-#: Documents one resource's detail panel lists. The panel answers "what has
-#: been written about this"; past this it is a corpus listing, which the
-#: knowledge screen already is.
-MAX_DOCUMENTS_PER_RESOURCE: Final[int] = 10
-
 #: The scheduled-job kind a topology discovery run is registered under.
 TOPOLOGY_DISCOVERY_JOB_KIND: Final = "topology.discovery"
 
 
 __all__ = [
     "CHUNK_OVERLAP_CHARS",
-    "CORPUS_DOCUMENT_ROOT",
-    "CORPUS_SYNC_JOB_KIND",
-    "CORPUS_POLICY_ROOT",
     "DEFAULT_KNOWLEDGE_SEARCH_RESULTS",
     "KNOWLEDGE_SEARCH_CANDIDATE_FACTOR",
     "KNOWLEDGE_SYNC_JOB_KIND",
     "MAX_ANNOTATION_CHARS",
     "MAX_CHUNKS_PER_DOCUMENT",
     "MAX_CHUNK_CHARS",
-    "MAX_CORPUS_FILES",
-    "MAX_CORPUS_FILE_BYTES",
-    "MAX_DETECTOR_CANDIDATES",
-    "MAX_DETECTOR_ORIGIN_EXCERPT_CHARS",
-    "MAX_DOCUMENTS_PER_RESOURCE",
     "MAX_DOCUMENT_CHUNKS",
     "MAX_IMPORT_EDGES",
     "MAX_IMPORT_NODES",
     "MAX_KNOWLEDGE_SEARCH_RESULTS",
     "MAX_KNOWLEDGE_TREE_DEPTH",
-    "MAX_POSTMORTEM_FIELD_CHARS",
     "MAX_PROPOSAL_CHARS",
     "MAX_PROPOSAL_QUEUE_RESULTS",
     "MAX_SYNC_DOCUMENTS_PER_RUN",
@@ -232,7 +170,6 @@ __all__ = [
     "MIN_CHUNK_CHARS",
     "NINJASRE_KNOWLEDGE_ENV",
     "NINJASRE_TOPOLOGY_ENV",
-    "POSTMORTEM_EXTRACTION_MAX_TOKENS",
     "PROPOSAL_APPROVAL_ACTION",
     "PROPOSAL_REVIEW_TTL_HOURS",
     "SECRET_LOCATION_CONTEXT_CHARS",

@@ -92,46 +92,6 @@ def deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str
     return merged
 
 
-def deep_prune(base: Mapping[str, Any], removed: Iterable[str]) -> dict[str, Any]:
-    """Return ``base`` without the paths in ``removed``, leaving ``base`` untouched.
-
-    The inverse of ``deep_merge``, and the reason it is a second function taking
-    a list of paths rather than a sentinel value inside a document: no key is a
-    directive here (FR-003), so "delete this field" cannot be spelled as a
-    field. A caller states which paths go, beside the document rather than
-    inside it.
-
-    A section left empty by a removal goes with it. An empty mapping is a value
-    somebody set, as far as the merge is concerned, so leaving the husk behind
-    would make "this node overrides nothing" resolve as a node that overrides a
-    section with no fields in it. A section that was *already* empty is not
-    touched, because nobody asked for it to go.
-    """
-    pruned: dict[str, Any] = {key: _copy(value, key) for key, value in base.items()}
-    for path in removed:
-        segments = paths.split(path)
-        if segments:
-            _prune(pruned, segments)
-    return pruned
-
-
-def _prune(target: dict[str, Any], segments: tuple[str, ...]) -> bool:
-    """Remove ``segments`` from ``target`` in place; return whether anything went."""
-    head, rest = segments[0], segments[1:]
-    if head not in target:
-        return False
-    if not rest:
-        del target[head]
-        return True
-
-    child = target[head]
-    if not isinstance(child, dict) or not _prune(child, rest):
-        return False
-    if not child:
-        del target[head]
-    return True
-
-
 def merge_layers(layers: Sequence[Layer]) -> MergeResult:
     """Return the effective configuration for ``layers``, applied root-first.
 
@@ -273,7 +233,6 @@ __all__ = [
     "Layer",
     "MergeResult",
     "deep_merge",
-    "deep_prune",
     "layers_from",
     "locked_paths_in",
     "locking_node",

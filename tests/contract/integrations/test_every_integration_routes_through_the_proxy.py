@@ -1,6 +1,6 @@
 """SC-002. Every integration in the catalogue, asserted rather than inspected.
 
-The catalogue holds every package the environment can validate by the end of
+The catalogue is three packages today and roughly eighty-five by the end of
 wave 6. That growth is exactly why this is a walk over the package tree and not
 a list somebody maintains: an integration added without a descriptor, without an
 injection rule, or with a client that does not sit on the base class fails here

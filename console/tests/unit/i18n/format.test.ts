@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  formatCount,
   formatCurrency,
   formatDateTime,
   formatDuration,
@@ -26,49 +25,6 @@ describe('formatting by locale', () => {
   it('writes a number the way the locale writes numbers', () => {
     expect(formatNumber('en', 1234567.5)).toBe('1,234,567.5');
     expect(formatNumber('pt-BR', 1234567.5)).toBe('1.234.567,5');
-  });
-
-  it('writes a count against the singular key at one and the plural key otherwise', () => {
-    // "1 events" and "1 items need you" are what this exists to prevent: a
-    // count of one reads through the singular key, anything else through the
-    // plural one, in whichever locale is asking.
-    expect(formatCount('en', 1, 'transcript.events.one', 'transcript.events')).toBe(
-      '1 event',
-    );
-    expect(formatCount('en', 2, 'transcript.events.one', 'transcript.events')).toBe(
-      '2 events',
-    );
-    expect(formatCount('pt-BR', 1, 'transcript.events.one', 'transcript.events')).toBe(
-      '1 evento',
-    );
-    expect(formatCount('pt-BR', 2, 'transcript.events.one', 'transcript.events')).toBe(
-      '2 eventos',
-    );
-  });
-
-  it('writes the attention count in the number the sentence agrees with', () => {
-    expect(
-      formatCount(
-        'en',
-        1,
-        'dashboard.attention.count.one',
-        'dashboard.attention.count',
-      ),
-    ).toBe('1 item needs you');
-    expect(
-      formatCount(
-        'en',
-        2,
-        'dashboard.attention.count.one',
-        'dashboard.attention.count',
-      ),
-    ).toBe('2 items need you');
-  });
-
-  it('writes the count itself the way the locale writes numbers', () => {
-    expect(formatCount('en', 1234, 'transcript.events.one', 'transcript.events')).toBe(
-      '1,234 events',
-    );
   });
 
   it('writes money with the currency the deployment is billed in', () => {

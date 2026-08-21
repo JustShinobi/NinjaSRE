@@ -58,17 +58,6 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      // A deployment on its first day, which is a different *dataset* rather
-      // than a different kind of test. It needs its own project because one
-      // mock plane serves one scenario: the sixty tests in `behaviour` are
-      // about a deployment mid-operation and would all fail against an empty
-      // one, and these are about the empty one and prove nothing against a
-      // full one.
-      name: 'first-day',
-      testDir: 'tests/first-day',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
       name: 'visual',
       testDir: 'tests/visual',
       // One directory, not one per platform: the baselines are captured in one

@@ -3,7 +3,7 @@
 The runner is small on purpose. Everything interesting about verification is in
 what a vendor's verifier chooses to probe and in how the result is worded; the
 part that walks a list and gathers results should be boring, and boring is what
-lets it be the same for every one of them.
+lets it be the same for all eighty-five.
 
 Two decisions here are load-bearing.
 
@@ -18,41 +18,19 @@ with no verification endpoint to use its cheapest read capability instead, and
 allows it *on condition that the substitution is documented*. An empty
 description is how that condition quietly stops holding, so it is refused at
 construction rather than reviewed.
-
-**A signal source is asked two further questions, and only a signal source.**
-``SignalSourceVerifier`` is a second protocol rather than two more methods on
-the first, because the first is implemented by around ninety verifiers and a
-widened protocol would either break all of them or acquire defaults that report
-an unmeasured clock as an agreeing one. A verifier that declares neither method
-is not a signal source, its report carries neither result, and nothing about it
-changes.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
-from integrations._verification.diagnostics import (
-    ClockSkewOutcome,
-    ClockSkewProbe,
-    DataWindow,
-    DataWindowOutcome,
-    DataWindowProbe,
-    SkewState,
-)
 from integrations._verification.permissions import (
     PermissionOutcome,
     PermissionProbe,
     ProbeState,
 )
-
-
-def _utc_now() -> datetime:
-    """Return the current instant in UTC."""
-    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,23 +76,6 @@ class IntegrationVerifier(Protocol):
         """Make the cheapest authenticated call and report whether it worked."""
 
 
-@runtime_checkable
-class SignalSourceVerifier(Protocol):
-    """A verifier for a vendor an investigation *reads signals out of*.
-
-    Declared by the metric, log, trace, alert and dashboard vendors and by
-    nothing else. Both methods may return ``None`` — a vendor that answers only
-    one of the two questions says so by returning ``None`` from the other rather
-    than by supplying a probe that measures nothing.
-    """
-
-    def data_window_probe(self) -> DataWindowProbe | None:
-        """Return the read that proves this source holds recent data, if it can."""
-
-    def clock_probe(self) -> ClockSkewProbe | None:
-        """Return the reading that says what time this source thinks it is."""
-
-
 @dataclass(frozen=True, slots=True)
 class VerificationReport:
     """What one integration's verification established, in full."""
@@ -123,58 +84,19 @@ class VerificationReport:
     connectivity: Connectivity
     permissions: tuple[PermissionOutcome, ...] = ()
     probe_description: str = ""
-    #: Present only for a signal source. ``None`` for the rest of the catalogue,
-    #: and deliberately not an empty outcome: an outcome with no reading in it
-    #: renders as a measurement that came back clean.
-    data_window: DataWindowOutcome | None = None
-    clock: ClockSkewOutcome | None = None
 
     @property
     def ok(self) -> bool:
         """Return whether the integration is usable as configured.
 
-        Reachable, nothing denied, and — for a signal source — able to answer a
-        question about the recent past. An inconclusive probe does not fail the
-        report, because nothing was established and failing on "we could not
-        tell" would make a rate-limited verification run look like a broken
-        credential. A skewed clock does not fail it either: the source answers,
-        and what cannot be trusted is one field of the answer. That is
-        ``degraded``, below.
+        Reachable and nothing denied. An inconclusive probe does not fail the
+        report — nothing was established, and failing on "we could not tell"
+        would make a rate-limited verification run look like a broken
+        credential.
         """
-        if not self.connectivity.reachable:
-            return False
-        if any(outcome.denied for outcome in self.permissions):
-            return False
-        return self.data_window is None or self.data_window.usable
-
-    @property
-    def degradations(self) -> tuple[str, ...]:
-        """Return the reasons this source's answers cannot be taken at face value.
-
-        Prose rather than codes, and each line names the measurement it came
-        from. These are the sentences that go in front of an operator, so a
-        reason nobody can act on is a reason that should not be here.
-        """
-        reasons: list[str] = []
-        window = self.data_window
-        if window is not None and window.is_finding:
-            reasons.append(
-                f"it answered and holds nothing for the last {window.window_minutes} minutes. "
-                f"{window.advice}"
-            )
-        clock = self.clock
-        if clock is not None and clock.degraded and clock.offset_seconds is not None:
-            reasons.append(
-                f"its clock is {abs(clock.offset_seconds):.1f}s from the platform's, outside "
-                f"the {clock.tolerance_seconds:.1f}s that correlation tolerates — every "
-                f"timestamp it contributes to a timeline is offset by that much"
-            )
-        return tuple(reasons)
-
-    @property
-    def degraded(self) -> bool:
-        """Return whether something measured here makes this source's answers unsafe."""
-        return bool(self.degradations)
+        return self.connectivity.reachable and not any(
+            outcome.denied for outcome in self.permissions
+        )
 
     @property
     def missing_permissions(self) -> tuple[str, ...]:
@@ -202,47 +124,24 @@ class VerificationReport:
         return tuple(sorted(affected))
 
     def to_record(self) -> dict[str, object]:
-        """Return the JSON-serialisable form a CLI, a console, or CI renders.
-
-        The two signal-source keys are absent rather than null for a vendor that
-        is not one. A reader iterating the document has to be able to tell "this
-        was not measured" from "this measured nothing", and a null in a schema
-        that also uses null for an unread clock cannot.
-        """
-        record: dict[str, object] = {
+        """Return the JSON-serialisable form a CLI, a console, or CI renders."""
+        return {
             "integration": self.integration,
             "ok": self.ok,
-            "degraded": self.degraded,
-            "degradations": list(self.degradations),
             "connectivity": self.connectivity.to_record(),
             "probe": self.probe_description,
             "permissions": [outcome.to_record() for outcome in self.permissions],
             "missing_permissions": list(self.missing_permissions),
             "affected_capabilities": list(self.affected_capabilities),
         }
-        if self.data_window is not None:
-            record["data_window"] = self.data_window.to_record()
-        if self.clock is not None:
-            record["clock"] = self.clock.to_record()
-        return record
 
 
 class VerificationRunner:
     """Runs the declared checks for one integration, or for all of them."""
 
-    __slots__ = ("_clock", "_verifiers")
+    __slots__ = ("_verifiers",)
 
-    def __init__(
-        self,
-        verifiers: Iterable[IntegrationVerifier],
-        *,
-        clock: Callable[[], datetime] = _utc_now,
-    ) -> None:
-        # Injected rather than read at the call site so a suite can pin it. The
-        # skew measurement is a subtraction against this instant, and a test
-        # that read the wall clock would assert against how long it took to get
-        # there.
-        self._clock = clock
+    def __init__(self, verifiers: Iterable[IntegrationVerifier]) -> None:
         held: dict[str, IntegrationVerifier] = {}
         for verifier in verifiers:
             if not verifier.probe_description.strip():
@@ -286,57 +185,12 @@ class VerificationRunner:
         else:
             outcomes = tuple([await probe.run(transport, context) for probe in probes])
 
-        window, clock = await self._signals(
-            verifier, transport=transport, context=context, reachable=connectivity.reachable
-        )
         return VerificationReport(
             integration=integration,
             connectivity=connectivity,
             permissions=outcomes,
             probe_description=_probe_description(verifier, probes),
-            data_window=window,
-            clock=clock,
         )
-
-    async def _signals(
-        self,
-        verifier: IntegrationVerifier,
-        *,
-        transport: Any,
-        context: Any,
-        reachable: bool,
-    ) -> tuple[DataWindowOutcome | None, ClockSkewOutcome | None]:
-        """Return what this vendor's signal-source probes found, if it has any.
-
-        Connectivity gates these the same way it gates the permission probes,
-        and for the same reason: a credential the vendor rejected produces an
-        empty answer from every read, and reporting that as an empty store would
-        send an operator to their scrape configuration over a bad token.
-        """
-        if not isinstance(verifier, SignalSourceVerifier):
-            return None, None
-
-        now = self._clock()
-        span = DataWindow.ending_at(now)
-        window_probe = verifier.data_window_probe()
-        clock_probe = verifier.clock_probe()
-
-        window: DataWindowOutcome | None = None
-        if window_probe is not None:
-            window = (
-                await window_probe.run(transport, context, window=span)
-                if reachable
-                else window_probe.unchecked(span)
-            )
-
-        clock: ClockSkewOutcome | None = None
-        if clock_probe is not None:
-            clock = (
-                await clock_probe.run(transport, context, now=now)
-                if reachable
-                else clock_probe.unchecked()
-            )
-        return window, clock
 
     async def verify_all(self, *, transport: Any, context: Any) -> tuple[VerificationReport, ...]:
         """Return a report for every installed integration, in name order."""
@@ -345,9 +199,7 @@ class VerificationRunner:
         )
 
 
-def runner_for(
-    descriptors: Iterable[Any], *, clock: Callable[[], datetime] = _utc_now
-) -> VerificationRunner:
+def runner_for(descriptors: Iterable[Any]) -> VerificationRunner:
     """Return a runner over the verifiers the given descriptors declare.
 
     Takes descriptors rather than verifiers so composition hands over the same
@@ -359,8 +211,7 @@ def runner_for(
             descriptor.verifier
             for descriptor in descriptors
             if isinstance(descriptor.verifier, IntegrationVerifier)
-        ],
-        clock=clock,
+        ]
     )
 
 
@@ -380,8 +231,6 @@ def _probe_description(verifier: IntegrationVerifier, probes: tuple[PermissionPr
 __all__ = [
     "Connectivity",
     "IntegrationVerifier",
-    "SignalSourceVerifier",
-    "SkewState",
     "VerificationReport",
     "VerificationRunner",
     "runner_for",

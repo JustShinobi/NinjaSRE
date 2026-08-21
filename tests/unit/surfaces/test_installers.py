@@ -195,6 +195,8 @@ def test_a_writable_directory_on_path_is_chosen(tmp_path: Path) -> None:
 def test_with_no_writable_path_directory_the_installer_falls_back(tmp_path: Path) -> None:
     # The fallback's reason for existing. A managed workstation where every
     # PATH entry is system-owned is ordinary, not exotic.
+    if hasattr(os, "getuid") and os.getuid() == 0:
+        pytest.skip("root UID bypasses standard POSIX write permissions on 0555 directories")
     unwritable = tmp_path / "locked"
     unwritable.mkdir()
     unwritable.chmod(0o555)

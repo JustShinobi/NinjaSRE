@@ -1,6 +1,6 @@
 # Bridging a protocol server
 
-NinjaSRE ships the integrations its environment can validate. This is what to do when the one
+NinjaSRE ships around eighty-five integrations. This is what to do when the one
 you need is not among them and somebody has already built an MCP server for it.
 
 A bridged server's tools appear in the capability catalogue beside the native

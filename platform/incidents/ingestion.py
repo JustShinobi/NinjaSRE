@@ -21,20 +21,10 @@ resource is honest: it says what we actually know.
 A *resolved* notification is not an incident. It is the strongest evidence
 available that an incident ended, and ``resolution_of`` is how the router asks
 which one.
-
-**A resolved alert's subject is the estate resource, not the label value.** When
-the caller has resolved the alert against the estate, the incident points at the
-resource identifier everything else is keyed by — so the resource's own page
-shows the incident, and an investigation of it starts on the right machine. When
-the target resolved to nothing, the finding becomes a subject of its own rather
-than being dropped: an alert for something this estate does not hold is
-information about the estate.
 """
 
 from __future__ import annotations
 
-from config.constants.observation import MAX_INCIDENT_SUBJECTS
-from platform.estate.alert_resolution import AlertResolution
 from platform.incidents import correlation
 from platform.incidents.lifecycle import IncidentRaise
 from platform.persistence.ports.incident_store import IncidentOrigin, IncidentSubject
@@ -57,8 +47,6 @@ def raise_for_alert(
     team_node_id: str,
     reference: str = "",
     actor: str = "system:webhook",
-    resolution: AlertResolution | None = None,
-    group_key: str = "",
 ) -> IncidentRaise:
     """Return the raise this alert describes, in the same shape a detector's takes.
 
@@ -66,21 +54,20 @@ def raise_for_alert(
     left for a downstream component to special-case. That structural identity is
     what ``tests`` asserts, and what makes "there is one kind of incident" a
     property rather than an intention.
-
-    ``resolution`` is what the caller resolved the alert's labels to against the
-    estate. Optional, because a caller that holds no estate is not wrong to
-    raise an incident — it just raises one whose subjects are the components the
-    alert named, which is what this did before resolution existed.
     """
-    subjects = _subjects(
-        source=source,
-        alert_name=alert_name,
-        summary=summary,
-        description=description,
-        components=components,
-        reference=reference,
-        resolution=resolution,
-        group_key=group_key,
+    subjects = tuple(
+        IncidentSubject(
+            resource_id=component,
+            detail=summary or description,
+            evidence=_evidence(alert_name, reference),
+        )
+        for component in components
+    ) or (
+        IncidentSubject(
+            resource_id=f"{UNNAMED_SUBJECT_PREFIX}:{source}",
+            detail=summary or description or alert_name,
+            evidence=_evidence(alert_name, reference),
+        ),
     )
 
     return IncidentRaise(
@@ -97,70 +84,6 @@ def raise_for_alert(
     )
 
 
-def _subjects(
-    *,
-    source: str,
-    alert_name: str,
-    summary: str,
-    description: str,
-    components: tuple[str, ...],
-    reference: str,
-    resolution: AlertResolution | None,
-    group_key: str,
-) -> tuple[IncidentSubject, ...]:
-    """Return what this incident is about, in the terms the estate is keyed by.
-
-    Three cases, in order of how much is known. A resolved alert is about one
-    resource and says so, and the component names it also carried are already in
-    the objective and in the alert record — repeating them as subjects would put
-    a label value beside a resource identifier in a list a screen renders as one
-    kind of thing.
-
-    An unresolved target leads the list rather than trailing it, because the
-    list is bounded: an alert naming ``MAX_INCIDENT_SUBJECTS`` components would
-    otherwise push the finding off the end, and losing it is exactly the
-    behaviour the finding exists to replace.
-    """
-    evidence = _evidence(alert_name, reference, group_key)
-    detail = summary or description
-
-    if resolution is not None and resolution.resolved is not None:
-        target = resolution.resolved
-        return (
-            IncidentSubject(
-                resource_id=target.resource_id,
-                detail=detail or alert_name,
-                evidence={**evidence, **target.evidence()},
-            ),
-        )
-
-    named = tuple(
-        IncidentSubject(resource_id=component, detail=detail, evidence=evidence)
-        for component in components
-    )
-
-    if resolution is not None and resolution.unresolved is not None:
-        finding = resolution.unresolved
-        named = (
-            IncidentSubject(
-                resource_id=finding.subject_id,
-                detail=finding.why,
-                evidence={**evidence, **finding.evidence()},
-            ),
-            *named,
-        )
-
-    if not named:
-        return (
-            IncidentSubject(
-                resource_id=f"{UNNAMED_SUBJECT_PREFIX}:{source}",
-                detail=detail or alert_name,
-                evidence=evidence,
-            ),
-        )
-    return named[:MAX_INCIDENT_SUBJECTS]
-
-
 def resolution_key(*, source: str, fingerprint: str) -> str:
     """Return the correlation key a resolution notification closes.
 
@@ -171,22 +94,16 @@ def resolution_key(*, source: str, fingerprint: str) -> str:
     return correlation.for_alert(source=source, fingerprint=fingerprint)
 
 
-def _evidence(alert_name: str, reference: str, group_key: str = "") -> dict[str, str]:
+def _evidence(alert_name: str, reference: str) -> dict[str, str]:
     """Return what the alert itself said, as the subject's evidence.
 
     Thin on purpose. The upstream already decided this was worth sending, and
     copying its whole payload in here would put an unbounded document on an
     incident that a console has to render.
-
-    The group is the exception worth carrying: it is what the sender called the
-    set of notifications this one belongs to, and an operator asking why eight
-    pages became one incident is asking about exactly that string.
     """
     evidence = {"alert": alert_name} if alert_name else {}
     if reference:
         evidence["reference"] = reference
-    if group_key:
-        evidence["group"] = group_key
     return evidence
 
 

@@ -89,31 +89,6 @@ CLASSIFIED_STATUSES: tuple[tuple[int, ErrorCategory], ...] = (
 )
 
 
-#: What the base client gives every vendor. Subtracted before asking what a
-#: vendor's own client exposes, so the four verbs the base defines are not
-#: mistaken for endpoints the vendor declared.
-BASE_CLIENT_COROUTINES: frozenset[str] = frozenset(
-    name for name, _ in inspect.getmembers(IntegrationClient, inspect.iscoroutinefunction)
-)
-
-#: The one reachability check every client has, which returns a status rather
-#: than a list and therefore has no second page.
-REACHABILITY_CHECK = "ping"
-
-
-def vendor_endpoints(client_class: type) -> tuple[str, ...]:
-    """Return the calls a vendor's client adds beyond the base and the ping."""
-    return tuple(
-        sorted(
-            name
-            for name, _ in inspect.getmembers(client_class, inspect.iscoroutinefunction)
-            if not name.startswith("_")
-            and name not in BASE_CLIENT_COROUTINES
-            and name != REACHABILITY_CHECK
-        )
-    )
-
-
 def test_the_catalogue_is_not_empty() -> None:
     """A walk that found nothing would satisfy every parametrised test below."""
     assert CATALOGUE, "discovery found no integrations, so nothing below asserts anything"
@@ -256,23 +231,6 @@ def test_each_paginated_endpoint_declares_a_style_the_base_client_walks(name: st
     """FR-005, including the vendor that paginates two endpoints two ways."""
     profile = PROFILES[name]
     client_class = ENTRIES[name].descriptor.client_class
-
-    if not profile.pagination and profile.category is IntegrationCategory.MODEL_PROVIDER:
-        # A model provider is in the catalogue so its key is reachable through
-        # the credential proxy, not because it has an API to walk: its client is
-        # a reachability check and nothing else. There is no second page to ask
-        # for, and inventing a declared endpoint to satisfy the rule would be a
-        # declaration about an API nobody calls.
-        #
-        # The exemption is held to exactly that. The day one of these grows a
-        # call that returns a list, this fails and it declares a style like
-        # every other vendor.
-        exposed = vendor_endpoints(client_class)
-        assert exposed == (), (
-            f"{name}: exposes {list(exposed)} beyond a reachability check, so it has "
-            f"pages to ask for and must declare how"
-        )
-        return
 
     assert profile.pagination, (
         f"{name}: no endpoint declares a pagination style, so nothing states how a "

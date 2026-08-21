@@ -144,24 +144,6 @@ class ApprovalStore(Protocol):
     ) -> tuple[ApprovalRequest, ...]:
         """Return undecided requests, oldest first — longest-waiting first."""
 
-    async def list_decided(
-        self,
-        *,
-        action: str | None = None,
-        limit: int = 50,
-    ) -> tuple[ApprovalRequest, ...]:
-        """Return answered requests, most recently decided first.
-
-        The counterpart of ``list_pending``, and it exists because a decision is
-        evidence rather than an ending. Two readers need it: the queue that shows
-        a recurring proposal what was said the last three times it was refused,
-        and the figure that says how many proposals this team accepts. Both are
-        about the *history* of deciding, which nothing else in this port exposes.
-
-        Ordered by decision rather than by request, because "what was said most
-        recently" is the question, and expired rows carry a decision instant too.
-        """
-
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
         """Move every pending request past its expiry to ``EXPIRED``, and return them."""
 

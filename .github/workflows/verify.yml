@@ -164,16 +164,6 @@ jobs:
 
     env:
       NINJASRE_CONSOLE_TOOLCHAIN: required
-      # `app` refuses to start with no model provider configured — the compose
-      # file's own header says as much (`set one provider key`) — and this job
-      # sets no vendor credential. Ollama is the one supported provider whose
-      # validation needs no credential at all (self-hosted, no auth by
-      # design — see `platform/startup/validation.py`'s `PROVIDER_CREDENTIAL_ENV`,
-      # which does not name it), so it is what lets `app` boot here without a
-      # secret this job would otherwise need. Nothing calls it: this job never
-      # starts an investigation, so an unreachable Ollama endpoint is never
-      # dialled.
-      NINJASRE_LLM_PROVIDER: ollama
 
     steps:
       - name: Check out the repository
@@ -292,7 +282,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.12"
 
       # Deliberately no uv, and deliberately nothing installed first. The
       # script builds the distribution and installs it into a venv it creates,

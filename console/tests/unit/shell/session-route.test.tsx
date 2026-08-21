@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -253,7 +254,10 @@ describe('the values only a browser has', () => {
 });
 
 describe('the way back from a page that does not exist', () => {
-  it('is one real link, not a button with a hidden duplicate', () => {
+  it('is a real link as well as a control', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { assign });
+
     render(
       <EmptyStateLink
         heading="There is no such page"
@@ -263,48 +267,8 @@ describe('the way back from a page that does not exist', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: 'Go to the overview' })).toHaveAttribute(
-      'href',
-      '/',
-    );
-    expect(screen.queryByRole('button', { name: 'Go to the overview' })).toBeNull();
-  });
-});
-
-describe('the session cookie behind a TLS-terminating proxy', () => {
-  /**
-   * The deployment shape this product actually ships in: a proxy terminates TLS
-   * and forwards plain HTTP to the console. Next then sees `http:` on its own
-   * URL, and a `Secure` flag decided from that alone leaves the session cookie
-   * served over https **without** it — which is precisely the downgrade that
-   * flag exists to prevent, because the browser will afterwards send the same
-   * cookie over a plain http request to the same host.
-   *
-   * `X-Forwarded-Proto` is what the proxy says about the scheme the browser
-   * actually used, and it is the only thing that knows.
-   */
-
-  async function signIn(proto?: string): Promise<string> {
-    vi.stubGlobal('fetch', accepting(200));
-    const { POST } = await import('@/app/api/session/route');
-    const request = signInRequest(TYPED);
-    if (proto !== undefined) request.headers.set('x-forwarded-proto', proto);
-    const answer = await POST(request);
-    return answer.headers.get('set-cookie') ?? '';
-  }
-
-  it('marks the cookie secure when the proxy says the browser used https', async () => {
-    expect(await signIn('https')).toMatch(/Secure/i);
-  });
-
-  it('honours the first entry when a proxy chain appends its own', async () => {
-    // A second proxy appends rather than replaces: "https, http".
-    expect(await signIn('https, http')).toMatch(/Secure/i);
-  });
-
-  it('leaves it off for a genuinely plain-http deployment', async () => {
-    // A Secure cookie is simply never sent over http, so setting it there would
-    // be a console nobody can sign in to rather than a safer one.
-    expect(await signIn()).not.toMatch(/Secure/i);
+    expect(screen.getByTestId('way-back')).toHaveAttribute('href', '/');
+    await userEvent.click(screen.getByRole('button', { name: 'Go to the overview' }));
+    expect(assign).toHaveBeenCalledWith('/');
   });
 });

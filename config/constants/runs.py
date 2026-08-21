@@ -131,12 +131,6 @@ MAX_CRON_LOOKAHEAD_DAYS: Final[int] = 1_500
 #: in another region is a fault nobody can reproduce.
 DEFAULT_SCHEDULE_TIMEZONE: Final[str] = "UTC"
 
-#: Firings a cron preview returns. Two rather than one: "next Monday 08:00,
-#: then the Monday after" is what actually catches a wrong field position, and
-#: a second call to the same ``next_after`` the write path already runs is
-#: close enough to free that there is no reason to show only the first.
-SCHEDULE_PREVIEW_FIRING_COUNT: Final[int] = 2
-
 # --- Run history -------------------------------------------------------------
 
 #: Runs one history query returns. The store's own page bound is higher; this is
@@ -161,7 +155,6 @@ __all__ = [
     "RUN_METADATA_PRINCIPAL",
     "RUN_METADATA_SUBAGENT",
     "RUN_METADATA_TEAM",
-    "SCHEDULE_PREVIEW_FIRING_COUNT",
     "SCHEDULER_GLOBAL_CONCURRENCY",
     "SCHEDULER_HEARTBEAT_SECONDS",
     "SCHEDULER_MISFIRE_GRACE_SECONDS",

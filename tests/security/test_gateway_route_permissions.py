@@ -71,7 +71,11 @@ def test_every_webhook_source_is_declared() -> None:
     paths = {route.path for route in application_table().routes}
     for source in (
         "alertmanager",
+        "pagerduty",
+        "datadog",
         "grafana",
+        "sentry",
+        "opsgenie",
         "generic",
     ):
         assert f"/webhooks/{source}" in paths

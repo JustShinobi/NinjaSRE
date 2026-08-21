@@ -30,7 +30,6 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
-from platform.config_service import paths
 from platform.config_service.audit import ConfigAuditor, record, settings_after
 from platform.config_service.catalogue import (
     CapabilityCatalogueReader,
@@ -48,8 +47,6 @@ from platform.config_service.effective import (
 from platform.config_service.errors import (
     ChangeRequiresApproval,
     ConfigInvalid,
-    FieldError,
-    FieldLocked,
     UnknownNode,
 )
 from platform.config_service.field_policy import (
@@ -62,10 +59,9 @@ from platform.config_service.field_policy import (
     merged_along,
 )
 from platform.config_service.hierarchy import Hierarchy
-from platform.config_service.merge import deep_prune
-from platform.config_service.preview import ConfigPreview, merged_with, preview_of
+from platform.config_service.preview import ConfigPreview, preview_of
 from platform.config_service.templates import TemplateDiff, TemplateLibrary
-from platform.config_service.validation import ConfigValidator, ValidationOutcome
+from platform.config_service.validation import ConfigValidator
 from platform.guardrails.engine import GuardrailEngine
 from platform.persistence.errors import RecordNotFound
 from platform.persistence.ports import (
@@ -213,48 +209,14 @@ class ConfigService:
         document = await self.document(node_id)
         return self._templates.preview(template, document.settings)
 
-    async def preview_settings(
-        self, node_id: str, patch: Mapping[str, Any], remove: Sequence[str] = ()
-    ) -> ConfigPreview:
+    async def preview_settings(self, node_id: str, patch: Mapping[str, Any]) -> ConfigPreview:
         """Return what applying ``patch`` to ``node_id`` would resolve to, storing nothing.
 
         The same chain, the same merge, and the same lock and gate rules
         ``set_settings`` applies — which is the only thing that makes the answer
-        worth showing somebody before they commit to it. ``remove`` is the same
-        clear-to-inherit list the write takes, so a preview of a clear and the
-        clear itself cannot disagree either.
+        worth showing somebody before they commit to it.
         """
-        return preview_of(node_id, await self._chain(node_id), patch, remove)
-
-    def validation_of(self, settings: Mapping[str, Any]) -> ValidationOutcome:
-        """Return what validation makes of ``settings``, storing and auditing nothing.
-
-        The same validator the write path runs, exposed so a surface can show
-        somebody why a document *would* be refused while they can still edit it.
-        A second implementation of the check in a client would agree until the
-        day a rule moved, and then refuse nothing while the write refused
-        everything.
-        """
-        return self._validator.validate(settings)
-
-    async def validation_of_write(
-        self, node_id: str, patch: Mapping[str, Any], remove: Sequence[str] = ()
-    ) -> ValidationOutcome:
-        """Return what validation would make of the document this write would store.
-
-        ``validation_of`` takes a document somebody has already assembled;
-        this takes the same arguments the write takes and assembles it the same
-        way ``set_settings`` does, so a preview cannot be shown the verdict on a
-        document other than the one the save would produce.
-
-        It exists because a preview that predicts the merge, the locks and the
-        gates and stays silent about validation reads as approval. Every refusal
-        it now names — a field a vendor's schema calls secret, a value shaped
-        like a credential, a capability nothing installed — was a 400 arriving
-        after somebody pressed save on a screen that had told them the outcome.
-        """
-        document = NodeDocument.of_node(await self._node(node_id))
-        return self._validator.validate(settings_after(document.settings, patch, remove))
+        return preview_of(node_id, await self._chain(node_id), patch)
 
     # --- Writing -------------------------------------------------------------
 
@@ -266,34 +228,22 @@ class ConfigService:
         actor_id: str,
         actor_kind: ActorKind = ActorKind.USER,
         replace: bool = False,
-        remove: Sequence[str] = (),
     ) -> ConfigNode:
         """Apply ``patch`` to ``node_id``'s own settings and return the stored node.
 
         ``patch`` is merged onto what is there unless ``replace`` is set, which
         is what makes "change the masking level" one field rather than a whole
         document a caller had to reconstruct and could get wrong.
-
-        ``remove`` clears node-local values, so the field goes back to being
-        inherited. It is a first-class operation rather than "set it to the
-        parent's value", because the two diverge the moment the parent changes:
-        one follows, and one froze today's answer into this node.
         """
         node = await self._node(node_id)
         document = NodeDocument.of_node(node)
-        proposed = (
-            dict(deep_prune(patch, remove))
-            if replace
-            else dict(settings_after(document.settings, patch, remove))
-        )
+        proposed = dict(patch) if replace else dict(settings_after(document.settings, patch))
 
         chain = await self._chain(node_id)
         inherited_locks = _inherited_locks(chain[:-1])
         check_locks(node_id, proposed, inherited_locks, own=document.policies)
-        _check_removable(node_id, remove, inherited_locks, own=document.policies)
 
         await self._validate_or_audit(node_id, proposed, actor_id, actor_kind)
-        await self._validate_chain(node_id, chain, proposed, actor_id, actor_kind)
 
         changed = changed_paths(document.settings, proposed)
         gated = gated_paths(changed, merged_along(_policies(chain)))
@@ -508,68 +458,6 @@ class ConfigService:
         )
         raise ConfigInvalid(outcome.errors)
 
-    async def _validate_chain(
-        self,
-        node_id: str,
-        chain: Sequence[ConfigNode],
-        proposed: Mapping[str, Any],
-        actor_id: str,
-        actor_kind: ActorKind,
-    ) -> None:
-        """Refuse a write whose *merged* result breaks a bound the node's own cannot see.
-
-        A node's document is validated on its own for a good reason — a field
-        required at the leaf may legitimately be supplied by an ancestor — but
-        some bounds are properties of the chain rather than of any node in it.
-        The operating-context token budget is the first: four nodes each writing
-        a third of it store happily and resolve to more than the whole, and the
-        deployment then sends *no* context at all, safely and silently.
-
-        **Only what this write introduces is refused.** The merged document is
-        validated as it resolves now and as it would resolve, and the difference
-        is what the write is answerable for. Without that subtraction, a chain
-        that is already over — because it was written before this check existed —
-        would refuse every unrelated edit anywhere beneath it, and the person
-        fixing a typo three levels down would be the one told to shorten
-        somebody else's paragraph.
-        """
-        introduced = self._introduced_by(node_id, chain, proposed)
-        if not introduced:
-            return
-        await record(
-            self._gateway,
-            self._scope,
-            self._auditor.rejection_events(
-                node_id,
-                [(error.path, error.message) for error in introduced],
-                actor_id=actor_id,
-                actor_kind=actor_kind,
-            ),
-        )
-        raise ConfigInvalid(introduced)
-
-    def _introduced_by(
-        self,
-        node_id: str,
-        chain: Sequence[ConfigNode],
-        proposed: Mapping[str, Any],
-    ) -> tuple[FieldError, ...]:
-        """Return the merged-document errors ``proposed`` adds, and no others."""
-        document = NodeDocument.of_node(chain[-1])
-        existing = {
-            error.path
-            for error in self._validator.validate(
-                merged_with(node_id, chain, document.settings).values
-            ).errors
-        }
-        return tuple(
-            error
-            for error in self._validator.validate(
-                merged_with(node_id, chain, proposed).values
-            ).errors
-            if error.path not in existing
-        )
-
     async def _queue(
         self,
         node_id: str,
@@ -618,29 +506,6 @@ class ConfigService:
         async with self._gateway.begin(self._scope) as uow:
             stored = await uow.approvals.create_request(request)
         return stored.approval_id
-
-
-def _check_removable(
-    node_id: str,
-    remove: Sequence[str],
-    inherited_locks: Mapping[str, str],
-    own: PolicySet,
-) -> None:
-    """Raise ``FieldLocked`` if a clear names a path an ancestor locked.
-
-    ``check_locks`` cannot see this one: a removal leaves *nothing* at the path,
-    so there is no leaf in the proposed document to test. Without this, clearing
-    a locked field would report success and change nothing, which tells an
-    operator they lifted a constraint they cannot lift.
-    """
-    exempt = own.locked_paths()
-    for path in remove:
-        for candidate in paths.prefixes(path):
-            if candidate in exempt:
-                break
-            locking = inherited_locks.get(candidate)
-            if locking is not None:
-                raise FieldLocked(path=path, locking_node_id=locking, node_id=node_id)
 
 
 def _policies(chain: Sequence[ConfigNode]) -> tuple[PolicySet, ...]:

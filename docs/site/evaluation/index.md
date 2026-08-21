@@ -25,7 +25,7 @@ scenario. Narrow it while you are working:
 ```sh
 make test-synthetic FILTER=005-dependency-timeout
 make test-synthetic DIFFICULTY=hard
-make test-synthetic INTEGRATION=grafana
+make test-synthetic INTEGRATION=datadog
 ```
 
 ## Reproducing the scores

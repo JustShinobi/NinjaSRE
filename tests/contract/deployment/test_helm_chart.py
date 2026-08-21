@@ -12,7 +12,6 @@ which is the pattern the chaos and end-to-end suites already established.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import pytest
@@ -26,7 +25,6 @@ from config.constants.security import (
     SANDBOX_WARM_POOL_SIZE,
 )
 from platform.startup.profiles import DeploymentProfile, topology_for
-from platform.startup.validation import PROVIDER_CREDENTIAL_ENV
 from tests.contract.deployment.conftest import CHART, template_text
 
 pytestmark = pytest.mark.contract
@@ -207,96 +205,3 @@ def test_the_values_file_is_valid_yaml_and_the_templates_are_at_least_readable()
     for path in (CHART / "templates").glob("*.yaml"):
         source = path.read_text(encoding="utf-8")
         assert source.count("{{") == source.count("}}"), f"{path.name} has unbalanced braces"
-
-
-def _provider_credential_env_name_mapping() -> dict[str, str]:
-    """Return the chart's own provider-id -> credential-variable-name table.
-
-    Parsed out of ``ninjasre.providerCredentialEnvName`` rather than asserted
-    against a hardcoded expectation, so this test is driven entirely by
-    ``PROVIDER_CREDENTIAL_ENV`` — the same source the deployment's own startup
-    validation reads — and cannot pass by agreeing with itself.
-    """
-    source = template_text("_helpers.tpl")
-    start = source.index('define "ninjasre.providerCredentialEnvName"')
-    end = source.index("{{ fail (", start)
-    block = source[start:end]
-    pairs = re.findall(r'provider\.id "([a-z_]+)" -\}\}\n([A-Z0-9_]+)\n', block)
-    return dict(pairs)
-
-
-def test_the_providers_credential_variable_matches_what_the_code_reads() -> None:
-    """The chart cannot import ``PROVIDER_CREDENTIAL_ENV``, so its mapping is
-    restated by hand in ``_helpers.tpl`` — this is what keeps the restatement
-    from drifting from the constant that actually gates startup
-    (``platform.startup.validation._provider``) rather than from a name
-    invented once and never checked again.
-    """
-    found = _provider_credential_env_name_mapping()
-    expected = {provider: names[0] for provider, names in PROVIDER_CREDENTIAL_ENV.items()}
-
-    assert found == expected
-
-
-def test_ollama_has_no_credential_variable_because_none_is_required() -> None:
-    """``PROVIDER_CREDENTIAL_ENV`` has no entry for ``ollama`` — a local model
-    reads no vendor key — so the chart must not demand an operator create a
-    secret it will never read.
-    """
-    assert "ollama" not in PROVIDER_CREDENTIAL_ENV
-    assert "ollama" not in _provider_credential_env_name_mapping()
-    assert '{{- if ne .Values.provider.id "ollama" }}' in template_text("_helpers.tpl")
-
-
-def test_no_dead_provider_setting_names_remain_in_the_chart() -> None:
-    """Neither name is read by any code this deployment runs. Both used to be
-    the only thing standing between an operator and a provider credential
-    that never reaches the process that needs it.
-    """
-    for path in (CHART / "templates").glob("*"):
-        if not path.is_file():
-            continue
-        source = path.read_text(encoding="utf-8")
-        assert "NINJASRE_PROVIDER_CREDENTIAL" not in source, path.name
-        assert "NINJASRE_LLM_BASE_URL" not in source, path.name
-
-
-def test_the_proxy_no_longer_receives_a_provider_credential() -> None:
-    """The credential proxy stopped validating the deployment's provider, so
-    mounting one into its pod is exactly the unnecessary secret exposure that
-    change exists to avoid.
-    """
-    assert 'include "ninjasre.providerEnv"' not in template_text("proxy-deployment.yaml")
-
-
-def test_the_application_still_receives_a_provider_credential() -> None:
-    """The one workload that composes an investigation runtime and calls the
-    provider is also the one workload that still needs to authenticate to it.
-    """
-    assert 'include "ninjasre.providerEnv"' in template_text("app-deployment.yaml")
-
-
-def test_every_workload_that_validates_a_provider_is_given_its_credential() -> None:
-    """Three of this chart's workloads boot through the same entry point.
-
-    ``app``, ``console`` and the migration Job all run ``gateway.http.serve``,
-    which composes the deployment — and that composition validates the whole
-    configuration, a model provider included, before it does anything else. The
-    migration Job validates before it even reaches its own migrate-and-exit
-    branch, so a chart that withheld the credential from it would fail to
-    install rather than fail to serve.
-
-    Asserted over the set of workloads rather than one at a time: the defect
-    this closes was two templates that never included the helper at all, which a
-    test naming only the templates that already did could not have seen.
-    """
-    withheld = [
-        name
-        for name in ("app-deployment.yaml", "console-deployment.yaml", "migration-job.yaml")
-        if 'include "ninjasre.providerEnv"' not in template_text(name)
-    ]
-
-    assert not withheld, (
-        f"these workloads run gateway.http.serve, which refuses to start without a "
-        f"provider, and are never given one: {withheld}"
-    )

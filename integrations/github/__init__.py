@@ -33,7 +33,6 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
-    display_name="GitHub",
     category=IntegrationCategory.VERSION_CONTROL,
     summary="What landed in a repository and when: the commits on its default branch and the pull requests recently merged into it.",
     regions=REGIONS,

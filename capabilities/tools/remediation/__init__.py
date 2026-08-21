@@ -4,7 +4,7 @@ Remediation is cross-vendor by nature: restarting a workload, rolling back a
 release, and changing a replica count are the same three actions whether the
 control plane is Kubernetes, ECS, or a virtual machine fleet. Putting them in
 one package rather than in each vendor's is what stops the approval rules being
-re-implemented, slightly differently, once per vendor.
+re-implemented, slightly differently, eighty-five times.
 
 Every tool here is above ``read_sensitive``, and the metadata type enforces what
 that means: approval is required, the reason a human is being asked is written

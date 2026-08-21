@@ -193,22 +193,3 @@ def test_a_stale_committed_client_fails_the_build() -> None:
     assert client.read_text(encoding="utf-8") == original, (
         "the drift check rewrote the committed client instead of reporting it"
     )
-
-
-def test_the_sweep_knows_every_file_these_tests_write() -> None:
-    """The residue sweep is only as good as its list of what to sweep.
-
-    `conftest` removes spliced files left by a run that died, from a list it
-    holds itself so it need not import a test module. That list and this one
-    describe the same set, and a destination added here without being added
-    there is residue nothing would clear — which is the state this whole
-    mechanism exists to end.
-    """
-    from tests.contract.console.conftest import SEEDED_DESTINATIONS
-
-    declared = {seeded.destination for seeded in SEEDED} | {"tests/e2e/seeded.spec.ts"}
-    assert declared == set(SEEDED_DESTINATIONS), (
-        "the seeded destinations and the sweep list disagree: "
-        f"only here {sorted(declared - set(SEEDED_DESTINATIONS))}, "
-        f"only in conftest {sorted(set(SEEDED_DESTINATIONS) - declared)}"
-    )

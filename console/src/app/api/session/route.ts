@@ -115,44 +115,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'strict',
-    secure: servedOverTls(request),
+    // Set whenever the console is served over TLS. Left off for a plain-HTTP
+    // deployment because a `Secure` cookie is simply never sent there, which
+    // would be a console nobody can sign in to rather than a safer one.
+    secure: request.nextUrl.protocol === 'https:',
     path: '/',
     maxAge: MAX_AGE,
   });
   response.cookies.set(SESSION_EXPIRY_COOKIE, expiresAt, {
     httpOnly: false,
     sameSite: 'strict',
-    secure: servedOverTls(request),
+    secure: request.nextUrl.protocol === 'https:',
     path: '/',
     maxAge: MAX_AGE,
   });
   return response;
-}
-
-/**
- * Whether the browser reached this console over TLS.
- *
- * Not `request.nextUrl.protocol` alone. The shape this product actually ships
- * in is a proxy terminating TLS and forwarding plain HTTP, and Next then sees
- * `http:` on its own URL — so a `Secure` flag decided from that would be left
- * off for every https deployment behind a proxy. That is exactly the downgrade
- * the flag exists to prevent: the browser would afterwards send the session
- * cookie over a plain http request to the same host.
- *
- * `X-Forwarded-Proto` is what the proxy says about the scheme the browser used,
- * and it is the only thing that knows. A chain of proxies appends rather than
- * replaces, so the first entry is the one nearest the browser.
- *
- * Left off for a genuinely plain-HTTP deployment, because a `Secure` cookie is
- * simply never sent there — that would be a console nobody can sign in to
- * rather than a safer one.
- */
-function servedOverTls(request: NextRequest): boolean {
-  const forwarded = request.headers.get('x-forwarded-proto');
-  if (forwarded !== null && forwarded.trim() !== '') {
-    return forwarded.split(',')[0]?.trim().toLowerCase() === 'https';
-  }
-  return request.nextUrl.protocol === 'https:';
 }
 
 /** End the session, here and now. */

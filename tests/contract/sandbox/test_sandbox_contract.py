@@ -7,6 +7,7 @@ it is a suite that fails when it stops being true.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 
 import probes
@@ -336,6 +337,8 @@ async def test_delivered_content_is_readable_and_cannot_be_rewritten(
         read = await sandbox.execute(instance, ExecutionRequest(command=probes.read_file(target)))
         assert read.stdout == b"# triage\n"
 
+        if hasattr(os, "getuid") and os.getuid() == 0:
+            pytest.skip("root UID bypasses standard POSIX write permissions on chmod 0444 files")
         tampered = await sandbox.execute(
             instance, ExecutionRequest(command=probes.overwrite_content(target))
         )

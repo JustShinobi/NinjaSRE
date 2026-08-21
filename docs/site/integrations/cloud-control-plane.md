@@ -2,7 +2,342 @@
 
 # cloud_control_plane integrations
 
-3 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
+16 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
+
+### `aws_cloudtrail`
+
+Who changed what in this AWS account, and when. The change history most incidents turn out to need and most investigations reach for too late.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_cloudtrail_recent_changes`
+- `aws_cloudtrail_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `cloudtrail:LookupEvents` | read the management-event history | `aws_cloudtrail_resource_inventory`, `aws_cloudtrail_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `NextToken`
+- `list_changes` — page_token on `NextToken`
+
+### `aws_ec2`
+
+EC2 instance state for a region: how many instances are in which state, and the instances themselves with their type, zone, and launch time.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_ec2_recent_changes`
+- `aws_ec2_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `ec2:DescribeInstanceStatus` | read instance state and any scheduled events | `aws_ec2_resource_inventory` |
+| `ec2:DescribeInstances` | read instance detail and tags | `aws_ec2_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `NextToken`
+- `list_changes` — page_token on `NextToken`
+
+### `aws_ecs`
+
+The ECS control plane: which clusters this account runs and which task definitions have been registered, which is where a deployment shows up.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_ecs_recent_changes`
+- `aws_ecs_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `ecs:ListClusters` | list the clusters in this account and region | `aws_ecs_resource_inventory` |
+| `ecs:ListTaskDefinitions` | list registered task definitions, newest first | `aws_ecs_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `nextToken`
+- `list_changes` — page_token on `nextToken`
+
+### `aws_eks`
+
+The EKS control plane: which clusters this account runs, their version and status, and the cluster updates that have been applied to them.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_eks_recent_changes`
+- `aws_eks_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `eks:ListClusters` | list the clusters in this account and region | `aws_eks_resource_inventory`, `aws_eks_recent_changes` |
+| `eks:DescribeCluster` | read a cluster's version, endpoint, and status | `aws_eks_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `nextToken`
+- `list_changes` — page_token on `nextToken`
+
+### `aws_elb`
+
+Elastic Load Balancing state: which load balancers exist and in what state, and the target groups behind them.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_elb_recent_changes`
+- `aws_elb_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `elasticloadbalancing:DescribeLoadBalancers` | read load balancer state and scheme | `aws_elb_resource_inventory` |
+| `elasticloadbalancing:DescribeTargetGroups` | read the target groups behind each load balancer | `aws_elb_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `Marker`
+- `list_changes` — page_token on `Marker`
+
+### `aws_lambda`
+
+The Lambda control plane: which functions exist, on which runtime and memory setting, and when each was last modified.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_lambda_recent_changes`
+- `aws_lambda_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `lambda:ListFunctions` | list the functions in this region | `aws_lambda_resource_inventory`, `aws_lambda_recent_changes` |
+| `lambda:GetFunctionConfiguration` | read a function's runtime, memory, and last modification | `aws_lambda_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `Marker`
+- `list_changes` — page_token on `Marker`
+
+### `aws_rds`
+
+The RDS control plane: which database instances exist and in what state, and the events RDS recorded against them — failovers, restarts, parameter changes.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_rds_recent_changes`
+- `aws_rds_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `rds:DescribeDBInstances` | read instance state and configuration | `aws_rds_resource_inventory` |
+| `rds:DescribeEvents` | read the failover, restart, and parameter-change history | `aws_rds_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `Marker`
+- `list_changes` — page_token on `Marker`
+
+### `aws_s3`
+
+What is in the bucket this team configured: the objects and their storage class, and the version history, which is the closest S3 has to a change log.
+
+- **Category:** cloud_control_plane
+- **Regions:** us-east-1, us-east-2, us-west-1, us-west-2, eu-west-1, eu-west-2, eu-central-1, ap-south-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1
+- **Credentials:** access_key_id, secret_access_key, bucket
+- **SDK strategy:** `proxy_signed`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `aws_s3_recent_changes`
+- `aws_s3_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `s3:ListBucket` | list the objects in the configured bucket | `aws_s3_resource_inventory` |
+| `s3:ListBucketVersions` | list object versions, which is what makes a change history | `aws_s3_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — cursor on `continuation-token`
+- `list_changes` — cursor on `key-marker`
+
+### `azure`
+
+The Azure Resource Manager control plane: what exists in a subscription, and the activity log entries that changed it.
+
+- **Category:** cloud_control_plane
+- **Regions:** global
+- **Credentials:** token, subscription
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `azure_recent_changes`
+- `azure_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `Microsoft.Resources/subscriptions/resources/read` | list resources | `azure_resource_inventory` |
+| `Microsoft.Insights/eventtypes/values/read` | read the activity log, which is the change history | `azure_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — cursor on `$skipToken`
+- `list_changes` — cursor on `$skipToken`
+
+### `docker`
+
+The Docker Engine API: which containers exist and in what state, and the engine events that changed them.
+
+- **Category:** cloud_control_plane
+- **Regions:** self-hosted
+- **Credentials:** token
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `docker_recent_changes`
+- `docker_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `containers:list` | list containers and their state | `docker_resource_inventory` |
+| `events:read` | read the engine event stream | `docker_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — cursor on `since`
+- `list_changes` — cursor on `since`
+
+### `flagd`
+
+OpenFeature's flagd: which feature flags this deployment is serving and in what state, which is the change history nothing else records.
+
+- **Category:** cloud_control_plane
+- **Regions:** self-hosted
+- **Credentials:** token
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `flagd_recent_changes`
+- `flagd_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `evaluation:resolve` | resolve every flag for a context | `flagd_resource_inventory`, `flagd_recent_changes` |
+| `healthz` | read liveness, which the connectivity probe uses | `flagd_resource_inventory` |
+
+**Pagination:**
+
+- `list_resources` — cursor on `cursor`
+- `list_changes` — cursor on `cursor`
+
+### `gcp`
+
+The Google Cloud control plane through Cloud Asset Inventory and Cloud Logging: what exists in a project, and the admin activity that changed it.
+
+- **Category:** cloud_control_plane
+- **Regions:** global
+- **Credentials:** token, project
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `gcp_recent_changes`
+- `gcp_resource_inventory`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `cloudasset.assets.listResource` | list the resources in the configured project | `gcp_resource_inventory`, `gcp_recent_changes` |
+| `cloudasset.assets.searchAllResources` | read a resource's state at a point in time | `gcp_recent_changes` |
+
+**Pagination:**
+
+- `list_resources` — page_token on `pageToken`
+- `list_changes` — page_token on `pageToken`
 
 ### `grafana`
 
@@ -85,7 +420,6 @@ A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, da
 - `proxmox_guest_tasks`
 - `proxmox_ha_state`
 - `proxmox_migration_feasibility`
-- `proxmox_node_health`
 - `proxmox_orphaned_volumes`
 - `proxmox_protection_gaps`
 - `proxmox_quorum_status`
@@ -105,3 +439,28 @@ A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, da
 **Pagination:**
 
 - `node_tasks` — offset on `start`
+
+### `proxmox_backup_server`
+
+Datastore usage, snapshots, verification outcomes and garbage-collection state from a Proxmox Backup Server, at whichever address the operator declared.
+
+- **Category:** cloud_control_plane
+- **Regions:** self-hosted
+- **Credentials:** api_token
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `proxmox_backup_server_datastore_health`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `Datastore.Audit on /datastore` | read datastore usage, snapshots, verification outcomes and garbage-collection state | `proxmox_backup_server_datastore_health` |
+
+**Pagination:**
+
+- `snapshots` — offset on `start`

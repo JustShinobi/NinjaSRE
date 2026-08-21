@@ -1,0 +1,57 @@
+# an instance is stopped out from under its load balancer.
+#
+# `bound_usd` is what one run of this scenario may cost and `resources` is what
+# it is made of. Together they are what turns "the cloud suite is expensive"
+# into a number a report can be compared against.
+scenario_id: ec2
+title: an instance is stopped out from under its load balancer
+module: ec2
+region: eu-west-1
+service: ec2
+team_id: payments
+
+injected_fault: instance_stopped
+failure_mode: node_failure
+severity: high
+difficulty: 2
+
+integrations:
+- aws_ec2
+- aws_elb
+- aws
+available_evidence:
+- aws_ec2
+- aws_elb
+- aws
+
+expected_symptom:
+- target_unhealthy
+- instance_state_changed
+expected_root_cause_category: infrastructure_failure
+required_keywords:
+- instance
+- stopped
+- unhealthy
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- aws_ec2
+optimal_trajectory:
+- aws_ec2_resource_inventory
+- aws_elb_resource_inventory
+max_investigation_loops: 6
+
+# What one run may cost, and what it is made of.
+bound_usd: 1.00
+resources:
+- kind: ec2_instance
+  hourly_usd: 0.05
+  count: 2
+- kind: elb
+  hourly_usd: 0.03
+  count: 1
+
+validity_probe:
+  check: target_group_has_unhealthy_targets
+  timeout_seconds: 300

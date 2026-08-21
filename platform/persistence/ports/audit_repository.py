@@ -103,20 +103,10 @@ class AuditRepository(Protocol):
     async def count(
         self,
         *,
-        actor_id: str | None = None,
-        action: str | None = None,
-        resource_kind: str | None = None,
-        resource_id: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
     ) -> int:
-        """Return how many events match the same filters ``query`` would apply.
-
-        Every filter that is ``None`` is not applied, exactly as it is not in
-        ``query`` — the two accept an identical set of narrowing arguments so a
-        caller filtering a listing gets a total that answers the same question,
-        rather than one confined only to the window. Unbounded by page size.
-        """
+        """Return how many events fall in the window, unbounded by page size."""
 
 
 __all__ = [

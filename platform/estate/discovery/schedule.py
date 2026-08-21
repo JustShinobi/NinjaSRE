@@ -28,10 +28,8 @@ above would be tested against each other every time a provider was slow.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
 
 from config.constants.estate import DISCOVERY_LEASE_SECONDS, ESTATE_DISCOVERY_JOB_KIND
 from platform.estate.discovery.port import DiscoveryDeclaration, DiscoveryMode
@@ -47,14 +45,6 @@ PAYLOAD_SOURCE = "source"
 #: that ran full when it could have run incremental costs provider calls, and
 #: one that ran incremental when it should have run full concludes nothing.
 PAYLOAD_MODE = "mode"
-
-#: The declared networks, as CIDR to zone name.
-#:
-#: Carried in the payload rather than composed, because it is what the operator
-#: confirmed in the preview immediately before registering — and a sweep that
-#: placed guests differently from the preview they approved would be answering a
-#: question nobody asked.
-PAYLOAD_ZONES = "zones"
 
 
 def job_id_for(source: str) -> str:
@@ -73,7 +63,6 @@ def sweep_job(
     next_run_at: datetime,
     source: str = "",
     mode: DiscoveryMode = DiscoveryMode.FULL,
-    zones: Mapping[str, str] | None = None,
 ) -> ScheduledJob:
     """Return the recurring job that sweeps one source.
 
@@ -89,26 +78,8 @@ def sweep_job(
         kind=ESTATE_DISCOVERY_JOB_KIND,
         schedule=f"every {declaration.interval_seconds}s",
         next_run_at=next_run_at,
-        payload={
-            PAYLOAD_SOURCE: integration,
-            PAYLOAD_MODE: mode.value,
-            # Absent rather than empty when none were declared: a deployment
-            # that declared no networks should read as one that declared none.
-            **({PAYLOAD_ZONES: dict(zones)} if zones else {}),
-        },
+        payload={PAYLOAD_SOURCE: integration, PAYLOAD_MODE: mode.value},
     )
-
-
-def zones_of(payload: Mapping[str, Any]) -> Mapping[str, str]:
-    """Return the declared networks a job payload carries, or none.
-
-    Tolerant of a payload written by an older release or edited by hand: a
-    value that is not a map is no declaration rather than a failed sweep.
-    """
-    declared = payload.get(PAYLOAD_ZONES)
-    if not isinstance(declared, Mapping):
-        return {}
-    return {str(cidr): str(zone) for cidr, zone in declared.items()}
 
 
 def next_run_after(declaration: DiscoveryDeclaration, *, now: datetime) -> datetime:

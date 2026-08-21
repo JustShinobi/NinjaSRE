@@ -6,35 +6,35 @@
       "incomplete": 0,
       "model": "hosted-frontier",
       "pass_rate": 1.0,
-      "passes": 26,
-      "scored": 26
+      "passes": 28,
+      "scored": 28
     },
     {
       "arm": "no-memory",
       "harmful": 0,
       "incomplete": 0,
       "model": "hosted-frontier",
-      "pass_rate": 0.8846,
-      "passes": 23,
-      "scored": 26
+      "pass_rate": 0.8929,
+      "passes": 25,
+      "scored": 28
     },
     {
       "arm": "full",
       "harmful": 6,
       "incomplete": 2,
       "model": "self-hosted-compact",
-      "pass_rate": 0.5769,
-      "passes": 15,
-      "scored": 26
+      "pass_rate": 0.6071,
+      "passes": 17,
+      "scored": 28
     },
     {
       "arm": "no-memory",
       "harmful": 9,
       "incomplete": 2,
       "model": "self-hosted-compact",
-      "pass_rate": 0.3077,
-      "passes": 8,
-      "scored": 26
+      "pass_rate": 0.3571,
+      "passes": 10,
+      "scored": 28
     }
   ],
   "harmful": 15,
@@ -43,7 +43,9 @@
     "fixture": [
       "b1-job-failing-for-eleven-days-unnoticed",
       "b2-guest-covered-by-no-job",
+      "b3-backup-succeeds-verification-fails",
       "b4-replication-reports-success-but-is-stale",
+      "b5-backup-server-datastore-full",
       "g1-guest-locked-by-a-dead-backup-task",
       "g2-guest-locked-by-a-live-backup-task",
       "g3-guest-will-not-start-storage-unavailable",
@@ -69,8 +71,9 @@
       "s6-datastore-unavailable-from-one-node-only"
     ]
   },
-  "pass_rate": 0.6923,
-  "passes": 72,
+  "note": "the corpus as first recorded, against the reference cluster's recorded states",
+  "pass_rate": 0.7143,
+  "passes": 80,
   "scenarios": [
     {
       "action": "correct",
@@ -212,6 +215,66 @@
       "model": "hosted-frontier",
       "passed": true,
       "red_herrings_followed": [],
+      "scenario": "b3-backup-succeeds-verification-fails",
+      "title": "the backup server holds snapshots it cannot vouch for"
+    },
+    {
+      "action": "correct",
+      "arm": "no-memory",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "hosted-frontier",
+      "passed": true,
+      "red_herrings_followed": [],
+      "scenario": "b3-backup-succeeds-verification-fails",
+      "title": "the backup server holds snapshots it cannot vouch for"
+    },
+    {
+      "action": "correct",
+      "arm": "full",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "self-hosted-compact",
+      "passed": true,
+      "red_herrings_followed": [],
+      "scenario": "b3-backup-succeeds-verification-fails",
+      "title": "the backup server holds snapshots it cannot vouch for"
+    },
+    {
+      "action": "correct",
+      "arm": "no-memory",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "self-hosted-compact",
+      "passed": true,
+      "red_herrings_followed": [],
+      "scenario": "b3-backup-succeeds-verification-fails",
+      "title": "the backup server holds snapshots it cannot vouch for"
+    },
+    {
+      "action": "correct",
+      "arm": "full",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "hosted-frontier",
+      "passed": true,
+      "red_herrings_followed": [],
       "scenario": "b4-replication-reports-success-but-is-stale",
       "title": "a replication job says it succeeded and last moved data a week ago"
     },
@@ -259,6 +322,66 @@
       "red_herrings_followed": [],
       "scenario": "b4-replication-reports-success-but-is-stale",
       "title": "a replication job says it succeeded and last moved data a week ago"
+    },
+    {
+      "action": "correct",
+      "arm": "full",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "hosted-frontier",
+      "passed": true,
+      "red_herrings_followed": [],
+      "scenario": "b5-backup-server-datastore-full",
+      "title": "the backup server has no room left to accept tonight's backup"
+    },
+    {
+      "action": "correct",
+      "arm": "no-memory",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "hosted-frontier",
+      "passed": true,
+      "red_herrings_followed": [],
+      "scenario": "b5-backup-server-datastore-full",
+      "title": "the backup server has no room left to accept tonight's backup"
+    },
+    {
+      "action": "correct",
+      "arm": "full",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "self-hosted-compact",
+      "passed": true,
+      "red_herrings_followed": [],
+      "scenario": "b5-backup-server-datastore-full",
+      "title": "the backup server has no room left to accept tonight's backup"
+    },
+    {
+      "action": "correct",
+      "arm": "no-memory",
+      "completion": "completed",
+      "diagnosis": "correct",
+      "domain": "backups",
+      "missing_evidence": [],
+      "missing_readings": [],
+      "mode": "fixture",
+      "model": "self-hosted-compact",
+      "passed": true,
+      "red_herrings_followed": [],
+      "scenario": "b5-backup-server-datastore-full",
+      "title": "the backup server has no room left to accept tonight's backup"
     },
     {
       "action": "correct",
@@ -1717,5 +1840,5 @@
       "title": "a datastore is fine from one node and unreachable from the other"
     }
   ],
-  "total": 104
+  "total": 112
 }

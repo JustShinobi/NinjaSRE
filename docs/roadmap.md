@@ -133,18 +133,13 @@ Full parity across both prior catalogues.
 | # | Feature | Delivers |
 |---|---|---|
 | **024** | `integration-framework` | Integration anatomy, credential schema, verifier framework, health checks, scaffold generator, contract test suite, catalogue metadata |
-| **025** | `integration-catalog-parity` | Every embedded integration at full parity: config + verifier + client + typed tools + methodology skill + docs + at least one synthetic scenario each |
+| **025** | `integration-catalog-parity` | All ~85 integrations at full parity: config + verifier + client + typed tools + methodology skill + docs + at least one synthetic scenario each |
 | **026** | `protocol-bridges` | MCP client and server, ACP, OpenClaw — third-party capability extension without forking |
 
 **Wave 6 exit criteria:** `make verify-integrations` passes for every integration
 with live credentials, and every integration appears in the console catalogue.
 
-### Integration coverage as originally planned
-
-The table below is the coverage this wave was planned against, kept because it
-records what was intended and why the framework was built to the shape it has.
-The scope that actually ships is in [Integration scope](#integration-scope-revised-2026-08-16)
-below, which supersedes it.
+### Integration coverage (~85)
 
 | Category | Integrations |
 |---|---|
@@ -188,43 +183,13 @@ in under 15 minutes on the `standard` profile.
 
 ---
 
-## Integration scope (revised 2026-08-16)
-
-The catalogue ships only integrations the operating environment can actually
-validate end to end — a credential stored, the connection verified, and at
-least one real read exercised. Parity is unchanged in kind: every integration
-that ships is at full parity. What changed is breadth: breadth without a
-validating environment produced dead surface area no test could hold honest.
-
-**Shipped scope today** (validated against a Proxmox-based estate with a
-Prometheus/Alertmanager observability stack): Proxmox VE, Prometheus,
-Alertmanager, Grafana, Loki, OpenObserve, SigNoz, Redis, Kubernetes, Argo CD,
-Google Gemini, Pushover, Hermes, GitHub, Telegram.
-
-**Deferred until a validating environment exists** (removed from the product,
-intent preserved here): AWS (CloudTrail, EC2, ECS, EKS, ELB, Lambda, RDS, S3),
-Azure (Monitor, SQL), GCP, BigQuery, Snowflake, Databricks-adjacent stores
-(ClickHouse, OpenSearch, Elasticsearch, MongoDB Atlas, Supabase), Datadog,
-New Relic, Honeycomb, Coralogix, Better Stack, Splunk, groundcover, Jaeger,
-Tempo, VictoriaMetrics, VictoriaLogs, Sentry, PagerDuty, Opsgenie,
-incident.io, FireHydrant, Blameless, ServiceNow, Jira, Linear, Trello,
-ClickUp, Notion, Confluence, Google Docs, Slack, Microsoft Teams, Discord,
-Rocket.Chat, Twilio, WhatsApp, GitLab, Bitbucket, Jenkins, Docker, Vercel,
-Railway, Sourcegraph, Airflow, Dagster, Prefect, Flink, Spark, Kafka,
-RabbitMQ, Temporal, Amplitude, PostHog, flagd, Proxmox Backup Server, and the
-remaining long tail. Each returns by the same door it left: an environment
-that can validate it, plus its synthetic scenario.
-
-**Not yet built, wanted** (the estate runs them and the catalogue cannot see
-them): PostgreSQL, Traefik, Infisical, AdGuard.
-
 ## MVP definition of done
 
 | Dimension | Criterion |
 |---|---|
 | **Investigation** | Six-stage pipeline with all guardrails, on 9 providers, from 5 surfaces |
 | **Learning** | Episodic memory + strategy synthesis + topology graph, all agent-driven and all ablatable |
-| **Coverage** | Every shipped integration at full parity with a synthetic scenario; breadth staged per "Integration scope" above |
+| **Coverage** | ~85 integrations at full parity, each with a synthetic scenario |
 | **Safety** | Credential proxy mandatory, masking active, read-only default, approval + rollback for every write |
 | **Multi-tenancy** | Org → team hierarchy, RBAC, SSO, full audit trail |
 | **Measurement** | Scenario suite green in CI with regression gates; published ablation report |
@@ -247,10 +212,6 @@ Every spec cross-references:
 | [0006](adr/0006-read-only-by-default.md) | Read-only by default with approval and rollback |
 | [0007](adr/0007-no-external-telemetry.md) | No first-party telemetry |
 | [0008](adr/0008-full-provider-parity.md) | Full parity across all supported LLM providers |
-| [0009](adr/0009-full-integration-parity.md) | Full parity across all ~85 integrations — superseded by 0015 |
+| [0009](adr/0009-full-integration-parity.md) | Full parity across all ~85 integrations |
 | [0010](adr/0010-english-only.md) | English-only codebase and documentation |
 | [0011](adr/0011-attribution-in-readme-only.md) | Attribution lives in README and NOTICE only |
-| [0012](adr/0012-design-fidelity-expires.md) | A design-fidelity acceptance expires when the design or the address moves |
-| [0013](adr/0013-palette-revisions-keep-the-role-vocabulary.md) | A palette revision supplies values for the existing roles and passes the contrast gate |
-| [0014](adr/0014-a-design-reference-is-committed.md) | A design reference is a committed artefact and need not be a picture |
-| [0015](adr/0015-parity-per-embedded-integration.md) | Parity per embedded integration, breadth staged by an environment that validates it |

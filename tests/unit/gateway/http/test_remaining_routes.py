@@ -3,7 +3,7 @@ schedules CRUD, memory, capabilities, integrations, health, and interactions."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
@@ -69,57 +69,6 @@ async def test_an_invalid_cron_expression_is_rejected(
         "/v1/schedules",
         json={"job_id": "bad", "name": "bad", "cron": "not a cron expression", "objective": "x"},
         headers=headers,
-    )
-    assert response.status_code == 400
-
-
-async def test_schedule_preview_shows_the_next_firings_without_storing_anything(
-    client: AsyncClient, deployment: Deployment
-) -> None:
-    headers = await _auth_header(deployment)
-    response = await client.post(
-        "/v1/schedules/preview",
-        json={"cron": "0 8 * * 1", "timezone": "UTC"},
-        headers=headers,
-    )
-    assert response.status_code == 200
-    firings = response.json()["firings"]
-    assert len(firings) == 2
-
-    first = datetime.fromisoformat(firings[0]["at"])
-    second = datetime.fromisoformat(firings[1]["at"])
-    assert first < second
-    # "0 8 * * 1" is Monday at 08:00 and nothing else — the field positions the
-    # form's own helper text describes, not a guess about which Monday.
-    for at in (first, second):
-        assert at.weekday() == 0
-        assert (at.hour, at.minute) == (8, 0)
-    assert second - first == timedelta(days=7)
-
-    # Nothing was stored: a preview of a job id nobody created must not appear
-    # in the listing.
-    listed = await client.get("/v1/schedules", headers=headers)
-    assert listed.json() == []
-
-
-async def test_schedule_preview_of_a_refused_cron_names_what_is_wrong(
-    client: AsyncClient, deployment: Deployment
-) -> None:
-    headers = await _auth_header(deployment)
-    response = await client.post(
-        "/v1/schedules/preview",
-        json={"cron": "99 7 * * 1", "timezone": "UTC"},
-        headers=headers,
-    )
-    assert response.status_code == 400
-    assert "minute field" in response.json()["error"]["message"]
-
-
-async def test_schedule_preview_needs_a_credential_like_every_other_schedule_route(
-    client: AsyncClient,
-) -> None:
-    response = await client.post(
-        "/v1/schedules/preview", json={"cron": "0 8 * * 1", "timezone": "UTC"}
     )
     assert response.status_code == 400
 

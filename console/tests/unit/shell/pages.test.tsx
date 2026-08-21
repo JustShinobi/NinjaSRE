@@ -64,10 +64,8 @@ describe('the title of every route', () => {
     cookieJar.set(LOCALE_COOKIE, 'pt-BR');
     const { areaMetadata } = await import('@/shell/area');
 
-    const metadata = await areaMetadata('administration');
-    expect(metadata.title).toBe(
-      `${message('pt-BR', 'page.administration.title')} · HAL9000`,
-    );
+    const metadata = await areaMetadata('audit');
+    expect(metadata.title).toBe(`${message('pt-BR', 'page.audit.title')} · HAL9000`);
   });
 
   it('falls back to a name when the deployment has not been given one', async () => {
@@ -94,12 +92,8 @@ describe('every route file is wired to the manifest', () => {
   );
 
   it('says what a surface without a data screen is, rather than showing nothing', async () => {
-    // Any registered area does — `AreaPage` itself is not wired to a real
-    // route any more (every area has its own data screen), so this pins its
-    // generic fallback in isolation, against an area chosen only because it
-    // is a valid one.
     const { AreaPage } = await import('@/shell/area');
-    render(await AreaPage({ id: 'resources' }));
+    render(await AreaPage({ id: 'topology' }));
 
     expect(screen.getByTestId('area-pending')).toHaveTextContent(EN['page.pending']);
   });

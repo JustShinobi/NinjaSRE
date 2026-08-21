@@ -9,7 +9,7 @@ one of those four.
 from __future__ import annotations
 
 import pytest
-from conftest import EPOCH, at
+from conftest import at
 
 from platform.persistence.errors import BoundExceeded, RecordNotFound
 from platform.persistence.ports import (
@@ -27,7 +27,6 @@ from platform.persistence.ports import (
     SweepRecord,
     TenantScope,
 )
-from platform.persistence.ports.estate_repository import whole_estate
 
 pytestmark = pytest.mark.contract
 
@@ -555,106 +554,3 @@ async def test_an_estate_is_not_visible_from_another_tenant(
     assert found == ()
     assert summary.total == 0
     assert marked == ()
-
-
-# --- Paging past the bound --------------------------------------------------------
-
-
-async def test_a_cursor_resumes_where_the_last_page_stopped(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """The keyset cursor: only resources sorting strictly after the one named."""
-    async with gateway.begin(scope) as uow:
-        for index in range(5):
-            await uow.estate.upsert(
-                Resource(
-                    resource_id=f"res-{index}",
-                    kind="container",
-                    source="proxmox",
-                    native_id=f"lxc/{index}",
-                    first_seen_at=EPOCH,
-                    last_seen_at=EPOCH,
-                )
-            )
-
-        first = await uow.estate.query(EstateQuery(limit=2))
-        second = await uow.estate.query(EstateQuery(limit=2, after=first[-1].resource_id))
-
-    assert [resource.resource_id for resource in first] == ["res-0", "res-1"]
-    assert [resource.resource_id for resource in second] == ["res-2", "res-3"]
-
-
-async def test_a_whole_estate_pass_reaches_past_one_page(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """053's truncation, closed. An estate larger than a page is answerable now.
-
-    Read with a page bound of two over five resources: without the cursor this
-    is two resources and a caller that cannot tell that from an estate of two.
-    """
-    async with gateway.begin(scope) as uow:
-        for index in range(5):
-            await uow.estate.upsert(
-                Resource(
-                    resource_id=f"res-{index}",
-                    kind="container",
-                    source="proxmox",
-                    native_id=f"lxc/{index}",
-                    first_seen_at=EPOCH,
-                    last_seen_at=EPOCH,
-                )
-            )
-
-        everything = await whole_estate(uow.estate, EstateQuery(limit=2))
-
-    assert [resource.resource_id for resource in everything] == [
-        f"res-{index}" for index in range(5)
-    ]
-
-
-async def test_a_whole_estate_pass_stops_at_its_page_ceiling(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """A bound, not a formality: a pass with no ceiling never returns.
-
-    Returning what was read rather than raising, because a caller enriching what
-    it got wants what it got — and the count reaching ``max_pages * limit`` is
-    how it can tell it did not reach the end.
-    """
-    async with gateway.begin(scope) as uow:
-        for index in range(5):
-            await uow.estate.upsert(
-                Resource(
-                    resource_id=f"res-{index}",
-                    kind="container",
-                    source="proxmox",
-                    native_id=f"lxc/{index}",
-                    first_seen_at=EPOCH,
-                    last_seen_at=EPOCH,
-                )
-            )
-
-        capped = await whole_estate(uow.estate, EstateQuery(limit=2), max_pages=2)
-
-    assert [resource.resource_id for resource in capped] == ["res-0", "res-1", "res-2", "res-3"]
-
-
-async def test_a_whole_estate_pass_keeps_every_filter_the_query_declares(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    async with gateway.begin(scope) as uow:
-        for index, source in enumerate(("proxmox", "kubernetes", "proxmox")):
-            await uow.estate.upsert(
-                Resource(
-                    resource_id=f"res-{index}",
-                    kind="container",
-                    source=source,
-                    native_id=f"lxc/{index}",
-                    first_seen_at=EPOCH,
-                    last_seen_at=EPOCH,
-                )
-            )
-
-        found = await whole_estate(uow.estate, EstateQuery(sources=("proxmox",), limit=1))
-
-    assert [resource.resource_id for resource in found] == ["res-0", "res-2"]

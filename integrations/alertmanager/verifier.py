@@ -14,17 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations._verification.diagnostics import (
-    ClockSkewProbe,
-    DataWindow,
-    DataWindowProbe,
-    EmptyWindow,
-    client_clock_probe,
-    client_window_probe,
-)
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -93,13 +84,6 @@ PERMISSIONS: Final[tuple[RequiredPermission, ...]] = (
 )
 
 
-_WINDOW_ADVICE: Final = (
-    "Alertmanager answered and is holding no alerts. For an alert router that is the "
-    "healthy state, so this probe proves the query path rather than the data; if you "
-    "expected something to be firing, check that Prometheus is reaching this instance."
-)
-
-
 @dataclass(frozen=True, slots=True)
 class AlertmanagerVerifier:
     """Checks a stored Alertmanager credential end to end, and what it may do."""
@@ -130,51 +114,6 @@ class AlertmanagerVerifier:
                 call=lambda client: client.incident_timeline(limit=1),
                 fallback_note=_NO_INTROSPECTION,
             ),
-        )
-
-    def data_window_probe(self) -> DataWindowProbe | None:
-        """Return the read that proves this Alertmanager answers about its alerts.
-
-        Empty is *expected* here, and the reason is worth stating: an alert
-        router holding no alerts is an alert router doing its job. What this
-        probe establishes is that the query path works and the answer parses —
-        the data half of the question has no failing case for this vendor, and
-        pretending it does would make the check something an operator learns to
-        ignore.
-
-        The read is also not time-bounded, because ``/api/v2/alerts`` answers
-        "what is firing now" and has no window to ask for. The window is carried
-        and unused rather than faked into a filter the API does not have.
-        """
-
-        async def read(client: AlertmanagerClient, window: DataWindow) -> int:
-            # This endpoint takes no time range; the window is carried so every
-            # probe in the catalogue has the same signature, and is not faked into
-            # a filter the API does not have.
-            del window
-            answer = await client.list_incidents(limit=VERIFY_WINDOW_SAMPLE_LIMIT)
-            return len(answer)
-
-        return client_window_probe(
-            description=(
-                "lists what /api/v2/alerts says is firing right now — this endpoint has no "
-                "time range, so the window bounds the report rather than the request"
-            ),
-            build=self._client,
-            read=read,
-            advice=_WINDOW_ADVICE,
-            empty_means=EmptyWindow.EXPECTED,
-        )
-
-    def clock_probe(self) -> ClockSkewProbe | None:
-        """Return the reading that says what time this Alertmanager thinks it is."""
-        return client_clock_probe(
-            description=(
-                "reads the Date header Alertmanager returns on /api/v2/status, which costs "
-                "no extra call and is the server's own clock rather than a proxy's"
-            ),
-            build=self._client,
-            call=lambda client: client.ping(),
         )
 
     async def connect(self, transport: object, context: object) -> Connectivity:

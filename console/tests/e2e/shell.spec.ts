@@ -11,59 +11,26 @@ import { signIn } from './session';
  * the route it names.
  */
 
-/**
- * A working subset of the areas the console serves, taken from the same
- * manifest the shell reads (`console/src/shell/routes.ts`). Not every area —
- * `agent`, `first-run`, `integrations` and `team-context`'s successor tab are
- * left out, as they were before the menu reorganisation, because this loop
- * asserts the sidebar carries the mark for exactly the id it opened, which
- * does not hold for an area a viewer's own state can hide from the sidebar.
- * The menu reorganisation folded six of these areas into three: Approvals
- * became the Decisions area's default tab, Detectors and Data both became
- * the Signals area, and Audit became a tab of Administration.
- *
- * The hybrid navigation removed four more for the identical
- * reason: `signals`, `autonomy`, `administration` now redirect from their own
- * address (`tests/e2e/settings-nav.spec.ts` covers each redirect and the
- * Settings pages that replace them), and `configuration`, though still
- * served unredirected, left the sidebar along with them, so this loop's own
- * "the sidebar marks the id it opened" assertion no longer holds for it
- * either.
- */
+/** Every route the console serves, taken from the same manifest the shell reads. */
 const AREAS = [
   { id: 'dashboard', path: '/', title: 'Overview' },
   { id: 'incidents', path: '/incidents', title: 'Incidents' },
   { id: 'runs', path: '/runs', title: 'Investigations' },
-  { id: 'decisions', path: '/decisions', title: 'Decisions' },
+  { id: 'approvals', path: '/approvals', title: 'Approvals' },
   { id: 'resources', path: '/resources', title: 'Resources' },
+  { id: 'topology', path: '/topology', title: 'Topology' },
+  { id: 'detectors', path: '/detectors', title: 'Detectors' },
+  { id: 'memory', path: '/memory', title: 'Memory' },
   { id: 'knowledge', path: '/knowledge', title: 'Knowledge' },
+  { id: 'autonomy', path: '/autonomy', title: 'Autonomy' },
+  { id: 'configuration', path: '/configuration', title: 'Configuration' },
+  { id: 'audit', path: '/audit', title: 'Audit' },
 ] as const;
 
 async function currentArea(page: Page): Promise<string | null> {
   return page
     .locator('[data-testid="nav-entry"][aria-current="page"]')
     .getAttribute('data-area');
-}
-
-/**
- * Open the palette from the keyboard, pressing until the console is listening.
- *
- * `goto` resolves on `load`, which says the document finished — not that the
- * shell has attached the window listener the shortcut needs. The gap is usually
- * under a tenth of a second, and on a busy machine it is not: with the keydown
- * recorded from inside the page, a single `Control`+`K` fired the instant `goto`
- * returned was dispatched to a window with no listener on it about three times
- * in sixty loads. Nothing re-sends a lost keystroke, so a one-shot press is a
- * reading that varies with the machine rather than with the console.
- *
- * Pressing until it answers removes that, and weakens nothing: the palette
- * still has to open from the keyboard, and from nothing else.
- */
-async function openPalette(page: Page): Promise<void> {
-  await expect(async () => {
-    await page.keyboard.press('Control+k');
-    await expect(page.getByTestId('palette')).toBeVisible({ timeout: 250 });
-  }).toPass({ timeout: 10_000 });
 }
 
 test.describe('an unauthenticated visitor', () => {
@@ -104,31 +71,6 @@ test.describe('a signed-in operator', () => {
     });
   }
 
-  test('moves the mark when the navigation is used, not only when a route is opened cold', async ({
-    page,
-  }) => {
-    // Every assertion above this one arrives by `goto`, which is a document
-    // load. A person arrives by clicking, which is a segment fetch that leaves
-    // the layout mounted — so a frame that read the path once, on the server,
-    // keeps pointing at wherever the tab was opened.
-    await page.goto('/');
-    expect(await currentArea(page)).toBe('dashboard');
-
-    await page.getByTestId('nav-entry').filter({ hasText: 'Incidents' }).click();
-    await expect(page).toHaveURL(/\/incidents$/);
-    expect(await currentArea(page)).toBe('incidents');
-
-    // A second hop, because the first could pass on a frame that updates once.
-    await page.getByTestId('nav-entry').filter({ hasText: 'Knowledge' }).click();
-    await expect(page).toHaveURL(/\/knowledge$/);
-    expect(await currentArea(page)).toBe('knowledge');
-
-    // And exactly one entry carries it, whichever way the viewer got there.
-    await expect(
-      page.locator('[data-testid="nav-entry"][aria-current="page"]'),
-    ).toHaveCount(1);
-  });
-
   test('renders a not-found page inside the shell, with a way back', async ({
     page,
   }) => {
@@ -156,22 +98,18 @@ test.describe('a signed-in operator', () => {
     page,
   }) => {
     await page.goto('/');
-    await openPalette(page);
+    await page.keyboard.press('Control+k');
 
-    // Not `signals`: the hybrid navigation removed that area from
-    // `navigationCommands` along with the sidebar, so the palette no longer
-    // offers it either — `knowledge` is a still-current area instead.
-    await page.keyboard.type('knowledge');
+    await expect(page.getByTestId('palette')).toBeVisible();
+    await page.keyboard.type('audit');
     await page.keyboard.press('Enter');
 
-    await expect(page).toHaveURL(/\/knowledge$/);
+    await expect(page).toHaveURL(/\/audit$/);
   });
 
   test('dismisses the palette without changing the page', async ({ page }) => {
     await page.goto('/knowledge');
-    // Opened for real first. Dismissing something that was never there is a
-    // test that cannot fail for the reason it exists.
-    await openPalette(page);
+    await page.keyboard.press('Control+k');
     await page.keyboard.press('Escape');
 
     await expect(page.getByTestId('palette')).toHaveCount(0);
@@ -220,7 +158,7 @@ test.describe('a signed-in operator', () => {
     // person at that keyboard types the address and is inside.
     expect(session).toBeUndefined();
 
-    await page.goto('/administration');
+    await page.goto('/audit');
     await expect(page.getByTestId('sign-in')).toBeVisible();
   });
 

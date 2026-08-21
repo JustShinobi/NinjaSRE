@@ -1,4 +1,4 @@
-"""Every check made before anything is stored, and two of them are about credentials.
+"""Three passes before anything is stored, and one of them is about credentials.
 
 **Shape.** The document is built into the declared schema, and every field that
 could not be read becomes a field-level error at the path the operator wrote it
@@ -11,23 +11,11 @@ an error at the write rather than a surprise at three in the morning (SC-004).
 The catalogue is a port because this is tier 3; the composition root supplies a
 reader over the live registry.
 
-**Secrets.** Two checks, because a credential can be recognised two ways and
-each misses what the other catches.
-
-The first scans every string value with the same guardrail engine that scans
-evidence, and refuses a match with a pointer to the vault (FR-013). The scan is
-per field rather than over the serialised document, so the refusal can name the
-path — and it never quotes the value, because a refusal that echoed the secret
-would put it in the log the refusal was keeping it out of.
-
-The second reads the *field name* against what the installed integrations
-declare. A field a vendor's own schema marks secret is refused wherever it
-appears in the document, whatever its value looks like. This is the check that
-holds the open regions: ``IntegrationSettings`` is a closed schema, so
-``api_key`` beside ``name`` is already a shape error, but its ``settings`` map
-is open because the vendor defines what goes in it — and a key an operator
-invented for their self-hosted instance matches nobody's pattern. Without this,
-the configuration route is the way round the credential route.
+**Secrets.** Every string value is scanned by the same guardrail engine that
+scans evidence, and a match is refused with a pointer to the vault (FR-013). The
+scan is per field rather than over the serialised document, so the refusal can
+name the path — and it never quotes the value, because a refusal that echoed the
+secret would put it in the log the refusal was keeping it out of.
 
 The passes run in that order and all of them run: an operator fixing a
 configuration one problem per submission stops using configuration.
@@ -99,7 +87,7 @@ class ValidationOutcome:
 
 @dataclass(frozen=True, slots=True)
 class ConfigValidator:
-    """Every pass, over whichever catalogue and ruleset are live.
+    """The three passes, over whichever catalogue and ruleset are live.
 
     ``catalogue`` and ``integrations`` are optional so this class is usable
     before a composition root exists — a merge test does not need a registry.
@@ -127,7 +115,6 @@ class ConfigValidator:
         found = list(errors)
         found.extend(self.cross_reference_errors(config))
         found.extend(self.secret_errors(values))
-        found.extend(self.secret_field_errors(values))
         if policies is not None:
             found.extend(
                 FieldError(path=path, message="is required and has no value in this chain")
@@ -190,48 +177,6 @@ class ConfigValidator:
             if not result.clean:
                 found.append((path, result.rules_fired[0]))
         return tuple(found)
-
-    def secret_field_names(self) -> frozenset[str]:
-        """Return every field name an installed integration's schema calls secret.
-
-        Empty when no directory is composed, which is the merge-test path rather
-        than a deployment: ``ConfigService`` is always given one.
-        """
-        if self.integrations is None:
-            return frozenset()
-        found: set[str] = set()
-        for name in self.integrations.names():
-            schema = self.integrations.schema(name)
-            if schema is None:
-                continue
-            found.update(declared.name for declared in schema.credential_fields if declared.secret)
-            found.update(declared.name for declared in schema.settings_fields if declared.secret)
-        return frozenset(found)
-
-    def secret_field_errors(self, values: Mapping[str, Any]) -> tuple[FieldError, ...]:
-        """Return one error per field a vendor calls secret, wherever it was written.
-
-        Matched on the leaf name alone, and deliberately not scoped to the
-        vendor that declared it: ``api_key`` under one integration's settings is
-        the same field an operator would have pasted under another's, and a
-        check that only looked under the declaring vendor would be a check with
-        a documented way round it.
-        """
-        secret_names = self.secret_field_names()
-        if not secret_names:
-            return ()
-        return tuple(
-            FieldError(
-                path=path,
-                message=(
-                    f"{paths.split(path)[-1]!r} is a field an installed integration declares "
-                    f"as secret. Configuration holds references, never secrets: store the "
-                    f"credential in the vault and put its reference here."
-                ),
-            )
-            for path, _ in paths.scalars(values)
-            if paths.split(path)[-1] in secret_names
-        )
 
     def check_secrets(self, values: Mapping[str, Any]) -> None:
         """Raise ``SecretInConfiguration`` on the first secret-shaped value.

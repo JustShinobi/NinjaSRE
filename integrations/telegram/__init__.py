@@ -33,7 +33,6 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
-    display_name="Telegram",
     category=IntegrationCategory.COMMUNICATION,
     summary="A Telegram chat used as an alerting channel: what has arrived recently, and a finding delivered into it.",
     regions=REGIONS,

@@ -146,13 +146,7 @@ class BedrockAdapter(BaseAdapter):
             ]
             if cache.enabled and cache.mark_system:
                 tools.append(dict(_CACHE_POINT))
-            tool_config: dict[str, Any] = {"tools": tools}
-            if request.force_tool_call:
-                # Obliges the model to call one of the declared tools — the
-                # preflight probe's own way of finding out whether tool calling
-                # actually works, rather than whether the model is willing to.
-                tool_config["toolChoice"] = {"any": {}}
-            payload["toolConfig"] = tool_config
+            payload["toolConfig"] = {"tools": tools}
 
         if request.stop_sequences:
             payload["inferenceConfig"]["stopSequences"] = list(request.stop_sequences)

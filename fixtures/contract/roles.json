@@ -37,8 +37,7 @@
     "report.read",
     "schedule.manage",
     "sso.manage",
-    "token.manage",
-    "webhook.deliver"
+    "token.manage"
   ],
   "roles": {
     "admin": [
@@ -69,8 +68,7 @@
       "report.read",
       "schedule.manage",
       "sso.manage",
-      "token.manage",
-      "webhook.deliver"
+      "token.manage"
     ],
     "operator": [
       "approval.read",
@@ -92,8 +90,7 @@
       "remediation.approve",
       "remediation.execute",
       "report.read",
-      "schedule.manage",
-      "webhook.deliver"
+      "schedule.manage"
     ],
     "owner": [
       "approval.read",
@@ -125,8 +122,7 @@
       "report.read",
       "schedule.manage",
       "sso.manage",
-      "token.manage",
-      "webhook.deliver"
+      "token.manage"
     ],
     "responder": [
       "approval.read",
@@ -143,8 +139,7 @@
       "memory.read",
       "remediation.approve",
       "remediation.execute",
-      "report.read",
-      "webhook.deliver"
+      "report.read"
     ],
     "viewer": [
       "approval.read",

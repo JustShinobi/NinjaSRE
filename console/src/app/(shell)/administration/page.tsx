@@ -1,19 +1,19 @@
-import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
-import { legacyRedirectHref } from '@/shell/legacy-redirect';
-import type { SearchParams } from '@/surfaces/context';
+import { areaMetadata } from '@/shell/area';
+import { surfaceContext, type SearchParams } from '@/surfaces/context';
+import { AdministrationScreen } from '@/surfaces/screens/administration';
 
-/**
- * Retired by the hybrid navigation: People carries on as Members & roles,
- * Audit carries on as its own page. `?tab=` decides which, the same way it
- * decided which tab this screen showed; every other filter rides along.
- */
+/** One area of the product. What it is, and what it is for, come from the manifest. */
+export function generateMetadata(): Promise<Metadata> {
+  return areaMetadata('administration');
+}
+
 export default async function Page({
   searchParams,
 }: {
   readonly searchParams: Promise<SearchParams>;
 }): Promise<ReactNode> {
-  const params = await searchParams;
-  redirect(legacyRedirectHref('/administration', params) ?? '/settings/members-roles');
+  return AdministrationScreen(await surfaceContext(await searchParams));
 }

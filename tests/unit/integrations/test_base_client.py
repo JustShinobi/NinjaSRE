@@ -1,7 +1,7 @@
 """The base client: FR-016's six behaviours, and the one thing it will not do.
 
 Every vendor client inherits these, so they are tested once here rather than
-once per vendor. The retry and pagination bounds are the ones worth reading
+eighty-five times. The retry and pagination bounds are the ones worth reading
 closely — both exist because an unbounded version of them has produced a real
 outage, and both fail *loudly* rather than quietly returning less than was asked
 for.
@@ -66,7 +66,7 @@ class ScriptedTransport:
 
 
 class VendorClient(IntegrationClient):
-    """A minimal client, standing in for any vendor in the catalogue."""
+    """A minimal client, standing in for any of the eighty-five."""
 
     integration = "vendor"
 

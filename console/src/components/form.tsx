@@ -89,11 +89,9 @@ const INVALID = 'border-danger';
 export interface FieldProps {
   readonly label: string;
   readonly name: string;
-  readonly description?: string | undefined;
-  readonly error?: string | undefined;
+  readonly description?: string;
+  readonly error?: string;
   readonly disabled?: boolean;
-  /** A hook for a test to find this control by, never read by the control itself. */
-  readonly 'data-testid'?: string | undefined;
 }
 
 export interface InputProps extends FieldProps {
@@ -101,39 +99,10 @@ export interface InputProps extends FieldProps {
    * `password` is here for one reason: a credential typed in plain sight is a
    * credential the person at the next desk has read.
    */
-  readonly type?: 'text' | 'search' | 'number' | 'date' | 'time' | 'password';
-  /**
-   * What the browser may remember and offer back.
-   *
-   * Here for the same reason `password` is: an operations credential that the
-   * browser's own memory offers back on a shared machine is a credential the
-   * next person at that keyboard has. `off` is the only value a caller needs,
-   * and spelling it as a prop rather than as a literal attribute is what makes
-   * "every secret field turns it off" a thing a test can walk.
-   */
-  readonly autoComplete?: 'off' | undefined;
-  /**
-   * The bounds a numeric field accepts, when the deployment declared some.
-   *
-   * On the control rather than only in a validation message, because the
-   * browser's own stepper and its own refusal are what stop a value being typed
-   * that the write path would reject — and a form that only says no after a
-   * round trip is a form people learn to distrust.
-   */
-  readonly min?: number | undefined;
-  readonly max?: number | undefined;
+  readonly type?: 'text' | 'search' | 'number' | 'date' | 'password';
   readonly value?: string;
   readonly defaultValue?: string;
   readonly onValueChange?: (value: string) => void;
-  /**
-   * The value settled — focus left the control, whatever it now holds.
-   *
-   * Distinct from every keystroke `onValueChange` already reports: a cron
-   * preview or a lookup that ran on every keystroke would be a request per
-   * character, and the moment a person is actually done editing is the
-   * moment focus moves on, not the moment a character landed.
-   */
-  readonly onBlur?: () => void;
 }
 
 /** One line of text. */
@@ -144,14 +113,9 @@ export function Input({
   error,
   disabled = false,
   type = 'text',
-  autoComplete,
-  min,
-  max,
   value,
   defaultValue,
   onValueChange,
-  onBlur,
-  'data-testid': testId,
 }: InputProps): ReactNode {
   const id = useId();
   return (
@@ -160,9 +124,6 @@ export function Input({
         id={id}
         name={name}
         type={type}
-        autoComplete={autoComplete}
-        min={min}
-        max={max}
         disabled={disabled}
         value={value}
         defaultValue={defaultValue}
@@ -171,8 +132,6 @@ export function Input({
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           onValueChange?.(event.target.value);
         }}
-        onBlur={onBlur}
-        data-testid={testId}
         className={cx(CONTROL, error === undefined ? '' : INVALID)}
       />
     </Field>
@@ -200,7 +159,6 @@ export function Select({
   disabled = false,
   value,
   onValueChange,
-  'data-testid': testId,
 }: SelectProps): ReactNode {
   const id = useId();
   return (
@@ -216,7 +174,6 @@ export function Select({
           onChange={(event: ChangeEvent<HTMLSelectElement>) => {
             onValueChange?.(event.target.value);
           }}
-          data-testid={testId}
           className={cx(
             CONTROL,
             'appearance-none pr-6',

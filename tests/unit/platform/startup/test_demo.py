@@ -11,7 +11,6 @@ from __future__ import annotations
 import pytest
 
 from config.constants.fixtures import DEMONSTRATION_LABEL_FIELD
-from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports.estate_repository import EstateQuery, Resource
 from platform.persistence.ports.incident_store import IncidentQuery
@@ -73,27 +72,6 @@ def test_every_reference_in_the_dataset_resolves(dataset: object) -> None:
     """SC-007. A run must reference resources that exist, an episode must
     reference the run that produced it, a topology must connect resources that
     are related. Asserted over every reference rather than a sample."""
-    assert unresolved_references(dataset) == ()
-
-
-def test_an_unresolved_alert_target_is_a_subject_that_resolves_to_nothing_on_purpose(
-    dataset: object,
-) -> None:
-    """The one subject the check above exempts, and the reason it has to.
-
-    An alert that arrived for something this estate does not hold is recorded as
-    a subject naming the target. Demanding that it resolve would be demanding
-    the finding be about the very thing whose absence it reports — so the
-    exemption is asserted here rather than left as a quiet ``continue``.
-    """
-    subjects = [
-        str(subject)
-        for incident in dataset.incidents  # type: ignore[attr-defined]
-        for subject in incident.get("subjects", ())
-    ]
-    unresolved = [name for name in subjects if name.startswith(UNRESOLVED_TARGET_PREFIX)]
-
-    assert unresolved, "the dataset no longer carries the case this exemption exists for"
     assert unresolved_references(dataset) == ()
 
 

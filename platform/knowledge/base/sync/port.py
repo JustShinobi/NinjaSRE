@@ -25,7 +25,7 @@ the deployment already has. That is also what makes them testable without a wiki
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
@@ -57,10 +57,6 @@ class SourceDocument:
     parent_external_id: str = ""
     updated_at: datetime | None = None
     tags: tuple[str, ...] = ()
-    #: Facts a source derived from the body once, on the way in — a
-    #: post-mortem's root cause, the entry it recurs from. Carried through to
-    #: the document rather than recomputed at each search.
-    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.external_id.strip():
@@ -185,7 +181,6 @@ class KnowledgeSync:
                 ),
                 tags=entry.tags,
                 updated_at=entry.updated_at or at,
-                metadata=entry.metadata,
             )
         )
 

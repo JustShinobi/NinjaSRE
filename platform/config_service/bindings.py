@@ -30,7 +30,6 @@ from pathlib import Path
 
 from core.agent.subagents.definition import StaticSubAgents, SubAgent, default_subagent_source
 from platform.config_service.effective import EffectiveConfig
-from platform.config_service.guidance import OperatingContextGuidance
 from platform.config_service.schema.agents import AgentsConfig, ModelSelection
 from platform.config_service.schema.policies import GUARDRAIL_MODE_OBSERVING, PoliciesConfig
 from platform.config_service.schema.root import RootConfig
@@ -55,7 +54,6 @@ class RuntimeBindings:
     knowledge: KnowledgePolicy = field(default_factory=KnowledgePolicy)
     trust: TrustControls = field(default_factory=TrustControls)
     subagents: StaticSubAgents = field(default_factory=StaticSubAgents)
-    operating_context: OperatingContextGuidance = field(default_factory=OperatingContextGuidance)
 
     @classmethod
     def of(
@@ -71,7 +69,6 @@ class RuntimeBindings:
             knowledge=knowledge_policy(config.policies),
             trust=trust_controls(config.policies, rules_path=guardrail_rules_path),
             subagents=subagent_source(config.agents),
-            operating_context=OperatingContextGuidance.of(config.agents),
         )
 
     def model_for(self, role: str) -> ModelSelection:
@@ -81,17 +78,6 @@ class RuntimeBindings:
     def prompt_for(self, role: str) -> str:
         """Return the system prompt ``role`` runs with, shipped default included."""
         return self.config.agents.prompt_for(role)
-
-    def system_prompt_for(self, role: str) -> str:
-        """Return what ``role`` is actually sent: that prompt, plus the operating context.
-
-        What the console previews and what the run composes, from one
-        resolution. The hook does the appending for a session that runs through
-        the loop; this is the same string for a caller that needs it before a
-        session exists — and it is the same function underneath, so the two
-        cannot drift.
-        """
-        return self.config.agents.system_prompt_for(role)
 
     def integration_names(self) -> tuple[str, ...]:
         """Return the integrations this team has connected, in declared order."""

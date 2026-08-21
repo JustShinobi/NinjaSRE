@@ -540,12 +540,6 @@ TOKEN_AUDIT_ACTION_EXPIRY_WARNING: Final = "token.expiry_warning"
 PERMISSION_AUDIT_ACTION_GRANT: Final = "permission.grant"
 PERMISSION_AUDIT_ACTION_REVOKE: Final = "permission.revoke"
 PERMISSION_AUDIT_ACTION_DENIED: Final = "permission.denied"
-#: Creating a person with a local password — its own class rather than a
-#: reuse of ``PERMISSION_AUDIT_ACTION_GRANT``, because minting the account and
-#: granting it a role are two different events even when they happen a moment
-#: apart, and a reviewer asking "who was created" needs a query narrower than
-#: "who was granted anything".
-PRINCIPAL_AUDIT_ACTION_CREATE: Final = "principal.create"
 IMPERSONATION_AUDIT_ACTION_START: Final = "impersonation.start"
 IMPERSONATION_AUDIT_ACTION_END: Final = "impersonation.end"
 BREAK_GLASS_AUDIT_ACTION: Final = "break_glass.open"
@@ -559,14 +553,6 @@ IDENTITY_AUDIT_RESOURCE_KIND_TOKEN: Final = "api_token"
 IDENTITY_AUDIT_RESOURCE_KIND_SESSION: Final = "session"
 IDENTITY_AUDIT_RESOURCE_KIND_ROUTE: Final = "route"
 IDENTITY_AUDIT_RESOURCE_KIND_SSO: Final = "sso_config"
-IDENTITY_AUDIT_RESOURCE_KIND_GRANT: Final = "role_grant"
-
-#: How a grant that covers the whole organisation is spelled where a node
-#: identifier is expected — in an audit detail, and in the identifier a grant is
-#: derived from. Written out rather than left empty, because an empty node in a
-#: record reads as a field somebody forgot to fill in, and "everywhere" is the
-#: widest thing a grant can say.
-ORGANISATION_WIDE: Final = "organisation"
 
 #: The keys an impersonated action puts in its audit detail, so a reviewer's
 #: query for "everything done under impersonation" is one filter rather than a
@@ -715,12 +701,6 @@ SECURITY_POLICY_AUDIT_ACTION_CHANGE: Final = "security_policy.change"
 #: What an approval action names as the thing it acted on.
 APPROVAL_AUDIT_RESOURCE_KIND_CHANGE: Final = "pending_change"
 APPROVAL_AUDIT_RESOURCE_KIND_POLICY: Final = "security_policy"
-#: A raw approval request decided directly at the store — a remediation
-#: proposal from an incident's investigation, not a governance ``PendingChange``
-#: routed through the approval service. Named separately so an audit query for
-#: "what changed configuration" does not also return "what an operator decided
-#: on an incident".
-APPROVAL_AUDIT_RESOURCE_KIND_REQUEST: Final = "approval_request"
 
 #: The keys an approval record puts in its audit detail. ``AUDIT_DETAIL_DIFF``
 #: is the one that makes a past decision reconstructable: the record holds the
@@ -823,7 +803,6 @@ __all__ = [
     "APPROVAL_AUDIT_ACTION_QUEUE",
     "APPROVAL_AUDIT_RESOURCE_KIND_CHANGE",
     "APPROVAL_AUDIT_RESOURCE_KIND_POLICY",
-    "APPROVAL_AUDIT_RESOURCE_KIND_REQUEST",
     "APPROVAL_EXPIRY_SECONDS",
     "AUDIT_DETAIL_BREAK_GLASS",
     "AUDIT_DETAIL_CHANGE_TYPE",
@@ -882,7 +861,6 @@ __all__ = [
     "GUARDRAIL_AUDIT_ACTION",
     "GUARDRAIL_AUDIT_RESOURCE_KIND",
     "GUARDRAIL_RELOAD_INTERVAL_SECONDS",
-    "IDENTITY_AUDIT_RESOURCE_KIND_GRANT",
     "IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL",
     "IDENTITY_AUDIT_RESOURCE_KIND_ROUTE",
     "IDENTITY_AUDIT_RESOURCE_KIND_SESSION",
@@ -943,14 +921,12 @@ __all__ = [
     "OIDC_NAME_CLAIM",
     "OIDC_STATE_BYTES",
     "OIDC_SUBJECT_CLAIM",
-    "ORGANISATION_WIDE",
     "PATTERN_VALIDATION_BUDGET_SECONDS",
     "PENDING_CHANGE_EXPIRY_HOURS",
     "PENDING_CHANGE_MAX_EXPIRY_HOURS",
     "PERMISSION_AUDIT_ACTION_DENIED",
     "PERMISSION_AUDIT_ACTION_GRANT",
     "PERMISSION_AUDIT_ACTION_REVOKE",
-    "PRINCIPAL_AUDIT_ACTION_CREATE",
     "PRODUCTION_ENVIRONMENT",
     "PROXY_FORWARD_PATH",
     "PROXY_HEALTH_PATH",

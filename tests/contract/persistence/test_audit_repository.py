@@ -98,25 +98,6 @@ async def test_the_window_is_half_open_so_consecutive_windows_tile(
         assert await uow.audit.count(since=at(10), until=at(20)) == 1
 
 
-async def test_count_answers_the_same_question_query_does(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """A listing's own total must count what the listing itself returned.
-
-    A caller who filtered by action and got one event back must not be told a
-    second exists somewhere in the same window: the total answers the same
-    question the list does, not a wider one confined to ``since``/``until``.
-    """
-    async with gateway.begin(scope) as uow:
-        await uow.audit.append(event("e-1", action="capability.invoke"))
-        await uow.audit.append(event("e-2", minutes=1, action="approval.decide"))
-
-        matched = await uow.audit.query(action="approval.decide")
-        total = await uow.audit.count(action="approval.decide")
-
-    assert total == len(matched) == 1
-
-
 async def test_a_page_larger_than_the_bound_is_refused_not_shortened(
     gateway: PersistenceGateway, scope: TenantScope
 ) -> None:

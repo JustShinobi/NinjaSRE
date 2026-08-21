@@ -2,7 +2,7 @@
 
 The prompts are generated from the credential schema the integration package
 declares, so adding a vendor is a package and not an edit to this file. That is
-the property that makes the catalogue addable one integration at
+the property that makes a catalogue of eighty-five integrations addable one at
 a time, and it is the same reason capability discovery walks the tree.
 
 The credential goes from the prompt to the vault and nowhere else. It is never
@@ -16,11 +16,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from platform.credentials.fields import CredentialFieldSpec
 from platform.observability.logging import get_logger
 from surfaces.cli.client import PlatformClient
 from surfaces.cli.errors import ConfigurationError
-from surfaces.cli.models import IntegrationStatus
+from surfaces.cli.models import CredentialFieldSpec, IntegrationStatus
 from surfaces.cli.wizard.prompts import Prompter
 
 logger = get_logger(__name__)

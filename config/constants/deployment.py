@@ -150,13 +150,6 @@ IDENTITY_SSO: Final = "sso"
 #: Where scheduled work is claimed. One process owns the schedule in the two
 #: single-node profiles; across replicas it is claimed by lease.
 SCHEDULER_IN_PROCESS: Final = "in_process"
-
-#: How often the gateway comes round for jobs that have fallen due.
-#:
-#: Shorter than the shortest schedule anything registers, because a tick is a
-#: claim query against an index and a job that waits a whole interval past its
-#: due time is a sweep that reports an estate one interval stale.
-SCHEDULER_TICK_INTERVAL_SECONDS: Final[int] = 30
 SCHEDULER_LEADER_CLAIMED: Final = "leader_claimed"
 
 # --- Concurrency defaults, per profile ---------------------------------------
@@ -316,7 +309,6 @@ __all__ = [
     "RESTORE_ACTION_REFUSE",
     "RESTORE_ACTION_RESTORE",
     "SCHEDULER_IN_PROCESS",
-    "SCHEDULER_TICK_INTERVAL_SECONDS",
     "SCHEDULER_LEADER_CLAIMED",
     "SERVICE_APP",
     "SERVICE_CONSOLE",

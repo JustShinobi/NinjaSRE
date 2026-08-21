@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repository_root="$(cd -- "$script_dir/../.." && pwd)"
+
+cd -- "$repository_root"
+
+export NINJASRE_SMOKE_APP_URL="${NINJASRE_SMOKE_APP_URL:-http://app.k3s-stg-ninjasre.svc.cluster.local:8420/health/live}"
+export NINJASRE_SMOKE_CONSOLE_URL="${NINJASRE_SMOKE_CONSOLE_URL:-${STAGING_BASE_URL:-http://console.k3s-stg-ninjasre.svc.cluster.local:8421/health/live}}"
+export NINJASRE_SMOKE_PROXY_URL="${NINJASRE_SMOKE_PROXY_URL:-http://proxy.k3s-stg-ninjasre.svc.cluster.local:8422/health}"
+
+echo "Checking NinjaSRE staging endpoints..."
+curl -fsS --retry 5 --retry-delay 3 "$NINJASRE_SMOKE_APP_URL"
+curl -fsS --retry 5 --retry-delay 3 "$NINJASRE_SMOKE_CONSOLE_URL"
+curl -fsS --retry 5 --retry-delay 3 "$NINJASRE_SMOKE_PROXY_URL"
+echo "NinjaSRE staging smoke test passed!"

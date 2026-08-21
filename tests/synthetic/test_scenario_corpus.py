@@ -72,7 +72,7 @@ def test_every_scenario_in_the_repository_loads() -> None:
     """A malformed fixture is a load error, and this is where it surfaces."""
     scenarios = corpus()
 
-    assert len(scenarios) >= 5
+    assert len(scenarios) >= 7
     assert len({found.key for found in scenarios}) == len(scenarios)
 
 
@@ -201,7 +201,7 @@ async def test_a_verdict_record_is_written_for_every_attempt_when_asked_for(
 # -- SC-005: a new integration needs fixtures and an answer key, and no code --
 
 
-def _hermes_scenario(root: Path) -> Path:
+def _sentry_scenario(root: Path) -> Path:
     """Write a scenario for an integration the harness has no backend module for."""
     directory = root / "incidents" / "008-unresolved-error-spike"
     directory.mkdir(parents=True)
@@ -214,8 +214,8 @@ def _hermes_scenario(root: Path) -> Path:
         "severity: critical\n"
         "scenario_difficulty: 1\n"
         "adversarial_signals: []\n"
-        "available_evidence: [hermes]\n"
-        "integrations: [hermes]\n"
+        "available_evidence: [sentry]\n"
+        "integrations: [sentry]\n"
         "team_id: payments\n",
         encoding="utf-8",
     )
@@ -228,10 +228,10 @@ def _hermes_scenario(root: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (directory / "hermes.json").write_text(
+    (directory / "sentry.json").write_text(
         json.dumps(
             {
-                "integration": "hermes",
+                "integration": "sentry",
                 "responses": [
                     {
                         "match": {"method": "GET", "path_contains": "/issues/"},
@@ -250,8 +250,8 @@ def _hermes_scenario(root: Path) -> Path:
     (directory / "answer.yml").write_text(
         "root_cause_category: resource_exhaustion\n"
         "required_keywords: [OutOfMemory, unresolved]\n"
-        "required_evidence_sources: [hermes]\n"
-        "optimal_trajectory: [hermes_log_statistics]\n"
+        "required_evidence_sources: [sentry]\n"
+        "optimal_trajectory: [sentry_log_statistics]\n"
         "max_investigation_loops: 4\n"
         "model_response: |\n"
         "  ROOT_CAUSE: checkout is running out of memory.\n",
@@ -282,7 +282,7 @@ def _hermes_scenario(root: Path) -> Path:
                         "tool_calls": [
                             {
                                 "id": "c1",
-                                "name": "hermes_log_statistics",
+                                "name": "sentry_log_statistics",
                                 "arguments": {
                                     "query": "is:unresolved",
                                     "start": "",
@@ -330,25 +330,25 @@ async def test_a_scenario_for_an_integration_with_no_backend_module_runs_on_fixt
     """SC-005: fixtures and an answer key, and not one line of harness code."""
     from tests.harness.backends import registry
 
-    assert "hermes" not in registry(), (
-        "this test is only meaningful while nothing declares a backend for hermes"
+    assert "sentry" not in registry(), (
+        "this test is only meaningful while nothing declares a backend for sentry"
     )
-    directory = _hermes_scenario(tmp_path)
+    directory = _sentry_scenario(tmp_path)
 
     scenario = load_scenario(directory, root=tmp_path)
     run = await run_scenario(scenario, llm=replayed(scenario))
     verdict = verdict_for(run)
 
     assert run.run.succeeded
-    assert run.trajectory == ("hermes_log_statistics",)
-    assert run.evidence_sources == ("hermes",)
+    assert run.trajectory == ("sentry_log_statistics",)
+    assert run.evidence_sources == ("sentry",)
     assert verdict.passed, verdict.failed_axes
 
 
 def test_the_corpus_directory_is_discovered_rather_than_listed(tmp_path: Path) -> None:
     """Adding a directory adds a scenario; nothing registers anything."""
     before = len(load_suite(CORPUS_ROOT))
-    _hermes_scenario(tmp_path)
+    _sentry_scenario(tmp_path)
 
     assert len(load_suite(tmp_path)) == 1
     assert len(load_suite(CORPUS_ROOT)) == before

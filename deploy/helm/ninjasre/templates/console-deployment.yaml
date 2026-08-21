@@ -43,7 +43,6 @@ spec:
               containerPort: {{ .Values.console.port }}
           env:
             {{- include "ninjasre.env" . | nindent 12 }}
-            {{- include "ninjasre.providerEnv" . | nindent 12 }}
             - name: NINJASRE_ENDPOINT
               value: http://{{ include "ninjasre.fullname" . }}-app:{{ .Values.app.port }}
           readinessProbe:

@@ -213,7 +213,7 @@ SHIPPED_CASES: tuple[tuple[str, str, str], ...] = (
     ),
     (
         "slack-token",
-        "xoxb-2404881234-2404881234-abcdefghijklmnopqrst",
+        "xoxb-EXAMPLE-TOKEN-FOR-TESTING-PURPOSES",
         "rotate the xoxb- token quarterly",
     ),
     (

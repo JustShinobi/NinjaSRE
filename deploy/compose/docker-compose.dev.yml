@@ -21,7 +21,7 @@ services:
       context: ../..
       dockerfile: deploy/images/postgres.Dockerfile
       args:
-        BASE_POSTGRES: ${BASE_POSTGRES:-postgres:18.4-trixie}
+        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
@@ -31,9 +31,7 @@ services:
       # runs psql and the suite against it and a team self-hosting does not.
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      # A single mount at the parent directory, not at `.../data` — see
-      # docker-compose.yml's postgres service for why 18+ needs this shape.
-      - postgres-dev-data:/var/lib/postgresql
+      - postgres-dev-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ninjasre} -d ${POSTGRES_DB:-ninjasre}"]
       interval: 5s
@@ -47,16 +45,12 @@ services:
       context: ../..
       dockerfile: deploy/images/app.Dockerfile
       args:
-        BASE_PYTHON: ${BASE_PYTHON:-python:3.14.7-slim-trixie}
+        BASE_PYTHON: ${BASE_PYTHON:-python:3.12.11-slim-bookworm}
     environment:
       NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-dev}
       NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
       NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
       NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
-      # The tenant bring-up creates. Missing from this file until now, so every
-      # deployment bootstrapped into `default` regardless of what an operator
-      # might otherwise want the first organisation called.
-      NINJASRE_ORGANISATION: ${NINJASRE_ORGANISATION:-default}
       NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
       NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-anthropic}
       NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}

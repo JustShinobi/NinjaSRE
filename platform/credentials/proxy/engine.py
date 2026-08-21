@@ -193,18 +193,15 @@ class ProxyEngine:
         record = replace(record, host=host)
 
         handle = CredentialHandle(integration=request.integration, team_id=request.team_id)
-        credential = await self._resolve(request, rule, handle)
-        if credential is not None:
-            record = replace(record, handle=credential.handle.qualified, version=credential.version)
+        credential = await self._resolve(request, handle)
+        record = replace(record, handle=credential.handle.qualified, version=credential.version)
 
-            now = self._clock()
-            if needs_refresh(credential.expires_at, now):
-                credential = await self._refresh(request, credential)
-        else:
-            record = replace(record, handle=handle.qualified)
+        now = self._clock()
+        if needs_refresh(credential.expires_at, now):
+            credential = await self._refresh(request, credential)
 
         response = await self._send(request, rule, credential)
-        if credential is not None and self._can_retry_expiry(rule, response.status_code):
+        if self._can_retry_expiry(rule, response.status_code):
             response = await self._retry_after_refresh(request, rule, credential)
 
         return response, replace(record, outcome=AuditOutcome.ALLOWED)
@@ -219,23 +216,13 @@ class ProxyEngine:
     async def _resolve(
         self,
         request: ProxyRequest,
-        rule: InjectionRule,
         handle: CredentialHandle,
-    ) -> ResolvedCredential | None:
-        """Return the credential for ``handle``, or ``None`` if ``rule`` allows going without one.
-
-        ``None`` only ever comes from ``rule.credential_optional`` meeting a
-        genuine absence (``CredentialNotConfigured``). A credential that
-        exists but cannot be read is still ``CredentialUnreadable`` — the
-        optional path is for a vendor with no auth, not for tolerating a
-        broken vault.
-        """
+    ) -> ResolvedCredential:
+        """Return the credential for ``handle``, as a proxy-shaped failure if not."""
         scope = TenantScope(org_id=request.org_id, team_node_id=request.team_id or None)
         try:
             return await self._resolver.resolve(scope, handle)
         except CredentialNotConfigured as error:
-            if rule.credential_optional:
-                return None
             raise CredentialUnavailable(
                 request.integration,
                 handle=handle.qualified,
@@ -263,7 +250,7 @@ class ProxyEngine:
         self,
         request: ProxyRequest,
         rule: InjectionRule,
-        credential: ResolvedCredential | None,
+        credential: ResolvedCredential,
     ) -> OutboundResponse:
         """Inject the credential and put the request on the wire."""
         injected = self._inject(request.outbound(), rule, credential)
@@ -282,19 +269,14 @@ class ProxyEngine:
         self,
         outbound: OutboundRequest,
         rule: InjectionRule,
-        credential: ResolvedCredential | None,
+        credential: ResolvedCredential,
     ) -> OutboundRequest:
         """Return ``outbound`` with the declared injections applied.
 
-        ``credential`` is ``None`` only when the rule declared itself
-        optional and none was configured, and then the request goes out
-        unchanged. A field the rule reads and a credential that *did*
-        resolve does not carry is still a declaration error, and it still
-        fails here rather than sending a request with a missing header that
-        the vendor answers with an unexplainable 401.
+        A field the rule reads and the credential does not carry is a
+        declaration error, and it fails here rather than sending a request with
+        a missing header that the vendor answers with an unexplainable 401.
         """
-        if credential is None:
-            return outbound
         missing = sorted(set(rule.required_fields()) - set(credential.values))
         if missing:
             raise CredentialFieldsMissing(

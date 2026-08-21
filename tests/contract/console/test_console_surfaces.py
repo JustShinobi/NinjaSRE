@@ -28,20 +28,11 @@ from pathlib import Path
 from typing import Final
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from config.constants.console import NINJASRE_CONSOLE_CLOCK_ENV
-from gateway.http.app import create_app
 from gateway.http.security.console_routes import CONSOLE_ROUTES
 from gateway.http.security.gateway_routes import GATEWAY_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE
-from platform.identity.permissions import Role
-from tests.unit.gateway.http.conftest import (  # noqa: F401 -- pytest fixture discovery
-    TEAM_PAYMENTS,
-    Deployment,
-    deployment,
-    issue_token,
-)
 from tools.console_toolchain import console_root
 from tools.mockplane.endpoints import CONSOLE_ENDPOINTS, projected_endpoints
 
@@ -108,19 +99,11 @@ def test_the_fixture_server_answers_every_read_a_surface_makes() -> None:
         )
 
 
-# --- Areas added after this file was first written, on the same claim -------------
+# --- The two areas this feature adds -----------------------------------------------
 
-#: Which gateway route each area reads, so its permission is the server's.
-#:
-#: ``catalogue`` named this dict's own area once, reaching ``/v1/capabilities``.
-#: The menu reorganisation retired it as an area: its read half — browsing tools
-#: and skills — moved to The agent's own Tools tab, and its write half — the
-#: credential form and the verification control — became its own address,
-#: ``integrations``, entered here on the permission ``GET /v1/integrations``
-#: itself now requires (`gateway/http/security/gateway_routes.py`), which is
-#: narrower than the read permission the old, merged screen held.
+#: Which gateway route each new area reads, so its permission is the server's.
 NEW_AREA_ROUTE: Final[dict[str, tuple[str, str]]] = {
-    "integrations": ("GET", "/v1/integrations"),
+    "catalogue": ("GET", "/v1/capabilities"),
     "administration": ("GET", "/identity/principals"),
 }
 
@@ -145,126 +128,6 @@ def test_a_new_area_takes_the_permission_the_gateway_requires(area: str) -> None
         f"{area} declares {declared[area]}, but the gateway requires "
         f"{declaration.permission.value} on {method} {path}"
     )
-
-
-# --- The credential catalogue's per-field metadata ----------------------------------
-
-
-@pytest.fixture
-async def _catalogue_reader_token(deployment: Deployment) -> str:  # noqa: F811
-    return await issue_token(
-        deployment.gateway,
-        deployment.tokens,
-        user_id="ada",
-        role=Role.OPERATOR,
-        node_id=TEAM_PAYMENTS,
-    )
-
-
-async def test_every_credential_field_the_catalogue_serves_carries_its_own_metadata(
-    deployment: Deployment,  # noqa: F811
-    _catalogue_reader_token: str,
-) -> None:
-    """Every field carries the full shape, and a declared label or scope survives to it.
-
-    The screen that reads this can no longer build ``label: String(field)`` from
-    a bare name, because a bare name is not what this route serves any more —
-    every field always carries a label, declared or derived. ``min_scope`` and
-    ``guide_url`` are present on every field but are mostly blank in this
-    catalogue today, because inventing a scope or a link nobody declared would
-    be worse than leaving it absent; this test also proves that where the
-    schema *does* declare one, the declared value — not a placeholder — is what
-    reaches the payload, so the blankness elsewhere is a fact about the
-    catalogue's content rather than a gap in the plumbing.
-    """
-    transport = ASGITransport(app=create_app(deployment.state))
-    async with AsyncClient(transport=transport, base_url="http://gateway.test") as client:
-        response = await client.get(
-            "/v1/integrations",
-            headers={"Authorization": f"Bearer {_catalogue_reader_token}"},
-        )
-
-    assert response.status_code == 200
-    entries = response.json()["integrations"]
-    assert entries, "the catalogue served nothing to check"
-    assert "required_credentials" not in entries[0], (
-        "the string-list projection is still being served alongside the structured "
-        "one — the structured list replaces it, it does not grow a second copy beside it"
-    )
-    by_name = {entry["name"]: entry for entry in entries}
-    for entry in entries:
-        assert entry["fields"], f"{entry['name']} declares no credential fields at all"
-        for field in entry["fields"]:
-            assert set(field) >= {
-                "name",
-                "label",
-                "secret",
-                "required",
-                "help",
-                "min_scope",
-                "guide_url",
-            }
-            assert field["label"].strip(), (
-                f"{entry['name']}.{field['name']} has no label, not even a derived one"
-            )
-
-    # A real vendor with real, declared content: proves the value travels from
-    # the schema to the payload as the declared value, and not as an empty
-    # string that happens to satisfy the key-set check above.
-    assert "github" in by_name, "the fixture catalogue no longer carries github"
-    github_fields = {field["name"]: field for field in by_name["github"]["fields"]}
-    assert github_fields["token"]["label"].strip() != ""
-    assert "personal access token" in github_fields["token"]["help"]
-
-
-async def test_every_required_permission_the_catalogue_serves_carries_what_it_grants_and_where(
-    deployment: Deployment,  # noqa: F811
-    _catalogue_reader_token: str,
-) -> None:
-    """Every declared permission travels whole — name, grants, where, capabilities.
-
-    The flattened, name-only projection is exactly what ``RequiredPermission``'s
-    own docstring warns against: an operator reading a bare vendor scope name
-    has to go look it up. The structured list replaces it; it does not grow a
-    second copy beside it.
-    """
-    transport = ASGITransport(app=create_app(deployment.state))
-    async with AsyncClient(transport=transport, base_url="http://gateway.test") as client:
-        response = await client.get(
-            "/v1/integrations",
-            headers={"Authorization": f"Bearer {_catalogue_reader_token}"},
-        )
-
-    assert response.status_code == 200
-    entries = response.json()["integrations"]
-    assert entries, "the catalogue served nothing to check"
-    assert "required_permissions" not in entries[0], (
-        "the flattened, name-only projection is still being served alongside the "
-        "structured one — the structured list replaces it, it does not grow a "
-        "second copy beside it"
-    )
-    by_name = {entry["name"]: entry for entry in entries}
-    for entry in entries:
-        for permission in entry["permissions"]:
-            assert set(permission) >= {"name", "grants", "where", "capabilities"}
-            assert permission["name"].strip(), f"{entry['name']} declares a permission with no name"
-            assert permission["grants"].strip(), (
-                f"{entry['name']}.{permission['name']} has no description of what it grants"
-            )
-
-    # A real vendor with real, declared content: proves the values are the
-    # declared ones, not an empty string that happens to satisfy the shape
-    # check above.
-    assert "github" in by_name, "the fixture catalogue no longer carries github"
-    github_permissions = {p["name"]: p for p in by_name["github"]["permissions"]}
-    assert github_permissions["contents:read"]["grants"] == (
-        "search and read commits in a repository"
-    )
-    assert github_permissions["contents:read"]["where"] == (
-        "GitHub → Settings → Developer settings → Personal access tokens, with "
-        "Contents and Pull requests read access"
-    )
-    assert github_permissions["contents:read"]["capabilities"] == ["github_change_statistics"]
 
 
 # --- The two structural claims ------------------------------------------------------
@@ -406,8 +269,8 @@ CLAIMS: Final[tuple[Claim, ...]] = (
     Claim(
         "SC-005",
         "and the console renders that answer rather than working one out",
-        "tests/unit/surfaces/config-editor.test.tsx",
-        "renders the server",
+        "tests/unit/surfaces/decide.test.tsx",
+        "renders the deployment",
     ),
     Claim(
         "SC-006",
@@ -475,30 +338,3 @@ def test_the_console_and_this_tier_agree_about_the_fixed_clock() -> None:
     assert NINJASRE_CONSOLE_CLOCK_ENV in _source(console_root() / "scripts" / "visual.mjs"), (
         "the visual capture does not fix the clock, so a baseline fails on the hour"
     )
-
-
-def test_the_console_and_the_platform_agree_about_which_levels_only_read() -> None:
-    """The read/write split the agent screen groups by is the platform's own scale.
-
-    The console has to decide which side of the risk line a tool sits on, and the
-    scale is Python's. A list in TypeScript that drifted would put a write in the
-    read column — which is the one direction this must never be wrong in, because
-    the column is what an operator scans before deciding what this thing may do
-    unattended. So the console names the read-only levels once and this holds
-    them against the scale: a level added in Python fails in Python.
-    """
-    from config.constants.security import SIDE_EFFECT_LEVELS, SIDE_EFFECT_READ
-
-    source = _source(console_root() / "src" / "surfaces" / "capability-rows.ts")
-    declared = re.search(r"READ_ONLY_LEVELS: readonly string\[\] = \[([^\]]*)\]", source)
-    assert declared is not None, "the console does not declare which levels only read"
-    named = tuple(
-        entry.strip().strip("'") for entry in declared.group(1).split(",") if entry.strip()
-    )
-
-    assert named[0] == SIDE_EFFECT_READ
-    for level in named:
-        assert level in SIDE_EFFECT_LEVELS, f"{level!r} is not a level this platform has"
-    # Everything else writes, and the console treats an unknown level as a write,
-    # which is the same default the platform takes for an undeclared capability.
-    assert set(named) < set(SIDE_EFFECT_LEVELS)

@@ -10,10 +10,7 @@ import {
   loadAttention,
   loadGuardian,
   loadRecentRuns,
-  loadSetup,
-  loadStopped,
   loadViewer,
-  stoppageFrom,
 } from '@/shell/load';
 
 /**
@@ -131,9 +128,7 @@ describe('resolving what the shell needs', () => {
     expect(approvals.length).toBeGreaterThan(0);
     // Every one of them was pending in the dataset; a decided one appearing
     // here is the notification centre people learn to distrust.
-    expect(
-      approvals.every((item) => item.href.startsWith('/decisions?tab=actions')),
-    ).toBe(true);
+    expect(approvals.every((item) => item.href.startsWith('/approvals/'))).toBe(true);
   });
 
   it('reads the guardian&apos;s liveness from what the deployment reports', async () => {
@@ -145,150 +140,8 @@ describe('resolving what the shell needs', () => {
     vi.stubGlobal('fetch', servingFixtures());
     const counts = countsFrom(await loadAttention('opaque'));
 
-    // Decisions is one area for both kinds now: an approval waiting and a
-    // proposal waiting both count toward the same badge.
-    expect(counts.decisions).toBeGreaterThan(0);
-    expect(Object.keys(counts).sort()).toEqual(['decisions', 'incidents', 'runs']);
-  });
-});
-
-describe('what the frame knows about setup', () => {
-  it('reads runtimeComposed true from the checklist a finished deployment reports', async () => {
-    vi.stubGlobal('fetch', servingFixtures());
-    // 'populated' is a fully finished deployment; its own fifth checklist step
-    // has to say a runtime exists, or every other screen that reads "this
-    // deployment is fully set up" from the same fixture would be reading a
-    // document that contradicts itself — the exact inconsistency fixed in
-    // tools/mockplane/dataset/served.py earlier in this spec.
-    expect((await loadSetup('opaque')).runtimeComposed).toBe(true);
-  });
-
-  it('reads runtimeComposed false when the checklist says the runtime step is not done', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() =>
-        Promise.resolve(
-          new Response(
-            JSON.stringify({
-              complete: false,
-              provider: 'verified',
-              integrations: [],
-              steps: [
-                {
-                  name: 'investigation-runtime',
-                  title: 'Give it something to investigate with',
-                  state: 'ready',
-                  detail: 'nothing here can drive an investigation yet',
-                  action:
-                    'whoever operates this deployment supplies the investigation runtime',
-                  readiness: 'absent',
-                },
-              ],
-            }),
-            { status: 200, headers: { 'content-type': 'application/json' } },
-          ),
-        ),
-      ),
-    );
-
-    expect((await loadSetup('opaque')).runtimeComposed).toBe(false);
-  });
-
-  it('assumes composed when the checklist declares no such step at all', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() =>
-        Promise.resolve(
-          new Response(
-            JSON.stringify({
-              complete: true,
-              provider: 'verified',
-              integrations: [],
-              steps: [],
-            }),
-            { status: 200, headers: { 'content-type': 'application/json' } },
-          ),
-        ),
-      ),
-    );
-
-    // Absent from what the deployment reports — an older backend, before this
-    // step existed — reads the same as composed: this fact exists to state a
-    // dependency the deployment can prove is missing, not to invent one it
-    // has never declared.
-    expect((await loadSetup('opaque')).runtimeComposed).toBe(true);
-  });
-
-  it('assumes composed when the read fails, so a working deployment carries no false caveat', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new TypeError('network'))),
-    );
-
-    expect(await loadSetup('opaque')).toEqual({
-      checklistComplete: false,
-      integrationsConfigured: true,
-      runtimeComposed: true,
-    });
-  });
-});
-
-describe('whether every automated write is stopped', () => {
-  it('reports who stopped it and since when, from the organisation scope', () => {
-    expect(
-      stoppageFrom({
-        engaged: true,
-        scopes: {
-          '*': {
-            scope: '*',
-            engaged_by: 'avery',
-            engaged_at: '2026-08-07T09:00:00Z',
-            reason: '',
-          },
-        },
-      }),
-    ).toEqual({ engaged: true, by: 'avery', since: '2026-08-07T09:00:00Z' });
-  });
-
-  it('prefers the organisation scope over a narrower one', () => {
-    expect(
-      stoppageFrom({
-        engaged: true,
-        scopes: {
-          'team-platform': { engaged_by: 'reese', engaged_at: '2026-08-07T09:00:00Z' },
-          '*': { engaged_by: 'avery', engaged_at: '2026-08-07T10:00:00Z' },
-        },
-      }),
-    ).toEqual({ engaged: true, by: 'avery', since: '2026-08-07T10:00:00Z' });
-  });
-
-  it('says nothing is stopped rather than guessing, when the deployment does not say', () => {
-    expect(stoppageFrom({ engaged: false })).toEqual({
-      engaged: false,
-      by: null,
-      since: null,
-    });
-    expect(stoppageFrom({})).toEqual({ engaged: false, by: null, since: null });
-  });
-
-  it('reports engaged with no who or since when the deployment could not say either', () => {
-    expect(stoppageFrom({ engaged: true, scopes: {} })).toEqual({
-      engaged: true,
-      by: null,
-      since: null,
-    });
-  });
-
-  it('degrades to not stopped rather than claiming a stop nobody engaged', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new TypeError('network'))),
-    );
-    expect(await loadStopped('opaque')).toEqual({
-      engaged: false,
-      by: null,
-      since: null,
-    });
+    expect(counts.approvals).toBeGreaterThan(0);
+    expect(Object.keys(counts).sort()).toEqual(['approvals', 'incidents', 'runs']);
   });
 });
 
@@ -386,8 +239,6 @@ describe('what the deployment is called', () => {
   it('puts the page in front of the deployment in a title', () => {
     // A browser truncates a tab from the right, and the page is the part that
     // distinguishes one tab from the next.
-    expect(documentTitle('Actions awaiting approval', 'HAL9000')).toBe(
-      'Actions awaiting approval · HAL9000',
-    );
+    expect(documentTitle('Approvals', 'HAL9000')).toBe('Approvals · HAL9000');
   });
 });

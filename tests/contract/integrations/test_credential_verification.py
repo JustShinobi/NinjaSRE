@@ -95,9 +95,9 @@ async def stand_up(*, seeded: tuple[str, ...], status: int = 200):
 
 
 async def test_a_working_credential_verifies() -> None:
-    transport, _, verification = await stand_up(seeded=("redis",))
+    transport, _, verification = await stand_up(seeded=("datadog",))
 
-    result = await verification.verify("redis", transport=transport, context=CONTEXT)
+    result = await verification.verify("datadog", transport=transport, context=CONTEXT)
 
     assert result.ok
     assert result.status_code == 200
@@ -107,10 +107,10 @@ async def test_an_unconfigured_credential_is_a_result_and_not_an_exception() -> 
     """ "Nothing is configured" is precisely the answer the operator asked for."""
     transport, _, verification = await stand_up(seeded=())
 
-    result = await verification.verify("redis", transport=transport, context=CONTEXT)
+    result = await verification.verify("datadog", transport=transport, context=CONTEXT)
 
     assert not result.ok
-    assert "No Redis Cloud credential is configured" in result.detail
+    assert "No Datadog credential is configured" in result.detail
 
 
 async def test_verifying_every_integration_reports_one_result_each() -> None:
@@ -141,7 +141,7 @@ async def test_an_integration_nobody_installed_is_named_rather_than_guessed() ->
     with pytest.raises(UnknownIntegration) as raised:
         await verification.verify("typo", transport=transport, context=CONTEXT)
 
-    assert "redis" in str(raised.value)
+    assert "datadog" in str(raised.value)
 
 
 async def test_a_probe_makes_exactly_one_call() -> None:

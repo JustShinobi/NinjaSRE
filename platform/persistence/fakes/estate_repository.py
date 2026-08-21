@@ -84,8 +84,6 @@ class FakeEstateRepository:
             resource for resource in self.state.resources.values() if _matches(resource, query)
         ]
         matched.sort(key=lambda resource: resource.resource_id)
-        if query.after:
-            matched = [resource for resource in matched if resource.resource_id > query.after]
         return tuple(matched[:limit])
 
     async def summarise(self, *, now: datetime) -> EstateSummary:

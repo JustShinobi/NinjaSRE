@@ -1,12 +1,8 @@
 import { ApiError, read } from '@/lib/api';
 import { parseViewer, type Viewer } from '@/session/viewer';
-import { RUNTIME_STEP } from '@/surfaces/first-run/plan';
 import type { AttentionItem } from './attention';
 import type { RecentRun } from './commands';
 import type { Guardian } from './sidebar';
-import { NOT_STOPPED, stoppageFrom, type Stoppage } from './stoppage';
-
-export { stoppageFrom, type Stoppage };
 
 /**
  * What the shell needs before it can draw itself, read once per request.
@@ -139,28 +135,8 @@ async function readAttention(credential: string): Promise<readonly AttentionItem
         kind: 'approval',
         title: text(record, 'summary'),
         detail: text(record, 'action'),
-        href: `/decisions?tab=actions&selected=${id}`,
+        href: `/approvals/${id}`,
         since: text(record, 'requested_at'),
-      });
-    }
-  } catch (error) {
-    if (!(error instanceof ApiError || error instanceof TypeError)) throw error;
-  }
-  try {
-    // The list rather than the count, because the band needs a row and not a
-    // number — and reading two endpoints for one fact is how the badge and the
-    // band come to disagree about how many are waiting.
-    const body = await read('/v1/proposals', authorised(credential));
-    for (const record of records(body, 'proposals')) {
-      const id = text(record, 'proposal_id');
-      if (id === '') continue;
-      items.push({
-        id,
-        kind: 'proposal',
-        title: text(record, 'summary'),
-        detail: text(record, 'proposal_type'),
-        href: `/decisions?tab=changes&selected=${id}`,
-        since: text(record, 'proposed_at'),
       });
     }
   } catch (error) {
@@ -212,107 +188,12 @@ async function readGuardian(credential: string): Promise<Guardian> {
   }
 }
 
-/**
- * Whether every automated write is currently stopped.
- *
- * Read for the frame rather than for the autonomy screen, because the banner it
- * feeds is on every screen. It degrades to **not stopped**, which is the honest
- * direction here and the opposite of the guardian posture's: a banner claiming
- * automation is stopped when the read merely failed would send an operator to
- * release a switch nobody engaged.
- */
-export async function loadStopped(credential: string): Promise<Stoppage> {
-  return withDeadline(readStopped(credential), NOT_STOPPED);
-}
-
-async function readStopped(credential: string): Promise<Stoppage> {
-  try {
-    const body = await read('/v1/autonomy/kill-switch', authorised(credential));
-    return stoppageFrom(body);
-  } catch (error) {
-    if (error instanceof ApiError || error instanceof TypeError) return NOT_STOPPED;
-    throw error;
-  }
-}
-
-/**
- * What the frame needs to know about the deployment's own setup.
- *
- * Three facts, and each degrades in the direction that is safe to be wrong
- * in. A checklist that could not be read is **not complete**, so the one
- * route that finishes configuring a half-up deployment stays in the
- * navigation of exactly that deployment. Integrations are assumed
- * **configured**, and the runtime is assumed **composed**, for the same
- * reason as each other: both feed an advisory caveat in the investigation
- * drawer rather than the navigation, and a read that failed must not put a
- * warning in front of somebody whose deployment works fine.
- */
-export interface SetupState {
-  readonly checklistComplete: boolean;
-  readonly integrationsConfigured: boolean;
-  /**
-   * Whether this process holds something that can actually drive an
-   * investigation, read from the checklist's own fifth step.
-   *
-   * This is what lets the investigation drawer say what is missing *before*
-   * the click rather than after: starting one would refuse with
-   * `InvestigatorNotConfigured` regardless of anything the operator types,
-   * and this is the one fact that can be read ahead of that request instead
-   * of parsed out of its failure.
-   */
-  readonly runtimeComposed: boolean;
-}
-
-const ASSUMED_SETUP: SetupState = {
-  checklistComplete: false,
-  integrationsConfigured: true,
-  runtimeComposed: true,
-};
-
-/** Whether setup is finished, whether anything is connected, and whether a run could actually start. */
-export async function loadSetup(credential: string): Promise<SetupState> {
-  return withDeadline(readSetupState(credential), ASSUMED_SETUP);
-}
-
-async function readSetupState(credential: string): Promise<SetupState> {
-  try {
-    const body = await read('/v1/setup/checklist', authorised(credential));
-    const declared = records(body, 'integrations');
-    const runtimeStep = records(body, 'steps').find(
-      (entry) => text(entry, 'name') === RUNTIME_STEP,
-    );
-    return {
-      checklistComplete: Reflect.get(Object(body), 'complete') === true,
-      // Declared and holding nothing is what `absent` means, so a deployment
-      // that declares three integrations and has stored none is unconnected.
-      integrationsConfigured: declared.some(
-        (entry) => text(entry, 'readiness') !== 'absent',
-      ),
-      // Absent from the steps this deployment reports — an older backend,
-      // before this step existed — reads the same as composed: this fact
-      // exists to state a dependency the deployment can prove is missing,
-      // not to invent one it has never declared.
-      runtimeComposed:
-        runtimeStep === undefined || text(runtimeStep, 'state') === 'done',
-    };
-  } catch (error) {
-    if (error instanceof ApiError || error instanceof TypeError) {
-      return ASSUMED_SETUP;
-    }
-    throw error;
-  }
-}
-
 /** How many items of each area's kind are waiting, for the sidebar's counts. */
 export function countsFrom(
   attention: readonly AttentionItem[],
 ): Readonly<Record<string, number>> {
   return {
-    // Decisions is one area now, for both kinds — a decision waiting is a
-    // decision waiting, whichever of its two tabs it would open to.
-    decisions: attention.filter(
-      (item) => item.kind === 'approval' || item.kind === 'proposal',
-    ).length,
+    approvals: attention.filter((item) => item.kind === 'approval').length,
     incidents: attention.filter((item) => item.kind === 'incident').length,
     runs: attention.filter((item) => item.kind === 'failure').length,
   };

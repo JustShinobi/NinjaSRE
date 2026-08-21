@@ -17,16 +17,6 @@ the failure mode without it is every outbound call failing verification at once
 (FR-025). ``NINJASRE_CA_BUNDLE`` names a bundle to trust *in addition to* the
 system's. There is deliberately no setting that turns verification off: a
 deployment that skipped it would send credentials to whoever answered.
-
-**Naming a bundle also drops RFC 5280 strictness, and only that.** Python 3.13
-turned ``VERIFY_X509_STRICT`` on by default, which requires a certificate
-authority to carry ``keyUsage=keyCertSign,cRLSign``. An appliance that mints
-its own authority predictably omits it — Proxmox VE does — so a deployment
-pointed at its own cluster fails every call with "CA cert does not include key
-usage extension" no matter how correctly the bundle was configured. Chain
-building, expiry and hostname checking all stay on; what is relaxed is one
-conformance rule about how the operator's own authority was minted, and the
-operator naming the bundle is the decision that relaxes it.
 """
 
 from __future__ import annotations
@@ -54,19 +44,12 @@ def trust_context(environ: Mapping[str, str] | None = None) -> ssl.SSLContext:
     loaded: a deployment that silently ignored its configured trust anchor
     would fail every call to the vendor behind the intercepting proxy, and the
     reason would be nowhere.
-
-    A deployment that named no bundle stays as strict as the standard library
-    is, so nothing about verifying a public vendor changes here.
     """
     source = environ if environ is not None else os.environ
     context = ssl.create_default_context()
     bundle = source.get(NINJASRE_CA_BUNDLE_ENV, "").strip()
     if bundle:
         context.load_verify_locations(cafile=str(Path(bundle)))
-        # See the module docstring: an appliance's own authority is minted
-        # without the extension RFC 5280 wants, and refusing it would make the
-        # bundle setting useless for the case it exists to serve.
-        context.verify_flags &= ~ssl.VERIFY_X509_STRICT
     return context
 
 

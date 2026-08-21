@@ -7,7 +7,7 @@ A client is built from a base URL, a transport, and a ``RequestContext`` that
 names an organisation, a team, and a capability — all of which are safe in a
 prompt.
 
-What the base client provides, so no vendor has to provide it
+What the base client provides, so eighty-five vendors do not each provide it
 differently (FR-016):
 
 **Proxy routing.** ``request`` builds a ``ProxyRequest`` and hands it to the

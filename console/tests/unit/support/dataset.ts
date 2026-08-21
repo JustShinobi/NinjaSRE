@@ -85,79 +85,6 @@ export function serveRefusal(status = 503): void {
   });
 }
 
-/**
- * Answer every request from `scenario`, except the ones nothing can reach.
- *
- * The case a whole-gateway outage cannot produce: one dependency down and the
- * rest of the deployment fine. A panel that reads two endpoints looks identical
- * under a total outage whichever of them it reports, so this is the only way to
- * say which one it is reporting.
- *
- * `unreachable` holds path fragments rather than whole paths, because the path
- * a screen builds carries a node identifier the test would otherwise have to
- * know.
- */
-export function serveScenarioExcept(
-  scenario: Scenario,
-  unreachable: readonly string[],
-  principal?: unknown,
-): void {
-  vi.stubGlobal('fetch', (input: unknown) => {
-    const path = new URL(String(input), BASE).pathname;
-    if (unreachable.some((fragment) => path.includes(fragment))) {
-      return Promise.reject(new TypeError('fetch failed'));
-    }
-    const body: unknown =
-      path === '/auth/me' && principal !== undefined
-        ? principal
-        : bodyFor(scenario, path);
-    if (body === null || body === undefined) {
-      return Promise.resolve(
-        new Response('{}', {
-          status: 404,
-          headers: { 'content-type': 'application/json' },
-        }),
-      );
-    }
-    return Promise.resolve(
-      new Response(JSON.stringify(body), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    );
-  });
-}
-
-/**
- * Let no read reach anything, while the session still resolves.
- *
- * The other half of `serveRefusal`. A gateway that answers 503 and a gateway
- * that is not there produce different exceptions — an `ApiError` and a
- * `TypeError` — and only the first is a reply. A console that handled the reply
- * and not the silence would render its error states in every test and take a
- * route down on the afternoon a container stopped, which is the failure that is
- * actually common.
- *
- * The principal is answered for the same reason `serveRefusal` answers it: a
- * session that cannot be resolved is the sign-in page, which is a different
- * screen from a signed-in page whose panels have nothing to show.
- */
-export function serveOutage(principal?: unknown): void {
-  vi.stubGlobal('fetch', (input: unknown) => {
-    const path = new URL(String(input), BASE).pathname;
-    if (path === '/auth/me') {
-      return Promise.resolve(
-        new Response(JSON.stringify(principal ?? bodyFor('populated', path)), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      );
-    }
-    // Exactly what `fetch` rejects with when a connection is never made.
-    return Promise.reject(new TypeError('fetch failed'));
-  });
-}
-
 /** The principal the dataset records, as the console resolves it. */
 export function datasetViewer(scenario: Scenario = 'populated'): Viewer {
   const path = join(
@@ -192,16 +119,8 @@ export function datasetViewer(scenario: Scenario = 'populated'): Viewer {
  * from `/auth/me` and from nowhere else — which is the property being relied on:
  * a role matrix that handed a screen a viewer object directly would prove
  * nothing about the console's own resolution.
- *
- * `teamNodeId` is a parameter because a principal that resolves to no node is a
- * real state rather than a malformed body: a deployment whose organisation tree
- * has not been built yet answers exactly this, and it is the state every
- * node-scoped screen has to survive.
  */
-export function principalHolding(
-  permissions: readonly string[],
-  teamNodeId = 'org-northwind',
-): unknown {
+export function principalHolding(permissions: readonly string[]): unknown {
   return {
     principal_id: 'user-under-test',
     display_name: 'Avery Lockhart',
@@ -209,7 +128,7 @@ export function principalHolding(
     kind: 'user',
     roles: [],
     permissions,
-    team_node_id: teamNodeId,
+    team_node_id: 'org-northwind',
     impersonating: false,
     impersonated_by: null,
   };

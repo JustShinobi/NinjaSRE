@@ -193,11 +193,6 @@ class OpenAiCompatibleAdapter(BaseAdapter):
             payload["tools"] = _tool_definitions(request)
             if not request.parallel_tool_calls or not descriptor.supports_parallel_tool_calls:
                 payload["parallel_tool_calls"] = False
-            if request.force_tool_call:
-                # Obliges the model to call one of the declared tools — the
-                # preflight probe's own way of finding out whether tool calling
-                # actually works, rather than whether the model is willing to.
-                payload["tool_choice"] = "required"
 
         max_output = request.max_output_tokens or descriptor.max_output_tokens
         payload["max_completion_tokens"] = max_output

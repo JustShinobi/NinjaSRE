@@ -34,28 +34,11 @@ class PostgresSignalStore(TenantBound):
     """One organisation's signals, inside one transaction."""
 
     async def append(self, signals: Sequence[Signal]) -> tuple[Signal, ...]:
-        """Store ``signals`` and return them, replacing any with the same key.
-
-        The batch is collapsed by key before it is sent, keeping the last of
-        each — which is what "replacing any with the same key" means when the
-        duplicates arrive together rather than in separate calls.
-
-        Not an optimisation. ``ON CONFLICT DO UPDATE`` refuses a statement that
-        would touch one row twice, so a batch carrying two samples with the same
-        key fails outright rather than keeping either. That is easy to produce
-        without meaning to: the key is derived from name, resource, and instant,
-        so one poller reporting the same series twice in a tick — from two
-        sources, say — collides while looking like two distinct observations.
-        """
+        """Store ``signals`` and return them, replacing any with the same key."""
         if not signals:
             return ()
-
-        # dict preserves insertion order, so re-inserting under an existing key
-        # overwrites the value while keeping the original position: last wins,
-        # and the order the caller sent stays the order that is written.
-        deduplicated = {signal.signal_id: signal for signal in signals}
         statement = insert(models.SignalRow).values(
-            [_row(self.org_id, signal) for signal in deduplicated.values()]
+            [_row(self.org_id, signal) for signal in signals]
         )
         await self.session.execute(
             statement.on_conflict_do_update(

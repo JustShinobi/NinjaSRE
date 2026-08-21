@@ -103,7 +103,7 @@ seeing once: the platform does not invent an observation it did not make.
 An investigation is only as good as what it can see. Add one integration:
 
 ```sh
-docker compose exec -it app ninjasre integrations setup grafana
+docker compose exec -it app ninjasre integrations setup datadog
 ```
 
 It prompts for whatever that vendor's credential needs and writes the values to

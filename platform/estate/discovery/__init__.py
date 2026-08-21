@@ -18,10 +18,6 @@ from platform.estate.discovery.port import (
     ResourceReader,
     SweepBudget,
 )
-from platform.estate.discovery.runner import (
-    TopologyDiscoveryRunner,
-    UnknownDiscoverySource,
-)
 from platform.estate.discovery.sweep import EstateSweeper, SweepReport
 
 __all__ = [
@@ -33,6 +29,4 @@ __all__ = [
     "ResourceReader",
     "SweepBudget",
     "SweepReport",
-    "TopologyDiscoveryRunner",
-    "UnknownDiscoverySource",
 ]

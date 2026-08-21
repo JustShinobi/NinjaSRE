@@ -31,7 +31,6 @@ from config.constants.persistence import (
     RETENTION_DAYS_SESSIONS,
     RETENTION_EXEMPT_DATA_CLASSES,
 )
-from config.constants.transit import RETENTION_DAYS_TRANSIT
 from platform.persistence.errors import RetentionExempt
 
 
@@ -48,12 +47,6 @@ class DataClass(StrEnum):
     #: that something was removed, and deleting it would make the estate forget
     #: what it was asked to remember.
     ESTATE_HISTORY = "estate_history"
-    #: Ingress and outbound delivery rows. The masked payload samples beside
-    #: them are not swept: there is one per source and it is replaced rather
-    #: than appended, so the table is bounded by how many sources exist rather
-    #: than by time — and ageing it out would delete "what does this source
-    #: send" from exactly the sources that send rarely.
-    TRANSIT = "transit"
 
     @property
     def is_exempt(self) -> bool:
@@ -70,7 +63,6 @@ DEFAULT_RETENTION_DAYS: dict[DataClass, int | None] = {
     DataClass.KNOWLEDGE: RETENTION_DAYS_KNOWLEDGE,
     DataClass.AUDIT: None,
     DataClass.ESTATE_HISTORY: RETENTION_DAYS_ESTATE_HISTORY,
-    DataClass.TRANSIT: RETENTION_DAYS_TRANSIT,
 }
 
 

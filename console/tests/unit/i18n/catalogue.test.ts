@@ -82,19 +82,6 @@ describe('the message catalogue', () => {
     expect(resolveLocale(null)).toBe('en');
   });
 
-  it('falls back to the language when no tag is an exact match', () => {
-    // `pt` alone and European Portuguese both carry no exact catalogue, and
-    // Brazilian Portuguese is the only Portuguese this console has — so both
-    // land there rather than in English.
-    expect(resolveLocale('pt')).toBe('pt-BR');
-    expect(resolveLocale('pt-PT')).toBe('pt-BR');
-    expect(resolveLocale('pt-PT,pt;q=0.9,en;q=0.8')).toBe('pt-BR');
-  });
-
-  it('still prefers an exact tag over a language fallback further down the header', () => {
-    expect(resolveLocale('en,pt-BR;q=0.9')).toBe('en');
-  });
-
   it('exposes the catalogue of every locale by name', () => {
     expect(Object.keys(CATALOGUES).sort()).toEqual([...LOCALES].sort());
   });

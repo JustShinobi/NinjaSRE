@@ -3,15 +3,13 @@ import type { ReactNode } from 'react';
 import { message } from '@/i18n/messages';
 import { timestamp } from '@/i18n/format';
 import { may } from '@/session/viewer';
+import { AreaHeader } from '@/shell/area';
+import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
 import { DecisionControls } from '../decision';
-import { emptyBecause, readSetupState, setupCause } from '../emptiness';
 import { panelLabels } from '../labels';
 import { Panel } from '../panel';
 import { ProposalCard, type ProposalRow } from '../proposal';
-import { sideEffectLabel } from '../side-effects';
-import { placedTree } from '../tree';
-import { readViewState, resolveNode } from '../url-state';
 import {
   authorised,
   dataOf,
@@ -20,7 +18,6 @@ import {
   flag,
   list,
   number,
-  optionalRead,
   pairs,
   panelRead,
   read,
@@ -29,8 +26,8 @@ import {
 } from '../read';
 
 /**
- * The "Actions" tab of Decisions: everything waiting on an approval, grouped by
- * how long it has waited, decidable where it is read.
+ * Everything waiting on a decision, grouped by how long it has waited, decidable
+ * where it is read.
  *
  * The grouping is by urgency rather than by run or by kind: an approval that has
  * passed its expiry is a different thing from one that arrived a minute ago, and
@@ -39,80 +36,10 @@ import {
  * The decision controls are **absent** for a viewer who may not decide. Not
  * disabled: a disabled control still says the capability exists, still says
  * somebody else has it, and still ships the handler behind it.
- *
- * **This tab is one half of Decisions.** "Can the agent do this now" and
- * "should the deployment be different from tomorrow on" are different
- * questions, and used to be two menu entries with no reference to each other.
- * They are two tabs of one screen now — `screens/decisions.tsx`, which renders
- * this content and `proposals.tsx`'s side by side — so a reader who opens
- * either sees that the other exists without a cross-link paragraph doing the
- * work a tab bar already does.
- *
- * **The empty state names the rule, not only the mechanism.** "None does" is
- * true and unhelpful on a deployment where the approval threshold was never
- * touched; the useful sentence says which side-effect level is gated and
- * whether that is this deployment's own choice or the shipped default —
- * unless the setup itself is unfinished, in which case *that* is the more
- * useful thing to say, and it wins.
  */
 
 /** The permission the gateway requires to decide a remediation. */
 const DECIDE = 'remediation.approve';
-
-/**
- * The configuration paths used by the live API and the recorded mockplane.
- *
- * The live configuration schema nests this under ``policies.approvals``. Older
- * recorded scenarios expose the pre-schema flat name, so the fallback is kept at
- * this boundary rather than making the rest of the screen know about two APIs.
- */
-const APPROVAL_POLICY_PATHS = [
-  'policies.approvals.threshold',
-  'approval.required_above',
-] as const;
-
-interface ApprovalRule {
-  readonly threshold: string;
-  readonly provenance: string;
-}
-
-/** Read a string at a dotted path, accepting the legacy flat key as well. */
-function dottedText(record: unknown, path: string): string {
-  const direct = text(record, path);
-  if (direct !== '') return direct;
-
-  let current: unknown = record;
-  for (const segment of path.split('.')) {
-    current = field(current, segment);
-  }
-  return typeof current === 'string' ? current : '';
-}
-
-/** Return the policy field that describes the active approval threshold. */
-function ruleFromFields(payload: unknown): ApprovalRule | null {
-  const declared = list(payload, 'fields').find((record) =>
-    APPROVAL_POLICY_PATHS.some((path) => text(record, 'path') === path),
-  );
-  if (declared === undefined) return null;
-
-  const threshold = text(declared, 'value') || text(declared, 'default');
-  return threshold === ''
-    ? null
-    : { threshold, provenance: text(declared, 'provenance') };
-}
-
-/** Return the policy from an effective-config response when using an old fixture. */
-function ruleFromEffective(payload: unknown): ApprovalRule | null {
-  const values = field(payload, 'values');
-  const provenance = field(payload, 'provenance');
-  for (const path of APPROVAL_POLICY_PATHS) {
-    const threshold = dottedText(values, path);
-    if (threshold !== '') {
-      return { threshold, provenance: dottedText(provenance, path) };
-    }
-  }
-  return null;
-}
 
 /** Which group an approval belongs to, by how long it has been waiting. */
 function groupOf(record: unknown, now: Date): 'overdue' | 'today' | 'later' {
@@ -124,8 +51,8 @@ function groupOf(record: unknown, now: Date): 'overdue' | 'today' | 'later' {
   return 'later';
 }
 
-export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> {
-  const { credential, locale, viewer, now, zone, search } = context;
+export async function ApprovalsScreen(context: SurfaceContext): Promise<ReactNode> {
+  const { credential, locale, viewer, now, zone } = context;
   const init = authorised(credential);
 
   const approvals = await panelRead('/v1/approvals', () => read('/v1/approvals', init));
@@ -158,52 +85,6 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
 
   const none = message(locale, 'surface.none');
   const decidable = may(viewer, DECIDE);
-
-  // --- Why the queue reads as it does, when there is nothing in it -----------
-  //
-  // An unfinished setup is the more useful thing to say and wins outright: a
-  // deployment that cannot investigate yet has no approvals for a reason no
-  // policy sentence explains. Once the setup is done, the mechanism ("a change
-  // that needs a person appears here") is true and says nothing about *this*
-  // deployment, so the rule that actually feeds the queue is read and named —
-  // the side-effect level it is gated above, and whether that is this
-  // deployment's own choice or the level nobody has moved off yet.
-  const setup = await readSetupState(credential);
-  const cause = setupCause(locale, setup);
-
-  let emptyBody = message(locale, 'approvals.empty.body');
-  if (cause === null && pending.length === 0) {
-    const tree = await optionalRead('/v1/config', () => read('/v1/config', init));
-    const nodeId = resolveNode(
-      readViewState(search, ['node']),
-      viewer,
-      placedTree(dataOf(tree)),
-    );
-    if (nodeId !== '') {
-      const fields = await optionalRead('/v1/config/{node_id}/fields', () =>
-        read('/v1/config/{node_id}/fields', { ...init, params: { node_id: nodeId } }),
-      );
-      let rule = ruleFromFields(dataOf(fields));
-      if (rule === null) {
-        // The mockplane still serves the pre-schema effective-config shape. Keep
-        // this compatibility read local while recorded scenarios migrate; the
-        // live path above remains the source of the default and its provenance.
-        const effective = await optionalRead('/v1/config/{node_id}', () =>
-          read('/v1/config/{node_id}', { ...init, params: { node_id: nodeId } }),
-        );
-        rule = ruleFromEffective(dataOf(effective));
-      }
-      if (rule !== null) {
-        emptyBody = [
-          emptyBody,
-          message(locale, 'approvals.empty.rule', { threshold: rule.threshold }),
-          rule.provenance === ''
-            ? message(locale, 'approvals.empty.rule.default')
-            : message(locale, 'approvals.empty.rule.setAt', { node: rule.provenance }),
-        ].join(' ');
-      }
-    }
-  }
 
   function rowsFor(record: unknown): readonly ProposalRow[] {
     const plan = field(record, 'rollback_plan');
@@ -259,7 +140,7 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
       {
         field: 'autonomy',
         label: message(locale, 'proposal.autonomy'),
-        value: `${sideEffectLabel(locale, text(record, 'side_effect_level'))} ${message(locale, 'proposal.queued')}`,
+        value: `${text(record, 'side_effect_level')} — ${message(locale, 'proposal.queued')}`,
       },
     ];
   }
@@ -270,24 +151,21 @@ export async function ApprovalsTab(context: SurfaceContext): Promise<ReactNode> 
     records: pending.filter((record) => groupOf(record, now) === group),
   }));
 
-  const empty = emptyBecause(
-    {
-      heading: message(locale, 'approvals.empty.heading'),
-      body: emptyBody,
-      actionLabel: message(locale, 'approvals.empty.action'),
-      href: '/runs',
-    },
-    cause,
-  );
-
   return (
     <>
+      <AreaHeader area={areaFor('approvals')} locale={locale} />
+
       <Panel
         title={message(locale, 'approvals.title')}
         state={stateOf(approvals, pending.length === 0)}
         dependency={dependencyOf(approvals)}
         labels={panelLabels(locale, message(locale, 'approvals.title'))}
-        empty={empty}
+        empty={{
+          heading: message(locale, 'approvals.empty.heading'),
+          body: message(locale, 'approvals.empty.body'),
+          actionLabel: message(locale, 'approvals.empty.action'),
+          href: '/runs',
+        }}
         bare
       >
         <div className="flex flex-col gap-5">

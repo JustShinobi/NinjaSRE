@@ -39,7 +39,6 @@ from config.constants.surfaces import (
     TRANSPORT_LOCAL,
     TRANSPORT_REMOTE,
 )
-from platform.credentials.fields import CredentialFieldSpec
 from platform.observability.logging import get_logger
 from surfaces.cli.errors import (
     ApprovalRequiredError,
@@ -54,7 +53,6 @@ from surfaces.cli.models import (
     AutonomyExplanation,
     AutonomyPolicyRecord,
     AutonomyRuleRecord,
-    CheckState,
     ConfigChange,
     ConfigDelta,
     ConfigDiff,
@@ -62,9 +60,9 @@ from surfaces.cli.models import (
     ConfigView,
     ConsideredRuleRecord,
     CostReport,
+    CredentialFieldSpec,
     DetectionState,
     DetectorRecord,
-    DiagnosticCheck,
     DiagnosticReport,
     DryRunRecord,
     EffectivenessRecord,
@@ -382,15 +380,6 @@ class PlatformClient(Protocol):
 
     async def verify_integration(self, integration: str) -> IntegrationStatus:
         """Check one integration's credential and connectivity."""
-
-    async def verify_integration_report(self, integration: str) -> Mapping[str, Any] | None:
-        """Return the vendor's own answer about ``integration``, or ``None``.
-
-        ``None`` means this deployment cannot reach the vendor — no deep
-        verifier is composed, or this vendor has nothing further to be asked.
-        Distinguished from an empty document deliberately: an empty document
-        reads as a clean bill of health.
-        """
 
     async def diagnose(self) -> DiagnosticReport:
         """Return what is configured, reachable, and healthy."""
@@ -904,17 +893,6 @@ class LocalClient:
     async def verify_integration(self, integration: str) -> IntegrationStatus:
         """Check one integration's credential and connectivity."""
         return await self.services.check_integration(integration)
-
-    async def verify_integration_report(self, integration: str) -> Mapping[str, Any] | None:
-        """Return ``None``: an in-process CLI composes no path to a vendor.
-
-        The same answer the gateway route gives for the same reason. Reaching a
-        vendor means a credential proxy and a transport, both wired at
-        composition; a client that built one from whatever ambient configuration
-        was present would be calling a cluster nobody chose.
-        """
-        del integration
-        return None
 
     async def diagnose(self) -> DiagnosticReport:
         """Return what is configured, reachable, and healthy."""
@@ -1486,126 +1464,35 @@ class RemoteClient:
         return MemoryStats(episodes=_number(payload, "episode_count"))
 
     async def list_providers(self) -> tuple[ProviderStatus, ...]:
-        """Return every supported provider and this deployment's state for it.
-
-        ``model_id`` is the provider's *default* model rather than a recorded
-        choice. The listing route answers with the descriptor's default because
-        that is the model this provider would run, and a deployment does not
-        store a per-provider selection to report instead.
-        """
-        payload = self._document("GET", "/v1/providers")
-        return tuple(_provider(record) for record in _records(payload, "providers"))
+        """Refuse: this surface has no provider route."""
+        raise self._no_route("which model providers it can use")
 
     async def verify_provider(self, provider_id: str) -> ProviderStatus:
-        """Check one provider end to end and return what the deployment found.
-
-        A real call against the deployment's model endpoint, which is why this
-        is a ``POST``: it spends the operator's tokens, and a method a cache or
-        a prefetch might repeat is the wrong shape for that.
-
-        Raises:
-            NotFoundError: no supported provider answers to ``provider_id``.
-        """
-        payload = self._document("POST", f"/v1/providers/{provider_id}/verify")
-        return ProviderStatus(
-            provider_id=_text(payload, "provider_id") or provider_id,
-            configured=True,
-            verified=bool(payload.get("verified", False)),
-            model_id=_text(payload, "model_id"),
-            detail=_text(payload, "detail"),
-        )
+        """Refuse: this surface has no provider route."""
+        raise self._no_route("which model providers it can use", provider=provider_id)
 
     async def list_integrations(self) -> tuple[IntegrationStatus, ...]:
         """Return every known integration and its current state."""
         payload = self._document("GET", "/v1/integrations")
         return tuple(_catalogued(record) for record in _records(payload, "integrations"))
 
-    def _own_node(self) -> str:
-        """Return the configuration node this caller is acting at.
-
-        Credential schemas are reachable per node rather than per client, which
-        is true and used to be read as a refusal. A client is perfectly able to
-        resolve its own node: the token's own team if it has one, and otherwise
-        the root of the tree it can see, which for an organisation-scoped caller
-        is the organisation.
-
-        Raises:
-            UnavailableError: the deployment exposes no configuration tree, so
-                there is no node to be acting at.
-        """
-        principal = self._document("GET", "/auth/me")
-        team = _text(principal, "team_node_id")
-        if team:
-            return team
-
-        nodes = _records(self._document("GET", "/v1/config"), "nodes")
-        root = next((node for node in nodes if not node.get("parent_id")), None)
-        if root is None:
-            raise UnavailableError(
-                f"{self.endpoint.url} exposes no configuration node to act at",
-                remedy="check that the deployment finished its first run",
-            )
-        return _text(root, "node_id")
-
     async def credential_fields(self, integration: str) -> tuple[CredentialFieldSpec, ...]:
-        """Return what ``integration`` needs, as a prompt can ask for it.
-
-        Two sources, because there are two kinds of thing that take a
-        credential. An installed integration declares its schema per node, so
-        the node this caller is acting at is resolved first. A model provider
-        declares its fields in its own descriptor and is not in that listing at
-        all, so it is asked for by name second.
-
-        An empty tuple for something neither answers to. The wizard turns that
-        into its own message naming the integration, which is a better sentence
-        than anything this layer could write about a name it was handed.
-        """
-        schemas = _records(
-            self._document("GET", f"/v1/config/{self._own_node()}/integration-schemas"),
-            "schemas",
-        )
-        declared = next(
-            (schema for schema in schemas if _text(schema, "name") == integration), None
-        )
-        if declared is not None:
-            return tuple(
-                _credential_field(record)
-                for record in (
-                    *_as_records(declared.get("credential_fields")),
-                    *_as_records(declared.get("settings_fields")),
-                )
-            )
-
-        try:
-            provider = self._document("GET", f"/v1/providers/{integration}")
-        except NotFoundError:
-            return ()
-        return tuple(_credential_field(record) for record in _as_records(provider.get("fields")))
+        """Refuse: credential schemas are reachable per node, not per client."""
+        raise self._no_route("what an integration's credential needs", integration=integration)
 
     async def store_integration_credential(
         self, integration: str, values: Mapping[str, str]
     ) -> IntegrationStatus:
-        """Write ``values`` to the deployment's vault and return what it now holds.
+        """Refuse: this surface has no credential-write route.
 
-        The values go in the request body and nowhere else — not in the path,
-        not in a query parameter, not in a header — because those are the parts
-        every proxy between here and the deployment writes down. The log line
-        carries the field *names*, which is what a support thread needs and is
-        the same line the local path emits.
-
-        The response is a status. There is no route that reads a credential
-        back, so nothing here has anywhere to put one.
+        Refused before a request is built, so the secret is never put on the
+        wire — nor into the failure, nor into the log line, which are both
+        places an operator pastes from. Only the field *names* are recorded.
         """
-        names = sorted(values)
-        logger.info("cli.integration_credential_stored", integration=integration, fields=names)
-        payload = self._document(
-            "PUT", f"/v1/integrations/{integration}/credential", {"values": dict(values)}
-        )
-        return IntegrationStatus(
-            integration=_text(payload, "integration") or integration,
-            configured=True,
-            healthy=bool(payload.get("usable", False)),
-            credential_state=_text(payload, "state"),
+        raise self._no_route(
+            "writing an integration credential",
+            integration=integration,
+            fields=sorted(values),
         )
 
     async def verify_integration(self, integration: str) -> IntegrationStatus:
@@ -1619,82 +1506,9 @@ class RemoteClient:
             credential_state=_text(payload, "state"),
         )
 
-    async def verify_integration_report(self, integration: str) -> Mapping[str, Any] | None:
-        """Return the vendor's own answer about ``integration``, or ``None``.
-
-        A 404 here is not an error to surface. The route answers it for two
-        different deployments that are both working — one that composed no deep
-        verifier, and one whose vendor has nothing further to be asked — and
-        raising would turn "there is no more to say" into a failed command.
-        """
-        try:
-            payload = self._document("POST", f"/v1/integrations/{integration}/verify/report")
-        except NotFoundError:
-            return None
-        report = payload.get("report")
-        return report if isinstance(report, dict) else None
-
     async def diagnose(self) -> DiagnosticReport:
-        """Return what is configured, reachable, and healthy, from three routes.
-
-        Composed rather than served whole, because the deployment answers three
-        different questions and ``doctor`` asks all of them: what the self-check
-        found, whether bring-up recorded a failure, and what the first-run
-        checklist still has outstanding.
-
-        A 404 from the diagnostics route is a *healthy* answer. A deployment
-        that started has no bring-up failure to describe, and reading its
-        absence as an error would put a red check on every working deployment.
-        """
-        checks: list[DiagnosticCheck] = []
-
-        report = self._document("GET", "/v1/setup/self-check")
-        for finding in _records(report, "findings"):
-            checks.append(
-                DiagnosticCheck(
-                    name=_text(finding, "check"),
-                    state=CheckState.FAILED,
-                    detail=_text(finding, "problem"),
-                    remedy=_text(finding, "action"),
-                )
-            )
-        checks.extend(
-            DiagnosticCheck(name=name, state=CheckState.OK, detail="passed")
-            for name in _strings(report, "passed")
-        )
-
-        checks.append(self._bring_up_check())
-        checks.extend(self._checklist_checks())
-        return DiagnosticReport(checks=tuple(checks))
-
-    def _bring_up_check(self) -> DiagnosticCheck:
-        """Return what the last recorded bring-up failure says, if there was one."""
-        try:
-            failure = self._document("GET", "/v1/setup/diagnostics")
-        except NotFoundError:
-            return DiagnosticCheck(
-                name="bring-up",
-                state=CheckState.OK,
-                detail="this deployment recorded no bring-up failure",
-            )
-        return DiagnosticCheck(
-            name="bring-up",
-            state=CheckState.FAILED,
-            detail=f"{_text(failure, 'stage')}: {_text(failure, 'problem')}",
-            remedy=_text(failure, "action"),
-        )
-
-    def _checklist_checks(self) -> tuple[DiagnosticCheck, ...]:
-        """Return one check per first-run step, in the order they depend on each other."""
-        return tuple(
-            DiagnosticCheck(
-                name=_text(step, "name"),
-                state=CheckState.OK if _text(step, "state") == "done" else CheckState.WARNING,
-                detail=_text(step, "detail"),
-                remedy="" if _text(step, "state") == "done" else _text(step, "action"),
-            )
-            for step in _records(self._document("GET", "/v1/setup/checklist"), "steps")
-        )
+        """Refuse: this surface has no diagnostics route."""
+        raise self._no_route("its own diagnostics")
 
 
 # --- Selection ---------------------------------------------------------------
@@ -1889,47 +1703,6 @@ def _strings(payload: Mapping[str, Any], key: str) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(element) for element in value)
-
-
-def _as_records(value: Any) -> list[Mapping[str, Any]]:
-    """Return a value that should be a list of objects, defaulting to empty.
-
-    The nested form of ``_records``: the credential-schema documents carry their
-    field lists inside an entry rather than at the top level.
-    """
-    if not isinstance(value, list):
-        return []
-    return [record for record in value if isinstance(record, dict)]
-
-
-def _credential_field(record: Mapping[str, Any]) -> CredentialFieldSpec:
-    """Return one credential field as a prompt can ask for it.
-
-    ``secret`` defaults to true for a document that does not say. A field
-    wrongly treated as secret is echoed to nobody; a field wrongly treated as
-    public is a token on somebody's screen during a screen share, and only one
-    of those is recoverable.
-    """
-    return CredentialFieldSpec(
-        name=_text(record, "name"),
-        label=_text(record, "label"),
-        secret=bool(record.get("secret", True)),
-        required=bool(record.get("required", True)),
-        help=_text(record, "help"),
-        environment_variable=_text(record, "environment_variable"),
-    )
-
-
-def _provider(record: Mapping[str, Any]) -> ProviderStatus:
-    """Return one provider's state as a listing shows it."""
-    return ProviderStatus(
-        provider_id=_text(record, "provider_id"),
-        configured=bool(record.get("configured", False)),
-        local=bool(record.get("local", False)),
-        verified=bool(record.get("verified", False)),
-        model_id=_text(record, "default_model"),
-        detail=_text(record, "detail"),
-    )
 
 
 def _incident_params(query: IncidentFilter) -> str:
@@ -2344,14 +2117,12 @@ def _catalogued(record: Mapping[str, Any]) -> IntegrationStatus:
     it across rather than collapsing the two into one boolean.
     """
     health = _text(record, "health")
-    suggested = record.get("suggested")
     return IntegrationStatus(
         integration=_text(record, "name"),
         configured=bool(health) and health != _HEALTH_UNKNOWN,
         healthy=health == _HEALTH_HEALTHY,
         credential_state=health,
         detail=_text(record, "health_detail"),
-        suggested_address=(_text(suggested, "address") if isinstance(suggested, Mapping) else ""),
     )
 
 

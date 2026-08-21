@@ -35,8 +35,7 @@ from core.state.types import TeamContext
 from integrations._base.client import IntegrationClient
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import InProcessProxyTransport, RequestContext
-from integrations.redis import DESCRIPTOR as REDIS
-from integrations.redis.client import RedisClient
+from integrations.datadog import DATADOG, DatadogClient
 from platform.credentials.handles import CredentialHandle
 from platform.credentials.proxy.app import create_proxy_app
 from platform.credentials.proxy.audit import ResolutionAuditor
@@ -50,23 +49,21 @@ from platform.credentials.vault import Vault
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import TenantScope
 
-#: The credential the suite hunts for. Two fields, because Redis Cloud needs two
-#: separate header injections and a proxy that injected one of them would
-#: otherwise look correct.
+#: The credential the suite hunts for. Two fields, because Datadog needs two and
+#: a proxy that injected one of them would otherwise look correct.
 #:
-#: Both are *format-valid* — well past the eight-character minimum each field
-#: declares — because the vault validates on write and a sentinel the schema
-#: rejects could never be stored. They are also distinctive enough that finding
-#: either anywhere in the agent's reach is finding the credential rather than a
-#: coincidence.
+#: Both are *format-valid* — 32 hex characters and 40 alphanumerics — because the
+#: vault validates on write and a sentinel the schema rejects could never be
+#: stored. They are also distinctive enough that finding either anywhere in the
+#: agent's reach is finding the credential rather than a coincidence.
 SENTINEL_API_KEY = "5ea1decafc0ffee0000ba5e51ff11ce1"
-SENTINEL_SECRET_KEY = "SENT1NELredisSECRETKEY0000000000000ZZZ"
+SENTINEL_APP_KEY = "SENT1NELdatadogAPPKEY0000000000000000ZZZ"
 
-SENTINELS: tuple[str, ...] = (SENTINEL_API_KEY, SENTINEL_SECRET_KEY)
+SENTINELS: tuple[str, ...] = (SENTINEL_API_KEY, SENTINEL_APP_KEY)
 
 ORG_ID = "acme"
 TEAM_ID = "payments"
-CAPABILITY = "redis_slow_queries"
+CAPABILITY = "datadog_search_logs"
 
 AT = datetime(2026, 8, 6, 12, 30, tzinfo=UTC)
 
@@ -85,7 +82,7 @@ class RecordingSender:
             status_code=200,
             headers={"content-type": "application/json"},
             body=json.dumps(
-                {"subscriptions": [{"databaseName": "checkout", "status": "active"}]}
+                {"logs": [{"message": "checkout OOMKilled", "service": "checkout"}]}
             ).encode("utf-8"),
         )
     )
@@ -121,21 +118,22 @@ class ProxyStack:
     transport: InProcessProxyTransport
     scope: TenantScope
 
-    def client(self, *, retry: RetryPolicy | None = None) -> RedisClient:
-        """Return a Redis client on the proxy, holding no credential.
+    def client(self, *, retry: RetryPolicy | None = None) -> DatadogClient:
+        """Return a Datadog client on the proxy, holding no credential.
 
         ``retry`` is overridable so a test asserting a failure does not spend
         the default policy's backoff proving it. The backoff itself has its own
         unit tests; this suite is about where the credential is.
         """
-        return RedisClient(
+        return DatadogClient(
             transport=self.transport,
             context=RequestContext(org_id=ORG_ID, team_id=TEAM_ID, capability=CAPABILITY),
+            site="datadoghq.com",
             retry=retry if retry is not None else RetryPolicy(max_attempts=1),
         )
 
     def tool(self) -> RegisteredTool:
-        """Return the agent-callable capability that reaches Redis Cloud."""
+        """Return the agent-callable capability that reaches Datadog."""
         return integration_tool(self.client())
 
 
@@ -143,33 +141,33 @@ def integration_tool(client: IntegrationClient) -> RegisteredTool:
     """Return a capability whose body is a real client call through the proxy."""
 
     async def call(**arguments: Any) -> CapabilityResult:
-        response = await client.get("/v1/subscriptions", params={"query": arguments["query"]})
+        response = await client.get("/api/v2/logs/events", params={"query": arguments["query"]})
         payload = response.json()
         return CapabilityResult.ok(
             CAPABILITY,
-            value={"arguments": arguments, "subscriptions": payload["subscriptions"]},
+            value={"arguments": arguments, "logs": payload["logs"]},
             evidence=(
                 Evidence(
-                    source="redis",
+                    source="datadog",
                     evidence_type=EvidenceType.LOG,
-                    summary="one subscription matching the incident window",
-                    reference=f"redis:{CAPABILITY}",
+                    summary="one log line matching the incident window",
+                    reference=f"datadog:{CAPABILITY}",
                 ),
             ),
         )
 
     metadata = ToolMetadata(
         name=CAPABILITY,
-        display_name="Redis Slow Queries",
-        description="Read Redis Cloud's slow-query log for the incident window.",
-        domain="database",
-        tags=("errors", "queries"),
+        display_name="Datadog Search Logs",
+        description="Search Datadog logs for the incident window.",
+        domain="observability",
+        tags=("errors", "logs"),
         use_cases=("investigate an elevated error rate", "find why a pod restarted"),
-        evidence_source="redis",
+        evidence_source="datadog",
         evidence_type=EvidenceType.LOG,
         side_effect_level=SideEffectLevel.READ,
         parallel_safe=True,
-        requires=Requirements(integrations=("redis",)),
+        requires=Requirements(integrations=("datadog",)),
     )
     return RegisteredTool(
         metadata=metadata,
@@ -194,8 +192,8 @@ async def build_stack(*, sender: RecordingSender | None = None) -> ProxyStack:
     gateway = FakePersistence()
     async with gateway.begin_system() as system:
         await system.orgs.create_organisation(ORG_ID, "Acme")
-    schemas = CredentialSchemaRegistry.from_schemas(REDIS.schema)
-    rules = InjectionRuleRegistry.from_rules(REDIS.rule)
+    schemas = CredentialSchemaRegistry.from_schemas(DATADOG.schema)
+    rules = InjectionRuleRegistry.from_rules(DATADOG.rule)
     outbound = sender if sender is not None else RecordingSender()
 
     engine = ProxyEngine(
@@ -223,8 +221,8 @@ async def seed_sentinel(
     """Put the sentinel credential in the vault, where only the proxy may read it."""
     await stack.vault.store(
         stack.scope,
-        CredentialHandle(integration="redis", team_id=TEAM_ID),
-        {"api_key": SENTINEL_API_KEY, "secret_key": SENTINEL_SECRET_KEY},
+        CredentialHandle(integration="datadog", team_id=TEAM_ID),
+        {"api_key": SENTINEL_API_KEY, "app_key": SENTINEL_APP_KEY},
         description="the credential this suite hunts for",
         expires_at=expires_at,
     )
@@ -308,4 +306,4 @@ def alert() -> RawAlert:
 
 def team() -> TeamContext:
     """Return the team the investigation runs for."""
-    return TeamContext(team_id=TEAM_ID, integrations=("redis",), destinations=())
+    return TeamContext(team_id=TEAM_ID, integrations=("datadog",), destinations=())

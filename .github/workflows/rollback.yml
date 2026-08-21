@@ -1,0 +1,25 @@
+name: Roll back application
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [stg]
+        required: true
+      revision:
+        description: Full 40-character GitOps commit SHA to restore
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    uses: JustShinobi/platform-workflows/.github/workflows/rollback.yml@1def53efaaec9e85fa82e82a197e5b8c0a3438de
+    with:
+      descriptor: .ci/application.yaml
+      environment: ${{ inputs.environment }}
+      revision: ${{ inputs.revision }}
+    secrets: inherit

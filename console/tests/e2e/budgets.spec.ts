@@ -100,7 +100,7 @@ test.beforeEach(async ({ context, baseURL }) => {
 test('a cold route paints its frame inside the first-paint budget', async ({
   page,
 }) => {
-  await page.goto('/administration');
+  await page.goto('/audit');
 
   const painted = await firstContentfulPaint(page);
 
@@ -126,7 +126,7 @@ test('every route paints its frame inside the budget, not only the first', async
   page,
 }) => {
   // A budget held on one route and nowhere else is a budget held by accident.
-  for (const path of ['/', '/decisions', '/administration']) {
+  for (const path of ['/', '/approvals', '/audit']) {
     await page.goto(path);
     const painted = await firstContentfulPaint(page);
     expect(painted, `${path} painted in ${String(painted)}ms`).toBeLessThan(

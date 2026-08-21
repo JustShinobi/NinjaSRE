@@ -20,8 +20,7 @@ LINT_PATHS := $(PYTHON_SOURCE_PATHS) $(wildcard tools) $(wildcard tests)
 	console-client console-client-check console-budget console-e2e console-e2e-run \
 	console-e2e-sweep console-visual console-visual-accept console-check \
 	check-console-boundary \
-	check-imports check-constants check-protocols check-deps check-config-parity \
-	check-display-names check-vendor-sdks \
+	check-imports check-constants check-protocols check-deps check-vendor-sdks \
 	check-literals check-raw-sql check-credentials check-integrations \
 	check-integration-docs check-env-example env-example \
 	check-docs check-doc-examples docs docs-build docs-serve \
@@ -292,16 +291,6 @@ check-protocols: ## Reject a Protocol method body that is more than a docstring
 check-deps: ## Reject a telemetry package in the runtime dependency tree
 	$(RUN) python tools/check_dependencies.py
 
-# Wraps the contract suite directly rather than a standalone script: the map
-# and the schema it is checked against both change from the Python side, and
-# a second implementation of "walk the schema, walk the map" would be a
-# second place for the two to drift apart.
-check-config-parity: ## Reject a configuration field with no declared owner
-	$(RUN) pytest tests/contract/console/test_console_config_ownership.py
-
-check-display-names: ## Reject a catalogue id with no display name
-	$(RUN) python -m tools.check_display_names
-
 check-vendor-sdks: ## Reject a vendor LLM SDK imported outside core/llm/
 	$(RUN) python tools/check_vendor_sdks.py
 
@@ -387,7 +376,7 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 # they are the ones a contributor is most likely to have broken while working on
 # the console, and the Python suite is the longest single step in the gate.
 verify: lint format-check typecheck check-imports check-constants \
-	check-protocols check-deps check-config-parity check-display-names check-vendor-sdks check-literals check-raw-sql \
+	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
 	check-credentials check-console-boundary check-integrations \
 	check-integration-docs check-env-example check-docs check-doc-examples \
 	console-check test ## The single quality gate CI runs

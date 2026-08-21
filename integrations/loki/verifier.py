@@ -14,16 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations._verification.diagnostics import (
-    ClockSkewProbe,
-    DataWindow,
-    DataWindowProbe,
-    client_clock_probe,
-    client_window_probe,
-)
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -92,18 +84,6 @@ PERMISSIONS: Final[tuple[RequiredPermission, ...]] = (
 )
 
 
-#: Any stream at all. A selector naming a job would report "no logs" for a
-#: deployment that simply does not run that job, which is the opposite of what
-#: this probe is for.
-_WINDOW_QUERY: Final = '{job=~".+"}'
-
-_WINDOW_ADVICE: Final = (
-    "Loki answered and is holding no lines at all for this window. Nothing is shipping to "
-    "it, its retention was cut below the window, or this credential reads a tenant nobody "
-    "writes to — check the agents that push to it before checking anything here."
-)
-
-
 @dataclass(frozen=True, slots=True)
 class LokiVerifier:
     """Checks a stored Loki credential end to end, and what it may do."""
@@ -134,39 +114,6 @@ class LokiVerifier:
                 call=lambda client: client.recent_logs(limit=1),
                 fallback_note=_NO_INTROSPECTION,
             ),
-        )
-
-    def data_window_probe(self) -> DataWindowProbe | None:
-        """Return the read that proves this Loki is holding recent lines."""
-
-        async def read(client: LokiClient, window: DataWindow) -> int:
-            answer = await client.recent_logs(
-                _WINDOW_QUERY,
-                start=window.start_epoch_nanoseconds,
-                end=window.end_epoch_nanoseconds,
-                limit=VERIFY_WINDOW_SAMPLE_LIMIT,
-            )
-            return len(answer)
-
-        return client_window_probe(
-            description=(
-                f"queries {_WINDOW_QUERY!r} over /loki/api/v1/query_range for the window — "
-                f"any stream at all, so an empty result means the store and not the selector"
-            ),
-            build=self._client,
-            read=read,
-            advice=_WINDOW_ADVICE,
-        )
-
-    def clock_probe(self) -> ClockSkewProbe | None:
-        """Return the reading that says what time this Loki thinks it is."""
-        return client_clock_probe(
-            description=(
-                "reads the Date header Loki returns on /loki/api/v1/labels, which costs no "
-                "extra call and is the server's own clock rather than a proxy's"
-            ),
-            build=self._client,
-            call=lambda client: client.ping(),
         )
 
     async def connect(self, transport: object, context: object) -> Connectivity:

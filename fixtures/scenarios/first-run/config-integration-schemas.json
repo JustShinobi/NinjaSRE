@@ -15,59 +15,6 @@
         "query": {}
       },
       "status": 404
-    },
-    {
-      "arguments": {
-        "node_id": "org-northwind"
-      },
-      "body": {
-        "schemas": [
-          {
-            "credential_fields": [
-              {
-                "help": "Bearer token accepted by whatever fronts Prometheus",
-                "label": "Token",
-                "name": "token",
-                "required": true,
-                "secret": true
-              }
-            ],
-            "display_name": "Prometheus",
-            "hosts": [
-              "prometheus.example.com"
-            ],
-            "name": "prometheus",
-            "settings_fields": []
-          },
-          {
-            "credential_fields": [
-              {
-                "help": "Proxmox API token as one line: user@realm!tokenid=secret",
-                "label": "API Token",
-                "name": "api_token",
-                "required": true,
-                "secret": true
-              }
-            ],
-            "display_name": "Proxmox VE",
-            "hosts": [
-              "proxmox.example.com"
-            ],
-            "name": "proxmox",
-            "settings_fields": []
-          }
-        ]
-      },
-      "contract_version": "1.0.0",
-      "provenance": "gateway",
-      "request": {
-        "command": "",
-        "method": "GET",
-        "node": "",
-        "path": "config-integration-schemas",
-        "query": {}
-      },
-      "status": 200
     }
   ],
   "slug": "config-integration-schemas"

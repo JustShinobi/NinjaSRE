@@ -18,12 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from typing import Any, Final
 
-from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
-from platform.estate.signal_map import signal_map_for
-from platform.persistence.ports.estate_repository import Resource
 from tools.mockplane.capture.parsers import (
     BootReading,
     MountReading,
@@ -50,14 +46,6 @@ POOL_METADATA_HIGH_PERCENT: Final = 30.0
 #: Retention this shallow means the second failed backup destroys the recovery
 #: point the first one left.
 SHALLOW_RETENTION_KEEP_LAST: Final = 2
-
-#: The run the one investigated incident in ``populated`` points at. Not a new
-#: run: ``run-0005`` (``tools/mockplane/dataset/served.py``) already exists,
-#: ``awaiting_approval``, with a proposed action (``apr-0001``) that enables a
-#: disabled backup job — which is this detector's own subject matter — so
-#: attaching it here reuses an already-coherent run rather than inventing a
-#: second one nothing else references.
-_INVESTIGATED_RUN_ID: Final = "run-0005"
 
 
 @dataclass(frozen=True, slots=True)
@@ -286,32 +274,6 @@ def node_resource_id(name: str) -> str:
     return f"node-{name}"
 
 
-#: The zones the fixture cluster is divided into, and the criticalities its
-#: owner grades guests with. Deliberately uneven: a screen that groups and
-#: filters is only exercised by a distribution somebody would actually see, and
-#: a few guests are left ungraded because a real inventory always has some.
-_DECLARED_ZONES = ("apps", "dmz", "infra", "ci")
-_DECLARED_CRITICALITY = ("high", "medium", "medium", "low")
-
-
-def _declared(guest: GuestReading) -> dict[str, str]:
-    """Return the annotations a read inventory would have put on ``guest``.
-
-    Derived from the vmid so the fixture is the same every time it is built —
-    a dataset that shuffled would make every baseline a diff.
-    """
-    try:
-        number = int(guest.vmid)
-    except ValueError:
-        return {}
-    declared = {"zone": _DECLARED_ZONES[number % len(_DECLARED_ZONES)]}
-    if number % 7:
-        # Every seventh guest is ungraded, because a real inventory always has
-        # some nobody has got round to.
-        declared["criticality"] = _DECLARED_CRITICALITY[number % len(_DECLARED_CRITICALITY)]
-    return declared
-
-
 def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     """Return the endpoints the *gateway* serves, from one cluster reading.
 
@@ -327,28 +289,10 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     to turn a reading into a resource is here.
     """
     observations = tuple(_observations(reading))
-    base_incidents = (*_incidents(reading, observations), *_alert_incidents(reading))
-    incidents = (*base_incidents, *_unattended_alert_incident(reading, base_incidents))
-    # The demonstration seeder gives a full timeline to exactly one incident:
-    # the first body ``incident-detail.json`` records
-    # (``platform/startup/demo/seeder.py``'s ``_seed_incidents`` reads only
-    # the first ``incident-detail`` response any fixture file holds). That
-    # first incident has to BE the investigated one, not a second one added
-    # beside it — an incident added alongside would render an empty
-    # investigation card against a real deployment while looking complete
-    # against this mock plane. So the run attaches to ``incidents[0]``
-    # specifically, whatever detector produced it.
-    if incidents:
-        incidents = (_investigated(incidents[0]), *incidents[1:])
+    incidents = tuple(_incidents(reading, observations))
     records: list[CapturedRecord] = [
         _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
         _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
-        _record(
-            "estate-unresolved-targets",
-            {},
-            {"targets": _unresolved_targets(incidents)},
-            Provenance.GATEWAY,
-        ),
         _record("incidents", {}, {"incidents": list(incidents)}, Provenance.GATEWAY),
         _record(
             "detectors", {}, {"detectors": _detectors(reading, observations)}, Provenance.GATEWAY
@@ -360,7 +304,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
             Provenance.GATEWAY,
         ),
     ]
-    for index, incident in enumerate(incidents):
+    for incident in incidents:
         records.append(
             _record(
                 "incident-detail",
@@ -373,8 +317,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
                         if item.detector == incident["detector"]
                         and item.subject in incident["subjects"]
                     ],
-                    "timeline": _timeline(incident, investigated=index == 0),
-                    "investigation": _investigation_summary(incident, investigated=index == 0),
+                    "timeline": _timeline(incident),
                 },
                 Provenance.GATEWAY,
             )
@@ -404,7 +347,6 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
                         "raw_status": resource["health"],
                         "explanation": resource["explanation"],
                     },
-                    "signals": _signals(resource),
                     "rollup_rule": "majority_healthy" if resource["kind"] == "node" else "own_only",
                     "freshness_seconds": 3600,
                     "contributions": [
@@ -475,125 +417,6 @@ def project(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
 # --- The estate ------------------------------------------------------------------
 
 
-def _absent_vmid(reading: ClusterReading) -> str:
-    """Return a guest identifier this reading provably does not hold.
-
-    One past the highest it carries, so the fixture cannot drift from the
-    cluster it describes: a reading that later gains that guest produces a
-    different finding rather than a fixture quietly asserting something untrue.
-    """
-    numbered = sorted(int(guest.vmid) for guest in reading.guests if guest.vmid.isdigit())
-    return str(numbered[-1] + 1) if numbered else ""
-
-
-def _alert_incidents(reading: ClusterReading) -> tuple[dict[str, Any], ...]:
-    """Return the incidents an ingested alert raised, in the route's own shape.
-
-    One, and it is the case this dataset had no example of: an alert whose
-    target nothing in the estate holds. The subject is the finding rather than a
-    resource, because there is no resource — which is the whole of what the
-    ``unresolved-target:`` prefix means.
-    """
-    absent = _absent_vmid(reading)
-    if not absent:
-        return ()
-    return (
-        {
-            "incident_id": "inc-alert-0001",
-            "title": "ContainerMemoryHigh",
-            "severity": "high",
-            "state": "open",
-            "origin": "alert",
-            "opened_at": reading.captured_at,
-            "closed_at": None,
-            "subjects": [f"unresolved-target:{absent}"],
-            "detector": "alertmanager",
-            "run_id": None,
-            "team_node_id": "",
-            "self_resolved": False,
-            "suppressed_by": "",
-            "close_reason": "",
-            "summary": (
-                f"the alert is about hypervisor guest {absent}, and no guest in this estate "
-                f"carries that identifier. Either it was created since the last sweep, or "
-                f"this receiver is pointed at a deployment that does not watch that cluster"
-            ),
-        },
-    )
-
-
-def _unattended_alert_incident(
-    reading: ClusterReading, prior: Sequence[Mapping[str, Any]]
-) -> tuple[dict[str, Any], ...]:
-    """Return the one incident an alert opened that nothing has investigated.
-
-    Every incident built above traces to a detector's own finding, and every
-    one of them already carries ``run_id: None`` — but none of them was built
-    to demonstrate that particular fact on its own. This one is: a single
-    incident aimed at a resource nothing else in this dataset already claims,
-    so a reader following its one subject finds one story rather than a
-    collision with an unrelated finding. Its investigation has nothing to
-    show, on purpose — that absence is itself what this fixture is for,
-    wherever something reads an incident and has to name the absence instead
-    of leaving a panel blank.
-    """
-    claimed = {subject for incident in prior for subject in incident["subjects"]}
-    guest = next(
-        (candidate for candidate in reading.guests if resource_id_of(candidate) not in claimed),
-        None,
-    )
-    if guest is None:
-        return ()
-    return (
-        {
-            "incident_id": "inc-alert-0002",
-            "title": f"{guest.name} is not responding",
-            "severity": "high",
-            "state": "open",
-            "origin": "alert",
-            "opened_at": reading.captured_at,
-            "closed_at": None,
-            "subjects": [resource_id_of(guest)],
-            "detector": "alertmanager",
-            "run_id": None,
-            "team_node_id": "",
-            "self_resolved": False,
-            "suppressed_by": "",
-            "close_reason": "",
-            "summary": (
-                f"an alert opened this incident about {guest.name}, and nothing has "
-                f"investigated it yet"
-            ),
-        },
-    )
-
-
-def _unresolved_targets(incidents: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Return the unresolved alert targets ``incidents`` recorded.
-
-    Read back off the incidents rather than built beside them, so the listing
-    and the incident that is the record of it cannot disagree — which is the
-    same derivation the route itself performs.
-    """
-    found: list[dict[str, Any]] = []
-    for incident in incidents:
-        for subject in incident["subjects"]:
-            if not str(subject).startswith(UNRESOLVED_TARGET_PREFIX):
-                continue
-            found.append(
-                {
-                    "value": str(subject)[len(UNRESOLVED_TARGET_PREFIX) :],
-                    "label": "vmid",
-                    "zone": "",
-                    "why": str(incident["summary"]),
-                    "incident_id": str(incident["incident_id"]),
-                    "alert_name": str(incident["title"]),
-                    "observed_at": str(incident["opened_at"]),
-                }
-            )
-    return found
-
-
 def _record(
     slug: str, arguments: Mapping[str, str], body: Any, provenance: Provenance
 ) -> CapturedRecord:
@@ -605,32 +428,6 @@ def _record(
         provenance=provenance,
         request=Request(command=f"projected from a direct read ({provenance.value})"),
     )
-
-
-def _signals(resource: Mapping[str, Any]) -> dict[str, Any]:
-    """Return which source answers each question about ``resource``.
-
-    Derived by the deployment's own rule rather than written out here, so the
-    dataset a screen is photographed against and the document a deployment
-    serves are one thing. What is configured in this dataset is the hypervisor
-    and nothing else — so "is it up" resolves and the rest come back as named
-    gaps, which is exactly what an estate nobody has connected a log store to
-    looks like, and is the state the empty-half of the panel exists for.
-    """
-    found = signal_map_for(
-        Resource(
-            resource_id=str(resource["resource_id"]),
-            kind=str(resource["kind"]),
-            source=str(resource["source"]),
-            native_id=str(resource["native_id"]),
-            display_name=str(resource["display_name"]),
-            attributes=dict(resource["attributes"]),
-            labels=tuple(str(label) for label in resource["labels"]),
-        ),
-        configured=(_SOURCE,),
-    )
-    record = found.to_record()
-    return {"sources": record["sources"], "missing": record["missing"]}
 
 
 def _resources(reading: ClusterReading) -> list[dict[str, Any]]:
@@ -657,12 +454,6 @@ def _resources(reading: ClusterReading) -> list[dict[str, Any]]:
         parent = node_resource_id(guest.node)
         state = _reported_health(guest.state)
         attributes: dict[str, Any] = {"backed_up": covered and identifier in covered}
-        # What an estate whose declared inventory has been read looks like. Both
-        # are annotations rather than anything the hypervisor reports: the zone
-        # is derived from the guest's address against the declared networks, the
-        # criticality is written down by whoever owns the estate. A fixture
-        # without them exercises only the column that says nobody knows.
-        attributes.update(_declared(guest))
         if guest.state == "running":
             attributes["cpu_percent"] = guest.cpu_percent
             attributes["memory_percent"] = guest.memory_percent
@@ -1143,150 +934,21 @@ def _incidents(
         }
 
 
-def _investigated(incident: dict[str, Any]) -> dict[str, Any]:
-    """Return ``incident`` with the run its investigation produced attached."""
-    return {**incident, "run_id": _INVESTIGATED_RUN_ID}
-
-
-def _investigation_summary(
-    incident: Mapping[str, Any], *, investigated: bool
-) -> dict[str, Any] | None:
-    """Return what the incident's run spent, or ``None`` when nothing ran.
-
-    The gateway derives this from the run's own turns; the capture states it,
-    because a projection that left it out made the mock plane show "no
-    investigation" beside a timeline full of reasoning steps — a screen
-    disagreeing with itself, and one that looked right against a real
-    deployment and wrong here.
-
-    A duration and a cost are given only for the incident that actually has a
-    run, and are stated rather than computed from the timeline: the numbers a
-    real deployment reports are what the run recorded, not what an onlooker
-    could add up afterwards.
-    """
-    if not investigated or not incident.get("run_id"):
-        return None
-    return {"step_count": 6, "duration_ms": 41_000, "cost": 0.004}
-
-
-def _timeline(incident: Mapping[str, Any], *, investigated: bool = False) -> list[dict[str, str]]:
-    """Return the timeline an incident starts with, in the route's own shape.
+def _timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Return the one entry an incident starts with, in the route's own shape.
 
     The actor and the cause are not decoration: every timeline entry carries
     both, because "it opened" is not an answer to the question a timeline is
     read to answer.
-
-    ``investigated`` appends a run-started entry and the five reasoning steps
-    the investigation produces — for the one incident the demonstration seeder ever
-    gives a timeline to at all (see ``estate``). Every other incident keeps
-    the single ``opened`` entry it always had.
     """
-    subjects = len(incident["subjects"])
-    raised_by_alert = incident["origin"] == "alert"
-    entries: list[dict[str, str]] = [
+    return [
         {
             "at": str(incident["opened_at"]),
             "kind": "opened",
-            "actor": "system:webhook" if raised_by_alert else "system:observation",
+            "actor": "system:observation",
             "cause": str(incident["summary"]),
-            "detail": (
-                f"{incident['detector']} delivered an alert about {subjects} target(s)"
-                if raised_by_alert
-                else f"{incident['detector']} found {subjects} subject(s)"
-            ),
+            "detail": f"{incident['detector']} found {len(incident['subjects'])} subject(s)",
         }
-    ]
-    if investigated:
-        entries.extend(_investigation_timeline(incident))
-    return entries
-
-
-def _investigation_timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]:
-    """Return a run-started entry and the five reasoning steps, in the order they happen.
-
-    Grounded in what this detector actually found rather than invented for
-    the timeline alone: the evidence step's query and result name the same
-    two disabled jobs the incident's own ``observations`` already carry, read
-    a second way — the query text and the result text, not a sentence about
-    them.
-    """
-    opened = datetime.fromisoformat(str(incident["opened_at"]))
-    subjects = ", ".join(str(subject) for subject in incident["subjects"])
-
-    def _at(minutes: float) -> str:
-        return (opened + timedelta(minutes=minutes)).isoformat()
-
-    return [
-        {
-            "at": _at(1),
-            "kind": "run_started",
-            "actor": "system:observation",
-            "cause": "an investigation was started for this incident",
-            "detail": _INVESTIGATED_RUN_ID,
-            "query": "",
-            "result": "",
-        },
-        {
-            "at": _at(2),
-            "kind": "alert_received",
-            "actor": "system:observation",
-            # ``cause`` names what authenticated the delivery and ``detail``
-            # carries the labels that arrived — the same halves the deployment's
-            # own recorder writes, so a screen reading one of them does not have
-            # to know which dataset it is looking at.
-            "cause": (
-                "raised by this deployment's own detector rather than delivered, "
-                "so no delivery token authenticated it"
-            ),
-            "detail": f"detector=backup-job-disabled, subjects={subjects}",
-            "query": "",
-            "result": "",
-        },
-        {
-            "at": _at(3),
-            "kind": "hypotheses_drawn",
-            "actor": "system:observation",
-            "cause": "considered before any integration was queried",
-            "detail": (
-                "paused for a maintenance window; never enabled after being created; "
-                "failed to re-enable after the last restore"
-            ),
-            "query": "",
-            "result": "",
-        },
-        {
-            "at": _at(4),
-            "kind": "evidence",
-            "actor": "system:observation",
-            "cause": f"both jobs covering {subjects} are disabled, not merely quiet",
-            "detail": "",
-            "query": "pvesh get /cluster/backup",
-            "result": (
-                "backup-7d831311: schedule 08:00, enabled=false, covers_all=true; "
-                "backup-1f376301: schedule 02:30,22:30, enabled=false, covers_all=false"
-            ),
-        },
-        {
-            "at": _at(5),
-            "kind": "diagnosis",
-            "actor": "system:observation",
-            "cause": (
-                "both backup jobs are disabled, not paused for a maintenance window — "
-                "nothing scheduled to re-enable them"
-            ),
-            "detail": "",
-            "query": "",
-            "result": "",
-        },
-        {
-            "at": _at(6),
-            "kind": "report_delivered",
-            "actor": "system:observation",
-            "cause": "report delivered",
-            "detail": "#backups, oncall@example.test",
-            "query": "",
-            "result": "",
-        },
     ]
 
 

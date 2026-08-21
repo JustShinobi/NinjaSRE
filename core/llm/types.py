@@ -216,12 +216,6 @@ class InvokeRequest:
     prompt_cache: bool = False
     stop_sequences: tuple[str, ...] = ()
     metadata: Mapping[str, str] = field(default_factory=dict)
-    #: Obliges the model to call one of ``tools`` rather than merely offering
-    #: it the choice. A property of the request, not of the adapter: turned on
-    #: only by the preflight probe that measures whether tool calling actually
-    #: works, so every other caller keeps today's behaviour, where the model is
-    #: free to answer in text.
-    force_tool_call: bool = False
 
 
 @dataclass(frozen=True, slots=True)

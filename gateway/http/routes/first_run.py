@@ -23,11 +23,7 @@ from pydantic import BaseModel, Field
 
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
-from gateway.http.runtime import runtime_composed
 from gateway.http.state import GatewayState
-from gateway.http.verifications import integration_health
-from integrations._catalogue.discovery import catalogue
-from integrations._catalogue.entry import HealthStatus
 from platform.startup.bootstrap import establish_durable_credential, read_credential
 from platform.startup.checklist import build_checklist
 from platform.startup.demo import DemoRefused, remove_demonstration, seed_demonstration
@@ -43,27 +39,12 @@ class ChecklistStepView(BaseModel):
     state: str
     detail: str = ""
     action: str = ""
-    #: How far along the thing this step configures is: ``absent``,
-    #: ``configured``, or ``verified``. Distinct from ``state``, which is about
-    #: the step. A key that is stored and unchecked is the middle one, and it is
-    #: the state a wrong key sits in until an incident finds it.
-    readiness: str
-
-
-class IntegrationReadinessView(BaseModel):
-    name: str
-    readiness: str
 
 
 class ChecklistView(BaseModel):
     complete: bool
     steps: list[ChecklistStepView]
     next: str | None = None
-    #: The provider step's readiness, lifted to the top level because it is what
-    #: a first-run screen and ``ninjasre doctor`` both branch on first.
-    provider: str
-    #: Every integration this deployment declares, and how far along each is.
-    integrations: list[IntegrationReadinessView]
 
 
 class FindingView(BaseModel):
@@ -122,49 +103,20 @@ async def checklist(
     auth: AuthenticatedRequest = Depends(authorized),
     state: GatewayState = Depends(get_state),
 ) -> ChecklistView:
-    """Return what is left to set up, each step verified against its dependency.
-
-    The integration catalogue and its health ledger are read here rather than in
-    ``build_checklist``: that module is tier 3 and reaching up for ``integrations``
-    would be the boundary ``make check-imports`` exists to hold. Health is what
-    the recorded checks found, so "verified" means something answered rather than
-    that a credential is present — and it means that on the next request too,
-    which is the whole reason the answer is written down.
-    """
-    ledger = await integration_health(state.gateway, auth.scope)
-    entries = catalogue(health=ledger)
-    declared = tuple(entry.name for entry in entries)
-    reached = tuple(entry.name for entry in entries if entry.health is HealthStatus.HEALTHY)
-    built = await build_checklist(
-        state.gateway,
-        organisation_id=auth.scope.org_id,
-        integrations=declared,
-        verified_integrations=reached,
-        runtime_composed=runtime_composed(state),
-    )
+    """Return what is left to set up, each step verified against its dependency."""
+    built = await build_checklist(state.gateway, organisation_id=auth.scope.org_id)
     record = built.to_record()
     return ChecklistView(
         complete=bool(record["complete"]),
-        steps=[ChecklistStepView(**step) for step in record["steps"]],
+        steps=[ChecklistStepView(**step) for step in built.to_record()["steps"]],
         next=record["next"],
-        provider=str(record["provider"]),
-        integrations=[IntegrationReadinessView(**entry) for entry in record["integrations"]],
     )
 
 
 @router.get("/self-check", response_model=SelfCheckView, dependencies=[Depends(authorized)])
 async def run_self_check(state: GatewayState = Depends(get_state)) -> SelfCheckView:
-    """Run every check in one pass and return the findings, most blocking first.
-
-    The runtime check is handed what this process actually composed, because
-    that is a fact only the running process holds — no store can be asked
-    whether anything here can drive an investigation, and it is the one
-    dependency that leaves no trace on any screen.
-    """
-    report = await self_check(
-        state.gateway,
-        investigation_runtime=lambda: runtime_composed(state),
-    )
+    """Run every check in one pass and return the findings, most blocking first."""
+    report = await self_check(state.gateway)
     return SelfCheckView(
         ok=report.ok,
         findings=[

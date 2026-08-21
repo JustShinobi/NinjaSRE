@@ -5,14 +5,8 @@ from __future__ import annotations
 import inspect
 
 import pytest
-from conftest import POSTGRES
-from sqlalchemy import text
 
-from config.constants.persistence import (
-    MAX_GRAPH_DEPTH,
-    MAX_GRAPH_RESULTS,
-    TOPOLOGY_GRAPH_NAME,
-)
+from config.constants.persistence import MAX_GRAPH_DEPTH
 from platform.persistence.errors import BoundExceeded, TopologyUnavailable
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import (
@@ -25,7 +19,6 @@ from platform.persistence.ports import (
     TopologyNode,
     UnitOfWork,
 )
-from platform.persistence.postgres.gateway import PostgresPersistence
 
 pytestmark = pytest.mark.contract
 
@@ -39,7 +32,6 @@ QUERY_CATALOGUE = frozenset(
         "edges_from",
         "direct_dependencies",
         "direct_dependents",
-        "transitive_dependencies",
         "transitive_dependents",
         "blast_radius",
         "shortest_path",
@@ -319,136 +311,3 @@ async def test_without_a_graph_the_platform_degrades_rather_than_lies(
     health = await store.health()
     assert health.is_ready is True
     assert health.state.value == "degraded"
-
-
-async def test_a_page_cut_short_is_the_same_page_on_every_backend_and_every_run(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """Truncation has to be deterministic, or the answer depends on the storage.
-
-    A hub with more dependents than the result bound produces a partial answer.
-    Which part is not a detail: an operator comparing two runs, or comparing what
-    the console shows against what the agent reasoned over, is entitled to see
-    the same services. Ordering by node id and *then* cutting is what makes the
-    page a property of the graph rather than of the order rows came back in.
-
-    This runs against both backends, which is the point — it is the assertion
-    that they agree, not merely that each is self-consistent.
-    """
-    async with gateway.begin(scope) as uow:
-        # Ids that do not sort in insertion order, so "the lowest 500" and "the
-        # first 500 stored" are different sets and the test can tell them apart.
-        for index in reversed(range(MAX_GRAPH_RESULTS + 50)):
-            await uow.topology.upsert_edge(
-                TopologyEdge(from_node_id=f"caller-{index:05d}", to_node_id="shared-postgres")
-            )
-
-        first = await uow.topology.direct_dependents("shared-postgres")
-        again = await uow.topology.direct_dependents("shared-postgres")
-
-    assert first.truncated is True
-    assert [node.node_id for node in first.nodes] == [
-        f"caller-{index:05d}" for index in range(MAX_GRAPH_RESULTS)
-    ]
-    # Same question, same answer — including when the bound cut it.
-    assert [node.node_id for node in again.nodes] == [node.node_id for node in first.nodes]
-
-
-async def test_transitive_dependencies_walks_the_chain_and_stops_at_the_depth_asked_for(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """One traversal answers what a per-node walk used to ask for in many."""
-    async with gateway.begin(scope) as uow:
-        await chain(uow, "checkout", "payments", "ledger", "postgres")
-
-        two = await uow.topology.transitive_dependencies("checkout", depth=2)
-        three = await uow.topology.transitive_dependencies("checkout", depth=3)
-
-    assert [node.node_id for node in two.nodes] == ["ledger", "payments"]
-    assert [node.node_id for node in three.nodes] == ["ledger", "payments", "postgres"]
-    assert three.truncated is False
-
-
-async def test_transitive_dependencies_leaves_a_service_out_of_its_own_dependency_set(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """A cycle terminates, and the origin is not one of its own dependencies.
-
-    ``checkout -> payments -> checkout`` is legal in a real system. Reporting
-    ``checkout`` here would be true of the graph and useless to an operator.
-    """
-    async with gateway.begin(scope) as uow:
-        await chain(uow, "checkout", "payments", "checkout")
-
-        found = await uow.topology.transitive_dependencies("checkout", depth=MAX_GRAPH_DEPTH)
-
-    assert [node.node_id for node in found.nodes] == ["payments"]
-
-
-async def test_transitive_dependencies_never_crosses_an_involvement_edge(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """An episode an origin touched is not something the origin depends on."""
-    async with gateway.begin(scope) as uow:
-        await chain(uow, "checkout", "payments")
-        await uow.topology.upsert_edge(
-            TopologyEdge(from_node_id="checkout", to_node_id="ep-1", kind=EdgeKind.INVOLVED)
-        )
-
-        found = await uow.topology.transitive_dependencies("checkout", depth=MAX_GRAPH_DEPTH)
-
-    assert [node.node_id for node in found.nodes] == ["payments"]
-
-
-async def test_transitive_dependencies_refuses_a_depth_above_the_bound(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    """Refused rather than clamped, like every other bounded traversal."""
-    async with gateway.begin(scope) as uow:
-        with pytest.raises(BoundExceeded) as failure:
-            await uow.topology.transitive_dependencies("checkout", depth=MAX_GRAPH_DEPTH + 1)
-
-    assert failure.value.constant == "MAX_GRAPH_DEPTH"
-
-
-async def test_the_graph_is_bootstrapped_with_the_indexes_its_access_paths_need(
-    gateway: PersistenceGateway, backend_name: str
-) -> None:
-    """Apache AGE creates no index of its own, and every write pays for it.
-
-    Three access paths carry the whole catalogue, and none of them is served by
-    anything AGE builds:
-
-    - a traversal and an upsert both anchor on ``{node_id: ...}``, which AGE
-      rewrites into a containment test over the whole property map — so the
-      index has to be GIN on ``properties``. A btree over the extracted key
-      looks right and is never used, because it does not match the predicate.
-    - ``MERGE (a)-[e:Edge]->(b)`` and every hop of a traversal hunt an edge by
-      its endpoints, and without an index that is a sequential scan of every
-      edge in the graph, on every single write.
-
-    Measured, the last one is the expensive one: it makes an edge write cost
-    O(edges), so populating the graph costs O(edges²). Discovery reconciles
-    continuously rather than loading once, so this is the steady state and not a
-    one-off import.
-    """
-    if backend_name != POSTGRES:
-        pytest.skip("index creation is a property of the PostgreSQL backend")
-
-    assert isinstance(gateway, PostgresPersistence)
-    async with gateway.engine.begin() as conn:
-        rows = await conn.execute(
-            text("SELECT indexdef FROM pg_indexes WHERE schemaname = :graph"),
-            {"graph": TOPOLOGY_GRAPH_NAME},
-        )
-    definitions = [str(row[0]) for row in rows]
-
-    assert any("USING gin" in d and "properties" in d and '"Node"' in d for d in definitions), (
-        f"no GIN index on Node.properties; the anchor lookup scans every node. Found: {definitions}"
-    )
-    assert any("start_id" in d and '"Edge"' in d for d in definitions), (
-        f"no index on Edge.start_id; every edge write scans every edge. Found: {definitions}"
-    )
-    assert any("end_id" in d and '"Edge"' in d for d in definitions), (
-        f"no index on Edge.end_id; a dependents traversal scans every edge. Found: {definitions}"
-    )

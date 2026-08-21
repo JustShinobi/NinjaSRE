@@ -14,7 +14,7 @@ build instead of resolving to nothing.
 
 from __future__ import annotations
 
-from typing import Final, NamedTuple
+from typing import Final
 
 # --- Levels ------------------------------------------------------------------
 
@@ -220,72 +220,6 @@ AUTONOMY_DECISIONS: Final[tuple[str, ...]] = (
     AUTONOMY_DECISION_REFUSE,
 )
 
-# --- The representative set --------------------------------------------------
-
-
-class RepresentativeAction(NamedTuple):
-    """One stand-in action per risk class, for answering "what would happen".
-
-    ``capability`` is deliberately not the name of any tool this deployment
-    ships. The question being asked is about a *class* of action — "what would
-    happen to something reversible that touches one machine" — and borrowing a
-    real capability's name would answer a narrower question while looking like
-    it had answered the broad one: a rule scoped to that capability would decide
-    the sentence, and every other capability in the class would be misreported.
-    """
-
-    risk_class: str
-    capability: str
-    #: A resource kind the estate models, so a kind-scoped rule is read.
-    resource_kind: str
-    #: What this class of action is, in the words an operator would use.
-    summary: str
-
-
-#: The resource a representative action names. One identifier for all five,
-#: which is what keeps the reading about the *class* rather than about a
-#: machine: a resource-scoped rule naming a real guest should not silently
-#: become the answer for every action of that class.
-REPRESENTATIVE_RESOURCE_ID: Final = "a representative resource"
-
-#: One action per risk class, least dangerous first. Data rather than sampled
-#: history: a deployment on its first day has no history, and the tab has to
-#: answer on the first day — that is the day the decision to trust it is made.
-#: A recorded-action preview complements this once there is history; it does not
-#: replace it.
-REPRESENTATIVE_ACTIONS: Final[tuple[RepresentativeAction, ...]] = (
-    RepresentativeAction(
-        risk_class=RISK_CLASS_TRIVIAL,
-        capability="a reversible read-only change",
-        resource_kind="service",
-        summary="Something that undoes itself, touches one resource, and loses nothing.",
-    ),
-    RepresentativeAction(
-        risk_class=RISK_CLASS_LOW,
-        capability="a reversible restart of one workload",
-        resource_kind="service",
-        summary="Reversible, one resource, and a brief loss of availability at most.",
-    ),
-    RepresentativeAction(
-        risk_class=RISK_CLASS_MODERATE,
-        capability="a change undone only by a further change",
-        resource_kind="virtual_machine",
-        summary="Undone only by a further action, or reaching several resources at once.",
-    ),
-    RepresentativeAction(
-        risk_class=RISK_CLASS_HIGH,
-        capability="a change that needs a restore to undo",
-        resource_kind="node",
-        summary="Not reversible without a restore, or reaching many resources at once.",
-    ),
-    RepresentativeAction(
-        risk_class=RISK_CLASS_CRITICAL,
-        capability="a change that can destroy the only copy of something",
-        resource_kind="datastore",
-        summary="Can destroy data with no other copy, or take an estate's availability down.",
-    ),
-)
-
 
 __all__ = [
     "AUTONOMY_AUDIT_ACTION_DECISION",
@@ -340,14 +274,11 @@ __all__ = [
     "MAX_AUTONOMY_OVERRIDE_SECONDS",
     "MAX_AUTONOMY_PREVIEW_ACTIONS",
     "MAX_AUTONOMY_RULES",
-    "REPRESENTATIVE_ACTIONS",
-    "REPRESENTATIVE_RESOURCE_ID",
     "RISK_CLASSES",
     "RISK_CLASS_CRITICAL",
     "RISK_CLASS_HIGH",
     "RISK_CLASS_LOW",
     "RISK_CLASS_MODERATE",
     "RISK_CLASS_TRIVIAL",
-    "RepresentativeAction",
     "UNCLASSIFIED_RISK_CLASS",
 ]

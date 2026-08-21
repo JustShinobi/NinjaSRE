@@ -136,17 +136,10 @@ class IssuedToken:
     ``secret`` exists on this value and nowhere else. It is not on ``ApiToken``,
     it is not written to storage, and it is not recoverable — showing it a second
     time would mean it had been kept, and it is not.
-
-    ``superseded`` names the tokens this issuance revoked because they shared
-    its owner, its name and its team — empty unless the caller asked
-    ``TokenService.issue`` to supersede. A caller that surfaces this is what
-    makes the substitution declared and visible rather than a silent detail of
-    the audit trail.
     """
 
     token: ApiToken
     secret: str
-    superseded: tuple[str, ...] = ()
 
     @property
     def hint(self) -> str:

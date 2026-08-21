@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import { tokenStylesheet } from '@/design/css';
-import { NO_FLASH_DENSITY_SCRIPT } from '@/design/density';
 import { NO_FLASH_SCRIPT } from '@/design/theme';
 
 import './globals.css';
@@ -42,13 +41,6 @@ export default function RootLayout({
           // Synchronous on purpose. A deferred script, or an effect, resolves
           // the theme after the first paint, which is the flash itself.
           dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }}
-        />
-        <script
-          data-testid="no-flash-density"
-          // The same reasoning, and a worse symptom: a density corrected after
-          // the paint is every row on the page changing height, which moves
-          // whatever the viewer was about to click.
-          dangerouslySetInnerHTML={{ __html: NO_FLASH_DENSITY_SCRIPT }}
         />
       </head>
       <body>{children}</body>

@@ -1,0 +1,55 @@
+# a service's tasks cannot be placed.
+#
+# `bound_usd` is what one run of this scenario may cost and `resources` is what
+# it is made of. Together they are what turns "the cloud suite is expensive"
+# into a number a report can be compared against.
+scenario_id: ecs
+title: a service's tasks cannot be placed
+module: ecs
+region: eu-west-1
+service: ecs
+team_id: payments
+
+injected_fault: task_placement_failure
+failure_mode: misconfigured_limit
+severity: critical
+difficulty: 3
+
+integrations:
+- aws_ecs
+- aws
+available_evidence:
+- aws_ecs
+- aws
+
+expected_symptom:
+- tasks_pending
+- service_below_desired_count
+expected_root_cause_category: capacity_limit
+required_keywords:
+- task
+- placement
+- memory
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- aws_ecs
+optimal_trajectory:
+- aws_ecs_resource_inventory
+- aws_filter_log_events
+max_investigation_loops: 7
+
+# What one run may cost, and what it is made of.
+bound_usd: 1.50
+resources:
+- kind: ecs_cluster
+  hourly_usd: 0.02
+  count: 1
+- kind: ec2_instance
+  hourly_usd: 0.05
+  count: 2
+
+validity_probe:
+  check: service_below_desired_count
+  timeout_seconds: 300

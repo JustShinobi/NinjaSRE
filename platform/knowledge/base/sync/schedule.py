@@ -24,11 +24,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from config.constants.knowledge import (
-    CORPUS_SYNC_JOB_KIND,
-    KNOWLEDGE_SYNC_JOB_KIND,
-    TOPOLOGY_DISCOVERY_JOB_KIND,
-)
+from config.constants.knowledge import KNOWLEDGE_SYNC_JOB_KIND, TOPOLOGY_DISCOVERY_JOB_KIND
 from platform.persistence.ports.schedule_store import ScheduledJob
 
 #: How a job id is built. Deterministic, so registering the same source twice
@@ -39,11 +35,6 @@ JOB_ID = "{kind}:{source}"
 #: opaque payload; this is the one key both halves have to agree on, so it is
 #: named here rather than spelled out at each end.
 SOURCE_KEY = "source"
-
-#: The payload key naming the team a corpus run reads for. A corpus's checks
-#: become that team's detectors and its proposals arrive in that team's queue,
-#: and a job has no request to infer the team from.
-NODE_KEY = "node_id"
 
 
 def knowledge_sync_job(
@@ -69,43 +60,6 @@ def knowledge_sync_job(
         enabled=enabled,
         payload={SOURCE_KEY: source, **(payload or {})},
     )
-
-
-def corpus_sync_job(
-    *,
-    source: str,
-    schedule: str,
-    node_id: str,
-    next_run_at: datetime | None = None,
-    enabled: bool = True,
-    payload: Mapping[str, Any] | None = None,
-) -> ScheduledJob:
-    """Return the scheduled job that reads one repository's documentation.
-
-    A distinct kind from the plain document sync, and the difference is what
-    happens afterwards rather than what is read: this run also links the corpus
-    to the estate and offers the verification document's checks as detector
-    proposals, which is a queue a person then works through. A deployment that
-    wanted the documents and not the proposals would register the plain sync.
-
-    ``node_id`` travels on the payload because a corpus is read *for a team* —
-    its checks become that team's detectors and its proposals arrive in that
-    team's queue — and the job runs without a request to infer one from.
-    """
-    return ScheduledJob(
-        job_id=JOB_ID.format(kind=CORPUS_SYNC_JOB_KIND, source=source),
-        name=f"Corpus sync: {source}",
-        kind=CORPUS_SYNC_JOB_KIND,
-        schedule=schedule,
-        next_run_at=next_run_at,
-        enabled=enabled,
-        payload={SOURCE_KEY: source, NODE_KEY: node_id, **(payload or {})},
-    )
-
-
-def node_of(job: ScheduledJob) -> str:
-    """Return the node a scheduled job's payload names, or ``""``."""
-    return str(job.payload.get(NODE_KEY, ""))
 
 
 def topology_discovery_job(
@@ -141,11 +95,8 @@ def source_of(job: ScheduledJob) -> str:
 
 __all__ = [
     "JOB_ID",
-    "NODE_KEY",
     "SOURCE_KEY",
-    "corpus_sync_job",
     "knowledge_sync_job",
-    "node_of",
     "source_of",
     "topology_discovery_job",
 ]

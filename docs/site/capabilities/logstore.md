@@ -2,9 +2,87 @@
 
 # logstore capabilities
 
-6 tools and 3 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+26 tools and 13 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
+
+### `logstore-aws`
+
+CloudWatch logs. Find the group, bound the window, then read.
+
+- **Domain:** logstore
+- **Applies to alerts from:** aws, cloudwatch
+- **Requires:** aws
+
+**Directs:**
+
+- `aws_list_log_groups`
+- `aws_filter_log_events`
+
+### `logstore-azure_monitor`
+
+KQL against a Log Analytics workspace: the shape of what a query matched, and the records behind it, for the estates whose telemetry lands in Azure.
+
+- **Domain:** logstore
+- **Applies to alerts from:** azure_monitor
+- **Requires:** azure_monitor
+
+**Directs:**
+
+- `azure_monitor_log_statistics`
+- `azure_monitor_sample_logs`
+
+### `logstore-better_stack`
+
+Better Stack's log search and the monitors it is currently reporting as down, for teams using it as both log store and uptime checker.
+
+- **Domain:** logstore
+- **Applies to alerts from:** better_stack
+- **Requires:** better_stack
+
+**Directs:**
+
+- `better_stack_log_statistics`
+- `better_stack_sample_logs`
+
+### `logstore-coralogix`
+
+Coralogix log search over DataPrime or Lucene, counted by severity or application before any line is read.
+
+- **Domain:** logstore
+- **Applies to alerts from:** coralogix
+- **Requires:** coralogix
+
+**Directs:**
+
+- `coralogix_log_statistics`
+- `coralogix_sample_logs`
+
+### `logstore-datadog`
+
+Datadog log search. Aggregate before sampling, and compare against normal.
+
+- **Domain:** logstore
+- **Applies to alerts from:** datadog
+- **Requires:** datadog
+
+**Directs:**
+
+- `datadog_log_statistics`
+- `datadog_sample_logs`
+
+### `logstore-elasticsearch`
+
+Search over Elasticsearch indices, counted by field before any document is read, for the deployments whose logs live there rather than in a hosted log product.
+
+- **Domain:** logstore
+- **Applies to alerts from:** elasticsearch
+- **Requires:** elasticsearch
+
+**Directs:**
+
+- `elasticsearch_log_statistics`
+- `elasticsearch_sample_logs`
 
 ### `logstore-hermes`
 
@@ -45,7 +123,299 @@ SQL search over OpenObserve streams, counted by field before any record is read,
 - `openobserve_log_statistics`
 - `openobserve_sample_logs`
 
+### `logstore-opensearch`
+
+Search over OpenSearch indices, counted by field before any document is read, for the deployments whose logs live in the fork rather than in Elasticsearch.
+
+- **Domain:** logstore
+- **Applies to alerts from:** opensearch
+- **Requires:** opensearch
+
+**Directs:**
+
+- `opensearch_log_statistics`
+- `opensearch_sample_logs`
+
+### `logstore-sentry`
+
+Application errors as Sentry groups them: which issues are open, how often each is firing, and the events behind the ones that matter.
+
+- **Domain:** logstore
+- **Applies to alerts from:** sentry
+- **Requires:** sentry
+
+**Directs:**
+
+- `sentry_log_statistics`
+- `sentry_sample_logs`
+
+### `logstore-splunk`
+
+SPL search against Splunk, counted before it is read, for the estates whose logs have been in Splunk longer than the services producing them.
+
+- **Domain:** logstore
+- **Applies to alerts from:** splunk
+- **Requires:** splunk
+
+**Directs:**
+
+- `splunk_log_statistics`
+- `splunk_sample_logs`
+
+### `logstore-victorialogs`
+
+LogsQL against VictoriaLogs, counted by stream field before any line is read, for the estates that chose it for its ingest cost.
+
+- **Domain:** logstore
+- **Applies to alerts from:** victorialogs
+- **Requires:** victorialogs
+
+**Directs:**
+
+- `victorialogs_log_statistics`
+- `victorialogs_sample_logs`
+
 ## Tools
+
+#### `aws_filter_log_events`
+
+Read CloudWatch log events from one log group between two epoch-millisecond timestamps, optionally narrowed by a CloudWatch filter pattern. Both ends of the window are required. Returns the messages with their timestamps and stream names, and says when more matched than were read.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from aws
+- **Parallel safe:** yes
+- **Requires:** aws
+
+**Use when:**
+
+- reading the error text behind a Lambda or ECS failure in a known window
+- checking whether a service logged anything at all during an outage
+- finding the first occurrence of an error, to establish onset
+
+**Not for:**
+
+- counting events, which this does expensively and a metric does in one call
+- searching every log group at once, which CloudWatch cannot do
+- a window wider than the group's retention, which returns nothing either way
+
+#### `aws_list_log_groups`
+
+List CloudWatch log groups in the configured region, optionally narrowed by name prefix. Call it before filtering events when the exact group name is not certain — a query against a mistyped group fails in a way that costs a turn. Returns names, retention, and stored size.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws
+- **Parallel safe:** yes
+- **Requires:** aws
+
+**Use when:**
+
+- confirming a log group's exact name before querying it
+- finding which log groups a service writes to when the naming is not obvious
+- checking whether a Lambda or ECS task logs anywhere at all
+
+**Not for:**
+
+- reading log content, which filtering events does
+- listing every group in a large account with no prefix, which returns noise
+- discovering non-logging AWS resources, which this cannot see
+
+#### `azure_monitor_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from azure_monitor
+- **Parallel safe:** yes
+- **Requires:** azure_monitor
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `azure_monitor_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from azure_monitor
+- **Parallel safe:** yes
+- **Requires:** azure_monitor
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `better_stack_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from better_stack
+- **Parallel safe:** yes
+- **Requires:** better_stack
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `better_stack_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from better_stack
+- **Parallel safe:** yes
+- **Requires:** better_stack
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `coralogix_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from coralogix
+- **Parallel safe:** yes
+- **Requires:** coralogix
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `coralogix_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from coralogix
+- **Parallel safe:** yes
+- **Requires:** coralogix
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `datadog_log_statistics`
+
+Count Datadog logs matching a query over a window, grouped by one facet — status, service, host, or any other. Returns the distribution rather than the lines, so it is affordable on a query matching millions. Call this before sampling: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from datadog
+- **Parallel safe:** yes
+- **Requires:** datadog
+
+**Use when:**
+
+- an error-rate alert where the failing status, service, or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing the shape of a window against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+- a question about a single known request, where the count is one
+
+#### `datadog_sample_logs`
+
+Return a small sample of Datadog log lines matching a query in a window, newest first. Use it after the statistics call has singled out a status, service, or host, and narrow the query to that group — a sample from an unnarrowed query is arbitrary. The result says whether more matched than were returned.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from datadog
+- **Parallel safe:** yes
+- **Requires:** datadog
+
+**Use when:**
+
+- reading the actual error message from the group an aggregation singled out
+- getting the stack trace behind a spike the counts have already located
+- quoting two or three representative lines into a finding
+
+**Not for:**
+
+- an unnarrowed query, where the sample is arbitrary and teaches nothing
+- counting anything — the statistics capability answers that in one call
+- exporting logs in bulk, which this deliberately cannot do
+
+#### `elasticsearch_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from elasticsearch
+- **Parallel safe:** yes
+- **Requires:** elasticsearch
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `elasticsearch_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from elasticsearch
+- **Parallel safe:** yes
+- **Requires:** elasticsearch
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
 
 #### `hermes_log_statistics`
 
@@ -153,6 +523,162 @@ Return a small, capped sample of the log lines matching a query over a window, n
 - **Evidence:** log from openobserve
 - **Parallel safe:** yes
 - **Requires:** openobserve
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `opensearch_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from opensearch
+- **Parallel safe:** yes
+- **Requires:** opensearch
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `opensearch_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from opensearch
+- **Parallel safe:** yes
+- **Requires:** opensearch
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `sentry_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from sentry
+- **Parallel safe:** yes
+- **Requires:** sentry
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `sentry_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from sentry
+- **Parallel safe:** yes
+- **Requires:** sentry
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `splunk_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from splunk
+- **Parallel safe:** yes
+- **Requires:** splunk
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `splunk_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from splunk
+- **Parallel safe:** yes
+- **Requires:** splunk
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `victorialogs_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from victorialogs
+- **Parallel safe:** yes
+- **Requires:** victorialogs
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `victorialogs_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from victorialogs
+- **Parallel safe:** yes
+- **Requires:** victorialogs
 
 **Use when:**
 

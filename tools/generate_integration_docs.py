@@ -1,7 +1,7 @@
 """Generate the integration catalogue page from the declarations themselves.
 
 The same argument as the capability reference, and it gets stronger with every
-vendor. A hand-written catalogue of every integration is a catalogue that
+vendor. A hand-written catalogue of eighty-five integrations is a catalogue that
 is wrong — not eventually, but at the first vendor whose permission list changes
 and whose entry nobody remembers to update. A page saying an integration needs
 one scope when it needs two is worse than no page: it sends an operator to grant

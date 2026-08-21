@@ -1,4 +1,4 @@
-"""The credential shapes every vendor turns out to have four of.
+"""The credential shapes eighty-five vendors turn out to have four of.
 
 Every integration declares what its credential is made of, and almost every one
 of those declarations is one of the same handful: a bearer token, an API key in
@@ -47,9 +47,6 @@ def secret(
     required: bool = True,
     min_length: int = 1,
     alternatives: Iterable[str] = (),
-    label: str = "",
-    min_scope: str = "",
-    guide_url: str = "",
 ) -> CredentialField:
     """Return a field holding material the agent must never see."""
     return CredentialField(
@@ -60,9 +57,6 @@ def secret(
         min_length=min_length,
         pattern=pattern,
         alternatives=tuple(alternatives),
-        label=label,
-        min_scope=min_scope,
-        guide_url=guide_url,
     )
 
 
@@ -72,9 +66,6 @@ def public(
     *,
     required: bool = False,
     pattern: str | None = None,
-    label: str = "",
-    min_scope: str = "",
-    guide_url: str = "",
 ) -> CredentialField:
     """Return a configuration field a capability may legitimately read."""
     return CredentialField(
@@ -83,9 +74,6 @@ def public(
         required=required,
         kind=FieldKind.PUBLIC,
         pattern=pattern,
-        label=label,
-        min_scope=min_scope,
-        guide_url=guide_url,
     )
 
 

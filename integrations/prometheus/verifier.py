@@ -7,12 +7,6 @@ with no sign that it was knowable at setup time.
 
 So connectivity is one cheap call, each permission is its own cheap call, and
 the report names the permission rather than the failure.
-
-A third question, and for a metric store it is the one that matters most: a
-Prometheus whose scrape targets are all down answers 200 to everything above and
-holds nothing. An investigation that reaches it concludes the metric never moved,
-with a citation. So verification also evaluates a query over a recent window and
-reports an empty result as its own state.
 """
 
 from __future__ import annotations
@@ -20,16 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations._verification.diagnostics import (
-    ClockSkewProbe,
-    DataWindow,
-    DataWindowProbe,
-    client_clock_probe,
-    client_window_probe,
-)
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -92,18 +78,6 @@ PERMISSIONS: Final[tuple[RequiredPermission, ...]] = (
     PERMISSION_2,
 )
 
-#: The one query every Prometheus with a single scrape target answers, and the
-#: only query that is empty exactly when the server has nothing. Anything more
-#: specific would report "no data" for a deployment that simply does not run the
-#: exporter the query named.
-_WINDOW_QUERY: Final = "up"
-
-_WINDOW_ADVICE: Final = (
-    "Prometheus answered and is holding no series at all for this window. Its scrape "
-    "targets are down, its retention was cut below the window, or this credential reads "
-    "a tenant nobody writes to — check /targets on the server before checking anything here."
-)
-
 
 @dataclass(frozen=True, slots=True)
 class PrometheusVerifier:
@@ -135,40 +109,6 @@ class PrometheusVerifier:
                 call=lambda client: client.list_alerts(limit=1),
                 fallback_note=_NO_INTROSPECTION,
             ),
-        )
-
-    def data_window_probe(self) -> DataWindowProbe | None:
-        """Return the read that proves this Prometheus is holding recent series."""
-
-        async def read(client: PrometheusClient, window: DataWindow) -> int:
-            answer = await client.query_metric(
-                _WINDOW_QUERY,
-                start=window.start_rfc3339,
-                end=window.end_rfc3339,
-                limit=VERIFY_WINDOW_SAMPLE_LIMIT,
-            )
-            return len(answer)
-
-        return client_window_probe(
-            description=(
-                f"evaluates {_WINDOW_QUERY!r} over /api/v1/query_range for the window — the "
-                f"one query a server with any scrape target at all answers, so an empty "
-                f"result means the server and not the query"
-            ),
-            build=self._client,
-            read=read,
-            advice=_WINDOW_ADVICE,
-        )
-
-    def clock_probe(self) -> ClockSkewProbe | None:
-        """Return the reading that says what time this Prometheus thinks it is."""
-        return client_clock_probe(
-            description=(
-                "reads the Date header Prometheus returns on /api/v1/status/buildinfo, which "
-                "costs no extra call and is the server's own clock rather than a proxy's"
-            ),
-            build=self._client,
-            call=lambda client: client.ping(),
         )
 
     async def connect(self, transport: object, context: object) -> Connectivity:

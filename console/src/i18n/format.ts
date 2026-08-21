@@ -15,7 +15,7 @@
  * nobody here can review.
  */
 
-import { message, type Locale, type MessageKey } from './messages';
+import type { Locale } from './messages';
 
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
@@ -26,43 +26,13 @@ export function formatNumber(locale: Locale, value: number): string {
   return new Intl.NumberFormat(locale).format(value);
 }
 
-/**
- * A counted noun that agrees with its count: the `one` key at exactly one, the
- * `other` key otherwise, with `{count}` written the way `locale` writes it.
- *
- * The choice lives here rather than in each screen because "1 events" is the
- * kind of defect every caller reintroduces independently — each key pair
- * declares both forms in the catalogue and every count goes through this one
- * decision.
- */
-export function formatCount(
-  locale: Locale,
-  count: number,
-  one: MessageKey,
-  other: MessageKey,
-): string {
-  return message(locale, count === 1 ? one : other, {
-    count: formatNumber(locale, count),
-  });
-}
-
 /** `value` as money in `currency`, the way `locale` writes money. */
 export function formatCurrency(
   locale: Locale,
   value: number,
   currency: string,
 ): string {
-  // A model call that cost fractions of a cent is ordinary, and two decimal
-  // places render it as nothing spent. "$0.00" beside a finished investigation
-  // does not read as "very cheap" — it reads as "free", which is a different
-  // claim and a false one. Small non-zero amounts keep enough places to stay
-  // true; everything at or above a cent formats the way money usually does.
-  const tiny = value !== 0 && Math.abs(value) < 0.01;
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    ...(tiny ? { maximumFractionDigits: 4 } : {}),
-  }).format(value);
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value);
 }
 
 /**

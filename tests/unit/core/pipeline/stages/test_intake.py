@@ -212,7 +212,7 @@ def test_a_window_that_cannot_be_derived_falls_back_and_says_so() -> None:
 def test_a_start_time_in_the_future_falls_back_rather_than_producing_a_dead_window() -> None:
     """Clock skew between a vendor and this deployment is common, and a window
     that has not happened yet returns nothing from every downstream query."""
-    alert = NormalisedAlert(alert_source=AlertSource.GRAFANA, started_at=AT + timedelta(hours=2))
+    alert = NormalisedAlert(alert_source=AlertSource.DATADOG, started_at=AT + timedelta(hours=2))
 
     window = derive_window(alert, now=AT)
 

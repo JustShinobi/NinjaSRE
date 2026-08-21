@@ -101,10 +101,8 @@ A single self-hosted deployment provides:
 - a **REST API with SSE** and webhook ingestion for alert-triggered investigation
 - **chat surfaces**: Slack, Microsoft Teams, Telegram, Discord
 - **push notifications** via Pushover and other sinks
-- an **integration catalogue** staged by what the operator's own environment
-  can validate end to end — observability, cloud, databases, version control,
-  incident management, and communication, with the roadmap naming what is
-  deferred until an environment exists to validate it
+- **~85 integrations** across observability, cloud, databases, data platforms,
+  version control, incident management, and communication
 - **multi-tenancy** with hierarchical org → team configuration, RBAC, SSO, and a
   full audit trail
 - an **evaluation suite** — synthetic scenarios, chaos experiments, and cloud e2e

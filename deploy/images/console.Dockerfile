@@ -7,7 +7,7 @@
 # the reason the standard profile has four containers rather than three.
 
 # syntax=docker/dockerfile:1
-ARG BASE_PYTHON=python:3.14.7-slim-trixie
+ARG BASE_PYTHON=python:3.12.11-slim-bookworm
 
 FROM ${BASE_PYTHON} AS build
 
@@ -27,9 +27,7 @@ COPY platform ./platform
 COPY surfaces ./surfaces
 
 RUN python -m venv /opt/ninjasre \
-    && /opt/ninjasre/bin/pip install --no-cache-dir ".[all-providers]" \
-    && ln -s "$(/opt/ninjasre/bin/python -c 'import site; print(site.getsitepackages()[0])')" \
-        /opt/ninjasre/site-packages
+    && /opt/ninjasre/bin/pip install --no-cache-dir .
 
 FROM ${BASE_PYTHON} AS runtime
 
@@ -39,8 +37,7 @@ LABEL org.opencontainers.image.title="NinjaSRE console" \
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/ninjasre/bin:${PATH}" \
-    PYTHONPATH="/opt/ninjasre/site-packages"
+    PATH="/opt/ninjasre/bin:${PATH}"
 
 RUN groupadd --gid 10001 ninjasre \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin ninjasre

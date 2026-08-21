@@ -104,31 +104,32 @@ describe('a screen reached through its address', () => {
     expect(screen.getByTestId('page-header')).toBeInTheDocument();
   });
 
+  it('reads a configuration node the address names', async () => {
+    serveScenario('populated', principalHolding(['config.read', 'config.write']));
+    await renderArea('configuration', { node: 'org-northwind' });
+
+    expect(screen.getAllByTestId('config-value').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('provenance').length).toBeGreaterThan(0);
+  });
+
   it('centres the topology on the node the address names', async () => {
-    serveScenario('populated', principalHolding(['memory.read', 'knowledge.read']));
-    await renderArea('knowledge', { tab: 'topology', node: 'svc-checkout' });
+    serveScenario('populated', principalHolding(['memory.read']));
+    await renderArea('topology', { node: 'svc-checkout' });
 
     expect(screen.getByTestId('graph-list')).toBeInTheDocument();
   });
 
   it('filters the knowledge base and the episode corpus', async () => {
     serveScenario('populated', principalHolding(['knowledge.read', 'memory.read']));
-    await renderArea('knowledge', { tab: 'documents', kind: 'runbook' });
-    await renderArea('knowledge', {
-      tab: 'learned',
-      component: 'storage',
-      outcome: 'resolved',
-    });
+    await renderArea('knowledge', { kind: 'runbook' });
+    await renderArea('memory', { component: 'storage', outcome: 'resolved' });
 
     expect(screen.getAllByTestId('page-header').length).toBe(2);
   });
 
   it('filters the audit record by principal and action', async () => {
     serveScenario('populated', principalHolding(['audit.read', 'audit.export']));
-    await renderArea('settings-audit-log', {
-      actor: 'user-avery',
-      action: 'run.start',
-    });
+    await renderArea('audit', { actor: 'user-avery', action: 'run.start' });
 
     expect(screen.getByTestId('audit-export')).toBeInTheDocument();
   });
@@ -140,7 +141,7 @@ describe('the autonomy screen', () => {
   });
 
   it('reads the rules in resolution order, least specific first', async () => {
-    await renderArea('autonomy', { tab: 'rules-windows' });
+    await renderArea('autonomy');
 
     const levels = screen
       .getAllByTestId('autonomy-rule')
@@ -151,17 +152,15 @@ describe('the autonomy screen', () => {
   });
 
   it('says what an empty table would have meant, whatever the table holds', async () => {
-    await renderArea('autonomy', { tab: 'rules-windows' });
+    await renderArea('autonomy');
 
     // The footer is not an empty state. An operator reading a *full* table
     // still needs to know that anything the rules do not cover is refused.
     expect(screen.getByTestId('autonomy-footer').textContent).toContain('propose-only');
   });
 
-  it('shows the bounds beside the posture they constrain, because both are true at once', async () => {
-    // The bounds panel now reads on Posture, not Rules & windows — it is
-    // the posture reading, not a rule.
-    await renderArea('autonomy', { tab: 'posture' });
+  it('shows the bounds beside the rules, because both are true at once', async () => {
+    await renderArea('autonomy');
 
     const kinds = screen
       .getAllByTestId('bound')
@@ -178,85 +177,33 @@ describe('a viewer who may act', () => {
       'populated',
       principalHolding(['approval.read', 'remediation.approve', 'investigation.read']),
     );
-    await renderArea('decisions', { tab: 'actions' });
+    await renderArea('approvals');
 
     expect(screen.getAllByTestId('approval').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('proposal-row').length).toBeGreaterThan(0);
   });
 
-  it('is offered the tools browser on the agent screen', async () => {
-    serveScenario('populated', principalHolding(['config.read', 'integration.manage']));
-    await renderArea('agent', { tab: 'tools' });
+  it('is offered the credential field on the catalogue', async () => {
+    serveScenario(
+      'populated',
+      principalHolding(['investigation.read', 'config.read', 'integration.manage']),
+    );
+    await renderArea('catalogue');
 
     expect(screen.getAllByTestId('capability').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('integration').length).toBeGreaterThan(0);
   });
 
-  it('is offered the connected and catalogue sections on integrations', async () => {
-    serveScenario('populated', principalHolding(['integration.manage']));
-    await renderArea('integrations');
-
-    expect(screen.getAllByTestId('connected-integration').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('catalogue-item').length).toBeGreaterThan(0);
-  });
-
-  it('is told what the catalogue does not cover, and why, on its own reference page', async () => {
-    // An operator evaluating this platform against their own stack otherwise
-    // discovers an absence by looking for it and not finding it, which is the
-    // worst moment and the worst way. A decision with the reasoning written
-    // down is also where the next "should we build X" conversation starts.
-    serveScenario('populated', principalHolding(['integration.manage']));
-    await renderArea('integrations-not-covered');
-
-    const gaps = screen.getAllByTestId('known-gap');
-    const named = gaps.map((gap) => gap.getAttribute('data-integration'));
-    expect(named).toContain('gatus');
-    expect(named).toContain('netbox');
-
-    const gatus = gaps.find((gap) => gap.getAttribute('data-integration') === 'gatus');
-    expect(gatus).toHaveAttribute('data-cause', 'not_built');
-    expect(gatus).toHaveTextContent('blackbox exporter');
-    expect(gatus).toHaveTextContent('What would change it:');
-  });
-
-  it('tells a decision apart from something the architecture forbids', async () => {
-    serveScenario('populated', principalHolding(['integration.manage']));
-    await renderArea('integrations-not-covered');
-
-    const causes = screen
-      .getAllByTestId('known-gap')
-      .map((gap) => gap.getAttribute('data-cause'));
-    expect(new Set(causes)).toEqual(new Set(['not_built', 'unreachable']));
-  });
-
-  it('is offered the principals and grants on administration, desmembered from tokens and sign-on', async () => {
-    // The property the desmembramento exists to establish: `administration`
-    // (now Members & roles) reads only what it shows — people and their
-    // grants — and machine tokens and single sign-on moved to their own
-    // pages, covered separately below.
+  it('is offered the token list and the sign-on panel on administration', async () => {
     serveScenario(
       'populated',
       principalHolding(['identity.read', 'token.manage', 'sso.manage']),
     );
     await renderArea('administration');
 
+    expect(screen.getAllByTestId('token').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('principal').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('grant').length).toBeGreaterThan(0);
-    expect(screen.queryAllByTestId('token')).toEqual([]);
-    expect(screen.queryByTestId('sso-setup-flow')).toBeNull();
-  });
-
-  it('is offered the machine token list on its own page', async () => {
-    serveScenario('populated', principalHolding(['token.manage']));
-    await renderArea('settings-machine-tokens');
-
-    expect(screen.getAllByTestId('token').length).toBeGreaterThan(0);
-  });
-
-  it('is offered the sign-on flow on its own page', async () => {
-    serveScenario('populated', principalHolding(['sso.manage']));
-    await renderArea('settings-single-sign-on');
-
-    expect(screen.getByTestId('sso-setup-flow')).toBeInTheDocument();
   });
 });
 

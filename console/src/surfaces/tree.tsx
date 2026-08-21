@@ -1,8 +1,5 @@
 import type { ReactNode } from 'react';
 
-import { Breadcrumb } from '@/components/navigation';
-import { dataOf, list, optionalRead, read, text } from './read';
-
 /**
  * The organisation, as a tree, in one pass over a flat list.
  *
@@ -94,49 +91,6 @@ export function placeNodes(nodes: readonly TreeNode[]): readonly PlacedNode[] {
   return placed;
 }
 
-/**
- * The organisation a `/v1/config` payload describes, placed and ready to draw.
- *
- * Every screen that is scoped to a node needs the tree before it can name one,
- * and each of them was picking `nodes`, `node_id` and `parent_id` out of an
- * `unknown` in its own words. One reader, so a field the API renames is renamed
- * here and nowhere else.
- *
- * A payload that carries nothing — an unconfigured deployment, or a read that
- * failed and handed on `undefined` — is an empty tree rather than a throw. That
- * is the whole point of it being one function: the emptiness is answered once,
- * in the place that knows what the shape is.
- */
-export function placedTree(payload: unknown): readonly PlacedNode[] {
-  return placeNodes(
-    list(payload, 'nodes').map((record) => ({
-      id: text(record, 'node_id'),
-      name: text(record, 'name'),
-      kind: text(record, 'kind'),
-      parentId: text(record, 'parent_id') === '' ? null : text(record, 'parent_id'),
-    })),
-  );
-}
-
-/**
- * The node a viewer's configuration writes land at: their own team, or — when
- * the session names none — the root of the tree they may see.
- *
- * The second half is the same fallback the configuration screen applies when
- * nothing has chosen a node yet, made reachable for screens that have no tree
- * of their own on the page. It costs a read only on the sessions that need it.
- * A viewer with no team and no visible tree resolves to the empty string, and
- * a caller holding that writes nothing.
- */
-export async function viewerNode(
-  viewer: { readonly teamNodeId: string },
-  init: RequestInit,
-): Promise<string> {
-  if (viewer.teamNodeId !== '') return viewer.teamNodeId;
-  const tree = await optionalRead('/v1/config', () => read('/v1/config', init));
-  return placedTree(dataOf(tree))[0]?.id ?? '';
-}
-
 export interface OrgTreeProps {
   readonly nodes: readonly PlacedNode[];
   readonly selected: string;
@@ -159,7 +113,7 @@ export function OrgTree({ nodes, selected, hrefFor, label }: OrgTreeProps): Reac
               className={
                 node.id === selected
                   ? 'flex items-center gap-2 px-2 py-1 rounded-2 bg-accent-bg text-accent text-small'
-                  : 'flex items-center gap-2 px-2 py-1 rounded-2 text-small motion-hover hover:bg-hover'
+                  : 'flex items-center gap-2 px-2 py-1 rounded-2 text-small motion-hover hover:bg-sunken'
               }
               // Indentation is a drawing measurement rather than a spacing step:
               // it multiplies with depth, and a scale step that multiplied would
@@ -173,31 +127,5 @@ export function OrgTree({ nodes, selected, hrefFor, label }: OrgTreeProps): Reac
         ))}
       </ul>
     </nav>
-  );
-}
-
-/**
- * The Organisation panel's own body: the tree, or — with nothing to
- * navigate — the breadcrumb that says so.
- *
- * A tree earns the space it takes. One node is the common shape of a fresh
- * or small deployment, and a nav-and-list rendering of a single node is a
- * whole column spent on a name the panel's own title already gives; that
- * case collapses to a breadcrumb instead, and `OrgTree` itself is drawn
- * only where there is more than one node to choose between. Every screen
- * that shows this panel — Team context today, Configuration alongside it —
- * shares this one function rather than each keeping its own copy of the
- * same two branches.
- */
-export function OrgNav({ nodes, selected, hrefFor, label }: OrgTreeProps): ReactNode {
-  if (nodes.length > 1) {
-    return (
-      <OrgTree nodes={nodes} selected={selected} hrefFor={hrefFor} label={label} />
-    );
-  }
-  return (
-    <div data-testid="org-breadcrumb">
-      <Breadcrumb label={label} trail={nodes.map((node) => ({ label: node.name }))} />
-    </div>
   );
 }

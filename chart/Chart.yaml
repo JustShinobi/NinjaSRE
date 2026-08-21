@@ -1,0 +1,23 @@
+apiVersion: v2
+name: ninjasre
+description: ninjasre wrapper over homelab-k8s-app-chart
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+dependencies:
+  - name: homelab-k8s-app-chart
+    version: 1.3.1
+    repository: oci://registry.lan.kyo.ninja/charts
+    alias: app
+  - name: homelab-k8s-app-chart
+    version: 1.3.1
+    repository: oci://registry.lan.kyo.ninja/charts
+    alias: console
+  - name: homelab-k8s-app-chart
+    version: 1.3.1
+    repository: oci://registry.lan.kyo.ninja/charts
+    alias: proxy
+  - name: homelab-k8s-app-chart
+    version: 1.3.1
+    repository: oci://registry.lan.kyo.ninja/charts
+    alias: postgres

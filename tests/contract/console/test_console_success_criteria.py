@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final
+from typing import Any
 
 import pytest
 import yaml
@@ -29,9 +29,6 @@ from config.constants.console import (
 from tools.console_gate import REQUIRED
 from tools.console_toolchain import REPO_ROOT, console_root
 from tools.measure_verify import BUDGETS, EXIT_OVER_BUDGET, Measurement
-
-ROUTES_MODULE: Final = console_root() / "src" / "shell" / "routes.ts"
-CONSOLE_SRC: Final = console_root() / "src"
 
 pytestmark = pytest.mark.contract
 
@@ -218,41 +215,3 @@ def test_the_measurement_reports_a_shape_a_workflow_can_publish() -> None:
     assert re.search(r'"seconds":\s*12\.3', reported), reported
     for field in ("profile", "budget_seconds", "within_budget", "gate_passed"):
         assert f'"{field}"' in reported, reported
-
-
-# --- Every empty-state CTA lands on a route the manifest knows -----------------------
-
-
-def _text(path: Path) -> str:
-    assert path.is_file(), f"{path} does not exist"
-    return path.read_text(encoding="utf-8")
-
-
-def test_every_typed_cta_targets_a_route_the_manifest_declares() -> None:
-    """`resolveCta({ route: ... })` is checked against `routes.ts`, every call site.
-
-    The CTA contract is that a destination is a route this console actually
-    serves, never a string a reviewer has to trust — `resolveCta` throws for
-    one that is not, at the point the destination is built, so this inventory
-    is a static reflection of the same invariant rather than a second copy of
-    it: read the manifest once, read every call site once, and the two either
-    agree or the invariant they both hold has drifted.
-    """
-    declared = set(re.findall(r"^\s+path: '([^']+)',$", _text(ROUTES_MODULE), re.MULTILINE))
-    assert declared, "routes.ts declares no path to check empty-state CTAs against"
-
-    referenced: set[str] = set()
-    for path in sorted(CONSOLE_SRC.rglob("*.ts*")):
-        if path.suffix not in {".ts", ".tsx"}:
-            continue
-        for match in re.finditer(r"resolveCta\(\s*\{\s*route:\s*'([^']+)'", _text(path)):
-            referenced.add(match.group(1))
-
-    assert referenced, (
-        "no source file under console/src calls resolveCta, so this inventory checks nothing"
-    )
-    unknown = referenced - declared
-    assert not unknown, (
-        f"{sorted(unknown)} is not a route routes.ts declares; a CTA aimed there is a dead "
-        f"link waiting for a click"
-    )

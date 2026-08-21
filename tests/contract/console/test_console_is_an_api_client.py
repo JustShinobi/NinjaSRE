@@ -244,10 +244,7 @@ async def test_saving_the_previewed_patch_produces_exactly_the_previewed_values(
     await _seed_locked_and_gated(deployment)
     console, session = await _console_for(deployment, api, Role.OWNER, node_id=None)
     client = console.client.with_token(session.token)
-    # A capability this build actually installs. The write validates a reference
-    # against the live catalogue, so an invented name is refused before the
-    # property this test is about — preview equals outcome — can be observed.
-    patch = {"capabilities": {"disabled": ["restart_workload"]}}
+    patch = {"capabilities": {"disabled": ["kubernetes.restart_deployment"]}}
 
     preview = await client.preview_config(TEAM_PAYMENTS, patch)
     await client.write_config(TEAM_PAYMENTS, patch)

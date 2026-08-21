@@ -3,16 +3,8 @@ import type { ReactNode } from 'react';
 
 import { Breadcrumb } from '@/components/navigation';
 import { PageHeader } from '@/components/layout';
-import type { MessageKey } from '@/i18n/en';
 import { message, type Locale } from '@/i18n/messages';
-import {
-  areaFor,
-  settingsPageFor,
-  trailFor,
-  type Area,
-  type SettingsGroup,
-  type SettingsPage,
-} from './routes';
+import { areaFor, trailFor, type Area } from './routes';
 import { deployment, documentTitle } from './deployment';
 import { requestLocale } from './request';
 
@@ -94,76 +86,5 @@ export async function AreaPage({ id }: { readonly id: string }): Promise<ReactNo
         {message(locale, 'page.pending')}
       </p>
     </>
-  );
-}
-
-/** The `<title>` for one Settings page, ready to be returned from `generateMetadata`. */
-export async function settingsPageMetadata(id: string): Promise<Metadata> {
-  const page = settingsPageFor(id);
-  const locale = await requestLocale();
-  return {
-    title: documentTitle(message(locale, page.label), deployment().name),
-    description: message(locale, page.context),
-  };
-}
-
-/** Which catalogue key names each subnav group, so the header can translate it. */
-const GROUP_LABEL: Readonly<Record<SettingsGroup, MessageKey>> = {
-  organization: 'settings.group.organization',
-  agent: 'settings.group.agent',
-  data: 'settings.group.data',
-};
-
-export interface SettingsPageHeaderProps {
-  readonly page: SettingsPage;
-  readonly locale: Locale;
-  /** Anything nested under the page, for a detail route that has a parent. */
-  readonly nested?: readonly { readonly label: string; readonly href?: string }[];
-  readonly actions?: ReactNode;
-  /**
-   * The subtitle, when a page has one to say that the catalogue's own static
-   * `page.context` cannot — a node and the state it is currently in, neither
-   * of which a translation key can hold. Falls back to `page.context`, so
-   * every other caller is unaffected.
-   */
-  readonly context?: string;
-}
-
-/**
- * Title, subtitle, and the full Settings → group → page breadcrumb.
- *
- * The Settings hub's own `Area` is the trail's root — `trailFor` already
- * knows how to carry a base crumb plus whatever is nested under it, so the
- * group name and the page name are handed in as two ordinary (untranslated
- * by `trailFor`, translated here first) nested crumbs rather than teaching
- * the trail mechanism a second kind of base.
- */
-export function SettingsPageHeader({
-  page,
-  locale,
-  nested = [],
-  actions,
-  context,
-}: SettingsPageHeaderProps): ReactNode {
-  const trail = trailFor(areaFor('settings'), [
-    { label: message(locale, GROUP_LABEL[page.group]) },
-    { label: message(locale, page.label), href: page.path },
-    ...nested,
-  ]);
-  return (
-    <div data-testid="page-header" data-area={page.id}>
-      <Breadcrumb
-        label={message(locale, 'breadcrumb.label')}
-        trail={trail.map((crumb) => ({
-          label: crumb.translate ? message(locale, crumb.label) : crumb.label,
-          ...(crumb.href === undefined ? {} : { href: crumb.href }),
-        }))}
-      />
-      <PageHeader
-        title={message(locale, page.label)}
-        context={context ?? message(locale, page.context)}
-        {...(actions === undefined ? {} : { actions })}
-      />
-    </div>
   );
 }

@@ -145,8 +145,6 @@ class PostgresIncidentStore(TenantBound):
                     "cause": statement.excluded.cause,
                     "detail": statement.excluded.detail,
                     "actor": statement.excluded.actor,
-                    "query": statement.excluded.query,
-                    "result": statement.excluded.result,
                 },
             )
         )
@@ -270,8 +268,6 @@ def _entry_row(org_id: str, entry: TimelineEntry) -> dict[str, Any]:
         "actor": entry.actor,
         "cause": entry.cause,
         "detail": entry.detail,
-        "query": entry.query,
-        "result": entry.result,
     }
 
 
@@ -285,8 +281,6 @@ def _entry(row: models.IncidentTimelineRow) -> TimelineEntry:
         actor=row.actor,
         cause=row.cause,
         detail=row.detail,
-        query=row.query,
-        result=row.result,
     )
 
 

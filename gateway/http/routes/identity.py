@@ -12,48 +12,19 @@ they may do *here*, not what the role means in the abstract.
 
 from __future__ import annotations
 
-import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from config.constants.security import (
-    IDENTITY_AUDIT_RESOURCE_KIND_GRANT,
-    IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL,
-    ORGANISATION_WIDE,
-    PERMISSION_AUDIT_ACTION_GRANT,
-    PERMISSION_AUDIT_ACTION_REVOKE,
-    PRINCIPAL_AUDIT_ACTION_CREATE,
-)
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
-from gateway.http.errors import bad_request, conflict, not_found, unauthorized
+from gateway.http.errors import bad_request, not_found, unauthorized
 from gateway.http.state import GatewayState
-from platform.identity.audit.recorder import AuditContext, AuditRecorder
-from platform.identity.authorisation import require_owner_retained
-from platform.identity.errors import (
-    LastOwnerRemoval,
-    LocalSignInRejected,
-    TooManyRevocations,
-)
-from platform.identity.local_accounts import hash_local_password
-from platform.identity.models import Grant
-from platform.identity.permissions import ROLE_ORDER, Permission, Role, permissions_for
+from platform.identity.audit.recorder import AuditContext
+from platform.identity.errors import LocalSignInRejected, TooManyRevocations
 from platform.persistence.ports.audit_repository import ActorKind
-from platform.persistence.ports.identity_repository import (
-    ApiToken,
-    PrincipalKind,
-    RoleBinding,
-    User,
-)
+from platform.persistence.ports.identity_repository import ApiToken, RoleBinding, User
 from platform.startup.bootstrap import organisation_id
-
-#: Entropy in a freshly created principal's identifier. Matches the machine
-#: token id below it in shape: a caller-opaque random string, not derived
-#: from anything the request supplied — an email is chosen by whoever calls,
-#: and an identifier taken from it would make renaming a person's address
-#: indistinguishable from creating a second one.
-_PRINCIPAL_ID_BYTES = 16
 
 auth_router = APIRouter(prefix="/auth", tags=["identity"])
 identity_router = APIRouter(prefix="/identity", tags=["identity"])
@@ -87,25 +58,6 @@ class UserList(BaseModel):
     users: list[UserView]
 
 
-class CreatePrincipalRequest(BaseModel):
-    """A new person, with the password they will sign in with locally.
-
-    Creation only. There is no field here for a role: granting one is a
-    second request, through ``POST /identity/grants``, which needs the same
-    permission this route does and leaves its own audit row. A route that
-    could create a principal and hand it a role in the same call would be a
-    route that could mint an account holding more than its caller ever had
-    to be granted anything to obtain — this one cannot, because it never
-    grants at all.
-    """
-
-    email: str = Field(min_length=1)
-    display_name: str = Field(min_length=1)
-    #: Never logged, never echoed back, never stored as typed — see
-    #: ``create_principal``.
-    password: str = Field(min_length=1)
-
-
 class GrantView(BaseModel):
     grant_id: str
     principal_id: str
@@ -115,41 +67,6 @@ class GrantView(BaseModel):
 
 class GrantList(BaseModel):
     grants: list[GrantView]
-
-
-class RoleView(BaseModel):
-    """One role this deployment declares, and what holding it means."""
-
-    name: str
-    permissions: list[str]
-
-
-class RoleList(BaseModel):
-    """Every role, least privileged first."""
-
-    roles: list[RoleView]
-
-
-class GrantRequest(BaseModel):
-    """A role for somebody, somewhere in the tree.
-
-    ``node_id`` absent means the organisation as a whole, which is a different
-    thing from a grant at the root node: an organisation-wide grant survives the
-    tree being reshaped and a grant at a node does not.
-    """
-
-    principal_id: str = Field(min_length=1)
-    role: str = Field(min_length=1)
-    node_id: str | None = None
-
-
-class GrantRemovedView(BaseModel):
-    """Which grant went, and whose it was."""
-
-    grant_id: str
-    principal_id: str
-    role: str
-    node_id: str | None = None
 
 
 class TokenView(BaseModel):
@@ -175,13 +92,6 @@ class IssueTokenRequest(BaseModel):
     node_id: str | None = None
     description: str | None = None
     lifetime_days: int | None = None
-    #: A ceiling, not a grant: the token may do these and nothing else, and
-    #: never more than its owner already holds. Empty means "as wide as the
-    #: owner", which is what a personal access token is. Naming a permission
-    #: this build does not have is a refusal rather than a silent drop — a
-    #: mistyped scope that quietly widened the token would be the worst
-    #: possible outcome of a typo.
-    permissions: list[str] = Field(default_factory=list)
 
 
 class IssuedTokenView(BaseModel):
@@ -189,11 +99,6 @@ class IssuedTokenView(BaseModel):
     #: Returned exactly once, at creation. There is no route that reads it back,
     #: because the store holds a hash and nothing else.
     secret: str
-    #: The ids of any tokens this issuance revoked because they shared its
-    #: owner and purpose. Empty when nothing was superseded. Carried on the
-    #: response so the substitution is declared and visible at the point it
-    #: happens, not only discoverable afterwards in the audit trail.
-    superseded: list[str] = Field(default_factory=list)
 
 
 class BulkRevokeRequest(BaseModel):
@@ -240,26 +145,6 @@ def _grant_view(binding: RoleBinding) -> GrantView:
         role=binding.role,
         node_id=binding.node_id,
     )
-
-
-def _permissions(names: list[str]) -> tuple[Permission, ...]:
-    """Return the permissions ``names`` describes, refusing one this build lacks.
-
-    Refused rather than dropped. A dropped scope widens the token — a typo in
-    one entry of a two-entry list would issue a credential holding everything
-    its owner does — and the caller has no way to notice, because the response
-    reports the scopes it stored rather than the ones it was asked for.
-    """
-    resolved: list[Permission] = []
-    for name in names:
-        try:
-            resolved.append(Permission(name))
-        except ValueError as unknown:
-            raise bad_request(
-                f"{name!r} is not a permission this deployment has. A token scoped to a "
-                f"name nothing recognises would be as wide as its owner."
-            ) from unknown
-    return tuple(resolved)
 
 
 def _audit_context(auth: AuthenticatedRequest) -> AuditContext:
@@ -346,61 +231,6 @@ async def list_principals(
     return UserList(users=[_user_view(user) for user in users])
 
 
-@identity_router.post("/principals", response_model=UserView, status_code=201)
-async def create_principal(
-    body: CreatePrincipalRequest,
-    state: GatewayState = Depends(get_state),
-    auth: AuthenticatedRequest = Depends(authorized),
-) -> UserView:
-    """Create a person with a local password, and record who did it.
-
-    Refused before this body ever runs for a caller who lacks
-    ``identity.write`` — the route table's guard, the same dependency every
-    write in this file goes through, not a second check written here. That
-    refusal carries no information about whether ``body.email`` is already
-    taken: the permission is checked before the request reaches this
-    function, so the response to somebody who may not create an account is
-    identical whether or not one already exists at that address.
-
-    Grants nothing. There is no role on the request body, so a caller who
-    may create a person can never come away from this one call holding an
-    account that outranks them — widening what the new principal may do is
-    a separate, already-guarded request to ``POST /identity/grants``.
-
-    The password is hashed with the same construction the environment
-    account uses (``hash_local_password``), stored once by a write dedicated
-    to that column alone, and never appears in this function's return value
-    or in anything logged about the call.
-    """
-    async with state.gateway.begin(auth.scope) as uow:
-        if await uow.identity.find_user_by_email(body.email) is not None:
-            raise conflict(f"a principal already exists with the email {body.email!r}")
-        created = await uow.identity.upsert_user(
-            User(
-                user_id=secrets.token_hex(_PRINCIPAL_ID_BYTES),
-                email=body.email,
-                display_name=body.display_name,
-                kind=PrincipalKind.USER,
-            )
-        )
-        await uow.identity.set_local_password(
-            created.user_id, password_hash=hash_local_password(body.password)
-        )
-    await AuditRecorder(gateway=state.gateway).record(
-        auth.scope,
-        _audit_context(auth),
-        action=PRINCIPAL_AUDIT_ACTION_CREATE,
-        resource_kind=IDENTITY_AUDIT_RESOURCE_KIND_PRINCIPAL,
-        resource_id=created.user_id,
-        detail={
-            "email": created.email,
-            "display_name": created.display_name,
-            "node_id": auth.team_node_id or ORGANISATION_WIDE,
-        },
-    )
-    return _user_view(created)
-
-
 @identity_router.get("/grants", response_model=GrantList)
 async def list_grants(
     state: GatewayState = Depends(get_state),
@@ -420,148 +250,6 @@ async def list_grants(
                 collected.extend(await uow.identity.role_bindings_for_user(user.user_id))
             bindings = tuple(collected)
     return GrantList(grants=[_grant_view(binding) for binding in bindings])
-
-
-def _grant_id(principal_id: str, role: str, node_id: str | None) -> str:
-    """Return the identifier a grant of ``role`` to ``principal_id`` at ``node_id`` has.
-
-    Derived rather than random, which makes granting the same role at the same
-    node twice one grant instead of two. Two identical bindings are one fact
-    stored twice, and the second one is only ever discovered by whoever tries to
-    revoke the role and finds it still held.
-    """
-    return f"grant:{principal_id}:{role}:{node_id or ORGANISATION_WIDE}"
-
-
-def _role(name: str) -> Role:
-    """Return the role ``name`` describes, or refuse naming the ones that exist."""
-    try:
-        return Role(name)
-    except ValueError as unknown:
-        raise bad_request(
-            f"{name!r} is not a role this deployment has; expected one of "
-            f"{', '.join(sorted(role.value for role in Role))}"
-        ) from unknown
-
-
-async def _all_grants(state: GatewayState, auth: AuthenticatedRequest) -> tuple[Grant, ...]:
-    """Return every role grant in this organisation."""
-    collected: list[Grant] = []
-    async with state.gateway.begin(auth.scope) as uow:
-        for user in await uow.identity.list_users():
-            for binding in await uow.identity.role_bindings_for_user(user.user_id):
-                collected.append(Grant.of_binding(binding))
-    return tuple(collected)
-
-
-@identity_router.get("/roles", response_model=RoleList)
-async def list_roles(auth: AuthenticatedRequest = Depends(authorized)) -> RoleList:
-    """Return the roles this deployment has, least privileged first.
-
-    Served rather than left to the client, for the reason ``tools/console_roles``
-    already gives about the fixture it generates: a second copy of the catalogue
-    written in a front end is the copy that is wrong on the day somebody adds a
-    permission. A form offering a role this build does not have is a form whose
-    every submission is refused.
-
-    The permissions are on each row because "what does granting this actually
-    do" is the question somebody asks before granting it, and answering it
-    anywhere else would mean the console deriving it.
-    """
-    _ = auth
-    return RoleList(
-        roles=[
-            RoleView(
-                name=role.value,
-                permissions=sorted(permission.value for permission in permissions_for(role)),
-            )
-            for role in ROLE_ORDER
-        ]
-    )
-
-
-@identity_router.post("/grants", response_model=GrantView, status_code=201)
-async def add_grant(
-    body: GrantRequest,
-    state: GatewayState = Depends(get_state),
-    auth: AuthenticatedRequest = Depends(authorized),
-) -> GrantView:
-    """Give somebody a role, and record who gave it to them.
-
-    The principal has to exist first. Creating one here would make a typo in an
-    identifier into a new account holding a role, which is the shape of mistake
-    an identity surface must not be able to make quietly.
-    """
-    role = _role(body.role)
-    async with state.gateway.begin(auth.scope) as uow:
-        if await uow.identity.get_user(body.principal_id) is None:
-            raise not_found(f"no principal {body.principal_id!r}")
-        stored = await uow.identity.upsert_role_binding(
-            RoleBinding(
-                binding_id=_grant_id(body.principal_id, role.value, body.node_id),
-                user_id=body.principal_id,
-                role=role.value,
-                node_id=body.node_id,
-            )
-        )
-    await AuditRecorder(gateway=state.gateway).record(
-        auth.scope,
-        _audit_context(auth),
-        action=PERMISSION_AUDIT_ACTION_GRANT,
-        resource_kind=IDENTITY_AUDIT_RESOURCE_KIND_GRANT,
-        resource_id=stored.binding_id,
-        detail={
-            "principal_id": stored.user_id,
-            "role": stored.role,
-            "node_id": stored.node_id or ORGANISATION_WIDE,
-        },
-    )
-    return _grant_view(stored)
-
-
-@identity_router.delete("/grants/{grant_id}", response_model=GrantRemovedView)
-async def remove_grant(
-    grant_id: str,
-    state: GatewayState = Depends(get_state),
-    auth: AuthenticatedRequest = Depends(authorized),
-) -> GrantRemovedView:
-    """Take a role away, unless doing so would leave nobody able to give it back.
-
-    The last-owner rule is evaluated over the whole organisation rather than
-    over the grant being removed, which is why it lives in
-    ``require_owner_retained`` and not here: handing ownership over is allowed
-    and removing the last owner is not, and a per-grant check gets one of those
-    two wrong whichever way it is written.
-    """
-    grants = await _all_grants(state, auth)
-    held = next((grant for grant in grants if grant.grant_id == grant_id), None)
-    if held is None:
-        raise not_found(f"no grant {grant_id!r}")
-    try:
-        require_owner_retained(grants, removing=(grant_id,))
-    except LastOwnerRemoval as refused:
-        raise conflict(str(refused)) from refused
-
-    async with state.gateway.begin(auth.scope) as uow:
-        await uow.identity.remove_role_binding(grant_id)
-    await AuditRecorder(gateway=state.gateway).record(
-        auth.scope,
-        _audit_context(auth),
-        action=PERMISSION_AUDIT_ACTION_REVOKE,
-        resource_kind=IDENTITY_AUDIT_RESOURCE_KIND_GRANT,
-        resource_id=grant_id,
-        detail={
-            "principal_id": held.principal_id,
-            "role": held.role.value,
-            "node_id": held.node_id or ORGANISATION_WIDE,
-        },
-    )
-    return GrantRemovedView(
-        grant_id=grant_id,
-        principal_id=held.principal_id,
-        role=held.role.value,
-        node_id=held.node_id,
-    )
 
 
 @identity_router.get("/tokens", response_model=TokenList)
@@ -591,12 +279,7 @@ async def issue_token(
     state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> IssuedTokenView:
-    """Issue a machine token and return its secret exactly once.
-
-    A second issuance for the same owner and the same purpose — the name a
-    token was given, at the same node — supersedes the one it replaces rather
-    than accumulating beside it.
-    """
+    """Issue a machine token and return its secret exactly once."""
     issued = await state.tokens.issue(
         auth.scope,
         _audit_context(auth),
@@ -605,12 +288,8 @@ async def issue_token(
         node_id=body.node_id,
         description=body.description,
         lifetime_days=body.lifetime_days,
-        permissions=_permissions(body.permissions),
-        supersede=True,
     )
-    return IssuedTokenView(
-        token=_token_view(issued.token), secret=issued.secret, superseded=list(issued.superseded)
-    )
+    return IssuedTokenView(token=_token_view(issued.token), secret=issued.secret)
 
 
 @identity_router.delete("/tokens/{token_id}", response_model=RevocationResult)

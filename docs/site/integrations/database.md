@@ -2,7 +2,119 @@
 
 # database integrations
 
-1 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
+7 vendor(s). Every one ships the same seven artefacts and the build fails naming both the integration and the artefact when one is missing — which is what makes full parity a property rather than a claim. The permission tables below are the ones verification actually probes.
+
+### `azure_sql`
+
+Azure SQL through Resource Manager: which databases exist in a subscription and in what state, and their recent service-level events.
+
+- **Category:** database
+- **Regions:** global
+- **Credentials:** token, subscription
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `azure_sql_session_statistics`
+- `azure_sql_slow_queries`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `Microsoft.Sql/servers/read` | list logical servers | `azure_sql_session_statistics` |
+| `Microsoft.Sql/servers/databases/read` | read database state and service tier | `azure_sql_slow_queries` |
+
+**Pagination:**
+
+- `list_sessions` — cursor on `$skipToken`
+- `slow_queries` — cursor on `$skipToken`
+
+### `bigquery`
+
+BigQuery job state for a project: what is running or queued, and the jobs that took longest, which is where a data-freshness incident usually starts.
+
+- **Category:** database
+- **Regions:** global
+- **Credentials:** token, project
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `bigquery_session_statistics`
+- `bigquery_slow_queries`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `bigquery.jobs.list` | list jobs in the project | `bigquery_session_statistics`, `bigquery_slow_queries` |
+| `bigquery.jobs.get` | read a job's statistics and errors | `bigquery_slow_queries` |
+
+**Pagination:**
+
+- `list_sessions` — page_token on `pageToken`
+- `slow_queries` — page_token on `pageToken`
+
+### `clickhouse`
+
+ClickHouse over its HTTP interface: what the server is currently executing, and the slowest queries in the log.
+
+- **Category:** database
+- **Regions:** self-hosted
+- **Credentials:** username, password
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `clickhouse_session_statistics`
+- `clickhouse_slow_queries`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `SELECT on system.processes` | read what is executing now | `clickhouse_session_statistics` |
+| `SELECT on system.query_log` | read the completed-query log | `clickhouse_slow_queries` |
+
+**Pagination:**
+
+- `list_sessions` — offset on `offset`
+- `slow_queries` — offset on `offset`
+
+### `mongodb_atlas`
+
+The Atlas control plane: which clusters and processes exist in a project, and the slow-query entries Atlas's performance advisor has collected.
+
+- **Category:** database
+- **Regions:** global
+- **Credentials:** username, password, group
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `mongodb_atlas_session_statistics`
+- `mongodb_atlas_slow_queries`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `Project Read Only` | read processes and clusters in the project | `mongodb_atlas_session_statistics`, `mongodb_atlas_slow_queries` |
+| `Project Monitoring Admin` | read process measurements and the performance advisor | `mongodb_atlas_slow_queries` |
+
+**Pagination:**
+
+- `list_sessions` — page_number on `pageNum`
+- `slow_queries` — page_number on `pageNum`
 
 ### `redis`
 
@@ -31,3 +143,59 @@ The Redis Cloud control plane: which databases exist in a subscription and in wh
 
 - `list_sessions` — offset on `offset`
 - `slow_queries` — offset on `offset`
+
+### `snowflake`
+
+Snowflake over its SQL REST API: what is running in the account now, and the slowest statements the query history recorded.
+
+- **Category:** database
+- **Regions:** account
+- **Credentials:** token, account
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `snowflake_session_statistics`
+- `snowflake_slow_queries`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `MONITOR on the account` | read query history | `snowflake_session_statistics`, `snowflake_slow_queries` |
+| `USAGE on the warehouse` | run the statements that read it | `snowflake_session_statistics`, `snowflake_slow_queries` |
+
+**Pagination:**
+
+- `list_sessions` — offset on `partition`
+- `slow_queries` — offset on `partition`
+
+### `supabase`
+
+The Supabase management API: which projects exist in an organisation and in what state, for the estates that run their Postgres there.
+
+- **Category:** database
+- **Regions:** global
+- **Credentials:** token
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `supabase_session_statistics`
+- `supabase_slow_queries`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `projects:read` | list projects and their status | `supabase_session_statistics`, `supabase_slow_queries` |
+| `organizations:read` | read organisations, which the probe uses | `supabase_session_statistics` |
+
+**Pagination:**
+
+- `list_sessions` — cursor on `cursor`
+- `slow_queries` — cursor on `cursor`

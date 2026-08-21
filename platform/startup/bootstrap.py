@@ -326,9 +326,6 @@ async def establish_durable_credential(
         name=name,
         description="Established from the bootstrap credential at first run.",
         lifetime_days=DURABLE_CREDENTIAL_LIFETIME_DAYS,
-        # Stands in for the owner just granted above, not for one declared
-        # purpose — it must keep resolving to whatever the account holds.
-        unscoped=True,
     )
 
     # Revoked after the replacement exists, never before. The other order leaves
@@ -431,14 +428,6 @@ async def _issue(
         permissions=BOOTSTRAP_PERMISSIONS,
         description="First-run credential. Establishes a durable one, then expires.",
         lifetime=timedelta(seconds=BOOTSTRAP_CREDENTIAL_LIFETIME_SECONDS),
-        # `bring_up` only reaches here once the credential on the host is no
-        # longer reusable — expired, wrong organisation, or absent — never on
-        # every start. Without this, the expired one is left live-in-the-store
-        # (merely unrevoked, not merely forgotten) and the next restart past an
-        # hour does the same: that is the whole mechanism behind the ~15
-        # identical "bootstrap" rows a deployment restarted over days
-        # accumulates.
-        supersede=True,
     )
     expires_at = issued.token.expires_at or datetime.now(UTC) + timedelta(
         seconds=BOOTSTRAP_CREDENTIAL_LIFETIME_SECONDS

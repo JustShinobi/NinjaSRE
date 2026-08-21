@@ -33,14 +33,11 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
-    display_name="SigNoz",
     category=IntegrationCategory.TRACING,
     summary="SigNoz's span store: where latency and errors concentrate for a service, and the slowest traces behind that concentration.",
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
-    # the port SigNoz's query service serves on, which is the API rather than the UI.
-    default_port=8080,
 )
 
 __all__ = [

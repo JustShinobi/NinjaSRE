@@ -105,7 +105,7 @@ sandbox:
   # cannot express "this vendor's host and nothing else".
   egress:
     enabled: true
-    image: envoyproxy/envoy:v1.39.0
+    image: envoyproxy/envoy:v1.32.3
     listenerPort: 15001
     adminPort: 15000
     networkPolicy: true
@@ -149,11 +149,9 @@ provider:
   credentialSecret:
     name: ninjasre-provider
     key: api-key
-  # Not yet wired to a setting the deployment reads: every provider adapter
-  # takes its own endpoint variable (`ANTHROPIC_BASE_URL`, `OLLAMA_BASE_URL`,
-  # and so on — `config/constants/llm.py` names them all), and none of them is
-  # this one. Left declared rather than removed so the eventual per-provider
-  # wiring has a place to land; setting it today does nothing.
+  # Point this at a model running in the cluster to make the deployment
+  # air-gapped. With a local model and no other endpoint configured, nothing
+  # this chart deploys has a reason to leave the cluster.
   baseUrl: ""
 
 # --- Identity ------------------------------------------------------------------

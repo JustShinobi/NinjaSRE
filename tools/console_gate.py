@@ -58,10 +58,6 @@ from tools.console_toolchain import (
 )
 
 #: The value of ``NINJASRE_CONSOLE_TOOLCHAIN`` that turns a skip into a failure.
-#: The committed dataset of a deployment that has been configured and not
-#: finished, which is what the first-day browser project is drawn against.
-FIRST_DAY_SCENARIO: Final = "first-run"
-
 REQUIRED: Final = "required"
 
 
@@ -96,63 +92,6 @@ ORDER: Final[tuple[str, ...]] = (
     "e2e",
     "visual",
 )
-
-
-#: The two checks that run even when no console file changed.
-#:
-#: ``lockfile`` is cheap and catches a manifest edited without its lockfile.
-#: ``client-check`` is the one that can fail *because* of a change outside the
-#: console: the committed API client is generated from the platform's OpenAPI
-#: document, so a route added in Python drifts it while ``console/`` sits
-#: untouched. Skipping it on a Python-only change would skip it exactly when it
-#: has something to say.
-ALWAYS_RUN: Final[tuple[str, ...]] = ("lockfile", "client-check")
-
-
-# TODO(validation-phase): re-evaluate before this leaves validation.
-#
-# This shortcut trades completeness for speed while the platform is being
-# validated against a live cluster and a wave of features is being built
-# unattended. Eight of the thirteen features in the current wave touch no
-# console file, and the console's own gate — a production build, a browser
-# suite and a visual regression pass — runs on each of them for nothing.
-#
-# It is bounded on purpose: CI sets NINJASRE_CONSOLE_TOOLCHAIN=required and
-# therefore never takes this path, so what is enforced on master is unchanged.
-# The risk it accepts is a console failure that a *later* commit's full gate
-# finds instead of this one's.
-#
-# When validation ends, either delete this and go back to running the whole
-# gate every time, or keep it and make the skip a hard failure on master —
-# but do not leave it as a habit nobody re-read.
-def _console_untouched() -> bool:
-    """Return whether this branch changed nothing under ``console/``.
-
-    Compared against ``master``, which is what a task branch is built from and
-    merged back into. On master itself there is no base to compare with, so the
-    answer is "touched" and the whole gate runs.
-    """
-    try:
-        branch = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        if branch == "master":
-            return False
-        return (
-            subprocess.run(
-                ["git", "diff", "--quiet", "master...HEAD", "--", "console/"],
-                check=False,
-            ).returncode
-            == 0
-        )
-    except (OSError, subprocess.CalledProcessError):
-        # No git, no master, a detached head: answer "touched" and run
-        # everything. A shortcut that cannot prove it is safe does not take
-        # itself.
-        return False
 
 
 def toolchain_required() -> bool:
@@ -277,24 +216,12 @@ def budget() -> int:
 
 
 def end_to_end() -> int:
-    """Drive a browser against the built console and the committed dataset.
-
-    Twice, against two datasets. The first is a deployment mid-operation, which
-    is what most of the console is about. The second is a deployment on its
-    first day — a separate run because one mock plane serves one scenario, and
-    because the claims worth making about a fresh deployment (honest zeroes, a
-    dismissable tutorial, a checklist with somewhere to click, and no redirect
-    out of the shell) are exactly the ones a full dataset cannot make.
-    """
-    for project, scenario in (("behaviour", ""), ("first-day", FIRST_DAY_SCENARIO)):
-        arguments = ["run", "--project", project]
-        if scenario:
-            arguments += ["--scenario", scenario]
-        status = _module("tools.console_e2e", arguments)
-        if status == 2:
-            return _skip("the end-to-end backing could not be started")
-        if status != 0:
-            return _fail("e2e", f"a browser test failed in {project} — see the output above")
+    """Drive a browser against the built console and the committed dataset."""
+    status = _module("tools.console_e2e", ["run"])
+    if status == 2:
+        return _skip("the end-to-end backing could not be started")
+    if status != 0:
+        return _fail("e2e", "a browser test failed — see the output above")
     return 0
 
 
@@ -337,25 +264,8 @@ def one(name: str) -> int:
 
 
 def every() -> int:
-    """Run the whole console gate, stopping at the first failure.
-
-    On a branch that changed no console file, and only where the toolchain is
-    not required, this runs the two checks that can still have something to say
-    and names the ones it skipped. See ``_console_untouched``.
-    """
-    names = ORDER
-    if not toolchain_required() and _console_untouched():
-        names = ALWAYS_RUN
-        skipped = ", ".join(name for name in ORDER if name not in ALWAYS_RUN)
-        print(
-            f"console gate: no file under console/ changed on this branch — "
-            f"running {', '.join(ALWAYS_RUN)} and skipping {skipped}.\n"
-            f"  Set {NINJASRE_CONSOLE_TOOLCHAIN_ENV}={REQUIRED} to run the whole gate. "
-            f"This shortcut is a validation-phase trade; see _console_untouched.",
-            file=sys.stderr,
-        )
-
-    for name in names:
+    """Run the whole console gate, stopping at the first failure."""
+    for name in ORDER:
         status = one(name)
         if status != 0:
             return status

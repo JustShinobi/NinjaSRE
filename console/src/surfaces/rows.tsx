@@ -43,24 +43,8 @@ export interface Cell {
   readonly kind: CellKind;
   /** What is written in the cell. A meter shows this beside the bar. */
   readonly text: string;
-  /** The complete value, shown when the cell's visible text is truncated. */
-  readonly title?: string;
   /** Per cent, for a meter. Ignored by every other kind. */
   readonly value?: number;
-  /**
-   * An explanation of a jargon word or a placeholder value, on hover and on
-   * focus. Absent for an ordinary cell — a hint on every cell would teach a
-   * reader to stop reading them, which is the same lesson a column that never
-   * has a value teaches.
-   */
-  readonly hint?: string | undefined;
-  /**
-   * Where this cell's own value is declared, when that is a place. Distinct
-   * from the row's own link on the first cell: a placeholder value like
-   * "unplaced" is not an invitation to open the resource, it is an invitation
-   * to go and declare the fact that is missing.
-   */
-  readonly href?: string | undefined;
 }
 
 export interface ListRow {
@@ -77,23 +61,6 @@ export interface RowColumn {
   /** Whether this column can be sorted by. A column that cannot says nothing. */
   readonly sortable?: boolean;
   readonly numeric?: boolean;
-}
-
-/**
- * The sort control's accessible name, with the column it is about in it.
- *
- * A reader hears the heading and this together, and "Started sort, smallest
- * first" is neither a sentence nor a statement about any particular column —
- * the defect three screens reported independently. The label carries a
- * `{column}` placeholder and it is filled here rather than in the catalogue
- * lookup, because the lookup happens once per screen and there is one of these
- * per column.
- *
- * A label with no placeholder is returned unchanged, which is what keeps a test
- * double that passes "ascending" working.
- */
-export function sortAction(label: string, column: string): string {
-  return label.replace('{column}', column);
 }
 
 export interface RowListLabels {
@@ -126,7 +93,7 @@ function cellClass(kind: CellKind): string {
   );
 }
 
-function CellValue({ cell }: { readonly cell: Cell }): ReactNode {
+function CellBody({ cell }: { readonly cell: Cell }): ReactNode {
   if (cell.kind === 'status') {
     return <Badge status={cell.text} />;
   }
@@ -134,28 +101,6 @@ function CellValue({ cell }: { readonly cell: Cell }): ReactNode {
     return <ProgressBar label={cell.text} value={cell.value ?? 0} />;
   }
   return <>{cell.text}</>;
-}
-
-function CellBody({ cell }: { readonly cell: Cell }): ReactNode {
-  if (cell.href !== undefined) {
-    return (
-      <a
-        href={cell.href}
-        title={cell.hint}
-        className="underline-offset-2 hover:underline"
-      >
-        <CellValue cell={cell} />
-      </a>
-    );
-  }
-  if (cell.hint !== undefined) {
-    return (
-      <span title={cell.hint}>
-        <CellValue cell={cell} />
-      </span>
-    );
-  }
-  return <CellValue cell={cell} />;
 }
 
 /** A long list, windowed, sortable by address, with every row a link. */
@@ -204,15 +149,7 @@ export function RowList({
       data-testid="row-list"
       data-total={rows.length}
       className="w-full overflow-auto"
-      // Capped rather than fixed. A fixed viewport reserved fifteen rows' worth
-      // of page whatever the list held, so three documents sat above twelve rows
-      // of nothing — dead space that reads as a screen which failed to finish
-      // loading, when what it is saying is that the estate is small.
-      //
-      // A cap also spares this element an opinion about how tall its own header
-      // is, which is the number an arithmetic height would have to guess and
-      // would get wrong the next time the header changed.
-      style={{ maxBlockSize: `${String(height)}px` }}
+      style={{ blockSize: `${String(height)}px` }}
       onScroll={(event) => {
         setScrollTop(event.currentTarget.scrollTop);
       }}
@@ -232,12 +169,7 @@ export function RowList({
                     sorted ? (state.descending ? 'descending' : 'ascending') : 'none'
                   }
                   className={cx(
-                    'text-micro uppercase text-muted edge border-border border-t-0 border-x-0',
-                    // A sortable heading moves the cell's padding onto its own
-                    // link, so the padded area is the target rather than the
-                    // glyphs. An ordinary heading keeps the spacing every other
-                    // cell has.
-                    column.sortable === true ? 'p-0' : 'px-3 pb-2',
+                    'text-micro uppercase text-muted px-3 pb-2 edge border-border border-t-0 border-x-0',
                     column.numeric === true ? 'text-right' : 'text-left',
                   )}
                 >
@@ -246,32 +178,13 @@ export function RowList({
                       href={hrefFor(path, next, filters)}
                       data-testid="sort"
                       data-column={column.key}
-                      className={cx(
-                        'flex items-center gap-1 underline-offset-2 hover:underline',
-                        // The heading is set in the smallest type on the screen,
-                        // whose line box alone is about half of what WCAG 2.2
-                        // asks a target to be.
-                        'px-3 py-2 min-h-6',
-                        column.numeric === true ? 'justify-end' : 'justify-start',
-                      )}
+                      className="inline-flex items-center gap-1 underline-offset-2 hover:underline"
                     >
                       {column.header}
-                      {/* Which way this column is sorted, for a reader who has
-                          the colour and not the announcement. `aria-sort` on
-                          the header above carries the same fact for a reader
-                          who has the announcement and not the glyph. */}
-                      {sorted ? (
-                        <span aria-hidden="true" className="text-accent">
-                          {state.descending ? '↓' : '↑'}
-                        </span>
-                      ) : null}
                       <span className="sr-only">
-                        {sortAction(
-                          next.descending
-                            ? labels.sortedDescending
-                            : labels.sortedAscending,
-                          column.header,
-                        )}
+                        {next.descending
+                          ? labels.sortedDescending
+                          : labels.sortedAscending}
                       </span>
                     </a>
                   ) : (
@@ -296,7 +209,7 @@ export function RowList({
               key={row.id}
               data-testid="row"
               data-row={row.id}
-              className="motion-hover hover:bg-hover"
+              className="motion-hover hover:bg-sunken"
               style={{ blockSize: `${String(ROW_HEIGHT)}px` }}
             >
               {row.cells.map((cell, index) => {
@@ -312,7 +225,7 @@ export function RowList({
                   >
                     {index === 0 ? (
                       <a href={row.href} className="flex items-center gap-2 min-w-0">
-                        <span className="truncate" title={cell.title}>
+                        <span className="truncate">
                           <CellBody cell={cell} />
                         </span>
                         <span className="sr-only">{labels.open}</span>

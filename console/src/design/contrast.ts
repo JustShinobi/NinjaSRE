@@ -24,18 +24,6 @@ export const BODY_MINIMUM = 4.5;
  */
 export const BOUNDARY_MINIMUM = 3;
 
-/**
- * The ratio a hover has to reach against the ground it covers.
- *
- * WCAG says nothing about this — it is a change of state on a surface, not a
- * foreground anybody reads — so the number is ours and the reasoning has to
- * stand on its own. Below roughly 1.06 a ground-on-ground change is not
- * perceivable on an ordinary display at ordinary brightness; 1.1 leaves room
- * for a dim panel and a viewer who is not looking for it, and is still far
- * below anything that would read as a selection.
- */
-export const HOVER_MINIMUM = 1.1;
-
 /** The three 8-bit channels of a `#rrggbb` colour. */
 function channels(colour: string): [number, number, number] {
   const value = colour.startsWith('#') ? colour.slice(1) : colour;

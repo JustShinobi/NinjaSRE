@@ -41,6 +41,7 @@ from integrations.proxmox import tools as proxmox_tools
 from integrations.proxmox.client import ProxmoxClient
 from integrations.proxmox.discovery import PROXMOX_KINDS, ProxmoxDiscovery
 from integrations.proxmox.schema import API_BASE
+from integrations.proxmox_backup_server import tools as backup_tools
 from platform.credentials.proxy.model import OutboundResponse, ProxyRequest
 from platform.estate.discovery.sweep import EstateSweeper
 from platform.estate.kinds import (
@@ -200,7 +201,7 @@ async def test_a_down_nodes_guests_are_stored_as_unknown_rather_than_removed() -
 def test_every_capability_this_integration_declares_reads() -> None:
     """T-039. A write in this package would be one typo from being called as a read."""
     declared = []
-    for package in (proxmox_tools,):
+    for package in (proxmox_tools, backup_tools):
         for attribute in vars(package).values():
             registered = capability_marker(attribute)
             if registered is not None:

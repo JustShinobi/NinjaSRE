@@ -17,7 +17,6 @@ into a failure.
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import struct
@@ -30,7 +29,6 @@ import pytest
 
 from config.constants.console import (
     CONSOLE_BASELINE_DIR_NAME,
-    CONSOLE_SCREEN_REGISTRY_FILENAME,
     CONSOLE_VISUAL_DIR_NAME,
     NINJASRE_CONSOLE_TOOLCHAIN_ENV,
 )
@@ -41,7 +39,6 @@ pytestmark = [pytest.mark.contract, pytest.mark.console]
 
 BASELINES = console_root() / CONSOLE_VISUAL_DIR_NAME / CONSOLE_BASELINE_DIR_NAME
 RESULTS = console_root() / "test-results"
-REGISTRY = console_root() / CONSOLE_VISUAL_DIR_NAME / CONSOLE_SCREEN_REGISTRY_FILENAME
 
 
 def _required() -> bool:
@@ -102,23 +99,6 @@ def committed_baselines() -> tuple[Path, ...]:
     return tuple(sorted(BASELINES.glob("*.png")))
 
 
-def compared_baselines() -> tuple[Path, ...]:
-    """Return the baselines the visual run actually compares.
-
-    A screen the registry marks `pending` keeps its image and is not captured,
-    so damaging that image proves nothing: the run passes and the seeded change
-    is reported as an accepted one. Selecting from the *compared* set is what
-    keeps this test about the comparison rather than about which filename sorts
-    first — it was the latter, and the day a pending screen took the front of
-    the alphabet the test began asserting nothing.
-    """
-    registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-    baselined = {
-        str(screen["id"]) for screen in registry["screens"] if screen["status"] == "baselined"
-    }
-    return tuple(path for path in committed_baselines() if path.stem in baselined)
-
-
 def test_there_is_at_least_one_baseline_to_regress() -> None:
     """A visual suite with no baselines passes by having nothing to compare."""
     assert committed_baselines(), f"no baselines are committed under {BASELINES}"
@@ -127,7 +107,7 @@ def test_there_is_at_least_one_baseline_to_regress() -> None:
 @needs_capture_image
 def test_a_seeded_pixel_change_fails_the_run_and_emits_a_diff() -> None:
     """The comparison fails, names the screen, and writes an image of the change."""
-    baseline = compared_baselines()[0]
+    baseline = committed_baselines()[0]
     original = baseline.read_bytes()
     shutil.rmtree(RESULTS, ignore_errors=True)
 

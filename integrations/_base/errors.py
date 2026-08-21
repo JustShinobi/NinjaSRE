@@ -22,7 +22,7 @@ but the first is an operator action and the second is a key problem, and
 operator debugging a failing integration needs "the proxy has no credential for
 this team" separated from "the vendor rejected the key". ``ErrorCategory`` is
 the coarse one the framework contracts on — the seven names every integration
-maps onto, so a suite parameterised over the catalogue can assert that a
+maps onto, so a suite parameterised over eighty-five vendors can assert that a
 403 means the same thing everywhere. Collapsing the two into one enum would
 force a choice between an operator-useful message and a catalogue-wide
 assertion, and the whole point of having both is that neither has to lose.
@@ -262,7 +262,7 @@ def category_for(status_code: int) -> ErrorCategory:
     """Return the shared-taxonomy category for a vendor status code.
 
     The one table. An integration that classified its own statuses would be an
-    integration that disagrees with every other one about what a 403
+    integration that disagrees with the other eighty-four about what a 403
     means, and the loop's behaviour would then depend on which vendor it
     happened to call.
     """

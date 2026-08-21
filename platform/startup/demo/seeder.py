@@ -616,8 +616,6 @@ async def _seed_incidents(
                         actor=str(entry.get("actor", "system:observation")),
                         cause=str(entry.get("cause", "")),
                         detail=str(entry.get("detail", "")),
-                        query=str(entry.get("query", "")),
-                        result=str(entry.get("result", "")),
                     )
                     for index, entry in enumerate(dataset.timeline)
                 )

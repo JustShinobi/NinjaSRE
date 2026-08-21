@@ -34,6 +34,7 @@ from typing import Any
 from config.constants.persistence import (
     DEFAULT_GRAPH_DEPTH,
     MAX_GRAPH_DEPTH,
+    MAX_GRAPH_RESULTS,
 )
 from config.prompts.knowledge import TOPOLOGY_DISABLED
 from platform.knowledge.clock import now as _utc_now
@@ -297,18 +298,40 @@ class TopologyQueries:
     async def _dependencies(self, uow: UnitOfWork, service: str, *, depth: int) -> DependencySet:
         """Return a cycle-safe, bounded walk outward from ``service`` (FR-005).
 
-        One traversal, not one per node. This used to walk the frontier here,
-        issuing a ``direct_dependencies`` per service it reached, which made the
-        number of round trips a function of how connected the estate is — the
-        query count grew with the graph to answer a question the backend can
-        answer in a single indexed walk. The bound, the cycle safety, and the
-        exclusion of the origin are the same; they now live where the walk does.
+        Breadth-first, so the bound cuts the frontier rather than a branch: the
+        services one hop out are the ones an investigation checks first, and a
+        depth-first walk that spent the whole result budget on one long chain
+        would leave them out.
         """
-        result = await uow.topology.transitive_dependencies(service, depth=depth)
+        seen = {service}
+        frontier = [service]
+        found: dict[str, ServiceNode] = {}
+        truncated = False
+
+        for _ in range(depth):
+            if not frontier or truncated:
+                break
+            next_frontier: list[str] = []
+            for current in frontier:
+                result = await uow.topology.direct_dependencies(current)
+                truncated = truncated or result.truncated
+                for stored in result.nodes:
+                    if stored.node_id in seen:
+                        continue
+                    seen.add(stored.node_id)
+                    if len(found) >= MAX_GRAPH_RESULTS:
+                        truncated = True
+                        break
+                    found[stored.node_id] = ServiceNode.from_stored(stored)
+                    next_frontier.append(stored.node_id)
+                if truncated:
+                    break
+            frontier = next_frontier
+
         return DependencySet(
             origin=service,
-            services=tuple(ServiceNode.from_stored(stored) for stored in result.nodes),
-            truncated=result.truncated,
+            services=tuple(found.values()),
+            truncated=truncated,
             depth=depth,
         )
 

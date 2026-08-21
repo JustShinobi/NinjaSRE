@@ -1,6 +1,6 @@
 """Every installed integration, found by walking the package rather than listing it.
 
-The catalogue holds every vendor the environment can validate by the end of
+The catalogue is three vendors today and roughly eighty-five by the end of
 wave 6. A module that listed them would be a module somebody has to remember to
 edit, and the thing they would forget is exactly the thing SC-002 is about — an
 integration with no proxy path is an integration with an in-process credential.

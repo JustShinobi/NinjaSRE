@@ -1,0 +1,33 @@
+name: Application pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.event_name == 'pull_request'
+    uses: JustShinobi/platform-workflows/.github/workflows/verify.yml@1def53efaaec9e85fa82e82a197e5b8c0a3438de
+    with:
+      descriptor: .ci/application.yaml
+
+  release:
+    if: github.event_name != 'pull_request'
+    uses: JustShinobi/platform-workflows/.github/workflows/application-release.yml@1def53efaaec9e85fa82e82a197e5b8c0a3438de
+    with:
+      descriptor: .ci/application.yaml
+    secrets: inherit

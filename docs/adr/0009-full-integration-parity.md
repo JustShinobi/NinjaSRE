@@ -1,15 +1,8 @@
 # ADR 0009 — Full parity across all ~85 integrations
 
-- **Status:** Superseded by [0015](0015-parity-per-embedded-integration.md) on 2026-08-17
+- **Status:** Accepted
 - **Date:** 2026-08-04
 - **Constitution impact:** Article IX, Article XII
-
-> **Superseded.** The seven-artefact definition of parity below is still in force
-> and was carried into 0015 unchanged. What 0015 replaces is the breadth this
-> record commits to: parity now applies per embedded integration, and an
-> integration is embedded only where an environment can validate it end to end.
-> The body is preserved as written, because a superseded record still has to
-> explain why the decision was taken at the time.
 
 ## Context
 

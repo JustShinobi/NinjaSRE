@@ -35,7 +35,6 @@ from platform.autonomy.configuration import policy_set_of, settings_of
 from platform.autonomy.decision import AutonomyGate, Decision
 from platform.autonomy.history import DecisionHistory
 from platform.autonomy.levels import AutonomyLevel
-from platform.autonomy.outlook import ClassOutlook, outlook_of, representative_actions
 from platform.autonomy.policy import PolicySet, TimedOverride, override_expiring
 from platform.autonomy.preview import PolicyChange, preview_change
 from platform.autonomy.scopes import PolicyScope
@@ -130,24 +129,6 @@ class AutonomyService:
         """
         return await self.gate(await self.policy(node_id)).decide(action)
 
-    async def outlook(self, node_id: str, *, team_node_id: str = "") -> tuple[ClassOutlook, ...]:
-        """Return what an action of each risk class would meet under ``node_id``'s posture.
-
-        One policy resolution for all five, and one gate: asking ``explain``
-        five times would resolve the configuration chain five times to answer a
-        question about a single posture, and — worse — could straddle a change
-        made between the first class and the last, producing a reading no policy
-        set ever actually held.
-        """
-        gate = self.gate(await self.policy(node_id))
-        decisions = tuple(
-            [
-                await gate.decide(action)
-                for action in representative_actions(team_node_id=team_node_id)
-            ]
-        )
-        return outlook_of(decisions)
-
     def gate(self, policies: PolicySet) -> AutonomyGate:
         """Return the gate this service's collaborators make over ``policies``."""
         return AutonomyGate(
@@ -206,34 +187,6 @@ class AutonomyService:
             actor_kind=actor_kind,
         )
         return granted
-
-    async def revoke_override(
-        self,
-        node_id: str,
-        *,
-        name: str,
-        actor_id: str,
-        actor_kind: ActorKind = ActorKind.USER,
-    ) -> bool:
-        """Take an override away before it expires, and return whether one went.
-
-        Written against the node's *own* document, like the grant it reverses:
-        revoking an override a parent granted would mean copying every one of
-        the parent's into this node in order to leave one out, which is how a
-        hierarchy stops being one. An override this node did not grant is
-        therefore not found here, and that is the honest answer.
-        """
-        current = await self.own_policy(node_id)
-        kept = tuple(held for held in current.overrides if held.name != name)
-        if len(kept) == len(current.overrides):
-            return False
-        await self.save(
-            node_id,
-            _with_overrides(current, kept),
-            actor_id=actor_id,
-            actor_kind=actor_kind,
-        )
-        return True
 
     async def own_policy(self, node_id: str) -> PolicySet:
         """Return the policy ``node_id`` itself declares, inheritance not applied.

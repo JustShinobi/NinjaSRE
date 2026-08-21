@@ -1,0 +1,55 @@
+---
+name: vcs-sourcegraph
+display_name: Sourcegraph investigation
+description: Code search across every repository at once: where a symbol, a string, or a configuration key actually appears.
+domain: vcs
+applies_when:
+  alert_sources: [sourcegraph]
+  tags: [vcs, search, code]
+directs_tools:
+  - sourcegraph_change_statistics
+  - sourcegraph_recent_changes
+requires:
+  integrations: [sourcegraph]
+---
+
+# Sourcegraph investigation
+
+## Order of operations
+
+1. **Shape before detail.** Call `sourcegraph_change_statistics` over the symptom
+   window first. It returns a distribution rather than records, so it is
+   affordable on a question that matches a great deal, and the group it singles
+   out is where the detail should come from.
+2. **Compare against normal.** The same call over an equivalent window before
+   the symptom. A count is only meaningful against a baseline: "1,200" is a
+   number until you know yesterday's was 1,100.
+3. **Regroup on whatever concentrated.** If the first grouping was flat, group
+   by another field. One dimension almost always concentrates a failure, and
+   finding which one is the investigation.
+4. **Read where the counts point.** Only now call
+   `sourcegraph_recent_changes`, narrowed to the group the distribution
+   singled out. A sample from an unnarrowed question is arbitrary.
+5. **Quote what you found, not a paraphrase of it.** The exact string is what
+   matches a previous incident; a summary of it is not.
+
+## Reading the result
+
+Both capabilities say when more matched than they returned. Carry that into the
+finding: "twenty of roughly nine hundred" is a fact somebody can check, and
+"twenty" is wrong.
+
+## What this is not for
+
+- **A question another system answers in one call.** Reaching for Sourcegraph
+  because it is configured, rather than because it holds the evidence, spends an
+  iteration and returns something plausible.
+- **Anything outside the retention or history this deployment keeps.** An empty
+  answer from beyond the window is indistinguishable from nothing having
+  happened, and only one of those is a finding.
+
+## Sourcegraph specifics
+
+- Query syntax: `repo:^github\.com/acme/ lang:python cart_limit`, with `type:diff` and `after:"1 hour ago"` turning a code search into a change search.
+- `type:diff after:...` is the single most useful form during an incident: it answers 'what changed anywhere that mentions this' in one call.
+- `t=literal` is what stops a search string being read as a regular expression, which matters when the string is an error message.

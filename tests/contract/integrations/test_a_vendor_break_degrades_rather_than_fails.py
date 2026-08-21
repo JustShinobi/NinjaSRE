@@ -3,7 +3,7 @@
 There are only two answers and one of them is wrong.
 
 **Failing the build** is wrong. It is not the operator's change, they cannot fix
-it, and a red build across the whole catalogue tells them nothing about
+it, and a red build across eighty-five integrations tells them nothing about
 which vendor broke. The pressure that produces is to disable the scheduled live
 run — and then the drift is undetected rather than merely unfixed, which is
 strictly worse than where they started.

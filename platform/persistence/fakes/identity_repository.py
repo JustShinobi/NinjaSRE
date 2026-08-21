@@ -41,18 +41,8 @@ class FakeIdentityRepository:
         )
 
     async def upsert_user(self, user: User) -> User:
-        """Store ``user`` and return it as stored.
-
-        ``local_password_hash`` carries over from whatever is already stored,
-        never from ``user`` — the same thing the Postgres repository gets for
-        free by never assigning that column here. Only ``set_local_password``
-        writes it, so a caller updating a display name or a status cannot
-        clear a person's password by constructing a bare ``User``.
-        """
-        existing = self.state.users.get(user.user_id)
+        """Store ``user`` and return it as stored."""
         stored = user if user.created_at is not None else replace(user, created_at=_now())
-        if existing is not None:
-            stored = replace(stored, local_password_hash=existing.local_password_hash)
         self.state.users[user.user_id] = stored
         return stored
 
@@ -112,14 +102,6 @@ class FakeIdentityRepository:
         if token is None:
             return False
         self.state.tokens[token_id] = replace(token, last_used_at=used_at)
-        return True
-
-    async def set_local_password(self, user_id: str, *, password_hash: str) -> bool:
-        """Store the hash of a person's local passphrase, and return whether they existed."""
-        user = self.state.users.get(user_id)
-        if user is None:
-            return False
-        self.state.users[user_id] = replace(user, local_password_hash=password_hash)
         return True
 
     async def upsert_role_binding(self, binding: RoleBinding) -> RoleBinding:

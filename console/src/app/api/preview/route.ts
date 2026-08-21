@@ -28,17 +28,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const body: unknown = await request.json().catch(() => null);
   const nodeId = String(Reflect.get(Object(body), 'nodeId') ?? '');
   const patch: unknown = Reflect.get(Object(body), 'patch');
-  const remove: unknown = Reflect.get(Object(body), 'remove');
   if (nodeId === '' || typeof patch !== 'object' || patch === null) {
-    // Named, not just numbered: the screen prints this after "refused:", and
-    // a 400 whose body carried no words rendered as a colon and nothing.
-    return NextResponse.json(
-      {
-        reason:
-          nodeId === '' ? 'the request named no node' : 'the request carried no patch',
-      },
-      { status: 400 },
-    );
+    return NextResponse.json({}, { status: 400 });
   }
 
   const address = `${apiOrigin()}/v1/config/${encodeURIComponent(nodeId)}/preview`;
@@ -50,10 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         'content-type': 'application/json',
         accept: 'application/json',
       },
-      // `remove` travels beside the patch, never folded into it: a cleared
-      // path and a set one are different operations, and the deployment's
-      // own preview is the only honest answer to what a clear resolves to.
-      body: JSON.stringify({ patch, remove: Array.isArray(remove) ? remove : [] }),
+      body: JSON.stringify({ patch }),
       cache: 'no-store',
     });
     const previewed: unknown = await answer.json().catch(() => ({}));

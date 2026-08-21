@@ -118,20 +118,13 @@ class InstalledIntegrations:
 
 
 def _credential_field(declared: CredentialSchemaField) -> CredentialField:
-    """Return the vendor's field as the form-facing shape.
-
-    ``label`` reads ``display_label``, which is the vendor's own declared label
-    when there is one and a derived reading of the field's name otherwise — so
-    this stops inventing a label the moment a vendor package declares its own.
-    """
+    """Return the vendor's field as the form-facing shape."""
     return CredentialField(
         name=declared.name,
-        label=declared.display_label,
+        label=declared.name.replace("_", " ").strip().capitalize(),
         secret=declared.is_secret,
         required=declared.required,
         help=declared.description,
-        min_scope=declared.min_scope,
-        guide_url=declared.guide_url,
     )
 
 

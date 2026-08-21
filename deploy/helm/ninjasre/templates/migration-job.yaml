@@ -49,10 +49,6 @@ spec:
           command: ["python", "-m", "gateway.http.serve", "--migrate-only"]
           env:
             {{- include "ninjasre.env" . | nindent 12 }}
-            # Composition validates the whole configuration before the
-            # migrate-and-exit branch is reached, so this Job needs the
-            # provider credential to run migrations at all.
-            {{- include "ninjasre.providerEnv" . | nindent 12 }}
           resources:
             {{- toYaml .Values.migrations.resources | nindent 12 }}
           volumeMounts:

@@ -1,4 +1,4 @@
-import { ApiError, ask, read, readProjected, type ProjectedPath } from '@/lib/api';
+import { ApiError, read, readProjected, type ProjectedPath } from '@/lib/api';
 import type { PanelState } from './panel';
 
 /**
@@ -77,32 +77,6 @@ export async function readProjectedPanel(
       status: 'ready',
       data: await readProjected(path, { ...authorised(credential), ...options }),
     };
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      return { status: 'ready', data: {} };
-    }
-    if (error instanceof ApiError || error instanceof TypeError) {
-      return { status: 'error', dependency };
-    }
-    throw error;
-  }
-}
-
-/**
- * A declared endpoint whose 404 means *nothing is set here yet*.
- *
- * Distinct from `readProjectedPanel`, which is about endpoints the document
- * does not declare. These are declared, served, and answer 404 for a node that
- * carries no configuration of its own — which is the ordinary state of a
- * deployment on its first day rather than a failure, and the state the guided
- * setup exists to move out of. Every other refusal stays an error.
- */
-export async function optionalRead<T>(
-  dependency: string,
-  work: () => Promise<T>,
-): Promise<PanelData<T | Record<string, never>>> {
-  try {
-    return { status: 'ready', data: await work() };
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       return { status: 'ready', data: {} };
@@ -198,4 +172,4 @@ export function pairs(
 }
 
 /** The gateway read every surface makes, so the credential is applied in one place. */
-export { ask, read };
+export { read };

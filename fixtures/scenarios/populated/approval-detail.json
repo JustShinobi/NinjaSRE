@@ -31,7 +31,7 @@
           ]
         },
         "run_id": "run-0005",
-        "side_effect_level": "write_reversible",
+        "side_effect_level": "write",
         "state": "pending",
         "summary": "Enable the disabled job so the primary's guests are covered at all."
       },
@@ -64,7 +64,7 @@
         "requested_at": "2026-08-05T11:27:00+00:00",
         "rollback_plan": null,
         "run_id": "run-0001",
-        "side_effect_level": "write_irreversible",
+        "side_effect_level": "write",
         "state": "pending",
         "summary": "Grow the volume that is at the ceiling of its own allocation."
       },

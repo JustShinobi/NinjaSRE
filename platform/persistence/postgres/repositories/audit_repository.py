@@ -107,27 +107,16 @@ class PostgresAuditRepository(TenantBound):
     async def count(
         self,
         *,
-        actor_id: str | None = None,
-        action: str | None = None,
-        resource_kind: str | None = None,
-        resource_id: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
     ) -> int:
-        """Return how many events match the same filters ``query`` would apply."""
+        """Return how many events fall in the window."""
         statement = (
             select(func.count())
             .select_from(models.AuditEvent)
             .where(models.AuditEvent.org_id == self.org_id)
         )
-        for clause in _filters(
-            actor_id=actor_id,
-            action=action,
-            resource_kind=resource_kind,
-            resource_id=resource_id,
-            since=since,
-            until=until,
-        ):
+        for clause in _filters(since=since, until=until):
             statement = statement.where(clause)
         return int(await self.session.scalar(statement) or 0)
 

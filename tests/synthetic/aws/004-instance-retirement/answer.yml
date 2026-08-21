@@ -1,0 +1,17 @@
+root_cause_category: infrastructure_failure
+required_keywords:
+- instance
+- stopped
+- retirement
+forbidden_categories:
+- healthy
+- unknown
+required_evidence_sources:
+- aws_ec2
+optimal_trajectory:
+- aws_ec2_resource_inventory
+max_investigation_loops: 4
+model_response: 'ROOT_CAUSE: one of the two checkout instances was stopped by a scheduled
+  AWS retirement, halving the fleet.
+
+  '

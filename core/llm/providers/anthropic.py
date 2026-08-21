@@ -96,25 +96,6 @@ def _parse_usage(document: Mapping[str, Any]) -> TokenCounts:
     )
 
 
-def _tool_choice(request: InvokeRequest, descriptor: ModelDescriptor) -> dict[str, Any] | None:
-    """Return this request's `tool_choice`, or ``None`` for the wire's own default.
-
-    ``"any"`` obliges the model to call one of the declared tools — the mode the
-    preflight probe turns on to find out whether tool calling actually works.
-    Serialised parallel calls are carried on either form, so a request that
-    forces the call and also wants calls serialised does not lose that.
-    """
-    serialise = not request.parallel_tool_calls or not descriptor.supports_parallel_tool_calls
-    if request.force_tool_call:
-        choice: dict[str, Any] = {"type": "any"}
-        if serialise:
-            choice["disable_parallel_tool_use"] = True
-        return choice
-    if serialise:
-        return {"type": "auto", "disable_parallel_tool_use": True}
-    return None
-
-
 class AnthropicAdapter(BaseAdapter):
     """Translates the neutral vocabulary to and from the Messages wire."""
 
@@ -164,9 +145,8 @@ class AnthropicAdapter(BaseAdapter):
             if cache.enabled and cache.mark_system and tools:
                 tools[-1]["cache_control"] = dict(_CACHE_MARKER)
             payload["tools"] = tools
-            choice = _tool_choice(request, descriptor)
-            if choice is not None:
-                payload["tool_choice"] = choice
+            if not request.parallel_tool_calls or not descriptor.supports_parallel_tool_calls:
+                payload["tool_choice"] = {"type": "auto", "disable_parallel_tool_use": True}
 
         if cache.enabled and cache.mark_last_message and messages:
             last_blocks = messages[-1]["content"]

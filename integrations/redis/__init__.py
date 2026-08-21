@@ -33,7 +33,6 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
-    display_name="Redis",
     category=IntegrationCategory.DATABASE,
     summary="The Redis Cloud control plane: which databases exist in a subscription and in what state, which is what an HTTP-reachable Redis can answer.",
     regions=REGIONS,

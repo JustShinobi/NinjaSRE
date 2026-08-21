@@ -34,10 +34,7 @@ from typing import Any
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from config.constants.first_run import SETUP_STEP_ORDER
-from config.constants.llm import DEFAULT_MODEL_ID, LOCAL_PROVIDERS, SUPPORTED_PROVIDERS
 from config.constants.runs import RUN_METADATA_TEAM
-from core.llm.verification import ModelVerdict
 from gateway.http.app import create_app
 from gateway.http.state import GatewayState
 from platform.config_service.document import NodeDocument
@@ -63,8 +60,7 @@ from surfaces.cli.client import (
     RemoteClient,
     ScheduleRequest,
 )
-from surfaces.cli.errors import CliError, UnavailableError
-from surfaces.cli.models import CheckState
+from surfaces.cli.errors import UnavailableError
 from tests.unit.gateway.http.conftest import (
     ORG,
     TEAM_PAYMENTS,
@@ -99,11 +95,6 @@ class _Deployment:
     http: AsyncClient
     gateway: FakePersistence
     token: str
-    #: Held so a test can compose what this deployment was built without. The
-    #: deep verifier is the case: it is a composition concern by design, so a
-    #: suite that wants one has to supply it rather than expect the fixture to
-    #: have guessed a vendor.
-    state: GatewayState
 
     def run(self, coroutine: Any) -> Any:
         """Run ``coroutine`` on the application's own loop and return its result."""
@@ -120,17 +111,12 @@ class _Deployment:
             )
         )
         if answer.status_code >= 400:
-            # The body is handed over as the file object, which is what
-            # ``urllib`` does over a socket. Without it the client's own
-            # ``_failure_detail`` has nothing to read, and every refusal in this
-            # suite would read as a bare status — hiding exactly the sentence the
-            # deployment wrote for the operator.
             raise urllib.error.HTTPError(
                 url=request.full_url,
                 code=answer.status_code,
                 msg=answer.text,
                 hdrs=None,  # type: ignore[arg-type]
-                fp=_Answer(answer.content),
+                fp=None,
             )
         return _Answer(answer.content)
 
@@ -225,22 +211,6 @@ async def _seed_estate(gateway: FakePersistence, now: datetime) -> None:
         )
 
 
-async def _answers_from_the_endpoint(provider_id: str, model_id: str | None = None) -> ModelVerdict:
-    """Stand in for the one thing this suite cannot do: call a model endpoint.
-
-    Everything else here is the real application. Verification is the single
-    operation that leaves the host and spends money, so it is the single
-    operation composed rather than run — which is exactly the seam
-    ``GatewayState.model_verifier`` exists to be.
-    """
-    return ModelVerdict(
-        provider_id=provider_id,
-        model_id=model_id or DEFAULT_MODEL_ID,
-        satisfied=True,
-        summary_line=f"{DEFAULT_MODEL_ID} on {provider_id} calls tools and returns structure",
-    )
-
-
 @pytest.fixture
 def deployment() -> Iterator[_Deployment]:
     """Return the real application, running on its own loop, with a real token."""
@@ -257,20 +227,10 @@ def deployment() -> Iterator[_Deployment]:
     token = on_loop(
         issue_token(gateway, tokens, user_id="ada", role=Role.ADMIN, node_id=TEAM_PAYMENTS)
     )
-    state = GatewayState(
-        gateway=gateway,
-        tokens=tokens,
-        investigator=FakeInvestigationRunner(),
-        # Composed, and not optional: without it the route falls back to a real
-        # preflight against a real endpoint, and a suite that reaches the network
-        # is a suite whose two runs can disagree.
-        model_verifier=_answers_from_the_endpoint,
-    )
+    state = GatewayState(gateway=gateway, tokens=tokens, investigator=FakeInvestigationRunner())
     http = AsyncClient(transport=ASGITransport(app=create_app(state)), base_url=ENDPOINT_URL)
 
-    running = _Deployment(
-        loop=loop, thread=thread, http=http, gateway=gateway, token=token, state=state
-    )
+    running = _Deployment(loop=loop, thread=thread, http=http, gateway=gateway, token=token)
     try:
         yield running
     finally:
@@ -574,188 +534,10 @@ def test_the_integration_catalogue_comes_back(remote: RemoteClient) -> None:
 
 
 def test_verifying_an_integration_reports_its_credential_state(remote: RemoteClient) -> None:
-    status = asyncio.run(remote.verify_integration("redis"))
+    status = asyncio.run(remote.verify_integration("datadog"))
 
-    assert status.integration == "redis"
+    assert status.integration == "datadog"
     assert status.credential_state
-
-
-# --- Writing a credential over the wire --------------------------------------
-
-#: Valid against Redis Cloud's declared format, so the write it is used in is
-#: one the deployment really accepts. A sweep over a rejected write would prove
-#: only that a refusal is quiet.
-SENTINEL_KEY = "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
-SENTINEL_APP_KEY = "abcdefghij0123456789ABCDEFGHIJ0123456789"
-PROVIDER_KEY = f"sk-ant-{SENTINEL_KEY}"
-
-
-def test_a_credential_written_remotely_lands_and_verifies(remote: RemoteClient) -> None:
-    """The four steps an onboarding takes, against the route that serves them."""
-    stored = asyncio.run(
-        remote.store_integration_credential(
-            "redis", {"api_key": SENTINEL_KEY, "secret_key": SENTINEL_APP_KEY}
-        )
-    )
-    verified = asyncio.run(remote.verify_integration("redis"))
-
-    assert stored.integration == "redis"
-    assert stored.configured
-    assert stored.credential_state == "configured"
-    assert verified.healthy
-
-
-def test_the_secret_is_in_the_request_body_and_in_nothing_else(
-    remote: RemoteClient, deployment: _Deployment
-) -> None:
-    """Where a credential is allowed to be, and the four places it is not.
-
-    Recorded off the request the client actually built, rather than asserted
-    about a request the test constructed — the failure worth preventing is a
-    client that puts a credential in a query string or a header, both of which
-    are logged by every proxy between here and the deployment.
-    """
-    seen: list[urllib.request.Request] = []
-
-    def watching(request: urllib.request.Request, timeout: float = 0) -> _Answer:
-        seen.append(request)
-        return deployment.open(request, timeout)
-
-    watched = RemoteClient(endpoint=remote.endpoint, opener=watching)
-    status = asyncio.run(
-        watched.store_integration_credential(
-            "redis", {"api_key": SENTINEL_KEY, "secret_key": SENTINEL_APP_KEY}
-        )
-    )
-
-    written = seen[-1]
-    assert written.get_method() == "PUT"
-    assert written.full_url.endswith("/v1/integrations/redis/credential")
-    assert SENTINEL_KEY not in written.full_url
-    assert SENTINEL_KEY not in repr(dict(written.header_items()))
-    assert SENTINEL_KEY in (written.data or b"").decode()
-    # And not on the way back out.
-    assert SENTINEL_KEY not in repr(status)
-    assert SENTINEL_KEY not in repr(status.to_record())
-
-
-def test_a_credential_the_vendors_schema_refuses_names_the_field_not_the_value(
-    remote: RemoteClient,
-) -> None:
-    with pytest.raises(CliError) as refused:
-        asyncio.run(
-            remote.store_integration_credential(
-                "redis", {"api_key": SENTINEL_KEY, "secret_key": "zzq1"}
-            )
-        )
-
-    assert "secret_key" in str(refused.value)
-    assert SENTINEL_KEY not in str(refused.value)
-    assert "zzq1" not in str(refused.value)
-
-
-# --- The provider surface ----------------------------------------------------
-
-
-def test_the_nine_providers_come_back_with_their_state(remote: RemoteClient) -> None:
-    providers = asyncio.run(remote.list_providers())
-
-    assert [status.provider_id for status in providers] == list(SUPPORTED_PROVIDERS)
-    assert not any(status.configured for status in providers)
-    assert [status.provider_id for status in providers if status.local] == list(LOCAL_PROVIDERS)
-
-
-def test_a_provider_reads_as_configured_once_its_credential_is_written(
-    remote: RemoteClient,
-) -> None:
-    """The two halves of the guided first run, in the order the flow does them."""
-    asyncio.run(remote.store_integration_credential("anthropic", {"api_key": PROVIDER_KEY}))
-
-    providers = asyncio.run(remote.list_providers())
-    anthropic = next(status for status in providers if status.provider_id == "anthropic")
-
-    assert anthropic.configured
-    assert not anthropic.verified
-    assert PROVIDER_KEY not in repr(providers)
-
-
-def test_verifying_a_provider_reports_what_the_deployment_found(remote: RemoteClient) -> None:
-    status = asyncio.run(remote.verify_provider("anthropic"))
-
-    assert status.provider_id == "anthropic"
-    assert status.verified
-    assert status.detail
-    assert status.model_id
-
-
-def test_a_provider_nobody_supports_is_reported_as_missing(remote: RemoteClient) -> None:
-    from surfaces.cli.errors import NotFoundError
-
-    with pytest.raises(NotFoundError):
-        asyncio.run(remote.verify_provider("anthropik"))
-
-
-# --- The two wirings that needed no new route --------------------------------
-
-
-def test_credential_fields_resolve_the_callers_own_node(remote: RemoteClient) -> None:
-    """The refusal was right about the shape and wrong about the consequence.
-
-    Credential schemas are reachable per node, not per client — and a client is
-    perfectly able to resolve which node it is acting at.
-    """
-    fields = asyncio.run(remote.credential_fields("redis"))
-
-    assert [declared.name for declared in fields] == ["api_key", "secret_key"]
-    assert [declared.secret for declared in fields] == [True, True]
-    assert all(declared.prompt for declared in fields)
-
-
-def test_credential_fields_answer_for_a_provider_too(remote: RemoteClient) -> None:
-    """A provider is not an installed integration, and the wizard asks the same way."""
-    fields = asyncio.run(remote.credential_fields("anthropic"))
-
-    # The canonical name, the same as any integration's — the environment
-    # variable rides alongside rather than being the field's identity.
-    assert [declared.name for declared in fields] == ["api_key"]
-    assert [declared.environment_variable for declared in fields] == ["ANTHROPIC_API_KEY"]
-    assert fields[0].secret
-
-
-def test_asking_for_a_vendor_nothing_installed_returns_nothing_rather_than_raising(
-    remote: RemoteClient,
-) -> None:
-    """The wizard turns an empty answer into its own message naming the integration."""
-    assert asyncio.run(remote.credential_fields("a-vendor-nobody-installed")) == ()
-
-
-def test_doctor_returns_a_report_rather_than_a_refusal(remote: RemoteClient) -> None:
-    """``ninjasre --endpoint … doctor`` against a deployment somewhere else."""
-    report = asyncio.run(remote.diagnose())
-
-    assert report.checks
-    named = {check.name for check in report.checks}
-    # One check per first-run step, so what ``doctor`` reports and what the
-    # console's checklist shows are the same four facts rather than two lists.
-    assert set(SETUP_STEP_ORDER) <= named
-    assert all(check.state for check in report.checks)
-    # Every failing check says what to do about it. A diagnostic that reports a
-    # problem and no remedy has moved the work rather than done it.
-    assert all(check.remedy for check in report.checks if check.state is not CheckState.OK)
-
-
-def test_a_deployment_with_no_bring_up_failure_is_not_reported_as_broken(
-    remote: RemoteClient,
-) -> None:
-    """404 from the diagnostics route means "nothing went wrong", not "unreachable".
-
-    This deployment started, so it recorded no failure. Reading that as an error
-    would put a red check on every healthy deployment.
-    """
-    report = asyncio.run(remote.diagnose())
-
-    bring_up = next(check for check in report.checks if check.name == "bring-up")
-    assert bring_up.state is CheckState.OK
 
 
 # --- What the API does not answer --------------------------------------------
@@ -766,6 +548,14 @@ def test_a_deployment_with_no_bring_up_failure_is_not_reported_as_broken(
     [
         pytest.param(lambda client: client.cost_of_runs(), id="cost"),
         pytest.param(lambda client: client.spend(), id="spend"),
+        pytest.param(lambda client: client.list_providers(), id="providers"),
+        pytest.param(lambda client: client.verify_provider("anthropic"), id="verify-provider"),
+        pytest.param(lambda client: client.credential_fields("datadog"), id="credential-fields"),
+        pytest.param(
+            lambda client: client.store_integration_credential("datadog", {"api_key": "x"}),
+            id="store-credential",
+        ),
+        pytest.param(lambda client: client.diagnose(), id="doctor"),
     ],
 )
 def test_what_this_api_does_not_serve_is_refused_by_name(remote: RemoteClient, ask: Any) -> None:
@@ -779,12 +569,10 @@ def test_what_this_api_does_not_serve_is_refused_by_name(remote: RemoteClient, a
     assert refusal.value.remedy
 
 
-def test_a_refusal_for_something_unserved_never_carries_what_was_asked(
-    remote: RemoteClient,
-) -> None:
-    # A refusal is raised before any request is built, and must not become the
-    # place the argument ends up: it is a string an operator pastes.
+def test_a_credential_never_reaches_the_deployments_access_log(remote: RemoteClient) -> None:
+    # Refused rather than sent, but the refusal must still not be the place a
+    # secret ends up: it is raised before any request is built.
     with pytest.raises(UnavailableError) as refusal:
-        asyncio.run(remote.cost_of_runs(team_node_id="a-team-nobody-named"))
+        asyncio.run(remote.store_integration_credential("datadog", {"api_key": "SECRET"}))
 
-    assert "a-team-nobody-named" not in str(refusal.value)
+    assert "SECRET" not in str(refusal.value)

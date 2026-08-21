@@ -223,34 +223,6 @@ MODEL_PRICING_MAX_AGE_DAYS: Final[int] = 180
 #: divides once, here, rather than at every call site.
 TOKENS_PER_PRICING_UNIT: Final[int] = 1_000_000
 
-# --- Model listing -------------------------------------------------------------
-#
-# A provider's own endpoint is asked what it currently serves, rather than
-# trusting the static registry above, which drifts the day a vendor ships a
-# model this build has never heard of. The bounds below govern that call.
-
-#: How long a fetched listing is trusted before the next read asks again.
-#: Short enough that a key rotated an hour ago is reflected the same day,
-#: long enough that opening the same screen three times in a minute does not
-#: call the vendor three times.
-MODEL_LISTING_CACHE_TTL_SECONDS: Final[float] = 300.0
-
-#: How long a listing call may take before it is treated as unavailable and the
-#: caller falls back to the static registry. A screen must not hang on a vendor
-#: having a slow day.
-MODEL_LISTING_FETCH_TIMEOUT_SECONDS: Final[float] = 10.0
-
-#: Distinct providers whose listing this process holds in cache at once. Well
-#: above the nine supported providers, so nothing here is a practical limit —
-#: it exists to cap memory for a process that outlives many configuration
-#: changes, not to ration a resource that is scarce today.
-MODEL_LISTING_CACHE_MAX_ENTRIES: Final[int] = 64
-
-#: Where Google's Gemini API lists the models this deployment's key can reach.
-GOOGLE_GENERATIVE_LANGUAGE_MODELS_URL: Final = (
-    "https://generativelanguage.googleapis.com/v1beta/models"
-)
-
 
 __all__ = [
     "ANTHROPIC_API_KEY_ENV",
@@ -274,7 +246,6 @@ __all__ = [
     "GOOGLE_APPLICATION_CREDENTIALS_ENV",
     "GOOGLE_CLOUD_LOCATION_ENV",
     "GOOGLE_CLOUD_PROJECT_ENV",
-    "GOOGLE_GENERATIVE_LANGUAGE_MODELS_URL",
     "LLM_CONNECT_TIMEOUT_SECONDS",
     "LLM_CONTEXT_RESERVE_TOKENS",
     "LLM_MAX_RETRIES",
@@ -289,9 +260,6 @@ __all__ = [
     "MAX_TOOL_CALL_REPAIRS_PER_RUN",
     "MAX_TOOL_CALL_REPAIRS_PER_TURN",
     "MODEL_CALL_BUDGET_SECONDS",
-    "MODEL_LISTING_CACHE_MAX_ENTRIES",
-    "MODEL_LISTING_CACHE_TTL_SECONDS",
-    "MODEL_LISTING_FETCH_TIMEOUT_SECONDS",
     "MODEL_PRICING_MAX_AGE_DAYS",
     "MODEL_PROBE_CACHE_MAX_ENTRIES",
     "MODEL_PROBE_CONTEXT_RESOLUTION_TOKENS",

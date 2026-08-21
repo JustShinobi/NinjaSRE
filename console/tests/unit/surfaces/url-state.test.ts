@@ -7,7 +7,6 @@ import {
   SORT_PARAM,
   hrefFor,
   readViewState,
-  resolveNode,
   withFilter,
   withPage,
   withSelection,
@@ -136,50 +135,5 @@ describe('the address itself', () => {
     );
 
     expect(href).toBe(`/runs?${SELECTION_PARAM}=run-0003`);
-  });
-});
-
-/**
- * Which node a node-scoped screen is showing.
- *
- * Three screens read an endpoint with a `{node_id}` in it, and each of them has
- * to answer the same question before it can ask anything: which node. The rule
- * lives once because a screen that answered it differently would be a screen
- * that shows a different deployment's configuration from the one beside it —
- * and because a screen that answered it with nothing at all builds a URL with
- * the brace still in, which is a broken route rather than an empty panel.
- */
-describe('the node a screen is scoped to', () => {
-  const TREE = [{ id: 'org-northwind' }, { id: 'team-platform' }];
-  const NOBODY = { teamNodeId: '' };
-  const SOMEBODY = { teamNodeId: 'team-storage' };
-
-  function stateOfNode(node?: string): ViewState {
-    return node === undefined
-      ? DEFAULT_VIEW_STATE
-      : { ...DEFAULT_VIEW_STATE, filters: { node } };
-  }
-
-  it('is the one in the address, before anything else', () => {
-    expect(resolveNode(stateOfNode('env-staging'), SOMEBODY, TREE)).toBe('env-staging');
-  });
-
-  it('is the viewer’s own team when the address names none', () => {
-    expect(resolveNode(stateOfNode(), SOMEBODY, TREE)).toBe('team-storage');
-  });
-
-  it('is the root of the tree when the viewer resolves to no team', () => {
-    expect(resolveNode(stateOfNode(), NOBODY, TREE)).toBe('org-northwind');
-  });
-
-  it('is nothing at all when there is no address, no team and no tree', () => {
-    expect(resolveNode(stateOfNode(), NOBODY, [])).toBe('');
-  });
-
-  it('is the viewer’s team even when the tree could not be read', () => {
-    // The tree read is its own panel and fails on its own. A screen that lost
-    // its node because the *selector* failed would turn one dead panel into
-    // two.
-    expect(resolveNode(stateOfNode(), SOMEBODY, [])).toBe('team-storage');
   });
 });

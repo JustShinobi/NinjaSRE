@@ -7,7 +7,7 @@ descriptor is those four answers in one object, declared beside the vendor it
 describes.
 
 Bundling them is what makes SC-002 assertable. "Every integration routes through
-the proxy" is not a property anybody can inspect across every package; it
+the proxy" is not a property anybody can inspect across eighty-five packages; it
 is a property a test can check by walking the tree and finding a descriptor,
 with a client that sits on the base class, in each one. An integration that
 forgot fails the day it lands rather than the day somebody audits.
@@ -75,7 +75,7 @@ class IntegrationDescriptor:
 
     Declared in the vendor's own package and collected by walking the tree, so
     adding an integration is one package and no edit anywhere else. That is the
-    property that has to hold for the catalogue to be addable one
+    property that has to hold for a catalogue of eighty-five to be addable one
     at a time, and it is why there is no registry module to remember to update.
     """
 

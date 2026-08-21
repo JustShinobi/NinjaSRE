@@ -131,15 +131,6 @@ MAX_HISTORY_SAMPLES: Final[int] = 2_000
 
 # --- Logs --------------------------------------------------------------------------
 
-#: What the capability that reads a resource's logs is called. Named after the
-#: question it answers rather than the vendor that answers it, because a
-#: deployment may change log systems and an investigation should not notice.
-LOGS_TOOL_NAME: Final[str] = "logs_for_resource"
-
-#: What a log evidence entry's reference is prefixed with, so a conclusion drawn
-#: from lines can be followed back to the exact query and window that read them.
-LOG_REFERENCE_PREFIX: Final[str] = "log"
-
 #: Lines one log query returns. The bound is stated in the result rather than
 #: applied silently: an answer that was truncated and did not say so is worse
 #: than no answer, because the reader draws a conclusion from it.
@@ -201,8 +192,6 @@ __all__ = [
     "MAX_HISTORY_LOOKBACK_SECONDS",
     "MAX_HISTORY_SAMPLES",
     "MAX_LABEL_RULES",
-    "LOGS_TOOL_NAME",
-    "LOG_REFERENCE_PREFIX",
     "MAX_LOG_LINES",
     "MAX_LOG_WINDOW_SECONDS",
     "MAX_MAPPED_SERIES",

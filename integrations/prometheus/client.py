@@ -24,15 +24,10 @@ from integrations._base.pagination import (
 from integrations._base.payload import records
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations.prometheus.schema import INTEGRATION
-from integrations.prometheus.schema import base_url as _region_url
+from integrations.prometheus.schema import INTEGRATION, base_url
 
 PING_PATH: Final = "/api/v1/status/buildinfo"
 QUERY_METRIC_PATH: Final = "/api/v1/query_range"
-#: The instant query. A signal is one number at one moment, and asking the range
-#: endpoint for it means inventing a window — which is a different question with
-#: a different answer, and a 400 when the window is left out.
-INSTANT_QUERY_PATH: Final = "/api/v1/query"
 LIST_ALERTS_PATH: Final = "/api/v1/alerts"
 
 #: How many records one call reads before it stops. Small on purpose: the model
@@ -79,16 +74,12 @@ class PrometheusClient(IntegrationClient):
         transport: ProxyTransport,
         context: RequestContext,
         region: str = "",
-        base_url: str = "",
         retry: RetryPolicy | None = None,
     ) -> None:
-        # The operator's own address wins over the shipped region, which is a
-        # placeholder: nobody packaging this knows where your Prometheus is.
-        # The egress allow-list still decides whether the host may be reached.
         super().__init__(
             transport=transport,
             context=context,
-            base_url=base_url or _region_url(region),
+            base_url=base_url(region),
             retry=retry,
         )
 
@@ -114,34 +105,6 @@ class PrometheusClient(IntegrationClient):
             return Page(items=records(answer, "data", "result"), cursor="" or None)
 
         return await walk(_pagination("query_metric"), fetch, max_pages=max_pages, max_items=limit)
-
-    async def query_instant(self, expression: str) -> tuple[dict[str, Any], ...]:
-        """Return the series ``expression`` evaluates to, now.
-
-        One request and no paging: an instant query answers with a vector whose
-        length is the number of series that matched, and Prometheus does not
-        page it.
-        """
-        answer = (await self.get(INSTANT_QUERY_PATH, params={"query": expression})).json()
-        return records(answer, "data", "result")
-
-    async def query_range(
-        self, expression: str, *, start: str, end: str, step: str
-    ) -> tuple[dict[str, Any], ...]:
-        """Return every series ``expression`` held between ``start`` and ``end``.
-
-        One request and no paging, unlike ``query_metric``: a caller that wants
-        history for a declared matcher wants the whole window in one range
-        query, not a page it has to ask for again — Prometheus does not page a
-        range query either, only this client's own browsing endpoint does.
-        """
-        answer = (
-            await self.get(
-                QUERY_METRIC_PATH,
-                params={"query": expression, "start": start, "end": end, "step": step},
-            )
-        ).json()
-        return records(answer, "data", "result")
 
     async def list_alerts(
         self,
@@ -182,7 +145,6 @@ __all__ = [
     "DEFAULT_LIMIT",
     "PAGINATION",
     "PING_PATH",
-    "INSTANT_QUERY_PATH",
     "QUERY_METRIC_PATH",
     "LIST_ALERTS_PATH",
     "PrometheusClient",

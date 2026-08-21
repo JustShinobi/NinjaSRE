@@ -2,7 +2,7 @@
 
 # incident capabilities
 
-3 tools and 1 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+21 tools and 7 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
 
@@ -19,6 +19,90 @@ What Prometheus Alertmanager is currently holding: which alerts are firing, how 
 - `alertmanager_incident_statistics`
 - `alertmanager_incident_timeline`
 - `alertmanager_acknowledge_incident`
+
+### `incident-blameless`
+
+Blameless's incident record: what is open, one incident's events, and the update that says an automated investigation is under way.
+
+- **Domain:** incident
+- **Applies to alerts from:** blameless
+- **Requires:** blameless
+
+**Directs:**
+
+- `blameless_incident_statistics`
+- `blameless_incident_timeline`
+- `blameless_acknowledge_incident`
+
+### `incident-firehydrant`
+
+FireHydrant's incident record: what is active, one incident's events, and the note that says an automated investigation has started.
+
+- **Domain:** incident
+- **Applies to alerts from:** firehydrant
+- **Requires:** firehydrant
+
+**Directs:**
+
+- `firehydrant_incident_statistics`
+- `firehydrant_incident_timeline`
+- `firehydrant_acknowledge_incident`
+
+### `incident-incident_io`
+
+incident.io's record of what is happening: the open incidents, one incident's timeline, and the acknowledgement that says somebody is on it.
+
+- **Domain:** incident
+- **Applies to alerts from:** incident_io
+- **Requires:** incident_io
+
+**Directs:**
+
+- `incident_io_incident_statistics`
+- `incident_io_incident_timeline`
+- `incident_io_acknowledge_incident`
+
+### `incident-opsgenie`
+
+Opsgenie alerts and their state: what is open, one alert's log, and the acknowledgement that stops the escalation.
+
+- **Domain:** incident
+- **Applies to alerts from:** opsgenie
+- **Requires:** opsgenie
+
+**Directs:**
+
+- `opsgenie_incident_statistics`
+- `opsgenie_incident_timeline`
+- `opsgenie_acknowledge_incident`
+
+### `incident-pagerduty`
+
+Who is being paged and for what: the incidents PagerDuty is holding, one incident's log, and the acknowledgement that stops the escalation clock.
+
+- **Domain:** incident
+- **Applies to alerts from:** pagerduty
+- **Requires:** pagerduty
+
+**Directs:**
+
+- `pagerduty_incident_statistics`
+- `pagerduty_incident_timeline`
+- `pagerduty_acknowledge_incident`
+
+### `incident-servicenow`
+
+ServiceNow incident records: what is open, one incident's work notes, and the update that records an automated investigation.
+
+- **Domain:** incident
+- **Applies to alerts from:** servicenow
+- **Requires:** servicenow
+
+**Directs:**
+
+- `servicenow_incident_statistics`
+- `servicenow_incident_timeline`
+- `servicenow_acknowledge_incident`
 
 ## Tools
 
@@ -70,6 +154,360 @@ Return one incident's timeline — the notes, escalations, and status changes, o
 - **Evidence:** incident from alertmanager
 - **Parallel safe:** yes
 - **Requires:** alertmanager
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `blameless_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from blameless
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** blameless
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `blameless_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from blameless
+- **Parallel safe:** yes
+- **Requires:** blameless
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `blameless_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from blameless
+- **Parallel safe:** yes
+- **Requires:** blameless
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `firehydrant_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from firehydrant
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** firehydrant
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `firehydrant_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from firehydrant
+- **Parallel safe:** yes
+- **Requires:** firehydrant
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `firehydrant_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from firehydrant
+- **Parallel safe:** yes
+- **Requires:** firehydrant
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `incident_io_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from incident_io
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** incident_io
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `incident_io_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from incident_io
+- **Parallel safe:** yes
+- **Requires:** incident_io
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `incident_io_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from incident_io
+- **Parallel safe:** yes
+- **Requires:** incident_io
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `opsgenie_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from opsgenie
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** opsgenie
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `opsgenie_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from opsgenie
+- **Parallel safe:** yes
+- **Requires:** opsgenie
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `opsgenie_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from opsgenie
+- **Parallel safe:** yes
+- **Requires:** opsgenie
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `pagerduty_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from pagerduty
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** pagerduty
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `pagerduty_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from pagerduty
+- **Parallel safe:** yes
+- **Requires:** pagerduty
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `pagerduty_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from pagerduty
+- **Parallel safe:** yes
+- **Requires:** pagerduty
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `servicenow_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from servicenow
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** servicenow
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `servicenow_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from servicenow
+- **Parallel safe:** yes
+- **Requires:** servicenow
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `servicenow_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from servicenow
+- **Parallel safe:** yes
+- **Requires:** servicenow
 
 **Use when:**
 

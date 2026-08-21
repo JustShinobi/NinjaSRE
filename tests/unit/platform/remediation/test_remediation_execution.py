@@ -22,7 +22,7 @@ from platform.remediation.autonomy.allow_list import AllowList, AllowListEntry, 
 from platform.remediation.autonomy.evaluation import ConditionEvaluator
 from platform.remediation.errors import ConditionsNotMet, TargetLocked
 from platform.remediation.execution import RemediationExecutor, TargetLocks
-from platform.remediation.models import ExecutionOutcome, SubTargetResult, outcome_of
+from platform.remediation.models import ExecutionOutcome
 
 STAGING = "staging"
 TEAM = "team-payments"
@@ -160,20 +160,10 @@ async def test_a_partial_action_produces_a_plan_covering_only_what_changed(
     assert [step.ordinal for step in execution.plan.steps] == [1, 2]
 
 
-async def test_a_target_already_in_the_desired_state_is_unchanged_not_failed(
+async def test_an_action_that_changed_nothing_produces_no_rollback_steps(
     registry, plans, executor, plane, an_action, clock
 ) -> None:
-    """Every sub-target reports ``changed=False`` because none needed moving —
-    the shape a real "already there" produces, per ``SubTargetResult``'s own
-    contract: "a pod that was already in the desired state was not changed
-    and must not be listed as something to put back." That is a real,
-    honest outcome, distinct in both directions: not ``SUCCEEDED`` (nothing
-    was actually changed, so a report that read it as a success would be
-    wrong about what happened), and — the claim this test exists to hold —
-    not ``FAILED`` either (nothing went wrong; there was nothing left to do).
-    A rollback plan for a change that did not happen is also an instruction
-    to make one, which is the second claim, kept from before.
-    """
+    """A rollback plan for a change that did not happen is an instruction to make one."""
     plane.changes = 0
     action = an_action()
     before = await registry.get(action.capability).reader.read(action, at=clock())
@@ -181,34 +171,8 @@ async def test_a_target_already_in_the_desired_state_is_unchanged_not_failed(
 
     execution = await executor.execute(action, plan=plan, before=before)
 
-    assert execution.outcome is ExecutionOutcome.UNCHANGED
-    assert execution.outcome is not ExecutionOutcome.FAILED
-    assert execution.outcome is not ExecutionOutcome.SUCCEEDED
-    assert execution.record.changed_sub_targets == ()
+    assert execution.outcome is ExecutionOutcome.FAILED
     assert execution.plan.steps == ()
-
-
-def test_outcome_of_distinguishes_nothing_attempted_from_nothing_needed_to_change() -> None:
-    """``outcome_of`` in isolation, the two branches that collapsed into one word.
-
-    Zero results is a control plane that was asked and answered nothing — a
-    real failure, with no "already satisfied" reading available because
-    nothing was even attempted. One-or-more results that all say
-    ``changed=False`` is the opposite: the control plane answered, for every
-    expected piece, that none of them needed touching. Conflating the two
-    is exactly the "pretended execution" this edge case exists to rule out,
-    just in the failure direction rather than the success one — an operator
-    reading ``FAILED`` for a target that was already fine would escalate a
-    non-problem.
-    """
-    assert outcome_of((), expected=("cedar",)) is ExecutionOutcome.FAILED
-
-    already_there = (SubTargetResult(identifier="cedar", changed=False),)
-    assert outcome_of(already_there, expected=("cedar",)) is ExecutionOutcome.UNCHANGED
-    assert outcome_of(already_there, expected=("cedar",)) is not ExecutionOutcome.FAILED
-
-    changed = (SubTargetResult(identifier="cedar", changed=True),)
-    assert outcome_of(changed, expected=("cedar",)) is ExecutionOutcome.SUCCEEDED
 
 
 async def test_every_sub_target_moving_is_a_success(

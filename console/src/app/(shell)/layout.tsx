@@ -9,9 +9,7 @@ import {
   countsFrom,
   loadAttention,
   loadGuardian,
-  loadStopped,
   loadRecentRuns,
-  loadSetup,
   loadViewer,
 } from '@/shell/load';
 import { Shell } from '@/shell/shell';
@@ -34,11 +32,6 @@ export default async function ShellLayout({
   children,
 }: Readonly<{ children: ReactNode }>): Promise<ReactNode> {
   const credential = await requestCredential();
-  // Only the two redirects below use this, and both run on a real request
-  // before anything renders — which is the one moment the header *is* the
-  // path. The frame reads its own, from the router, because a layout is not
-  // re-rendered by a segment navigation and this value would go stale the
-  // first time somebody used the navigation.
   const current = (await headers()).get('x-current-path') ?? '/';
   if (credential === null) {
     redirect(signInHref(current));
@@ -50,27 +43,23 @@ export default async function ShellLayout({
     redirect(signInHref(current, 'expired'));
   }
 
-  const [attention, recentRuns, guardian, setup, stopped, expiresAt] =
-    await Promise.all([
-      loadAttention(credential),
-      loadRecentRuns(credential),
-      loadGuardian(credential),
-      loadSetup(credential),
-      loadStopped(credential),
-      requestExpiry(),
-    ]);
+  const [attention, recentRuns, guardian, expiresAt] = await Promise.all([
+    loadAttention(credential),
+    loadRecentRuns(credential),
+    loadGuardian(credential),
+    requestExpiry(),
+  ]);
 
   return (
     <Shell
       viewer={viewer}
       locale={locale}
       deployment={deployment()}
+      current={current}
       guardian={guardian}
       attention={attention}
       recentRuns={recentRuns}
       counts={countsFrom(attention)}
-      setup={setup}
-      stopped={stopped}
       expiresAt={expiresAt}
     >
       {children}

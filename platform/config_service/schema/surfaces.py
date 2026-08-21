@@ -14,7 +14,7 @@ is not a secret and is the thing an operator actually edits.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import Field, field_validator
 
@@ -34,8 +34,6 @@ from platform.config_service.schema.types import (
     ConfiguredInt,
     ConfiguredStr,
     ConfiguredStrList,
-    field_help,
-    section_help,
 )
 
 #: The generic destination kinds this section has always accepted. Kept
@@ -68,26 +66,12 @@ SEVERITIES: tuple[str, ...] = ("info", "warning", "error", "critical")
 class ChannelSettings(ConfigSection):
     """One chat destination, and what it is willing to be told about."""
 
-    model_config = section_help(
-        "One chat channel and the severity floor it accepts. No token is entered here: "
-        "the chat integration holds it."
-    )
-
     #: Both required: a channel entry naming neither a platform nor a channel
     #: is configuration that delivers nowhere.
-    platform: Annotated[ConfiguredStr, field_help("Which chat platform this channel is on.")]
-    channel: Annotated[
-        ConfiguredStr, field_help("The channel to post in, as that platform names it.")
-    ]
-    min_severity: Annotated[
-        Literal["info", "warning", "error", "critical"],
-        field_help(
-            "The lowest severity this channel is told about. Anything below it is not posted here."
-        ),
-    ] = "info"
-    enabled: Annotated[
-        bool, field_help("Off keeps the channel configured and stops posting to it.")
-    ] = True
+    platform: ConfiguredStr
+    channel: ConfiguredStr
+    min_severity: Literal["info", "warning", "error", "critical"] = "info"
+    enabled: bool = True
 
     @field_validator("platform")
     @classmethod
@@ -107,50 +91,19 @@ class ChannelSettings(ConfigSection):
 class DestinationSettings(ConfigSection):
     """One place a finished investigation is delivered."""
 
-    model_config = section_help(
-        "One place a finished report is delivered, and who is expected to read it there."
-    )
-
     #: Both required, for the same reason a channel needs both of its.
-    kind: Annotated[
-        ConfiguredStr,
-        field_help(
-            "What sort of destination this is — a chat, a webhook, an "
-            "email, a page in your knowledge base."
-        ),
-    ]
-    target: Annotated[
-        ConfiguredStr,
-        field_help("Where exactly the report goes: the channel, the address, the page."),
-    ]
-    format: Annotated[
-        Literal["markdown", "html", "json"],
-        field_help("How the report is written for this destination."),
-    ] = "markdown"
-    enabled: Annotated[
-        bool, field_help("Off keeps the destination and stops delivering to it.")
-    ] = True
+    kind: ConfiguredStr
+    target: ConfiguredStr
+    format: Literal["markdown", "html", "json"] = "markdown"
+    enabled: bool = True
     #: Who reads what lands here. Decides whether masked identifiers are put
     #: back and whether evidence bodies may appear at all, so the safe value is
     #: the default and widening it is a deliberate edit.
-    audience: Annotated[
-        Literal["private", "team", "public"],
-        field_help(
-            "Who can read what lands here. It decides whether hostnames and identifiers "
-            "are restored and whether raw evidence may appear at all, so widen it only "
-            "on purpose."
-        ),
-    ] = AUDIENCE_PRIVATE
+    audience: Literal["private", "team", "public"] = AUDIENCE_PRIVATE
     #: Set once somebody has proved this destination works. Delivery refuses an
     #: unverified destination: an unverified one fails at 03:00, which is the
     #: worst possible moment to discover a wrong API token.
-    verified: Annotated[
-        bool,
-        field_help(
-            "Set by a successful test delivery. Nothing is sent to an unverified "
-            "destination, so that a wrong address is found now rather than at 03:00."
-        ),
-    ] = False
+    verified: bool = False
 
     @field_validator("kind")
     @classmethod
@@ -164,39 +117,15 @@ class DestinationSettings(ConfigSection):
 class SinkSettings(ConfigSection):
     """One notification target, and what its readership may be told."""
 
-    model_config = section_help(
-        "One place short notifications are sent — a push service, an email address, a "
-        "webhook — and who is expected to read them there."
-    )
-
-    kind: Annotated[ConfiguredStr, field_help("What sort of notification target this is.")]
-    target: Annotated[
-        ConfiguredStr, field_help("Where the notification goes: the address, key or channel.")
-    ]
-    enabled: Annotated[bool, field_help("Off keeps the target and stops notifying it.")] = True
-    audience: Annotated[
-        Literal["private", "team", "public"],
-        field_help(
-            "Who can read what is sent here. It decides how much of an incident may "
-            "appear in the text."
-        ),
-    ] = AUDIENCE_PRIVATE
-    verified: Annotated[
-        bool,
-        field_help(
-            "Set by a successful test notification. Nothing is sent to an unverified target."
-        ),
-    ] = False
+    kind: ConfiguredStr
+    target: ConfiguredStr
+    enabled: bool = True
+    audience: Literal["private", "team", "public"] = AUDIENCE_PRIVATE
+    verified: bool = False
     #: Per-sink extras a vendor understands and this schema does not interpret:
     #: a Pushover device name, a sound, an email sender. Strings only, because a
     #: nested structure here would be a second configuration language.
-    options: Annotated[
-        Mapping[str, ConfiguredStr],
-        field_help(
-            "Extras this particular target understands — a device name, a sound, a "
-            "sender address. Text values only."
-        ),
-    ] = Field(default_factory=dict)
+    options: Mapping[str, ConfiguredStr] = Field(default_factory=dict)
 
     @field_validator("kind")
     @classmethod
@@ -212,45 +141,17 @@ class NotificationPolicySettings(ConfigSection):
 
     Every value is a *narrowing* of the platform default. A team that wants to
     be interrupted more often than the shipped ceilings allow is asking for the
-    ceiling not to be a ceiling, which the platform does not allow.
+    ceiling not to be a ceiling, which is the thing Article II rules out.
     """
 
-    model_config = section_help(
-        "How much of this team's attention a notification may take: when it is quiet, "
-        "how soon the same thing may be repeated, and how many arrive in an hour. Every "
-        "value here can only make the platform ceiling stricter."
-    )
-
-    quiet_hours_enabled: Annotated[
-        bool,
-        field_help("Hold non-urgent notifications during the hours set below."),
-    ] = False
-    quiet_hours_start: Annotated[
-        ConfiguredInt, field_help("The hour of the day quiet hours begin, 0 to 23.")
-    ] = QUIET_HOURS_START_HOUR
-    quiet_hours_end: Annotated[
-        ConfiguredInt, field_help("The hour of the day quiet hours end, 0 to 23.")
-    ] = QUIET_HOURS_END_HOUR
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: ConfiguredInt = QUIET_HOURS_START_HOUR
+    quiet_hours_end: ConfiguredInt = QUIET_HOURS_END_HOUR
     #: The team's own timezone. "22:00 to 07:00" means the team's night, and a
     #: window evaluated in UTC wakes a team in Auckland at lunchtime.
-    timezone: Annotated[
-        ConfiguredStr,
-        field_help(
-            "The team's own timezone, so quiet hours mean this team's night rather than "
-            "somebody else's."
-        ),
-    ] = "UTC"
-    cooldown_seconds: Annotated[
-        ConfiguredFloat,
-        field_help("How long to wait before notifying about the same thing again."),
-    ] = NOTIFICATION_COOLDOWN_SECONDS
-    notifications_per_hour: Annotated[
-        ConfiguredInt,
-        field_help(
-            "The most notifications this team receives in an hour. Cannot be raised "
-            "above the platform ceiling."
-        ),
-    ] = MAX_NOTIFICATIONS_PER_TEAM_PER_WINDOW
+    timezone: ConfiguredStr = "UTC"
+    cooldown_seconds: ConfiguredFloat = NOTIFICATION_COOLDOWN_SECONDS
+    notifications_per_hour: ConfiguredInt = MAX_NOTIFICATIONS_PER_TEAM_PER_WINDOW
 
     @field_validator("quiet_hours_start", "quiet_hours_end")
     @classmethod
@@ -279,60 +180,13 @@ class NotificationPolicySettings(ConfigSection):
         return value
 
 
-class ConsoleSurfaceSettings(ConfigSection):
-    """What the web console remembers about a team, on the deployment's side.
-
-    One field, and the reason it is here rather than in the browser is the whole
-    of it: a dismissal kept in browser storage is a dismissal that has not
-    happened on the second machine, or in the second browser, or for the second
-    person on the same team. The guided tutorial is about *this deployment*, so
-    what records that somebody has seen it belongs where the deployment's other
-    per-team decisions live.
-
-    Nothing here is a secret, and nothing here may become one. What the console
-    keeps on this side is what a colleague could read over your shoulder without
-    it mattering.
-    """
-
-    model_config = section_help(
-        "What the console remembers about this team on the deployment's side, so it is "
-        "the same in every browser."
-    )
-
-    #: Whether the guided tutorial has been dismissed for this team. The overlay
-    #: is only ever shown while the setup checklist has something outstanding,
-    #: so a stale ``False`` cannot trap a configured deployment behind it.
-    tutorial_dismissed: Annotated[
-        bool,
-        field_help("Whether this team has dismissed the guided tour of the console."),
-    ] = False
-
-
 class SurfacesConfig(ConfigSection):
     """Which surfaces this team uses, and where their output goes."""
 
-    model_config = section_help(
-        "How this team reaches the platform and how the platform reaches it back: which "
-        "surfaces are on, and where alerts, reports and notifications are sent."
-    )
-
-    enabled: Annotated[
-        ConfiguredStrList,
-        field_help("Which ways in this team uses — the console, the chat bot, the command line."),
-    ] = ()
-    console: ConsoleSurfaceSettings = ConsoleSurfaceSettings()
-    channels: Annotated[
-        tuple[ChannelSettings, ...],
-        field_help("Chat channels this team is alerted in."),
-    ] = ()
-    report_destinations: Annotated[
-        tuple[DestinationSettings, ...],
-        field_help("Where a finished investigation report is delivered."),
-    ] = ()
-    notification_sinks: Annotated[
-        tuple[SinkSettings, ...],
-        field_help("Where short notifications are sent, as opposed to full reports."),
-    ] = ()
+    enabled: ConfiguredStrList = ()
+    channels: tuple[ChannelSettings, ...] = ()
+    report_destinations: tuple[DestinationSettings, ...] = ()
+    notification_sinks: tuple[SinkSettings, ...] = ()
     notification_policy: NotificationPolicySettings = NotificationPolicySettings()
 
     @field_validator("enabled")
@@ -360,7 +214,6 @@ class SurfacesConfig(ConfigSection):
 
 
 SURFACES_FIELDS: tuple[str, ...] = tuple(SurfacesConfig.model_fields)
-CONSOLE_SURFACE_FIELDS: tuple[str, ...] = tuple(ConsoleSurfaceSettings.model_fields)
 CHANNEL_FIELDS: tuple[str, ...] = tuple(ChannelSettings.model_fields)
 DESTINATION_FIELDS: tuple[str, ...] = tuple(DestinationSettings.model_fields)
 SINK_FIELDS: tuple[str, ...] = tuple(SinkSettings.model_fields)
@@ -369,8 +222,6 @@ NOTIFICATION_POLICY_FIELDS: tuple[str, ...] = tuple(NotificationPolicySettings.m
 
 __all__ = [
     "CHANNEL_FIELDS",
-    "CONSOLE_SURFACE_FIELDS",
-    "ConsoleSurfaceSettings",
     "DESTINATION_FIELDS",
     "DESTINATION_KINDS",
     "GENERIC_DESTINATION_KINDS",

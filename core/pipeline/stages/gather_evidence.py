@@ -6,11 +6,8 @@ runtime's, and none of it is repeated here. What this stage owns is the three
 things that are the *investigation's* rather than the loop's:
 
 **The request.** What to investigate, from which source, inside which window,
-with which shortlist, and under which system prompt. The window travels in the
-run's context so the model can see it, and is enforced separately so seeing it
-is not required. The system prompt travels here rather than being read from
-configuration inside the loop, because the loop is provider-neutral machinery
-and which team's prompt this run uses is a composition decision.
+with which shortlist. The window travels in the run's context so the model can
+see it, and is enforced separately so seeing it is not required.
 
 **The window guard.** A ``pre_tool_use`` hook clamping time-bounded arguments
 clamped to the window. Suggesting it in the prompt is not enforcement: a model asked
@@ -83,11 +80,6 @@ class GatherEvidenceStage:
 
     runtime: Runtime
     stream: EventStream | None = None
-    #: The system prompt this team runs under, from the configuration service's
-    #: own assembly (``AgentsConfig.system_prompt_for``). Empty means the shipped
-    #: default, which is what a deployment that configured nothing gets — and it
-    #: is the loop that supplies it, so this stage never names a prompt.
-    system_prompt: str = ""
 
     @property
     def name(self) -> StageName:
@@ -138,7 +130,6 @@ class GatherEvidenceStage:
             objective=_objective(alert, window),
             alert_source=alert.alert_source.value,
             session_id=state.run_id,
-            system_prompt=self.system_prompt,
             context=_context(alert, window, state),
         )
 

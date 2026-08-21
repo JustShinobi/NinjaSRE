@@ -90,7 +90,6 @@ class RemediationAuditor:
         default_factory=lambda: {
             ExecutionOutcome.SUCCEEDED: AuditOutcome.ALLOWED,
             ExecutionOutcome.PARTIAL: AuditOutcome.ALLOWED,
-            ExecutionOutcome.UNCHANGED: AuditOutcome.ALLOWED,
             ExecutionOutcome.FAILED: AuditOutcome.DENIED,
             ExecutionOutcome.REFUSED: AuditOutcome.DENIED,
         },

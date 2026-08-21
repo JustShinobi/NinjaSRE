@@ -14,7 +14,7 @@ it belongs to the refresher; what is left here is placing the token and the
 quota project, which the vendor wants in a header of its own.
 
 There is a general point in that difference. "Signing" is not one operation, and
-the way to keep every integration from inventing its own is to make
+the way to keep eighty-five integrations from each inventing their own is to make
 each scheme a declared ``RequestSigner`` rather than a branch inside the engine.
 """
 

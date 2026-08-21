@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/action';
@@ -11,25 +10,16 @@ import { sessionController, type SessionEnding } from '@/session/controller';
 import { signInHref } from '@/session/cookies';
 import { endSession } from '@/session/end';
 import { sessionLife } from '@/session/expiry';
-import { may, type Viewer } from '@/session/viewer';
+import type { Viewer } from '@/session/viewer';
 import { InvestigateDrawer } from '@/live/investigate';
 import { onResolved, withoutItem, type AttentionItem } from './attention';
 import { useNow } from './browser';
-import {
-  commandsFor,
-  searchCommands,
-  type Command,
-  type RecentRun,
-  type SearchAnswer,
-} from './commands';
-import { askDeployment } from './search-client';
+import { commandsFor, type Command, type RecentRun } from './commands';
 import type { Deployment } from './deployment';
 import { ImpersonationBanner } from './impersonation';
-import type { SetupState, Stoppage } from './load';
 import { NotificationCentre } from './notifications';
 import { isPaletteShortcut, Palette } from './palette';
 import { GuardianFooter, Sidebar, SidebarNav, type Guardian } from './sidebar';
-import { KillSwitchBanner } from './stop';
 import { Topbar } from './topbar';
 
 /**
@@ -51,41 +41,16 @@ export interface ShellProps {
   readonly viewer: Viewer;
   readonly locale: Locale;
   readonly deployment: Deployment;
+  readonly current: string;
   readonly guardian: Guardian;
   readonly attention: readonly AttentionItem[];
   readonly recentRuns: readonly RecentRun[];
   readonly counts?: Readonly<Record<string, number>>;
-  /**
-   * What the deployment says about its own setup.
-   *
-   * The frame reads it because three things in the frame depend on it: the
-   * navigation entry that exists only while there is something left to do,
-   * the caveat the investigation drawer carries when nothing is connected,
-   * and the harder caveat — which disables starting one at all — when this
-   * process has no runtime to run it in.
-   */
-  readonly setup?: SetupState;
-  /**
-   * Whether every automated write is currently stopped, and who did it.
-   *
-   * In the frame rather than on the autonomy screen, because a screen where
-   * nothing is happening looks the same whether nothing needed doing or
-   * everything is stopped — and that is true of every screen, not one of them.
-   */
-  readonly stopped?: Stoppage;
   /** When the session ends, as the server knows it. Absent means it does not say. */
   readonly expiresAt?: string | null;
   readonly children: ReactNode;
   /** Where a command sends the browser. Injected so the suite can watch it. */
   readonly navigate?: (href: string) => void;
-  /**
-   * How the deployment is asked what answers to a palette query.
-   *
-   * Injected so the suite can drive the palette without a network. The default
-   * is the courier, because the session credential is an HTTP-only cookie the
-   * browser cannot read and a `fetch` from here could not carry it.
-   */
-  readonly askSearch?: typeof askDeployment;
 }
 
 function defaultNavigate(href: string): void {
@@ -96,20 +61,14 @@ export function Shell({
   viewer,
   locale,
   deployment,
+  current,
   guardian,
   attention,
   recentRuns,
   counts,
-  setup = {
-    checklistComplete: false,
-    integrationsConfigured: true,
-    runtimeComposed: true,
-  },
-  stopped = { engaged: false, by: null, since: null },
   expiresAt = null,
   children,
   navigate = defaultNavigate,
-  askSearch = askDeployment,
 }: ShellProps): ReactNode {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -118,13 +77,6 @@ export function Shell({
   const [waiting, setWaiting] = useState<readonly AttentionItem[]>(attention);
   const [ending, setEnding] = useState<SessionEnding | null>(null);
   const now = useNow();
-
-  // Read here rather than handed in: a layout is not re-rendered by a segment
-  // navigation, so a path from one is the path the tab was opened at. Three
-  // things depend on it being the path the viewer is actually looking at — the
-  // marked area, where signing out returns them, and what staying signed in
-  // reloads.
-  const current = usePathname();
 
   // The session ends once, wherever the refusal came from. This is the listener
   // half of that: the controller collapses, and what a collapse *does* is here.
@@ -151,11 +103,8 @@ export function Shell({
   }, []);
 
   const commands = useMemo(
-    () =>
-      commandsFor(viewer, locale, recentRuns, {
-        checklistComplete: setup.checklistComplete,
-      }),
-    [viewer, locale, recentRuns, setup.checklistComplete],
+    () => commandsFor(viewer, locale, recentRuns),
+    [viewer, locale, recentRuns],
   );
 
   // An item resolved on any surface leaves the list here, without a refresh and
@@ -176,43 +125,17 @@ export function Shell({
     [navigate],
   );
 
-  // The permission filter is here rather than in the palette because this is
-  // where the viewer is. It is the same rule the local commands go through, and
-  // one place deciding it is what keeps a search from being the way somebody
-  // reaches a screen the navigation would not have offered them.
-  const search = useCallback(
-    async (query: string, signal: AbortSignal): Promise<SearchAnswer> => {
-      const answer = await askSearch(query, signal);
-      return {
-        commands: searchCommands(answer.found, locale).filter(
-          (command) => command.permission === null || may(viewer, command.permission),
-        ),
-        partial: answer.partial,
-      };
-    },
-    [askSearch, locale, viewer],
-  );
-
   const life = sessionLife(expiresAt, now ?? new Date(0));
 
   return (
     <div className="flex min-h-screen flex-col bg-sunken">
       <ImpersonationBanner viewer={viewer} locale={locale} />
-      {/* Above everything, including the navigation. A stop nobody notices is a
-          stop that gets engaged twice. */}
-      <KillSwitchBanner
-        locale={locale}
-        engaged={stopped.engaged}
-        by={stopped.by}
-        since={stopped.since}
-        zone={deployment.timezone}
-      />
       <div className="flex flex-1 min-h-0">
         <Sidebar
           viewer={viewer}
           locale={locale}
+          current={current}
           guardian={guardian}
-          checklistComplete={setup.checklistComplete}
           {...(counts === undefined ? {} : { counts })}
         />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -233,7 +156,6 @@ export function Shell({
             onInvestigate={() => {
               setInvestigateOpen(true);
             }}
-            stopped={stopped}
             onSignOut={() => {
               // The server's session ends first. Navigating away with the
               // cookie still set is not signing out, it is closing a tab —
@@ -284,8 +206,6 @@ export function Shell({
       <InvestigateDrawer
         open={investigateOpen}
         locale={locale}
-        integrationsConfigured={setup.integrationsConfigured}
-        runtimeComposed={setup.runtimeComposed}
         onClose={() => {
           setInvestigateOpen(false);
         }}
@@ -296,7 +216,6 @@ export function Shell({
         open={paletteOpen}
         locale={locale}
         commands={commands}
-        search={search}
         onClose={() => {
           setPaletteOpen(false);
         }}
@@ -319,7 +238,7 @@ export function Shell({
             <SidebarNav
               viewer={viewer}
               locale={locale}
-              checklistComplete={setup.checklistComplete}
+              current={current}
               {...(counts === undefined ? {} : { counts })}
               onNavigate={() => {
                 setDrawerOpen(false);

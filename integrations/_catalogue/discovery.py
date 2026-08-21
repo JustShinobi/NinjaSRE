@@ -152,31 +152,12 @@ def parity_reports() -> tuple[ParityReport, ...]:
     )
 
 
-#: What ``health_detail`` reads for an integration nobody has connected, when
-#: the caller can say so. Written once here rather than at every call site
-#: that passes ``configured``, so the sentence cannot drift between them.
-_UNCONFIGURED_DETAIL: Final = "no credential is stored for this node"
-
-
-def catalogue(
-    *,
-    health: HealthLedger | None = None,
-    configured: frozenset[str] | None = None,
-) -> tuple[CatalogueEntry, ...]:
+def catalogue(*, health: HealthLedger | None = None) -> tuple[CatalogueEntry, ...]:
     """Return every installed integration as a catalogue entry, in name order.
 
     ``health`` is the ledger the scheduled live runs write to. Left out, every
     entry reports ``UNKNOWN``, which is the honest answer for a deployment that
     has not run one.
-
-    ``configured`` is which integrations this tenant holds a live credential
-    for, from the vault rather than the ledger. Left out — every existing
-    caller before this parameter existed — the credential question is not
-    asked and the ledger alone decides, exactly as before. Given, an
-    integration outside the set reports ``UNCONFIGURED`` regardless of what
-    the ledger says about it: a credential that was never written cannot have
-    been checked, so there is nothing the ledger could hold that would be
-    worth showing ahead of "nothing is connected here yet".
     """
     declared = descriptors()
     described = profiles()
@@ -184,13 +165,7 @@ def catalogue(
 
     entries: list[CatalogueEntry] = []
     for name in vendor_packages():
-        if configured is not None and name not in configured:
-            resolved_health = HealthStatus.UNCONFIGURED
-            resolved_detail = _UNCONFIGURED_DETAIL
-        else:
-            record = health.status_of(name) if health is not None else None
-            resolved_health = record.status if record is not None else HealthStatus.UNKNOWN
-            resolved_detail = record.detail if record is not None else ""
+        record = health.status_of(name) if health is not None else None
         entries.append(
             CatalogueEntry(
                 name=name,
@@ -198,25 +173,20 @@ def catalogue(
                 descriptor=_descriptor_for(name, declared),
                 parity=reports[name],
                 capabilities=capabilities_of(name),
-                health=resolved_health,
-                health_detail=resolved_detail,
+                health=record.status if record is not None else HealthStatus.UNKNOWN,
+                health_detail=record.detail if record is not None else "",
             )
         )
     return tuple(entries)
 
 
-def entry(
-    name: str,
-    *,
-    health: HealthLedger | None = None,
-    configured: frozenset[str] | None = None,
-) -> CatalogueEntry:
+def entry(name: str, *, health: HealthLedger | None = None) -> CatalogueEntry:
     """Return one integration's catalogue entry.
 
     Raises:
         LookupError: no integration is installed under that name.
     """
-    for found in catalogue(health=health, configured=configured):
+    for found in catalogue(health=health):
         if found.name == name:
             return found
     raise LookupError(

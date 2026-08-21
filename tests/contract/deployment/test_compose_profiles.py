@@ -9,7 +9,6 @@ place that conversation has to happen.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import pytest
@@ -23,7 +22,6 @@ from config.constants.deployment import (
     STANDARD_PROFILE_CONTAINER_COUNT,
     STANDARD_PROFILE_SERVICES,
 )
-from config.constants.llm import NINJASRE_LLM_PROVIDER_ENV
 from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from platform.startup.profiles import DeploymentProfile, topology_for
@@ -89,35 +87,6 @@ def test_the_standard_profile_points_every_service_at_the_one_database(
     assert len(set(urls.values())) == 1, f"they disagree: {urls}"
 
 
-def test_the_console_service_gets_every_setting_the_app_service_needs_to_boot(
-    standard_compose: dict[str, Any],
-) -> None:
-    """The console container runs the same entry point ``app`` does, at a
-    different port — not a thin front end — so whatever ``app`` needs to pass
-    startup validation, console needs too. Static rather than a real boot:
-    this is a property of the file's own declarations, and the two service
-    blocks disagreeing is exactly what let the console container crash-loop
-    on every real start while every static assertion about the file still
-    held.
-    """
-    app_settings = set(standard_compose["services"]["app"]["environment"])
-    console_settings = set(standard_compose["services"]["console"]["environment"])
-
-    missing = app_settings - console_settings
-    assert not missing, f"console never receives: {missing}"
-
-
-def test_the_console_service_is_given_a_model_provider_setting(
-    standard_compose: dict[str, Any],
-) -> None:
-    """The specific regression: a console container with no provider setting
-    refuses to start with the same failure a deployment with none configured
-    anywhere would, even though an operator who set one for ``app`` has no
-    reason to expect it stops there.
-    """
-    assert NINJASRE_LLM_PROVIDER_ENV in standard_compose["services"]["console"]["environment"]
-
-
 def test_nothing_is_published_beyond_loopback_by_default(
     standard_compose: dict[str, Any],
     dev_compose: dict[str, Any],
@@ -180,67 +149,3 @@ def test_the_state_that_matters_is_on_a_named_volume(
         "postgres-data" in mount
         for mount in standard_compose["services"]["postgres"].get("volumes", [])
     )
-
-
-#: ``BASE_POSTGRES`` is never resolved by ``yaml.safe_load`` — it stays the raw
-#: ``${VAR:-postgres:MAJOR.rest}`` expression — so the pinned major version is
-#: read out of the default rather than out of an environment nothing sets here.
-_PINNED_POSTGRES_IMAGE = re.compile(r"^\$\{BASE_POSTGRES:-postgres:(?P<major>\d+)\.[^}]*\}$")
-
-
-def _pinned_postgres_major(compose: dict[str, Any]) -> int:
-    """Return the PostgreSQL major version this compose file's postgres service pins."""
-    expression = compose["services"]["postgres"]["build"]["args"]["BASE_POSTGRES"]
-    match = _PINNED_POSTGRES_IMAGE.match(expression)
-    assert match, f"{expression!r} does not pin a ${{BASE_POSTGRES:-postgres:<major>.<rest>}}"
-    return int(match.group("major"))
-
-
-def _postgres_volume_target(compose: dict[str, Any]) -> str:
-    """Return the container-side path the postgres service's data volume mounts at."""
-    mounts = [
-        mount
-        for mount in compose["services"]["postgres"].get("volumes", [])
-        if "/var/lib/postgresql" in mount
-    ]
-    assert len(mounts) == 1, f"expected exactly one postgres data mount, found {mounts}"
-    _name, target, *_mode = mounts[0].split(":")
-    return target
-
-
-def test_the_postgres_volume_mounts_where_the_pinned_major_version_expects(
-    standard_compose: dict[str, Any],
-    homelab_compose: dict[str, Any],
-    dev_compose: dict[str, Any],
-) -> None:
-    """Postgres 18 made the data directory major-version-specific.
-
-    A named volume mounted directly at the pre-18 path
-    (``/var/lib/postgresql/data``) makes the 18+ image's own entrypoint treat a
-    *fresh, empty* volume as leftover data from an unmanaged upgrade —
-    ``docker_setup_env`` in the official image's entrypoint checks whether that
-    path is a mountpoint at all, not whether anything lives under it — and
-    ``docker_error_old_databases`` exits 1 before the server ever starts, on
-    every start, from a volume that has never held a byte. The image's own
-    error message recommends the fix this test pins: a single mount at
-    ``/var/lib/postgresql``, letting the entrypoint lay out the
-    major-versioned subdirectory itself.
-
-    Static on purpose: this needs no container runtime and runs on every
-    machine, so a future major-version bump that reintroduces the same mount
-    is caught here rather than by a stack that silently never becomes
-    healthy. ``test_compose_up.py`` is the sibling that actually starts the
-    container and reads its health.
-    """
-    for profile, compose in (
-        ("standard", standard_compose),
-        ("homelab", homelab_compose),
-        ("dev", dev_compose),
-    ):
-        major = _pinned_postgres_major(compose)
-        target = _postgres_volume_target(compose)
-        if major >= 18:
-            assert target == "/var/lib/postgresql", (
-                f"{profile} profile: postgres {major} needs a single mount at "
-                f"/var/lib/postgresql, not {target!r}"
-            )

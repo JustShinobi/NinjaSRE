@@ -106,15 +106,6 @@ REACHES_PROXMOX = tuple(
     found for found in discover().tools if found.metadata.evidence_source == INTEGRATION
 )
 
-#: Filed under Proxmox by evidence and living in the vendor's own tools
-#: package like every investigation capability below — but reading through the
-#: observability bridge rather than the Proxmox API, so "an unreachable
-#: cluster" and "no Proxmox integration bound" are not failure modes this tool
-#: has. Its equivalent promises live in
-#: tests/unit/integrations/test_proxmox_node_health.py, against the bridge
-#: binding it actually depends on.
-BRIDGE_BACKED_TOOLS = ("proxmox_node_health",)
-
 #: The *investigation* capabilities, which is what this file is about. Selected
 #: by where they live rather than by name: a tool under the vendor's own package
 #: is a read by construction, and the remediation writes live in the
@@ -123,7 +114,6 @@ DECLARED = tuple(
     found
     for found in REACHES_PROXMOX
     if found.source_module.startswith("integrations.proxmox.tools")
-    and found.name not in BRIDGE_BACKED_TOOLS
 )
 
 
@@ -145,11 +135,7 @@ def test_anything_else_reaching_proxmox_is_a_gated_write() -> None:
     from capabilities.tools.remediation import COMPONENTS
 
     gated = {bundle.capability for bundle in COMPONENTS}
-    outside = [
-        found
-        for found in REACHES_PROXMOX
-        if found not in DECLARED and found.name not in BRIDGE_BACKED_TOOLS
-    ]
+    outside = [found for found in REACHES_PROXMOX if found not in DECLARED]
 
     assert outside, "the hypervisor writes have gone missing from the catalogue"
     for found in outside:

@@ -203,12 +203,6 @@ class HighAvailabilityState:
     manager_status: str = ""
     fencing_mode: str = ""
     lrm_states: Mapping[str, str] = field(default_factory=dict)
-    #: How many provider calls this reading cost. Variable, because Proxmox VE 9
-    #: retired the HA groups endpoint for rules and a cluster part-way through
-    #: the upgrade answers the old one — so the read asks for the newer and
-    #: falls back. A sweep works to a declared call budget, so a read whose cost
-    #: varies has to say what it actually spent rather than have a caller guess.
-    provider_calls: int = 3
 
 
 @dataclass(frozen=True, slots=True)

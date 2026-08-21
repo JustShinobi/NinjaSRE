@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Final
+from typing import Any
 
 import pytest
 
@@ -67,21 +67,6 @@ def mockups() -> tuple[Mapping[str, Any], ...]:
     return tuple(registry()["mockups"])
 
 
-#: The media a design reference may be committed as.
-#:
-#: HTML because an area design is drawn as a page, and a page carries states,
-#: both themes and interaction that an export flattens away; PNG because a
-#: single frame of a token table is exactly what that reference is. Anything
-#: else fails discovery by name rather than being skipped, which is the whole
-#: point of holding the directory against the registry.
-REFERENCE_MEDIA: Final = ("*.png", "*.html")
-
-
-def committed_references() -> set[str]:
-    """Return every design reference on disk, in any admitted medium."""
-    return {path.name for pattern in REFERENCE_MEDIA for path in MOCKUPS.glob(pattern)}
-
-
 def test_the_registry_exists_and_is_readable() -> None:
     """Without it there is no coverage claim to check."""
     assert REGISTRY.is_file(), f"{REGISTRY} is missing"
@@ -90,7 +75,7 @@ def test_the_registry_exists_and_is_readable() -> None:
 
 def test_every_committed_reference_is_registered() -> None:
     """A design that arrives and is not registered fails, naming the file."""
-    on_disk = committed_references()
+    on_disk = {path.name for path in MOCKUPS.glob("*.png")}
     registered = {str(entry["file"]) for entry in mockups()}
 
     unregistered = sorted(on_disk - registered)
@@ -104,7 +89,7 @@ def test_every_committed_reference_is_registered() -> None:
 
 def test_every_registered_reference_is_committed() -> None:
     """A registry entry for a file nobody committed is coverage that does not exist."""
-    on_disk = committed_references()
+    on_disk = {path.name for path in MOCKUPS.glob("*.png")}
     missing = sorted(str(entry["file"]) for entry in mockups() if str(entry["file"]) not in on_disk)
     assert not missing, f"registered design references that are not committed: {missing}"
 

@@ -2,9 +2,8 @@
 
 import { useSyncExternalStore } from 'react';
 
-import { DENSITY_CHANGED_EVENT, readStoredDensity } from '@/design/density';
 import { readStoredTheme, THEME_CHANGED_EVENT } from '@/design/theme';
-import type { Density, Theme } from '@/design/tokens';
+import type { Theme } from '@/design/tokens';
 import { DEFAULT_LOCALE, isLocale, type Locale } from '@/i18n/messages';
 import { LOCALE_COOKIE } from '@/session/cookies';
 
@@ -73,33 +72,6 @@ export function useChosenTheme(): Theme | null {
   return useSyncExternalStore(subscribeToTheme, readStoredTheme, themeServerSnapshot);
 }
 
-function subscribeToDensity(onChange: () => void): () => void {
-  window.addEventListener(DENSITY_CHANGED_EVENT, onChange);
-  return () => {
-    window.removeEventListener(DENSITY_CHANGED_EVENT, onChange);
-  };
-}
-
-function densityServerSnapshot(): Density {
-  // The server cannot know the choice, and comfortable is what the stylesheet
-  // produces without an attribute — so this is the markup the pre-paint
-  // statement then corrects, rather than a guess it has to undo.
-  return 'comfortable';
-}
-
-function densitySnapshot(): Density {
-  return readStoredDensity() ?? 'comfortable';
-}
-
-/** The density this viewer reads long lists at. */
-export function useDensity(): Density {
-  return useSyncExternalStore(
-    subscribeToDensity,
-    densitySnapshot,
-    densityServerSnapshot,
-  );
-}
-
 function subscribeToNothing(): () => void {
   // A cookie does not change under a page that is not reloading. There is
   // nothing to subscribe to, and pretending otherwise would be a listener that
@@ -127,28 +99,4 @@ function localeServerSnapshot(): Locale {
  */
 export function useBrowserLocale(): Locale {
   return useSyncExternalStore(subscribeToNothing, localeSnapshot, localeServerSnapshot);
-}
-
-/** A year, in seconds — long enough that a language choice outlives the session that made it. */
-const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
-
-/**
- * Keep `locale` across sessions, and reload so the server renders it.
- *
- * A cookie rather than `localStorage`, unlike the theme and the density: every
- * string on a page comes from `message()`, called from server components that
- * cannot read `localStorage` at all, so the choice has to be somewhere a
- * request carries automatically. `requestLocale` already reads this exact
- * cookie — it has since before there was a way to write one — which is what
- * makes this the console's existing mechanism for the preference rather than
- * a fourth one: the read half was built first, and this is the write half it
- * was always missing.
- *
- * The reload is not an effect this module tries to avoid: a locale changes
- * what a server component rendered, and nothing short of a new request makes
- * it render again.
- */
-export function storeLocale(locale: Locale): void {
-  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${String(LOCALE_COOKIE_MAX_AGE)}; samesite=lax`;
-  window.location.reload();
 }

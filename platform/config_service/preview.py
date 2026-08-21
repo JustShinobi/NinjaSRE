@@ -24,14 +24,14 @@ from typing import Any
 from platform.config_service import paths
 from platform.config_service.audit import settings_after
 from platform.config_service.document import NodeDocument
-from platform.config_service.effective import EffectiveConfig, build
+from platform.config_service.effective import build
 from platform.config_service.field_policy import (
     PolicySet,
     changed_paths,
     gated_paths,
     merged_along,
 )
-from platform.config_service.merge import locked_paths_in, locking_node
+from platform.config_service.merge import locked_paths_in
 from platform.persistence.ports import ConfigNode
 
 
@@ -45,37 +45,6 @@ class PreviewChange:
 
 
 @dataclass(frozen=True, slots=True)
-class RedundantValue:
-    """One path the patch would set to exactly what the node already inherits.
-
-    The most common configuration mistake there is, and the one a
-    before-and-after table cannot show: the field really does change — from
-    inherited to locally set — and resolves to the same value it resolved to
-    before. An operator who does not see this reported concludes the change had
-    no effect, and goes looking for the bug in the deployment.
-    """
-
-    path: str
-    value: Any
-    #: The node the same value already comes from.
-    inherited_from: str
-
-
-@dataclass(frozen=True, slots=True)
-class RevertedValue:
-    """One node-local value the patch would clear, and what takes over.
-
-    ``inherited_from`` is empty when nothing above supplies the field: clearing
-    it leaves the node with no value at all, which is a different outcome from
-    falling back to a parent and has to read as one.
-    """
-
-    path: str
-    value: Any
-    inherited_from: str
-
-
-@dataclass(frozen=True, slots=True)
 class ConfigPreview:
     """What saving a patch would produce, and what would stop it.
 
@@ -85,12 +54,6 @@ class ConfigPreview:
     what the patch asked for, reported separately because they need different
     actions: a lock is somebody else's decision to change, and a gate is a
     review to wait for.
-
-    ``redundant`` and ``reverts`` are the two facts about *inheritance* the diff
-    cannot carry on its own — a value being set to what is already inherited,
-    and a local value being cleared back to it. Both are computed here rather
-    than by whatever is rendering the preview, for the reason the whole module
-    exists: only the service holds the ancestors' documents.
     """
 
     node_id: str
@@ -101,8 +64,6 @@ class ConfigPreview:
     #: The lock wins: those paths keep their inherited value in ``values``.
     locked: Mapping[str, str] = None  # type: ignore[assignment]
     approval_gated: tuple[str, ...] = ()
-    redundant: tuple[RedundantValue, ...] = ()
-    reverts: tuple[RevertedValue, ...] = ()
 
     def __post_init__(self) -> None:
         if self.locked is None:
@@ -120,123 +81,35 @@ class ConfigPreview:
 
 
 def preview_of(
-    node_id: str,
-    chain: Sequence[ConfigNode],
-    patch: Mapping[str, Any],
-    remove: Sequence[str] = (),
+    node_id: str, chain: Sequence[ConfigNode], patch: Mapping[str, Any]
 ) -> ConfigPreview:
-    """Return what applying ``patch`` and ``remove`` at the end of ``chain`` resolves to.
+    """Return what applying ``patch`` at the end of ``chain`` would resolve to.
 
     ``chain`` is root-first and inclusive, exactly as a write reads it. The last
     entry is the node being changed; everything before it is what it inherits
     from and what may have locked a field against it.
-
-    ``chain[:-1]`` is resolved a second time, on its own, and that is what makes
-    the two inheritance answers possible: what the node would resolve to if it
-    said nothing. A patch that lands on a value already coming from there is
-    redundant, and a cleared field falls back to it.
     """
     node = chain[-1]
     document = NodeDocument.of_node(node)
-    proposed = dict(settings_after(document.settings, patch, remove))
+    proposed = dict(settings_after(document.settings, patch))
 
     proposed_chain = (*chain[:-1], _with_settings(node, document, proposed))
     effective = build(node_id, proposed_chain)
-    inherited = build(node_id, chain[:-1])
 
     changed = changed_paths(document.settings, proposed)
     before = dict(paths.leaves(document.settings))
     after = dict(paths.leaves(proposed))
-    inherited_locks = _inherited_locks(chain[:-1])
 
     return ConfigPreview(
         node_id=node_id,
         values=effective.values,
         provenance=dict(effective.provenance),
         changes=tuple(
-            PreviewChange(path=path, before=before.get(path), after=_after(path, after, effective))
+            PreviewChange(path=path, before=before.get(path), after=after.get(path))
             for path in changed
         ),
-        locked=dict(locked_paths_in(patch, inherited_locks)),
+        locked=dict(locked_paths_in(patch, _inherited_locks(chain[:-1]))),
         approval_gated=gated_paths(changed, merged_along(_node_policies(chain))),
-        redundant=_redundant(changed, after, inherited, inherited_locks),
-        reverts=_reverts(before, after, remove, effective),
-    )
-
-
-def merged_with(
-    node_id: str, chain: Sequence[ConfigNode], settings: Mapping[str, Any]
-) -> EffectiveConfig:
-    """Return what ``node_id`` would resolve to if its own document were ``settings``.
-
-    The substitution the preview makes, exposed on its own so the *write* path
-    can make it too. A bound that spans a chain — the operating-context budget
-    is the first — can only be checked against the merged result, and having two
-    ways to compute that merge is how a preview and a save come to disagree.
-    """
-    node = chain[-1]
-    document = NodeDocument.of_node(node)
-    return build(node_id, (*chain[:-1], _with_settings(node, document, settings)))
-
-
-def _after(path: str, after: Mapping[str, Any], effective: EffectiveConfig) -> Any:
-    """Return what ``path`` reads as once the change is in.
-
-    A path the node still sets afterwards reads as the value it sets — including
-    an explicit null, which is why membership decides this rather than a
-    ``None`` check. A path the node no longer sets reads as whatever it now
-    inherits, which is the whole answer a clear-to-inherit is asking for.
-    """
-    if path in after:
-        return after[path]
-    return paths.value_at(effective.values, path)
-
-
-def _redundant(
-    changed: Sequence[str],
-    after: Mapping[str, Any],
-    inherited: EffectiveConfig,
-    inherited_locks: Mapping[str, str],
-) -> tuple[RedundantValue, ...]:
-    """Return the changed paths whose new value is already what is inherited.
-
-    A locked path is excluded. Its value does not move because an ancestor
-    forbade the override, not because the operator restated something they
-    already had, and telling them to remove an override the write never made
-    would send them looking for one.
-    """
-    inherited_leaves = dict(paths.leaves(inherited.values))
-    return tuple(
-        RedundantValue(path=path, value=after[path], inherited_from=inherited.provenance[path])
-        for path in changed
-        if path in after
-        and path in inherited.provenance
-        and inherited_leaves.get(path) == after[path]
-        and locking_node(inherited_locks, path) is None
-    )
-
-
-def _reverts(
-    before: Mapping[str, Any],
-    after: Mapping[str, Any],
-    remove: Sequence[str],
-    effective: EffectiveConfig,
-) -> tuple[RevertedValue, ...]:
-    """Return the node-local leaves ``remove`` clears, and what each falls back to.
-
-    Restricted to leaves the removal actually covers. A patch can drop a leaf
-    incidentally — by replacing a section with a scalar — and reporting that as
-    a reversion would describe an override the operator is *creating* as one
-    they are giving up.
-    """
-    return tuple(
-        RevertedValue(
-            path=path,
-            value=paths.value_at(effective.values, path),
-            inherited_from=effective.provenance.get(path, ""),
-        )
-        for path in sorted(before)
-        if path not in after and any(paths.covers(pattern, path) for pattern in remove)
     )
 
 
@@ -268,11 +141,4 @@ def _inherited_locks(ancestors: Sequence[ConfigNode]) -> dict[str, str]:
     return locks
 
 
-__all__ = [
-    "ConfigPreview",
-    "PreviewChange",
-    "RedundantValue",
-    "RevertedValue",
-    "merged_with",
-    "preview_of",
-]
+__all__ = ["ConfigPreview", "PreviewChange", "preview_of"]

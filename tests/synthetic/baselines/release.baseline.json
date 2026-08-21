@@ -1,114 +1,126 @@
 {
-  "corpus_version": "65b8979746902297",
+  "corpus_version": "b56051209d7bdc9e",
   "identifier": "release",
   "model_id": "",
-  "note": "Escopo valid\u00e1vel: cat\u00e1logo reduzido a 15 integra\u00e7\u00f5es; cen\u00e1rios dependentes de vendors removidos sa\u00edram do corpus.",
+  "note": "the first release baseline: the seven-scenario corpus, offline, five axes",
   "provider_id": "",
-  "recorded_at": "2026-08-17T04:23:42+00:00",
+  "recorded_at": "2026-08-07T13:28:17+00:00",
   "suite": {
-    "attempts": 5,
-    "attempts_per_scenario": 1,
+    "attempts": 21,
+    "attempts_per_scenario": 3,
     "axes": [
       {
-        "attempts": 5,
+        "attempts": 21,
         "axis": "accuracy",
         "pass_rate": 1.0,
-        "passes": 5,
+        "passes": 21,
         "stdev": 0.0
       },
       {
-        "attempts": 5,
+        "attempts": 21,
         "axis": "evidence",
         "pass_rate": 1.0,
-        "passes": 5,
+        "passes": 21,
         "stdev": 0.0
       },
       {
-        "attempts": 4,
+        "attempts": 15,
         "axis": "adversarial",
         "pass_rate": 1.0,
-        "passes": 4,
+        "passes": 15,
         "stdev": 0.0
       },
       {
-        "attempts": 5,
+        "attempts": 21,
         "axis": "trajectory",
         "pass_rate": 1.0,
-        "passes": 5,
+        "passes": 21,
         "stdev": 0.0
       },
       {
-        "attempts": 5,
+        "attempts": 21,
         "axis": "cost",
         "pass_rate": 1.0,
-        "passes": 5,
+        "passes": 21,
         "stdev": 0.0
       }
     ],
     "by_difficulty": [
       {
-        "attempts": 1,
+        "attempts": 6,
         "description": "A single obvious cause with corroborating evidence.",
         "difficulty": 1,
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 6
       },
       {
-        "attempts": 2,
+        "attempts": 6,
         "description": "One planted confounder that must be explicitly ruled out.",
         "difficulty": 2,
         "pass_rate": 1.0,
-        "passes": 2
+        "passes": 6
       },
       {
-        "attempts": 1,
+        "attempts": 6,
         "description": "Several plausible causes requiring evidence to discriminate.",
         "difficulty": 3,
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 6
       },
       {
-        "attempts": 1,
+        "attempts": 3,
         "description": "The most prominent signal is misleading; the true cause is secondary.",
         "difficulty": 4,
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 3
       }
     ],
     "by_failure_mode": [
       {
-        "attempts": 1,
+        "attempts": 3,
         "failure_mode": "bad_deployment",
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 3
       },
       {
-        "attempts": 1,
+        "attempts": 3,
+        "failure_mode": "connection_pool_exhaustion",
+        "pass_rate": 1.0,
+        "passes": 3
+      },
+      {
+        "attempts": 3,
         "failure_mode": "dependency_timeout",
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 3
       },
       {
-        "attempts": 1,
+        "attempts": 3,
         "failure_mode": "memory_exhaustion",
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 3
       },
       {
-        "attempts": 1,
+        "attempts": 3,
         "failure_mode": "missing_configuration",
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 3
       },
       {
-        "attempts": 1,
+        "attempts": 3,
+        "failure_mode": "node_failure",
+        "pass_rate": 1.0,
+        "passes": 3
+      },
+      {
+        "attempts": 3,
         "failure_mode": "probe_misconfiguration",
         "pass_rate": 1.0,
-        "passes": 1
+        "passes": 3
       }
     ],
-    "corpus_version": "65b8979746902297",
-    "duration_seconds": 0.06,
+    "corpus_version": "b56051209d7bdc9e",
+    "duration_seconds": 0.517,
     "failures_by_axis": {
       "accuracy": 0,
       "adversarial": 0,
@@ -118,23 +130,23 @@
     },
     "label": "release",
     "pass_rate": 1.0,
-    "passes": 5,
+    "passes": 21,
     "scenarios": [
       {
-        "attempts": 1,
+        "attempts": 3,
         "axes": [
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "accuracy",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "evidence",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
@@ -145,17 +157,106 @@
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "trajectory",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "cost",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
+            "stdev": 0.0
+          }
+        ],
+        "deviations": 0,
+        "different_valid_routes": 0,
+        "difficulty": 1,
+        "failed_axes": [],
+        "failure_mode": "node_failure",
+        "key": "aws/004-instance-retirement",
+        "measurements": [
+          {
+            "mean": 0.0,
+            "name": "trajectory.distance",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0,
+            "name": "trajectory.extra_actions",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0,
+            "name": "trajectory.redundant_calls",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 2.0,
+            "name": "trajectory.iterations",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0,
+            "name": "cost.tokens",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0021,
+            "name": "cost.seconds",
+            "samples": 3,
+            "stdev": 0.0004
+          }
+        ],
+        "pass_rate": 1.0,
+        "pass_stdev": 0.0,
+        "passes": 3,
+        "scenario": "004-instance-retirement",
+        "suite": "aws"
+      },
+      {
+        "attempts": 3,
+        "axes": [
+          {
+            "attempts": 3,
+            "axis": "accuracy",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 3,
+            "axis": "evidence",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 0,
+            "axis": "adversarial",
+            "pass_rate": 0.0,
+            "passes": 0,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 3,
+            "axis": "trajectory",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 3,
+            "axis": "cost",
+            "pass_rate": 1.0,
+            "passes": 3,
             "stdev": 0.0
           }
         ],
@@ -169,82 +270,82 @@
           {
             "mean": 0.0,
             "name": "trajectory.distance",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.extra_actions",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.redundant_calls",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 2.0,
             "name": "trajectory.iterations",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "cost.tokens",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0016,
             "name": "cost.seconds",
-            "samples": 1,
-            "stdev": 0.0
+            "samples": 3,
+            "stdev": 0.0002
           }
         ],
         "pass_rate": 1.0,
         "pass_stdev": 0.0,
-        "passes": 1,
+        "passes": 3,
         "scenario": "001-oom-kill",
         "suite": "kubernetes"
       },
       {
-        "attempts": 1,
+        "attempts": 3,
         "axes": [
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "accuracy",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "evidence",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "adversarial",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "trajectory",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "cost",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           }
         ],
@@ -258,87 +359,87 @@
           {
             "mean": 0.0,
             "name": "trajectory.distance",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.extra_actions",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.redundant_calls",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 3.0,
             "name": "trajectory.iterations",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "cost.tokens",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
-            "mean": 0.0023,
+            "mean": 0.0028,
             "name": "cost.seconds",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           }
         ],
         "pass_rate": 1.0,
         "pass_stdev": 0.0,
-        "passes": 1,
+        "passes": 3,
         "scenario": "002-liveness-probe-killing",
         "suite": "kubernetes"
       },
       {
-        "attempts": 1,
+        "attempts": 3,
         "axes": [
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "accuracy",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "evidence",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "adversarial",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "trajectory",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "cost",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           }
         ],
-        "deviations": 1,
-        "different_valid_routes": 1,
+        "deviations": 3,
+        "different_valid_routes": 3,
         "difficulty": 2,
         "failed_axes": [],
         "failure_mode": "dependency_timeout",
@@ -347,87 +448,176 @@
           {
             "mean": 1.0,
             "name": "trajectory.distance",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.extra_actions",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.redundant_calls",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 2.0,
             "name": "trajectory.iterations",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "cost.tokens",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
-            "mean": 0.0026,
+            "mean": 0.0028,
             "name": "cost.seconds",
-            "samples": 1,
-            "stdev": 0.0
+            "samples": 3,
+            "stdev": 0.0001
           }
         ],
         "pass_rate": 1.0,
         "pass_stdev": 0.0,
-        "passes": 1,
+        "passes": 3,
         "scenario": "005-dependency-timeout",
         "suite": "observability"
       },
       {
-        "attempts": 1,
+        "attempts": 3,
         "axes": [
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "accuracy",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "evidence",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "adversarial",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "trajectory",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "cost",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           }
         ],
-        "deviations": 1,
-        "different_valid_routes": 1,
+        "deviations": 3,
+        "different_valid_routes": 3,
+        "difficulty": 3,
+        "failed_axes": [],
+        "failure_mode": "connection_pool_exhaustion",
+        "key": "database/006-connection-pool-exhaustion",
+        "measurements": [
+          {
+            "mean": 1.0,
+            "name": "trajectory.distance",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0,
+            "name": "trajectory.extra_actions",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0,
+            "name": "trajectory.redundant_calls",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 2.0,
+            "name": "trajectory.iterations",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0,
+            "name": "cost.tokens",
+            "samples": 3,
+            "stdev": 0.0
+          },
+          {
+            "mean": 0.0025,
+            "name": "cost.seconds",
+            "samples": 3,
+            "stdev": 0.0001
+          }
+        ],
+        "pass_rate": 1.0,
+        "pass_stdev": 0.0,
+        "passes": 3,
+        "scenario": "006-connection-pool-exhaustion",
+        "suite": "database"
+      },
+      {
+        "attempts": 3,
+        "axes": [
+          {
+            "attempts": 3,
+            "axis": "accuracy",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 3,
+            "axis": "evidence",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 3,
+            "axis": "adversarial",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 3,
+            "axis": "trajectory",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          },
+          {
+            "attempts": 3,
+            "axis": "cost",
+            "pass_rate": 1.0,
+            "passes": 3,
+            "stdev": 0.0
+          }
+        ],
+        "deviations": 3,
+        "different_valid_routes": 3,
         "difficulty": 3,
         "failed_axes": [],
         "failure_mode": "bad_deployment",
@@ -436,87 +626,87 @@
           {
             "mean": 1.0,
             "name": "trajectory.distance",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.extra_actions",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.redundant_calls",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 2.0,
             "name": "trajectory.iterations",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "cost.tokens",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
-            "mean": 0.0024,
+            "mean": 0.0027,
             "name": "cost.seconds",
-            "samples": 1,
-            "stdev": 0.0
+            "samples": 3,
+            "stdev": 0.0002
           }
         ],
         "pass_rate": 1.0,
         "pass_stdev": 0.0,
-        "passes": 1,
+        "passes": 3,
         "scenario": "003-rollout-regression",
         "suite": "kubernetes"
       },
       {
-        "attempts": 1,
+        "attempts": 3,
         "axes": [
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "accuracy",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "evidence",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "adversarial",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "trajectory",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           },
           {
-            "attempts": 1,
+            "attempts": 3,
             "axis": "cost",
             "pass_rate": 1.0,
-            "passes": 1,
+            "passes": 3,
             "stdev": 0.0
           }
         ],
-        "deviations": 1,
-        "different_valid_routes": 1,
+        "deviations": 3,
+        "different_valid_routes": 3,
         "difficulty": 4,
         "failed_axes": [],
         "failure_mode": "missing_configuration",
@@ -525,43 +715,43 @@
           {
             "mean": 1.0,
             "name": "trajectory.distance",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.extra_actions",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "trajectory.redundant_calls",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 2.0,
             "name": "trajectory.iterations",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
             "mean": 0.0,
             "name": "cost.tokens",
-            "samples": 1,
+            "samples": 3,
             "stdev": 0.0
           },
           {
-            "mean": 0.0103,
+            "mean": 0.0027,
             "name": "cost.seconds",
-            "samples": 1,
-            "stdev": 0.0
+            "samples": 3,
+            "stdev": 0.0001
           }
         ],
         "pass_rate": 1.0,
         "pass_stdev": 0.0,
-        "passes": 1,
+        "passes": 3,
         "scenario": "007-misleading-cpu-signal",
         "suite": "delivery"
       }

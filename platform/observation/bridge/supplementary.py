@@ -34,8 +34,7 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 from config.constants.observability_bridge import EXPORTER_TEXTFILE
-from platform.observation.bridge.mapping import MappedSeries, SeriesMapping, SeriesView
-from platform.observation.bridge.ports import MetricSeries
+from platform.observation.bridge.mapping import MappedSeries, SeriesMapping
 
 #: The metric a node exporter publishes for every ``systemd`` unit's state. Part
 #: of the standard collector, so a node with the systemd collector enabled needs
@@ -138,22 +137,6 @@ def published_readings(
     return published
 
 
-def published_for_series(series: tuple[MetricSeries, ...]) -> dict[str, Any]:
-    """Return what ``series`` publishes, for a caller that already knows the node.
-
-    Same three-key contract as ``published_readings``, without the estate
-    mapping pass — for an on-demand tool that named the node itself rather
-    than a periodic sweep resolving an unlabelled corpus to a resource.
-    """
-    mapped = tuple(
-        MappedSeries(
-            series=entry, resource_id="", resource_kind="", rule_id="", view=SeriesView.NODE
-        )
-        for entry in series
-    )
-    return published_readings(SeriesMapping(mapped=mapped), resource_id="")
-
-
 def _failed_units(series: tuple[MappedSeries, ...]) -> tuple[str, ...] | None:
     """Return the failed unit names, or ``None`` when nothing publishes unit states."""
     seen = [entry for entry in series if entry.metric == METRIC_UNIT_STATE]
@@ -214,6 +197,5 @@ __all__ = [
     "UNIT_STATE_LABEL",
     "VOLUME_GROUP_LABEL",
     "TextfileMetric",
-    "published_for_series",
     "published_readings",
 ]

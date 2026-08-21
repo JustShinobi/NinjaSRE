@@ -15,12 +15,6 @@ because somebody typed the wrong thing is a run whose result means nothing. The
 string coercions are deliberately left lax: a template written by hand says
 ``on`` and ``8`` at least once, and both are unambiguous.
 
-**Help.** ``field_help`` and ``section_help`` declare the short, operator-facing
-sentence a form shows, beside the field and the section it belongs to. The long
-docstring stays where it is, for whoever is reading the schema; the two are
-separate because they have different readers, and one text serving both readers
-serves the operator badly.
-
 Every section sets ``extra="forbid"``. That is what makes configuration a typed
 surface rather than key-value storage that happens to have documented keys — a
 typo in a field name is otherwise a setting that is stored, rendered in the
@@ -65,42 +59,6 @@ ConfiguredStr = Annotated[str, Field(max_length=MAX_CONFIG_STRING_CHARS)]
 
 #: A list of strings, bounded for the same reason.
 ConfiguredStrList = Annotated[tuple[str, ...], Field(max_length=MAX_CONFIG_LIST_ITEMS)]
-
-
-def field_help(text: str, **constraints: Any) -> Any:
-    """Return a ``Field`` carrying ``text`` as the help a form puts under the control.
-
-    The short, operator-facing half of a field's documentation, declared beside
-    the field rather than in a table somewhere else. A table keyed by dotted
-    path agrees with the schema on the day it is written; a keyword on the field
-    moves when the field moves and disappears when the field does.
-
-    It travels as ``json_schema_extra`` because that is the one channel Pydantic
-    already carries into the generated document, which is what the field
-    catalogue reads — so the help arrives by the same route as the type, the
-    range and the default, and cannot be present for one and missing for the
-    other. ``description`` is not that channel: it is where the docstring goes,
-    and the docstring is the long text this exists to stop showing.
-
-    Any further ``constraints`` are passed to ``Field`` unchanged, so a bounded
-    field declares its bound and its help in one place.
-    """
-    return Field(json_schema_extra={"help": text}, **constraints)
-
-
-def section_help(text: str) -> ConfigDict:
-    """Return the model configuration that gives a section its operator-facing help.
-
-    The class-level twin of ``field_help``, and the same argument: a section's
-    long docstring is written for whoever is reading the schema, and a form
-    needs one or two sentences written for whoever is filling it in.
-
-    Declared as ``model_config`` because a section's own text belongs to the
-    section rather than to any field on it, and Pydantic merges configuration
-    down the class hierarchy — so a section that sets this keeps the closed,
-    frozen behaviour ``ConfigSection`` declares.
-    """
-    return ConfigDict(json_schema_extra={"help": text})
 
 
 class ConfigSection(BaseModel):
@@ -166,6 +124,4 @@ __all__ = [
     "ConfiguredStrList",
     "dotted",
     "field_errors",
-    "field_help",
-    "section_help",
 ]

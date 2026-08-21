@@ -35,7 +35,6 @@ from config.constants.fixtures import (
     FIXTURE_SCENARIO_DIR_NAME,
     NINJASRE_FIXTURE_ROOT_ENV,
 )
-from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 
 #: Where the tree is when nothing says otherwise: the repository root, four
 #: directories above this module.
@@ -361,13 +360,6 @@ def unresolved_references(dataset: DemoDataset) -> tuple[str, ...]:
 
     for incident in dataset.incidents:
         for subject in incident.get("subjects", ()):
-            # An unresolved alert target is a subject that is *deliberately* not
-            # a resource: it is the record that an alert arrived for something
-            # this estate does not hold, and a check that demanded it resolve
-            # would be demanding the finding be about the thing whose absence it
-            # reports.
-            if str(subject).startswith(UNRESOLVED_TARGET_PREFIX):
-                continue
             if str(subject) not in resources:
                 broken.append(
                     f"incident {incident.get('incident_id')} is about {subject}, which is absent"

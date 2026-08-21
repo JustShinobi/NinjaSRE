@@ -28,7 +28,6 @@ from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import ActorKind, AuditOutcome, TenantScope
 from platform.remediation.audit import RemediationAuditor
 from platform.remediation.execution import RemediationExecutor, TargetLocks
-from platform.remediation.models import RollbackPlan
 from platform.remediation.rollback.generator import RollbackWaiver
 
 ORG = "acme"
@@ -171,17 +170,13 @@ async def test_an_autonomous_row_is_attributed_to_the_platform_not_to_the_agent(
     assert executed.actor_id == auditor.autonomous_actor
 
 
-async def test_an_action_that_changed_nothing_is_audited_as_allowed_not_denied(
+async def test_a_failed_execution_is_audited_as_denied_and_still_recorded(
     registry, plans, isolation, verification, auditor, gateway, scope, plane, an_action, clock
 ) -> None:
-    """A target found already in the desired state is not a fact against it.
+    """A refused or failed action is a fact about the system too.
 
-    Every sub-target reported ``changed=False`` because none of them needed
-    moving — the action was permitted and ran; it just found nothing left to
-    do. Auditing that as ``DENIED`` would read, to an operator scanning the
-    trail, as an action that was refused or went wrong, when neither
-    happened — the audit record must carry the same honest distinction
-    ``ExecutionOutcome`` itself now makes.
+    An operator tuning an allow-list needs the ones that did not work as much as
+    the ones that did.
     """
     plane.changes = 0
     executor = RemediationExecutor(
@@ -196,64 +191,6 @@ async def test_an_action_that_changed_nothing_is_audited_as_allowed_not_denied(
     action = an_action()
     before = await registry.get(action.capability).reader.read(action, at=clock())
     await executor.execute(action, plan=plans.generate(action, before=before), before=before)
-
-    (executed,) = [
-        event
-        for event in await _events(gateway, scope)
-        if event.action == REMEDIATION_AUDIT_ACTION_EXECUTE
-    ]
-    assert executed.outcome is AuditOutcome.ALLOWED
-    assert executed.detail["outcome"] == "unchanged"
-
-
-async def test_a_genuinely_failed_execution_is_still_audited_as_denied(
-    registry, isolation, verification, auditor, gateway, scope, an_action, clock
-) -> None:
-    """The claim the test above no longer carries: a real failure is still denied.
-
-    Unlike "already in the desired state", this is the applier itself
-    raising — the shape a control-plane outage produces — so there really is
-    nothing to distinguish it from: the action did not run to completion and
-    the audit trail must say so.
-    """
-
-    class RaisingApplier:
-        async def apply(self, action, *, before, environment):
-            del action, before, environment
-            raise RuntimeError("the control plane refused the connection")
-
-    components = registry.get("scale_workload")
-    registry.register(
-        type(components)(
-            capability=components.capability,
-            reader=components.reader,
-            applier=RaisingApplier(),
-            generator=components.generator,
-            verifier=components.verifier,
-            verification=components.verification,
-        )
-    )
-    executor = RemediationExecutor(
-        registry=registry,
-        isolation=isolation,
-        verification=verification,
-        auditor=auditor,
-        locks=TargetLocks(timeout_seconds=0.05),
-        clock=clock,
-    )
-
-    action = an_action()
-    before = await components.reader.read(action, at=clock())
-    plan = RollbackPlan(
-        plan_id="plan-1",
-        action_id=action.action_id,
-        target=str(action.target),
-        recorded_state=before,
-        summary="restore replicas",
-    )
-
-    with pytest.raises(RuntimeError):
-        await executor.execute(action, plan=plan, before=before)
 
     (executed,) = [
         event

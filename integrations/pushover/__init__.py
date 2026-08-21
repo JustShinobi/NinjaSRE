@@ -33,7 +33,6 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
-    display_name="Pushover",
     category=IntegrationCategory.COMMUNICATION,
     summary="Pushover as a last-resort notification path: which delivery groups exist, and a finding pushed to a responder's device.",
     regions=REGIONS,

@@ -175,32 +175,6 @@ class PostgresApprovalStore(TenantBound):
         rows = await self.session.scalars(statement)
         return tuple(_to_request(row) for row in rows)
 
-    async def list_decided(
-        self,
-        *,
-        action: str | None = None,
-        limit: int = 50,
-    ) -> tuple[ApprovalRequest, ...]:
-        """Return answered requests, most recently decided first."""
-        check_limit(limit)
-        statement = (
-            select(models.Approval)
-            .where(
-                models.Approval.org_id == self.org_id,
-                models.Approval.state != ApprovalState.PENDING.value,
-            )
-            .order_by(
-                models.Approval.decided_at.desc().nullslast(),
-                models.Approval.approval_id.desc(),
-            )
-            .limit(limit)
-        )
-        if action is not None:
-            statement = statement.where(models.Approval.action == action)
-
-        rows = await self.session.scalars(statement)
-        return tuple(_to_request(row) for row in rows)
-
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
         """Move every pending request past its expiry to ``EXPIRED``, and return them."""
         rows = list(

@@ -145,22 +145,6 @@ class DetectorDeclaration:
     #: first. Every one is checked against the catalogue's side-effect level at
     #: registration: a detector that could act is an actuator.
     capabilities: tuple[str, ...] = field(default_factory=tuple)
-    #: The document that proposed this detector, when one did. Empty for every
-    #: detector somebody wrote by hand, which is what lets a listing separate
-    #: "this is running" from "somebody's runbook suggests this". A proposed
-    #: detector is always ``enabled=False`` when it is written, and this is what
-    #: says that the disabled state is a proposal awaiting a decision rather
-    #: than something an operator turned off.
-    origin: str = ""
-    #: What that document said, quoted. The rationale for a threshold is what
-    #: somebody needs at the moment they decide whether to enable it, and for a
-    #: proposed detector it lives in a document rather than in this declaration.
-    origin_excerpt: str = ""
-
-    @property
-    def proposed(self) -> bool:
-        """Return whether this detector is a candidate a document proposed."""
-        return bool(self.origin)
 
     def __post_init__(self) -> None:
         self._check_identity()

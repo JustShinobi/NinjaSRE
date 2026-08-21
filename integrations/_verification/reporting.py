@@ -28,13 +28,6 @@ reviews of what each one is allowed to print.
 
 from __future__ import annotations
 
-from integrations._verification.diagnostics import (
-    ClockSkewOutcome,
-    DataWindowOutcome,
-    EmptyWindow,
-    SkewState,
-    WindowState,
-)
 from integrations._verification.framework import Connectivity, VerificationReport
 from integrations._verification.permissions import PermissionOutcome, ProbeState
 
@@ -76,68 +69,12 @@ def permission_message(outcome: PermissionOutcome) -> str:
     )
 
 
-def window_message(outcome: DataWindowOutcome) -> str:
-    """Return one line on whether this source is holding anything worth reading.
-
-    The empty case is the one the wording carries. "Returned no data" is a
-    status; "answered and holds nothing for the last fifteen minutes — check
-    its scrape targets" is the sentence that ends the investigation into why
-    verification failed.
-    """
-    span = f"the last {outcome.window_minutes}m"
-    if outcome.state is WindowState.RETURNED:
-        return f"  data     {outcome.rows} series or line(s) over {span} — {outcome.description}"
-    if outcome.state is WindowState.EMPTY_WINDOW:
-        if outcome.empty_means is EmptyWindow.EXPECTED:
-            return (
-                f"  data     nothing over {span}, and for this source an empty answer is a "
-                f"real answer — {outcome.description}"
-            )
-        return (
-            f"  NO DATA  it answered and holds nothing over {span}. {outcome.advice} "
-            f"(probed by: {outcome.description})"
-        )
-    if outcome.state is WindowState.DENIED:
-        return f"  NO DATA  the read over {span} was refused — {outcome.detail}"
-    if outcome.state is WindowState.UNCHECKED:
-        return "  data     not read, because the credential itself was rejected first"
-    return f"  data     could not be read over {span}" + (
-        f": {outcome.detail}" if outcome.detail.strip() else ""
-    )
-
-
-def clock_message(outcome: ClockSkewOutcome) -> str:
-    """Return one line on whether this source's timestamps can be correlated."""
-    if outcome.state is SkewState.UNREPORTED:
-        return (
-            f"  clock    this source does not report its own time, so whether its timestamps "
-            f"line up with the platform's is unmeasured — {outcome.description}"
-        )
-    if outcome.state is SkewState.UNCHECKED:
-        return "  clock    not read, because the credential itself was rejected first"
-
-    offset = abs(outcome.offset_seconds or 0.0)
-    tolerance = outcome.tolerance_seconds
-    if outcome.state is SkewState.IN_TOLERANCE:
-        return (
-            f"  clock    {offset:.1f}s from the platform's, inside the {tolerance:.1f}s tolerance"
-        )
-    return (
-        f"  SKEWED   {offset:.1f}s from the platform's clock, outside the {tolerance:.1f}s "
-        f"correlation tolerates — every timestamp this source contributes is off by that much"
-    )
-
-
 def report_lines(report: VerificationReport) -> tuple[str, ...]:
     """Return the report as the lines a terminal prints, in reading order."""
     lines = [connectivity_message(report.integration, report.connectivity)]
     if report.probe_description.strip():
         lines.append(f"  probe    {report.probe_description}")
     lines.extend(permission_message(outcome) for outcome in report.permissions)
-    if report.data_window is not None:
-        lines.append(window_message(report.data_window))
-    if report.clock is not None:
-        lines.append(clock_message(report.clock))
 
     if report.missing_permissions:
         lines.append(
@@ -171,11 +108,9 @@ def _listed(names: tuple[str, ...]) -> str:
 
 
 __all__ = [
-    "clock_message",
     "connectivity_message",
     "permission_message",
     "report_lines",
     "report_message",
     "summary_line",
-    "window_message",
 ]

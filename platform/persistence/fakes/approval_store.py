@@ -99,29 +99,6 @@ class FakeApprovalStore:
         matches.sort(key=lambda r: (r.requested_at, r.approval_id))
         return tuple(matches[:limit])
 
-    async def list_decided(
-        self,
-        *,
-        action: str | None = None,
-        limit: int = 50,
-    ) -> tuple[ApprovalRequest, ...]:
-        """Return answered requests, most recently decided first."""
-        check_limit(limit)
-        matches = [
-            request
-            for request in self.state.approvals.values()
-            if request.state.is_decided and (action is None or request.action == action)
-        ]
-        # The identifier is the tiebreaker, and it is descending like the
-        # instant: two rows decided in the same transaction have the same
-        # timestamp, and a suite that sorted them by ascending id would read
-        # them in the opposite order from PostgreSQL on those rows alone.
-        matches.sort(
-            key=lambda r: (r.decided_at or r.requested_at, r.approval_id),
-            reverse=True,
-        )
-        return tuple(matches[:limit])
-
     async def expire_due(self, now: datetime) -> tuple[ApprovalRequest, ...]:
         """Move every pending request past its expiry to ``EXPIRED``, and return them."""
         expired: list[ApprovalRequest] = []

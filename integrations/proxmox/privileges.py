@@ -20,13 +20,6 @@ the write operations", and both halves are true and useful.
 granted on ``/nodes`` and not on ``/`` is a real and common configuration, and an
 operator told only "insufficient privileges" will re-grant the role they already
 have on the path they already have it on.
-
-**There are three tiers, not two, and only the first refuses.** Required, for
-what this build genuinely reads; advisory, for what the recommended role grants
-and nothing shipped uses yet; and write, for the remediation path. A gap in the
-second or third is reported in the same message and counted against neither
-sufficiency answer — because an operator whose token reads the entire cluster
-must not be told it is broken over a grant no code path asks for.
 """
 
 from __future__ import annotations
@@ -86,38 +79,6 @@ READ_PRIVILEGES: Final[tuple[RequiredPrivilege, ...]] = (
         path="/storage",
         grants="read datastore status, contents and the thin pools underneath them",
         capabilities=("proxmox_storage_pressure",),
-    ),
-    RequiredPrivilege(
-        privilege="Sys.Syslog",
-        path="/",
-        grants=(
-            "read the cluster log, which is where corosync says why a link flapped and "
-            "why a node left"
-        ),
-        capabilities=("proxmox_corosync_links",),
-    ),
-)
-
-#: Granted by the role an operator is asked to create, needed by nothing this
-#: build ships, and therefore reported rather than required.
-#:
-#: The distinction is not bookkeeping. A gap here must not fail verification: an
-#: operator whose token reads the whole cluster would be told their working
-#: credential is broken, and the fix they would reach for is a wider grant.
-#: What a gap here *does* mean is that a later feature reading the SDN
-#: configuration would find nothing, and the moment to learn that is now rather
-#: than during the investigation that needed it. Anything a shipped capability
-#: comes to depend on moves into ``READ_PRIVILEGES``, and the test beside this
-#: module is what makes that a decision somebody takes rather than one that
-#: happens.
-ADVISORY_PRIVILEGES: Final[tuple[RequiredPrivilege, ...]] = (
-    RequiredPrivilege(
-        privilege="SDN.Audit",
-        path="/",
-        grants=(
-            "read the software-defined network's zones and virtual networks, which is "
-            "where a zone's own definition lives rather than in a declared inventory"
-        ),
     ),
 )
 
@@ -189,20 +150,11 @@ class PrivilegeReport:
     held: Mapping[str, tuple[str, ...]]
     missing_read: tuple[PrivilegeGap, ...] = ()
     missing_write: tuple[PrivilegeGap, ...] = ()
-    #: Granted by the role the operator was asked to create and used by nothing
-    #: shipped. Reported so it can be fixed while somebody is looking at the
-    #: permissions screen, and never counted against sufficiency.
-    missing_advisory: tuple[PrivilegeGap, ...] = ()
 
     @property
     def read_sufficient(self) -> bool:
         """Return whether the token can do everything this feature reads."""
         return not self.missing_read
-
-    @property
-    def advisory_sufficient(self) -> bool:
-        """Return whether it also holds what the recommended role grants."""
-        return not self.missing_advisory
 
     @property
     def write_sufficient(self) -> bool:
@@ -220,11 +172,6 @@ class PrivilegeReport:
         if self.missing_read:
             lines.append("Missing for reading:")
             lines.extend(f"  {gap.describe()}" for gap in self.missing_read)
-        if self.missing_advisory:
-            lines.append(
-                "Granted by the recommended role and not held. Nothing stops working today:"
-            )
-            lines.extend(f"  {gap.describe()}" for gap in self.missing_advisory)
         if self.missing_write:
             lines.append("Missing for the write operations a later feature would need:")
             lines.extend(f"  {gap.describe()}" for gap in self.missing_write)
@@ -236,12 +183,9 @@ class PrivilegeReport:
         """Return the JSON-serialisable form a console or the CLI renders."""
         return {
             "read_sufficient": self.read_sufficient,
-            "advisory_sufficient": self.advisory_sufficient,
             "write_sufficient": self.write_sufficient,
             "missing_read": [gap.describe() for gap in self.missing_read],
-            "missing_advisory": [gap.describe() for gap in self.missing_advisory],
             "missing_write": [gap.describe() for gap in self.missing_write],
-            "held": {path: list(names) for path, names in sorted(self.held.items())},
             "granted_at": GRANTED_AT,
         }
 
@@ -266,9 +210,6 @@ def privilege_report(permissions: Mapping[str, Any]) -> PrivilegeReport:
         held=held,
         missing_read=tuple(
             _gap(privilege) for privilege in READ_PRIVILEGES if not _holds(held, privilege)
-        ),
-        missing_advisory=tuple(
-            _gap(privilege) for privilege in ADVISORY_PRIVILEGES if not _holds(held, privilege)
         ),
         missing_write=tuple(
             _gap(privilege) for privilege in WRITE_PRIVILEGES if not _holds(held, privilege)
@@ -307,7 +248,6 @@ def _gap(required: RequiredPrivilege) -> PrivilegeGap:
 
 
 __all__ = [
-    "ADVISORY_PRIVILEGES",
     "GRANTED_AT",
     "READ_PRIVILEGES",
     "WRITE_PRIVILEGES",

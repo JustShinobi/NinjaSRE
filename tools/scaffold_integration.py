@@ -4,12 +4,12 @@ An integration has seven artefacts, and five of them are boring. The schema is
 four fields, the client is a base class and two methods, the verifier is a probe
 and a permission list, the documentation has three headings, and the scenario is
 a scripted response. Written by hand, every one of them is a chance to write it
-slightly differently from every other one — and the two that are not
+slightly differently from the other eighty-four — and the two that are not
 boring, the methodology and the permission list, are the ones a contributor runs
 out of energy for after writing the five that were.
 
 So this writes all seven, none of them empty, and edits nothing. That second
-half is what makes a catalogue of any size
+half is SC-002 and it is the property that makes a catalogue of eighty-five
 addable one package at a time: discovery walks the tree, so there is no registry
 to append to and no merge conflict on every pull request.
 

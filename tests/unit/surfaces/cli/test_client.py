@@ -210,32 +210,24 @@ def test_a_bearer_token_is_presented_when_one_was_given() -> None:
     assert seen[0].get_header("Authorization") == "Bearer tok-123"
 
 
-def test_a_credential_write_puts_the_secret_in_the_body_and_nowhere_else() -> None:
-    # A credential goes in the request body, which is the one part of an HTTP
-    # call that intermediaries do not routinely write down. In the path or a
-    # query parameter it would be in every access log between here and the
-    # deployment, and in a header it would be in most of them.
+def test_a_credential_write_is_refused_before_a_request_carries_it() -> None:
+    # This surface has no credential-write route. What matters is that the
+    # refusal happens before anything is built: a secret must not reach the
+    # wire, and it must not reach the failure either, which is somewhere people
+    # paste.
     seen: list[Any] = []
 
     def opener(request: Any, timeout: float = 0) -> _Response:
         seen.append(request)
-        return _opener({"integration": "datadog", "state": "configured", "usable": True})(
-            request, timeout
-        )
+        return _opener({})(request, timeout)
 
-    client = RemoteClient(endpoint=Endpoint(url="https://x", token="tok"), opener=opener)
+    client = RemoteClient(endpoint=Endpoint(url="https://x"), opener=opener)
 
-    status = asyncio.run(client.store_integration_credential("datadog", {"api_key": "SECRET"}))
+    with pytest.raises(UnavailableError, match="does not expose") as refusal:
+        asyncio.run(client.store_integration_credential("datadog", {"api_key": "SECRET"}))
 
-    written = seen[0]
-    assert written.get_method() == "PUT"
-    assert written.full_url == "https://x/v1/integrations/datadog/credential"
-    assert "SECRET" not in written.full_url
-    assert "SECRET" not in repr(dict(written.header_items()))
-    assert b"SECRET" in written.data
-    assert status.configured
-    assert status.credential_state == "configured"
-    assert "SECRET" not in repr(status)
+    assert seen == []
+    assert "SECRET" not in str(refusal.value)
 
 
 def test_the_local_client_names_a_run_that_does_not_exist() -> None:

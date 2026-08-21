@@ -1,326 +1,15 @@
 {
-  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five. A `route` may carry `{{detailed-incident-id}}` in place of an id the fixture generator, not this file, gets to choose — `tests/visual/screens.spec.ts` resolves it from the same capture the id belongs to before navigating, so a fixture rebuild that hands the record to a different id moves the baseline's target with it instead of leaving the entry pointed at whichever id used to be first.",
+  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against \u2014 that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five.",
   "screens": [
     {
-      "id": "administration-1440-light",
-      "route": "/settings/members-roles",
+      "id": "shell-1440-light",
+      "route": "/",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
-        "against": null,
-        "reason": "Who exists in this deployment, the roles they hold, and the sessions they have open — the first screen of the organisation group and the one an administrator lands on. First accepted capture, taken once the screen stopped presenting machine identifiers as if they were language: a principal is a Person or a Service account rather than SERVICE_ACCOUNT, an account in use is Active and a withdrawn one Suspended rather than HEALTHY, a role in the grant form reaches a stated number of permission domains with the full list behind a disclosure rather than a comma-separated line of permission ids, and a session identifies itself by who holds it and when it started. What this baseline exists to catch is the thing no assertion in the suite caught: the review of the previous capture rejected it because a bare unlabelled session count still sat beside the person's name while every gate was green and the acceptance spec passed thirteen of thirteen — the test asserted that the origin element existed and never that the number was gone. The header row and the values beneath it were misaligned for the same reason. Both are fixed here, and this image is what it looks like when they are. Reviewed as a full-page capture before acceptance."
-      }
-    },
-    {
-      "id": "administration-audit-1440-light",
-      "route": "/settings/audit-log",
-      "status": "pending",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "Who did what, when, and against which resource — Audit's own tab now, on the same administrator's permission People already needed. First capture: this is the menu reorganisation's own fusion, and needs recapturing before it protects anything."
-      },
-      "pending_because": "The audit log at its own address, with named filters and a count that answers the same query the list does. Held alongside members and roles for the same reason."
-    },
-    {
-      "id": "agent-1440-light",
-      "route": "/agent?tab=topology",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The topology section: the hierarchy from the orchestrator down to the specialists, the six stages with what each consults, the model roles with their provenance, and the same topology as a document beside the picture. No reference is drawn for this screen. What the baseline exists to catch is the one thing a reviewer cannot see by reading the code — a vendor's model identifier appearing beside a stage. The unit suite asserts that as a rule; this is what it looks like when the rule holds. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: a collapsed “Advanced agent settings” section, holding the budgets this tab already printed but could not change, the three per-role prompt overrides, the operating-context switch and the subagent roster. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
-    },
-    {
-      "id": "agent-autonomy-1440-light",
-      "route": "/agent?tab=autonomy",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The reading the whole feature exists for: one sentence per class of action, answered by the deployment under the policy as it stands. A baseline because this is the screen somebody decides on, and a change that turned a sentence back into a policy dump would otherwise pass every test there is."
-      }
-    },
-    {
-      "id": "agent-tools-1440-light",
-      "route": "/agent?tab=tools",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The tools section, split by the one distinction that changes the risk: what reads and what writes, with a blocked tool dimmed and the integration that blocks it named. The dimming is the part worth a picture — it is the only place on this screen where state rides on anything visual, and it is paired with words in the row rather than left to the shade. Not yet re-reviewed against the Catalogue's own former reference: the menu reorganisation added the searchable, domain-grouped browse table this tab now opens with (the former Catalogue screen's own read half), above the risk grouping this baseline already covered — needs recapturing before it protects the new panel too. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: a collapsed “Advanced capability settings” section, holding the capability lists and the bridged protocol servers. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
-    },
-    {
-      "id": "agent-team-1440-light",
-      "route": "/agent?tab=team",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The team's operating context, absorbed whole from its own former address: the organisation tree, the section editor with its per-section provenance, and the token budget meter. First capture: this is the menu reorganisation's own fusion, and needs recapturing before it protects anything."
-      }
-    },
-    {
-      "id": "autonomy-posture-1440-light",
-      "route": "/settings/autonomy-guardrails?tab=posture",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "06-screen-autonomy.png",
-        "reason": "The question a reader lands on: what this deployment may do on its own, the level selector and its Save immediately under the heading with no prose between them, and the sentence that explains the empty case after the control rather than ahead of it. Reviewed as a capture: the subtitle names the node and the posture actually in force and says it comes from a temporary override; the guardrails in force read as sentences with a filled Value column and an origin beside each; the override that used to hold a third of this page is gone from the body and sits behind the header button. What a re-review would be looking for is prose creeping back above the first control, or the posture in the subtitle drifting back to the saved level while an override governs."
-      }
-    },
-    {
-      "id": "autonomy-rules-windows-1440-light",
-      "route": "/settings/autonomy-guardrails?tab=rules-windows",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "06-screen-autonomy.png",
-        "reason": "When the deployment may not act alone: the rules in resolution order, each level drawn as a named chip whose shape carries the escalation, then the creation of a rule, a freeze window and a spend cap, then one simulation section with a single primary action and the narrower hypothetical below it. Reviewed as a capture. Two things a re-review should weigh rather than assume settled: the panel that edits rules is still titled as though it saved a posture, and the same three rules appear both in the table above and as level selectors below it."
-      }
-    },
-    {
-      "id": "autonomy-guardrails-1440-light",
-      "route": "/settings/autonomy-guardrails?tab=guardrails",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "06-screen-autonomy.png",
-        "reason": "What always holds, whatever a rule decides: each guardrail with its effective value as a sentence, where that value came from, and the edit in the row itself. Reviewed as a capture: no Value cell is empty, the two invariants nothing can switch off read as stated facts rather than controls, and the field search below the table carries one real field rather than the empty box saying nothing matched that stood here before. A re-review should check that the value a cell displays and the value an edit writes have not been allowed to become the same string."
-      }
-    },
-    {
-      "id": "decisions-1440-light",
-      "route": "/decisions?tab=actions",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "The Actions tab — what used to be the whole of Approvals, now the default of one fused screen. The proposal card, reviewed against the reference's: all eight fields — target, current state, proposed change, what each protects, blast radius, rollback plan, verification, autonomy — in that order, with a danger border, a risk chip, and the decision controls in the card's own footer. A field the dataset has nothing for says so rather than being dropped, so the card's shape does not depend on the data. Not yet re-reviewed at this address: needs recapturing before it protects the fused screen."
-      }
-    },
-    {
-      "id": "decisions-changes-1440-light",
-      "route": "/decisions?tab=changes",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The Changes tab — what used to be the whole of Proposed changes, now the sibling tab of Actions rather than a separate menu entry. The emphasis is the point: a proposal awaiting a human must not read like a completed one. First capture at this address: needs recapturing before it protects anything."
-      }
-    },
-    {
-      "id": "first-run-1440-light",
-      "route": "/first-run",
-      "status": "pending",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The path somebody walks once, on the day nothing works yet. It is the least exercised screen in the product and the one whose breakage is discovered by a stranger."
-      },
-      "pending_because": "The guided run is reached only while the checklist is open, and this suite captures a deployment whose checklist is closed, so the route now answers with the dashboard. Photographing that would be a second copy of the dashboard baseline wearing the wizard's name, and it would never fail again whatever happened to the wizard. The first-day Playwright project is what covers the wizard until it has an address of its own that survives a finished checklist."
-    },
-    {
-      "id": "gallery-1440-dark",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "dark",
-      "accepted": {
-        "against": "08-theme-dark.png",
-        "reason": "The same geometry under the dark token set. The browser suite asserts the stronger form of this claim — every box, to the pixel, identical between the two themes — and this baseline is the picture of it."
-      }
-    },
-    {
-      "id": "gallery-1440-light",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "01-tokens-colour.png",
-        "reason": "The colour section renders every role pair with the ratio computed from the token table, and every status with its documented shape. Reviewed side by side against the reference: the values match to the byte and the shapes match the seven documented states."
-      }
-    },
-    {
-      "id": "gallery-320-dark",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "dark",
-      "accepted": {
-        "against": null,
-        "reason": "The narrowest width in the dark token set. As with the 768 dark capture there is no reference for the combination, so this baseline catches a regression rather than recording a review."
-      }
-    },
-    {
-      "id": "gallery-320-light",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "light",
-      "accepted": {
-        "against": "07-states-empty-error.png",
-        "reason": "The empty and error states, at the narrowest width the console declares. Reviewed against the reference: icon, one-line heading, one sentence saying what would be here, and an action, in that order, with the error state naming its dependency in monospace."
-      }
-    },
-    {
-      "id": "gallery-768-dark",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 768,
-      "theme": "dark",
-      "accepted": {
-        "against": null,
-        "reason": "The middle breakpoint in the dark token set. There is no reference for this combination — the design documents three widths and two themes but draws one picture of each — so this baseline exists to catch a regression rather than to record a review."
-      }
-    },
-    {
-      "id": "gallery-768-light",
-      "route": "/gallery",
-      "status": "baselined",
-      "viewport": 768,
-      "theme": "light",
-      "accepted": {
-        "against": "02-tokens-scales.png",
-        "reason": "The scale section renders the type, spacing, radius, border and duration scales as the closed sets the reference documents. Reviewed against it: eight type steps, seven spacing steps, four radii, and no additional step in any of them."
-      }
-    },
-    {
-      "id": "incident-1440-light",
-      "route": "/incidents/{{detailed-incident-id}}",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "Reviewed against the reference by eye, not accepted on a gate's word. The route was repointed first: it named an incident that exists in no dataset, so every previous capture of this screen was of a page that had never rendered an incident at all. It now resolves the one incident the demonstration seeder gives a reasoning timeline to.\n\nWhat the image shows: the trail and the incident's own title, the two chips, and a subtitle naming the rule, the source, the instant, the zone and the host. The investigation card leads with what the run spent — six steps, 41s, $0.004 — and then the five kinds in the order they happened, each at an absolute time: the alert arriving with the labels in monospace beside what authenticated it, the hypotheses drawn before anything was queried, the evidence with its executed query and result under the conclusion they support, the diagnosis in one sentence, and the report's destinations. The rail carries the proposed action awaiting decision, with its sentence, blast radius, posture, a reason field and exactly two controls, and beneath it the evidence trail's path to the full run.\n\nThree defects were found by looking at the first capture and fixed before this one was taken: every step read as a future time, a cost of $0.004 rendered as $0.00 — which does not read as cheap, it reads as free — and the receipt printed the same sentence twice, once as its labels and once as its credential. The blast radius reads 'Not recorded' because this proposal carries no reach of its own, which is the honest answer rather than the incident's subject count wearing the action's name."
-      }
-    },
-    {
-      "id": "integrations-1440-light",
-      "route": "/integrations",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The catalogue at the size the shipped product actually is: Connected, Suggested by your estate and Available, in that order, each absent rather than empty, under one count that agrees with what the page lists. No pagination control, because fifteen integrations never filled a page of twenty-four and the control had stopped rendering long before it was removed. Search reaches all three sections, so what this capture protects is that a match stays inside the section it belongs to instead of collapsing the page into one list."
-      }
-    },
-    {
-      "id": "integrations-panel-1440-light",
-      "route": "/integrations/alertmanager",
-      "status": "pending",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The credential panel, registered again at a surviving integration after the vendor cut removed both the old entry and the vendor it pointed at: alertmanager, verified in the dataset on purpose, so the capture shows the connected state and its three actions — test again, replace credential, disconnect — rather than an empty form with a disabled button. The panel is reviewed as a slide-over overlaid on the catalogue, never a block in the document's flow. No committed baseline exists yet; the first acceptance is a deliberate, reviewed one rather than something a gate should manufacture."
-      },
-      "pending_because": "Registered so the screen is not forgotten, and deliberately left out of the capture set until a person accepts its first baseline. Carrying it as baselined instead would fail the committed-baseline contract on every run, and — worse — each full gate run would regenerate the missing PNG as a real-looking capture nobody reviewed, which is how an unreviewed baseline gets committed by the next person who stages this directory. It leaves pending the moment someone captures it under review."
-    },
-    {
-      "id": "knowledge-1440-light",
-      "route": "/knowledge",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The Documents tab, and the default one now that Knowledge, Memory and Topology are three tabs of a single screen. The corpus this deployment can cite. Its failure mode is looking populated while citing nothing, so the baseline covers the shape rather than the count. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
-    },
-    {
-      "id": "knowledge-learned-1440-light",
-      "route": "/knowledge?tab=learned",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The Learned tab, absorbed whole from its own former address: what previous investigations learned. The screen exists to make recall visible; a regression that emptied it would look like a deployment that had simply never investigated anything. First capture at this address: needs recapturing before it protects anything. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
-    },
-    {
-      "id": "knowledge-topology-1440-light",
-      "route": "/knowledge?tab=topology",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The Topology tab, absorbed whole from its own former address: the service graph, which is the one part of this screen whose whole content is a drawing — a change that collapsed the layout or lost an edge would pass every other check. First capture at this address: needs recapturing before it protects anything. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: four collapsed advanced sections — change source, knowledge access, episodic memory and strategy. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel."
-      }
-    },
-    {
-      "id": "resources-1440-light",
-      "route": "/resources",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "05-screen-estate.png",
-        "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
-      }
-    },
-    {
-      "id": "resources-320-light",
-      "route": "/resources",
-      "status": "baselined",
-      "viewport": 320,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways — the failure a table screen has and a card screen does not."
-      }
-    },
-    {
-      "id": "run-detail-1440-dark",
-      "route": "/runs/run-0001",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "dark",
-      "accepted": {
-        "against": "08-theme-dark.png",
-        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has."
-      }
-    },
-    {
-      "id": "run-detail-1440-light",
-      "route": "/runs/run-0001",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "04-screen-incident.png",
-        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page — the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half. Since 062 the committed replay carries a real `changes_in_window` answer, so the change ruler is in this picture rather than absent from it — which is what makes a regression in the one thing the ruler has to get right, a temporal coincidence drawn as weakly as it was graded, something the gate can catch."
-      }
-    },
-    {
-      "id": "runs-1440-light",
-      "route": "/runs",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. No reference is drawn for it — the design documents the list in prose — so this baseline is what makes a change to the columns or their order deliberate."
+        "against": "03-screen-dashboard.png",
+        "reason": "The application shell, reviewed side by side against the reference's chrome: the 236px sidebar, the four nav groups in the order Operate \u00b7 Estate \u00b7 Learn \u00b7 Govern with an icon and a label each and the current one marked, the 52px topbar carrying the palette, the theme switch, the notification centre and the account menu, the page header's icon-title-context anatomy, and the sidebar footer stating guardian liveness and posture. The panels inside the frame are the data surfaces and arrive with them; what is compared here is the frame."
       }
     },
     {
@@ -335,14 +24,14 @@
       }
     },
     {
-      "id": "shell-1440-light",
+      "id": "shell-768-light",
       "route": "/",
       "status": "baselined",
-      "viewport": 1440,
+      "viewport": 768,
       "theme": "light",
       "accepted": {
-        "against": "03-screen-dashboard.png",
-        "reason": "The application shell, reviewed side by side against the reference's chrome: the 236px sidebar, the three nav zones in the order Now · The environment · Settings with an icon and a label each and the current one marked — regrouped by how often a screen is opened rather than by subject, and carrying the first-steps entry that is present only while the setup checklist has something outstanding, the 52px topbar carrying the palette, the theme switch, the notification centre and the account menu, the page header's icon-title-context anatomy, and the sidebar footer stating guardian liveness and posture. The panels inside the frame are the data surfaces and arrive with them; what is compared here is the frame."
+        "against": null,
+        "reason": "The frame at the declared breakpoint, which is the last width the sidebar is a rail at. There is no reference drawn at this width; the baseline is what makes the boundary between rail and drawer a thing a change has to move deliberately."
       }
     },
     {
@@ -357,17 +46,6 @@
       }
     },
     {
-      "id": "shell-768-light",
-      "route": "/",
-      "status": "baselined",
-      "viewport": 768,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The frame at the declared breakpoint, which is the last width the sidebar is a rail at. There is no reference drawn at this width; the baseline is what makes the boundary between rail and drawer a thing a change has to move deliberately."
-      }
-    },
-    {
       "id": "sign-in-1440-light",
       "route": "/sign-in",
       "status": "baselined",
@@ -379,94 +57,168 @@
       }
     },
     {
-      "id": "signals-1440-light",
-      "route": "/settings/alert-intake",
+      "id": "gallery-1440-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "01-tokens-colour.png",
+        "reason": "The colour section renders every role pair with the ratio computed from the token table, and every status with its documented shape. Reviewed side by side against the reference: the values match to the byte and the shapes match the seven documented states."
+      }
+    },
+    {
+      "id": "gallery-1440-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": "08-theme-dark.png",
+        "reason": "The same geometry under the dark token set. The browser suite asserts the stronger form of this claim \u2014 every box, to the pixel, identical between the two themes \u2014 and this baseline is the picture of it."
+      }
+    },
+    {
+      "id": "gallery-768-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "light",
+      "accepted": {
+        "against": "02-tokens-scales.png",
+        "reason": "The scale section renders the type, spacing, radius, border and duration scales as the closed sets the reference documents. Reviewed against it: eight type steps, seven spacing steps, four radii, and no additional step in any of them."
+      }
+    },
+    {
+      "id": "gallery-768-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 768,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The middle breakpoint in the dark token set. There is no reference for this combination \u2014 the design documents three widths and two themes but draws one picture of each \u2014 so this baseline exists to catch a regression rather than to record a review."
+      }
+    },
+    {
+      "id": "gallery-320-light",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "light",
+      "accepted": {
+        "against": "07-states-empty-error.png",
+        "reason": "The empty and error states, at the narrowest width the console declares. Reviewed against the reference: icon, one-line heading, one sentence saying what would be here, and an action, in that order, with the error state naming its dependency in monospace."
+      }
+    },
+    {
+      "id": "gallery-320-dark",
+      "route": "/gallery",
+      "status": "baselined",
+      "viewport": 320,
+      "theme": "dark",
+      "accepted": {
+        "against": null,
+        "reason": "The narrowest width in the dark token set. As with the 768 dark capture there is no reference for the combination, so this baseline catches a regression rather than recording a review."
+      }
+    },
+    {
+      "id": "runs-1440-light",
+      "route": "/runs",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "Three intake sources, each saying what it is actually doing rather than all saying the same nothing. Alertmanager, which is delivering, is expanded: its full delivery URL, Copy URL beside it, Copy Alertmanager receiver YAML, the last delivery in relative time and the week's count. Generic, which has never received anything, is a header line and a closed Format & test disclosure and nothing else. Grafana is the case worth protecting: it is neither of those, because things do arrive there and are turned away, so it keeps its rejection and the reason for it in full. What a capture is for here is the difference in weight between the three — a change that gave silence the same room as delivery would pass every other check while undoing the reason the screen reads this way. Below them the trust line names the delivery token in use and offers to rotate it, and the chain runs arrival, rule, action, destination in one line."
+        "reason": "The run list: status, trigger, subject, start, duration, each column sortable by a link and every filter in the address. No reference is drawn for it \u2014 the design documents the list in prose \u2014 so this baseline is what makes a change to the columns or their order deliberate."
       }
     },
     {
-      "id": "signals-observation-1440-light",
-      "route": "/signals?tab=observation",
-      "status": "pending",
+      "id": "run-detail-1440-light",
+      "route": "/runs/run-0001",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "04-screen-incident.png",
+        "reason": "The transcript, reviewed side by side against the reference's investigation transcript: one entry per event with its kind in words as well as in a coloured well, a capability call showing its arguments bounded with the bound stated and the full payload one control away, and a guardrail entry at danger weight rather than as an aside. What differs is the surrounding page \u2014 the reference draws this transcript inside an incident, and this is the run it belongs to; the incident capture below is the other half."
+      }
+    },
+    {
+      "id": "run-detail-1440-dark",
+      "route": "/runs/run-0001",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "dark",
+      "accepted": {
+        "against": "08-theme-dark.png",
+        "reason": "The same transcript under the dark token set. Every colour on it comes from a role token, so this is the picture of that claim on the densest screen the console has."
+      }
+    },
+    {
+      "id": "incident-1440-light",
+      "route": "/incidents/INC-2026-0814",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "04-screen-incident.png",
+        "reason": "Incident detail at the reference's two-thirds/one-third split: the primary column carrying the transcript and the timeline, the context rail carrying the subject and the 'why degraded' derivation \u2014 named signals with their values rather than a provider string, and the note that the raw status is retained. The proposal card is reviewed on the approvals capture, where a pending proposal actually exists in this dataset."
+      }
+    },
+    {
+      "id": "approvals-1440-light",
+      "route": "/approvals",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "04-screen-incident.png",
+        "reason": "The proposal card, reviewed against the reference's: all eight fields \u2014 target, current state, proposed change, what each protects, blast radius, rollback plan, verification, autonomy \u2014 in that order, with a danger border, a risk chip, and the decision controls in the card's own footer. A field the dataset has nothing for says so rather than being dropped, so the card's shape does not depend on the data."
+      }
+    },
+    {
+      "id": "resources-1440-light",
+      "route": "/resources",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "05-screen-estate.png",
+        "reason": "The estate, reviewed side by side: sorted by health so problems are at the top without filtering, the columns resource / kind / parent / health / utilisation / last seen in that order, utilisation as a meter and a number where there is a capacity, and stale drawn as its own state rather than as a shade of unhealthy."
+      }
+    },
+    {
+      "id": "autonomy-1440-light",
+      "route": "/autonomy",
+      "status": "baselined",
+      "viewport": 1440,
+      "theme": "light",
+      "accepted": {
+        "against": "06-screen-autonomy.png",
+        "reason": "The autonomy screen at the reference's two-thirds/one-third split: the rules table in resolution order, the permanent footer stating that the absence of a rule resolves to propose-only, and the bounds no level overrides in the context rail. Re-accepted when the policy engine landed and the rules table stopped being empty; the frame, the split and the footer are unchanged from the first acceptance."
+      }
+    },
+    {
+      "id": "configuration-1440-light",
+      "route": "/configuration",
+      "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The Continuous observation tab, absorbed whole from its own former address: what this deployment watches for, and the threshold each check reads. An operator deciding whether to change one has to see the measurement beside it. First capture at this address: needs recapturing before it protects anything."
-      },
-      "pending_because": "What is left of the four-tab screen once intake, schedules and destinations moved out. Continuous observation has no Settings page yet; when it gets one this address changes again, so the baseline is held until then."
+        "reason": "The organisation tree beside the effective configuration, with a provenance chip on every value naming the level that set it. No reference is drawn for it; the baseline exists because 'where is this set' is the question this screen answers and a change that dropped the chip would otherwise be invisible."
+      }
     },
     {
-      "id": "signals-schedules-1440-light",
-      "route": "/settings/schedules-destinations",
-      "status": "pending",
-      "viewport": 1440,
+      "id": "resources-320-light",
+      "route": "/resources",
+      "status": "baselined",
+      "viewport": 320,
       "theme": "light",
       "accepted": {
         "against": null,
-        "reason": "The Schedules tab: investigations that run on a clock rather than a detector, absent rather than disabled for a viewer who may not manage them. First capture at this address: needs recapturing before it protects anything."
-      },
-      "pending_because": "Schedules and destinations are now one built page, which is why this entry and the destinations one below it name the same address. Two ids on one route would photograph one screen twice, so consolidating them into a single entry belongs to the review that accepts these pixels — not to the feature that repointed the address."
-    },
-    {
-      "id": "signals-destinations-1440-light",
-      "route": "/settings/schedules-destinations",
-      "status": "pending",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": null,
-        "reason": "The Destinations tab: where the result goes, and which outbound deliveries failed and can be resent. First capture at this address: needs recapturing before it protects anything."
-      },
-      "pending_because": "The other half of the page the schedules entry above names, and pending for the same reason: one built address, two ids, and the consolidation is the reviewer's to make rather than this feature's."
-    },
-    {
-      "id": "single-sign-on-1440-light",
-      "route": "/settings/single-sign-on",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "09-area-settings.html",
-        "reason": "Single sign-on as a flow rather than a form: configure, test, then activate, with activation refused until a test has passed. The page carries the local fallback statement, because an operator turning on SSO is entitled to know how they get back in if it breaks. Re-accepted when the raw configuration editor was retired and each setting moved to the page that owns it: a collapsed “Advanced claim mapping” section, holding the four claim names. Reviewed as an image diff before acceptance — that section and the height it adds are the only differences; every panel above it is unchanged pixel for pixel. Re-accepted one change later: the state chip beside the heading was still a resource-health badge, so a provider that had been switched on would have described itself as healthy. It now says active or inactive, which is what single sign-on actually is. The fixture holds an inactive provider, so the suite never rendered the bad half — the proof it could is a unit test that renders the active state. One line differs from the capture before it."
-      }
-    },
-    {
-      "id": "machine-tokens-1440-light",
-      "route": "/settings/machine-tokens",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "09-area-settings.html",
-        "reason": "Machine tokens grouped by what they are for, with a count and the last use, so fifteen accumulated bring-up credentials read as one group with a history rather than as fifteen unexplained rows. Scopes are chosen from a list, never typed. Recaptured when the dataset began issuing a delivery token, which adds one group — Alert delivery, in use, one token, scoped to webhook delivery — between the scheduler and bootstrap groups, both of which are unchanged. The two images were opened and compared before this was accepted: the added group is the whole difference, and everything below it is the same content moved down."
-      }
-    },
-    {
-      "id": "models-providers-1440-light",
-      "route": "/settings/models-providers",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "09-area-settings.html",
-        "reason": "Which model answers each role, and what each provider is verified to support. The tri-state matters here: a provider whose tool-calling support is unknown must not read as one that lacks it. Re-accepted when verification became a state card: the provider's display name and its last verification's chip at the top, a single \"Set at\" beside the action that reverts it, and the seven advanced roles collapsed into one line until asked for — reviewed as an image diff before acceptance against the mockup's own worked example (a degraded provider, one credential, one line for what used to be seven open accordions)."
-      }
-    },
-    {
-      "id": "notifications-1440-light",
-      "route": "/settings/notifications",
-      "status": "baselined",
-      "viewport": 1440,
-      "theme": "light",
-      "accepted": {
-        "against": "09-area-settings.html",
-        "reason": "Where the deployment tells somebody something, and how often it is allowed to. Quiet hours and the per-hour ceiling are the two controls an operator reaches for after being paged too much, and they sit together."
+        "reason": "The densest table the console has, at the narrowest width it declares. What this catches is the row that starts scrolling the page sideways \u2014 the failure a table screen has and a card screen does not."
       }
     }
   ],
@@ -487,13 +239,13 @@
       "file": "03-screen-dashboard.png",
       "status": "baselined",
       "surface": "the console data surfaces",
-      "note": "The deployment overview. Its chrome was baselined by the application shell; the panels inside that frame — the attention block above the statistics, four figures each with a comparison and a drill-down, the activity feed, the estate summary and the guardian card — are the data surfaces and are reviewed against this reference by the shell captures, which now render them."
+      "note": "The deployment overview. Its chrome was baselined by the application shell; the panels inside that frame \u2014 the attention block above the statistics, four figures each with a comparison and a drill-down, the activity feed, the estate summary and the guardian card \u2014 are the data surfaces and are reviewed against this reference by the shell captures, which now render them."
     },
     {
       "file": "04-screen-incident.png",
       "status": "baselined",
       "surface": "the console data surfaces",
-      "note": "One investigation: the transcript, the derivation behind the verdict, and the proposal card. Reviewed across three captures — the run detail for the transcript, the incident detail for the rail, and the Decisions screen's Actions tab for the card — because the reference draws one page and this dataset carries the three things it draws on three of them."
+      "note": "One investigation: the transcript, the derivation behind the verdict, and the proposal card. Reviewed across three captures \u2014 the run detail for the transcript, the incident detail for the rail, and the approvals queue for the card \u2014 because the reference draws one page and this dataset carries the three things it draws on three of them."
     },
     {
       "file": "05-screen-estate.png",
@@ -518,12 +270,6 @@
       "status": "baselined",
       "surface": "the console design system",
       "note": "The dark theme: the same token names at different values and identical geometry. Reviewed against the gallery in dark rather than against a product screen, because what it documents is the token set."
-    },
-    {
-      "file": "09-area-settings.html",
-      "status": "baselined",
-      "surface": "the Settings area",
-      "note": "The Settings area as it was designed: the hybrid navigation that leaves Integrations its own sidebar entry and folds the rest into one Settings entry with a subnav of its own, the nine pages that subnav lists, and the browsable integrations catalogue beside the credential panel. Committed as HTML rather than exported to an image because it carries both themes and the states a still frame cannot, and because it is what the area was actually drawn as. Self-contained: nothing it renders is fetched."
     }
   ]
 }

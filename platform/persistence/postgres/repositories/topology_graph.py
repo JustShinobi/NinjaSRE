@@ -15,7 +15,6 @@ named differently.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -103,15 +102,10 @@ class PostgresTopologyGraph(TenantBound):
         )
         return merged
 
-    async def edges_from(
-        self, node_id: str, *, kinds: Sequence[EdgeKind] = ()
-    ) -> tuple[TopologyEdge, ...]:
+    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
         """Return the edges leaving ``node_id``, with their stored properties."""
         self._require_available()
-        statement = (
-            queries.edges_from(tuple(kind.value for kind in kinds)) if kinds else queries.EDGES_FROM
-        )
-        rows = await self._read(statement, node_id)
+        rows = await self._run(queries.EDGES_FROM, {"node_id": self._scoped(node_id)})
         return tuple(
             TopologyEdge(
                 from_node_id=node_id,
@@ -143,15 +137,6 @@ class PostgresTopologyGraph(TenantBound):
         """Return what depends on ``node_id``, one hop in."""
         return await self._nodes(queries.DIRECT_DEPENDENTS, node_id)
 
-    async def transitive_dependencies(
-        self,
-        node_id: str,
-        *,
-        depth: int = DEFAULT_GRAPH_DEPTH,
-    ) -> TraversalResult:
-        """Return everything ``node_id`` depends on within ``depth`` hops."""
-        return await self._nodes(queries.transitive_dependencies(depth), node_id)
-
     async def transitive_dependents(
         self,
         node_id: str,
@@ -173,20 +158,20 @@ class PostgresTopologyGraph(TenantBound):
     ) -> BlastRadius:
         """Return what an outage at ``node_id`` would reach, with hop distances."""
         self._require_available()
-        rows = await self._read(queries.blast_radius(depth), node_id)
+        rows = await self._run(queries.blast_radius(depth), {"node_id": self._scoped(node_id)})
 
-        # The walk already reports each node once, at its nearest hop count, and
-        # already orders by it. Sorting again is what makes the order the port
-        # promises independent of how the database happened to collate the ids.
-        entries = sorted(
-            (
-                BlastRadiusEntry(
-                    node=self._to_node(agtype.properties_of(raw_node)), depth=int(hops)
-                )
-                for raw_node, hops in rows
-            ),
-            key=lambda entry: (entry.depth, entry.node.node_id),
-        )
+        # A variable-length match returns one row per path, so a node reachable
+        # by two routes appears twice. The nearest hop count is the one that
+        # matters — it is how soon the failure arrives.
+        nearest: dict[str, BlastRadiusEntry] = {}
+        for raw_node, raw_hops in rows:
+            node = self._to_node(agtype.properties_of(raw_node))
+            hops = agtype.as_int(raw_hops)
+            seen = nearest.get(node.node_id)
+            if seen is None or hops < seen.depth:
+                nearest[node.node_id] = BlastRadiusEntry(node=node, depth=hops)
+
+        entries = sorted(nearest.values(), key=lambda entry: (entry.depth, entry.node.node_id))
         return BlastRadius(
             origin_id=node_id,
             max_depth=depth,
@@ -268,19 +253,9 @@ class PostgresTopologyGraph(TenantBound):
         rows = await driver.fetch(statement, agtype.encode_properties(parameters))
         return [tuple(row) for row in rows]
 
-    async def _read(self, statement: str, node_id: str) -> list[Any]:
-        """Run one traversal, anchored on ``node_id`` within this tenant.
-
-        Every read in the catalogue takes exactly one parameter — the anchor's
-        properties as agtype — because containment is the predicate the GIN index
-        serves. The tenant prefix is applied here, the same place a write applies
-        it, so a traversal cannot be anchored outside its own organisation.
-        """
-        return await self._run(statement, {"node_id": self._scoped(node_id)})
-
     async def _nodes(self, statement: str, node_id: str) -> TraversalResult:
         self._require_available()
-        rows = await self._read(statement, node_id)
+        rows = await self._run(statement, {"node_id": self._scoped(node_id)})
 
         found: dict[str, TopologyNode] = {}
         for (raw,) in rows:

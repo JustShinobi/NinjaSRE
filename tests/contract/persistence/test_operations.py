@@ -145,51 +145,6 @@ async def test_migrations_roll_forward_and_back_over_seeded_data(
 
 
 @pytest.mark.usefixtures("postgres_only")
-async def test_the_evidence_columns_migration_is_reversible(
-    gateway: PersistenceGateway,
-) -> None:
-    """The way back, exercised rather than merely written.
-
-    Rolling this one migration back has to leave the *schema* exactly where
-    it was before it ran — not merely return without raising, which a
-    ``downgrade()`` that dropped the wrong column or left one behind would
-    also do. So this reads ``information_schema.columns`` before the
-    downgrade, after it, and after rolling forward again, and compares the
-    actual column sets rather than trusting that the functions were called.
-    """
-    assert isinstance(gateway, PostgresPersistence)
-    head = migrations.head_revision()
-
-    async def _incident_timeline_columns() -> set[str]:
-        async with gateway.engine.connect() as conn:
-            found = await conn.execute(
-                text(
-                    "SELECT column_name FROM information_schema.columns "
-                    "WHERE table_schema = 'public' AND table_name = 'incident_timeline'"
-                )
-            )
-            return {row[0] for row in found}
-
-    at_head = await _incident_timeline_columns()
-    assert {"query", "result"} <= at_head, (
-        f"incident_timeline should carry query and result at head; has {sorted(at_head)}"
-    )
-
-    landed = await migrations.downgrade_to(gateway.engine, "0013_local_password")
-    assert landed == "0013_local_password"
-    after_downgrade = await _incident_timeline_columns()
-    assert "query" not in after_downgrade, "downgrade must drop the query column"
-    assert "result" not in after_downgrade, "downgrade must drop the result column"
-    assert after_downgrade == at_head - {"query", "result"}, (
-        "the downgrade must remove exactly these two columns and nothing else on the table"
-    )
-
-    assert await migrations.upgrade_to_head(gateway.engine) == head
-    after_reupgrade = await _incident_timeline_columns()
-    assert after_reupgrade == at_head, "rolling forward again must restore the schema exactly"
-
-
-@pytest.mark.usefixtures("postgres_only")
 async def test_two_replicas_starting_together_do_not_race(
     gateway: PersistenceGateway,
 ) -> None:

@@ -11,7 +11,7 @@ moved or the branch was never rebased onto it, and this refuses to guess), then
 branch the next spec directly off the now-current `master`.
 
 It refuses to touch a dirty working tree and refuses to run from anything that
-is not a `feat/[wave-]NNN-slug` branch backed by a matching spec directory. It does not
+is not a `feat/NNN-slug` branch backed by a matching spec directory. It does not
 run `make verify` itself — the Makefile target it is wired to (`make close-task`)
 depends on `verify`, so a red gate never reaches this script.
 
@@ -69,7 +69,7 @@ def resolve_specs_dir(name: str | None = None) -> Path:
 #: that need a different wave call ``resolve_specs_dir`` instead.
 SPECS_DIR = resolve_specs_dir()
 
-BRANCH_PATTERN = re.compile(r"^feat/(?:(?P<wave>[a-z0-9][a-z0-9-]*)-)?(?P<slug>\d{3}-[a-z0-9-]+)$")
+BRANCH_PATTERN = re.compile(r"^feat/(\d{3}-[a-z0-9-]+)$")
 SPEC_SLUG_PATTERN = re.compile(r"^\d{3}-")
 
 
@@ -95,15 +95,6 @@ def current_branch() -> str:
     return _git("rev-parse", "--abbrev-ref", "HEAD")
 
 
-def parse_task_branch(branch: str) -> tuple[str, str]:
-    """Return the optional wave prefix and spec slug encoded in ``branch``."""
-    match = BRANCH_PATTERN.match(branch)
-    if match is None:
-        raise CloseTaskError(f"{branch!r} is not a task branch (expected feat/[wave-]NNN-slug)")
-    wave = match.group("wave")
-    return (f"{wave}-" if wave else "", match.group("slug"))
-
-
 def working_tree_is_clean() -> bool:
     """Return whether there is nothing staged, unstaged, or untracked."""
     return _git("status", "--porcelain") == ""
@@ -127,7 +118,10 @@ def close_task_branch(*, dry_run: bool = False, specs_dir: Path | None = None) -
     """Fast-forward master to the current task branch and branch the next task off it."""
     root = specs_dir or SPECS_DIR
     branch = current_branch()
-    wave_prefix, slug = parse_task_branch(branch)
+    match = BRANCH_PATTERN.match(branch)
+    if not match:
+        raise CloseTaskError(f"{branch!r} is not a task branch (expected feat/NNN-slug)")
+    slug = match.group(1)
 
     if not (root / slug).is_dir():
         rel = root.relative_to(REPO_ROOT) if root.is_relative_to(REPO_ROOT) else root
@@ -137,7 +131,7 @@ def close_task_branch(*, dry_run: bool = False, specs_dir: Path | None = None) -
         raise CloseTaskError("working tree is dirty; commit or stash before closing the branch")
 
     upcoming = next_slug(slug, spec_slugs(root))
-    next_branch = f"feat/{wave_prefix}{upcoming}" if upcoming else None
+    next_branch = f"feat/{upcoming}" if upcoming else None
 
     if dry_run:
         summary = f"would fast-forward master to {branch}"

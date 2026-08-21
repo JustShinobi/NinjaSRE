@@ -4,7 +4,7 @@ display_name: Proxmox backup and recovery
 description: A job that names a guest is not a backup, and a file with a size is not a restore.
 domain: cloud_control_plane
 applies_when:
-  alert_sources: [proxmox, alertmanager]
+  alert_sources: [proxmox, proxmox_backup_server, alertmanager]
   tags: [proxmox, backup, restore, replication, retention, recovery]
 directs_tools:
   - proxmox_backup_coverage

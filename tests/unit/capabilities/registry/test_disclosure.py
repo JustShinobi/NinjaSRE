@@ -1,6 +1,6 @@
 """A skill costs its index entry every turn and its body only when chosen.
 
-That split is the whole reason a catalogue of integrations fits in
+That split is the whole reason a catalogue of eighty-five integrations fits in
 a context window. Get it wrong in the obvious way — read the file when the
 skill is discovered — and the saving disappears silently, because everything
 still works and the only symptom is a context bill nobody attributes.
@@ -70,7 +70,7 @@ def test_a_manifest_parses_into_metadata_and_a_body() -> None:
 
 
 def test_both_list_notations_mean_the_same_thing() -> None:
-    """Hand-written manifests will use both. Neither may surprise."""
+    """Eighty-five hand-written manifests will use both. Neither may surprise."""
     inline = MANIFEST.replace(
         "directs_tools:\n  - datadog_log_statistics\n  - datadog_sample_logs",
         "directs_tools: [datadog_log_statistics, datadog_sample_logs]",
@@ -206,7 +206,7 @@ def test_a_body_instructing_shell_execution_is_rejected(body: str) -> None:
     ],
 )
 def test_prose_about_a_command_is_not_an_instruction_to_run_one(body: str) -> None:
-    """The lint has to survive every shipped skill without being switched off.
+    """The lint has to survive eighty-five skills without being switched off.
 
     A rule that fires on the word `kubectl` would be disabled within a week,
     and a disabled rule protects nothing.

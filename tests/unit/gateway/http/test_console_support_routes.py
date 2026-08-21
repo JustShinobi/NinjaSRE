@@ -220,15 +220,7 @@ async def test_integration_forms_are_served_as_schemas_never_as_values(
     assert schemas, "no integration is installed at all"
     for schema in schemas:
         for credential_field in schema["credential_fields"]:
-            assert set(credential_field) == {
-                "name",
-                "label",
-                "secret",
-                "required",
-                "help",
-                "min_scope",
-                "guide_url",
-            }
+            assert set(credential_field) == {"name", "label", "secret", "required", "help"}
 
 
 # --- Approvals and rollback (FR-009, FR-011) ----------------------------------

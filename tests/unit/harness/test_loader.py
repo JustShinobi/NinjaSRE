@@ -102,23 +102,23 @@ def test_discovery_walks_rather_than_reading_a_list(
 ) -> None:
     """SC-005: the corpus grows by adding a directory, and nothing else."""
     write_scenario(suite="kubernetes", name="001-oom-kill")
-    redis = dict(VALID_SCENARIO)
-    redis.update(
-        scenario_id="002-subscription-degraded",
+    aws = dict(VALID_SCENARIO)
+    aws.update(
+        scenario_id="002-instance-retirement",
         failure_mode="node_failure",
-        available_evidence=["redis"],
-        integrations=["redis"],
+        available_evidence=["aws_ec2"],
+        integrations=["aws_ec2"],
     )
     write_scenario(
-        suite="redis",
-        name="002-subscription-degraded",
-        scenario=redis,
+        suite="aws",
+        name="002-instance-retirement",
+        scenario=aws,
         evidence={
-            "redis.json": {
-                "integration": "redis",
+            "aws_ec2.json": {
+                "integration": "aws_ec2",
                 "responses": [
                     {
-                        "match": {"path_contains": "/v1/subscriptions"},
+                        "match": {"path_contains": "DescribeInstanceStatus"},
                         "status": 200,
                         "body": {},
                     }
@@ -130,8 +130,8 @@ def test_discovery_walks_rather_than_reading_a_list(
     found = discover_scenarios(tmp_path)
 
     assert [(one.suite, one.scenario_id) for one in found] == [
+        ("aws", "002-instance-retirement"),
         ("kubernetes", "001-oom-kill"),
-        ("redis", "002-subscription-degraded"),
     ]
 
 

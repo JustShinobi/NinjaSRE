@@ -21,7 +21,6 @@ from config.constants.first_run import (
     CHECK_CLOCK_SKEW,
     CHECK_DATABASE,
     CHECK_DISK_SPACE,
-    CHECK_INVESTIGATION_RUNTIME,
     CHECK_SCHEMA,
     DEGRADES,
     MAXIMUM_CLOCK_SKEW_SECONDS,
@@ -35,7 +34,6 @@ from platform.startup.selfcheck import (
     SelfCheckReport,
     clock_skew_check,
     disk_space_check,
-    investigation_runtime_check,
     run_checks,
     store_checks,
 )
@@ -349,56 +347,3 @@ async def test_an_unusable_integration_is_reported_one_finding_at_a_time() -> No
     }
     for finding in report.findings:
         assert finding.problem and finding.action
-
-
-# --- The investigation runtime -------------------------------------------------
-
-
-async def test_a_deployment_with_no_investigation_runtime_says_so() -> None:
-    """The one dependency that leaves no trace anywhere else.
-
-    An account, a provider key, a resource in the estate: all of them are
-    visible from a screen. A process with nothing composed to drive a ReAct
-    loop looks exactly like one that has, until somebody presses Investigate
-    and the run fails before it starts. The checklist carries the step; this is
-    the other half, for the operator reading a diagnosis rather than a wizard.
-    """
-    report = await run_checks((investigation_runtime_check(None),))
-
-    finding = report.findings[0]
-    assert finding.check == CHECK_INVESTIGATION_RUNTIME
-    assert finding.blocks == BLOCKS_INVESTIGATION
-    assert finding.action
-
-
-async def test_the_runtime_finding_never_names_a_setting_of_the_process() -> None:
-    """The console reads this report.
-
-    A finding whose text is a deploy instruction puts the environment variable
-    back on the screen the failure-translation layer exists to keep it off. The
-    variable belongs in the refusal the entry point raises and in the
-    deployment documentation, not here.
-    """
-    report = await run_checks((investigation_runtime_check(None),))
-
-    finding = report.findings[0]
-    assert "NINJASRE_" not in finding.problem
-    assert "NINJASRE_" not in finding.action
-
-
-async def test_a_composed_runtime_passes_the_check() -> None:
-    report = await run_checks((investigation_runtime_check(lambda: True),))
-
-    assert report.findings == ()
-
-
-async def test_a_runtime_that_reports_itself_absent_is_a_finding() -> None:
-    """Told rather than assumed: a composition that answered no is not a pass."""
-    report = await run_checks((investigation_runtime_check(lambda: False),))
-
-    assert report.findings != ()
-
-
-def test_the_runtime_check_is_one_of_the_declared_names() -> None:
-    """A check nothing declares is a check no report is required to carry."""
-    assert CHECK_INVESTIGATION_RUNTIME in SELF_CHECK_NAMES

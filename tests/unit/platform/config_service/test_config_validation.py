@@ -12,7 +12,6 @@ import pytest
 
 from platform.config_service.catalogue import (
     CapabilityDescription,
-    CredentialField,
     IntegrationSchema,
     StaticCatalogue,
     StaticIntegrationDirectory,
@@ -47,17 +46,7 @@ def catalogue() -> StaticCatalogue:
 @pytest.fixture
 def directory() -> StaticIntegrationDirectory:
     return StaticIntegrationDirectory.of(
-        [
-            IntegrationSchema(
-                name="datadog",
-                credential_fields=(
-                    CredentialField(name="api_key", secret=True),
-                    CredentialField(name="app_key", secret=True),
-                ),
-                settings_fields=(CredentialField(name="site", secret=False),),
-            ),
-            IntegrationSchema(name="kubernetes"),
-        ]
+        [IntegrationSchema(name="datadog"), IntegrationSchema(name="kubernetes")]
     )
 
 
@@ -202,151 +191,6 @@ def test_a_credential_reference_is_not_a_credential(validator: ConfigValidator) 
     assert validator.validate(
         {"integrations": {"active": [{"name": "datadog", "credential": "vault://datadog-prod"}]}}
     ).ok
-
-
-# --- The operating context is free text that is sent to a model --------------
-#
-# The field this scan matters most for. Everything else in the document is a
-# reference, a switch, or a bounded number; this one invites an operator to
-# paste what they know about their environment, and what somebody knows about
-# their environment is sometimes how to log into it. The value then leaves the
-# deployment on every investigation, so a credential landing here is a
-# credential handed to a model provider.
-
-
-def test_a_credential_pasted_into_an_operating_context_section_is_refused(
-    validator: ConfigValidator,
-) -> None:
-    """Acceptance 4, and the refusal names the section it was written in."""
-    outcome = validator.validate(
-        {
-            "agents": {
-                "operating_context": {
-                    "sections": {
-                        "access": (
-                            "The hypervisor API is reached with "
-                            "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n"
-                            "-----END RSA PRIVATE KEY-----"
-                        )
-                    }
-                }
-            }
-        }
-    )
-
-    assert outcome.paths() == ("agents.operating_context.sections.access",)
-    assert "vault" in outcome.errors[0].message
-
-
-def test_the_refusal_of_a_context_section_never_quotes_what_it_found(
-    validator: ConfigValidator,
-) -> None:
-    """A refusal that echoed the secret would log it for the first time."""
-    secret = "ghp_" + "c" * 36
-    outcome = validator.validate(
-        {"agents": {"operating_context": {"sections": {"access": f"the token is {secret}"}}}}
-    )
-
-    assert not outcome.ok
-    assert all(secret not in error.message for error in outcome.errors)
-
-
-def test_an_operating_context_describing_an_estate_is_not_mistaken_for_a_secret(
-    validator: ConfigValidator,
-) -> None:
-    """The prose this field exists for has to pass, or the field is unusable."""
-    assert validator.validate(
-        {
-            "agents": {
-                "operating_context": {
-                    "sections": {
-                        "signals": (
-                            "Container metrics come from the host's own series, keyed by "
-                            "vmid. A figure read from inside the guest is wrong."
-                        ),
-                        "network": "The vk8s zone is 10.20.30.0/24 and runs MTU 1450.",
-                    }
-                }
-            }
-        }
-    ).ok
-
-
-# --- A field a vendor calls secret cannot be a configuration field -----------
-#
-# ``IntegrationSettings`` is a closed schema, so ``api_key`` written beside
-# ``name`` is already refused as a shape error. Its ``settings`` map is open,
-# because the vendor defines what goes in it — and that is the way round the
-# credential route that is left. The shape scan catches a value that *looks*
-# like a credential; this catches a field the vendor's own schema calls secret,
-# whose value looks like nothing in particular. A key an operator invented
-# matches nobody's pattern.
-
-
-def test_a_field_an_integration_calls_secret_is_refused_whatever_its_value_looks_like(
-    validator: ConfigValidator,
-) -> None:
-    outcome = validator.validate(
-        {"integrations": {"active": [{"name": "datadog", "settings": {"api_key": "hunter2"}}]}}
-    )
-
-    assert not outcome.ok
-    assert outcome.paths() == ("integrations.active.0.settings.api_key",)
-    assert "vault" in outcome.errors[0].message
-
-
-def test_the_refusal_names_the_field_and_not_the_value(validator: ConfigValidator) -> None:
-    outcome = validator.validate(
-        {"integrations": {"active": [{"name": "datadog", "settings": {"app_key": "correcthorse"}}]}}
-    )
-
-    assert not outcome.ok
-    assert "app_key" in outcome.errors[0].message
-    assert all("correcthorse" not in error.message for error in outcome.errors)
-
-
-def test_a_secret_field_smuggled_under_another_vendors_settings_is_found_too(
-    validator: ConfigValidator,
-) -> None:
-    """A secret field name is one wherever it is written, not only under its own vendor."""
-    outcome = validator.validate(
-        {"integrations": {"active": [{"name": "kubernetes", "settings": {"api_key": "whatever"}}]}}
-    )
-
-    assert not outcome.ok
-    assert outcome.paths() == ("integrations.active.0.settings.api_key",)
-
-
-def test_a_field_the_same_vendor_calls_public_is_left_alone(
-    validator: ConfigValidator,
-) -> None:
-    """``site`` is configuration a capability may legitimately see, and stays so."""
-    assert validator.validate(
-        {
-            "integrations": {
-                "active": [
-                    {
-                        "name": "datadog",
-                        "site": "datadoghq.eu",
-                        "settings": {"site": "datadoghq.eu"},
-                    }
-                ]
-            }
-        }
-    ).ok
-
-
-def test_a_deployment_with_no_integration_directory_refuses_nothing_on_this_pass() -> None:
-    """The check is over what is installed, so it cannot be evaluated without it.
-
-    Not a silent pass in production — ``ConfigService`` is always composed with a
-    directory. This is the merge-test path, where the point is the merge.
-    """
-    assert (
-        ConfigValidator()
-        .validate({"integrations": {"active": [{"name": "datadog", "settings": {"api_key": "x"}}]}})
-        .ok
-    )
 
 
 # --- Everything is reported at once ------------------------------------------

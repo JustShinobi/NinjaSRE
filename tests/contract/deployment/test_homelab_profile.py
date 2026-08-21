@@ -29,11 +29,7 @@ from config.constants.deployment import (
     HOMELAB_TOTAL_MEMORY_MIB,
     NINJASRE_DEPLOYMENT_PROFILE_ENV,
 )
-from config.constants.llm import (
-    NINJASRE_LLM_PROVIDER_ENV,
-    OLLAMA_BASE_URL_ENV,
-    VLLM_BASE_URL_ENV,
-)
+from config.constants.llm import OLLAMA_BASE_URL_ENV, VLLM_BASE_URL_ENV
 from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
 from platform.startup.profiles import DeploymentProfile, topology_for
 
@@ -92,34 +88,6 @@ def test_a_local_model_endpoint_is_first_class_rather_than_an_afterthought(
 
     assert OLLAMA_BASE_URL_ENV in environment
     assert VLLM_BASE_URL_ENV in environment
-
-
-def test_the_console_service_gets_every_setting_the_app_service_needs_to_boot(
-    homelab_compose: dict[str, Any],
-) -> None:
-    """The same regression ``test_compose_profiles.py`` pins for the standard
-    profile, in the file where it recurs. The console container runs the same
-    entry point ``app`` does, at a different port — not a thin front end — so
-    whatever ``app`` needs to pass startup validation, console needs too. This
-    profile has its own defaults (``ollama`` rather than ``anthropic``, no
-    local-account settings), so it is checked against its own ``app`` block
-    rather than against the standard profile's.
-    """
-    app_settings = set(homelab_compose["services"]["app"]["environment"])
-    console_settings = set(homelab_compose["services"]["console"]["environment"])
-
-    missing = app_settings - console_settings
-    assert not missing, f"console never receives: {missing}"
-
-
-def test_the_console_service_is_given_a_model_provider_setting(
-    homelab_compose: dict[str, Any],
-) -> None:
-    """The specific regression: a console container with no provider setting
-    refuses to start with the same failure a deployment with none configured
-    anywhere would.
-    """
-    assert NINJASRE_LLM_PROVIDER_ENV in homelab_compose["services"]["console"]["environment"]
 
 
 def test_nothing_is_published_beyond_loopback(homelab_compose: dict[str, Any]) -> None:

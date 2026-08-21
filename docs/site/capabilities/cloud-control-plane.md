@@ -2,9 +2,165 @@
 
 # cloud_control_plane capabilities
 
-24 tools and 8 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+48 tools and 21 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
+
+### `cloud_control_plane-aws_cloudtrail`
+
+Who changed what in this AWS account, and when. The change history most incidents turn out to need and most investigations reach for too late.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_cloudtrail
+- **Requires:** aws_cloudtrail
+
+**Directs:**
+
+- `aws_cloudtrail_resource_inventory`
+- `aws_cloudtrail_recent_changes`
+
+### `cloud_control_plane-aws_ec2`
+
+EC2 instance state for a region: how many instances are in which state, and the instances themselves with their type, zone, and launch time.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_ec2
+- **Requires:** aws_ec2
+
+**Directs:**
+
+- `aws_ec2_resource_inventory`
+- `aws_ec2_recent_changes`
+
+### `cloud_control_plane-aws_ecs`
+
+The ECS control plane: which clusters this account runs and which task definitions have been registered, which is where a deployment shows up.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_ecs
+- **Requires:** aws_ecs
+
+**Directs:**
+
+- `aws_ecs_resource_inventory`
+- `aws_ecs_recent_changes`
+
+### `cloud_control_plane-aws_eks`
+
+The EKS control plane: which clusters this account runs, their version and status, and the cluster updates that have been applied to them.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_eks
+- **Requires:** aws_eks
+
+**Directs:**
+
+- `aws_eks_resource_inventory`
+- `aws_eks_recent_changes`
+
+### `cloud_control_plane-aws_elb`
+
+Elastic Load Balancing state: which load balancers exist and in what state, and the target groups behind them.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_elb
+- **Requires:** aws_elb
+
+**Directs:**
+
+- `aws_elb_resource_inventory`
+- `aws_elb_recent_changes`
+
+### `cloud_control_plane-aws_lambda`
+
+The Lambda control plane: which functions exist, on which runtime and memory setting, and when each was last modified.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_lambda
+- **Requires:** aws_lambda
+
+**Directs:**
+
+- `aws_lambda_resource_inventory`
+- `aws_lambda_recent_changes`
+
+### `cloud_control_plane-aws_rds`
+
+The RDS control plane: which database instances exist and in what state, and the events RDS recorded against them — failovers, restarts, parameter changes.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_rds
+- **Requires:** aws_rds
+
+**Directs:**
+
+- `aws_rds_resource_inventory`
+- `aws_rds_recent_changes`
+
+### `cloud_control_plane-aws_s3`
+
+What is in the bucket this team configured: the objects and their storage class, and the version history, which is the closest S3 has to a change log.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_s3
+- **Requires:** aws_s3
+
+**Directs:**
+
+- `aws_s3_resource_inventory`
+- `aws_s3_recent_changes`
+
+### `cloud_control_plane-azure`
+
+The Azure Resource Manager control plane: what exists in a subscription, and the activity log entries that changed it.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** azure
+- **Requires:** azure
+
+**Directs:**
+
+- `azure_resource_inventory`
+- `azure_recent_changes`
+
+### `cloud_control_plane-docker`
+
+The Docker Engine API: which containers exist and in what state, and the engine events that changed them.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** docker
+- **Requires:** docker
+
+**Directs:**
+
+- `docker_resource_inventory`
+- `docker_recent_changes`
+
+### `cloud_control_plane-flagd`
+
+OpenFeature's flagd: which feature flags this deployment is serving and in what state, which is the change history nothing else records.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** flagd
+- **Requires:** flagd
+
+**Directs:**
+
+- `flagd_resource_inventory`
+- `flagd_recent_changes`
+
+### `cloud_control_plane-gcp`
+
+The Google Cloud control plane through Cloud Asset Inventory and Cloud Logging: what exists in a project, and the admin activity that changed it.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** gcp
+- **Requires:** gcp
+
+**Directs:**
+
+- `gcp_resource_inventory`
+- `gcp_recent_changes`
 
 ### `cloud_control_plane-grafana`
 
@@ -53,7 +209,7 @@ Quorum before nodes, nodes before guests. A cluster that cannot decide has alrea
 A job that names a guest is not a backup, and a file with a size is not a restore.
 
 - **Domain:** cloud_control_plane
-- **Applies to alerts from:** proxmox, alertmanager
+- **Applies to alerts from:** proxmox, proxmox_backup_server, alertmanager
 
 **Directs:**
 
@@ -119,7 +275,475 @@ Two nodes have an even vote count and no majority when one is gone. What survive
 - `proxmox_replication_lag`
 - `proxmox_migration_feasibility`
 
+### `cloud_control_plane-proxmox_backup_server`
+
+A snapshot nobody verified is a file. Check verification and garbage collection, not just usage.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, proxmox_backup_server, alertmanager
+- **Requires:** proxmox_backup_server
+
+**Directs:**
+
+- `proxmox_backup_server_datastore_health`
+
 ## Tools
+
+#### `aws_cloudtrail_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_cloudtrail
+- **Parallel safe:** yes
+- **Requires:** aws_cloudtrail
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_cloudtrail_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_cloudtrail
+- **Parallel safe:** yes
+- **Requires:** aws_cloudtrail
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_ec2_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_ec2
+- **Parallel safe:** yes
+- **Requires:** aws_ec2
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_ec2_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_ec2
+- **Parallel safe:** yes
+- **Requires:** aws_ec2
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_ecs_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_ecs
+- **Parallel safe:** yes
+- **Requires:** aws_ecs
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_ecs_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_ecs
+- **Parallel safe:** yes
+- **Requires:** aws_ecs
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_eks_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_eks
+- **Parallel safe:** yes
+- **Requires:** aws_eks
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_eks_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_eks
+- **Parallel safe:** yes
+- **Requires:** aws_eks
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_elb_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_elb
+- **Parallel safe:** yes
+- **Requires:** aws_elb
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_elb_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_elb
+- **Parallel safe:** yes
+- **Requires:** aws_elb
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_lambda_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_lambda
+- **Parallel safe:** yes
+- **Requires:** aws_lambda
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_lambda_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_lambda
+- **Parallel safe:** yes
+- **Requires:** aws_lambda
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_rds_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_rds
+- **Parallel safe:** yes
+- **Requires:** aws_rds
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_rds_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_rds
+- **Parallel safe:** yes
+- **Requires:** aws_rds
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_s3_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_s3
+- **Parallel safe:** yes
+- **Requires:** aws_s3
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_s3_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_s3
+- **Parallel safe:** yes
+- **Requires:** aws_s3
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `azure_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from azure
+- **Parallel safe:** yes
+- **Requires:** azure
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `azure_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from azure
+- **Parallel safe:** yes
+- **Requires:** azure
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `docker_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from docker
+- **Parallel safe:** yes
+- **Requires:** docker
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `docker_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from docker
+- **Parallel safe:** yes
+- **Requires:** docker
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `flagd_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from flagd
+- **Parallel safe:** yes
+- **Requires:** flagd
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `flagd_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from flagd
+- **Parallel safe:** yes
+- **Requires:** flagd
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `gcp_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from gcp
+- **Parallel safe:** yes
+- **Requires:** gcp
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `gcp_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from gcp
+- **Parallel safe:** yes
+- **Requires:** gcp
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
 
 #### `grafana_recent_changes`
 
@@ -242,6 +866,27 @@ Return the Proxmox backup tasks that failed, each with the vendor's own error te
 - re-running a backup — nothing here writes
 - which guests no job covers, which proxmox_backup_coverage answers
 - whether a stored backup would restore, which the Backup Server's verification answers
+
+#### `proxmox_backup_server_datastore_health`
+
+Return whether a Proxmox Backup Server datastore holds something that would restore: its usage, its snapshots, whether those snapshots have been verified, and when garbage collection last ran. An unverified snapshot is a file rather than a restore, and a store that has never verified looks identical to one that passes.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox_backup_server
+- **Parallel safe:** yes
+- **Requires:** proxmox_backup_server
+
+**Use when:**
+
+- checking whether a guest's most recent snapshot has actually been verified
+- finding out whether a datastore's usage figure reflects a garbage collection that ran
+- establishing that a backup exists and is recent before planning a restore
+
+**Not for:**
+
+- restoring, pruning or collecting garbage — nothing here writes
+- whether the hypervisor's backup job ran, which proxmox_protection_gaps answers
+- what is inside a snapshot, which is a restore rather than a read
 
 #### `proxmox_clock_skew`
 
@@ -452,27 +1097,6 @@ Return whether a Proxmox guest could move and, per candidate node, exactly what 
 - performing a migration — nothing here writes
 - which datastores exist where, which proxmox_datastore_availability reads
 - why the guest will not start where it is, which proxmox_guest_start_diagnosis answers
-
-#### `proxmox_node_health`
-
-Return a node's failed systemd units, whether its configured bridges are up, and its LVM thin-pool metadata usage — the three readings that explained the reference cluster's only total outage and that no Proxmox REST endpoint answers. Reported as unavailable, by name, for whichever of the three nothing is publishing, rather than as an absence that could be mistaken for health.
-
-- **Side effect:** `read` — reads only
-- **Evidence:** metric from proxmox
-- **Parallel safe:** yes
-- **Requires:** proxmox
-
-**Use when:**
-
-- checking whether a node's failed systemd units explain a guest that will not start
-- checking whether a configured bridge is down before blaming the guests on top of it
-- checking an LVM thin pool's metadata usage, which stops writes while data usage still looks comfortable
-
-**Not for:**
-
-- a guest's own CPU or memory pressure, which proxmox_guest_pressure reads
-- a physical disk's SMART attributes, which proxmox_disk_health reads
-- trend or history over these three readings — this asks for the node's state now
 
 #### `proxmox_orphaned_volumes`
 

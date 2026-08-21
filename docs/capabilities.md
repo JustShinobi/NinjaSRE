@@ -4,18 +4,9 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-80 tools and 25 skills, 24 of them approval-gated.
+219 tools and 93 skills, 36 of them approval-gated.
 
 ## Skills
-
-### `changes`
-
-Asking what changed before this broke, and refusing to blame a coincidence.
-
-- **Domain:** changes
-
-Directs no tools — methodology only.
-
 
 ### `cicd-argocd`
 
@@ -29,6 +20,201 @@ What Argo CD has actually applied: which applications are synced and healthy, an
 
 - `argocd_pipeline_statistics`
 - `argocd_failed_runs`
+
+### `cicd-jenkins`
+
+Jenkins build history: how a job has been doing lately, and the builds that failed, for the estates whose pipelines still run there.
+
+- **Domain:** cicd
+- **Applies to alerts from:** jenkins
+- **Requires:** jenkins
+
+**Directs:**
+
+- `jenkins_pipeline_statistics`
+- `jenkins_failed_runs`
+
+### `cicd-railway`
+
+Railway deployments and their status, for the services this project runs on it.
+
+- **Domain:** cicd
+- **Applies to alerts from:** railway
+- **Requires:** railway
+
+**Directs:**
+
+- `railway_pipeline_statistics`
+- `railway_failed_runs`
+
+### `cicd-vercel`
+
+Vercel deployments: how the recent ones have gone for a project, and the ones that errored, which is usually the whole story for a frontend incident.
+
+- **Domain:** cicd
+- **Applies to alerts from:** vercel
+- **Requires:** vercel
+
+**Directs:**
+
+- `vercel_pipeline_statistics`
+- `vercel_failed_runs`
+
+### `cloud_control_plane-aws_cloudtrail`
+
+Who changed what in this AWS account, and when. The change history most incidents turn out to need and most investigations reach for too late.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_cloudtrail
+- **Requires:** aws_cloudtrail
+
+**Directs:**
+
+- `aws_cloudtrail_resource_inventory`
+- `aws_cloudtrail_recent_changes`
+
+### `cloud_control_plane-aws_ec2`
+
+EC2 instance state for a region: how many instances are in which state, and the instances themselves with their type, zone, and launch time.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_ec2
+- **Requires:** aws_ec2
+
+**Directs:**
+
+- `aws_ec2_resource_inventory`
+- `aws_ec2_recent_changes`
+
+### `cloud_control_plane-aws_ecs`
+
+The ECS control plane: which clusters this account runs and which task definitions have been registered, which is where a deployment shows up.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_ecs
+- **Requires:** aws_ecs
+
+**Directs:**
+
+- `aws_ecs_resource_inventory`
+- `aws_ecs_recent_changes`
+
+### `cloud_control_plane-aws_eks`
+
+The EKS control plane: which clusters this account runs, their version and status, and the cluster updates that have been applied to them.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_eks
+- **Requires:** aws_eks
+
+**Directs:**
+
+- `aws_eks_resource_inventory`
+- `aws_eks_recent_changes`
+
+### `cloud_control_plane-aws_elb`
+
+Elastic Load Balancing state: which load balancers exist and in what state, and the target groups behind them.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_elb
+- **Requires:** aws_elb
+
+**Directs:**
+
+- `aws_elb_resource_inventory`
+- `aws_elb_recent_changes`
+
+### `cloud_control_plane-aws_lambda`
+
+The Lambda control plane: which functions exist, on which runtime and memory setting, and when each was last modified.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_lambda
+- **Requires:** aws_lambda
+
+**Directs:**
+
+- `aws_lambda_resource_inventory`
+- `aws_lambda_recent_changes`
+
+### `cloud_control_plane-aws_rds`
+
+The RDS control plane: which database instances exist and in what state, and the events RDS recorded against them — failovers, restarts, parameter changes.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_rds
+- **Requires:** aws_rds
+
+**Directs:**
+
+- `aws_rds_resource_inventory`
+- `aws_rds_recent_changes`
+
+### `cloud_control_plane-aws_s3`
+
+What is in the bucket this team configured: the objects and their storage class, and the version history, which is the closest S3 has to a change log.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** aws_s3
+- **Requires:** aws_s3
+
+**Directs:**
+
+- `aws_s3_resource_inventory`
+- `aws_s3_recent_changes`
+
+### `cloud_control_plane-azure`
+
+The Azure Resource Manager control plane: what exists in a subscription, and the activity log entries that changed it.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** azure
+- **Requires:** azure
+
+**Directs:**
+
+- `azure_resource_inventory`
+- `azure_recent_changes`
+
+### `cloud_control_plane-docker`
+
+The Docker Engine API: which containers exist and in what state, and the engine events that changed them.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** docker
+- **Requires:** docker
+
+**Directs:**
+
+- `docker_resource_inventory`
+- `docker_recent_changes`
+
+### `cloud_control_plane-flagd`
+
+OpenFeature's flagd: which feature flags this deployment is serving and in what state, which is the change history nothing else records.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** flagd
+- **Requires:** flagd
+
+**Directs:**
+
+- `flagd_resource_inventory`
+- `flagd_recent_changes`
+
+### `cloud_control_plane-gcp`
+
+The Google Cloud control plane through Cloud Asset Inventory and Cloud Logging: what exists in a project, and the admin activity that changed it.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** gcp
+- **Requires:** gcp
+
+**Directs:**
+
+- `gcp_resource_inventory`
+- `gcp_recent_changes`
 
 ### `cloud_control_plane-grafana`
 
@@ -77,7 +263,7 @@ Quorum before nodes, nodes before guests. A cluster that cannot decide has alrea
 A job that names a guest is not a backup, and a file with a size is not a restore.
 
 - **Domain:** cloud_control_plane
-- **Applies to alerts from:** proxmox, alertmanager
+- **Applies to alerts from:** proxmox, proxmox_backup_server, alertmanager
 
 **Directs:**
 
@@ -143,6 +329,44 @@ Two nodes have an even vote count and no majority when one is gone. What survive
 - `proxmox_replication_lag`
 - `proxmox_migration_feasibility`
 
+### `cloud_control_plane-proxmox_backup_server`
+
+A snapshot nobody verified is a file. Check verification and garbage collection, not just usage.
+
+- **Domain:** cloud_control_plane
+- **Applies to alerts from:** proxmox, proxmox_backup_server, alertmanager
+- **Requires:** proxmox_backup_server
+
+**Directs:**
+
+- `proxmox_backup_server_datastore_health`
+
+### `communication-discord`
+
+A Discord channel used for incident response: what has been said recently, and a finding posted into it.
+
+- **Domain:** communication
+- **Applies to alerts from:** discord
+- **Requires:** discord
+
+**Directs:**
+
+- `discord_recent_messages`
+- `discord_post_message`
+
+### `communication-microsoft_teams`
+
+The Teams channel an incident is being run from: what has been said, and a finding posted where the responders are.
+
+- **Domain:** communication
+- **Applies to alerts from:** microsoft_teams
+- **Requires:** microsoft_teams
+
+**Directs:**
+
+- `microsoft_teams_recent_messages`
+- `microsoft_teams_post_message`
+
 ### `communication-pushover`
 
 Pushover as a last-resort notification path: which delivery groups exist, and a finding pushed to a responder's device.
@@ -155,6 +379,32 @@ Pushover as a last-resort notification path: which delivery groups exist, and a 
 
 - `pushover_recent_messages`
 - `pushover_post_message`
+
+### `communication-rocket_chat`
+
+A Rocket.Chat channel used for incident response: what has been said, and a finding posted into it.
+
+- **Domain:** communication
+- **Applies to alerts from:** rocket_chat
+- **Requires:** rocket_chat
+
+**Directs:**
+
+- `rocket_chat_recent_messages`
+- `rocket_chat_post_message`
+
+### `communication-slack`
+
+The conversation an incident is already happening in: what responders have said, and a finding delivered where they will read it.
+
+- **Domain:** communication
+- **Applies to alerts from:** slack
+- **Requires:** slack
+
+**Directs:**
+
+- `slack_recent_messages`
+- `slack_post_message`
 
 ### `communication-telegram`
 
@@ -169,6 +419,188 @@ A Telegram chat used as an alerting channel: what has arrived recently, and a fi
 - `telegram_recent_messages`
 - `telegram_post_message`
 
+### `communication-twilio`
+
+Twilio as an SMS notification path: the messages this account has sent recently, and a finding delivered to a responder's phone.
+
+- **Domain:** communication
+- **Applies to alerts from:** twilio
+- **Requires:** twilio
+
+**Directs:**
+
+- `twilio_recent_messages`
+- `twilio_post_message`
+
+### `communication-whatsapp`
+
+A WhatsApp Business number used for on-call notification: the message templates available, and a finding delivered to a responder.
+
+- **Domain:** communication
+- **Applies to alerts from:** whatsapp
+- **Requires:** whatsapp
+
+**Directs:**
+
+- `whatsapp_recent_messages`
+- `whatsapp_post_message`
+
+### `data_platform-airflow`
+
+Airflow's scheduler state: which DAG runs are in which state, and the task instances that failed, which is where a data-freshness incident starts.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** airflow
+- **Requires:** airflow
+
+**Directs:**
+
+- `airflow_pipeline_health`
+- `airflow_recent_failures`
+
+### `data_platform-dagster`
+
+Dagster run state through its GraphQL API: which runs are in which status, and the failures behind a stale asset.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** dagster
+- **Requires:** dagster
+
+**Directs:**
+
+- `dagster_pipeline_health`
+- `dagster_recent_failures`
+
+### `data_platform-flink`
+
+Flink's JobManager REST API: which jobs are running, and the ones that failed or restarted, which is where a streaming backlog starts.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** flink
+- **Requires:** flink
+
+**Directs:**
+
+- `flink_pipeline_health`
+- `flink_recent_failures`
+
+### `data_platform-kafka`
+
+Kafka through its REST Proxy: which topics and consumer groups exist on a cluster, and which groups are not in a stable state.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** kafka
+- **Requires:** kafka
+
+**Directs:**
+
+- `kafka_pipeline_health`
+- `kafka_recent_failures`
+
+### `data_platform-prefect`
+
+Prefect flow runs: which are in which state, and the ones that failed, for the estates orchestrating their pipelines with it.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** prefect
+- **Requires:** prefect
+
+**Directs:**
+
+- `prefect_pipeline_health`
+- `prefect_recent_failures`
+
+### `data_platform-rabbitmq`
+
+RabbitMQ's management API: which queues exist and how deep they are, which is the first question of every message-backlog incident.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** rabbitmq
+- **Requires:** rabbitmq
+
+**Directs:**
+
+- `rabbitmq_pipeline_health`
+- `rabbitmq_recent_failures`
+
+### `data_platform-spark`
+
+Spark's history and status API: which applications and jobs are in which state, and the ones that failed.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** spark
+- **Requires:** spark
+
+**Directs:**
+
+- `spark_pipeline_health`
+- `spark_recent_failures`
+
+### `data_platform-temporal`
+
+Temporal workflow executions over its HTTP API: which are open, which failed, and how that distribution has changed.
+
+- **Domain:** data_platform
+- **Applies to alerts from:** temporal
+- **Requires:** temporal
+
+**Directs:**
+
+- `temporal_pipeline_health`
+- `temporal_recent_failures`
+
+### `database-azure_sql`
+
+Azure SQL through Resource Manager: which databases exist in a subscription and in what state, and their recent service-level events.
+
+- **Domain:** database
+- **Applies to alerts from:** azure_sql
+- **Requires:** azure_sql
+
+**Directs:**
+
+- `azure_sql_session_statistics`
+- `azure_sql_slow_queries`
+
+### `database-bigquery`
+
+BigQuery job state for a project: what is running or queued, and the jobs that took longest, which is where a data-freshness incident usually starts.
+
+- **Domain:** database
+- **Applies to alerts from:** bigquery
+- **Requires:** bigquery
+
+**Directs:**
+
+- `bigquery_session_statistics`
+- `bigquery_slow_queries`
+
+### `database-clickhouse`
+
+ClickHouse over its HTTP interface: what the server is currently executing, and the slowest queries in the log.
+
+- **Domain:** database
+- **Applies to alerts from:** clickhouse
+- **Requires:** clickhouse
+
+**Directs:**
+
+- `clickhouse_session_statistics`
+- `clickhouse_slow_queries`
+
+### `database-mongodb_atlas`
+
+The Atlas control plane: which clusters and processes exist in a project, and the slow-query entries Atlas's performance advisor has collected.
+
+- **Domain:** database
+- **Applies to alerts from:** mongodb_atlas
+- **Requires:** mongodb_atlas
+
+**Directs:**
+
+- `mongodb_atlas_session_statistics`
+- `mongodb_atlas_slow_queries`
+
 ### `database-redis`
 
 The Redis Cloud control plane: which databases exist in a subscription and in what state, which is what an HTTP-reachable Redis can answer.
@@ -181,6 +613,32 @@ The Redis Cloud control plane: which databases exist in a subscription and in wh
 
 - `redis_session_statistics`
 - `redis_slow_queries`
+
+### `database-snowflake`
+
+Snowflake over its SQL REST API: what is running in the account now, and the slowest statements the query history recorded.
+
+- **Domain:** database
+- **Applies to alerts from:** snowflake
+- **Requires:** snowflake
+
+**Directs:**
+
+- `snowflake_session_statistics`
+- `snowflake_slow_queries`
+
+### `database-supabase`
+
+The Supabase management API: which projects exist in an organisation and in what state, for the estates that run their Postgres there.
+
+- **Domain:** database
+- **Applies to alerts from:** supabase
+- **Requires:** supabase
+
+**Directs:**
+
+- `supabase_session_statistics`
+- `supabase_slow_queries`
 
 ### `incident-alertmanager`
 
@@ -195,6 +653,90 @@ What Prometheus Alertmanager is currently holding: which alerts are firing, how 
 - `alertmanager_incident_statistics`
 - `alertmanager_incident_timeline`
 - `alertmanager_acknowledge_incident`
+
+### `incident-blameless`
+
+Blameless's incident record: what is open, one incident's events, and the update that says an automated investigation is under way.
+
+- **Domain:** incident
+- **Applies to alerts from:** blameless
+- **Requires:** blameless
+
+**Directs:**
+
+- `blameless_incident_statistics`
+- `blameless_incident_timeline`
+- `blameless_acknowledge_incident`
+
+### `incident-firehydrant`
+
+FireHydrant's incident record: what is active, one incident's events, and the note that says an automated investigation has started.
+
+- **Domain:** incident
+- **Applies to alerts from:** firehydrant
+- **Requires:** firehydrant
+
+**Directs:**
+
+- `firehydrant_incident_statistics`
+- `firehydrant_incident_timeline`
+- `firehydrant_acknowledge_incident`
+
+### `incident-incident_io`
+
+incident.io's record of what is happening: the open incidents, one incident's timeline, and the acknowledgement that says somebody is on it.
+
+- **Domain:** incident
+- **Applies to alerts from:** incident_io
+- **Requires:** incident_io
+
+**Directs:**
+
+- `incident_io_incident_statistics`
+- `incident_io_incident_timeline`
+- `incident_io_acknowledge_incident`
+
+### `incident-opsgenie`
+
+Opsgenie alerts and their state: what is open, one alert's log, and the acknowledgement that stops the escalation.
+
+- **Domain:** incident
+- **Applies to alerts from:** opsgenie
+- **Requires:** opsgenie
+
+**Directs:**
+
+- `opsgenie_incident_statistics`
+- `opsgenie_incident_timeline`
+- `opsgenie_acknowledge_incident`
+
+### `incident-pagerduty`
+
+Who is being paged and for what: the incidents PagerDuty is holding, one incident's log, and the acknowledgement that stops the escalation clock.
+
+- **Domain:** incident
+- **Applies to alerts from:** pagerduty
+- **Requires:** pagerduty
+
+**Directs:**
+
+- `pagerduty_incident_statistics`
+- `pagerduty_incident_timeline`
+- `pagerduty_acknowledge_incident`
+
+### `incident-servicenow`
+
+ServiceNow incident records: what is open, one incident's work notes, and the update that records an automated investigation.
+
+- **Domain:** incident
+- **Applies to alerts from:** servicenow
+- **Requires:** servicenow
+
+**Directs:**
+
+- `servicenow_incident_statistics`
+- `servicenow_incident_timeline`
+- `servicenow_acknowledge_incident`
 
 ### `infrastructure`
 
@@ -216,6 +758,84 @@ The five phases every investigation moves through, and what ends each one.
 - `record_hypothesis`
 - `assess_evidence_sufficiency`
 - `recall_similar_incidents`
+
+### `logstore-aws`
+
+CloudWatch logs. Find the group, bound the window, then read.
+
+- **Domain:** logstore
+- **Applies to alerts from:** aws, cloudwatch
+- **Requires:** aws
+
+**Directs:**
+
+- `aws_list_log_groups`
+- `aws_filter_log_events`
+
+### `logstore-azure_monitor`
+
+KQL against a Log Analytics workspace: the shape of what a query matched, and the records behind it, for the estates whose telemetry lands in Azure.
+
+- **Domain:** logstore
+- **Applies to alerts from:** azure_monitor
+- **Requires:** azure_monitor
+
+**Directs:**
+
+- `azure_monitor_log_statistics`
+- `azure_monitor_sample_logs`
+
+### `logstore-better_stack`
+
+Better Stack's log search and the monitors it is currently reporting as down, for teams using it as both log store and uptime checker.
+
+- **Domain:** logstore
+- **Applies to alerts from:** better_stack
+- **Requires:** better_stack
+
+**Directs:**
+
+- `better_stack_log_statistics`
+- `better_stack_sample_logs`
+
+### `logstore-coralogix`
+
+Coralogix log search over DataPrime or Lucene, counted by severity or application before any line is read.
+
+- **Domain:** logstore
+- **Applies to alerts from:** coralogix
+- **Requires:** coralogix
+
+**Directs:**
+
+- `coralogix_log_statistics`
+- `coralogix_sample_logs`
+
+### `logstore-datadog`
+
+Datadog log search. Aggregate before sampling, and compare against normal.
+
+- **Domain:** logstore
+- **Applies to alerts from:** datadog
+- **Requires:** datadog
+
+**Directs:**
+
+- `datadog_log_statistics`
+- `datadog_sample_logs`
+
+### `logstore-elasticsearch`
+
+Search over Elasticsearch indices, counted by field before any document is read, for the deployments whose logs live there rather than in a hosted log product.
+
+- **Domain:** logstore
+- **Applies to alerts from:** elasticsearch
+- **Requires:** elasticsearch
+
+**Directs:**
+
+- `elasticsearch_log_statistics`
+- `elasticsearch_sample_logs`
 
 ### `logstore-hermes`
 
@@ -256,6 +876,110 @@ SQL search over OpenObserve streams, counted by field before any record is read,
 - `openobserve_log_statistics`
 - `openobserve_sample_logs`
 
+### `logstore-opensearch`
+
+Search over OpenSearch indices, counted by field before any document is read, for the deployments whose logs live in the fork rather than in Elasticsearch.
+
+- **Domain:** logstore
+- **Applies to alerts from:** opensearch
+- **Requires:** opensearch
+
+**Directs:**
+
+- `opensearch_log_statistics`
+- `opensearch_sample_logs`
+
+### `logstore-sentry`
+
+Application errors as Sentry groups them: which issues are open, how often each is firing, and the events behind the ones that matter.
+
+- **Domain:** logstore
+- **Applies to alerts from:** sentry
+- **Requires:** sentry
+
+**Directs:**
+
+- `sentry_log_statistics`
+- `sentry_sample_logs`
+
+### `logstore-splunk`
+
+SPL search against Splunk, counted before it is read, for the estates whose logs have been in Splunk longer than the services producing them.
+
+- **Domain:** logstore
+- **Applies to alerts from:** splunk
+- **Requires:** splunk
+
+**Directs:**
+
+- `splunk_log_statistics`
+- `splunk_sample_logs`
+
+### `logstore-victorialogs`
+
+LogsQL against VictoriaLogs, counted by stream field before any line is read, for the estates that chose it for its ingest cost.
+
+- **Domain:** logstore
+- **Applies to alerts from:** victorialogs
+- **Requires:** victorialogs
+
+**Directs:**
+
+- `victorialogs_log_statistics`
+- `victorialogs_sample_logs`
+
+### `metrics-amplitude`
+
+Amplitude's product analytics: how user-facing event volume moved during a window, and which annotations mark what changed.
+
+- **Domain:** metrics
+- **Applies to alerts from:** amplitude
+- **Requires:** amplitude
+
+**Directs:**
+
+- `amplitude_metric_statistics`
+- `amplitude_active_alerts`
+
+### `metrics-groundcover`
+
+groundcover's eBPF-derived service metrics and the monitors currently firing, for clusters instrumented without code changes.
+
+- **Domain:** metrics
+- **Applies to alerts from:** groundcover
+- **Requires:** groundcover
+
+**Directs:**
+
+- `groundcover_metric_statistics`
+- `groundcover_active_alerts`
+
+### `metrics-new_relic`
+
+NRQL over New Relic's telemetry, and the alert violations currently open, for the accounts whose metrics and events live there.
+
+- **Domain:** metrics
+- **Applies to alerts from:** new_relic
+- **Requires:** new_relic
+
+**Directs:**
+
+- `new_relic_metric_statistics`
+- `new_relic_active_alerts`
+
+### `metrics-posthog`
+
+PostHog's product analytics: how event volume moved during a window, and which feature flags are currently on.
+
+- **Domain:** metrics
+- **Applies to alerts from:** posthog
+- **Requires:** posthog
+
+**Directs:**
+
+- `posthog_metric_statistics`
+- `posthog_active_alerts`
+
 ### `metrics-prometheus`
 
 PromQL evaluation and the alert rules currently firing, from the server that holds the series rather than from a dashboard on top of it.
@@ -269,16 +993,18 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 - `prometheus_metric_statistics`
 - `prometheus_active_alerts`
 
-### `model-provider-google-gemini`
+### `metrics-victoriametrics`
 
-Whether this deployment's provider key can call the model it is configured for, which is the failure a refusal naming a model hides behind one naming the key.
+MetricsQL against VictoriaMetrics and the alerts vmalert is holding, for the estates that use it as a long-term Prometheus store.
 
-- **Domain:** model_provider
-- **Requires:** google_gemini
+- **Domain:** metrics
+- **Applies to alerts from:** victoriametrics
+- **Requires:** victoriametrics
 
 **Directs:**
 
-- `google_gemini_available_models`
+- `victoriametrics_metric_statistics`
+- `victoriametrics_active_alerts`
 
 ### `observability`
 
@@ -305,6 +1031,123 @@ What must be true before acting, and what the action must carry with it.
 - `toggle_feature_flag`
 - `clear_cache`
 
+### `ticketing-clickup`
+
+What ClickUp already tracks: the tasks in a list, in what status, and which are worth reading before another is created.
+
+- **Domain:** ticketing
+- **Applies to alerts from:** clickup
+- **Requires:** clickup
+
+**Directs:**
+
+- `clickup_issue_statistics`
+- `clickup_recent_issues`
+
+### `ticketing-confluence`
+
+What has already been written down: the Confluence pages matching a search, and the ones most recently changed.
+
+- **Domain:** ticketing
+- **Applies to alerts from:** confluence
+- **Requires:** confluence
+
+**Directs:**
+
+- `confluence_issue_statistics`
+- `confluence_recent_issues`
+
+### `ticketing-google_docs`
+
+What the team has written in Google Docs: the documents matching a search, and the ones most recently modified.
+
+- **Domain:** ticketing
+- **Applies to alerts from:** google_docs
+- **Requires:** google_docs
+
+**Directs:**
+
+- `google_docs_issue_statistics`
+- `google_docs_recent_issues`
+
+### `ticketing-jira`
+
+What Jira already knows about a symptom: how many issues match, in what state, and which ones are worth reading before another is opened.
+
+- **Domain:** ticketing
+- **Applies to alerts from:** jira
+- **Requires:** jira
+
+**Directs:**
+
+- `jira_issue_statistics`
+- `jira_recent_issues`
+
+### `ticketing-linear`
+
+What Linear already tracks about a symptom: how many issues match, in what state, and which are worth reading before another is filed.
+
+- **Domain:** ticketing
+- **Applies to alerts from:** linear
+- **Requires:** linear
+
+**Directs:**
+
+- `linear_issue_statistics`
+- `linear_recent_issues`
+
+### `ticketing-notion`
+
+What the team has written in Notion: the pages matching a search, and the ones most recently edited.
+
+- **Domain:** ticketing
+- **Applies to alerts from:** notion
+- **Requires:** notion
+
+**Directs:**
+
+- `notion_issue_statistics`
+- `notion_recent_issues`
+
+### `ticketing-trello`
+
+What a Trello board is holding: the cards on it, which list each is in, and which were touched most recently.
+
+- **Domain:** ticketing
+- **Applies to alerts from:** trello
+- **Requires:** trello
+
+**Directs:**
+
+- `trello_issue_statistics`
+- `trello_recent_issues`
+
+### `tracing-honeycomb`
+
+Honeycomb's query engine over trace events: where latency and errors concentrate in a dataset, and the slowest traces behind that concentration.
+
+- **Domain:** tracing
+- **Applies to alerts from:** honeycomb
+- **Requires:** honeycomb
+
+**Directs:**
+
+- `honeycomb_trace_statistics`
+- `honeycomb_slow_traces`
+
+### `tracing-jaeger`
+
+Jaeger's trace store: where a service's operations concentrate latency, and the slowest traces behind that concentration.
+
+- **Domain:** tracing
+- **Applies to alerts from:** jaeger
+- **Requires:** jaeger
+
+**Directs:**
+
+- `jaeger_trace_statistics`
+- `jaeger_slow_traces`
+
 ### `tracing-signoz`
 
 SigNoz's span store: where latency and errors concentrate for a service, and the slowest traces behind that concentration.
@@ -317,6 +1160,32 @@ SigNoz's span store: where latency and errors concentrate for a service, and the
 
 - `signoz_trace_statistics`
 - `signoz_slow_traces`
+
+### `tracing-tempo`
+
+TraceQL against Grafana Tempo: which traces match a latency or error condition, and the slowest of them, for estates storing traces in object storage.
+
+- **Domain:** tracing
+- **Applies to alerts from:** tempo
+- **Requires:** tempo
+
+**Directs:**
+
+- `tempo_trace_statistics`
+- `tempo_slow_traces`
+
+### `vcs-bitbucket`
+
+What landed in a Bitbucket workspace: the repositories that changed recently and the pull requests merged into them.
+
+- **Domain:** vcs
+- **Applies to alerts from:** bitbucket
+- **Requires:** bitbucket
+
+**Directs:**
+
+- `bitbucket_change_statistics`
+- `bitbucket_recent_changes`
 
 ### `vcs-github`
 
@@ -331,29 +1200,33 @@ What landed in a repository and when: the commits on its default branch and the 
 - `github_change_statistics`
 - `github_recent_changes`
 
+### `vcs-gitlab`
+
+What landed in a GitLab project: the commits on a branch and the merge requests recently merged into it.
+
+- **Domain:** vcs
+- **Applies to alerts from:** gitlab
+- **Requires:** gitlab
+
+**Directs:**
+
+- `gitlab_change_statistics`
+- `gitlab_recent_changes`
+
+### `vcs-sourcegraph`
+
+Code search across every repository at once: where a symbol, a string, or a configuration key actually appears.
+
+- **Domain:** vcs
+- **Applies to alerts from:** sourcegraph
+- **Requires:** sourcegraph
+
+**Directs:**
+
+- `sourcegraph_change_statistics`
+- `sourcegraph_recent_changes`
+
 ## Tools
-
-### changes
-
-#### `changes_in_window`
-
-Return what changed for a specific resource in a window, correlated through the resource rather than by time: each result says whether the change altered something that manages this resource, touched policy the resource shares, or merely landed in the same window. A change reported as a temporal coincidence is not evidence of a cause. An empty answer is a finding — it states that nothing touched this resource, and names what was consulted to establish it. Call this once you know which resource is affected, not on the alert text.
-
-- **Side effect:** `read_sensitive` — reads data that may identify people
-- **Evidence:** change from change_history
-- **Parallel safe:** yes
-
-**Use when:**
-
-- checking whether anything was deployed shortly before a symptom started
-- ruling deploys out, so an investigation stops looking at them and looks elsewhere
-- finding which apply touched the component that manages an affected workload
-
-**Not for:**
-
-- asking on the alert text before an affected resource has been identified
-- reading what a change contained, which this deliberately never reports
-- listing a repository's history, which is a report rather than an investigation
 
 ### cicd
 
@@ -395,7 +1268,577 @@ Count the pipeline runs for a project in a window, grouped by outcome. It says w
 - why one run failed, which needs that run rather than a count
 - a runtime failure with no build in the window
 
+#### `jenkins_failed_runs`
+
+Return the failed runs for a project in a window, newest first and capped, with the stage that failed. Use it after the statistics: the first failure in a run of them is the one worth reading.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from jenkins
+- **Parallel safe:** yes
+- **Requires:** jenkins
+
+**Use when:**
+
+- finding the first failing run after a period of green ones
+- checking whether a deployment succeeded before blaming the release
+
+**Not for:**
+
+- whether failures are unusual, which the statistics answer
+- an application error unrelated to any build
+
+#### `jenkins_pipeline_statistics`
+
+Count the pipeline runs for a project in a window, grouped by outcome. It says whether a failure is new, chronic, or the first of its kind, which decides whether the pipeline is the story at all.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from jenkins
+- **Parallel safe:** yes
+- **Requires:** jenkins
+
+**Use when:**
+
+- an incident following a deployment whose history is unknown
+- deciding whether a red build is new or has been red for a week
+
+**Not for:**
+
+- why one run failed, which needs that run rather than a count
+- a runtime failure with no build in the window
+
+#### `railway_failed_runs`
+
+Return the failed runs for a project in a window, newest first and capped, with the stage that failed. Use it after the statistics: the first failure in a run of them is the one worth reading.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from railway
+- **Parallel safe:** yes
+- **Requires:** railway
+
+**Use when:**
+
+- finding the first failing run after a period of green ones
+- checking whether a deployment succeeded before blaming the release
+
+**Not for:**
+
+- whether failures are unusual, which the statistics answer
+- an application error unrelated to any build
+
+#### `railway_pipeline_statistics`
+
+Count the pipeline runs for a project in a window, grouped by outcome. It says whether a failure is new, chronic, or the first of its kind, which decides whether the pipeline is the story at all.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from railway
+- **Parallel safe:** yes
+- **Requires:** railway
+
+**Use when:**
+
+- an incident following a deployment whose history is unknown
+- deciding whether a red build is new or has been red for a week
+
+**Not for:**
+
+- why one run failed, which needs that run rather than a count
+- a runtime failure with no build in the window
+
+#### `vercel_failed_runs`
+
+Return the failed runs for a project in a window, newest first and capped, with the stage that failed. Use it after the statistics: the first failure in a run of them is the one worth reading.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from vercel
+- **Parallel safe:** yes
+- **Requires:** vercel
+
+**Use when:**
+
+- finding the first failing run after a period of green ones
+- checking whether a deployment succeeded before blaming the release
+
+**Not for:**
+
+- whether failures are unusual, which the statistics answer
+- an application error unrelated to any build
+
+#### `vercel_pipeline_statistics`
+
+Count the pipeline runs for a project in a window, grouped by outcome. It says whether a failure is new, chronic, or the first of its kind, which decides whether the pipeline is the story at all.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from vercel
+- **Parallel safe:** yes
+- **Requires:** vercel
+
+**Use when:**
+
+- an incident following a deployment whose history is unknown
+- deciding whether a red build is new or has been red for a week
+
+**Not for:**
+
+- why one run failed, which needs that run rather than a count
+- a runtime failure with no build in the window
+
 ### cloud_control_plane
+
+#### `aws_cloudtrail_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_cloudtrail
+- **Parallel safe:** yes
+- **Requires:** aws_cloudtrail
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_cloudtrail_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_cloudtrail
+- **Parallel safe:** yes
+- **Requires:** aws_cloudtrail
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_ec2_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_ec2
+- **Parallel safe:** yes
+- **Requires:** aws_ec2
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_ec2_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_ec2
+- **Parallel safe:** yes
+- **Requires:** aws_ec2
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_ecs_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_ecs
+- **Parallel safe:** yes
+- **Requires:** aws_ecs
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_ecs_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_ecs
+- **Parallel safe:** yes
+- **Requires:** aws_ecs
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_eks_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_eks
+- **Parallel safe:** yes
+- **Requires:** aws_eks
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_eks_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_eks
+- **Parallel safe:** yes
+- **Requires:** aws_eks
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_elb_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_elb
+- **Parallel safe:** yes
+- **Requires:** aws_elb
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_elb_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_elb
+- **Parallel safe:** yes
+- **Requires:** aws_elb
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_lambda_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_lambda
+- **Parallel safe:** yes
+- **Requires:** aws_lambda
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_lambda_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_lambda
+- **Parallel safe:** yes
+- **Requires:** aws_lambda
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_rds_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_rds
+- **Parallel safe:** yes
+- **Requires:** aws_rds
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_rds_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_rds
+- **Parallel safe:** yes
+- **Requires:** aws_rds
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `aws_s3_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from aws_s3
+- **Parallel safe:** yes
+- **Requires:** aws_s3
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `aws_s3_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws_s3
+- **Parallel safe:** yes
+- **Requires:** aws_s3
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `azure_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from azure
+- **Parallel safe:** yes
+- **Requires:** azure
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `azure_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from azure
+- **Parallel safe:** yes
+- **Requires:** azure
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `docker_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from docker
+- **Parallel safe:** yes
+- **Requires:** docker
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `docker_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from docker
+- **Parallel safe:** yes
+- **Requires:** docker
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `flagd_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from flagd
+- **Parallel safe:** yes
+- **Requires:** flagd
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `flagd_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from flagd
+- **Parallel safe:** yes
+- **Requires:** flagd
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
+
+#### `gcp_recent_changes`
+
+Return the control-plane changes in a window, newest first and capped. Most incidents follow a change, and this is the capability that turns 'it started at 14:05' into a specific thing somebody did.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from gcp
+- **Parallel safe:** yes
+- **Requires:** gcp
+
+**Use when:**
+
+- an incident whose start time is known and whose cause is not
+- checking whether anything was changed shortly before the symptom
+
+**Not for:**
+
+- how much of the estate is affected, which the inventory answers
+- a symptom with no change window, where the history is noise
+
+#### `gcp_resource_inventory`
+
+List the resources of one kind, grouped by state, so the answer is the distribution rather than every resource. Reach for it when the question is how much of the estate is in a bad state rather than which one is.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from gcp
+- **Parallel safe:** yes
+- **Requires:** gcp
+
+**Use when:**
+
+- an alert naming a service whose current state is unknown
+- establishing whether a failure is one resource or a whole class of them
+
+**Not for:**
+
+- why a resource changed, which the change history answers
+- application-level errors, which a control plane never sees
 
 #### `grafana_recent_changes`
 
@@ -518,6 +1961,27 @@ Return the Proxmox backup tasks that failed, each with the vendor's own error te
 - re-running a backup — nothing here writes
 - which guests no job covers, which proxmox_backup_coverage answers
 - whether a stored backup would restore, which the Backup Server's verification answers
+
+#### `proxmox_backup_server_datastore_health`
+
+Return whether a Proxmox Backup Server datastore holds something that would restore: its usage, its snapshots, whether those snapshots have been verified, and when garbage collection last ran. An unverified snapshot is a file rather than a restore, and a store that has never verified looks identical to one that passes.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from proxmox_backup_server
+- **Parallel safe:** yes
+- **Requires:** proxmox_backup_server
+
+**Use when:**
+
+- checking whether a guest's most recent snapshot has actually been verified
+- finding out whether a datastore's usage figure reflects a garbage collection that ran
+- establishing that a backup exists and is recent before planning a restore
+
+**Not for:**
+
+- restoring, pruning or collecting garbage — nothing here writes
+- whether the hypervisor's backup job ran, which proxmox_protection_gaps answers
+- what is inside a snapshot, which is a restore rather than a read
 
 #### `proxmox_clock_skew`
 
@@ -729,27 +2193,6 @@ Return whether a Proxmox guest could move and, per candidate node, exactly what 
 - which datastores exist where, which proxmox_datastore_availability reads
 - why the guest will not start where it is, which proxmox_guest_start_diagnosis answers
 
-#### `proxmox_node_health`
-
-Return a node's failed systemd units, whether its configured bridges are up, and its LVM thin-pool metadata usage — the three readings that explained the reference cluster's only total outage and that no Proxmox REST endpoint answers. Reported as unavailable, by name, for whichever of the three nothing is publishing, rather than as an absence that could be mistaken for health.
-
-- **Side effect:** `read` — reads only
-- **Evidence:** metric from proxmox
-- **Parallel safe:** yes
-- **Requires:** proxmox
-
-**Use when:**
-
-- checking whether a node's failed systemd units explain a guest that will not start
-- checking whether a configured bridge is down before blaming the guests on top of it
-- checking an LVM thin pool's metadata usage, which stops writes while data usage still looks comfortable
-
-**Not for:**
-
-- a guest's own CPU or memory pressure, which proxmox_guest_pressure reads
-- a physical disk's SMART attributes, which proxmox_disk_health reads
-- trend or history over these three readings — this asks for the node's state now
-
 #### `proxmox_orphaned_volumes`
 
 Return the disk volumes on a Proxmox cluster that belong to no existing guest, each with the guest id it was named for and the space it occupies. Proxmox keeps a volume when a guest is destroyed with its disks retained, and nothing afterwards mentions it again while it still counts towards the datastore's fill.
@@ -899,6 +2342,86 @@ Return each ZFS pool's state, per-device error counts, scrub age, fragmentation,
 
 ### communication
 
+#### `discord_post_message`
+
+Post a message to a channel. Used to deliver a finding where the incident is already being discussed, rather than in a place somebody has to go and look.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** document from discord
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** discord
+- **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
+
+**Use when:**
+
+- delivering a finding into the channel an incident is being run from
+- telling responders that an automated investigation has concluded
+
+**Not for:**
+
+- paging somebody, which is an escalation rather than a message
+- anything an investigation has not finished establishing
+
+#### `discord_recent_messages`
+
+Return the recent messages in a channel, newest first and capped. What people have already said about an incident is evidence, and reading it is what stops an investigation repeating work that is already done.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from discord
+- **Parallel safe:** yes
+- **Requires:** discord
+
+**Use when:**
+
+- joining an incident channel where responders have already been talking
+- finding what was tried before an automated investigation started
+
+**Not for:**
+
+- system state, which chat reports secondhand and often wrongly
+- a channel with no relation to the incident, where the messages are noise
+
+#### `microsoft_teams_post_message`
+
+Post a message to a channel. Used to deliver a finding where the incident is already being discussed, rather than in a place somebody has to go and look.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** document from microsoft_teams
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** microsoft_teams
+- **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
+
+**Use when:**
+
+- delivering a finding into the channel an incident is being run from
+- telling responders that an automated investigation has concluded
+
+**Not for:**
+
+- paging somebody, which is an escalation rather than a message
+- anything an investigation has not finished establishing
+
+#### `microsoft_teams_recent_messages`
+
+Return the recent messages in a channel, newest first and capped. What people have already said about an incident is evidence, and reading it is what stops an investigation repeating work that is already done.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from microsoft_teams
+- **Parallel safe:** yes
+- **Requires:** microsoft_teams
+
+**Use when:**
+
+- joining an incident channel where responders have already been talking
+- finding what was tried before an automated investigation started
+
+**Not for:**
+
+- system state, which chat reports secondhand and often wrongly
+- a channel with no relation to the incident, where the messages are noise
+
 #### `pushover_post_message`
 
 Post a message to a channel. Used to deliver a finding where the incident is already being discussed, rather than in a place somebody has to go and look.
@@ -928,6 +2451,86 @@ Return the recent messages in a channel, newest first and capped. What people ha
 - **Evidence:** document from pushover
 - **Parallel safe:** yes
 - **Requires:** pushover
+
+**Use when:**
+
+- joining an incident channel where responders have already been talking
+- finding what was tried before an automated investigation started
+
+**Not for:**
+
+- system state, which chat reports secondhand and often wrongly
+- a channel with no relation to the incident, where the messages are noise
+
+#### `rocket_chat_post_message`
+
+Post a message to a channel. Used to deliver a finding where the incident is already being discussed, rather than in a place somebody has to go and look.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** document from rocket_chat
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** rocket_chat
+- **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
+
+**Use when:**
+
+- delivering a finding into the channel an incident is being run from
+- telling responders that an automated investigation has concluded
+
+**Not for:**
+
+- paging somebody, which is an escalation rather than a message
+- anything an investigation has not finished establishing
+
+#### `rocket_chat_recent_messages`
+
+Return the recent messages in a channel, newest first and capped. What people have already said about an incident is evidence, and reading it is what stops an investigation repeating work that is already done.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from rocket_chat
+- **Parallel safe:** yes
+- **Requires:** rocket_chat
+
+**Use when:**
+
+- joining an incident channel where responders have already been talking
+- finding what was tried before an automated investigation started
+
+**Not for:**
+
+- system state, which chat reports secondhand and often wrongly
+- a channel with no relation to the incident, where the messages are noise
+
+#### `slack_post_message`
+
+Post a message to a channel. Used to deliver a finding where the incident is already being discussed, rather than in a place somebody has to go and look.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** document from slack
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** slack
+- **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
+
+**Use when:**
+
+- delivering a finding into the channel an incident is being run from
+- telling responders that an automated investigation has concluded
+
+**Not for:**
+
+- paging somebody, which is an escalation rather than a message
+- anything an investigation has not finished establishing
+
+#### `slack_recent_messages`
+
+Return the recent messages in a channel, newest first and capped. What people have already said about an incident is evidence, and reading it is what stops an investigation repeating work that is already done.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from slack
+- **Parallel safe:** yes
+- **Requires:** slack
 
 **Use when:**
 
@@ -979,7 +2582,545 @@ Return the recent messages in a channel, newest first and capped. What people ha
 - system state, which chat reports secondhand and often wrongly
 - a channel with no relation to the incident, where the messages are noise
 
+#### `twilio_post_message`
+
+Post a message to a channel. Used to deliver a finding where the incident is already being discussed, rather than in a place somebody has to go and look.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** document from twilio
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** twilio
+- **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
+
+**Use when:**
+
+- delivering a finding into the channel an incident is being run from
+- telling responders that an automated investigation has concluded
+
+**Not for:**
+
+- paging somebody, which is an escalation rather than a message
+- anything an investigation has not finished establishing
+
+#### `twilio_recent_messages`
+
+Return the recent messages in a channel, newest first and capped. What people have already said about an incident is evidence, and reading it is what stops an investigation repeating work that is already done.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from twilio
+- **Parallel safe:** yes
+- **Requires:** twilio
+
+**Use when:**
+
+- joining an incident channel where responders have already been talking
+- finding what was tried before an automated investigation started
+
+**Not for:**
+
+- system state, which chat reports secondhand and often wrongly
+- a channel with no relation to the incident, where the messages are noise
+
+#### `whatsapp_post_message`
+
+Post a message to a channel. Used to deliver a finding where the incident is already being discussed, rather than in a place somebody has to go and look.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** document from whatsapp
+- **Parallel safe:** no
+- **Risk class:** `moderate` — Undone only by a further action, or reaching several resources at once.
+- **Requires:** whatsapp
+- **Approval:** required — A message to a channel is visible to everyone in it and cannot be unsaid, only followed by a correction. A human decides whether a finding is ready to be read by the people responding.
+
+**Use when:**
+
+- delivering a finding into the channel an incident is being run from
+- telling responders that an automated investigation has concluded
+
+**Not for:**
+
+- paging somebody, which is an escalation rather than a message
+- anything an investigation has not finished establishing
+
+#### `whatsapp_recent_messages`
+
+Return the recent messages in a channel, newest first and capped. What people have already said about an incident is evidence, and reading it is what stops an investigation repeating work that is already done.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from whatsapp
+- **Parallel safe:** yes
+- **Requires:** whatsapp
+
+**Use when:**
+
+- joining an incident channel where responders have already been talking
+- finding what was tried before an automated investigation started
+
+**Not for:**
+
+- system state, which chat reports secondhand and often wrongly
+- a channel with no relation to the incident, where the messages are noise
+
+### data_platform
+
+#### `airflow_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from airflow
+- **Parallel safe:** yes
+- **Requires:** airflow
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `airflow_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from airflow
+- **Parallel safe:** yes
+- **Requires:** airflow
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
+#### `dagster_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from dagster
+- **Parallel safe:** yes
+- **Requires:** dagster
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `dagster_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from dagster
+- **Parallel safe:** yes
+- **Requires:** dagster
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
+#### `flink_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from flink
+- **Parallel safe:** yes
+- **Requires:** flink
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `flink_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from flink
+- **Parallel safe:** yes
+- **Requires:** flink
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
+#### `kafka_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from kafka
+- **Parallel safe:** yes
+- **Requires:** kafka
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `kafka_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from kafka
+- **Parallel safe:** yes
+- **Requires:** kafka
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
+#### `prefect_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from prefect
+- **Parallel safe:** yes
+- **Requires:** prefect
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `prefect_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from prefect
+- **Parallel safe:** yes
+- **Requires:** prefect
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
+#### `rabbitmq_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from rabbitmq
+- **Parallel safe:** yes
+- **Requires:** rabbitmq
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `rabbitmq_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from rabbitmq
+- **Parallel safe:** yes
+- **Requires:** rabbitmq
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
+#### `spark_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from spark
+- **Parallel safe:** yes
+- **Requires:** spark
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `spark_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from spark
+- **Parallel safe:** yes
+- **Requires:** spark
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
+#### `temporal_pipeline_health`
+
+Group the current tasks or partitions by state, so the answer is whether the platform is behind, failing, or idle. Lag and backlog before internals: a pipeline that is merely behind needs a different investigation.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from temporal
+- **Parallel safe:** yes
+- **Requires:** temporal
+
+**Use when:**
+
+- a data-freshness alert where the cause is not yet known
+- deciding whether a backlog is growing or draining
+
+**Not for:**
+
+- one task's error text, which the failure list returns
+- the downstream service's own errors, which this never sees
+
+#### `temporal_recent_failures`
+
+Return the recently failed tasks or jobs, newest first and capped, with the reason each gave. Call it after the health summary, so the ones read are from whichever stage the backlog pointed at.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from temporal
+- **Parallel safe:** yes
+- **Requires:** temporal
+
+**Use when:**
+
+- finding the first failure in a chain of downstream ones
+- checking whether a retry succeeded before treating a failure as current
+
+**Not for:**
+
+- how far behind the platform is, which the health summary answers
+- a slow but succeeding pipeline, where nothing has failed to list
+
 ### database
+
+#### `azure_sql_session_statistics`
+
+Group the current sessions by state or wait, so the answer says whether the database is blocked, saturated, or idle. This is the first database call in an investigation, before anything is asked about a query plan.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from azure_sql
+- **Parallel safe:** yes
+- **Requires:** azure_sql
+
+**Use when:**
+
+- a latency alert on a service whose database may be the constraint
+- deciding whether connections are exhausted or queries are simply slow
+
+**Not for:**
+
+- the text of a specific slow query, which the query capability returns
+- application errors that never reached the database
+
+#### `azure_sql_slow_queries`
+
+Return the slowest statements recorded, capped, with their timing. Call it after the session statistics: a slow query on an unblocked database is a different problem from the same query behind a lock queue.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** analysis from azure_sql
+- **Parallel safe:** yes
+- **Requires:** azure_sql
+
+**Use when:**
+
+- a database whose sessions are dominated by one kind of work
+- finding the statement behind a latency change with a known start
+
+**Not for:**
+
+- whether the database is the problem at all, which sessions answer first
+- a connectivity failure, where no statement ever ran
+
+#### `bigquery_session_statistics`
+
+Group the current sessions by state or wait, so the answer says whether the database is blocked, saturated, or idle. This is the first database call in an investigation, before anything is asked about a query plan.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from bigquery
+- **Parallel safe:** yes
+- **Requires:** bigquery
+
+**Use when:**
+
+- a latency alert on a service whose database may be the constraint
+- deciding whether connections are exhausted or queries are simply slow
+
+**Not for:**
+
+- the text of a specific slow query, which the query capability returns
+- application errors that never reached the database
+
+#### `bigquery_slow_queries`
+
+Return the slowest statements recorded, capped, with their timing. Call it after the session statistics: a slow query on an unblocked database is a different problem from the same query behind a lock queue.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** analysis from bigquery
+- **Parallel safe:** yes
+- **Requires:** bigquery
+
+**Use when:**
+
+- a database whose sessions are dominated by one kind of work
+- finding the statement behind a latency change with a known start
+
+**Not for:**
+
+- whether the database is the problem at all, which sessions answer first
+- a connectivity failure, where no statement ever ran
+
+#### `clickhouse_session_statistics`
+
+Group the current sessions by state or wait, so the answer says whether the database is blocked, saturated, or idle. This is the first database call in an investigation, before anything is asked about a query plan.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from clickhouse
+- **Parallel safe:** yes
+- **Requires:** clickhouse
+
+**Use when:**
+
+- a latency alert on a service whose database may be the constraint
+- deciding whether connections are exhausted or queries are simply slow
+
+**Not for:**
+
+- the text of a specific slow query, which the query capability returns
+- application errors that never reached the database
+
+#### `clickhouse_slow_queries`
+
+Return the slowest statements recorded, capped, with their timing. Call it after the session statistics: a slow query on an unblocked database is a different problem from the same query behind a lock queue.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** analysis from clickhouse
+- **Parallel safe:** yes
+- **Requires:** clickhouse
+
+**Use when:**
+
+- a database whose sessions are dominated by one kind of work
+- finding the statement behind a latency change with a known start
+
+**Not for:**
+
+- whether the database is the problem at all, which sessions answer first
+- a connectivity failure, where no statement ever ran
+
+#### `mongodb_atlas_session_statistics`
+
+Group the current sessions by state or wait, so the answer says whether the database is blocked, saturated, or idle. This is the first database call in an investigation, before anything is asked about a query plan.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from mongodb_atlas
+- **Parallel safe:** yes
+- **Requires:** mongodb_atlas
+
+**Use when:**
+
+- a latency alert on a service whose database may be the constraint
+- deciding whether connections are exhausted or queries are simply slow
+
+**Not for:**
+
+- the text of a specific slow query, which the query capability returns
+- application errors that never reached the database
+
+#### `mongodb_atlas_slow_queries`
+
+Return the slowest statements recorded, capped, with their timing. Call it after the session statistics: a slow query on an unblocked database is a different problem from the same query behind a lock queue.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** analysis from mongodb_atlas
+- **Parallel safe:** yes
+- **Requires:** mongodb_atlas
+
+**Use when:**
+
+- a database whose sessions are dominated by one kind of work
+- finding the statement behind a latency change with a known start
+
+**Not for:**
+
+- whether the database is the problem at all, which sessions answer first
+- a connectivity failure, where no statement ever ran
 
 #### `redis_session_statistics`
 
@@ -1019,27 +3160,81 @@ Return the slowest statements recorded, capped, with their timing. Call it after
 - whether the database is the problem at all, which sessions answer first
 - a connectivity failure, where no statement ever ran
 
-### estate
+#### `snowflake_session_statistics`
 
-#### `run_on_node`
+Group the current sessions by state or wait, so the answer says whether the database is blocked, saturated, or idle. This is the first database call in an investigation, before anything is asked about a query plan.
 
-Run one command from a closed, declared list on a cluster node and return what it said. Used for the readings a hypervisor's API does not have — failed systemd units, bridge state, thin-pool metadata fill — each of which has decided a real outage and none of which is a REST endpoint. The command is named, never composed: this cannot run arbitrary commands and cannot change anything.
-
-- **Side effect:** `read_sensitive` — reads data that may identify people
-- **Evidence:** configuration from node
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from snowflake
 - **Parallel safe:** yes
+- **Requires:** snowflake
 
 **Use when:**
 
-- reading a node's failed systemd units, which no Proxmox endpoint reports
-- checking whether a configured bridge exists before blaming the guests behind it
-- reading a thin pool's metadata fill, which stops writes while its data fill looks fine
+- a latency alert on a service whose database may be the constraint
+- deciding whether connections are exhausted or queries are simply slow
 
 **Not for:**
 
-- running an arbitrary command, which this deliberately cannot do
-- changing anything on a node, which goes through the path that requires an approval
-- reaching a guest's own shell, which this never does — every command runs on the host
+- the text of a specific slow query, which the query capability returns
+- application errors that never reached the database
+
+#### `snowflake_slow_queries`
+
+Return the slowest statements recorded, capped, with their timing. Call it after the session statistics: a slow query on an unblocked database is a different problem from the same query behind a lock queue.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** analysis from snowflake
+- **Parallel safe:** yes
+- **Requires:** snowflake
+
+**Use when:**
+
+- a database whose sessions are dominated by one kind of work
+- finding the statement behind a latency change with a known start
+
+**Not for:**
+
+- whether the database is the problem at all, which sessions answer first
+- a connectivity failure, where no statement ever ran
+
+#### `supabase_session_statistics`
+
+Group the current sessions by state or wait, so the answer says whether the database is blocked, saturated, or idle. This is the first database call in an investigation, before anything is asked about a query plan.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from supabase
+- **Parallel safe:** yes
+- **Requires:** supabase
+
+**Use when:**
+
+- a latency alert on a service whose database may be the constraint
+- deciding whether connections are exhausted or queries are simply slow
+
+**Not for:**
+
+- the text of a specific slow query, which the query capability returns
+- application errors that never reached the database
+
+#### `supabase_slow_queries`
+
+Return the slowest statements recorded, capped, with their timing. Call it after the session statistics: a slow query on an unblocked database is a different problem from the same query behind a lock queue.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** analysis from supabase
+- **Parallel safe:** yes
+- **Requires:** supabase
+
+**Use when:**
+
+- a database whose sessions are dominated by one kind of work
+- finding the statement behind a latency change with a known start
+
+**Not for:**
+
+- whether the database is the problem at all, which sessions answer first
+- a connectivity failure, where no statement ever ran
 
 ### incident
 
@@ -1102,7 +3297,601 @@ Return one incident's timeline — the notes, escalations, and status changes, o
 - how many incidents there are, which the statistics answer
 - system state, which the timeline only reports secondhand
 
+#### `blameless_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from blameless
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** blameless
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `blameless_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from blameless
+- **Parallel safe:** yes
+- **Requires:** blameless
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `blameless_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from blameless
+- **Parallel safe:** yes
+- **Requires:** blameless
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `firehydrant_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from firehydrant
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** firehydrant
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `firehydrant_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from firehydrant
+- **Parallel safe:** yes
+- **Requires:** firehydrant
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `firehydrant_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from firehydrant
+- **Parallel safe:** yes
+- **Requires:** firehydrant
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `incident_io_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from incident_io
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** incident_io
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `incident_io_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from incident_io
+- **Parallel safe:** yes
+- **Requires:** incident_io
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `incident_io_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from incident_io
+- **Parallel safe:** yes
+- **Requires:** incident_io
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `opsgenie_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from opsgenie
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** opsgenie
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `opsgenie_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from opsgenie
+- **Parallel safe:** yes
+- **Requires:** opsgenie
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `opsgenie_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from opsgenie
+- **Parallel safe:** yes
+- **Requires:** opsgenie
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `pagerduty_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from pagerduty
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** pagerduty
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `pagerduty_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from pagerduty
+- **Parallel safe:** yes
+- **Requires:** pagerduty
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `pagerduty_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from pagerduty
+- **Parallel safe:** yes
+- **Requires:** pagerduty
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
+#### `servicenow_acknowledge_incident`
+
+Acknowledge an incident and attach a note saying an automated investigation is under way. It stops the escalation clock, which is a change to who gets woken and therefore needs a human to agree to it.
+
+- **Side effect:** `write_reversible` — changes something, undoable by plan
+- **Evidence:** incident from servicenow
+- **Parallel safe:** no
+- **Risk class:** `low` — Reversible, reaches one resource, and costs a brief loss of availability at most.
+- **Requires:** servicenow
+- **Approval:** required — Acknowledging stops the escalation clock, so the next person in the rotation is not paged. That is a decision about who is woken up, and it belongs to a human even though it is reversible.
+
+**Use when:**
+
+- an investigation that has started and will report shortly
+- stopping a second escalation while a first responder is already engaged
+
+**Not for:**
+
+- an incident nobody is actually working, where the clock should run
+- closing an incident, which acknowledging deliberately does not do
+
+#### `servicenow_incident_statistics`
+
+Count the incidents in a window, grouped by status, service, or urgency. It answers 'is this one thing or many' in a single call, which is the question that decides whether an investigation is scoped correctly.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** incident from servicenow
+- **Parallel safe:** yes
+- **Requires:** servicenow
+
+**Use when:**
+
+- a page arriving while other services may already be alerting
+- establishing whether a recurrence is the same incident returning
+
+**Not for:**
+
+- the timeline of one incident, which the timeline capability returns
+- the underlying telemetry, which an incident record never carries
+
+#### `servicenow_incident_timeline`
+
+Return one incident's timeline — the notes, escalations, and status changes, oldest first and capped. It is what tells an investigation what humans already tried, so it does not repeat them.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** incident from servicenow
+- **Parallel safe:** yes
+- **Requires:** servicenow
+
+**Use when:**
+
+- picking up an incident somebody else has already been working
+- recovering what was tried before the current responder arrived
+
+**Not for:**
+
+- how many incidents there are, which the statistics answer
+- system state, which the timeline only reports secondhand
+
 ### logstore
+
+#### `aws_filter_log_events`
+
+Read CloudWatch log events from one log group between two epoch-millisecond timestamps, optionally narrowed by a CloudWatch filter pattern. Both ends of the window are required. Returns the messages with their timestamps and stream names, and says when more matched than were read.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from aws
+- **Parallel safe:** yes
+- **Requires:** aws
+
+**Use when:**
+
+- reading the error text behind a Lambda or ECS failure in a known window
+- checking whether a service logged anything at all during an outage
+- finding the first occurrence of an error, to establish onset
+
+**Not for:**
+
+- counting events, which this does expensively and a metric does in one call
+- searching every log group at once, which CloudWatch cannot do
+- a window wider than the group's retention, which returns nothing either way
+
+#### `aws_list_log_groups`
+
+List CloudWatch log groups in the configured region, optionally narrowed by name prefix. Call it before filtering events when the exact group name is not certain — a query against a mistyped group fails in a way that costs a turn. Returns names, retention, and stored size.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from aws
+- **Parallel safe:** yes
+- **Requires:** aws
+
+**Use when:**
+
+- confirming a log group's exact name before querying it
+- finding which log groups a service writes to when the naming is not obvious
+- checking whether a Lambda or ECS task logs anywhere at all
+
+**Not for:**
+
+- reading log content, which filtering events does
+- listing every group in a large account with no prefix, which returns noise
+- discovering non-logging AWS resources, which this cannot see
+
+#### `azure_monitor_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from azure_monitor
+- **Parallel safe:** yes
+- **Requires:** azure_monitor
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `azure_monitor_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from azure_monitor
+- **Parallel safe:** yes
+- **Requires:** azure_monitor
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `better_stack_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from better_stack
+- **Parallel safe:** yes
+- **Requires:** better_stack
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `better_stack_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from better_stack
+- **Parallel safe:** yes
+- **Requires:** better_stack
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `coralogix_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from coralogix
+- **Parallel safe:** yes
+- **Requires:** coralogix
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `coralogix_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from coralogix
+- **Parallel safe:** yes
+- **Requires:** coralogix
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `datadog_log_statistics`
+
+Count Datadog logs matching a query over a window, grouped by one facet — status, service, host, or any other. Returns the distribution rather than the lines, so it is affordable on a query matching millions. Call this before sampling: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from datadog
+- **Parallel safe:** yes
+- **Requires:** datadog
+
+**Use when:**
+
+- an error-rate alert where the failing status, service, or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing the shape of a window against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+- a question about a single known request, where the count is one
+
+#### `datadog_sample_logs`
+
+Return a small sample of Datadog log lines matching a query in a window, newest first. Use it after the statistics call has singled out a status, service, or host, and narrow the query to that group — a sample from an unnarrowed query is arbitrary. The result says whether more matched than were returned.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from datadog
+- **Parallel safe:** yes
+- **Requires:** datadog
+
+**Use when:**
+
+- reading the actual error message from the group an aggregation singled out
+- getting the stack trace behind a spike the counts have already located
+- quoting two or three representative lines into a finding
+
+**Not for:**
+
+- an unnarrowed query, where the sample is arbitrary and teaches nothing
+- counting anything — the statistics capability answers that in one call
+- exporting logs in bulk, which this deliberately cannot do
+
+#### `elasticsearch_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from elasticsearch
+- **Parallel safe:** yes
+- **Requires:** elasticsearch
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `elasticsearch_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from elasticsearch
+- **Parallel safe:** yes
+- **Requires:** elasticsearch
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
 
 #### `hermes_log_statistics`
 
@@ -1210,6 +3999,162 @@ Return a small, capped sample of the log lines matching a query over a window, n
 - **Evidence:** log from openobserve
 - **Parallel safe:** yes
 - **Requires:** openobserve
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `opensearch_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from opensearch
+- **Parallel safe:** yes
+- **Requires:** opensearch
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `opensearch_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from opensearch
+- **Parallel safe:** yes
+- **Requires:** opensearch
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `sentry_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from sentry
+- **Parallel safe:** yes
+- **Requires:** sentry
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `sentry_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from sentry
+- **Parallel safe:** yes
+- **Requires:** sentry
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `splunk_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from splunk
+- **Parallel safe:** yes
+- **Requires:** splunk
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `splunk_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from splunk
+- **Parallel safe:** yes
+- **Requires:** splunk
+
+**Use when:**
+
+- reading the actual error text behind a spike the statistics located
+- checking whether a stack trace matches one from a previous incident
+
+**Not for:**
+
+- establishing how much of something there is, which sampling cannot answer
+- a query that has not been narrowed, where the sample is arbitrary
+
+#### `victorialogs_log_statistics`
+
+Count the log lines matching a query over a window and return the distribution across one field rather than the lines themselves. Call this first: the group it singles out is where the samples should come from.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** log from victorialogs
+- **Parallel safe:** yes
+- **Requires:** victorialogs
+
+**Use when:**
+
+- an error-rate alert where the failing service or host is not yet known
+- establishing whether one thing is failing loudly or everything is failing
+- comparing a window's shape against the equivalent window before the symptom
+
+**Not for:**
+
+- reading a specific error message, which is what sampling is for
+- latency across services, which a trace answers and a log count does not
+
+#### `victorialogs_sample_logs`
+
+Return a small, capped sample of the log lines matching a query over a window, newest first. Narrow the query with the statistics capability before calling this: a sample from an unnarrowed query is arbitrary.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from victorialogs
+- **Parallel safe:** yes
+- **Requires:** victorialogs
 
 **Use when:**
 
@@ -1358,6 +4303,158 @@ Search this team's runbooks, post-mortems, architecture notes, and operational p
 
 ### metrics
 
+#### `amplitude_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from amplitude
+- **Parallel safe:** yes
+- **Requires:** amplitude
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `amplitude_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from amplitude
+- **Parallel safe:** yes
+- **Requires:** amplitude
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
+
+#### `groundcover_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from groundcover
+- **Parallel safe:** yes
+- **Requires:** groundcover
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `groundcover_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from groundcover
+- **Parallel safe:** yes
+- **Requires:** groundcover
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
+
+#### `new_relic_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from new_relic
+- **Parallel safe:** yes
+- **Requires:** new_relic
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `new_relic_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from new_relic
+- **Parallel safe:** yes
+- **Requires:** new_relic
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
+
+#### `posthog_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from posthog
+- **Parallel safe:** yes
+- **Requires:** posthog
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `posthog_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from posthog
+- **Parallel safe:** yes
+- **Requires:** posthog
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
+
 #### `prometheus_active_alerts`
 
 List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
@@ -1396,69 +4493,43 @@ Evaluate a metric query over a window and return the series grouped by one label
 - reading an individual log line, which a metric never contains
 - a question about a single request, where a metric has no resolution
 
-#### `prometheus_resource_pressure`
+#### `victoriametrics_active_alerts`
 
-Return what one estate resource is short of — memory, CPU, disk — with the query built from the signal map rather than written by hand. For a container the series read are the host's, keyed by the guest's own identifier, because a container shares the host's kernel and counters read from inside it report the host's figures under the guest's name.
-
-- **Side effect:** `read` — reads only
-- **Evidence:** metric from prometheus
-- **Parallel safe:** yes
-- **Requires:** prometheus
-
-**Use when:**
-
-- how much memory, CPU or disk a hypervisor guest is using, without asking inside it
-- checking whether a container that is being OOM-killed is at its own ceiling
-- resource usage for a guest where no agent runs and nothing can be installed
-
-**Not for:**
-
-- an arbitrary PromQL expression, which prometheus_metric_statistics evaluates
-- which alerts are firing, which prometheus_active_alerts answers
-- reading a log line, which a metric never contains
-
-### model_provider
-
-#### `google_gemini_available_models`
-
-List the models this deployment's Google Gemini key is allowed to call. The question an operator has after storing a key, and the one a provider refusal naming a model raises. Spends no inference quota.
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
 
 - **Side effect:** `read` — reads only
-- **Evidence:** configuration from google_gemini
+- **Evidence:** event from victoriametrics
 - **Parallel safe:** yes
-- **Requires:** google_gemini
+- **Requires:** victoriametrics
 
 **Use when:**
 
-- checking that a stored provider key can call the model this deployment is configured for
-- explaining a provider refusal that names a model rather than the key
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
 
 **Not for:**
 
-- running an inference, which goes through the model layer rather than here
-- choosing a model for a task, which is a configuration decision rather than a reading
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
 
-### observability
+#### `victoriametrics_metric_statistics`
 
-#### `logs_for_resource`
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
 
-Return what a specific resource's log stream held in a recent window, with the bound that shaped the answer. Every result says how much of the window was actually read: a source keeping less than the window asked for, or an answer stopped at the line limit, is reported rather than left to look like a quiet guest. An empty answer from a source that responded is a finding — it means the resource logged nothing, not that nobody could look. Call this once you know which resource is affected, not on the alert text.
-
-- **Side effect:** `read_sensitive` — reads data that may identify people
-- **Evidence:** log from logs
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from victoriametrics
 - **Parallel safe:** yes
+- **Requires:** victoriametrics
 
 **Use when:**
 
-- reading what a guest was logging around the time a symptom started
-- confirming a service inside a container restarted, rather than inferring it from metrics
-- establishing that a guest logged nothing unusual, so the cause is elsewhere
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
 
 **Not for:**
 
-- asking on the alert text before an affected resource has been identified
-- searching the whole cluster's logs for a string, which this deliberately cannot do
-- reading a log stream to build a dashboard, which is a report rather than an investigation
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
 
 ### remediation
 
@@ -1865,6 +4936,274 @@ Change a workload's CPU and memory requests and limits. Reversible by restoring 
 - raising a limit to hide a leak, which delays the failure rather than fixing it
 - lowering a limit during an incident, which is a second change nobody asked for
 
+### ticketing
+
+#### `clickup_issue_statistics`
+
+Count the issues matching a query, grouped by status or assignee. It is the search-before-create step: if twelve issues already describe this, the investigation should link to them rather than open a thirteenth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from clickup
+- **Parallel safe:** yes
+- **Requires:** clickup
+
+**Use when:**
+
+- checking whether this symptom is already tracked before opening anything
+- establishing how long a class of problem has been outstanding
+
+**Not for:**
+
+- reading one issue in full, which the issue list returns
+- live system state, which a tracker never has
+
+#### `clickup_recent_issues`
+
+Return the issues matching a query, newest first and capped, with title, status, and assignee. Call it after the statistics so the ones read are from the group that matters.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from clickup
+- **Parallel safe:** yes
+- **Requires:** clickup
+
+**Use when:**
+
+- reading the ticket that already describes the symptom under investigation
+- finding who last worked on a recurring failure
+
+**Not for:**
+
+- how many issues there are, which the statistics answer more cheaply
+- the current state of the system, which a ticket only describes secondhand
+
+#### `confluence_issue_statistics`
+
+Count the issues matching a query, grouped by status or assignee. It is the search-before-create step: if twelve issues already describe this, the investigation should link to them rather than open a thirteenth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from confluence
+- **Parallel safe:** yes
+- **Requires:** confluence
+
+**Use when:**
+
+- checking whether this symptom is already tracked before opening anything
+- establishing how long a class of problem has been outstanding
+
+**Not for:**
+
+- reading one issue in full, which the issue list returns
+- live system state, which a tracker never has
+
+#### `confluence_recent_issues`
+
+Return the issues matching a query, newest first and capped, with title, status, and assignee. Call it after the statistics so the ones read are from the group that matters.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from confluence
+- **Parallel safe:** yes
+- **Requires:** confluence
+
+**Use when:**
+
+- reading the ticket that already describes the symptom under investigation
+- finding who last worked on a recurring failure
+
+**Not for:**
+
+- how many issues there are, which the statistics answer more cheaply
+- the current state of the system, which a ticket only describes secondhand
+
+#### `google_docs_issue_statistics`
+
+Count the issues matching a query, grouped by status or assignee. It is the search-before-create step: if twelve issues already describe this, the investigation should link to them rather than open a thirteenth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from google_docs
+- **Parallel safe:** yes
+- **Requires:** google_docs
+
+**Use when:**
+
+- checking whether this symptom is already tracked before opening anything
+- establishing how long a class of problem has been outstanding
+
+**Not for:**
+
+- reading one issue in full, which the issue list returns
+- live system state, which a tracker never has
+
+#### `google_docs_recent_issues`
+
+Return the issues matching a query, newest first and capped, with title, status, and assignee. Call it after the statistics so the ones read are from the group that matters.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from google_docs
+- **Parallel safe:** yes
+- **Requires:** google_docs
+
+**Use when:**
+
+- reading the ticket that already describes the symptom under investigation
+- finding who last worked on a recurring failure
+
+**Not for:**
+
+- how many issues there are, which the statistics answer more cheaply
+- the current state of the system, which a ticket only describes secondhand
+
+#### `jira_issue_statistics`
+
+Count the issues matching a query, grouped by status or assignee. It is the search-before-create step: if twelve issues already describe this, the investigation should link to them rather than open a thirteenth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from jira
+- **Parallel safe:** yes
+- **Requires:** jira
+
+**Use when:**
+
+- checking whether this symptom is already tracked before opening anything
+- establishing how long a class of problem has been outstanding
+
+**Not for:**
+
+- reading one issue in full, which the issue list returns
+- live system state, which a tracker never has
+
+#### `jira_recent_issues`
+
+Return the issues matching a query, newest first and capped, with title, status, and assignee. Call it after the statistics so the ones read are from the group that matters.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from jira
+- **Parallel safe:** yes
+- **Requires:** jira
+
+**Use when:**
+
+- reading the ticket that already describes the symptom under investigation
+- finding who last worked on a recurring failure
+
+**Not for:**
+
+- how many issues there are, which the statistics answer more cheaply
+- the current state of the system, which a ticket only describes secondhand
+
+#### `linear_issue_statistics`
+
+Count the issues matching a query, grouped by status or assignee. It is the search-before-create step: if twelve issues already describe this, the investigation should link to them rather than open a thirteenth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from linear
+- **Parallel safe:** yes
+- **Requires:** linear
+
+**Use when:**
+
+- checking whether this symptom is already tracked before opening anything
+- establishing how long a class of problem has been outstanding
+
+**Not for:**
+
+- reading one issue in full, which the issue list returns
+- live system state, which a tracker never has
+
+#### `linear_recent_issues`
+
+Return the issues matching a query, newest first and capped, with title, status, and assignee. Call it after the statistics so the ones read are from the group that matters.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from linear
+- **Parallel safe:** yes
+- **Requires:** linear
+
+**Use when:**
+
+- reading the ticket that already describes the symptom under investigation
+- finding who last worked on a recurring failure
+
+**Not for:**
+
+- how many issues there are, which the statistics answer more cheaply
+- the current state of the system, which a ticket only describes secondhand
+
+#### `notion_issue_statistics`
+
+Count the issues matching a query, grouped by status or assignee. It is the search-before-create step: if twelve issues already describe this, the investigation should link to them rather than open a thirteenth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from notion
+- **Parallel safe:** yes
+- **Requires:** notion
+
+**Use when:**
+
+- checking whether this symptom is already tracked before opening anything
+- establishing how long a class of problem has been outstanding
+
+**Not for:**
+
+- reading one issue in full, which the issue list returns
+- live system state, which a tracker never has
+
+#### `notion_recent_issues`
+
+Return the issues matching a query, newest first and capped, with title, status, and assignee. Call it after the statistics so the ones read are from the group that matters.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from notion
+- **Parallel safe:** yes
+- **Requires:** notion
+
+**Use when:**
+
+- reading the ticket that already describes the symptom under investigation
+- finding who last worked on a recurring failure
+
+**Not for:**
+
+- how many issues there are, which the statistics answer more cheaply
+- the current state of the system, which a ticket only describes secondhand
+
+#### `trello_issue_statistics`
+
+Count the issues matching a query, grouped by status or assignee. It is the search-before-create step: if twelve issues already describe this, the investigation should link to them rather than open a thirteenth.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** document from trello
+- **Parallel safe:** yes
+- **Requires:** trello
+
+**Use when:**
+
+- checking whether this symptom is already tracked before opening anything
+- establishing how long a class of problem has been outstanding
+
+**Not for:**
+
+- reading one issue in full, which the issue list returns
+- live system state, which a tracker never has
+
+#### `trello_recent_issues`
+
+Return the issues matching a query, newest first and capped, with title, status, and assignee. Call it after the statistics so the ones read are from the group that matters.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** document from trello
+- **Parallel safe:** yes
+- **Requires:** trello
+
+**Use when:**
+
+- reading the ticket that already describes the symptom under investigation
+- finding who last worked on a recurring failure
+
+**Not for:**
+
+- how many issues there are, which the statistics answer more cheaply
+- the current state of the system, which a ticket only describes secondhand
+
 ### topology
 
 #### `query_service_topology`
@@ -1888,6 +5227,82 @@ Return what a service depends on, what depends on it, and the blast radius of an
 - guessing dependencies from service names when the graph has no record
 
 ### tracing
+
+#### `honeycomb_slow_traces`
+
+Return the slowest traces for a service in a window, capped, with their duration and root operation. Use it after the statistics have named the operation, so the exemplars are from the part that is actually slow.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from honeycomb
+- **Parallel safe:** yes
+- **Requires:** honeycomb
+
+**Use when:**
+
+- finding an exemplar of the latency an aggregate has already located
+- seeing which downstream call dominates a slow request
+
+**Not for:**
+
+- establishing how common the slowness is, which needs the aggregate
+- an error with no latency component, where traces add nothing
+
+#### `honeycomb_trace_statistics`
+
+Count the traces for a service over a window and return them grouped by operation or status, rather than the spans. It is what says where the latency is concentrated before any single trace is opened.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from honeycomb
+- **Parallel safe:** yes
+- **Requires:** honeycomb
+
+**Use when:**
+
+- a latency alert where the slow operation is not yet known
+- deciding whether one endpoint is slow or the whole service is
+
+**Not for:**
+
+- the contents of a log line, which a trace does not carry
+- a single known request, where one trace is the whole answer
+
+#### `jaeger_slow_traces`
+
+Return the slowest traces for a service in a window, capped, with their duration and root operation. Use it after the statistics have named the operation, so the exemplars are from the part that is actually slow.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from jaeger
+- **Parallel safe:** yes
+- **Requires:** jaeger
+
+**Use when:**
+
+- finding an exemplar of the latency an aggregate has already located
+- seeing which downstream call dominates a slow request
+
+**Not for:**
+
+- establishing how common the slowness is, which needs the aggregate
+- an error with no latency component, where traces add nothing
+
+#### `jaeger_trace_statistics`
+
+Count the traces for a service over a window and return them grouped by operation or status, rather than the spans. It is what says where the latency is concentrated before any single trace is opened.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from jaeger
+- **Parallel safe:** yes
+- **Requires:** jaeger
+
+**Use when:**
+
+- a latency alert where the slow operation is not yet known
+- deciding whether one endpoint is slow or the whole service is
+
+**Not for:**
+
+- the contents of a log line, which a trace does not carry
+- a single known request, where one trace is the whole answer
 
 #### `signoz_slow_traces`
 
@@ -1927,7 +5342,83 @@ Count the traces for a service over a window and return them grouped by operatio
 - the contents of a log line, which a trace does not carry
 - a single known request, where one trace is the whole answer
 
+#### `tempo_slow_traces`
+
+Return the slowest traces for a service in a window, capped, with their duration and root operation. Use it after the statistics have named the operation, so the exemplars are from the part that is actually slow.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from tempo
+- **Parallel safe:** yes
+- **Requires:** tempo
+
+**Use when:**
+
+- finding an exemplar of the latency an aggregate has already located
+- seeing which downstream call dominates a slow request
+
+**Not for:**
+
+- establishing how common the slowness is, which needs the aggregate
+- an error with no latency component, where traces add nothing
+
+#### `tempo_trace_statistics`
+
+Count the traces for a service over a window and return them grouped by operation or status, rather than the spans. It is what says where the latency is concentrated before any single trace is opened.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from tempo
+- **Parallel safe:** yes
+- **Requires:** tempo
+
+**Use when:**
+
+- a latency alert where the slow operation is not yet known
+- deciding whether one endpoint is slow or the whole service is
+
+**Not for:**
+
+- the contents of a log line, which a trace does not carry
+- a single known request, where one trace is the whole answer
+
 ### vcs
+
+#### `bitbucket_change_statistics`
+
+Count the commits landing on a repository in a window, grouped by author or branch. It answers 'was there a deploy-shaped amount of change here' before any individual diff is read.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from bitbucket
+- **Parallel safe:** yes
+- **Requires:** bitbucket
+
+**Use when:**
+
+- an incident with a known start time and a suspected release
+- establishing whether a quiet service was changed at all
+
+**Not for:**
+
+- what one change did, which needs the change list rather than a count
+- a runtime failure with no deployment in the window
+
+#### `bitbucket_recent_changes`
+
+Return the changes merged into a repository in a window, newest first and capped, with title and author. This is what turns a time correlation into a specific change somebody can read.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** change from bitbucket
+- **Parallel safe:** yes
+- **Requires:** bitbucket
+
+**Use when:**
+
+- identifying the release that lines up with the start of a symptom
+- reading what changed in a service between two known-good times
+
+**Not for:**
+
+- how much changed overall, which the statistics answer more cheaply
+- a configuration change made outside version control
 
 #### `github_change_statistics`
 
@@ -1956,6 +5447,82 @@ Return the changes merged into a repository in a window, newest first and capped
 - **Evidence:** change from github
 - **Parallel safe:** yes
 - **Requires:** github
+
+**Use when:**
+
+- identifying the release that lines up with the start of a symptom
+- reading what changed in a service between two known-good times
+
+**Not for:**
+
+- how much changed overall, which the statistics answer more cheaply
+- a configuration change made outside version control
+
+#### `gitlab_change_statistics`
+
+Count the commits landing on a repository in a window, grouped by author or branch. It answers 'was there a deploy-shaped amount of change here' before any individual diff is read.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from gitlab
+- **Parallel safe:** yes
+- **Requires:** gitlab
+
+**Use when:**
+
+- an incident with a known start time and a suspected release
+- establishing whether a quiet service was changed at all
+
+**Not for:**
+
+- what one change did, which needs the change list rather than a count
+- a runtime failure with no deployment in the window
+
+#### `gitlab_recent_changes`
+
+Return the changes merged into a repository in a window, newest first and capped, with title and author. This is what turns a time correlation into a specific change somebody can read.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** change from gitlab
+- **Parallel safe:** yes
+- **Requires:** gitlab
+
+**Use when:**
+
+- identifying the release that lines up with the start of a symptom
+- reading what changed in a service between two known-good times
+
+**Not for:**
+
+- how much changed overall, which the statistics answer more cheaply
+- a configuration change made outside version control
+
+#### `sourcegraph_change_statistics`
+
+Count the commits landing on a repository in a window, grouped by author or branch. It answers 'was there a deploy-shaped amount of change here' before any individual diff is read.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** change from sourcegraph
+- **Parallel safe:** yes
+- **Requires:** sourcegraph
+
+**Use when:**
+
+- an incident with a known start time and a suspected release
+- establishing whether a quiet service was changed at all
+
+**Not for:**
+
+- what one change did, which needs the change list rather than a count
+- a runtime failure with no deployment in the window
+
+#### `sourcegraph_recent_changes`
+
+Return the changes merged into a repository in a window, newest first and capped, with title and author. This is what turns a time correlation into a specific change somebody can read.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** change from sourcegraph
+- **Parallel safe:** yes
+- **Requires:** sourcegraph
 
 **Use when:**
 

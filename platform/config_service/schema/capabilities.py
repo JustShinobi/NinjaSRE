@@ -27,7 +27,7 @@ whose absence means "not allowed to run".
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Annotated, Any
+from typing import Any
 
 from pydantic import model_validator
 
@@ -35,8 +35,6 @@ from platform.config_service.schema.types import (
     ConfigSection,
     ConfiguredStr,
     ConfiguredStrList,
-    field_help,
-    section_help,
 )
 
 
@@ -48,109 +46,39 @@ class ProtocolServerSettings(ConfigSection):
     would be a place to put a token.
     """
 
-    model_config = section_help(
-        "An outside tool server this team has registered. Its tools join the catalogue "
-        "alongside the shipped ones. No secret is entered here: the token is stored in "
-        "the vault and named below."
-    )
-
     #: Required. A server with no name has no tools, because a bridged tool's
     #: catalogue name is built from it.
-    name: Annotated[
-        ConfiguredStr,
-        field_help(
-            "What this server is called. Required: every tool it offers is listed under this name."
-        ),
-    ]
-    protocol: Annotated[ConfiguredStr, field_help("The protocol the server speaks.")] = "mcp"
-    transport: Annotated[
-        ConfiguredStr,
-        field_help(
-            "How the server is reached: over HTTP at a URL, or by running a command in a sandbox."
-        ),
-    ] = "http"
+    name: ConfiguredStr
+    protocol: ConfiguredStr = "mcp"
+    transport: ConfiguredStr = "http"
     #: The HTTP endpoint, for an ``http`` server.
-    url: Annotated[
-        ConfiguredStr, field_help("The address of the server, when it is reached over HTTP.")
-    ] = ""
+    url: ConfiguredStr = ""
     #: The command, for a ``stdio`` server. Run inside a sandbox, never on the host.
-    command: Annotated[
-        ConfiguredStrList,
-        field_help(
-            "The command that starts the server, when it is run locally. It runs in a "
-            "sandbox, never directly on the host."
-        ),
-    ] = ()
+    command: ConfiguredStrList = ()
     #: What the proxy resolves this server's credential and egress allow-list
     #: under. Defaults to one derived from the server's name, so a team that
     #: registers a server and stores a credential for it needs no third setting.
-    credential: Annotated[
-        ConfiguredStr,
-        field_help(
-            "Which stored credential this server authenticates with. Leave it empty and "
-            "the one named after the server is used."
-        ),
-    ] = ""
-    enabled: Annotated[
-        bool, field_help("Off keeps the server registered and offers none of its tools.")
-    ] = True
+    credential: ConfiguredStr = ""
+    enabled: bool = True
 
 
 class CapabilitiesConfig(ConfigSection):
     """The capability allow-list, deny-list, parameters, and bridged servers."""
 
-    model_config = section_help(
-        "Which of the platform's capabilities this team may run, what they are called "
-        "with, and any outside tool servers it has registered. A capability that is both "
-        "allowed and blocked is blocked."
-    )
-
-    enabled: Annotated[
-        ConfiguredStrList | None,
-        field_help(
-            "The only capabilities this team may run. Leave it unset for everything the "
-            "catalogue offers; an empty list means nothing at all, which is rarely what "
-            "is meant."
-        ),
-    ] = None
-    disabled: Annotated[
-        ConfiguredStrList,
-        field_help("Capabilities this team may never run, whatever else allows them."),
-    ] = ()
-    disabled_tags: Annotated[
-        ConfiguredStrList,
-        field_help(
-            "Whole families switched off at once — every remediation capability, every "
-            "capability of a vendor being retired — so the list stays right as the "
-            "catalogue grows."
-        ),
-    ] = ()
+    enabled: ConfiguredStrList | None = None
+    disabled: ConfiguredStrList = ()
+    disabled_tags: ConfiguredStrList = ()
     #: The one open door in the schema, and deliberately narrow: a capability's
     #: parameters are defined by that capability, not here. Everything else is a
     #: declared field.
-    parameters: Annotated[
-        Mapping[str, Mapping[str, Any]],
-        field_help(
-            "Per-capability argument defaults, keyed by capability name. Only for "
-            "capabilities that accept them."
-        ),
-    ] = {}
+    parameters: Mapping[str, Mapping[str, Any]] = {}
     #: The protocol servers this team bridges in. Empty for every deployment
-    #: that registers none.
-    protocol_servers: Annotated[
-        tuple[ProtocolServerSettings, ...],
-        field_help("Outside tool servers this team has registered."),
-    ] = ()
+    #: that enables none, which is what FR-020 asks for.
+    protocol_servers: tuple[ProtocolServerSettings, ...] = ()
     #: ``<server>.<tool>`` to a side-effect level, as an operator decided it. A
     #: tool absent from this mapping is unclassified, which is a write, which
     #: cannot run.
-    protocol_classifications: Annotated[
-        Mapping[str, str],
-        field_help(
-            "What each bridged tool is allowed to do, keyed by server and tool name. A "
-            "tool nobody has classified is treated as a write and cannot run."
-        ),
-    ] = {}
+    protocol_classifications: Mapping[str, str] = {}
 
     @model_validator(mode="after")
     def _server_names_are_distinct(self) -> CapabilitiesConfig:
@@ -199,8 +127,7 @@ class CapabilitiesConfig(ConfigSection):
 
         What cross-reference validation checks against the live catalogue: a
         name here that no capability answers to is a setting that will never do
-        anything, and it is worth finding out at write time rather than during an
-        investigation.
+        anything, and finding that out at write time is the whole of SC-004.
         """
         named = list(self.enabled or ()) + list(self.disabled) + list(self.parameters)
         return tuple(dict.fromkeys(named))

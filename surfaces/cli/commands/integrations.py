@@ -7,9 +7,6 @@ and there is no flag here that would accept one.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
-
 import typer
 
 from platform.observability.diagnostics import health_summary
@@ -141,87 +138,20 @@ def setup(
     raise typer.Exit(run_command(invocation, "integrations.setup", body))
 
 
-#: What the shallow verify cannot answer, said once. Printed when ``--report``
-#: was asked for and the deployment has no way to reach the vendor.
-_NO_DEEP_VERIFIER = (
-    "this deployment cannot reach the vendor — no deep verifier is composed, so what is "
-    "above is the credential's state and not the vendor's answer"
-)
-
-
-def _report_pairs(document: Mapping[str, Any] | None) -> tuple[tuple[str, str], ...]:
-    """Return the vendor's own answer as the lines a terminal prints.
-
-    A signal source answers two questions a credential check cannot reach —
-    whether it is holding anything, and whether its clock agrees with ours — and
-    each is rendered only when it was asked. A vendor that is not a signal
-    source has neither, and printing "clock: unknown" for it would invent a
-    measurement nobody made.
-    """
-    if document is None:
-        return (("Vendor report", _NO_DEEP_VERIFIER),)
-
-    pairs: list[tuple[str, str]] = []
-    window = document.get("data_window")
-    if isinstance(window, Mapping):
-        rows = window.get("rows", 0)
-        minutes = window.get("window_minutes", 0)
-        pairs.append(("Data", f"{rows} record(s) over the last {minutes}m — {window.get('probe')}"))
-        if window.get("state") == "empty_window" and not window.get("usable", True):
-            pairs.append(("Empty window", str(window.get("advice", ""))))
-
-    clock = document.get("clock")
-    if isinstance(clock, Mapping):
-        offset = clock.get("offset_seconds")
-        tolerance = clock.get("tolerance_seconds", 0.0)
-        pairs.append(
-            (
-                "Clock",
-                "not reported by this source"
-                if offset is None
-                else f"{float(offset):+.1f}s from this platform, tolerance {float(tolerance):.1f}s",
-            )
-        )
-
-    degradations = document.get("degradations")
-    if isinstance(degradations, list) and degradations:
-        pairs.append(("Degraded", "; ".join(str(reason) for reason in degradations)))
-    return tuple(pairs)
-
-
 @app.command("verify")
 def verify(
     ctx: typer.Context,
     integration: str = typer.Argument(..., help="The integration to check."),
-    report: bool = typer.Option(
-        False,
-        "--report",
-        help=(
-            "Also ask the vendor itself: whether it is holding recent data, and whether "
-            "its clock agrees with this platform's. Makes live calls."
-        ),
-    ),
 ) -> None:
-    """Check one integration's credential and connectivity.
-
-    ``--report`` is a separate flag rather than the default because it costs
-    something. The check without it reads what this deployment stored; the check
-    with it reaches the vendor, and a screen that made that call on every render
-    would be spending an operator's rate limit to redraw a page.
-    """
+    """Check one integration's credential and connectivity."""
     invocation: Invocation = ctx.obj
 
     async def body() -> Output:
-        client = invocation.client()
-        status = await client.verify_integration(integration)
-        document = await client.verify_integration_report(integration) if report else None
+        status = await invocation.client().verify_integration(integration)
         glyph = invocation.terminal.glyph("ok" if status.healthy else "failed")
-        data: dict[str, Any] = dict(status.to_record())
-        if report:
-            data["report"] = dict(document) if document is not None else None
         return Output(
             command="integrations.verify",
-            data=data,
+            data=status.to_record(),
             text=Detail(
                 title=f"{glyph} {status.integration}",
                 pairs=(
@@ -229,7 +159,6 @@ def verify(
                     ("Healthy", "yes" if status.healthy else "no"),
                     ("Credential", status.credential_state),
                     ("Detail", status.detail),
-                    *(_report_pairs(document) if report else ()),
                 ),
             ).render(invocation.terminal),
         )

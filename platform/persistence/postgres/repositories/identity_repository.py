@@ -38,7 +38,6 @@ def _to_user(row: models.User) -> User:
         is_active=row.is_active,
         external_subject=row.external_subject,
         created_at=as_utc(row.created_at),
-        local_password_hash=row.local_password_hash,
     )
 
 
@@ -51,7 +50,6 @@ def _to_token(row: models.ApiToken) -> ApiToken:
         scopes=as_tuple(row.scopes),
         team_node_id=row.team_node_id,
         description=row.description,
-        unscoped=row.unscoped,
         created_at=as_utc(row.created_at),
         expires_at=as_utc(row.expires_at),
         revoked_at=as_utc(row.revoked_at),
@@ -146,7 +144,6 @@ class PostgresIdentityRepository(TenantBound):
             scopes=as_list(token.scopes),
             team_node_id=token.team_node_id,
             description=token.description,
-            unscoped=token.unscoped,
             created_at=token.created_at or utc_now(),
             expires_at=token.expires_at,
             revoked_at=token.revoked_at,
@@ -212,15 +209,6 @@ class PostgresIdentityRepository(TenantBound):
         if row is None:
             return False
         row.last_used_at = used_at
-        await self.session.flush()
-        return True
-
-    async def set_local_password(self, user_id: str, *, password_hash: str) -> bool:
-        """Store the hash of a person's local passphrase, and return whether they existed."""
-        row = await self.session.get(models.User, (self.org_id, user_id))
-        if row is None:
-            return False
-        row.local_password_hash = password_hash
         await self.session.flush()
         return True
 

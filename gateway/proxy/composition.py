@@ -26,7 +26,7 @@ from platform.credentials.proxy.rate_limit import TenantRateLimiter
 from platform.credentials.proxy.resolution import CredentialResolver
 from platform.persistence.ports.transaction import PersistenceGateway
 from platform.persistence.postgres.gateway import PostgresPersistence
-from platform.startup.validation import validate_proxy
+from platform.startup.validation import validate
 
 
 def build_proxy_engine(gateway: PersistenceGateway) -> ProxyEngine:
@@ -55,16 +55,10 @@ def build_proxy_app(
     hides what it opened leaves a pool nobody closes.
 
     Raises ``ConfigurationInvalid`` when validation finds something fatal.
-
-    Validates against ``validate_proxy`` rather than the deployment-wide
-    ``validate``: the proxy brokers credentials and never calls a model, so a
-    missing model provider is not this process's problem to refuse over — that
-    minimum-viable-configuration rule belongs to ``app`` and ``console``, the
-    processes that actually call one.
     """
     source = dict(environ if environ is not None else os.environ)
 
-    report = validate_proxy(source)
+    report = validate(source)
     report.raise_if_invalid()
 
     store = PostgresPersistence.from_url(source[NINJASRE_DATABASE_URL_ENV])

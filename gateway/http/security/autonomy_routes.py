@@ -53,24 +53,6 @@ AUTONOMY_ROUTES: Final[tuple[Route, ...]] = (
         path="/v1/autonomy/policy/{node_id}/overrides",
         permission=Permission.CONFIG_WRITE,
     ),
-    # Taking one away is the same decision as granting it, in the other
-    # direction, so it takes the same permission. Narrowing autonomy is the safe
-    # direction and it is still a change to the posture, which is the thing this
-    # permission governs.
-    Route(
-        method="DELETE",
-        path="/v1/autonomy/policy/{node_id}/overrides/{name}",
-        permission=Permission.CONFIG_WRITE,
-    ),
-    # Reading what each risk class would meet. ``config.read``, like the explain
-    # it is composed of: it resolves hypotheticals and performs nothing, and the
-    # whole point is that somebody who cannot change the posture can still see
-    # what it will do.
-    Route(
-        method="GET",
-        path="/v1/autonomy/policy/{node_id}/outlook",
-        permission=Permission.CONFIG_READ,
-    ),
     # Explaining is a read: it resolves a hypothetical action and performs
     # nothing. A viewer asking "why did nothing happen" gets an answer.
     Route(
@@ -82,16 +64,6 @@ AUTONOMY_ROUTES: Final[tuple[Route, ...]] = (
         method="GET",
         path="/v1/autonomy/policy/{node_id}/bounds",
         permission=Permission.CONFIG_READ,
-    ),
-    # Reading it is every viewer's. A screen where nothing is happening looks
-    # identical whether nothing needed doing or every automated write is
-    # stopped, and only one of those is a thing somebody has to be told. The
-    # asymmetry with the two rows below is the point: everybody may know,
-    # a responder may decide.
-    Route(
-        method="GET",
-        path="/v1/autonomy/kill-switch",
-        permission=Permission.INVESTIGATION_READ,
     ),
     Route(
         method="POST",

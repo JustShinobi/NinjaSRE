@@ -46,12 +46,6 @@
       "principal_role": "viewer"
     },
     {
-      "name": "audit-flooded",
-      "description": "The same deployment, its audit trail dominated by two hundred entries from its own automation principal against a total far larger still — the shape that hides every real event behind a count nothing on screen explains.",
-      "derives_from": "populated",
-      "principal_role": "owner"
-    },
-    {
       "name": "scale",
       "description": "Ten thousand runs, ten thousand events, ten thousand resources and a five-hundred-node configuration tree. Generated from a fixed seed rather than committed, so a measurement taken against it today is comparable with one taken last month.",
       "derives_from": "populated",

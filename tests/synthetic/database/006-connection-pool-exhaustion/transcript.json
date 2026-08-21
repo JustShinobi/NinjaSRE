@@ -1,0 +1,77 @@
+{
+  "provider_id": "recorded",
+  "model_id": "recorded-transcript",
+  "scenario": "database/006-connection-pool-exhaustion",
+  "entries": [
+    {
+      "kind": "structured",
+      "structured": {
+        "is_incident": true,
+        "confidence": 0.95,
+        "reason": "an alert is firing on a production service",
+        "alert_name": "DatabaseErrors",
+        "severity": "critical",
+        "summary": "checkout cannot acquire a database connection",
+        "components": [
+          "checkout"
+        ],
+        "error_text": ""
+      }
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "id": "c1",
+          "name": "aws_rds_resource_inventory",
+          "arguments": {
+            "kind": "",
+            "start": "",
+            "end": "",
+            "group_by": "DBInstanceStatus"
+          }
+        },
+        {
+          "id": "c2",
+          "name": "aws_rds_recent_changes",
+          "arguments": {
+            "kind": "",
+            "start": "",
+            "end": "",
+            "limit": 10
+          }
+        }
+      ]
+    },
+    {
+      "kind": "invoke",
+      "finish_reason": "stop",
+      "text": "Both database instances are available [e1], so nothing is down. The reporting job opened 96 of the 100 connections against the checkout database at 12:16 [e2], four minutes before the alert. The Multi-AZ failover completed at 11:02 and the instance has been available since, so the failover is not the cause, and CPU is not saturated on either instance."
+    },
+    {
+      "kind": "structured",
+      "structured": {
+        "root_cause": "the reporting job holds 96 of the 100 connections in the checkout database's pool, so checkout cannot acquire one",
+        "root_cause_category": "resource_exhaustion",
+        "summary": "Both instances are available [e1] and the reporting job took 96 of 100 connections at 12:16 [e2]. The earlier Multi-AZ failover completed cleanly at 11:02, and CPU is not the constraint \u2014 the pool is.",
+        "causal_chain": [
+          "the reporting job opened 96 connections",
+          "the checkout pool had four left",
+          "checkout's own acquisitions timed out"
+        ],
+        "claims": [],
+        "remediation_steps": [
+          "give the reporting job its own connection pool with a hard cap",
+          "run the reporting job against the read replica"
+        ],
+        "recommended_actions": [
+          "give the reporting job its own connection pool with a hard cap",
+          "run the reporting job against the read replica"
+        ],
+        "contributing_factors": [],
+        "confidence": 0.79
+      }
+    }
+  ]
+}

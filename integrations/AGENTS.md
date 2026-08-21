@@ -3,9 +3,7 @@
 **Tier 2.** May import: `core`, `platform`, `config`. Must never import: `capabilities`, `gateway`, `surfaces`.
 
 Per-vendor credential and connection schema, verifier, API client, and typed
-tools. One package per vendor — exactly the vendors an environment exists to
-validate end to end, read from the discovered catalogue rather than counted
-here.
+tools. One package per vendor, and roughly 85 of them by the end of wave 6.
 
 ## Conventions
 
@@ -62,7 +60,7 @@ the permissions its capabilities need, and how each paginated endpoint asks for
 the next page.
 
 Adding a vendor is one package and no edit anywhere else — the property that has
-to hold for a growing catalogue to be addable one package at a time.
+to hold for a catalogue of eighty-five to be addable one at a time.
 
 Three things deserve care:
 

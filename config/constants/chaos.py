@@ -161,13 +161,15 @@ OTEL_DEMO_INSTALL_TIMEOUT_SECONDS: Final[float] = 600.0
 
 # --- Cloud end-to-end --------------------------------------------------------
 
-#: The managed services the cloud suite exercises, one scenario each. Empty:
-#: every scenario this suite shipped was AWS-managed, and the AWS integrations
-#: left the catalogue with the rest of the vendors no validating environment
-#: covers. The provisioning, teardown, reaper and cost-bound machinery stay —
-#: and stay tested, by the cases in this suite that exercise them directly —
-#: for whichever cloud-managed service returns with an environment behind it.
-CLOUD_SCENARIO_IDS: Final[tuple[str, ...]] = ()
+#: The managed services the cloud suite exercises, one scenario each.
+CLOUD_SCENARIO_IDS: Final[tuple[str, ...]] = (
+    "eks",
+    "ec2",
+    "cloudwatch",
+    "lambda",
+    "ecs",
+    "rds",
+)
 
 #: The tag every provisioned resource carries, naming the suite that made it.
 #: A reaper that swept on anything less specific would be a reaper nobody dares
@@ -198,9 +200,15 @@ CLOUD_ORPHAN_MAX_AGE_SECONDS: Final[float] = 7200.0
 #: What one run of each cloud scenario is allowed to cost, in US dollars.
 #: Declared per scenario rather than as one number, because a managed database
 #: and a function invocation are not the same order of expense and a single
-#: bound would be either useless or wrong. Empty for the same reason
-#: ``CLOUD_SCENARIO_IDS`` is.
-CLOUD_SCENARIO_COST_BOUNDS_USD: Final[dict[str, float]] = {}
+#: bound would be either useless or wrong.
+CLOUD_SCENARIO_COST_BOUNDS_USD: Final[dict[str, float]] = {
+    "eks": 4.00,
+    "ec2": 1.00,
+    "cloudwatch": 0.50,
+    "lambda": 0.25,
+    "ecs": 1.50,
+    "rds": 2.50,
+}
 
 #: What a whole cloud suite run is allowed to cost, whatever the per-scenario
 #: bounds sum to. A second ceiling rather than a derived one: a scenario added

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DecisionControls } from '@/surfaces/decision';
+import { ConfigPreview } from '@/surfaces/preview';
 import { CredentialField } from '@/surfaces/credential';
 import { Figure } from '@/surfaces/figure';
 import { ProposalCard, PROPOSAL_FIELDS } from '@/surfaces/proposal';
@@ -140,116 +141,105 @@ describe('deciding in place', () => {
   });
 });
 
-describe('a credential field', () => {
+describe('previewing a change', () => {
   const LABELS = {
-    submit: 'Store this credential',
-    sending: 'Storing…',
-    stored: 'Stored in the vault. It is never shown again.',
-    absent: 'This one declares no credential fields.',
-    whereToGetIt: 'Where to get it:',
-    required: 'Every required field needs a value.',
-    saved: 'Stored. Nothing you typed is kept here.',
-    refused: 'The deployment refused:',
-    unreachable: 'The deployment could not be reached.',
-    minScope: 'Minimum permission:',
-    guide: 'Step-by-step guide',
+    setting: 'Setting',
+    value: 'Value',
+    submit: 'Preview',
+    before: 'Now',
+    after: 'After saving',
+    locked: 'Locked here',
+    lockedDetail: 'A change made here would be refused.',
+    gated: 'Approval-gated',
+    gatedDetail: 'Saving this queues a change rather than applying it.',
+    provenance: 'Set at',
+    empty: 'Nothing would change',
   };
 
-  const FIELDS = [
-    {
-      name: 'ANTHROPIC_API_KEY',
-      label: 'API key',
-      help: "Starts with 'sk-ant-'.",
-      secret: true,
-      required: true,
-    },
-  ];
+  it('renders the deployment’s answer rather than working one out', async () => {
+    render(
+      <ConfigPreview
+        nodeId="org-northwind"
+        settings={[{ name: 'investigation.max_loops', value: '8' }]}
+        labels={LABELS}
+      />,
+    );
 
-  it('generates its fields from the schema it is handed, and nothing else', () => {
-    render(<CredentialField integration="anthropic" fields={FIELDS} labels={LABELS} />);
+    await userEvent.click(screen.getByTestId('ask-preview'));
 
-    const field = screen.getByLabelText('API key');
+    const change = await screen.findByTestId('preview-change');
+    expect(change).toHaveAttribute('data-path', 'investigation.max_loops');
+    expect(change).toHaveTextContent('8');
+    expect(change).toHaveTextContent('12');
+    expect(sent?.url).toBe('/api/preview');
+  });
+
+  it('says what a locked value would do, and that a gated one is queued', async () => {
+    render(
+      <ConfigPreview
+        nodeId="org-northwind"
+        settings={[{ name: 'investigation.max_loops', value: '8' }]}
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByTestId('ask-preview'));
+
+    expect(await screen.findByTestId('locked')).toHaveTextContent(LABELS.lockedDetail);
+    expect(screen.getByTestId('gated')).toHaveTextContent(LABELS.gatedDetail);
+  });
+
+  it('shows nothing about a change nobody has asked about yet', () => {
+    render(<ConfigPreview nodeId="n" settings={[]} labels={LABELS} />);
+
+    expect(screen.queryByTestId('preview-changes')).toBeNull();
+  });
+});
+
+describe('a credential field', () => {
+  const LABELS = {
+    title: 'Credentials',
+    replace: 'Replace this credential',
+    stored: 'A credential is stored. It is never shown again.',
+    absent: 'No credential is stored.',
+    verify: 'Verify now',
+  };
+
+  it('posts to the API origin rather than to this one', () => {
+    render(
+      <CredentialField
+        integration="proxmox"
+        required={['api_token']}
+        labels={LABELS}
+      />,
+    );
+
+    const form = screen.getByTestId('credential');
+    // `apiOrigin()` is empty in a test, so what is asserted is the path — and
+    // that it is the deployment's rather than one of this console's own routes.
+    expect(form.getAttribute('action')).toBe('/v1/integrations/proxmox/verify');
+    expect(form.getAttribute('action')).not.toContain('/api/');
+  });
+
+  it('never renders a stored secret back, and hides what is typed', () => {
+    render(
+      <CredentialField
+        integration="proxmox"
+        required={['api_token']}
+        labels={LABELS}
+      />,
+    );
+
+    const field = screen.getByLabelText('api_token');
     expect(field).toHaveValue('');
-    // A secret is a password field with the browser's own memory turned off.
     expect(field).toHaveAttribute('type', 'password');
-    expect(field).toHaveAttribute('autocomplete', 'off');
-    expect(screen.getByText("Starts with 'sk-ant-'.")).toBeInTheDocument();
+    expect(screen.getByText(LABELS.stored)).toBeInTheDocument();
   });
 
-  it('renders a field the schema does not call secret as an ordinary one', () => {
-    render(
-      <CredentialField
-        integration="metrics-store"
-        fields={[
-          {
-            name: 'base_url',
-            label: 'Base URL',
-            help: '',
-            secret: false,
-            required: true,
-          },
-        ]}
-        labels={LABELS}
-      />,
-    );
-
-    expect(screen.getByLabelText('Base URL')).toHaveAttribute('type', 'text');
-  });
-
-  it('puts where to get it beside the field', () => {
-    render(
-      <CredentialField
-        integration="anthropic"
-        fields={FIELDS}
-        whereToGetIt="console.anthropic.com, under API keys."
-        labels={LABELS}
-      />,
-    );
-
-    expect(screen.getByTestId('where-to-get-it')).toHaveTextContent(
-      'console.anthropic.com, under API keys.',
-    );
-  });
-
-  it('says so when there is nothing to store', () => {
-    render(<CredentialField integration="proxmox" fields={[]} labels={LABELS} />);
+  it('says so when there is nothing stored', () => {
+    render(<CredentialField integration="proxmox" required={[]} labels={LABELS} />);
 
     expect(screen.getByText(LABELS.absent)).toBeInTheDocument();
-  });
-
-  it('will not send until every required field has something in it', async () => {
-    render(<CredentialField integration="anthropic" fields={FIELDS} labels={LABELS} />);
-
-    expect(screen.getByTestId('store-credential')).toBeDisabled();
-    await userEvent.type(screen.getByLabelText('API key'), 'sk-ant-sentinel');
-    expect(screen.getByTestId('store-credential')).toBeEnabled();
-  });
-
-  it('sends the value in a body, never in the address', async () => {
-    render(<CredentialField integration="anthropic" fields={FIELDS} labels={LABELS} />);
-
-    await userEvent.type(screen.getByLabelText('API key'), 'sk-ant-sentinel');
-    await userEvent.click(screen.getByTestId('store-credential'));
-
-    expect(sent?.url).toBe('/api/credential');
-    expect(sent?.url).not.toContain('sk-ant-sentinel');
-    expect(typeof sent?.init.body === 'string' ? sent.init.body : '').toContain(
-      'sk-ant-sentinel',
-    );
-  });
-
-  it('holds nothing back in the document once the write is accepted', async () => {
-    render(<CredentialField integration="anthropic" fields={FIELDS} labels={LABELS} />);
-
-    await userEvent.type(screen.getByLabelText('API key'), 'sk-ant-sentinel');
-    await userEvent.click(screen.getByTestId('store-credential'));
-
-    // Not the value, not a masked rendering of it, not a length. A masked value
-    // in the DOM is still a value in the DOM.
-    expect(screen.getByLabelText('API key')).toHaveValue('');
-    expect(document.body.innerHTML).not.toContain('sk-ant-sentinel');
-    expect(document.body.innerHTML).not.toContain('•');
-    expect(screen.getByTestId('credential-result')).toHaveTextContent(LABELS.saved);
   });
 });
 

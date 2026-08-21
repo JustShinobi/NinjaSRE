@@ -36,8 +36,8 @@ from typing import Final
 MAX_SKILL_METADATA_TOKENS: Final[int] = 128
 
 #: Cost of the whole skill index together — what a turn pays before it has
-#: chosen anything. Sized so that the catalogue, each integration shipping
-#: one methodology skill, plus the cross-vendor
+#: chosen anything. Sized so that a catalogue of roughly eighty-five
+#: integrations, each shipping one methodology skill, plus the cross-vendor
 #: skills, still leaves the large majority of the window for the investigation.
 MAX_CATALOGUE_METADATA_TOKENS: Final[int] = 14_000
 

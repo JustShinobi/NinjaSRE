@@ -32,7 +32,6 @@ from platform.observation.bridge.provenance import provenance_change
 from platform.observation.bridge.rules import CoverageClaim, overlaps
 from platform.observation.bridge.supplementary import (
     TEXTFILE_METRICS,
-    published_for_series,
     published_readings,
 )
 from platform.observation.detectors.model import (
@@ -261,32 +260,6 @@ def test_a_node_publishing_none_of_them_produces_no_keys_rather_than_empty_ones(
     published = published_readings(mapping, resource_id=PVE01.resource_id)
 
     assert published == {}
-
-
-def test_published_for_series_needs_no_estate_mapping_pass() -> None:
-    """A caller that already knows the one node it is asking about — an
-    on-demand tool naming it directly — skips the whole-corpus join and gets
-    the same three-key contract straight from the raw series."""
-    published = published_for_series(
-        (
-            series(
-                "node_systemd_unit_state",
-                1.0,
-                instance="pve01:9100",
-                name="corosync-qdevice.service",
-                state="failed",
-            ),
-            series("node_bridge_up", 0.0, instance="pve01:9100", bridge="vmbr0"),
-        )
-    )
-
-    assert published["failed_units"] == ("corosync-qdevice.service",)
-    assert published["bridges"] == {"vmbr0": False}
-    assert "thin_pool_metadata" not in published
-
-
-def test_published_for_series_of_nothing_publishes_nothing() -> None:
-    assert published_for_series(()) == {}
 
 
 def test_the_textfile_collector_is_a_declared_publication_path() -> None:

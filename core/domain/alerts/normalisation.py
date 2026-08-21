@@ -165,12 +165,6 @@ class NormalisedAlert:
     reference: str = ""
     resolved: bool = False
     labels: Mapping[str, str] = field(default_factory=dict)
-    #: What the sender called the group this alert is in, when it groups at all.
-    #: Kept rather than re-derived, because the grouping decision belongs to the
-    #: system that made it: a deployment that disagreed with its own Alertmanager
-    #: about which notifications are one problem would undo the grouping the
-    #: operator configured. Empty for a source with no such concept.
-    group_key: str = ""
 
     def to_record(self) -> dict[str, Any]:
         """Return a JSON-serialisable record of this alert."""
@@ -187,7 +181,6 @@ class NormalisedAlert:
             "reference": self.reference,
             "resolved": self.resolved,
             "labels": dict(self.labels),
-            "group_key": self.group_key,
         }
 
     @classmethod
@@ -206,7 +199,6 @@ class NormalisedAlert:
             reference=str(record.get("reference", "")),
             resolved=bool(record.get("resolved", False)),
             labels={str(key): str(value) for key, value in (record.get("labels") or {}).items()},
-            group_key=str(record.get("group_key", "")),
         )
 
 
@@ -364,15 +356,7 @@ class AlertmanagerAdapter:
         return "receiver" in payload or "groupKey" in payload or "commonLabels" in payload
 
     def normalise(self, raw: RawAlert) -> NormalisedAlert:
-        """Return the group's leading alert, with the group's labels merged in.
-
-        The leading alert decides the headline — its labels, its window, its
-        annotations — but every member's own component is kept, not only the
-        leading one's. A group of two members firing on two different hosts
-        is one incident about two hosts, and a component list that named only
-        the first would leave the second one invisible to whoever reads the
-        incident afterwards.
-        """
+        """Return the group's leading alert, with the group's labels merged in."""
         payload = raw.payload
         alerts = [_mapping(item) for item in _items(payload.get("alerts"))]
         firing = next((item for item in alerts if _first(item, "status") == "firing"), None)
@@ -384,7 +368,6 @@ class AlertmanagerAdapter:
         }
         annotations = _labels(_mapping(leading.get("annotations")))
         status = _first(leading, "status") or _first(payload, "status")
-        member_labels = tuple(_labels(_mapping(member.get("labels"))) for member in alerts)
 
         return NormalisedAlert(
             alert_source=self.source,
@@ -392,14 +375,13 @@ class AlertmanagerAdapter:
             severity=_severity(labels.get("severity", "")),
             summary=annotations.get("summary", "") or annotations.get("title", ""),
             description=annotations.get("description", "") or annotations.get("message", ""),
-            components=_components(labels, *member_labels),
+            components=_components(labels),
             error_text=annotations.get("description", ""),
             started_at=_moment(leading.get("startsAt")),
             ended_at=_moment(leading.get("endsAt")),
             reference=_first(leading, "generatorURL") or _first(payload, "externalURL"),
             resolved=status == "resolved",
             labels=labels,
-            group_key=_first(payload, "groupKey"),
         )
 
 
@@ -457,6 +439,165 @@ class GrafanaAdapter:
             reference=_first(payload, "ruleUrl", "externalURL") or _first(leading, "generatorURL"),
             resolved=state in {"ok", "resolved"},
             labels={**matched_labels, **labels},
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PagerDutyAdapter:
+    """PagerDuty's v3 incident webhook."""
+
+    source: AlertSource = AlertSource.PAGERDUTY
+
+    def matches(self, raw: RawAlert) -> bool:
+        """Return whether ``raw`` carries a PagerDuty event envelope."""
+        event = _mapping(raw.payload.get("event"))
+        return bool(event) and ("data" in event or "event_type" in event)
+
+    def normalise(self, raw: RawAlert) -> NormalisedAlert:
+        """Return the incident the event describes."""
+        event = _mapping(raw.payload.get("event"))
+        data = _mapping(event.get("data"))
+        service = _first(_mapping(data.get("service")), "summary", "name")
+        priority = _first(_mapping(data.get("priority")), "summary", "name")
+        status = _first(data, "status")
+
+        labels = {"status": status, "urgency": _first(data, "urgency"), "priority": priority}
+        if service:
+            labels["service"] = service
+
+        return NormalisedAlert(
+            alert_source=self.source,
+            alert_name=_first(data, "title", "summary"),
+            severity=_severity(priority, _first(data, "urgency")),
+            summary=_first(data, "title", "summary"),
+            description=_first(data, "description"),
+            components=_unique(service),
+            error_text=_first(data, "description"),
+            started_at=_moment(data.get("created_at")) or _moment(event.get("occurred_at")),
+            ended_at=_moment(data.get("resolved_at")),
+            reference=_first(data, "html_url", "self"),
+            resolved=status == "resolved" or _first(event, "event_type").endswith("resolved"),
+            labels={key: value for key, value in labels.items() if value},
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class DatadogAdapter:
+    """Datadog's monitor webhook.
+
+    The body is operator-templated, so the adapter reads the field names
+    Datadog's own default template emits and treats everything else as absent.
+    """
+
+    source: AlertSource = AlertSource.DATADOG
+
+    def matches(self, raw: RawAlert) -> bool:
+        """Return whether ``raw`` carries Datadog's monitor fields."""
+        payload = raw.payload
+        return "alert_id" in payload or "alert_title" in payload or "alert_transition" in payload
+
+    def normalise(self, raw: RawAlert) -> NormalisedAlert:
+        """Return the monitor alert, with ``key:value`` tags read as labels."""
+        payload = raw.payload
+        tags = _tag_labels(_strings(payload.get("tags")))
+        transition = _first(payload, "alert_transition", "alert_type")
+
+        return NormalisedAlert(
+            alert_source=self.source,
+            alert_name=_first(payload, "alert_title", "title", "alert_metric"),
+            severity=_severity(_first(payload, "priority", "alert_type"), tags.get("severity", "")),
+            summary=_first(payload, "alert_title", "title"),
+            description=_first(payload, "body", "text_only_msg"),
+            components=_components(tags),
+            error_text=_first(payload, "body", "text_only_msg"),
+            started_at=_moment(payload.get("date")) or _moment(payload.get("last_updated")),
+            ended_at=None,
+            reference=_first(payload, "link", "url", "event_msg"),
+            resolved=transition.strip().lower() in {"recovered", "resolved", "success"},
+            labels={**tags, "alert_id": _first(payload, "alert_id")}
+            if tags or _first(payload, "alert_id")
+            else {},
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SentryAdapter:
+    """Sentry's issue and error webhooks, current and legacy."""
+
+    source: AlertSource = AlertSource.SENTRY
+
+    def matches(self, raw: RawAlert) -> bool:
+        """Return whether ``raw`` carries a Sentry issue, error, or legacy body."""
+        payload = raw.payload
+        data = _mapping(payload.get("data"))
+        return "culprit" in payload or "issue" in data or "error" in data
+
+    def normalise(self, raw: RawAlert) -> NormalisedAlert:
+        """Return the issue, whichever of the three shapes carried it."""
+        payload = raw.payload
+        data = _mapping(payload.get("data"))
+        issue = _mapping(data.get("issue")) or _mapping(data.get("error")) or payload
+
+        project = _first(_mapping(issue.get("project")), "slug", "name") or _first(
+            payload, "project", "project_slug", "project_name"
+        )
+        level = _first(issue, "level") or _first(_mapping(payload.get("event")), "level")
+        culprit = _first(issue, "culprit") or _first(payload, "culprit")
+
+        labels = {"project": project, "level": level, "culprit": culprit}
+        return NormalisedAlert(
+            alert_source=self.source,
+            alert_name=_first(issue, "title", "metadata_type") or _first(payload, "message"),
+            severity=_severity(level),
+            summary=_first(issue, "title") or _first(payload, "message"),
+            description=culprit,
+            components=_unique(project),
+            error_text=_first(issue, "title") or _first(payload, "message"),
+            started_at=_moment(issue.get("firstSeen")) or _moment(issue.get("lastSeen")),
+            ended_at=None,
+            reference=_first(issue, "web_url", "permalink", "url") or _first(payload, "url"),
+            resolved=_first(issue, "status") == "resolved",
+            labels={key: value for key, value in labels.items() if value},
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class OpsgenieAdapter:
+    """Opsgenie's alert-action webhook."""
+
+    source: AlertSource = AlertSource.OPSGENIE
+
+    def matches(self, raw: RawAlert) -> bool:
+        """Return whether ``raw`` carries an Opsgenie alert envelope."""
+        alert = _mapping(raw.payload.get("alert"))
+        return "alertId" in alert or "tinyId" in alert
+
+    def normalise(self, raw: RawAlert) -> NormalisedAlert:
+        """Return the alert the action was taken on."""
+        payload = raw.payload
+        alert = _mapping(payload.get("alert"))
+        tags = _tag_labels(_strings(alert.get("tags")))
+        details = _labels(_mapping(alert.get("details")))
+        action = _first(payload, "action")
+
+        entity = _first(alert, "entity")
+        labels = {**tags, **details}
+        if _first(alert, "team"):
+            labels.setdefault("team", _first(alert, "team"))
+
+        return NormalisedAlert(
+            alert_source=self.source,
+            alert_name=_first(alert, "message", "alias"),
+            severity=_severity(_first(alert, "priority"), tags.get("severity", "")),
+            summary=_first(alert, "message"),
+            description=_first(alert, "description"),
+            components=_unique(entity, *_components(labels)),
+            error_text=_first(alert, "description"),
+            started_at=_moment(alert.get("createdAt")) or _moment(payload.get("createdAt")),
+            ended_at=None,
+            reference=_first(alert, "alertId", "tinyId"),
+            resolved=action.strip().lower() in {"close", "closed", "resolve", "resolved"},
+            labels=labels,
         )
 
 
@@ -533,6 +674,10 @@ class PlainTextAdapter:
 ADAPTERS: Final[tuple[AlertAdapter, ...]] = (
     GrafanaAdapter(),
     AlertmanagerAdapter(),
+    PagerDutyAdapter(),
+    DatadogAdapter(),
+    SentryAdapter(),
+    OpsgenieAdapter(),
     GenericWebhookAdapter(),
     PlainTextAdapter(),
 )
@@ -592,7 +737,6 @@ def normalise(raw: RawAlert) -> NormalisedAlert:
             reference=normalised.reference,
             resolved=normalised.resolved,
             labels=normalised.labels,
-            group_key=normalised.group_key,
         )
     return normalised
 
@@ -601,11 +745,15 @@ __all__ = [
     "ADAPTERS",
     "AlertAdapter",
     "AlertmanagerAdapter",
+    "DatadogAdapter",
     "GenericWebhookAdapter",
     "GrafanaAdapter",
     "NormalisedAlert",
+    "OpsgenieAdapter",
+    "PagerDutyAdapter",
     "PlainTextAdapter",
     "RawAlert",
+    "SentryAdapter",
     "Severity",
     "adapter_for",
     "detect_source",

@@ -76,7 +76,7 @@ reconnect, and stalled-subscriber disconnect. A client reconnects with
 ## Alert ingestion (`webhooks/`)
 
 `webhooks/router.py` serves one path per source
-(`/webhooks/{alertmanager,grafana,generic}`).
+(`/webhooks/{alertmanager,pagerduty,datadog,grafana,sentry,opsgenie,generic}`).
 Configuring a source means giving `gateway.http.app.create_app` a
 `webhook_routes` mapping of path name to a tuple of `WebhookSourceConfig`
 (verifier, org, team, principal) — an operator gives every team its own
@@ -86,11 +86,12 @@ everything, rather than not existing: an unconfigured deployment audits and
 rejects, it does not expose an open endpoint.
 
 Verification (`webhooks/verification/`) is one of three mechanisms:
-`HmacVerifier` (the generic signed webhook), or `SharedSecretVerifier`
-(Alertmanager, Grafana). `MutualTlsVerifier` is available for any source an
-operator puts behind an mTLS-terminating ingress — it trusts the two headers a
-reverse proxy sets after a successful handshake (`X-SSL-Client-Verify`,
-`X-SSL-Client-Subject`) rather than parsing a certificate itself.
+`HmacVerifier` (PagerDuty, Sentry, the generic signed webhook), or
+`SharedSecretVerifier` (Alertmanager, Datadog, Grafana, Opsgenie). `MutualTlsVerifier`
+is available for any source an operator puts behind an mTLS-terminating
+ingress — it trusts the two headers a reverse proxy sets after a successful
+handshake (`X-SSL-Client-Verify`, `X-SSL-Client-Subject`) rather than parsing
+a certificate itself.
 
 Tuning: `config/constants/surfaces.py` — `ALERT_DEDUP_WINDOW_SECONDS`
 (FR-018), `WEBHOOK_MAX_REQUESTS_PER_TEAM` / `WEBHOOK_RATE_LIMIT_WINDOW_SECONDS`

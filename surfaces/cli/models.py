@@ -353,10 +353,6 @@ class IntegrationStatus:
     healthy: bool = False
     credential_state: str = ""
     detail: str = ""
-    #: Where this deployment's own estate says this vendor is already running.
-    #: Empty for everything the estate says nothing about, which is most of the
-    #: catalogue and is the ordinary case.
-    suggested_address: str = ""
 
     def to_record(self) -> dict[str, Any]:
         """Return this status as a JSON-serialisable document."""
@@ -366,7 +362,38 @@ class IntegrationStatus:
             "healthy": self.healthy,
             "credential_state": self.credential_state,
             "detail": self.detail,
-            "suggested_address": self.suggested_address,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CredentialFieldSpec:
+    """One field an integration needs, as a prompt can ask for it.
+
+    Carried out of the credential schema rather than hard-coded per vendor,
+    which is what makes adding an integration a package rather than a change to
+    the wizard. ``secret`` is what decides whether the prompt echoes — get that
+    wrong and a token is on somebody's screen during a screen share.
+    """
+
+    name: str
+    label: str = ""
+    secret: bool = True
+    required: bool = True
+    help: str = ""
+
+    @property
+    def prompt(self) -> str:
+        """Return the text the wizard shows when asking for this."""
+        return self.label or self.name.replace("_", " ")
+
+    def to_record(self) -> dict[str, Any]:
+        """Return this field as a JSON-serialisable document."""
+        return {
+            "name": self.name,
+            "label": self.prompt,
+            "secret": self.secret,
+            "required": self.required,
+            "help": self.help,
         }
 
 
@@ -1298,6 +1325,7 @@ __all__ = [
     "ConfigView",
     "ConsideredRuleRecord",
     "CostReport",
+    "CredentialFieldSpec",
     "DetectionState",
     "DetectorRecord",
     "DiagnosticCheck",

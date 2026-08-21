@@ -33,11 +33,9 @@ import {
   Spinner,
   SplitLayout,
   StatTile,
-  StatusChip,
   StatusDot,
   Switch,
   Table,
-  TabLinks,
   Tabs,
   Textarea,
   Timeline,
@@ -49,7 +47,6 @@ import { SURFACE_STATES } from '@/components/surface';
 import {
   ATTENTION_STATUSES,
   CONNECTION_STATUSES,
-  CREDENTIAL_STATUSES,
   RESOURCE_STATUSES,
   RUN_STATUSES,
 } from '@/design/status';
@@ -183,16 +180,6 @@ export const GALLERY: readonly GalleryPrimitive[] = [
       id: `dot-${status}`,
       label: status,
       node: <StatusDot status={status} standalone />,
-    })),
-  },
-  {
-    name: 'StatusChip',
-    summary:
-      'A credential and its verification, in one translated word — never the raw spelling.',
-    entries: CREDENTIAL_STATUSES.map((status) => ({
-      id: `credential-chip-${status}`,
-      label: status,
-      node: <StatusChip locale="en" status={status} />,
     })),
   },
   {
@@ -482,7 +469,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
           <Toast
             role="success"
             message="Reclaimed 41 GiB on local-lvm."
-            recordedAt={{ href: '/administration?tab=audit', label: 'the audit trail' }}
+            recordedAt={{ href: '/audit', label: 'the audit trail' }}
             dismissLabel="Dismiss this message"
             onDismiss={nothing}
           />
@@ -495,7 +482,7 @@ export const GALLERY: readonly GalleryPrimitive[] = [
           <Toast
             role="danger"
             message="The reclaim failed."
-            recordedAt={{ href: '/administration?tab=audit', label: 'the audit trail' }}
+            recordedAt={{ href: '/audit', label: 'the audit trail' }}
             dismissLabel="Dismiss this message"
             onDismiss={nothing}
           />
@@ -683,27 +670,6 @@ export const GALLERY: readonly GalleryPrimitive[] = [
           >
             <p className="text-small">The transcript.</p>
           </Tabs>
-        ),
-      },
-    ],
-  },
-  {
-    name: 'TabLinks',
-    summary: 'The same row, as links, for a screen whose section is in its address.',
-    entries: [
-      {
-        id: 'tab-links-default',
-        label: 'default',
-        node: (
-          <TabLinks
-            label="The agent"
-            selected="topology"
-            tabs={[
-              { id: 'topology', label: 'Topology', href: '?tab=topology' },
-              { id: 'tools', label: 'Tools', href: '?tab=tools' },
-              { id: 'autonomy', label: 'Autonomy', href: '?tab=autonomy' },
-            ]}
-          />
         ),
       },
     ],

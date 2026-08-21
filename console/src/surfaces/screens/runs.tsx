@@ -5,7 +5,6 @@ import { message } from '@/i18n/messages';
 import { AreaHeader } from '@/shell/area';
 import { areaFor } from '@/shell/routes';
 import type { SurfaceContext } from '../context';
-import { readFailure } from '../failures';
 import { FilterBar } from '../filters';
 import { panelLabels, rowLabels } from '../labels';
 import { Panel } from '../panel';
@@ -20,7 +19,6 @@ import {
   text,
 } from '../read';
 import { RowList, type ListRow } from '../rows';
-import { triggerLabel } from '../run-trigger';
 import { readViewState, type FilterName } from '../url-state';
 
 /**
@@ -82,29 +80,15 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
   const none = message(locale, 'surface.none');
   const rows: readonly ListRow[] = sorted.map((record) => {
     const id = text(record, 'run_id');
-    const subject = orNone(readFailure(text(record, 'summary'), locale).title, none);
-    const trigger = text(record, 'trigger');
     const seconds = durationOf(record);
     return {
       id,
       href: `/runs/${id}`,
       cells: [
-        // The identity of an investigation is its subject, not the 32-character
-        // hex the deployment happened to assign it. A run that failed because
-        // nothing is configured used to fill this cell with the deployment's own
-        // exception, repeated on every row it happened to; the deployment's
-        // words are still on the run itself, behind the translation.
-        {
-          kind: 'text',
-          text: subject,
-          title: subject,
-        },
+        { kind: 'identifier', text: id },
         { kind: 'status', text: text(record, 'status') },
-        { kind: 'text', text: triggerLabel(locale, trigger) },
-        // The id, demoted to metadata. Short enough to be a label rather than a
-        // block of hex nobody can hold in their head, and it is still what
-        // somebody pastes into a support channel.
-        { kind: 'identifier', text: id.slice(0, 8) },
+        { kind: 'text', text: text(record, 'trigger') },
+        { kind: 'muted', text: orNone(text(record, 'summary'), none) },
         {
           kind: 'muted',
           text: timestamp(locale, text(record, 'started_at'), now, zone).relative,
@@ -137,10 +121,7 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
           {
             name: 'trigger',
             label: message(locale, 'runs.filter.trigger'),
-            options: triggers.map((trigger) => ({
-              value: trigger,
-              label: triggerLabel(locale, trigger),
-            })),
+            options: triggers.map((trigger) => ({ value: trigger, label: trigger })),
           },
         ]}
       />
@@ -180,10 +161,11 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
           filters={RUN_FILTERS}
           labels={rowLabels(locale, message(locale, 'runs.list.caption'))}
           columns={[
-            // Not sortable: the underlying field is the deployment's raw
-            // summary, and sorting by it would order rows by exception text
-            // rather than by the translated subject this column actually shows.
-            { key: 'summary', header: message(locale, 'runs.column.subject') },
+            {
+              key: 'run_id',
+              header: message(locale, 'runs.column.run'),
+              sortable: true,
+            },
             {
               key: 'status',
               header: message(locale, 'runs.column.status'),
@@ -194,11 +176,7 @@ export async function RunsScreen(context: SurfaceContext): Promise<ReactNode> {
               header: message(locale, 'runs.column.trigger'),
               sortable: true,
             },
-            {
-              key: 'run_id',
-              header: message(locale, 'runs.column.run'),
-              sortable: true,
-            },
+            { key: 'summary', header: message(locale, 'runs.column.subject') },
             {
               key: 'started_at',
               header: message(locale, 'runs.column.started'),

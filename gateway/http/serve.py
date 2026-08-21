@@ -104,10 +104,6 @@ async def boot(deployment: Deployment) -> StartupResult:
     Raises ``VaultKeyMismatch`` before any migration when the configured key
     does not open what is stored (FR-020), which is the whole reason the check
     is here rather than at the first credential read.
-
-    The key is *loaded* before it is checked. Without that the check passed on
-    every deployment that had stored nothing yet, and the ring was still empty
-    when somebody wrote their first credential.
     """
 
     async def verify_credentials() -> None:
@@ -117,7 +113,6 @@ async def boot(deployment: Deployment) -> StartupResult:
 
     result = await run_startup(
         migrator=deployment.store.migrator(),
-        install_key=deployment.store.install_encryption_key,
         verify_credentials=verify_credentials,
     )
     health = await deployment.store.health()
@@ -127,7 +122,6 @@ async def boot(deployment: Deployment) -> StartupResult:
         migration=result.migration,
         readiness=report(readiness_of(health)),
         credentials_verified=result.credentials_verified,
-        key_installed=result.key_installed,
     )
 
 

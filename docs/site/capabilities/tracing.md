@@ -2,9 +2,35 @@
 
 # tracing capabilities
 
-2 tools and 1 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+8 tools and 4 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
+
+### `tracing-honeycomb`
+
+Honeycomb's query engine over trace events: where latency and errors concentrate in a dataset, and the slowest traces behind that concentration.
+
+- **Domain:** tracing
+- **Applies to alerts from:** honeycomb
+- **Requires:** honeycomb
+
+**Directs:**
+
+- `honeycomb_trace_statistics`
+- `honeycomb_slow_traces`
+
+### `tracing-jaeger`
+
+Jaeger's trace store: where a service's operations concentrate latency, and the slowest traces behind that concentration.
+
+- **Domain:** tracing
+- **Applies to alerts from:** jaeger
+- **Requires:** jaeger
+
+**Directs:**
+
+- `jaeger_trace_statistics`
+- `jaeger_slow_traces`
 
 ### `tracing-signoz`
 
@@ -19,7 +45,96 @@ SigNoz's span store: where latency and errors concentrate for a service, and the
 - `signoz_trace_statistics`
 - `signoz_slow_traces`
 
+### `tracing-tempo`
+
+TraceQL against Grafana Tempo: which traces match a latency or error condition, and the slowest of them, for estates storing traces in object storage.
+
+- **Domain:** tracing
+- **Applies to alerts from:** tempo
+- **Requires:** tempo
+
+**Directs:**
+
+- `tempo_trace_statistics`
+- `tempo_slow_traces`
+
 ## Tools
+
+#### `honeycomb_slow_traces`
+
+Return the slowest traces for a service in a window, capped, with their duration and root operation. Use it after the statistics have named the operation, so the exemplars are from the part that is actually slow.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from honeycomb
+- **Parallel safe:** yes
+- **Requires:** honeycomb
+
+**Use when:**
+
+- finding an exemplar of the latency an aggregate has already located
+- seeing which downstream call dominates a slow request
+
+**Not for:**
+
+- establishing how common the slowness is, which needs the aggregate
+- an error with no latency component, where traces add nothing
+
+#### `honeycomb_trace_statistics`
+
+Count the traces for a service over a window and return them grouped by operation or status, rather than the spans. It is what says where the latency is concentrated before any single trace is opened.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from honeycomb
+- **Parallel safe:** yes
+- **Requires:** honeycomb
+
+**Use when:**
+
+- a latency alert where the slow operation is not yet known
+- deciding whether one endpoint is slow or the whole service is
+
+**Not for:**
+
+- the contents of a log line, which a trace does not carry
+- a single known request, where one trace is the whole answer
+
+#### `jaeger_slow_traces`
+
+Return the slowest traces for a service in a window, capped, with their duration and root operation. Use it after the statistics have named the operation, so the exemplars are from the part that is actually slow.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from jaeger
+- **Parallel safe:** yes
+- **Requires:** jaeger
+
+**Use when:**
+
+- finding an exemplar of the latency an aggregate has already located
+- seeing which downstream call dominates a slow request
+
+**Not for:**
+
+- establishing how common the slowness is, which needs the aggregate
+- an error with no latency component, where traces add nothing
+
+#### `jaeger_trace_statistics`
+
+Count the traces for a service over a window and return them grouped by operation or status, rather than the spans. It is what says where the latency is concentrated before any single trace is opened.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from jaeger
+- **Parallel safe:** yes
+- **Requires:** jaeger
+
+**Use when:**
+
+- a latency alert where the slow operation is not yet known
+- deciding whether one endpoint is slow or the whole service is
+
+**Not for:**
+
+- the contents of a log line, which a trace does not carry
+- a single known request, where one trace is the whole answer
 
 #### `signoz_slow_traces`
 
@@ -48,6 +163,44 @@ Count the traces for a service over a window and return them grouped by operatio
 - **Evidence:** trace from signoz
 - **Parallel safe:** yes
 - **Requires:** signoz
+
+**Use when:**
+
+- a latency alert where the slow operation is not yet known
+- deciding whether one endpoint is slow or the whole service is
+
+**Not for:**
+
+- the contents of a log line, which a trace does not carry
+- a single known request, where one trace is the whole answer
+
+#### `tempo_slow_traces`
+
+Return the slowest traces for a service in a window, capped, with their duration and root operation. Use it after the statistics have named the operation, so the exemplars are from the part that is actually slow.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from tempo
+- **Parallel safe:** yes
+- **Requires:** tempo
+
+**Use when:**
+
+- finding an exemplar of the latency an aggregate has already located
+- seeing which downstream call dominates a slow request
+
+**Not for:**
+
+- establishing how common the slowness is, which needs the aggregate
+- an error with no latency component, where traces add nothing
+
+#### `tempo_trace_statistics`
+
+Count the traces for a service over a window and return them grouped by operation or status, rather than the spans. It is what says where the latency is concentrated before any single trace is opened.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** trace from tempo
+- **Parallel safe:** yes
+- **Requires:** tempo
 
 **Use when:**
 

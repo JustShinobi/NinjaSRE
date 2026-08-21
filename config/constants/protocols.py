@@ -108,22 +108,8 @@ PROTOCOL_SERVER_AUDIT_RESOURCE_KIND: Final = "protocol_surface"
 #: ours.
 MAX_EXPOSED_SURFACE_RESULTS: Final[int] = 50
 
-#: How long a composed bridged catalogue is served without contacting the
-#: servers again. Building one costs a discovery call per registered server, and
-#: an operator classifying tools refreshes the screen repeatedly — without this
-#: every refresh would be up to ``MAX_PROTOCOL_SERVERS_PER_TEAM`` outbound calls
-#: to somebody else's infrastructure. Short enough that a server coming back is
-#: noticed inside a minute, which is faster than anybody can raise a ticket.
-PROTOCOL_CATALOGUE_CACHE_SECONDS: Final[float] = 30.0
-
-#: How many teams' catalogues are held at once. Bounded because the cache is
-#: keyed per team and a deployment with a thousand teams must not turn a screen
-#: into a memory leak; the least recently read entry goes first.
-MAX_CACHED_PROTOCOL_CATALOGUES: Final[int] = 64
-
 
 __all__ = [
-    "MAX_CACHED_PROTOCOL_CATALOGUES",
     "JSON_RPC_VERSION",
     "MAX_BRIDGED_DESCRIPTION_CHARS",
     "MAX_EXPOSED_SURFACE_RESULTS",
@@ -135,7 +121,6 @@ __all__ = [
     "MCP_METHOD_LIST_TOOLS",
     "MCP_METHOD_PING",
     "MCP_PROTOCOL_VERSION",
-    "PROTOCOL_CATALOGUE_CACHE_SECONDS",
     "PROTOCOL_DISCOVERY_TIMEOUT_SECONDS",
     "PROTOCOL_INVOCATION_TIMEOUT_SECONDS",
     "PROTOCOL_NAMESPACE_SEPARATOR",

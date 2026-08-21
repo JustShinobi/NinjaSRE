@@ -4,7 +4,7 @@ Two halves of one screen. The capability catalogue is rendered from the metadata
 the deployment discovered — never a list written here — so a capability added by
 installing a package appears without this file changing. And the integration
 forms are generated from each vendor's declared credential schema, which is what
-keeps the catalogue addable one package at a time.
+keeps eighty-five integrations addable one package at a time.
 
 **The credential form posts to the API, not to the console.** Its ``action`` is
 the deployment's own credential endpoint, so the browser sends the secret

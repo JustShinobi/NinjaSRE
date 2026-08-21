@@ -2,9 +2,61 @@
 
 # metrics capabilities
 
-3 tools and 1 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+12 tools and 6 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
+
+### `metrics-amplitude`
+
+Amplitude's product analytics: how user-facing event volume moved during a window, and which annotations mark what changed.
+
+- **Domain:** metrics
+- **Applies to alerts from:** amplitude
+- **Requires:** amplitude
+
+**Directs:**
+
+- `amplitude_metric_statistics`
+- `amplitude_active_alerts`
+
+### `metrics-groundcover`
+
+groundcover's eBPF-derived service metrics and the monitors currently firing, for clusters instrumented without code changes.
+
+- **Domain:** metrics
+- **Applies to alerts from:** groundcover
+- **Requires:** groundcover
+
+**Directs:**
+
+- `groundcover_metric_statistics`
+- `groundcover_active_alerts`
+
+### `metrics-new_relic`
+
+NRQL over New Relic's telemetry, and the alert violations currently open, for the accounts whose metrics and events live there.
+
+- **Domain:** metrics
+- **Applies to alerts from:** new_relic
+- **Requires:** new_relic
+
+**Directs:**
+
+- `new_relic_metric_statistics`
+- `new_relic_active_alerts`
+
+### `metrics-posthog`
+
+PostHog's product analytics: how event volume moved during a window, and which feature flags are currently on.
+
+- **Domain:** metrics
+- **Applies to alerts from:** posthog
+- **Requires:** posthog
+
+**Directs:**
+
+- `posthog_metric_statistics`
+- `posthog_active_alerts`
 
 ### `metrics-prometheus`
 
@@ -19,7 +71,172 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 - `prometheus_metric_statistics`
 - `prometheus_active_alerts`
 
+### `metrics-victoriametrics`
+
+MetricsQL against VictoriaMetrics and the alerts vmalert is holding, for the estates that use it as a long-term Prometheus store.
+
+- **Domain:** metrics
+- **Applies to alerts from:** victoriametrics
+- **Requires:** victoriametrics
+
+**Directs:**
+
+- `victoriametrics_metric_statistics`
+- `victoriametrics_active_alerts`
+
 ## Tools
+
+#### `amplitude_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from amplitude
+- **Parallel safe:** yes
+- **Requires:** amplitude
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `amplitude_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from amplitude
+- **Parallel safe:** yes
+- **Requires:** amplitude
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
+
+#### `groundcover_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from groundcover
+- **Parallel safe:** yes
+- **Requires:** groundcover
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `groundcover_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from groundcover
+- **Parallel safe:** yes
+- **Requires:** groundcover
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
+
+#### `new_relic_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from new_relic
+- **Parallel safe:** yes
+- **Requires:** new_relic
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `new_relic_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from new_relic
+- **Parallel safe:** yes
+- **Requires:** new_relic
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
+
+#### `posthog_active_alerts`
+
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** event from posthog
+- **Parallel safe:** yes
+- **Requires:** posthog
+
+**Use when:**
+
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
+
+**Not for:**
+
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `posthog_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from posthog
+- **Parallel safe:** yes
+- **Requires:** posthog
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution
 
 #### `prometheus_active_alerts`
 
@@ -59,23 +276,40 @@ Evaluate a metric query over a window and return the series grouped by one label
 - reading an individual log line, which a metric never contains
 - a question about a single request, where a metric has no resolution
 
-#### `prometheus_resource_pressure`
+#### `victoriametrics_active_alerts`
 
-Return what one estate resource is short of — memory, CPU, disk — with the query built from the signal map rather than written by hand. For a container the series read are the host's, keyed by the guest's own identifier, because a container shares the host's kernel and counters read from inside it report the host's figures under the guest's name.
+List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
 
 - **Side effect:** `read` — reads only
-- **Evidence:** metric from prometheus
+- **Evidence:** event from victoriametrics
 - **Parallel safe:** yes
-- **Requires:** prometheus
+- **Requires:** victoriametrics
 
 **Use when:**
 
-- how much memory, CPU or disk a hypervisor guest is using, without asking inside it
-- checking whether a container that is being OOM-killed is at its own ceiling
-- resource usage for a guest where no agent runs and nothing can be installed
+- establishing what else was already broken when this alert fired
+- finding the earliest firing alert, which is usually nearest the cause
 
 **Not for:**
 
-- an arbitrary PromQL expression, which prometheus_metric_statistics evaluates
-- which alerts are firing, which prometheus_active_alerts answers
-- reading a log line, which a metric never contains
+- the value of a metric, which needs a query rather than an alert list
+- an alert that resolved before the investigation started
+
+#### `victoriametrics_metric_statistics`
+
+Evaluate a metric query over a window and return the series grouped by one label, with counts, rather than every sample. Use it to find which label value moved before asking anything about why.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from victoriametrics
+- **Parallel safe:** yes
+- **Requires:** victoriametrics
+
+**Use when:**
+
+- a saturation or error-rate alert where the affected instance is unknown
+- establishing whether a change is one instance or the whole fleet
+
+**Not for:**
+
+- reading an individual log line, which a metric never contains
+- a question about a single request, where a metric has no resolution

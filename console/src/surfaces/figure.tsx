@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
 import { StatTile } from '@/components/surface';
-import { ArrowRightIcon } from '@/design/icons';
 
 /**
  * A summary figure, with the two things that make one worth showing.
@@ -50,7 +49,7 @@ export function Figure({
       href={href}
       data-testid="figure"
       data-figure={label}
-      className="relative block rounded-3 motion-hover hover:opacity-90"
+      className="block rounded-3 motion-hover hover:opacity-90"
     >
       <StatTile
         label={label}
@@ -59,16 +58,6 @@ export function Figure({
         trend={trend}
         {...(icon === undefined ? {} : { icon })}
       />
-      {/* A visible affordance rather than one only a screen reader hears: a
-          card that only announces its own link to assistive technology is a
-          card a sighted reader has to already know is clickable. */}
-      <span
-        data-testid="figure-drill"
-        aria-hidden="true"
-        className="absolute right-3 top-3 text-muted"
-      >
-        <ArrowRightIcon />
-      </span>
       <span className="sr-only">{drillLabel}</span>
     </a>
   );

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { Button, CONTROL_SHAPE, STATE_SKIN, VARIANT_SKIN } from '@/components/action';
-import { cx } from '@/design/cx';
+import { Button } from '@/components/action';
 import { AlertCircleIcon, InboxIcon } from '@/design/icons';
 
 /**
@@ -20,18 +19,10 @@ import { AlertCircleIcon, InboxIcon } from '@/design/icons';
  * that teaches operators to distrust the console.
  */
 
-/**
- * What to do about the emptiness — a place to go, or something to run.
- *
- * A union rather than a handler that sometimes navigates, because the two are
- * different elements and rendering the wrong one is what put every empty
- * state's action into the accessibility tree twice. An action with an `href` is
- * a link and reads as a link; an action with an `onSelect` is a button. Nothing
- * can be both, so nothing needs a hidden twin to make up the difference.
- */
-export type EmptyStateAction =
-  | { readonly label: string; readonly href: string; readonly onSelect?: never }
-  | { readonly label: string; readonly onSelect: () => void; readonly href?: never };
+export interface EmptyStateAction {
+  readonly label: string;
+  readonly onSelect: () => void;
+}
 
 export interface EmptyStateProps {
   readonly heading: string;
@@ -69,29 +60,14 @@ export function EmptyState({
       </span>
       <h4 className="text-strong">{heading}</h4>
       <p className="text-muted text-small max-w-prose">{body}</p>
-      {action.href === undefined ? (
-        <Button
-          variant="primary"
-          onClick={() => {
-            action.onSelect();
-          }}
-        >
-          {action.label}
-        </Button>
-      ) : (
-        // One element, not a button beside a hidden link. The identifier stays
-        // what every screen's test already looks for; what changes is that
-        // there is now exactly one thing carrying it.
-        <a
-          href={action.href}
-          data-testid="way-back"
-          data-variant="primary"
-          data-state="default"
-          className={cx(CONTROL_SHAPE, VARIANT_SKIN.primary, STATE_SKIN.default)}
-        >
-          {action.label}
-        </a>
-      )}
+      <Button
+        variant="primary"
+        onClick={() => {
+          action.onSelect();
+        }}
+      >
+        {action.label}
+      </Button>
     </div>
   );
 }

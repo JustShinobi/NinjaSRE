@@ -28,34 +28,6 @@ async def test_a_user_round_trips(gateway: PersistenceGateway, scope: TenantScop
     assert found.display_name == "Ada"
 
 
-async def test_a_local_password_is_stored_by_hash_and_survives_an_unrelated_upsert(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    # The hash lives apart from the general-purpose upsert on purpose: a later
-    # write that only means to change a display name must not silently clear
-    # a password nobody asked it to touch.
-    async with gateway.begin(scope) as uow:
-        await uow.identity.upsert_user(ADA)
-        assert await uow.identity.set_local_password("u-ada", password_hash="scrypt:abc") is True
-        await uow.identity.upsert_user(
-            User(user_id="u-ada", email="ada@example.com", display_name="Ada A.")
-        )
-        found = await uow.identity.get_user("u-ada")
-
-    assert found is not None
-    assert found.display_name == "Ada A."
-    assert found.local_password_hash == "scrypt:abc"
-
-
-async def test_setting_a_password_for_nobody_reports_it(
-    gateway: PersistenceGateway, scope: TenantScope
-) -> None:
-    async with gateway.begin(scope) as uow:
-        assert (
-            await uow.identity.set_local_password("u-nobody", password_hash="scrypt:abc") is False
-        )
-
-
 async def test_email_lookup_ignores_case(gateway: PersistenceGateway, scope: TenantScope) -> None:
     # An operator typing their address into a login form does not reproduce the
     # capitalisation their identity provider stored, and a store that cared

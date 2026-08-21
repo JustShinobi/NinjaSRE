@@ -8,7 +8,7 @@ never gets exercised.
 
 The message matters as much as the failure. FR-002 says the build fails *naming
 both* the integration and the artefact, because "parity check failed" across
-every package is a message whose next step is a directory listing.
+eighty-five packages is a message whose next step is a directory listing.
 """
 
 from __future__ import annotations

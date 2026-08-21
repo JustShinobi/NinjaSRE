@@ -234,15 +234,7 @@ _PSEUDONYM_SHAPES: Final[Mapping[Kind, re.Pattern[str]]] = {
     Kind.POOL: re.compile(r"^pool-[a-z]+(-\d{3})?$"),
     Kind.CLUSTER: re.compile(r"^cluster-[a-z]+(-\d{3})?$"),
     Kind.TEAM: re.compile(r"^team-[a-z]+(-\d{3})?$"),
-    # A named principal's own shape, plus the one bare word that is not a
-    # principal at all: `platform/credentials/proxy/audit.py` writes
-    # `actor_id` as the acting organisation's own id, and a deployment that
-    # never renamed its bootstrap organisation reports that id as literally
-    # `"default"` (`config.constants.first_run.DEFAULT_ORGANISATION_ID`) — a
-    # protocol sentinel, not an identity, and the one value in this shape
-    # that must survive a pass over an already-pseudonymous dataset unchanged
-    # rather than be minted a name of its own.
-    Kind.PRINCIPAL: re.compile(r"^(user-[a-z]+(-\d{3})?|default)$"),
+    Kind.PRINCIPAL: re.compile(r"^user-[a-z]+(-\d{3})?$"),
     Kind.EMAIL: re.compile(r"^[^@\s]+@" + re.escape(PSEUDONYM_DOMAIN) + r"$"),
     Kind.DOMAIN: re.compile(r"^[a-z0-9.-]*" + re.escape(PSEUDONYM_DOMAIN) + r"$"),
     Kind.IPV4: re.compile(r"^198\.51\.100\.\d{1,3}$"),

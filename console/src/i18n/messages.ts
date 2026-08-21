@@ -95,43 +95,20 @@ export function isLocale(value: string | null | undefined): value is Locale {
 /**
  * The locale to use, from an `Accept-Language` header or a stored choice.
  *
- * Matched case-insensitively, exact tag first: a header naming `pt-BR` gets
- * `pt-BR` rather than whatever else shares its language. Failing that, matched
- * by *language* — the part before the hyphen — against every tag offered, in
- * the order the header gives them: `pt` and `pt-PT` both fall through to
- * `pt-BR`, because it is the only Portuguese this console carries and refusing
- * a reader their language over a regional letter they did not choose is a
- * worse guess than serving Brazilian spelling to a Portuguese reader. The
- * exact match still runs first and wins, so the day a second Portuguese
- * catalogue exists a header naming it exactly is never overridden by this
- * fallback. A tag nothing matches, by either rule, falls back to English,
- * which is the source locale rather than a preference.
+ * Matched case-insensitively and by exact tag: `pt` is not `pt-BR`, and serving
+ * European Portuguese from a Brazilian catalogue would be a guess wearing the
+ * clothes of a decision. A tag nothing matches falls back to English, which is
+ * the source locale rather than a preference.
  */
 export function resolveLocale(header: string | null | undefined): Locale {
   if (header === null || header === undefined) {
     return DEFAULT_LOCALE;
   }
-  const tags = header
-    .split(',')
-    .map((part) => part.split(';')[0]?.trim().toLowerCase() ?? '')
-    .filter((tag) => tag !== '');
-
-  // One pass, most preferred tag first: a tag's own exact match wins over its
-  // own language fallback, and either wins over anything a later, less
-  // preferred tag could offer — an exact match three tags down must not beat
-  // a language fallback on the tag actually listed first.
-  for (const tag of tags) {
-    const exact = LOCALES.find((locale) => locale.toLowerCase() === tag);
-    if (exact !== undefined) {
-      return exact;
-    }
-    const language = tag.split('-')[0] ?? '';
-    if (language === '') continue;
-    const byLanguage = LOCALES.find(
-      (locale) => (locale.toLowerCase().split('-')[0] ?? '') === language,
-    );
-    if (byLanguage !== undefined) {
-      return byLanguage;
+  for (const part of header.split(',')) {
+    const tag = part.split(';')[0]?.trim().toLowerCase() ?? '';
+    const found = LOCALES.find((locale) => locale.toLowerCase() === tag);
+    if (found !== undefined) {
+      return found;
     }
   }
   return DEFAULT_LOCALE;

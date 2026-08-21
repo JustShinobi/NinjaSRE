@@ -117,59 +117,6 @@ export async function read<P extends ReadablePath>(
   return body as Ok200<paths[P]>;
 }
 
-type Posted200<P> = P extends {
-  post: { responses: { 200: { content: { 'application/json': infer B } } } };
-}
-  ? B
-  : never;
-
-/** A path the gateway answers with a JSON body on `POST`. */
-export type AskablePath = {
-  [P in keyof paths]: Posted200<paths[P]> extends never ? never : P;
-}[keyof paths];
-
-/**
- * `POST` a question and read the answer, for a route that computes and stores nothing.
- *
- * Separate from `read` because the type is different — the answer is declared
- * under `post` — and separate from the write proxies under `src/app/api/`
- * because those exist for one reason only: a *browser* cannot present a
- * credential that lives in an HTTP-only cookie. A server component already
- * holds it, so a courier here would be a hop that adds nothing.
- *
- * What keeps this from being a write path is the caller, not the verb. Every
- * use of it is a question — an explanation, a preview, a replay — and a route
- * that changes something is reached through the proxies, where the closed
- * operation table is.
- */
-export async function ask<P extends AskablePath>(
-  path: P,
-  body: unknown,
-  init?: ReadOptions,
-): Promise<Posted200<paths[P]>> {
-  const headers = new Headers(init?.headers);
-  if (!headers.has('accept')) headers.set('accept', 'application/json');
-  headers.set('content-type', 'application/json');
-  const address = `${apiOrigin()}${bind(path, init?.params ?? {})}${init?.query ?? ''}`;
-  const response = await fetch(address, {
-    ...init,
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  if (response.status === UNAUTHORIZED) {
-    reportUnauthorized();
-  }
-  if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      `POST ${path} returned ${String(response.status)}`,
-    );
-  }
-  const answered: unknown = await response.json();
-  return answered as Posted200<paths[P]>;
-}
-
 /**
  * The endpoints a deployment will serve and the API document does not declare
  * yet.

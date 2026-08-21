@@ -3,11 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   BOUNDARY_MINIMUM,
   BODY_MINIMUM,
-  HOVER_MINIMUM,
   contrastRatio,
   relativeLuminance,
 } from '@/design/contrast';
-import { bodyPairs, boundaryPairs, hoverPairs, THEMES } from '@/design/tokens';
+import { bodyPairs, boundaryPairs, THEMES } from '@/design/tokens';
 
 /**
  * The arithmetic, and then the table.
@@ -88,38 +87,6 @@ describe('the token table', () => {
     for (const theme of THEMES) {
       expect(bodyPairs(theme).length).toBeGreaterThan(5);
       expect(boundaryPairs(theme).length).toBeGreaterThan(3);
-    }
-  });
-});
-
-/**
- * The state a pointer produces, which is the one contrast rule nobody writes
- * down until it is broken.
- *
- * A hover has to be *seen*, and against the ground it covers rather than
- * against anything else. Reusing a ground token for it is what hid this: in the
- * dark theme `sunken` sits below `surface`, so the hover moved the wrong way by
- * a third of a percent and every hoverable surface in the console answered the
- * pointer with nothing.
- */
-describe('the hover state', () => {
-  it('is far enough from the ground it covers to be seen, in both themes', () => {
-    for (const theme of THEMES) {
-      for (const pair of hoverPairs(theme)) {
-        const ratio = contrastRatio(pair.foreground, pair.background);
-        expect(
-          ratio,
-          `${theme}: ${pair.what} is ${ratio.toFixed(3)}:1, below ${String(HOVER_MINIMUM)}:1`,
-        ).toBeGreaterThanOrEqual(HOVER_MINIMUM);
-      }
-    }
-  });
-
-  it('covers both grounds a hoverable surface actually sits on', () => {
-    for (const theme of THEMES) {
-      const covered = hoverPairs(theme).map((pair) => pair.what);
-      expect(covered).toContain('hover over surface');
-      expect(covered).toContain('hover over raised');
     }
   });
 });

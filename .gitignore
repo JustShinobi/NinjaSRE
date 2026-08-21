@@ -1,4 +1,3 @@
-/node_modules/
 # Python bytecode and build output
 __pycache__/
 *.py[cod]
@@ -11,9 +10,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
-# The fixture corpus holds a decoy .env.local so a test can prove the corpus
-# source never reads one. It carries no real value and is never ingested.
-!tests/corpus/operational/.env.local
 .vscode
 
 # Tool caches
@@ -41,8 +37,4 @@ htmlcov/
 # sequencing of the work nor a running commentary on where code came from.
 /specs/
 /specs_v2/
-/specs_v3/
-/specs_v4/
-/specs_v5/
-/specs_v6/
 /docs/provenance-map.md

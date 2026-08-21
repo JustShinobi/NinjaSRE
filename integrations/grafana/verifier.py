@@ -14,16 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations._verification.diagnostics import (
-    ClockSkewProbe,
-    DataWindow,
-    DataWindowProbe,
-    client_clock_probe,
-    client_window_probe,
-)
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -89,13 +81,6 @@ PERMISSIONS: Final[tuple[RequiredPermission, ...]] = (
 )
 
 
-_WINDOW_ADVICE: Final = (
-    "Grafana answered and holds no dashboards this credential can see. Either nobody has "
-    "built any, or this API key is scoped to an organisation or a folder that has none — "
-    "check the key's organisation before checking the server."
-)
-
-
 @dataclass(frozen=True, slots=True)
 class GrafanaVerifier:
     """Checks a stored Grafana credential end to end, and what it may do."""
@@ -126,46 +111,6 @@ class GrafanaVerifier:
                 call=lambda client: client.list_changes(limit=1),
                 fallback_note=_NO_INTROSPECTION,
             ),
-        )
-
-    def data_window_probe(self) -> DataWindowProbe | None:
-        """Return the read that proves this Grafana holds something worth opening.
-
-        Grafana stores no time series of its own, so there is no window to ask
-        it about; what it holds is dashboards, and a Grafana with none answers
-        every question this integration exists to answer with nothing. The
-        window is therefore carried and unused, and the description says so —
-        a probe that implied a time range it never sent would be a probe whose
-        empty result nobody could interpret.
-        """
-
-        async def read(client: GrafanaClient, window: DataWindow) -> int:
-            # This endpoint takes no time range; the window is carried so every
-            # probe in the catalogue has the same signature, and is not faked into
-            # a filter the API does not have.
-            del window
-            answer = await client.list_resources(limit=VERIFY_WINDOW_SAMPLE_LIMIT)
-            return len(answer)
-
-        return client_window_probe(
-            description=(
-                "searches /api/search for dashboards — Grafana holds no time series of its "
-                "own, so this asks what it holds rather than what it held recently"
-            ),
-            build=self._client,
-            read=read,
-            advice=_WINDOW_ADVICE,
-        )
-
-    def clock_probe(self) -> ClockSkewProbe | None:
-        """Return the reading that says what time this Grafana thinks it is."""
-        return client_clock_probe(
-            description=(
-                "reads the Date header Grafana returns on /api/health, which costs no extra "
-                "call and is the server's own clock rather than a proxy's"
-            ),
-            build=self._client,
-            call=lambda client: client.ping(),
         )
 
     async def connect(self, transport: object, context: object) -> Connectivity:

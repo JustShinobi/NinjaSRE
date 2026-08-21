@@ -92,7 +92,7 @@ normalised before they become a key:
 | Describing words at either end | `payments-api`, `payments-service`, `payments-worker` → `payments` |
 | Environment words at either end | `prod-payments`, `payments-staging` → `payments` |
 | Generated segments, and everything after one | `payments-7f9dd8b6c4-x7gr9` → `payments` |
-| Trailing ordinals | `checkout-0`, `checkout-2` → `checkout` |
+| Trailing ordinals | `kafka-0`, `kafka-2` → `kafka` |
 
 **Normalisation is deliberately timid.** Anything the rules above do not cover
 stays separate:

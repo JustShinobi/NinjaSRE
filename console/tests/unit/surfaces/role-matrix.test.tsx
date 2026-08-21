@@ -36,10 +36,8 @@ const WRITE_CONTROLS = [
   { testId: 'decision', permission: 'remediation.approve' },
   { testId: 'approve', permission: 'remediation.approve' },
   { testId: 'reject', permission: 'remediation.approve' },
-  { testId: 'config-editor', permission: 'config.write' },
+  { testId: 'config-preview', permission: 'config.write' },
   { testId: 'ask-preview', permission: 'config.write' },
-  { testId: 'grant-override', permission: 'config.write' },
-  { testId: 'revoke-override', permission: 'config.write' },
   { testId: 'credential', permission: 'integration.manage' },
   { testId: 'verify', permission: 'integration.manage' },
   { testId: 'token', permission: 'token.manage' },
@@ -49,15 +47,7 @@ const WRITE_CONTROLS = [
   { testId: 'answer', permission: 'investigation.run' },
 ] as const;
 
-// `first-run` is excluded: this file serves `populated` throughout, whose
-// checklist is complete (`fixtures/scenarios/populated/setup-checklist.json`
-// carries `"complete": true`), and a complete checklist sends that route to
-// the dashboard instead of rendering it — a `redirect()` call has no write
-// controls to assert about. `tests/unit/shell/route-files.test.tsx` covers
-// both of its states.
-const SCREENS = [...AREA_SCREENS, ...DETAIL_SCREENS].filter(
-  (each) => each.id !== 'first-run',
-);
+const SCREENS = [...AREA_SCREENS, ...DETAIL_SCREENS];
 
 beforeEach(() => {
   vi.stubEnv('NINJASRE_CONSOLE_DEPLOYMENT', 'HAL9000');
@@ -107,24 +97,11 @@ describe('the write controls, per role', () => {
     if (most === undefined) throw new Error('the role catalogue is empty');
     serveScenario('populated', principalHolding(ROLES.roles[most] ?? []));
 
-    // Autonomy & guardrails rather than the retired raw editor: the editor is
-    // gone, but the control it was asked about is not.
-    const autonomy = AREA_SCREENS.find((each) => each.id === 'autonomy');
-    if (autonomy === undefined) throw new Error('there is no autonomy screen');
-    // Rules & windows, not Guardrails: the guardrails tab's own generic
-    // editor is conditional now — absent once every guardrail-prefixed field
-    // already has a control of its own, which the populated dataset already
-    // satisfies, so it is no longer a stable target for "at least one
-    // exists". The advanced section holding the autonomy scalars the retired
-    // editor used to be the only home for draws through the same
-    // `ConfigEditor`, unconditionally, for the four fields this dataset
-    // always declares — covered on its own terms by `settings/autonomy.test.tsx`.
-    render(
-      await autonomy.render({
-        searchParams: Promise.resolve({ tab: 'rules-windows' }),
-      }),
-    );
+    const configuration = AREA_SCREENS.find((each) => each.id === 'configuration');
+    if (configuration === undefined)
+      throw new Error('there is no configuration screen');
+    render(await configuration.render({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getAllByTestId('config-editor').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('config-preview')).toBeInTheDocument();
   });
 });

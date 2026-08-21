@@ -5,7 +5,7 @@ topology edges commit together or not at all. That requirement decides the shape
 of this module, because there are only two ways to give a caller composable
 atomicity and one of them is bad.
 
-The bad one is a transaction handle threaded through every write — eighteen
+The bad one is a transaction handle threaded through every write — fifteen
 ports, eighty methods, an extra parameter on each, and a caller who forgets it on one
 call gets an autocommit that silently escapes the transaction. The failure is
 invisible until a rollback does not roll something back.
@@ -25,7 +25,7 @@ to forget and no way to commit a unit that has already failed.
 
 **Tenancy comes from the scope, not from arguments.** The unit of work is opened
 for one organisation and every repository it hands out is bound to that
-organisation. Look through the eighteen ports and no method takes an ``org_id`` —
+organisation. Look through the fifteen ports and no method takes an ``org_id`` —
 so FR-010 is satisfied not by a check that rejects cross-tenant reads but by
 there being no way to phrase one. A test can still prove it, and does, by
 opening two scopes and looking for the other's records.
@@ -59,9 +59,7 @@ from platform.persistence.ports.schedule_store import JobDispatcher, ScheduleSto
 from platform.persistence.ports.session_store import SessionStore
 from platform.persistence.ports.signal_store import SignalStore
 from platform.persistence.ports.topology_graph import TopologyGraph
-from platform.persistence.ports.transit_ledger import TransitLedger
 from platform.persistence.ports.vector_index import VectorIndex
-from platform.persistence.ports.verification_ledger import VerificationLedger
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +89,7 @@ class TenantScope:
 class UnitOfWork(Protocol):
     """Every tenant-scoped repository, inside one transaction.
 
-    Eighteen properties and one method. The properties are the ports; the method
+    Sixteen properties and one method. The properties are the ports; the method
     is the escape hatch for a caller that decides mid-unit to abandon its work
     without raising, which happens when "nothing to do after all" is a normal
     outcome rather than an error.
@@ -164,14 +162,6 @@ class UnitOfWork(Protocol):
     @property
     def remediation(self) -> RemediationLedger:
         """Return what each remediation did, whether it worked, and the patterns."""
-
-    @property
-    def transit(self) -> TransitLedger:
-        """Return what crossed the boundary, in which direction, and how it ended."""
-
-    @property
-    def verifications(self) -> VerificationLedger:
-        """Return what has been checked on this deployment, and what the check found."""
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising.

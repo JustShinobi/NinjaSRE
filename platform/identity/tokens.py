@@ -197,41 +197,18 @@ class TokenService:
         description: str | None = None,
         lifetime_days: int | None = None,
         lifetime: timedelta | None = None,
-        supersede: bool = False,
-        unscoped: bool = False,
     ) -> IssuedToken:
         """Return a new token, its plaintext included exactly once.
 
         ``permissions`` is a ceiling, not a grant. It narrows what the owning
         user already holds; a token can never do something its owner cannot,
         which is why there is no path here that consults the role catalogue.
-        An empty ``permissions`` means the token holds nothing at all — not
-        "everything its owner does" — unless ``unscoped`` says otherwise.
-
-        ``unscoped`` is that otherwise. It is how a credential that stands in
-        for a person rather than for one declared purpose — a browser sign-in,
-        the durable credential issued right after the bootstrap one — keeps
-        resolving to whatever its owner currently holds, dynamically, at every
-        authentication. It defaults to ``False`` and has to be asked for: the
-        machine-token issuance route never does, which is the whole point of
-        it existing as its own flag rather than being read off an empty
-        ``permissions`` list the way it used to be.
 
         ``lifetime`` overrides ``lifetime_days`` and is how a credential shorter
         than a day is issued. It exists for the bootstrap credential, which lives
         for an hour: expressing that as a fraction of a day would have meant
         either rounding it up to a day or teaching every caller that
         ``lifetime_days`` is sometimes not days. The ceiling applies to both.
-
-        ``supersede`` revokes every live token already held by ``user_id`` under
-        this same ``name`` and ``node_id`` — this issuance's *purpose* — instead
-        of leaving them beside the new one. It defaults to ``False`` and has to
-        be asked for, because "the same name" is also how a browser sign-in is
-        issued (``platform/identity/local_accounts.py``'s ``CREDENTIAL_NAME``),
-        and a second tab or a second device signing in must not revoke the
-        first. Machine-token issuance (the console's own route) and the
-        bootstrap credential (whose unrevoked, merely-expired rows are exactly
-        what accumulated before this existed) both ask for it.
         """
         if lifetime is not None:
             span = lifetime
@@ -258,32 +235,10 @@ class TokenService:
             description=description,
             created_at=now,
             expires_at=now + span,
-            unscoped=unscoped,
         )
 
-        superseded: tuple[str, ...] = ()
         async with self.gateway.begin(scope) as uow:
-            if supersede:
-                existing = await uow.identity.tokens_for_user(user_id)
-                superseded = tuple(
-                    token.token_id
-                    for token in existing
-                    if not token.is_revoked and token.name == name and token.team_node_id == node_id
-                )
-                if superseded:
-                    await uow.identity.revoke_tokens(superseded, revoked_at=now)
             stored = await uow.identity.store_token(record)
-
-        if superseded:
-            self.cache.forget_all(superseded)
-            for token_id in superseded:
-                await self._audit(
-                    scope,
-                    context,
-                    action=TOKEN_AUDIT_ACTION_REVOKE,
-                    resource_id=token_id,
-                    detail={"reason": f"superseded by a new token issued for {name!r}"},
-                )
 
         await self._audit(
             scope,
@@ -295,10 +250,9 @@ class TokenService:
                 "team_node_id": node_id,
                 "scopes": list(stored.scopes),
                 "expires_at": stored.expires_at.isoformat() if stored.expires_at else None,
-                **({"superseded": list(superseded)} if superseded else {}),
             },
         )
-        return IssuedToken(token=stored, secret=secret, superseded=superseded)
+        return IssuedToken(token=stored, secret=secret)
 
     # --- Verifying ------------------------------------------------------------
 
@@ -618,21 +572,17 @@ def _last_activity(token: ApiToken) -> datetime:
 def _scoped(token: ApiToken, held: PermissionSet) -> PermissionSet:
     """Return what ``token`` may do: its owner's permissions, capped by its scopes.
 
-    ``token.unscoped`` is a personal access token's own flag and carries no
-    cap — it is as wide as its owner and no wider. Every other token is capped
-    by exactly what it was issued for, and an empty ``scopes`` caps it to
-    nothing: ``PermissionSet.narrowed_to`` already draws that line at the
-    permission-set layer (``ceiling=None`` is unbounded, ``ceiling=frozenset()``
-    is bounded to nothing), and this is the one place that has to ask
-    ``token.unscoped`` rather than reading emptiness as the unbounded case,
-    because the two are indistinguishable once ``scopes`` alone is looked at.
+    An unscoped token is a personal access token and carries no cap — it is as
+    wide as its owner and no wider. A scoped one is capped by what it was issued
+    for. Either way the result is a *narrowing* of the owner's set, so a token
+    can never exceed the person it belongs to.
 
     A stored scope naming a permission this build does not have is dropped
     rather than raising. The alternative is that renaming a permission breaks
     every token issued before the rename, at authentication time, across the
     whole deployment.
     """
-    if token.unscoped:
+    if not token.scopes:
         return held
     return held.narrowed_to(
         Permission(scope) for scope in token.scopes if scope in _PERMISSION_VALUES

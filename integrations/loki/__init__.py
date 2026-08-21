@@ -33,14 +33,11 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
-    display_name="Grafana Loki",
     category=IntegrationCategory.LOG_STORE,
     summary="Log search over Loki's label index and LogQL, with the shape of a query counted before any line of it is read.",
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
-    # the port a default Loki serves its API on.
-    default_port=3100,
 )
 
 __all__ = [

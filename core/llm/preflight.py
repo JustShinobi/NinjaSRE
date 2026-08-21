@@ -21,9 +21,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import time
-from collections.abc import Awaitable, Sequence
-from dataclasses import dataclass, field, replace
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -84,11 +83,6 @@ class CheckResult:
     name: str
     status: CheckStatus
     detail: str = ""
-    #: How long this check took to answer, in milliseconds. ``0.0`` for a check
-    #: that never made a call — a descriptor-declared skip, or a check that ran
-    #: before timing was wired around it — which is a fact worth keeping
-    #: distinct from "answered instantly".
-    duration_ms: float = 0.0
 
     @property
     def is_blocking(self) -> bool:
@@ -133,24 +127,6 @@ class PreflightReport:
         lines.append("")
         lines.append("preflight passed" if self.ok else "preflight FAILED")
         return "\n".join(lines)
-
-
-def _elapsed_ms(started: float) -> float:
-    """Return how long has passed since ``started`` (a ``time.monotonic()`` reading), in milliseconds."""
-    return (time.monotonic() - started) * 1000
-
-
-async def _timed(check: Awaitable[CheckResult]) -> CheckResult:
-    """Return ``check``'s result with how long it actually took attached.
-
-    Wraps the call site rather than each check function, so a check's own body
-    stays about what it found and never about how long finding it took —
-    the same split ``PreflightReport.render`` already keeps between a check's
-    status and its detail.
-    """
-    started = time.monotonic()
-    result = await check
-    return replace(result, duration_ms=_elapsed_ms(started))
 
 
 def _credential_check(
@@ -203,10 +179,6 @@ async def _tool_call_check(client: ProviderClient) -> CheckResult:
             ),
             tools=(_PROBE_TOOL,),
             max_output_tokens=_MAX_PROBE_OUTPUT_TOKENS,
-            # The whole point of this probe: the call is mandatory, so a model
-            # that answers in text anyway has demonstrated it cannot do this,
-            # not merely that it chose not to this time.
-            force_tool_call=True,
         )
     )
     if not result.succeeded:
@@ -216,8 +188,8 @@ async def _tool_call_check(client: ProviderClient) -> CheckResult:
     if not result.tool_calls:
         return CheckResult(
             "tool calling",
-            CheckStatus.FAILED,
-            "the model answered without calling the tool, even though the call was mandatory",
+            CheckStatus.DEGRADED,
+            "the model answered without calling the tool",
         )
     return CheckResult("tool calling", CheckStatus.PASSED, result.tool_calls[0].name)
 
@@ -320,11 +292,11 @@ async def preflight(
         registry=factory.registry,
     )
 
-    started = time.monotonic()
-    first = _credential_check(
-        binding.provider_id, resolver, factory.registry.provider(binding.provider_id)
-    )
-    checks: list[CheckResult] = [replace(first, duration_ms=_elapsed_ms(started))]
+    checks: list[CheckResult] = [
+        _credential_check(
+            binding.provider_id, resolver, factory.registry.provider(binding.provider_id)
+        )
+    ]
 
     if checks[0].is_blocking:
         return PreflightReport(
@@ -350,11 +322,11 @@ async def preflight(
             checks=tuple(checks),
         )
 
-    checks.append(await _timed(_authentication_check(client)))
+    checks.append(await _authentication_check(client))
     if not checks[-1].is_blocking:
-        checks.append(await _timed(_tool_call_check(client)))
-        checks.append(await _timed(_structured_check(client)))
-        checks.append(await _timed(_stream_check(client)))
+        checks.append(await _tool_call_check(client))
+        checks.append(await _structured_check(client))
+        checks.append(await _stream_check(client))
 
     return PreflightReport(
         provider_id=binding.provider_id,

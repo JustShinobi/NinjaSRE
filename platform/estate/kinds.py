@@ -111,11 +111,6 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "load_average": AttributeType.FLOAT,
             "uptime_seconds": AttributeType.INTEGER,
             "version": AttributeType.STRING,
-            # Where on the network this sits. Declared on the three kinds that
-            # have one, because it is what a zone is derived from — and a kind
-            # that declares no address is one nothing expects a zone of, which
-            # is what keeps a backup job out of the unplaced list.
-            "address": AttributeType.STRING,
         },
     ),
     ResourceKind(
@@ -130,13 +125,6 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "operating_system": AttributeType.STRING,
             "boot_order": AttributeType.STRING,
             "started_at": AttributeType.TIMESTAMP,
-            "address": AttributeType.STRING,
-            # The hypervisor's own numeric identifier for this guest. Declared
-            # for the same reason `address` is: it is the label every host-side
-            # series for the guest is keyed by, and a resource-usage query built
-            # without it returns nothing — which reads as a guest under no
-            # pressure rather than as a question nobody asked properly.
-            "vmid": AttributeType.INTEGER,
         },
     ),
     ResourceKind(
@@ -149,12 +137,6 @@ CORE_KINDS: Final[tuple[ResourceKind, ...]] = (
             "memory_bytes": AttributeType.INTEGER,
             "image": AttributeType.STRING,
             "started_at": AttributeType.TIMESTAMP,
-            "address": AttributeType.STRING,
-            # As above, and here it is load-bearing rather than convenient: a
-            # container shares the host's kernel, so the host's series keyed by
-            # this identifier is the *only* correct source for its resource
-            # usage.
-            "vmid": AttributeType.INTEGER,
         },
     ),
     ResourceKind(
