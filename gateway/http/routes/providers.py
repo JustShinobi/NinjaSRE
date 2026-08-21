@@ -36,7 +36,7 @@ from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from core.llm.catalogue import ListingUnavailable, ModelOffering, catalogue_for, listing_for
 from core.llm.catalogue.cache import ModelCatalogueCache
-from core.llm.credentials import EnvironmentCredentialResolver
+from core.llm.credentials import EnvironmentCredentialResolver, ProviderCredentials
 from core.llm.onboarding import (
     ProviderOnboarding,
     UnknownProviderError,
@@ -53,8 +53,11 @@ from gateway.http.state import GatewayState
 from gateway.http.verifications import record_check, recorded_checks
 from platform.config_service.service import ConfigService
 from platform.credentials.health import CredentialHealth
+from platform.credentials.proxy.llm import provider_lease
+from platform.credentials.proxy.resolution import CredentialResolver as VaultResolver
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
+from platform.persistence.ports import TenantScope
 from platform.persistence.ports.verification_ledger import (
     VerificationRecord,
     VerificationSubject,
@@ -379,12 +382,58 @@ def _static_offerings(onboarding: ProviderOnboarding) -> tuple[ModelOffering, ..
     )
 
 
-async def _fetch_from_endpoint(provider_id: str) -> tuple[ModelOffering, ...]:
+def _vault_resolver(state: GatewayState) -> VaultResolver:
+    """Return a resolver over this deployment's vault, for the supported providers.
+
+    Built per call rather than held on state: it is a thin wrapper over the
+    gateway, and the schemas it validates against are derived from the provider
+    descriptors this build ships.
+    """
+    schemas = CredentialSchemaRegistry.from_schemas(
+        *(credential_schema_for(name) for name in SUPPORTED_PROVIDERS)
+    )
+    return VaultResolver(gateway=state.gateway, schemas=schemas)
+
+
+async def provider_credentials(
+    resolver: VaultResolver,
+    scope: TenantScope,
+    *,
+    team_id: str,
+    provider_id: str,
+    environ: Mapping[str, str] | None = None,
+) -> ProviderCredentials:
+    """Return the credential this deployment would actually call ``provider_id`` with.
+
+    The vault first, the environment second. That order is the whole point: an
+    operator who pastes a key into the first-run screen and presses verify is
+    asking about *that* key, and answering with whatever the container happened
+    to be started with is a different question — the one that reports "works"
+    for a deployment about to fail.
+
+    The environment is still consulted, and deliberately. A deployment that
+    names its provider in a manifest is a supported shape, and this change must
+    not break the operator already running one.
+
+    Never reads a value itself: ``resolver`` is the proxy's, which is the only
+    thing in NinjaSRE that may.
+    """
+    lease = await provider_lease(resolver, scope, team_id=team_id, providers=(provider_id,))
+    stored = lease.resolve(provider_id)
+    if stored.names:
+        return stored
+    return EnvironmentCredentialResolver(environ).resolve(provider_id)
+
+
+async def _fetch_from_endpoint(
+    provider_id: str, credentials: ProviderCredentials
+) -> tuple[ModelOffering, ...]:
     """Return the raw listing this provider's endpoint reports, uncurated.
 
-    Credentials are resolved the same way every other caller in ``core.llm``
-    resolves them — through :class:`CredentialResolver`, the seam the vault
-    fills in behind, never read directly here.
+    Takes the credential already resolved rather than resolving one, because
+    the caller is the only thing that knows which tenant is asking — and a
+    listing fetched with the wrong tenant's key is the shape of a cross-team
+    leak even when the listing itself carries no secret.
 
     Raises:
         ListingUnavailable: no implementation is registered for this provider,
@@ -393,18 +442,30 @@ async def _fetch_from_endpoint(provider_id: str) -> tuple[ModelOffering, ...]:
     catalogue = catalogue_for(provider_id)
     if catalogue is None:
         raise ListingUnavailable(f"{provider_id} declares no model-listing endpoint")
-    credentials = EnvironmentCredentialResolver().resolve(provider_id)
     return await catalogue.list_models(credentials)
 
 
 async def _listing(
-    provider_id: str, onboarding: ProviderOnboarding, *, refresh: bool = False
+    provider_id: str,
+    onboarding: ProviderOnboarding,
+    *,
+    credentials: ProviderCredentials,
+    team_id: str,
+    refresh: bool = False,
 ) -> ModelListingView:
-    """Return the curated listing for ``provider_id``, cached, falling back honestly."""
+    """Return the curated listing for ``provider_id``, cached, falling back honestly.
+
+    Cached per team as well as per provider. Two teams with different keys can
+    be entitled to different listings from the same vendor, and a cache keyed by
+    provider alone would serve one team the other's answer.
+    """
+    cache_key = f"{team_id}/{provider_id}"
 
     async def fetch() -> tuple[ModelOffering, ...]:
         return await _CATALOGUE_CACHE.get(
-            provider_id, fetch=lambda: _fetch_from_endpoint(provider_id), refresh=refresh
+            cache_key,
+            fetch=lambda: _fetch_from_endpoint(provider_id, credentials),
+            refresh=refresh,
         )
 
     listing = await listing_for(provider_id, fetch=fetch, static=_static_offerings(onboarding))
@@ -419,9 +480,15 @@ async def _listing(
     )
 
 
-async def _model_ids_for(provider_id: str, onboarding: ProviderOnboarding) -> list[str]:
+async def _model_ids_for(
+    provider_id: str,
+    onboarding: ProviderOnboarding,
+    *,
+    credentials: ProviderCredentials,
+    team_id: str,
+) -> list[str]:
     """Return the curated listing's model identifiers, for a verification refusal to name."""
-    listing = await _listing(provider_id, onboarding)
+    listing = await _listing(provider_id, onboarding, credentials=credentials, team_id=team_id)
     return [offering.model_id for offering in listing.models]
 
 
@@ -429,6 +496,7 @@ async def _model_ids_for(provider_id: str, onboarding: ProviderOnboarding) -> li
 async def list_models(
     provider_id: str,
     refresh: bool = False,
+    state: GatewayState = Depends(get_state),
     auth: AuthenticatedRequest = Depends(authorized),
 ) -> ModelListingView:
     """Return the models ``provider_id``'s own endpoint currently serves, curated.
@@ -440,9 +508,17 @@ async def list_models(
     Raises:
         ApiProblem: no supported provider answers to ``provider_id`` (404).
     """
-    del auth  # authorization only: reading what a provider serves needs no team scope
     onboarding = _onboarding(provider_id)
-    return await _listing(provider_id, onboarding, refresh=refresh)
+    team_id = auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM
+    credentials = await provider_credentials(
+        _vault_resolver(state),
+        auth.scope,
+        team_id=team_id,
+        provider_id=provider_id,
+    )
+    return await _listing(
+        provider_id, onboarding, credentials=credentials, team_id=team_id, refresh=refresh
+    )
 
 
 @router.post(
@@ -476,7 +552,18 @@ async def verify_provider(
     verdict = await (
         verify(provider_id, configured)
         if verify is not None
-        else _preflight(provider_id, configured, onboarding)
+        else _preflight(
+            provider_id,
+            configured,
+            onboarding,
+            credentials=await provider_credentials(
+                _vault_resolver(state),
+                auth.scope,
+                team_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
+                provider_id=provider_id,
+            ),
+            team_id=auth.team_node_id or CREDENTIAL_ORG_WIDE_TEAM,
+        )
     )
     await record_check(
         state.gateway,
@@ -542,7 +629,12 @@ async def _configured_model(
 
 
 async def _preflight(
-    provider_id: str, model_id: str | None, onboarding: ProviderOnboarding
+    provider_id: str,
+    model_id: str | None,
+    onboarding: ProviderOnboarding,
+    *,
+    credentials: ProviderCredentials,
+    team_id: str,
 ) -> ModelVerdict:
     """Return the verdict a default composition produces for ``provider_id``.
 
@@ -558,7 +650,9 @@ async def _preflight(
     return await verify_model(
         provider_id=provider_id,
         model_id=model_id,
-        list_models=lambda: _model_ids_for(provider_id, onboarding),
+        list_models=lambda: _model_ids_for(
+            provider_id, onboarding, credentials=credentials, team_id=team_id
+        ),
     )
 
 
