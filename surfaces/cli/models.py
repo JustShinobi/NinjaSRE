@@ -345,27 +345,6 @@ class ProviderStatus:
 
 
 @dataclass(frozen=True, slots=True)
-class IntegrationStatus:
-    """One vendor integration, and whether it is usable right now."""
-
-    integration: str
-    configured: bool = False
-    healthy: bool = False
-    credential_state: str = ""
-    detail: str = ""
-
-    def to_record(self) -> dict[str, Any]:
-        """Return this status as a JSON-serialisable document."""
-        return {
-            "integration": self.integration,
-            "configured": self.configured,
-            "healthy": self.healthy,
-            "credential_state": self.credential_state,
-            "detail": self.detail,
-        }
-
-
-@dataclass(frozen=True, slots=True)
 class CredentialFieldSpec:
     """One field an integration needs, as a prompt can ask for it.
 
@@ -394,6 +373,32 @@ class CredentialFieldSpec:
             "secret": self.secret,
             "required": self.required,
             "help": self.help,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class IntegrationStatus:
+    """One vendor integration, and whether it is usable right now."""
+
+    integration: str
+    configured: bool = False
+    healthy: bool = False
+    credential_state: str = ""
+    detail: str = ""
+    #: Where this deployment's own estate says this vendor is already running.
+    #: Empty for everything the estate says nothing about, which is most of the
+    #: catalogue and is the ordinary case.
+    suggested_address: str = ""
+
+    def to_record(self) -> dict[str, Any]:
+        """Return this status as a JSON-serialisable document."""
+        return {
+            "integration": self.integration,
+            "configured": self.configured,
+            "healthy": self.healthy,
+            "credential_state": self.credential_state,
+            "detail": self.detail,
+            "suggested_address": self.suggested_address,
         }
 
 
@@ -1313,6 +1318,7 @@ class OverrideRecord:
 
 
 __all__ = [
+    "CredentialFieldSpec",
     "AutonomyBoundsRecord",
     "AutonomyExplanation",
     "AutonomyPolicyRecord",
@@ -1325,7 +1331,6 @@ __all__ = [
     "ConfigView",
     "ConsideredRuleRecord",
     "CostReport",
-    "CredentialFieldSpec",
     "DetectionState",
     "DetectorRecord",
     "DiagnosticCheck",

@@ -19,6 +19,7 @@ from config.constants.transit import (
     DELIVERY_EVENT_INVESTIGATION_CONCLUDED,
     NO_DELIVERY_CHANNEL_REASON,
 )
+from gateway.webhooks.router import PROFILES
 from platform.config_service.service import ConfigService
 from platform.identity.permissions import Role
 from platform.persistence.ports import (
@@ -84,7 +85,10 @@ async def test_every_configured_receiver_appears_whether_or_not_it_ever_delivere
 
     assert response.status_code == 200, response.text
     sources = {row["source"]: row for row in response.json()["sources"]}
-    assert len(sources) == 3
+    # Named rather than counted. A count says "three" and goes stale the day a
+    # seventh vendor's webhook lands; the names say which receivers a console is
+    # actually offering, which is what this route exists to answer.
+    assert set(sources) == set(PROFILES)
     assert all(row["never_delivered"] for row in sources.values())
 
 
