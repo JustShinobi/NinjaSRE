@@ -1,15 +1,9 @@
-"""The three reference integrations, each proving a different row of FR-018's table.
+"""The reference integration, proving the row of FR-018's table it sits on.
 
-Datadog is the ordinary case: two headers, a direct client, and nothing else to
-decide. Kubernetes is the case where NinjaSRE cannot know the host, so the
-operator declares the allow-list. AWS is the case the whole feature exists for —
-SigV4 needs the key at construction time, so a signing client is a key-holding
-client, and the signing moved to the proxy (SC-006).
-
-The AWS tests are the ones to read. ``test_the_client_process_never_holds_a
-signing_key`` is the concrete form of SC-006: the request the *client* builds is
-inspected and has no signature in it, and the request the *vendor* receives
-does. That pair is what the requirement actually says.
+Kubernetes is the case where NinjaSRE cannot know the host, so the operator
+declares the allow-list. Its official client's transport can be replaced but
+its credential loading cannot, which is exactly the shape Article IV forbids —
+so the client is written directly on the shared base instead.
 """
 
 from __future__ import annotations
@@ -22,9 +16,6 @@ import pytest
 
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import InProcessProxyTransport, RequestContext
-from integrations.aws import AWS, CloudWatchLogsClient, rule_for
-from integrations.aws.client import LOGS_TARGET_HEADER
-from integrations.datadog import DATADOG, DatadogClient
 from integrations.kubernetes import IN_CLUSTER_HOST, KUBERNETES, KubernetesClient
 from integrations.kubernetes.schema import rule_for as kubernetes_rule_for
 from platform.credentials.descriptor import IntegrationDescriptor, SdkStrategy
@@ -101,76 +92,6 @@ def json_body(payload: object) -> OutboundResponse:
     return OutboundResponse(200, {"content-type": "application/json"}, json.dumps(payload).encode())
 
 
-# -- Datadog: the ordinary case -----------------------------------------------
-
-
-DATADOG_CREDENTIAL = {
-    "api_key": "0123456789abcdef0123456789abcdef",
-    "app_key": "0123456789abcdef0123456789abcdef01234567",
-}
-
-
-async def test_datadog_receives_both_keys_and_the_client_holds_neither() -> None:
-    transport, vendor = await stand_up(DATADOG, DATADOG_CREDENTIAL)
-    vendor.responses.append(json_body({"data": [], "meta": {"page": {}}}))
-    client = DatadogClient(transport=transport, context=CONTEXT, retry=NO_RETRY)
-
-    await client.search_logs("service:checkout", start="now-1h", end="now")
-
-    sent = vendor.sent[0]
-    assert sent.headers["DD-API-KEY"] == DATADOG_CREDENTIAL["api_key"]
-    assert sent.headers["DD-APPLICATION-KEY"] == DATADOG_CREDENTIAL["app_key"]
-    assert not hasattr(client, "api_key")
-
-
-async def test_datadog_pages_and_reports_when_it_stopped_early() -> None:
-    transport, vendor = await stand_up(DATADOG, DATADOG_CREDENTIAL)
-    vendor.responses.extend(
-        [
-            json_body({"data": [{"id": "1"}], "meta": {"page": {"after": "cursor-2"}}}),
-            json_body({"data": [{"id": "2"}], "meta": {"page": {}}}),
-        ]
-    )
-    client = DatadogClient(transport=transport, context=CONTEXT, retry=NO_RETRY)
-
-    found = await client.search_logs("service:checkout", start="now-1h", end="now")
-
-    assert [entry["id"] for entry in found.items] == ["1", "2"]
-    assert found.pages_followed == 2
-    assert not found.truncated
-    assert json.loads(vendor.sent[1].body or b"{}")["page"]["cursor"] == "cursor-2"
-
-
-async def test_the_datadog_site_selects_the_base_url_and_is_not_a_secret() -> None:
-    transport, vendor = await stand_up(DATADOG, DATADOG_CREDENTIAL)
-    client = DatadogClient(
-        transport=transport, context=CONTEXT, site="datadoghq.eu", retry=NO_RETRY
-    )
-
-    await client.alerting_monitors()
-
-    assert vendor.sent[0].host == "api.datadoghq.eu"
-
-
-async def test_the_datadog_verifier_reports_success_without_showing_a_key() -> None:
-    transport, _ = await stand_up(DATADOG, DATADOG_CREDENTIAL)
-
-    result = await DATADOG.verifier.probe(transport, CONTEXT)
-
-    assert result.ok
-    assert DATADOG_CREDENTIAL["api_key"] not in str(result.to_record())
-
-
-async def test_the_datadog_verifier_explains_a_rejection_in_the_operators_terms() -> None:
-    transport, vendor = await stand_up(DATADOG, DATADOG_CREDENTIAL)
-    vendor.responses.append(OutboundResponse(401, {}, b"forbidden"))
-
-    result = await DATADOG.verifier.probe(transport, CONTEXT)
-
-    assert not result.ok
-    assert "Re-issue it" in result.detail
-
-
 # -- Kubernetes: the operator declares the allow-list -------------------------
 
 
@@ -222,101 +143,12 @@ async def test_the_kubernetes_verifier_separates_a_bad_token_from_bad_rbac() -> 
     assert "role binding" in result.detail
 
 
-# -- AWS: SC-006 --------------------------------------------------------------
-
-
-AWS_CREDENTIAL = {
-    "access_key_id": "AKIAIOSFODNN7EXAMPLE",
-    "secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-    "region": "us-east-1",
-}
-
-
-async def test_the_client_process_never_holds_a_signing_key() -> None:
-    """SC-006, stated as the pair of assertions the requirement actually makes."""
-    transport, vendor = await stand_up(AWS, AWS_CREDENTIAL)
-    vendor.responses.append(json_body({"logGroups": []}))
-    client = CloudWatchLogsClient(transport=transport, context=CONTEXT, retry=NO_RETRY)
-
-    await client.describe_log_groups()
-
-    signed = vendor.sent[0]
-    assert signed.headers["Authorization"].startswith("AWS4-HMAC-SHA256 ")
-    assert AWS_CREDENTIAL["secret_access_key"] not in str(signed.headers)
-    held = {slot: getattr(client, slot, None) for slot in _slots_of(type(client))}
-    assert AWS_CREDENTIAL["secret_access_key"] not in repr(held)
-
-
-async def test_the_request_the_client_built_carries_no_signature() -> None:
-    """The other half: what leaves the client is unsigned and carries only a handle."""
-    transport, vendor = await stand_up(AWS, AWS_CREDENTIAL)
-    client = CloudWatchLogsClient(transport=transport, context=CONTEXT, retry=NO_RETRY)
-
-    await client.describe_log_groups()
-
-    unsigned = transport.app.engine  # the engine saw the client's request first
-    assert unsigned is not None
-    # The proxy added it; the vendor is the first to see one.
-    assert "Authorization" in vendor.sent[0].headers
-
-
-async def test_the_aws_signature_covers_the_body() -> None:
-    transport, vendor = await stand_up(AWS, AWS_CREDENTIAL)
-    vendor.responses.append(json_body({"events": [], "nextToken": ""}))
-    client = CloudWatchLogsClient(transport=transport, context=CONTEXT, retry=NO_RETRY)
-
-    await client.filter_log_events("/aws/lambda/checkout", start_ms=0, end_ms=1000)
-
-    signed = vendor.sent[0]
-    assert signed.headers[LOGS_TARGET_HEADER] == "Logs_20140328.FilterLogEvents"
-    assert "x-amz-content-sha256" in signed.headers["Authorization"]
-
-
-async def test_an_undeclared_aws_region_is_refused() -> None:
-    """ "AWS" is not a trust boundary; a service in a region the operator declared is."""
-    rule = rule_for(regions=("us-east-1",))
-
-    assert rule.permits("logs.us-east-1.amazonaws.com")
-    assert not rule.permits("logs.eu-west-1.amazonaws.com")
-
-
-async def test_the_aws_verifier_tells_a_bad_signature_from_a_bad_key() -> None:
-    """Both arrive as 403, and they send an operator to opposite places."""
-    transport, vendor = await stand_up(AWS, AWS_CREDENTIAL)
-    vendor.responses.append(OutboundResponse(403, {}, b"<Error><Code>SignatureDoesNotMatch</Code>"))
-
-    result = await AWS.verifier.probe(transport, CONTEXT)
-
-    assert not result.ok
-    assert "clock" in result.detail
-
-
-async def test_the_aws_verifier_names_an_expired_session_token() -> None:
-    transport, vendor = await stand_up(AWS, AWS_CREDENTIAL)
-    vendor.responses.append(OutboundResponse(403, {}, b"<Error><Code>ExpiredToken</Code>"))
-
-    result = await AWS.verifier.probe(transport, CONTEXT)
-
-    assert "refresher" in result.detail
-
-
 # -- FR-018, per vendor -------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("descriptor", "expected"),
-    [
-        (DATADOG, SdkStrategy.DIRECT_CLIENT),
-        (KUBERNETES, SdkStrategy.DIRECT_CLIENT),
-        (AWS, SdkStrategy.PROXY_SIGNED),
-    ],
-    ids=lambda value: getattr(value, "name", str(value)),
-)
-def test_each_reference_integration_records_its_sdk_decision(
-    descriptor: IntegrationDescriptor, expected: SdkStrategy
-) -> None:
-    assert descriptor.sdk_strategy is expected
-    assert len(descriptor.strategy_note.split()) > 20, (
+def test_the_reference_integration_records_its_sdk_decision() -> None:
+    assert KUBERNETES.sdk_strategy is SdkStrategy.DIRECT_CLIENT
+    assert len(KUBERNETES.strategy_note.split()) > 20, (
         "a one-line rationale is not a decision anybody can review"
     )
 
@@ -325,27 +157,16 @@ def test_no_integration_may_declare_the_strategy_that_exists_to_be_refused() -> 
     """There is no in-process-credential exception, and the type says so."""
     with pytest.raises(ValueError, match="no in-process-credential exception"):
         IntegrationDescriptor(
-            name=DATADOG.name,
-            schema=DATADOG.schema,
-            rule=DATADOG.rule,
-            verifier=DATADOG.verifier,
-            client_class=DatadogClient,
+            name=KUBERNETES.name,
+            schema=KUBERNETES.schema,
+            rule=KUBERNETES.rule,
+            verifier=KUBERNETES.verifier,
+            client_class=KubernetesClient,
             sdk_strategy=SdkStrategy.NO_EXCEPTION_GRANTED,
             strategy_note="the SDK insists",
         )
 
 
-@pytest.mark.parametrize("descriptor", [DATADOG, KUBERNETES, AWS], ids=lambda value: value.name)
-def test_the_schema_and_the_rule_have_not_drifted(descriptor: IntegrationDescriptor) -> None:
+def test_the_schema_and_the_rule_have_not_drifted() -> None:
     """A field rename on one side sends an unauthenticated request and gets a 401."""
-    assert descriptor.undeclared_injection_fields() == ()
-
-
-def _slots_of(cls: type) -> tuple[str, ...]:
-    """Return every slot the class and its bases declare.
-
-    A slotted class has no ``__dict__``, which is itself part of the guarantee —
-    there is nowhere to stash a credential — so "what does this instance hold"
-    has to be asked of the slots.
-    """
-    return tuple(slot for base in cls.__mro__ for slot in getattr(base, "__slots__", ()))
+    assert KUBERNETES.undeclared_injection_fields() == ()

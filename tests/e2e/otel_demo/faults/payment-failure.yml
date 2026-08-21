@@ -17,12 +17,10 @@ integrations:
 - kubernetes
 - prometheus
 - loki
-- flagd
 available_evidence:
 - kubernetes
 - prometheus
 - loki
-- flagd
 
 expected_symptom:
 - payment_error_rate_rising

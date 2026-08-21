@@ -15980,25 +15980,6 @@
         ]
       }
     },
-    "/webhooks/datadog": {
-      "post": {
-        "operationId": "handle_webhooks_datadog_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
     "/webhooks/generic": {
       "post": {
         "operationId": "handle_webhooks_generic_post",
@@ -16021,63 +16002,6 @@
     "/webhooks/grafana": {
       "post": {
         "operationId": "handle_webhooks_grafana_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
-    "/webhooks/opsgenie": {
-      "post": {
-        "operationId": "handle_webhooks_opsgenie_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
-    "/webhooks/pagerduty": {
-      "post": {
-        "operationId": "handle_webhooks_pagerduty_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Handle",
-        "tags": [
-          "webhooks"
-        ]
-      }
-    },
-    "/webhooks/sentry": {
-      "post": {
-        "operationId": "handle_webhooks_sentry_post",
         "responses": {
           "200": {
             "content": {

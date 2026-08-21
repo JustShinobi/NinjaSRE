@@ -33,7 +33,7 @@
             "display_name": "Enable backup job",
             "domain": "rushes.example.invalid",
             "name": "estate.enable_backup_job",
-            "side_effect_level": "write"
+            "side_effect_level": "write_reversible"
           },
           {
             "description": "Find the runbook or postmortem that covers this.",

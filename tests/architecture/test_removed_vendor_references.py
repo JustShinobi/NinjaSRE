@@ -227,7 +227,7 @@ ALLOWED_REFERENCE_FILE_NAMES: frozenset[str] = frozenset(
         # providers a deployment may choose (Azure OpenAI, AWS Bedrock) —
         # both a different catalogue from the integrations one.
         "docs/site/configuration/isolation--masking--and-the-credential-proxy.md",
-        "docs/site/configuration/model-provider---set-the-one-you-use.md",
+        "docs/site/configuration/model-provider.md",
         # "AWS SigV4" as the industry-recognised example of a signing scheme
         # that needs the key at request-construction time — explaining why
         # the credential proxy signs proxy-side, not a claim that AWS is in

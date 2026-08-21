@@ -22,6 +22,7 @@ import pytest
 
 from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, Severity, normalise
 from core.domain.alerts.sources import ALERT_SOURCES, AlertSource
+from tests.contract.alerts.fixtures_alertmanager_delivery import ALERTMANAGER_FIRING_GROUPED
 
 pytestmark = pytest.mark.contract
 
@@ -82,69 +83,6 @@ GRAFANA_LEGACY: Mapping[str, Any] = {
     "evalMatches": [{"metric": "p99", "value": 4.2, "tags": {"service": "checkout"}}],
 }
 
-PAGERDUTY: Mapping[str, Any] = {
-    "event": {
-        "id": "01D2G4",
-        "event_type": "incident.triggered",
-        "occurred_at": "2026-08-05T12:05:00Z",
-        "data": {
-            "type": "incident",
-            "id": "PIJ90N7",
-            "title": "Checkout API returning 500s",
-            "status": "triggered",
-            "urgency": "high",
-            "created_at": "2026-08-05T12:04:30Z",
-            "html_url": "https://acme.pagerduty.com/incidents/PIJ90N7",
-            "service": {"summary": "checkout"},
-            "priority": {"summary": "P1"},
-        },
-    }
-}
-
-DATADOG: Mapping[str, Any] = {
-    "alert_id": "1234567",
-    "alert_title": "[Triggered] Checkout error rate",
-    "alert_type": "error",
-    "alert_transition": "Triggered",
-    "event_type": "query_alert_monitor",
-    "body": "error rate 12% over the last 5 minutes",
-    "date": 1785931200000,
-    "priority": "P1",
-    "tags": "env:production,service:checkout,team:payments",
-    "link": "https://app.datadoghq.com/event/event?id=1234567",
-}
-
-SENTRY: Mapping[str, Any] = {
-    "action": "created",
-    "data": {
-        "issue": {
-            "id": "1201",
-            "title": "TimeoutError: checkout payment gateway",
-            "culprit": "checkout.payments in charge",
-            "level": "error",
-            "status": "unresolved",
-            "firstSeen": "2026-08-05T12:03:00Z",
-            "project": {"slug": "checkout"},
-            "web_url": "https://sentry.io/organizations/acme/issues/1201/",
-        }
-    },
-}
-
-OPSGENIE: Mapping[str, Any] = {
-    "action": "Create",
-    "alert": {
-        "alertId": "abc-123",
-        "tinyId": "42",
-        "message": "Checkout pod restarting",
-        "description": "3 restarts in 5 minutes",
-        "priority": "P2",
-        "entity": "checkout",
-        "createdAt": "2026-08-05T12:05:00Z",
-        "tags": ["env:production", "service:checkout"],
-        "team": "payments",
-    },
-}
-
 WEBHOOK: Mapping[str, Any] = {
     "title": "Checkout queue backing up",
     "severity": "warning",
@@ -168,10 +106,6 @@ def _raw(payload: Mapping[str, Any], **overrides: Any) -> RawAlert:
         (ALERTMANAGER, AlertSource.ALERTMANAGER),
         (GRAFANA, AlertSource.GRAFANA),
         (GRAFANA_LEGACY, AlertSource.GRAFANA),
-        (PAGERDUTY, AlertSource.PAGERDUTY),
-        (DATADOG, AlertSource.DATADOG),
-        (SENTRY, AlertSource.SENTRY),
-        (OPSGENIE, AlertSource.OPSGENIE),
         (WEBHOOK, AlertSource.WEBHOOK),
     ],
 )
@@ -197,9 +131,9 @@ def test_prose_with_no_payload_is_plain_text() -> None:
 
 def test_the_transports_hint_beats_shape_detection() -> None:
     """The route a payload arrived on is a fact; its shape is an inference."""
-    alert = normalise(_raw(WEBHOOK, source_hint="datadog"))
+    alert = normalise(_raw(WEBHOOK, source_hint="grafana"))
 
-    assert alert.alert_source is AlertSource.DATADOG
+    assert alert.alert_source is AlertSource.GRAFANA
 
 
 # -- extraction ---------------------------------------------------------------
@@ -221,6 +155,25 @@ def test_alertmanagers_zero_end_time_means_the_alert_has_not_ended() -> None:
     """``0001-01-01T00:00:00Z`` parses cleanly and means "still firing"; taking
     it literally would produce a window that closed two thousand years ago."""
     assert normalise(_raw(ALERTMANAGER)).ended_at is None
+
+
+def test_a_group_of_several_alerts_keeps_every_members_component_not_only_the_leading_ones() -> (
+    None
+):
+    """The adapter's own claim is 'the rest become components and labels,
+    because an alert group is one incident seen from several instances' — so
+    a two-member group naming two different services must show both, or an
+    operator reading the resulting incident has no way to learn the second
+    host is down too. Both members fire the same rule and share every common
+    label; only their own ``service`` label tells them apart."""
+    alert = normalise(_raw(ALERTMANAGER_FIRING_GROUPED))
+
+    assert "cedar" in alert.components, (
+        f"the leading (first firing) member's own component must survive: {alert.components!r}"
+    )
+    assert "birch" in alert.components, (
+        f"a group member beyond the leading one must not be dropped silently: {alert.components!r}"
+    )
 
 
 def test_a_resolved_alertmanager_notification_is_marked_resolved() -> None:
@@ -252,56 +205,6 @@ def test_grafana_legacy_reads_its_eval_matches() -> None:
 
     assert alert.alert_name == "CheckoutLatency"
     assert alert.components == ("checkout",)
-
-
-def test_pagerduty_yields_the_incident_and_its_service() -> None:
-    alert = normalise(_raw(PAGERDUTY))
-
-    assert alert.alert_name == "Checkout API returning 500s"
-    assert alert.severity is Severity.CRITICAL
-    assert alert.components == ("checkout",)
-    assert alert.started_at == datetime(2026, 8, 5, 12, 4, 30, tzinfo=UTC)
-    assert not alert.resolved
-
-
-def test_datadog_reads_key_value_tags_as_labels() -> None:
-    alert = normalise(_raw(DATADOG))
-
-    assert alert.alert_name == "[Triggered] Checkout error rate"
-    assert alert.severity is Severity.CRITICAL
-    assert alert.components == ("checkout",)
-    assert alert.labels["env"] == "production"
-    assert alert.started_at == datetime(2026, 8, 5, 12, 0, tzinfo=UTC)
-
-
-def test_datadog_recovery_is_marked_resolved() -> None:
-    alert = normalise(_raw({**DATADOG, "alert_transition": "Recovered"}))
-
-    assert alert.resolved
-
-
-def test_sentry_yields_the_issue_and_its_project() -> None:
-    alert = normalise(_raw(SENTRY))
-
-    assert alert.alert_name == "TimeoutError: checkout payment gateway"
-    assert alert.severity is Severity.HIGH
-    assert alert.components == ("checkout",)
-    assert alert.started_at == datetime(2026, 8, 5, 12, 3, tzinfo=UTC)
-
-
-def test_opsgenie_yields_its_entity_and_priority() -> None:
-    alert = normalise(_raw(OPSGENIE))
-
-    assert alert.alert_name == "Checkout pod restarting"
-    assert alert.severity is Severity.HIGH
-    assert alert.components[0] == "checkout"
-    assert alert.labels["env"] == "production"
-
-
-def test_opsgenie_close_is_marked_resolved() -> None:
-    alert = normalise(_raw({**OPSGENIE, "action": "Close"}))
-
-    assert alert.resolved
 
 
 def test_an_unrecognised_body_still_yields_its_conventional_fields() -> None:
@@ -343,7 +246,9 @@ def test_a_malformed_payload_normalises_rather_than_raising(
 
 
 def test_a_recognised_payload_with_no_headline_falls_back_to_the_raw_text() -> None:
-    alert = normalise(RawAlert(payload={"alert_id": "9"}, text="checkout is throwing 500s"))
+    alert = normalise(
+        RawAlert(payload={"unrecognised_field": "9"}, text="checkout is throwing 500s")
+    )
 
-    assert alert.alert_source is AlertSource.DATADOG
+    assert alert.alert_source is AlertSource.WEBHOOK
     assert alert.summary == "checkout is throwing 500s"

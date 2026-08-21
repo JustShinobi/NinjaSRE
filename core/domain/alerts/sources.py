@@ -20,11 +20,7 @@ class AlertSource(StrEnum):
     """Where an alert came from, as the pipeline records it."""
 
     ALERTMANAGER = "alertmanager"
-    PAGERDUTY = "pagerduty"
-    DATADOG = "datadog"
     GRAFANA = "grafana"
-    SENTRY = "sentry"
-    OPSGENIE = "opsgenie"
     WEBHOOK = "webhook"
     PLAIN_TEXT = "plain_text"
 
@@ -45,10 +41,6 @@ _FALLBACK_SOURCES: Final[frozenset[AlertSource]] = frozenset(
 ALERT_SOURCES: Final[tuple[AlertSource, ...]] = (
     AlertSource.ALERTMANAGER,
     AlertSource.GRAFANA,
-    AlertSource.PAGERDUTY,
-    AlertSource.DATADOG,
-    AlertSource.SENTRY,
-    AlertSource.OPSGENIE,
     AlertSource.WEBHOOK,
     AlertSource.PLAIN_TEXT,
 )

@@ -8,7 +8,7 @@
             "display_name": "Avery Lockhart",
             "email": "avery.lockhart@example.invalid",
             "is_active": true,
-            "kind": "person",
+            "kind": "user",
             "user_id": "user-operator"
           }
         ]

@@ -169,8 +169,8 @@ uv run python tools/scaffold_capability.py <tool_name> --domain <domain> [--vend
 
 Three files, no edits: the tool module, a `SKILL.md`, and a contract test.
 Discovery walks the package, so there is no registry to register with — which
-is the property that keeps a catalogue of eighty-five integrations addable one
-package at a time. The scaffold prints what it deliberately cannot decide for
+is the property that keeps the catalogue addable one package at a time,
+whatever its size. The scaffold prints what it deliberately cannot decide for
 you, starting with the side-effect level, which has no default.
 
 ## Adding an integration

@@ -116,11 +116,11 @@ async def test_the_integration_matching_the_alert_source_is_suggested_first() ->
             _excluded("kubernetes_pod_events", "kubernetes"),
             _excluded("kubernetes_deployment_history", "kubernetes"),
             _excluded("kubernetes_node_pressure", "kubernetes"),
-            _excluded("datadog_log_statistics", "datadog"),
+            _excluded("grafana_log_statistics", "grafana"),
         )
     )
     state = initial_state(
-        RawAlert(payload={"alert_id": "1", "alert_title": "high latency"}, received_at=AT),
+        RawAlert(payload={"ruleName": "high latency", "orgId": "1"}, received_at=AT),
         team(integrations=()),
     )
     stage = ResolveIntegrationsStage(FixedCatalogueResolver(catalogue))
@@ -128,9 +128,9 @@ async def test_the_integration_matching_the_alert_source_is_suggested_first() ->
     outcome = (await stage(state)).investigation.outcome  # type: ignore[union-attr]
 
     assert outcome is not None
-    assert "datadog" in outcome.detail
-    assert "Connect datadog" in outcome.next_steps[0], (
-        "kubernetes blocks more capabilities, but the alert came from Datadog"
+    assert "grafana" in outcome.detail
+    assert "Connect grafana" in outcome.next_steps[0], (
+        "kubernetes blocks more capabilities, but the alert came from Grafana"
     )
 
 
@@ -244,7 +244,7 @@ async def test_the_plan_is_reproducible() -> None:
 
 def test_the_ranking_signals_carry_the_source_the_summary_and_the_components() -> None:
     alert = NormalisedAlert(
-        alert_source=AlertSource.DATADOG,
+        alert_source=AlertSource.GRAFANA,
         alert_name="HighErrorRate",
         summary="checkout error rate above 5%",
         error_text="502 from the payment gateway",
@@ -255,7 +255,7 @@ def test_the_ranking_signals_carry_the_source_the_summary_and_the_components() -
 
     signals = signals_from(alert)
 
-    assert signals.alert_source == "datadog"
+    assert signals.alert_source == "grafana"
     assert "HighErrorRate" in signals.summary
     assert "payment gateway" in signals.summary
     assert "checkout" in signals.tags

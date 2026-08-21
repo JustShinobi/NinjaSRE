@@ -53,12 +53,8 @@ from gateway.http.state import GatewayState
 from gateway.webhooks.dedup import fingerprint
 from gateway.webhooks.sources import (
     alertmanager,
-    datadog,
     generic,
     grafana,
-    opsgenie,
-    pagerduty,
-    sentry,
 )
 from gateway.webhooks.sources.profile import WebhookSourceProfile
 from platform.config_service.bindings import masking_policy
@@ -94,11 +90,7 @@ logger = get_logger(__name__)
 #: because it is the fallback shape rather than a vendor.
 PROFILES: dict[str, WebhookSourceProfile] = {
     "alertmanager": alertmanager.PROFILE,
-    "pagerduty": pagerduty.PROFILE,
-    "datadog": datadog.PROFILE,
     "grafana": grafana.PROFILE,
-    "sentry": sentry.PROFILE,
-    "opsgenie": opsgenie.PROFILE,
     "generic": generic.PROFILE,
 }
 
