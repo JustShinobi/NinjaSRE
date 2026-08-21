@@ -20,7 +20,10 @@ from config.constants.deployment import (
     NINJASRE_INVESTIGATOR_ENV,
 )
 from config.constants.llm import ANTHROPIC_API_KEY_ENV, NINJASRE_LLM_PROVIDER_ENV
-from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
+from config.constants.persistence import (
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
+    NINJASRE_DATABASE_URL_ENV,
+)
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from core.llm.factory import reset_factory
 from gateway.runtime.factory import build_investigator
@@ -33,6 +36,7 @@ _ENVIRON = {
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@postgres:5432/ninjasre",
     NINJASRE_LLM_PROVIDER_ENV: "anthropic",
     ANTHROPIC_API_KEY_ENV: "sk-ant-not-a-real-key",
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "A" * 43 + "=",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
 }
 

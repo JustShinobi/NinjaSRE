@@ -70,7 +70,7 @@ from config.constants.security import (
     NINJASRE_SANDBOX_PROFILE_ENV,
     SANDBOX_PROFILES,
 )
-from platform.startup.egress import external_destinations, provider_is_local
+from platform.startup.egress import PURPOSE_PROVIDER, external_destinations, provider_is_local
 from platform.startup.errors import ConfigurationInvalid, UnknownDeploymentProfile
 from platform.startup.keys import ENCRYPTION_KEY_BYTES, KEY_GENERATOR_HINT
 from platform.startup.profiles import (
@@ -200,10 +200,46 @@ def validate(environ: Mapping[str, str] | None = None) -> ValidationReport:
     profile, topology = _profile(source, findings)
     _database(source, findings)
     _provider(source, findings)
-    _encryption_key(source, findings)
+    _encryption_key(source, topology, findings)
     _sandbox(source, topology, findings)
     _proxy(source, topology, findings)
     _air_gapped(source, findings)
+    _trust_bundle(source, findings)
+
+    return ValidationReport(findings=tuple(findings), profile=profile, topology=topology)
+
+
+def validate_proxy(environ: Mapping[str, str] | None = None) -> ValidationReport:
+    """Return every configuration problem the credential proxy's own environment has.
+
+    The credential proxy brokers credentials for other processes; it never
+    calls a model itself, so ``validate``'s provider check does not belong
+    here — applying it would refuse a correctly configured proxy over a
+    setting that belongs to a different process, and handing the proxy a
+    provider credential just to satisfy the check would spread a secret to a
+    process that never needed it, which is a worse position than the refusal
+    it would silence. The sandbox check is skipped for the same reason: the
+    proxy isolates nothing and runs no capability.
+
+    Everything the proxy genuinely depends on is still checked: its database,
+    its encryption key, its own address, the trust bundle a TLS-terminating
+    call needs, and the destinations an air-gapped deployment may not reach —
+    the proxy is the process that actually carries an authenticated call to a
+    vendor on another process's behalf, so that no-egress guarantee is one it
+    has to uphold for everything except the one destination that is still not
+    its concern (see ``_proxy_egress`` below).
+
+    Never raises — ``raise_if_invalid`` is what a boot sequence calls when it
+    wants the exception, same as ``validate``.
+    """
+    source = dict(environ if environ is not None else os.environ)
+    findings: list[Finding] = []
+
+    profile, topology = _profile(source, findings)
+    _database(source, findings)
+    _encryption_key(source, topology, findings)
+    _proxy(source, topology, findings)
+    _proxy_egress(source, findings)
     _trust_bundle(source, findings)
 
     return ValidationReport(findings=tuple(findings), profile=profile, topology=topology)
@@ -263,7 +299,22 @@ def _database(source: Mapping[str, str], findings: list[Finding]) -> None:
 
 
 def _provider(source: Mapping[str, str], findings: list[Finding]) -> None:
-    """Check the one credential a minimum viable configuration needs (FR-010)."""
+    """Check the model provider, distinguishing silence from a request that cannot be met.
+
+    The two are not the same finding and must not carry the same severity.
+
+    **Silence is a deployment that has not been set up yet**, which is the state
+    every deployment starts in. Connecting a provider is a first-run step: the
+    setup checklist lists it second, and the console has a screen for a
+    deployment that has none. Refusing to boot would kill the process that
+    renders them, so the absence is advisory — said out loud at every start, and
+    never a reason to refuse one.
+
+    **A named provider is a request**, and a request that cannot be met is
+    fatal. An operator who wrote ``anthropic`` and no key gets a failure naming
+    the key, because starting anyway would defer the same error to the first
+    investigation somebody runs.
+    """
     named = source.get(NINJASRE_LLM_PROVIDER_ENV, "").strip().lower()
 
     if not named:
@@ -278,11 +329,12 @@ def _provider(source: Mapping[str, str], findings: list[Finding]) -> None:
                     setting=NINJASRE_LLM_PROVIDER_ENV,
                     problem="No model provider is configured.",
                     remedy=(
-                        "Set it to one of: "
-                        f"{', '.join(SUPPORTED_PROVIDERS)}, and set that provider's "
-                        "credential. One provider credential is the whole minimum "
-                        "viable configuration."
+                        "Connect one at first run, in the console: the credential is "
+                        "stored in the vault rather than set here. Naming a provider "
+                        f"in the environment — one of {', '.join(SUPPORTED_PROVIDERS)}, "
+                        "with that provider's credential — is the other way."
                     ),
+                    severity=Severity.WARNING,
                 )
             )
         return
@@ -311,14 +363,23 @@ def _provider(source: Mapping[str, str], findings: list[Finding]) -> None:
         )
 
 
-def _encryption_key(source: Mapping[str, str], findings: list[Finding]) -> None:
-    """Check the key's shape. Whether it is the *right* key is the vault's question.
+def _encryption_key(
+    source: Mapping[str, str],
+    topology: ProfileTopology,
+    findings: list[Finding],
+) -> None:
+    """Check the key's shape, and its absence against what the profile has to store.
 
-    An unset key is advisory rather than fatal, and that asymmetry is deliberate:
-    a deployment that stores no credentials is legitimate and should not fail to
-    start over a key it will never use. The first credential write is where the
-    absence becomes an error, and ``keys.require_encryption_key`` is what raises
-    it (FR-019).
+    Whether it is the *right* key is the vault's question, not this one.
+
+    The severity of an absent key follows the topology rather than being fixed.
+    A profile that runs the credential proxy inside the application process can
+    legitimately store nothing at all, so a key it will never use is not worth
+    refusing a start over. Every other profile reaches the proxy through the
+    vault — the model provider's own credential included — and a deployment
+    without a key there cannot finish its own first run: it reaches the provider
+    step and fails at the write. Naming the setting at boot costs one line;
+    discovering it costs an operator the first thing they try.
     """
     material = source.get(NINJASRE_DATABASE_ENCRYPTION_KEY_ENV, "").strip()
     if not material:
@@ -328,9 +389,9 @@ def _encryption_key(source: Mapping[str, str], findings: list[Finding]) -> None:
                 problem="No encryption key is configured, so no credential can be stored.",
                 remedy=(
                     f"Generate one with {KEY_GENERATOR_HINT} and set it before "
-                    f"configuring an integration. NinjaSRE never generates one for you."
+                    f"anything is configured. NinjaSRE never generates one for you."
                 ),
-                severity=Severity.WARNING,
+                severity=(Severity.WARNING if topology.runs_proxy_in_process else Severity.FATAL),
             )
         )
         return
@@ -462,6 +523,40 @@ def _air_gapped(source: Mapping[str, str], findings: list[Finding]) -> None:
         )
 
 
+def _proxy_egress(source: Mapping[str, str], findings: list[Finding]) -> None:
+    """Check the destinations an air-gapped deployment's own proxy may not reach.
+
+    A narrower sibling of ``_air_gapped``, for ``validate_proxy``. The proxy is
+    the process that actually carries an authenticated call to a vendor on
+    another process's behalf, so the no-egress guarantee is one it has to
+    uphold for the database, telemetry export, and the operator's own
+    allow-list. It is not reused unmodified: ``configured_destinations``
+    always reports a model-provider destination — synthesised from the
+    default provider even when nothing names one — and ``_air_gapped``'s own
+    skip only catches that destination in the one shape where nothing
+    overrides the provider's endpoint. Every provider-purposed destination is
+    skipped here regardless of shape, because the proxy never calls a model
+    and refusing it over that destination is the exact mistake this module
+    exists to correct.
+    """
+    if source.get(NINJASRE_AIR_GAPPED_ENV, "").strip().lower() not in _TRUTHY:
+        return
+
+    for destination in external_destinations(source):
+        if destination.purpose.startswith(PURPOSE_PROVIDER):
+            continue
+        findings.append(
+            Finding(
+                setting=destination.setting,
+                problem=f"This deployment is air-gapped and {destination} leaves the host.",
+                remedy=(
+                    "Point it at a service on the operator's own infrastructure, or "
+                    "remove the setting."
+                ),
+            )
+        )
+
+
 def _trust_bundle(source: Mapping[str, str], findings: list[Finding]) -> None:
     """Check the TLS trust bundle exists before something fails to verify (FR-025)."""
     configured = source.get(NINJASRE_CA_BUNDLE_ENV, "").strip()
@@ -490,4 +585,5 @@ __all__ = [
     "Severity",
     "ValidationReport",
     "validate",
+    "validate_proxy",
 ]

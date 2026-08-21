@@ -78,12 +78,6 @@ MISCONFIGURATIONS: tuple[tuple[str, dict[str, str], str, str], ...] = (
         "anthropic",
     ),
     (
-        "no provider at all",
-        without(NINJASRE_LLM_PROVIDER_ENV, ANTHROPIC_API_KEY_ENV),
-        NINJASRE_LLM_PROVIDER_ENV,
-        "credential",
-    ),
-    (
         "an encryption key that is not base64",
         with_(**{NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "not base64!!"}),
         NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
@@ -238,3 +232,71 @@ def test_the_summary_reads_as_something_an_operator_can_act_on() -> None:
 
 def test_a_valid_configuration_summarises_as_much() -> None:
     assert "no configuration problems" in validate(MINIMUM_VIABLE).summary().lower()
+
+
+# -- the model provider is a first-run step, not a deployment setting ---------
+
+
+def test_a_deployment_with_no_provider_starts_and_is_told_it_has_none() -> None:
+    """Connecting a model provider is a first-run step, so the boot must reach it.
+
+    The console ships a screen for exactly this state, and the setup checklist
+    lists connecting a provider as its second step. A fatal finding here kills
+    the process that would render either of them, so the absence is advisory:
+    reported at every boot, and never a reason to refuse one.
+    """
+    report = validate(without(NINJASRE_LLM_PROVIDER_ENV, ANTHROPIC_API_KEY_ENV))
+
+    assert report.ok, report.summary()
+    advisory = [
+        finding for finding in report.warnings if finding.setting == NINJASRE_LLM_PROVIDER_ENV
+    ]
+    assert advisory, "a deployment with no provider should still be told that it has none"
+    assert "first run" in advisory[0].remedy.lower(), (
+        f"the remedy should send the operator to the step that fixes it: {advisory[0].remedy!r}"
+    )
+
+
+def test_a_provider_that_was_asked_for_without_a_credential_is_still_fatal() -> None:
+    """Silence is a deployment that has not been set up; a named provider is a request."""
+    report = validate(without(ANTHROPIC_API_KEY_ENV))
+
+    assert not report.ok
+    assert any(finding.setting == ANTHROPIC_API_KEY_ENV for finding in report.fatal)
+
+
+# -- the encryption key is what the provider requirement turned into ----------
+
+
+def test_a_profile_that_runs_the_proxy_out_of_process_needs_the_encryption_key() -> None:
+    """Every credential reaches the proxy through the vault, and the vault needs the key.
+
+    Once the provider credential is stored rather than passed in the
+    environment, a deployment without a key cannot complete its own first run:
+    it reaches the provider step and fails at the write. Better to say so at
+    boot, naming the setting, than at the first thing an operator tries.
+    """
+    report = validate(without(NINJASRE_DATABASE_ENCRYPTION_KEY_ENV))
+
+    assert not report.ok, report.summary()
+    named = [
+        finding
+        for finding in report.fatal
+        if finding.setting == NINJASRE_DATABASE_ENCRYPTION_KEY_ENV
+    ]
+    assert named, f"got {[finding.setting for finding in report.fatal]}"
+
+
+def test_the_dev_profile_still_survives_without_an_encryption_key() -> None:
+    """dev runs the proxy in-process and may legitimately store nothing at all."""
+    environ = {
+        NINJASRE_DEPLOYMENT_PROFILE_ENV: DEPLOYMENT_PROFILE_DEV,
+        NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@localhost:5432/ninjasre",
+    }
+
+    report = validate(environ)
+
+    assert report.ok, report.summary()
+    assert any(
+        finding.setting == NINJASRE_DATABASE_ENCRYPTION_KEY_ENV for finding in report.warnings
+    ), "the absence is still worth saying out loud"

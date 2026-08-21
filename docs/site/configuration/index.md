@@ -9,7 +9,7 @@
 A deployment needs exactly these:
 
 - `NINJASRE_DATABASE_URL` — The one PostgreSQL instance holding relational rows, vectors, and the service graph. Needs the pgvector and Apache AGE extensions.
-- `NINJASRE_LLM_PROVIDER` — Which model provider to use. One provider credential is the whole minimum viable configuration. One of: anthropic, openai, azure_openai, aws_bedrock, google_gemini, google_vertex_ai, openrouter, nvidia_nim, ollama.
+- `NINJASRE_DATABASE_ENCRYPTION_KEY` — Encrypts stored credentials at rest — your model provider's key included, since that one is stored rather than set here. NinjaSRE never generates one: produce it with `openssl rand -base64 32` and back it up separately from your database dumps. Lose it and every stored credential has to be re-entered. Only the dev profile, which runs the credential proxy in-process and may store nothing, starts without one.
 
 Everything else has a working default.
 
@@ -19,7 +19,7 @@ Everything else has a working default.
 |---|---|
 | [Deployment profile](deployment-profile.md) | 9 |
 | [Database](database.md) | 3 |
-| [Model provider — set the one you use](model-provider---set-the-one-you-use.md) | 27 |
+| [Model provider](model-provider.md) | 27 |
 | [Ports and addresses](ports-and-addresses.md) | 4 |
 | [Isolation, masking, and the credential proxy](isolation--masking--and-the-credential-proxy.md) | 16 |
 | [Memory, knowledge, and the runtime](memory--knowledge--and-the-runtime.md) | 7 |

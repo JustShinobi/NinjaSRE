@@ -24,7 +24,10 @@ from config.constants.deployment import (
     NINJASRE_INVESTIGATOR_ENV,
 )
 from config.constants.llm import ANTHROPIC_API_KEY_ENV, NINJASRE_LLM_PROVIDER_ENV
-from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
+from config.constants.persistence import (
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
+    NINJASRE_DATABASE_URL_ENV,
+)
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from gateway.http.asgi import (
     InvestigatorNotConfigured,
@@ -42,6 +45,7 @@ STANDARD = {
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@postgres:5432/ninjasre",
     NINJASRE_LLM_PROVIDER_ENV: "anthropic",
     ANTHROPIC_API_KEY_ENV: "sk-ant-not-a-real-key",
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "A" * 43 + "=",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
 }
 
@@ -100,6 +104,63 @@ def test_a_factory_that_exists_is_called_and_its_runner_returned() -> None:
 def build_stand_in() -> InvestigationRunner:
     """A factory in the shape ``NINJASRE_INVESTIGATOR`` names, for the test above."""
     return UnconfiguredInvestigator()
+
+
+class _MarkerInvestigator:
+    """Distinguishable from ``UnconfiguredInvestigator`` by identity alone.
+
+    Not a real ``InvestigationRunner`` — nothing here calls any of its methods
+    — it exists only so a test can tell "the factory's own object was
+    installed" apart from "the stand-in was silently substituted for it".
+    """
+
+    marker = True
+
+
+def build_marker() -> InvestigationRunner:
+    """A factory whose runner is never the stand-in, for the tests below."""
+    return _MarkerInvestigator()  # type: ignore[return-value]
+
+
+def test_a_reference_that_will_not_load_keeps_the_deployment_up() -> None:
+    """A named but unloadable factory degrades to the stand-in instead of crashing boot.
+
+    This is the runtime user story's own acceptance scenario for a broken
+    reference: the process still comes up, behaving like a deployment with no
+    runtime — never crashing, and never behaving like one that has a runtime
+    after all. Only ``validate(source)`` may refuse to boot outright.
+    """
+    from gateway.http.asgi import build_deployment
+    from gateway.http.runtime import runtime_composed
+
+    environ = {**STANDARD, NINJASRE_INVESTIGATOR_ENV: "not-a-real-module:not-a-real-factory"}
+
+    deployment = build_deployment(environ)
+
+    assert isinstance(deployment.state.investigator, UnconfiguredInvestigator)
+    assert runtime_composed(deployment.state) is False
+
+
+def test_a_working_reference_is_installed_verbatim_not_substituted() -> None:
+    """A factory that does load is what the deployment composes — no silent swap.
+
+    Paired with the test above so neither claim is provable by the other: a
+    broken reference degrading to the stand-in says nothing about whether a
+    *working* reference reaches the deployment untouched.
+    """
+    from gateway.http.asgi import build_deployment
+    from gateway.http.runtime import runtime_composed
+
+    environ = {
+        **STANDARD,
+        NINJASRE_INVESTIGATOR_ENV: "tests.unit.gateway.http.test_asgi_composition:build_marker",
+    }
+
+    deployment = build_deployment(environ)
+
+    assert not isinstance(deployment.state.investigator, UnconfiguredInvestigator)
+    assert getattr(deployment.state.investigator, "marker", False) is True
+    assert runtime_composed(deployment.state) is True
 
 
 def test_composition_validates_before_it_opens_a_connection() -> None:
@@ -174,3 +235,50 @@ def test_a_deployment_that_cannot_decrypt_its_credentials_is_degraded_and_says_s
 
     assert readiness.ready, "a wrong key is not a reason to stop serving history"
     assert any("stored credentials" in reason for reason in readiness.reasons())
+
+
+async def test_the_boot_installs_the_encryption_key_the_operator_configured() -> None:
+    """The defect this covers made every credential write a 500, on every deployment.
+
+    The sequence's "verify the key" step only proved that stored credentials
+    open. On a deployment that has stored none — which is every deployment on
+    its first day — that passed without loading anything, and the key ring was
+    still empty when somebody pasted their first provider key. The gateway
+    carried the only call that loads it, in a method nothing called.
+    """
+    import os
+    from unittest.mock import patch
+
+    from gateway.http.serve import boot
+    from platform.persistence.ports.health import HealthState, StoreHealth
+    from platform.persistence.postgres.crypto import KEY_RING
+
+    key = "0" * 43 + "="
+    KEY_RING.clear()
+    assert not KEY_RING.is_configured
+
+    class Store:
+        def migrator(self) -> None:
+            return None
+
+        def install_encryption_key(self) -> bool:
+            return KEY_RING.configure_from_environment()
+
+        async def health(self) -> StoreHealth:
+            return StoreHealth(state=HealthState.HEALTHY, connected=True)
+
+    class Deployment:
+        store = Store()
+
+    try:
+        environment = {
+            "NINJASRE_DATABASE_ENCRYPTION_KEY": key,
+            "NINJASRE_DATABASE_URL": "postgresql://localhost/ninjasre",
+            "NINJASRE_LLM_PROVIDER": "ollama",
+        }
+        with patch.dict(os.environ, environment, clear=False):
+            result = await boot(Deployment())  # type: ignore[arg-type]
+        assert KEY_RING.is_configured, "the boot left the key ring empty"
+        assert result.key_installed
+    finally:
+        KEY_RING.clear()

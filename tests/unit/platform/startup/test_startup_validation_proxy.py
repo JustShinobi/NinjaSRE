@@ -41,6 +41,7 @@ pytestmark = pytest.mark.unit
 PROXY_OWN_CONFIGURATION = {
     NINJASRE_DEPLOYMENT_PROFILE_ENV: DEPLOYMENT_PROFILE_STANDARD,
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@postgres:5432/ninjasre",
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "A" * 43 + "=",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
 }
 

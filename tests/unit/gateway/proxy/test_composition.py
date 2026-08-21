@@ -19,18 +19,24 @@ import pytest
 
 from config.constants.deployment import NINJASRE_DEPLOYMENT_PROFILE_ENV
 from config.constants.llm import NINJASRE_LLM_PROVIDER_ENV
-from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
+from config.constants.persistence import (
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
+    NINJASRE_DATABASE_URL_ENV,
+)
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from gateway.proxy.composition import build_proxy_app
 from platform.startup.errors import ConfigurationInvalid
 
 pytestmark = pytest.mark.unit
 
-#: What ``docker-compose.yml`` actually gives the proxy container today —
-#: no model provider anywhere in it, which is exactly what used to crash-loop.
+#: What ``docker-compose.yml`` gives the proxy container — no model provider
+#: anywhere in it, which is exactly what used to crash-loop, and an encryption
+#: key, which is the one credential-shaped thing the proxy genuinely needs
+#: because it is the process that decrypts.
 COMPOSE_PROXY_ENVIRONMENT = {
     NINJASRE_DEPLOYMENT_PROFILE_ENV: "standard",
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre:ninjasre@postgres:5432/ninjasre",
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "A" * 43 + "=",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
 }
 

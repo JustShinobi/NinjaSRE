@@ -20,8 +20,8 @@ Which schema the platform's tables live in.
 
 ### `NINJASRE_DATABASE_ENCRYPTION_KEY`
 
-Encrypts stored integration credentials at rest. NinjaSRE never generates one — produce it with `openssl rand -base64 32` and back it up separately from your database dumps. Lose it and every stored credential has to be re-entered.
+Encrypts stored credentials at rest — your model provider's key included, since that one is stored rather than set here. NinjaSRE never generates one: produce it with `openssl rand -base64 32` and back it up separately from your database dumps. Lose it and every stored credential has to be re-entered. Only the dev profile, which runs the credential proxy in-process and may store nothing, starts without one.
 
-- **Required:** no
+- **Required:** yes
 - **Default:** none
 - **Secret:** yes — never printed, never included in a diagnostic bundle, and never passed to the agent.

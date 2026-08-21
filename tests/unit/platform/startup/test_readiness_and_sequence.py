@@ -15,7 +15,10 @@ from config.constants.deployment import (
     NINJASRE_DEPLOYMENT_PROFILE_ENV,
 )
 from config.constants.llm import ANTHROPIC_API_KEY_ENV, NINJASRE_LLM_PROVIDER_ENV
-from config.constants.persistence import NINJASRE_DATABASE_URL_ENV
+from config.constants.persistence import (
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
+    NINJASRE_DATABASE_URL_ENV,
+)
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
 from platform.startup.errors import ConfigurationInvalid, UnknownDeploymentProfile
 from platform.startup.profiles import DeploymentProfile
@@ -30,6 +33,7 @@ STANDARD_ENV = {
     NINJASRE_DATABASE_URL_ENV: "postgresql://ninjasre@postgres:5432/ninjasre",
     NINJASRE_LLM_PROVIDER_ENV: "anthropic",
     ANTHROPIC_API_KEY_ENV: "sk-ant-not-a-real-key",
+    NINJASRE_DATABASE_ENCRYPTION_KEY_ENV: "A" * 43 + "=",
     NINJASRE_CREDENTIAL_PROXY_URL_ENV: "http://proxy:8422",
 }
 
@@ -189,6 +193,58 @@ async def test_a_verified_key_lets_the_boot_continue(schema: SchemaState) -> Non
 
     assert checked == ["verified"]
     assert result.credentials_verified
+    assert schema.applied == REVISIONS[-1]
+
+
+async def test_the_key_is_installed_before_anything_tries_to_verify_it(
+    schema: SchemaState,
+) -> None:
+    """The step the sequence names but never had.
+
+    "Verify the key" only ever proved that *stored* credentials open, which is
+    vacuously true on a deployment that has stored none — so a deployment whose
+    key was never loaded into the ring passed the check and then refused the
+    first credential anybody tried to write. Loading has to happen first,
+    because verification of an absent key is not verification.
+    """
+    order: list[str] = []
+
+    def install() -> bool:
+        order.append("installed")
+        return True
+
+    async def verify() -> None:
+        order.append("verified")
+
+    result = await run_startup(
+        environ=STANDARD_ENV,
+        migrator=FakeMigrator(state=schema),
+        install_key=install,
+        verify_credentials=verify,
+    )
+
+    assert order == ["installed", "verified"]
+    assert result.key_installed
+    assert schema.applied == REVISIONS[-1]
+
+
+async def test_a_deployment_with_no_key_still_boots_and_says_so(
+    schema: SchemaState,
+) -> None:
+    """Storing nothing is legitimate; the absence is reported rather than fatal.
+
+    A deployment that never stores a credential should not fail to start over a
+    key it will never use. What it must not do is claim a key it has not got.
+    """
+
+    def nothing() -> bool:
+        return False
+
+    result = await run_startup(
+        environ=STANDARD_ENV, migrator=FakeMigrator(state=schema), install_key=nothing
+    )
+
+    assert not result.key_installed
     assert schema.applied == REVISIONS[-1]
 
 

@@ -14,9 +14,15 @@ the only mechanism that survives the fifteenth feature.
 Three fields carry the weight:
 
 ``required``
-    True for the two things a deployment cannot start without — one provider
-    credential and a database — and false for everything else. FR-010 is that
-    list being short, and it is short here or it is not true.
+    True for the two things a deployment cannot start without — a database, and
+    the key its stored credentials are sealed with — and false for everything
+    else. The value of this list is that it is short, and it is short here or it
+    is not true.
+
+    A model provider is deliberately not on it. Connecting one is a first-run
+    step with a console screen of its own, so a deployment without one starts
+    and says so; refusing to boot would kill the process that renders the screen
+    that fixes it.
 
 ``effect``
     What changes if you set it. Not what it is; an operator reading a settings
@@ -228,7 +234,7 @@ class Setting:
 
 SECTION_PROFILE = "Deployment profile"
 SECTION_DATABASE = "Database"
-SECTION_PROVIDER = "Model provider — set the one you use"
+SECTION_PROVIDER = "Model provider"
 SECTION_NETWORK = "Ports and addresses"
 SECTION_SECURITY = "Isolation, masking, and the credential proxy"
 SECTION_MEMORY = "Memory, knowledge, and the runtime"
@@ -345,23 +351,30 @@ SETTINGS: Final[tuple[Setting, ...]] = (
     Setting(
         name=NINJASRE_DATABASE_ENCRYPTION_KEY_ENV,
         effect=(
-            "Encrypts stored integration credentials at rest. NinjaSRE never "
-            f"generates one — produce it with {KEY_GENERATOR_HINT} and back it up "
-            "separately from your database dumps. Lose it and every stored "
-            "credential has to be re-entered."
+            "Encrypts stored credentials at rest — your model provider's key "
+            "included, since that one is stored rather than set here. NinjaSRE "
+            f"never generates one: produce it with {KEY_GENERATOR_HINT} and back "
+            "it up separately from your database dumps. Lose it and every stored "
+            "credential has to be re-entered. Only the dev profile, which runs "
+            "the credential proxy in-process and may store nothing, starts "
+            "without one."
         ),
         secret=True,
+        required=True,
         section=SECTION_DATABASE,
     ),
     # -- provider --------------------------------------------------------------
     Setting(
         name=NINJASRE_LLM_PROVIDER_ENV,
         effect=(
-            "Which model provider to use. One provider credential is the whole "
-            f"minimum viable configuration. One of: {', '.join(SUPPORTED_PROVIDERS)}."
+            "Which model provider to use. Connecting one is a first-run step, "
+            "done in the console, where the credential goes to the vault instead "
+            "of into this file; setting it here is the other way, for an operator "
+            "who would rather hand the deployment its provider than click one. A "
+            "deployment with neither starts, says it has no provider, and shows "
+            f"where to connect one. One of: {', '.join(SUPPORTED_PROVIDERS)}."
         ),
         default=DEFAULT_PROVIDER,
-        required=True,
         section=SECTION_PROVIDER,
     ),
     Setting(
@@ -846,7 +859,12 @@ def render_env_example() -> str:
     """Return the whole ``.env.example`` document, generated from the catalogue.
 
     Commented-out lines for everything optional, live lines for the two things
-    a deployment needs. Copying this file and starting it is meant to work.
+    a deployment needs: where its database is, and the key its stored
+    credentials are sealed with. The database URL carries a working default and
+    the key deliberately does not, because NinjaSRE never generates one — so a
+    copied file starts a deployment that refuses, by name, over the one value
+    only the operator can produce. That is the intended first failure, and it
+    is a better one than a deployment that boots and cannot store anything.
     """
     lines = [
         "# NinjaSRE — every setting, its default, whether it is required, and what it affects.",
