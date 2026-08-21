@@ -46,6 +46,51 @@ function registry(): Registry {
   return { screens: screens as readonly Screen[] };
 }
 
+/**
+ * A registered `route` may carry this token in place of an id the fixture
+ * generator chooses, not this file — an incident id is not a route that
+ * exists by construction the way `/settings/machine-tokens` is. Resolving it
+ * here, against the same capture the incident-detail screen itself reads,
+ * means a fixture rebuild that hands the investigated timeline to a
+ * different incident moves this baseline's target with it instead of
+ * leaving the entry pointed at whichever id used to be first — which is
+ * exactly how a previous registration ended up capturing an incident that
+ * had never existed in any fixture.
+ */
+const DETAILED_INCIDENT_TOKEN = '{{detailed-incident-id}}';
+
+/** The incident the dataset details — the only one the seeder gives a timeline. */
+function detailedIncidentId(): string {
+  const source = readFileSync(
+    fileURLToPath(
+      new URL(
+        '../../../fixtures/scenarios/populated/incident-detail.json',
+        import.meta.url,
+      ),
+    ),
+    'utf8',
+  );
+  const captured = JSON.parse(source) as {
+    responses: { body?: { incident?: { incident_id?: string } } }[];
+  };
+  for (const response of captured.responses) {
+    const found = response.body?.incident?.incident_id;
+    if (typeof found === 'string' && found !== '') {
+      return found;
+    }
+  }
+  throw new Error(
+    'the incident-detail capture names no incident, so no timeline is ever seeded',
+  );
+}
+
+/** `screen.route`, with `DETAILED_INCIDENT_TOKEN` resolved when it carries one. */
+function routeFor(screen: Screen): string {
+  return screen.route.includes(DETAILED_INCIDENT_TOKEN)
+    ? screen.route.replace(DETAILED_INCIDENT_TOKEN, detailedIncidentId())
+    : screen.route;
+}
+
 /** The one route an unauthenticated visitor may reach, and the only one captured cold. */
 const UNAUTHENTICATED = '/sign-in';
 
@@ -53,7 +98,9 @@ for (const screen of registry().screens.filter((each) => each.status === 'baseli
   test(`${screen.id} matches its baseline`, async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: screen.viewport ?? 1440, height: 900 });
 
-    if (screen.route !== UNAUTHENTICATED) {
+    const route = routeFor(screen);
+
+    if (route !== UNAUTHENTICATED) {
       await signIn(context, baseURL ?? 'http://127.0.0.1:8425');
     }
 
@@ -64,7 +111,7 @@ for (const screen of registry().screens.filter((each) => each.status === 'baseli
       window.localStorage.setItem('ninjasre.theme', chosen);
     }, theme);
 
-    await page.goto(screen.route);
+    await page.goto(route);
     await expect(page).toHaveScreenshot(`${screen.id}.png`, { fullPage: true });
   });
 }

@@ -1,5 +1,5 @@
 {
-  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five.",
+  "$comment": "Which screens the visual suite captures, and which design references are still waiting for one. A reference in `mockups/` that appears in neither list fails the suite by name, so a design cannot arrive and be forgotten. A screen whose status is `baselined` must have a committed baseline and an acceptance record naming the reference it was first reviewed against — that record is what turns 'the console matches the design' from an intention into something the gate holds, because after the first acceptance ordinary visual regression keeps it matched. `viewport` and `theme` are how one route becomes several screens: the design declares three widths and two themes, and a baseline that only ever saw one of them proves nothing about the other five. A `route` may carry `{{detailed-incident-id}}` in place of an id the fixture generator, not this file, gets to choose — `tests/visual/screens.spec.ts` resolves it from the same capture the id belongs to before navigating, so a fixture rebuild that hands the record to a different id moves the baseline's target with it instead of leaving the entry pointed at whichever id used to be first.",
   "screens": [
     {
       "id": "administration-1440-light",
@@ -203,13 +203,13 @@
     },
     {
       "id": "incident-1440-light",
-      "route": "/incidents/INC-2026-0814",
+      "route": "/incidents/{{detailed-incident-id}}",
       "status": "baselined",
       "viewport": 1440,
       "theme": "light",
       "accepted": {
         "against": "04-screen-incident.png",
-        "reason": "Incident detail at the reference's two-thirds/one-third split: the primary column carrying the transcript and the timeline, the context rail carrying the subject and the 'why degraded' derivation — named signals with their values rather than a provider string, and the note that the raw status is retained. The proposal card is reviewed on the decisions capture, where a pending proposal actually exists in this dataset."
+        "reason": "Reviewed against the reference by eye, not accepted on a gate's word. The route was repointed first: it named an incident that exists in no dataset, so every previous capture of this screen was of a page that had never rendered an incident at all. It now resolves the one incident the demonstration seeder gives a reasoning timeline to.\n\nWhat the image shows: the trail and the incident's own title, the two chips, and a subtitle naming the rule, the source, the instant, the zone and the host. The investigation card leads with what the run spent — six steps, 41s, $0.004 — and then the five kinds in the order they happened, each at an absolute time: the alert arriving with the labels in monospace beside what authenticated it, the hypotheses drawn before anything was queried, the evidence with its executed query and result under the conclusion they support, the diagnosis in one sentence, and the report's destinations. The rail carries the proposed action awaiting decision, with its sentence, blast radius, posture, a reason field and exactly two controls, and beneath it the evidence trail's path to the full run.\n\nThree defects were found by looking at the first capture and fixed before this one was taken: every step read as a future time, a cost of $0.004 rendered as $0.00 — which does not read as cheap, it reads as free — and the receipt printed the same sentence twice, once as its labels and once as its credential. The blast radius reads 'Not recorded' because this proposal carries no reach of its own, which is the honest answer rather than the incident's subject count wearing the action's name."
       }
     },
     {
