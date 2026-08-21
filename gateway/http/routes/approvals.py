@@ -264,10 +264,10 @@ async def decide_approval(
 
     Approving records the decision, the decider and the instant, and nothing
     else: this route never invokes the capability the approval names. The
-    store itself refuses to record an approval with no stored rollback plan
-    (Article III), so that guarantee does not depend on this handler getting
-    the order right — there is no order to get wrong, because there is no
-    write to a plan here at all, only a read of one that already exists.
+    store itself refuses to record an approval with no rollback plan stored
+    against it, so the guarantee that a change above read is undoable does not
+    depend on this handler getting an order right — there is no order to get
+    wrong, because nothing here writes a plan, only reads one already there.
 
     Rejecting without a reason is refused before either store is touched. The
     console's own control disables the reject button until a reason is typed;

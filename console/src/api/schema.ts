@@ -473,6 +473,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/approvals/{approval_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Approval
+         * @description Approve or reject an approval request, in the caller's name.
+         *
+         *     Approving records the decision, the decider and the instant, and nothing
+         *     else: this route never invokes the capability the approval names. The
+         *     store itself refuses to record an approval with no rollback plan stored
+         *     against it, so the guarantee that a change above read is undoable does not
+         *     depend on this handler getting an order right — there is no order to get
+         *     wrong, because nothing here writes a plan, only reads one already there.
+         *
+         *     Rejecting without a reason is refused before either store is touched. The
+         *     console's own control disables the reject button until a reason is typed;
+         *     this is the rule behind that courtesy.
+         */
+        post: operations["decide_approval_v1_approvals__approval_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/approvals/{approval_id}/rollback": {
         parameters: {
             query?: never;
@@ -2833,6 +2864,27 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ApprovalDecisionRequest */
+        ApprovalDecisionRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Verdict */
+            verdict: string;
+        };
+        /** ApprovalDecisionResult */
+        ApprovalDecisionResult: {
+            /** Approval Id */
+            approval_id: string;
+            /** Decided At */
+            decided_at: string;
+            /** Decided By */
+            decided_by: string;
+            /** State */
+            state: string;
+        };
         /** ApprovalList */
         ApprovalList: {
             /** Approvals */
@@ -2848,6 +2900,8 @@ export interface components {
             arguments: {
                 [key: string]: unknown;
             };
+            /** Blast Radius Count */
+            blast_radius_count?: number | null;
             /** Decided At */
             decided_at?: string | null;
             /** Decided By */
@@ -7577,6 +7631,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApprovalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_approval_v1_approvals__approval_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalDecisionResult"];
                 };
             };
             /** @description Validation Error */

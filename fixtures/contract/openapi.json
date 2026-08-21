@@ -9283,7 +9283,7 @@
     },
     "/v1/approvals/{approval_id}/decision": {
       "post": {
-        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and nothing\nelse: this route never invokes the capability the approval names. The\nstore itself refuses to record an approval with no stored rollback plan\n(Article III), so that guarantee does not depend on this handler getting\nthe order right — there is no order to get wrong, because there is no\nwrite to a plan here at all, only a read of one that already exists.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
+        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and nothing\nelse: this route never invokes the capability the approval names. The\nstore itself refuses to record an approval with no rollback plan stored\nagainst it, so the guarantee that a change above read is undoable does not\ndepend on this handler getting an order right — there is no order to get\nwrong, because nothing here writes a plan, only reads one already there.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
         "operationId": "decide_approval_v1_approvals__approval_id__decision_post",
         "parameters": [
           {
