@@ -1,4 +1,4 @@
-"""SC-001. The defining test: run an investigation, then hunt for the credential.
+"""The defining test: run an investigation, then hunt for the credential.
 
 Article IV is a claim about where a secret is *not*. Every other test in this
 feature checks that a mechanism works; this one checks that the mechanism was
@@ -10,7 +10,7 @@ streamed events a console would render.
 The investigation is the real one: six stages, the canonical loop, a real
 integration client on the real proxy. Only the model and the network are
 doubles, and the network double is what proves the credential *did* reach
-Datadog. A run that failed to authenticate would satisfy every negative
+Redis Cloud. A run that failed to authenticate would satisfy every negative
 assertion here and mean nothing.
 """
 
@@ -42,7 +42,7 @@ from core.pipeline.streaming import EventStream, RecordingSink
 from tests.security.conftest import (
     CAPABILITY,
     SENTINEL_API_KEY,
-    SENTINEL_APP_KEY,
+    SENTINEL_SECRET_KEY,
     SENTINELS,
     ProxyStack,
     alert,
@@ -135,7 +135,7 @@ class Investigation:
 
 
 async def investigate(stack: ProxyStack) -> Investigation:
-    """Run the whole pipeline over the capability that reaches Datadog."""
+    """Run the whole pipeline over the capability that reaches Redis Cloud."""
     llm = RecordingLLM(
         inner=ScenarioLLM(
             structured=[_INTAKE, _DIAGNOSIS],
@@ -179,8 +179,8 @@ async def test_the_credential_reached_the_vendor(stack: ProxyStack) -> None:
 
     assert stack.sender.sent, "the capability never issued a request through the proxy"
     outbound = stack.sender.sent[0]
-    assert outbound.headers["DD-API-KEY"] == SENTINEL_API_KEY
-    assert outbound.headers["DD-APPLICATION-KEY"] == SENTINEL_APP_KEY
+    assert outbound.headers["x-api-key"] == SENTINEL_API_KEY
+    assert outbound.headers["x-api-secret-key"] == SENTINEL_SECRET_KEY
 
 
 async def test_the_investigation_actually_concluded(stack: ProxyStack) -> None:
@@ -265,4 +265,4 @@ def _contains_sentinel(path: Path) -> bool:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
-    return SENTINEL_API_KEY in text or SENTINEL_APP_KEY in text
+    return SENTINEL_API_KEY in text or SENTINEL_SECRET_KEY in text
