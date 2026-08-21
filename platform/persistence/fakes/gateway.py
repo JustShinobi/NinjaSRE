@@ -53,7 +53,9 @@ from platform.persistence.fakes.session_store import FakeSessionStore
 from platform.persistence.fakes.signal_store import FakeSignalStore
 from platform.persistence.fakes.state import State, TenantState
 from platform.persistence.fakes.topology_graph import FakeTopologyGraph
+from platform.persistence.fakes.transit_ledger import FakeTransitLedger
 from platform.persistence.fakes.vector_index import FakeVectorIndex
+from platform.persistence.fakes.verification_ledger import FakeVerificationLedger
 from platform.persistence.health import summarise
 from platform.persistence.ports.config_repository import OrgDirectory
 from platform.persistence.ports.health import ExtensionStatus, MigrationStatus, StoreHealth
@@ -75,7 +77,7 @@ FAKE_HEAD_REVISION = "in-memory"
 
 @dataclass(slots=True)
 class FakeUnitOfWork:
-    """Sixteen repositories over one tenant's slice of one snapshot."""
+    """Eighteen repositories over one tenant's slice of one snapshot."""
 
     scope: TenantScope
     state: State
@@ -160,6 +162,16 @@ class FakeUnitOfWork:
     def remediation(self) -> FakeRemediationLedger:
         """Return what each remediation did and whether it worked."""
         return FakeRemediationLedger(self.scope.org_id, self._tenant)
+
+    @property
+    def transit(self) -> FakeTransitLedger:
+        """Return what crossed the boundary, in which direction, and how it ended."""
+        return FakeTransitLedger(self.scope.org_id, self._tenant)
+
+    @property
+    def verifications(self) -> FakeVerificationLedger:
+        """Return what has been checked on this deployment, and what the check found."""
+        return FakeVerificationLedger(self.scope.org_id, self._tenant)
 
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""

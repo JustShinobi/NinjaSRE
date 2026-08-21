@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from platform.persistence.errors import RetentionExempt
 from platform.persistence.fakes.estate_repository import purge_estate_history
 from platform.persistence.fakes.state import State, TenantState
+from platform.persistence.fakes.transit_ledger import purge_transit
 from platform.persistence.ports.retention import DataClass, PurgeReport, RetentionPolicy
 
 #: A record with no timestamp is treated as new rather than ancient. Retention
@@ -77,6 +78,8 @@ def _purge_tenant(tenant: TenantState, data_class: DataClass, cutoff: datetime) 
             return _purge_documents(tenant, cutoff)
         case DataClass.ESTATE_HISTORY:
             return purge_estate_history(tenant, cutoff)
+        case DataClass.TRANSIT:
+            return purge_transit(tenant, cutoff)
         case DataClass.AUDIT:  # pragma: no cover — refused before reaching here
             raise RetentionExempt(data_class.value)
 

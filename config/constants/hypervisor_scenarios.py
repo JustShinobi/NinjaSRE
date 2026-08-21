@@ -136,9 +136,15 @@ NINJASRE_PROXMOX_LABORATORY_ENV: Final = "NINJASRE_PROXMOX_LABORATORY"
 HYPERVISOR_SUITE_BUDGET_SECONDS: Final[float] = 60.0
 
 #: How many scenarios the corpus must hold before the suite will call itself
-#: complete. The four domains have twenty-four between them and the host layer
+#: complete. The four domains have twenty-two between them and the host layer
 #: adds four more from the documented incidents.
-HYPERVISOR_SCENARIO_MINIMUM: Final[int] = 28
+#:
+#: Two backup scenarios left with the backup-server integration they were
+#: written against — a datastore with no room, and snapshots that would not
+#: verify. Both were entirely that server's behaviour, so neither survives its
+#: removal; the floor moved to the count that is actually there rather than
+#: staying at a number the corpus can no longer reach.
+HYPERVISOR_SCENARIO_MINIMUM: Final[int] = 26
 
 #: How far the aggregate pass rate may fall before the gate fails. Zero: the
 #: fixture suite runs recorded transcripts over recorded readings, so nothing

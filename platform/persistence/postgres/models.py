@@ -160,6 +160,11 @@ class User(Base):
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     external_subject: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
+    # The stored form of a local sign-in passphrase, for a person created with
+    # one. Never assigned by `upsert_user` — only `set_local_password` writes
+    # this column, so an unrelated update (a display name, a status change)
+    # cannot clear it by omission the way a full-row upsert would.
+    local_password_hash: Mapped[str | None] = mapped_column(String(NAME_LENGTH), nullable=True)
     created_at: Mapped[datetime | None] = _timestamp()
 
 
@@ -183,6 +188,12 @@ class ApiToken(Base):
     scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
     team_node_id: Mapped[str | None] = mapped_column(String(ID_LENGTH), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Whether this token stands in for the person who holds it — a browser
+    # sign-in, the durable credential established from the bootstrap one —
+    # rather than for one declared purpose. `False` is the safe default for a
+    # row nothing set explicitly: nothing at all, never everything its owner
+    # holds.
+    unscoped: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime | None] = _timestamp()
     expires_at: Mapped[datetime | None] = _timestamp()
     revoked_at: Mapped[datetime | None] = _timestamp()
@@ -768,6 +779,7 @@ class DiscoverySweep(Base):
     provider_calls: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     cursor: Mapped[str] = mapped_column(Text, nullable=False, default="")
     reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    findings: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
 
 class SignalRow(Base):
@@ -798,6 +810,100 @@ class SignalRow(Base):
     state: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
     interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     labels: Mapped[dict[str, Any]] = _json()
+
+
+class TransitDeliveryRow(Base):
+    """One crossing of the deployment's boundary, whichever way it went.
+
+    The primary key is the caller's derived delivery id, so a handler that
+    retried its own ledger write upserts its own row rather than recording the
+    same arrival twice.
+
+    ``ix_transit_recent`` leads with ``(org_id, direction, source, occurred_at)``
+    because that is the shape of every read the screen makes: one direction, one
+    source, newest first. ``ix_transit_age`` is on the timestamp alone and
+    deliberately not tenant-scoped, for the reason ``ix_signals_age`` is not:
+    retention sweeps the deployment at once, and leading with ``org_id`` would
+    make the sweep one index scan per organisation.
+    """
+
+    __tablename__ = "transit_deliveries"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+        Index("ix_transit_recent", "org_id", "direction", "source", "occurred_at"),
+        Index("ix_transit_age", "occurred_at"),
+    )
+
+    org_id: Mapped[str] = _org()
+    delivery_id: Mapped[str] = _id()
+    direction: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    matched_rule: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    resource_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    run_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    incident_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    event_type: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    detail: Mapped[dict[str, Any]] = _json()
+
+
+class TransitSampleRow(Base):
+    """The last masked payload one source sent.
+
+    Keyed by ``source`` rather than by an identifier of its own, which is what
+    makes "one sample per source" a property of the table instead of something
+    every writer has to remember. The body stored here has already been through
+    the masking policy — there is no column holding a raw payload, so there is
+    none to forget to clear.
+    """
+
+    __tablename__ = "transit_samples"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    source: Mapped[str] = mapped_column(String(NAME_LENGTH), primary_key=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    masking_policy: Mapped[str] = mapped_column(String(32), nullable=False)
+    delivery_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class VerificationRow(Base):
+    """The last check run against one thing, and what it found.
+
+    The primary key is ``(org_id, kind, subject)``, which is the whole design:
+    checking the same integration twice upserts its own row, so there is exactly
+    one answer to "does this work" by construction rather than because every
+    writer remembered to delete the previous one. There is no timestamp in the
+    key and no history table beside it — a check is current state, and the port's
+    docstring says why keeping every one would be a different feature.
+
+    ``kind`` is in the key because a vendor and a model provider can share a
+    name, and one row for both would put a green tick on a model nobody
+    exercised.
+    """
+
+    __tablename__ = "verifications"
+    __table_args__ = (
+        ForeignKeyConstraint(["org_id"], ["organisations.org_id"], ondelete="CASCADE"),
+    )
+
+    org_id: Mapped[str] = _org()
+    kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    subject: Mapped[str] = mapped_column(String(NAME_LENGTH), primary_key=True)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    checked_by: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    team_node_id: Mapped[str] = mapped_column(String(ID_LENGTH), nullable=False, default="")
+    model_id: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False, default="")
 
 
 class IncidentRow(Base):
@@ -863,6 +969,10 @@ class IncidentTimelineRow(Base):
     actor: Mapped[str] = mapped_column(String(NAME_LENGTH), nullable=False)
     cause: Mapped[str] = mapped_column(Text, nullable=False, default="")
     detail: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    #: The query an evidence entry ran. Empty for every other kind.
+    query: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    #: What that query returned.
+    result: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
 class RemediationOutcomeRow(Base):
@@ -1007,7 +1117,10 @@ __all__ = [
     "Session",
     "SignalRow",
     "ToolCall",
+    "TransitDeliveryRow",
+    "TransitSampleRow",
     "User",
     "VectorGenerationRow",
     "VectorIndexRow",
+    "VerificationRow",
 ]

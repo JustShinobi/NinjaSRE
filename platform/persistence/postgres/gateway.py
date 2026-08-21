@@ -65,7 +65,11 @@ from platform.persistence.postgres.repositories.schedule_store import (
 from platform.persistence.postgres.repositories.session_store import PostgresSessionStore
 from platform.persistence.postgres.repositories.signal_store import PostgresSignalStore
 from platform.persistence.postgres.repositories.topology_graph import PostgresTopologyGraph
+from platform.persistence.postgres.repositories.transit_ledger import PostgresTransitLedger
 from platform.persistence.postgres.repositories.vector_index import PostgresVectorIndex
+from platform.persistence.postgres.repositories.verification_ledger import (
+    PostgresVerificationLedger,
+)
 
 
 class _RollbackOnly(Exception):
@@ -80,7 +84,7 @@ class _RollbackOnly(Exception):
 
 @dataclass(slots=True)
 class PostgresUnitOfWork:
-    """Sixteen repositories over one session and one tenant."""
+    """Eighteen repositories over one session and one tenant."""
 
     scope: TenantScope
     session: AsyncSession
@@ -167,6 +171,16 @@ class PostgresUnitOfWork:
         """Return what each remediation did and whether it worked."""
         return PostgresRemediationLedger(self.scope.org_id, self.session)
 
+    @property
+    def transit(self) -> PostgresTransitLedger:
+        """Return what crossed the boundary, in which direction, and how it ended."""
+        return PostgresTransitLedger(self.scope.org_id, self.session)
+
+    @property
+    def verifications(self) -> PostgresVerificationLedger:
+        """Return what has been checked on this deployment, and what the check found."""
+        return PostgresVerificationLedger(self.scope.org_id, self.session)
+
     def mark_rollback_only(self) -> None:
         """Ensure this unit rolls back when the block ends, without raising."""
         self._rollback_only = True
@@ -243,6 +257,16 @@ class PostgresPersistence:
         """
         return migrations.AlembicSchemaMigrator(self._engine)
 
+    def install_encryption_key(self) -> bool:
+        """Load the operator's key into this process, and say whether there was one.
+
+        The startup sequence's own step, taken as a port so the sequence does
+        not have to name this backend. Synchronous because it reads an
+        environment variable: making it a coroutine would suggest it talks to
+        something.
+        """
+        return KEY_RING.configure_from_environment()
+
     async def start(self) -> StoreHealth:
         """Bring the schema to head, load the encryption key, and report health.
 
@@ -251,7 +275,7 @@ class PostgresPersistence:
         instead of raised — a deployment missing Apache AGE should come up
         degraded and say so, not fail to construct its gateway.
         """
-        KEY_RING.configure_from_environment()
+        self.install_encryption_key()
         await migrations.upgrade_to_head(self._engine)
         await self._graph_readiness()
         return await self.health()

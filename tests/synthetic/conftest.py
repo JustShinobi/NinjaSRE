@@ -36,6 +36,8 @@ from core.llm.types import (
 from core.llm.usage import TokenCounts, UsageRecord
 from core.pipeline.ports import DeliveryPayload, StaticCatalogue
 from core.state.types import TeamContext
+from platform.estate.kinds import KIND_CONTAINER
+from platform.persistence.ports.estate_repository import Resource
 
 AT = datetime(2026, 8, 5, 12, 30, tzinfo=UTC)
 
@@ -387,5 +389,165 @@ CHATTER = Scenario(
     expects_investigation=False,
 )
 
+#: The guest this cluster's own recurring failure is about, and the number every
+#: host-side series for it is labelled with.
+PRESSURE_VMID = 110
+
+#: The estate the pressure alert resolves against, declared rather than swept.
+#: Small on purpose: what it has to hold is the one guest, its identifier, its
+#: address and its zone, which is what an applied enrichment writes onto a guest
+#: and what alert resolution reads back off one.
+PRESSURE_ESTATE: tuple[Resource, ...] = (
+    Resource(
+        resource_id=f"proxmox:container/hal9000/{PRESSURE_VMID}",
+        kind=KIND_CONTAINER,
+        source="proxmox",
+        native_id=f"container/hal9000/{PRESSURE_VMID}",
+        display_name="adguard",
+        attributes={"vmid": PRESSURE_VMID, "address": "10.20.20.10", "zone": "apps"},
+        labels=("zone:apps",),
+    ),
+)
+
+
+def pressure_alert() -> dict[str, Any]:
+    """Return the Alertmanager notification this scenario starts from.
+
+    The guest's own number is on the alert because that is what a pve-exporter
+    rule carries, and it is the whole reason the investigation can reach the
+    host-side series rather than the one inside the container.
+    """
+    return {
+        "receiver": "ninjasre",
+        "status": "firing",
+        "groupKey": '{}:{alertname="ContainerMemoryHigh", vmid="110"}',
+        "commonLabels": {"alertname": "ContainerMemoryHigh", "severity": "critical"},
+        "alerts": [
+            {
+                "status": "firing",
+                "labels": {
+                    "alertname": "ContainerMemoryHigh",
+                    "severity": "critical",
+                    "vmid": str(PRESSURE_VMID),
+                    "instance": "10.20.10.1:9221",
+                },
+                "annotations": {
+                    "summary": "adguard is at 94% of its memory ceiling and has restarted twice"
+                },
+                "startsAt": (AT - timedelta(minutes=12)).isoformat(),
+                "endsAt": "0001-01-01T00:00:00Z",
+            }
+        ],
+    }
+
+
+#: A container under memory pressure, answered from three systems because no one
+#: of them can answer it.
+#:
+#: The split is the point rather than an arrangement. The hypervisor knows the
+#: guest was killed and came back and knows nothing about the memory on the way
+#: there; the host-side exporter knows the memory, keyed by the guest's own
+#: number, and nothing about restarts; the log store holds the line the kernel
+#: wrote and cannot say what the ceiling was. Each claim below cites the one
+#: source that can support it, which is what makes "cited from three sources" a
+#: property of the conclusion rather than of the run.
+CONTAINER_PRESSURE = Scenario(
+    key="container-pressure",
+    raw=RawAlert(payload=pressure_alert(), received_at=AT),
+    team=TeamContext(
+        team_id="platform",
+        integrations=("proxmox", "prometheus", "loki"),
+        destinations=("slack",),
+    ),
+    tools=(
+        backend_tool(
+            "proxmox_guest_state",
+            evidence_source="proxmox",
+            summary="container 110 restarted twice since 12:06, last start 12:26",
+            content="vmid=110 status=running restarts=2 last_start=12:26",
+        ),
+        backend_tool(
+            "prometheus_guest_memory",
+            evidence_source="prometheus",
+            summary="host-side memory for guest 110 at 94% of its 512 MiB ceiling",
+            content="lxc_memory_used_bytes{vmid=110} / lxc_memory_limit_bytes{vmid=110} = 0.94",
+            evidence_type=EvidenceType.METRIC,
+        ),
+        backend_tool(
+            "loki_guest_lines",
+            evidence_source="loki",
+            summary="two oom-kill lines for guest 110 inside the window",
+            content='msg="Memory cgroup out of memory: Killed process 1421 (AdGuardHome)"',
+            evidence_type=EvidenceType.LOG,
+        ),
+    ),
+    turns=(
+        LoopTurn(
+            tool_calls=(
+                ToolCall(
+                    id="c1",
+                    name="proxmox_guest_state",
+                    arguments={"query": "vmid=110"},
+                ),
+                ToolCall(
+                    id="c2",
+                    name="prometheus_guest_memory",
+                    arguments={"query": "vmid=110"},
+                ),
+                ToolCall(
+                    id="c3",
+                    name="loki_guest_lines",
+                    arguments={"query": "vmid=110"},
+                ),
+            )
+        ),
+        LoopTurn(
+            text=(
+                "Guest 110 restarted twice inside the window [e1], its host-side memory "
+                "reads 94% of the 512 MiB ceiling [e2], and the kernel logged an "
+                "out-of-memory kill for it [e3]."
+            )
+        ),
+    ),
+    structured=(
+        _intake(
+            alert_name="ContainerMemoryHigh",
+            summary="adguard is at 94% of its memory ceiling and has restarted twice",
+            components=["adguard"],
+        ),
+        {
+            "root_cause": "the adguard container is being killed by its own memory cgroup",
+            "root_cause_category": "resource_exhaustion",
+            "summary": "The guest reaches its 512 MiB ceiling, the cgroup kills it, and it "
+            "restarts — twice inside this window.",
+            "causal_chain": [
+                "memory use approaches the guest's 512 MiB cgroup limit",
+                "the memory cgroup kills the process",
+                "the guest restarts and resolution begins failing again",
+            ],
+            "claims": [
+                {
+                    "statement": "guest 110 restarted twice inside the incident window",
+                    "evidence_ids": ["e1"],
+                },
+                {
+                    "statement": "its host-side memory is at 94% of the 512 MiB ceiling",
+                    "evidence_ids": ["e2"],
+                },
+                {
+                    "statement": "the kernel logged an out-of-memory kill for it",
+                    "evidence_ids": ["e3"],
+                },
+            ],
+            "remediation_steps": [
+                "raise the guest's memory ceiling above 512 MiB",
+                "restart the guest so it comes back under the new ceiling",
+            ],
+            "confidence": 0.9,
+        },
+    ),
+    expected_category=RootCauseCategory.RESOURCE_EXHAUSTION,
+)
+
 #: Every scenario, for the assertions that hold across the whole corpus.
-CORPUS: Sequence[Scenario] = (OOM_KILL, DEPLOY_REGRESSION, CHATTER)
+CORPUS: Sequence[Scenario] = (OOM_KILL, DEPLOY_REGRESSION, CHATTER, CONTAINER_PRESSURE)

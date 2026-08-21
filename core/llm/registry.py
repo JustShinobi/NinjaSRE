@@ -433,20 +433,33 @@ def _register_remaining(registry: ModelRegistry) -> None:
         ProviderDescriptor(
             provider_id=PROVIDER_GOOGLE_GEMINI,
             display_name="Google Gemini",
-            default_model_id="gemini-2.5-pro",
+            # The alias rather than a pinned generation. A pinned default is how
+            # the onboarding list came to name two models that had been retired:
+            # nothing fails until somebody picks it, and by then it has shipped.
+            default_model_id="gemini-pro-latest",
             required_credentials=("api_key",),
         )
     )
-    registry.register(
-        ModelDescriptor(
-            model_id="gemini-2.5-pro",
-            provider_id=PROVIDER_GOOGLE_GEMINI,
-            context_window=1_000_000,
-            max_output_tokens=65_536,
-            supports_prompt_cache=True,
-        ),
-        default=True,
-    )
+    # Every limit here is what the provider's own model listing reports, read
+    # with a real key rather than taken from documentation.
+    for _model_id, _default in (
+        ("gemini-pro-latest", True),
+        ("gemini-flash-latest", False),
+        ("gemini-3.1-pro-preview", False),
+        ("gemini-3.6-flash", False),
+        ("gemini-2.5-pro", False),
+        ("gemini-2.5-flash", False),
+    ):
+        registry.register(
+            ModelDescriptor(
+                model_id=_model_id,
+                provider_id=PROVIDER_GOOGLE_GEMINI,
+                context_window=1_048_576,
+                max_output_tokens=65_536,
+                supports_prompt_cache=True,
+            ),
+            default=_default,
+        )
 
     registry.register_provider(
         ProviderDescriptor(

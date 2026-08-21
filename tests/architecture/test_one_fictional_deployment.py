@@ -40,7 +40,19 @@ MAY_NAME_THE_DEPLOYMENT = (MOCKPLANE, FIXTURES, REPO_ROOT / "tests")
 #: Trees this check does not walk: the tooling's own caches, the virtual
 #: environment, and local reference material that is never committed.
 SKIPPED = frozenset(
-    {".git", ".venv", "__pycache__", "_research", "node_modules", "specs", "specs_v2"}
+    {
+        ".git",
+        ".venv",
+        "__pycache__",
+        "_research",
+        "node_modules",
+        "specs",
+        "specs_v2",
+        "specs_v3",
+        "specs_v4",
+        "specs_v5",
+        "specs_v6",
+    }
 )
 
 

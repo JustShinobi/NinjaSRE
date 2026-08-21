@@ -16,33 +16,77 @@ here because a team's Datadog site is a team's decision.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import model_validator
 
-from platform.config_service.schema.types import ConfigSection, ConfiguredStr
+from platform.config_service.schema.types import (
+    ConfigSection,
+    ConfiguredStr,
+    field_help,
+    section_help,
+)
 
 
 class IntegrationSettings(ConfigSection):
     """One integration a team has configured, and where its secret lives."""
 
+    model_config = section_help(
+        "One vendor this team is connected to. No secret is entered here — the token "
+        "lives in the vault and this entry names it."
+    )
+
     #: Required: an entry that does not say which vendor it configures is not
     #: an entry, and a default would let the omission validate silently.
-    name: ConfiguredStr
-    credential: ConfiguredStr = ""
-    region: ConfiguredStr | None = None
-    site: ConfiguredStr | None = None
-    base_url: ConfiguredStr | None = None
-    enabled: bool = True
+    name: Annotated[
+        ConfiguredStr,
+        field_help(
+            "Which vendor this entry configures. Required, and must be one of the "
+            "integrations this deployment has installed."
+        ),
+    ]
+    credential: Annotated[
+        ConfiguredStr,
+        field_help("Which stored credential this integration authenticates with."),
+    ] = ""
+    region: Annotated[
+        ConfiguredStr | None,
+        field_help("The vendor region to talk to, for vendors that have more than one."),
+    ] = None
+    site: Annotated[
+        ConfiguredStr | None,
+        field_help("The vendor site to talk to, for vendors that name one."),
+    ] = None
+    base_url: Annotated[
+        ConfiguredStr | None,
+        field_help("The address of your own instance, for a vendor you host yourself."),
+    ] = None
+    enabled: Annotated[
+        bool, field_help("Off keeps the entry and stops anything reaching the vendor.")
+    ] = True
     #: The vendor's own non-secret options. Open because the vendor defines
     #: them; scanned for secret shapes like everything else.
-    settings: Mapping[str, Any] = {}
+    settings: Annotated[
+        Mapping[str, Any],
+        field_help(
+            "Anything else this vendor needs, as it names it. Never a secret: a "
+            "secret-shaped value here is refused."
+        ),
+    ] = {}
 
 
 class IntegrationsConfig(ConfigSection):
     """Every integration a team has configured."""
 
-    active: tuple[IntegrationSettings, ...] = ()
+    model_config = section_help(
+        "The vendors this team is connected to. Each entry names a vendor and the stored "
+        "credential it uses; no secret is ever typed into configuration."
+    )
+
+    active: Annotated[
+        tuple[IntegrationSettings, ...],
+        field_help("One entry per vendor. A vendor may appear only once."),
+    ] = ()
 
     @model_validator(mode="after")
     def _names_are_distinct(self) -> IntegrationsConfig:

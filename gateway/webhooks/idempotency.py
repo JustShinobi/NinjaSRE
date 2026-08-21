@@ -6,6 +6,14 @@ whether *this exact payload* has already been processed — a receiver retrying
 a webhook after a slow response, or two load balancer paths delivering the
 same delivery twice. The second case gets acknowledged and dropped with no
 further effect, not linked: nothing new happened.
+
+**The window is shorter than the deduplication one, and that is the whole
+relationship between them.** This one bounds an HTTP retry, which happens in
+seconds; deduplication bounds "the same problem, reported again", which happens
+in minutes. A notification arriving after this window and inside that one is
+therefore linked to the open investigation rather than answered as a duplicate
+and forgotten — which is what a re-notified Alertmanager group needs, and what
+it could not get while the two windows were the same length.
 """
 
 from __future__ import annotations
@@ -14,14 +22,14 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from config.constants.surfaces import ALERT_DEDUP_WINDOW_SECONDS
+from config.constants.surfaces import WEBHOOK_DELIVERY_RETRY_WINDOW_SECONDS
 
 
 @dataclass(slots=True)
 class IdempotencyIndex:
     """Source-scoped event ids already processed, within a bounded window."""
 
-    window_seconds: float = ALERT_DEDUP_WINDOW_SECONDS
+    window_seconds: float = WEBHOOK_DELIVERY_RETRY_WINDOW_SECONDS
     clock: Callable[[], float] = time.monotonic
     _seen: dict[str, float] = field(default_factory=dict)
 

@@ -2,7 +2,7 @@
 
 # observability capabilities
 
-0 tools and 1 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+1 tools and 1 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
 
@@ -13,3 +13,26 @@ Reading logs, metrics, and traces in the order that narrows fastest.
 - **Domain:** observability
 
 Directs no tools — methodology only.
+
+
+## Tools
+
+#### `logs_for_resource`
+
+Return what a specific resource's log stream held in a recent window, with the bound that shaped the answer. Every result says how much of the window was actually read: a source keeping less than the window asked for, or an answer stopped at the line limit, is reported rather than left to look like a quiet guest. An empty answer from a source that responded is a finding — it means the resource logged nothing, not that nobody could look. Call this once you know which resource is affected, not on the alert text.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from logs
+- **Parallel safe:** yes
+
+**Use when:**
+
+- reading what a guest was logging around the time a symptom started
+- confirming a service inside a container restarted, rather than inferring it from metrics
+- establishing that a guest logged nothing unusual, so the cause is elsewhere
+
+**Not for:**
+
+- asking on the alert text before an affected resource has been identified
+- searching the whole cluster's logs for a string, which this deliberately cannot do
+- reading a log stream to build a dashboard, which is a report rather than an investigation

@@ -1,11 +1,18 @@
 """The boot sequence, in the order it has to happen, with the reason for the order.
 
 ```
-resolve profile → validate configuration → verify the key
+resolve profile → validate configuration → install the key → verify the key
     → migrate under a lock → check schema compatibility → report readiness
 ```
 
-Two positions in that list are load-bearing rather than tidy.
+Three positions in that list are load-bearing rather than tidy.
+
+**Installing the key comes before verifying it.** They were once one step in
+name and neither in fact: verification asks the vault whether *stored*
+credentials open, which is vacuously true on a deployment that has stored none,
+so a ring nobody had loaded passed the check and refused the first credential
+anybody wrote. Loading is its own step because a step that can be satisfied by
+doing nothing is not a step.
 
 **Key verification comes before migrations.** A deployment booting with the
 wrong encryption key works perfectly until the first credential is needed, and
@@ -38,6 +45,14 @@ from platform.startup.validation import ValidationReport, validate
 #: implementation, and it raises ``VaultKeyMismatch`` naming the handles.
 CredentialCheck = Callable[[], Awaitable[None]]
 
+#: What the sequence calls to load the operator's key into the process.
+#:
+#: Returns whether there was one to load. An absent key is not fatal — a
+#: deployment that stores no credential should not fail to start over a key it
+#: will never use — but the result records the answer, so "no key" is a fact the
+#: boot report carries rather than a silence discovered at the first write.
+KeyInstaller = Callable[[], bool]
+
 
 @dataclass(frozen=True, slots=True)
 class StartupResult:
@@ -48,6 +63,7 @@ class StartupResult:
     migration: MigrationOutcome | None = None
     readiness: ReadinessReport | None = None
     credentials_verified: bool = False
+    key_installed: bool = False
 
     @property
     def profile(self) -> DeploymentProfile:
@@ -62,6 +78,7 @@ class StartupResult:
             "migration": None if self.migration is None else self.migration.to_record(),
             "readiness": None if self.readiness is None else self.readiness.to_record(),
             "credentials_verified": self.credentials_verified,
+            "key_installed": self.key_installed,
         }
 
     def summary(self) -> str:
@@ -69,6 +86,8 @@ class StartupResult:
         lines = [self.topology.summary()]
         if self.validation.warnings:
             lines.extend(f"  [advisory] {finding}" for finding in self.validation.warnings)
+        if self.key_installed:
+            lines.append("the encryption key is loaded")
         if self.credentials_verified:
             lines.append("stored credentials open with the configured key")
         if self.migration is not None:
@@ -82,6 +101,7 @@ async def run_startup(
     *,
     environ: Mapping[str, str] | None = None,
     migrator: SchemaMigrator | None = None,
+    install_key: KeyInstaller | None = None,
     verify_credentials: CredentialCheck | None = None,
     readiness: ReadinessReport | None = None,
     apply_migrations: bool = True,
@@ -104,6 +124,11 @@ async def run_startup(
     report = validate(environ)
     report.raise_if_invalid()
 
+    installed = False
+    if install_key is not None:
+        # Before the check below, which cannot verify what has not been loaded.
+        installed = install_key()
+
     verified = False
     if verify_credentials is not None:
         # Before migrations, on purpose. See the module docstring.
@@ -120,7 +145,8 @@ async def run_startup(
         migration=outcome,
         readiness=readiness,
         credentials_verified=verified,
+        key_installed=installed,
     )
 
 
-__all__ = ["CredentialCheck", "StartupResult", "run_startup"]
+__all__ = ["CredentialCheck", "KeyInstaller", "StartupResult", "run_startup"]

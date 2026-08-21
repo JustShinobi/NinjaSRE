@@ -32,6 +32,12 @@ NINJASRE_CONSOLE_BASE_URL_ENV: Final = "NINJASRE_CONSOLE_BASE_URL"
 #: gateway behind its own proxy.
 NINJASRE_CONSOLE_API_URL_ENV: Final = "NINJASRE_CONSOLE_API_URL"
 
+#: A real credential for the browser suite to sign in with, set by the harness
+#: only against the ``compose`` backing. The mock data plane accepts any
+#: credential (see ``console/tests/e2e/session.ts``), so a run against it leaves
+#: this unset and the suite falls back to its own mock-plane value.
+NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV: Final = "NINJASRE_CONSOLE_E2E_CREDENTIAL"
+
 #: The path the built console is served under, for a deployment that puts it
 #: somewhere other than the root of its reverse proxy.
 NINJASRE_CONSOLE_BASE_PATH_ENV: Final = "NINJASRE_CONSOLE_BASE_PATH"
@@ -40,6 +46,12 @@ NINJASRE_CONSOLE_BASE_PATH_ENV: Final = "NINJASRE_CONSOLE_BASE_PATH"
 #: one. The archive is still checked against the committed digest, so a mirror
 #: is a different address rather than a different level of trust.
 NINJASRE_NODE_MIRROR_ENV: Final = "NINJASRE_NODE_MIRROR"
+
+#: Where Playwright looks for a browser, and where it puts one it downloads.
+#: Pointed at the toolchain directory so a browser is provisioned per checkout
+#: with the rest of the toolchain, rather than into a home-directory cache that
+#: a fresh worktree does not have and no step of the gate would fill.
+PLAYWRIGHT_BROWSERS_PATH_ENV: Final = "PLAYWRIGHT_BROWSERS_PATH"
 
 # --- Layout ---------------------------------------------------------------------
 
@@ -50,6 +62,15 @@ CONSOLE_DIR_NAME: Final = "console"
 #: Where the provisioned Node and pnpm are unpacked. Inside the console
 #: directory, ignored by git, and removable without losing anything committed.
 CONSOLE_TOOLCHAIN_DIR_NAME: Final = ".toolchain"
+
+#: Where the provisioned browser is unpacked, beside the Node and the pnpm it
+#: is provisioned with.
+CONSOLE_BROWSERS_DIR_NAME: Final = "browsers"
+
+#: The Playwright browser the suites drive. The headless shell rather than the
+#: full Chromium: it is what ``devices['Desktop Chrome']`` launches headless,
+#: and it is a third of the download.
+CONSOLE_BROWSER_NAME: Final = "chromium-headless-shell"
 
 #: The pinned Node version, on its own line, in the file every Node version
 #: manager already reads.
@@ -204,6 +225,11 @@ CONSOLE_SESSION_WARNING_SECONDS: Final = 300
 #: The one route an unauthenticated visitor may reach.
 CONSOLE_SIGN_IN_PATH: Final = "/sign-in"
 
+#: Where a username and a password become a session. Named here because the
+#: deploy flow's console walk has to sign in the way a person does, and it is
+#: Python: it cannot read the console's own copy of this.
+CONSOLE_SESSION_ENDPOINT: Final = "/api/session"
+
 #: The width below which the sidebar becomes a drawer.
 CONSOLE_SIDEBAR_BREAKPOINT_PX: Final = 768
 
@@ -250,6 +276,8 @@ CONSOLE_E2E_MOCK_PORT: Final = 8424
 
 __all__ = [
     "CONSOLE_BASELINE_DIR_NAME",
+    "CONSOLE_BROWSERS_DIR_NAME",
+    "CONSOLE_BROWSER_NAME",
     "CONSOLE_COLD_VERIFY_BUDGET_SECONDS",
     "CONSOLE_CONFIG_TREE_RENDER_BUDGET_MS",
     "CONSOLE_COVERAGE_THRESHOLD",
@@ -263,6 +291,7 @@ __all__ = [
     "CONSOLE_LOCALES",
     "CONSOLE_ROUTE_TRANSITION_BUDGET_MS",
     "CONSOLE_SESSION_COOKIE",
+    "CONSOLE_SESSION_ENDPOINT",
     "CONSOLE_SESSION_EXPIRY_COOKIE",
     "CONSOLE_SESSION_LIFETIME_SECONDS",
     "CONSOLE_SESSION_WARNING_SECONDS",
@@ -293,7 +322,9 @@ __all__ = [
     "NINJASRE_CONSOLE_API_URL_ENV",
     "NINJASRE_CONSOLE_BASE_PATH_ENV",
     "NINJASRE_CONSOLE_BASE_URL_ENV",
+    "NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV",
     "NINJASRE_CONSOLE_TOOLCHAIN_ENV",
     "NINJASRE_NODE_MIRROR_ENV",
+    "PLAYWRIGHT_BROWSERS_PATH_ENV",
     "NODE_DIST_BASE_URL",
 ]

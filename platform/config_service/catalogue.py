@@ -48,6 +48,12 @@ class CredentialField:
     ``secret`` is what the console reads to decide between a password input and
     a text input, and what the write path reads to refuse the value outright —
     a secret field's value belongs in the vault, never in configuration.
+
+    ``min_scope`` and ``guide_url`` mirror the same two names on
+    ``platform.credentials.schemas.CredentialField`` — the vendor's own
+    declaration — and default to blank for the same reason: a minimum
+    permission or a setup guide that was not confidently known is left absent
+    rather than guessed.
     """
 
     name: str
@@ -55,6 +61,8 @@ class CredentialField:
     secret: bool = True
     required: bool = True
     help: str = ""
+    min_scope: str = ""
+    guide_url: str = ""
 
 
 @dataclass(frozen=True, slots=True)

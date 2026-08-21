@@ -54,6 +54,13 @@ class Permission(StrEnum):
     #: nobody reads.
     INCIDENT_MANAGE = "incident.manage"
 
+    #: Handing this deployment an alert somebody else's system raised. Its own
+    #: permission, and the narrowest one there is: the credential holding it sits
+    #: in an alert router's configuration file, outside this deployment, where a
+    #: wider one would be the whole estate behind a secret nobody here rotates.
+    #: A write, because a delivery opens an incident and starts a run.
+    WEBHOOK_DELIVER = "webhook.deliver"
+
     # Learned material.
     MEMORY_READ = "memory.read"
     KNOWLEDGE_READ = "knowledge.read"
@@ -160,6 +167,11 @@ _ROLE_INCREMENTS: Final[Mapping[Role, frozenset[Permission]]] = {
             # noisy through every planned change.
             Permission.ESTATE_MANAGE,
             Permission.INCIDENT_MANAGE,
+            # Delivering an alert opens an incident, which is a responder's own
+            # act. It sits no lower for the reason ``viewer`` holds no write at
+            # all: a read credential that leaked must not become an ingestion
+            # endpoint somebody can raise incidents through.
+            Permission.WEBHOOK_DELIVER,
         }
     ),
     Role.OPERATOR: frozenset(

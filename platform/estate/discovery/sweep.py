@@ -72,6 +72,10 @@ class SweepReport:
     mode: DiscoveryMode
     started_at: datetime
     completed_at: datetime
+    #: The row this sweep wrote. Carried so a post-step can add what it
+    #: concluded to the same record rather than deriving the identifier from
+    #: two fields and a convention it would have to keep in step.
+    sweep_id: str = ""
     discovered: int = 0
     provider_calls: int = 0
     cursor: str = ""
@@ -272,6 +276,7 @@ class EstateSweeper:
         """
         outcome = SweepOutcome.SUCCEEDED if gathered.complete else SweepOutcome.SUSPENDED
         report = SweepReport(
+            sweep_id=_sweep_id(source, began),
             source=source,
             outcome=outcome,
             mode=mode,
@@ -355,6 +360,7 @@ class EstateSweeper:
 
         logger.warning("estate.sweep_failed", source=source, reason=reason, stale=len(stale))
         return SweepReport(
+            sweep_id=_sweep_id(source, now),
             source=source,
             outcome=SweepOutcome.FAILED,
             mode=mode,
@@ -478,6 +484,7 @@ async def _record_in_graph(uow: UnitOfWork, entry: Reconciled, *, source: str) -
 def _with(report: SweepReport, *, absent: Sequence[str]) -> SweepReport:
     """Return ``report`` carrying what the absence pass concluded."""
     return SweepReport(
+        sweep_id=report.sweep_id,
         source=report.source,
         outcome=report.outcome,
         mode=report.mode,

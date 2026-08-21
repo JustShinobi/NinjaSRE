@@ -2,7 +2,7 @@
 
 # Integration catalogue
 
-84 integrations, grouped by what they are for. Credentials never reach the agent: an integration client carries a scoped handle and the credential proxy injects the secret at the network edge.
+85 integrations, grouped by what they are for. Credentials never reach the agent: an integration client carries a scoped handle and the credential proxy injects the secret at the network edge.
 
 | Category | Integrations |
 |---|---|
@@ -14,6 +14,7 @@
 | [incident](incident.md) | 7 |
 | [logstore](logstore.md) | 13 |
 | [metrics](metrics.md) | 6 |
+| [model_provider](model-provider.md) | 1 |
 | [ticketing](ticketing.md) | 7 |
 | [tracing](tracing.md) | 4 |
 | [vcs](vcs.md) | 4 |

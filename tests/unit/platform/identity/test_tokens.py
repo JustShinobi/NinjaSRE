@@ -24,7 +24,7 @@ from config.constants.security import (
 )
 from platform.identity.audit.recorder import AuditContext, AuditRecorder
 from platform.identity.errors import TokenLifetimeTooLong, TokenRejected, TooManyRevocations
-from platform.identity.permissions import Permission
+from platform.identity.permissions import Permission, Role, permissions_for
 from platform.identity.tokens import TokenHasher, TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import (
@@ -32,6 +32,7 @@ from platform.persistence.ports import (
     ConfigNode,
     ConfigNodeKind,
     PrincipalKind,
+    RoleBinding,
     TenantScope,
     User,
 )
@@ -191,6 +192,96 @@ async def test_a_live_token_authenticates_to_its_owner_and_scope() -> None:
     assert authenticated.principal.org_id == ORG
     assert authenticated.principal.token_id == issued.token.token_id
     assert authenticated.principal.node_id == TEAM
+
+
+async def test_a_token_issued_with_no_permissions_declared_authenticates_to_nothing() -> None:
+    """An owner-level user can still mint a token that can do nothing at all.
+
+    Before this test, the only stored signal for "how wide is this token" was
+    its scopes tuple, and an empty one was read as "as wide as its owner" —
+    the same shape a browser session's token has. A machine token issued with
+    no scope chosen must not silently inherit the owner's full permission set;
+    that reading belongs only to a token this service issues as `unscoped`.
+    """
+    service, gateway, scope = await build(Clock())
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_role_binding(
+            RoleBinding(binding_id="ada-owner", user_id=OWNER, role=Role.OWNER.value)
+        )
+    issued = await service.issue(scope, context(), user_id=OWNER, name="ci-runner")
+
+    authenticated = await service.authenticate(issued.secret)
+
+    assert authenticated.permissions.permissions_at(None) == frozenset()
+
+
+async def test_a_token_issued_with_explicit_permissions_carries_only_those() -> None:
+    """The ordinary, scoped case: exactly what was asked for, nothing assumed."""
+    service, gateway, scope = await build(Clock())
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_role_binding(
+            RoleBinding(binding_id="ada-owner", user_id=OWNER, role=Role.OWNER.value)
+        )
+    issued = await service.issue(
+        scope,
+        context(),
+        user_id=OWNER,
+        name="ci-runner",
+        permissions=(Permission.WEBHOOK_DELIVER,),
+    )
+
+    authenticated = await service.authenticate(issued.secret)
+
+    assert authenticated.permissions.permissions_at(None) == {Permission.WEBHOOK_DELIVER}
+
+
+async def test_a_request_beyond_the_owners_own_permissions_is_narrowed_not_granted() -> None:
+    """The ceiling holds through the whole issuance path, not only at the set layer.
+
+    A viewer holds nothing that touches the organisation itself. A token
+    issued to one that explicitly asks for `Permission.ORG_DELETE` must come
+    back holding nothing, the same ceiling `PermissionSet.narrowed_to` already
+    enforces on its own — exercised here through `TokenService.issue` and a
+    live `authenticate()`, so the wiring between them is what is under test,
+    not the set operation in isolation.
+    """
+    service, gateway, scope = await build(Clock())
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_role_binding(
+            RoleBinding(binding_id="ada-viewer", user_id=OWNER, role=Role.VIEWER.value)
+        )
+    issued = await service.issue(
+        scope,
+        context(),
+        user_id=OWNER,
+        name="ci-runner",
+        permissions=(Permission.ORG_DELETE,),
+    )
+
+    authenticated = await service.authenticate(issued.secret)
+
+    assert authenticated.permissions.permissions_at(None) == frozenset()
+
+
+async def test_an_unscoped_token_still_authenticates_to_its_owners_full_permissions() -> None:
+    """A session-style credential keeps carrying everything its owner holds.
+
+    `unscoped` is what a browser sign-in and a durable owner credential ask
+    for explicitly — never the default, and never reachable through the
+    machine-token issuance route.
+    """
+    service, gateway, scope = await build(Clock())
+    async with gateway.begin(scope) as uow:
+        await uow.identity.upsert_role_binding(
+            RoleBinding(binding_id="ada-owner", user_id=OWNER, role=Role.OWNER.value)
+        )
+    issued = await service.issue(
+        scope, context(), user_id=OWNER, name="Console sign-in", unscoped=True
+    )
+
+    authenticated = await service.authenticate(issued.secret)
+
+    assert authenticated.permissions.permissions_at(None) == permissions_for(Role.OWNER)
 
 
 async def test_an_unknown_token_is_rejected() -> None:

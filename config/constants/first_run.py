@@ -86,6 +86,11 @@ CHECK_DATABASE: Final = "database"
 CHECK_SCHEMA: Final = "schema"
 CHECK_CREDENTIAL_PROXY: Final = "credential-proxy"
 CHECK_MODEL_PROVIDER: Final = "model-provider"
+#: Whether this process holds something that can actually drive an
+#: investigation. Its own check because it is the one dependency that leaves no
+#: trace on any screen: a deployment with nothing composed looks exactly like
+#: one that has, until somebody presses Investigate.
+CHECK_INVESTIGATION_RUNTIME: Final = "investigation-runtime"
 CHECK_INTEGRATIONS: Final = "integrations"
 CHECK_SCHEDULER: Final = "scheduler"
 CHECK_OBSERVER: Final = "observer"
@@ -97,6 +102,7 @@ SELF_CHECK_NAMES: Final[tuple[str, ...]] = (
     CHECK_SCHEMA,
     CHECK_CREDENTIAL_PROXY,
     CHECK_MODEL_PROVIDER,
+    CHECK_INVESTIGATION_RUNTIME,
     CHECK_INTEGRATIONS,
     CHECK_SCHEDULER,
     CHECK_OBSERVER,
@@ -148,15 +154,24 @@ MAXIMUM_CLOCK_SKEW_SECONDS: Final[float] = 60.0
 SETUP_STEP_DURABLE_CREDENTIAL: Final = "durable-credential"
 SETUP_STEP_MODEL_PROVIDER: Final = "model-provider"
 SETUP_STEP_INFRASTRUCTURE_SOURCE: Final = "infrastructure-source"
+SETUP_STEP_INVESTIGATION_RUNTIME: Final = "investigation-runtime"
 SETUP_STEP_FIRST_INVESTIGATION: Final = "first-investigation"
 
 #: The order the console shows them in, which is also the order they depend on
-#: each other: a first investigation needs a source, a source needs somebody who
-#: may configure one, and that is the durable credential.
+#: each other: a first investigation needs a runtime to run in, a runtime needs
+#: a source worth pointing it at, a source needs somebody who may configure one,
+#: and that is the durable credential.
+#:
+#: The runtime step is fourth because it is the one a deployment can satisfy
+#: without noticing it has not. Everything else here leaves a trace an operator
+#: can see from the console; a process with no investigation runtime composed
+#: looks exactly like one that has, right up to the moment somebody presses
+#: Investigate and the run fails before it starts.
 SETUP_STEP_ORDER: Final[tuple[str, ...]] = (
     SETUP_STEP_DURABLE_CREDENTIAL,
     SETUP_STEP_MODEL_PROVIDER,
     SETUP_STEP_INFRASTRUCTURE_SOURCE,
+    SETUP_STEP_INVESTIGATION_RUNTIME,
     SETUP_STEP_FIRST_INVESTIGATION,
 )
 
@@ -165,6 +180,54 @@ SETUP_STATE_READY: Final = "ready"
 SETUP_STATE_BLOCKED: Final = "blocked"
 
 SETUP_STATES: Final[tuple[str, ...]] = (SETUP_STATE_DONE, SETUP_STATE_READY, SETUP_STATE_BLOCKED)
+
+#: How far along one *thing* is — a model provider, one vendor integration — as
+#: distinct from how far along the step that configures it is. Three words
+#: rather than a boolean, because "nothing is stored" and "a key is stored and
+#: nobody has checked it" are different screens with different next actions, and
+#: the second is the state a wrong key sits in until an incident finds it.
+#:
+#: ``absent`` for an integration means declared and holding nothing: the list
+#: only ever contains integrations this deployment knows about.
+SETUP_READINESS_ABSENT: Final = "absent"
+SETUP_READINESS_CONFIGURED: Final = "configured"
+SETUP_READINESS_VERIFIED: Final = "verified"
+
+SETUP_READINESS: Final[tuple[str, ...]] = (
+    SETUP_READINESS_ABSENT,
+    SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_VERIFIED,
+)
+
+# --- What a check concluded, and about what ------------------------------------
+
+#: What one verification concluded. Two words and no third: a check that could
+#: not be run at all is a check nobody recorded, and writing "unknown" down would
+#: make the absence of a record and the presence of an inconclusive one two
+#: spellings of the same screen.
+SETUP_CHECK_PASSED: Final = "passed"
+SETUP_CHECK_FAILED: Final = "failed"
+
+SETUP_CHECK_OUTCOMES: Final[tuple[str, ...]] = (SETUP_CHECK_PASSED, SETUP_CHECK_FAILED)
+
+#: What a check was run against. The two the verify routes accept, and the reason
+#: they are separate rather than one namespace of names: a vendor integration and
+#: a model provider are checked by different code, answer with different
+#: evidence, and an operator reading "prometheus is verified" is not being told
+#: anything about their model.
+SETUP_CHECK_SUBJECT_INTEGRATION: Final = "integration"
+SETUP_CHECK_SUBJECT_PROVIDER: Final = "model-provider"
+
+SETUP_CHECK_SUBJECTS: Final[tuple[str, ...]] = (
+    SETUP_CHECK_SUBJECT_INTEGRATION,
+    SETUP_CHECK_SUBJECT_PROVIDER,
+)
+
+#: How many recorded checks one read returns. A deployment has one row per thing
+#: it can check, so this bounds a listing that is already bounded by how many
+#: integrations exist — it is here so a corrupted table cannot page a console to
+#: death, not because anybody expects to reach it.
+MAX_VERIFICATION_PAGE_SIZE: Final[int] = 500
 
 #: What the guided first investigation is called in the run trace, so a
 #: deployment can tell the one it was shown from the ones it went on to run.
@@ -253,6 +316,10 @@ __all__ = [
     "SELF_CHECK_BUDGET_SECONDS",
     "SELF_CHECK_NAMES",
     "SELF_CHECK_TIMEOUT_SECONDS",
+    "SETUP_READINESS",
+    "SETUP_READINESS_ABSENT",
+    "SETUP_READINESS_CONFIGURED",
+    "SETUP_READINESS_VERIFIED",
     "SETUP_STATES",
     "SETUP_STATE_BLOCKED",
     "SETUP_STATE_DONE",

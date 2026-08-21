@@ -10,26 +10,34 @@ from gateway.http.correlation import CorrelationIdMiddleware
 from gateway.http.errors import install_error_handlers
 from gateway.http.lifespan import lifespan
 from gateway.http.routes import (
+    agent,
     approvals,
     audit,
     autonomy,
     capabilities,
     config,
     estate,
+    estate_discovery,
     first_run,
     health,
     identity,
     incidents,
+    ingress,
     integrations,
     interactions,
     investigations,
     knowledge,
     memory,
+    proposals,
+    protocols,
+    providers,
     remediation,
     runs,
     schedules,
+    sso,
     threads,
     topology,
+    transit,
 )
 from gateway.http.state import GatewayState
 from gateway.webhooks.router import WebhookSourceConfig, build_webhook_router
@@ -71,6 +79,7 @@ def create_app(
     install_error_handlers(app)
 
     for router in (
+        agent.router,
         autonomy.router,
         incidents.router,
         investigations.router,
@@ -80,17 +89,24 @@ def create_app(
         runs.router,
         config.router,
         integrations.router,
+        ingress.router,
+        transit.router,
+        protocols.router,
         memory.router,
         remediation.router,
         schedules.router,
         capabilities.router,
+        estate_discovery.router,
         estate.router,
         approvals.router,
+        proposals.router,
         topology.router,
         knowledge.router,
         first_run.router,
+        providers.router,
         identity.auth_router,
         identity.identity_router,
+        sso.router,
         audit.router,
         health.router,
     ):

@@ -420,6 +420,7 @@ A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, da
 - `proxmox_guest_tasks`
 - `proxmox_ha_state`
 - `proxmox_migration_feasibility`
+- `proxmox_node_health`
 - `proxmox_orphaned_volumes`
 - `proxmox_protection_gaps`
 - `proxmox_quorum_status`

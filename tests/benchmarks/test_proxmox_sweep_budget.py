@@ -49,6 +49,11 @@ GUEST_COUNT = 50
 
 #: What one sweep of that shape may cost. Two cluster-wide calls, six cluster
 #: detail calls, four per node, and one per guest.
+#:
+#: The six include one call for HA placement. A cluster part-way through the
+#: Proxmox VE 9 upgrade costs a seventh, because the retired groups endpoint is
+#: asked after the rules endpoint declines — a fixed cost, not a per-guest one,
+#: which is what this benchmark exists to catch.
 EXPECTED_CALLS = 2 + 6 + (4 * 2) + GUEST_COUNT
 
 #: Wall-clock ceiling for assembling the page, with no network in the way. Two
@@ -109,6 +114,11 @@ def fifty_guests() -> ScriptedCluster:
             "meta": f"creation-lxc=9.2.6,ctime={1_700_000_000 + index}",
         }
     responses["/cluster/resources"] = resources
+    # A current cluster: HA groups were migrated to rules, so the newer endpoint
+    # answers and the older one is never reached.
+    responses["/cluster/ha/rules"] = [
+        {"rule": "node-affinity-1", "type": "node-affinity", "resources": "ct:100"}
+    ]
     return ScriptedCluster(responses=responses)
 
 

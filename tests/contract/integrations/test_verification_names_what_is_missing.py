@@ -77,11 +77,19 @@ def test_every_permission_says_what_stops_working_without_it(name: str) -> None:
 
 @pytest.mark.parametrize("name", IDS)
 async def test_a_working_credential_verifies_with_every_permission_granted(name: str) -> None:
+    """Connectivity and every permission, which is what this file is about.
+
+    Not ``report.ok``: for a signal source that also asks whether the store is
+    holding anything, the stand-in vendor's empty body *is* an empty store, and
+    reporting it as one is the behaviour rather than a fixture artefact. That
+    half is asserted against per-vendor bodies in
+    ``test_signal_sources_hold_recent_data.py``.
+    """
     transport, _ = await stand_up(DESCRIPTORS, seeded=(name,))
 
     report = await runner().verify(name, transport=transport, context=CONTEXT)
 
-    assert report.ok, report_message(report)
+    assert report.connectivity.reachable, report_message(report)
     assert all(outcome.granted for outcome in report.permissions)
     assert report.missing_permissions == ()
 
@@ -175,4 +183,20 @@ async def test_one_command_verifies_the_whole_catalogue() -> None:
     reports = await runner().verify_all(transport=transport, context=CONTEXT)
 
     assert tuple(report.integration for report in reports) == IDS
-    assert summary_line(reports) == f"{len(reports)} integration(s) verified"
+
+    # The one line CI prints. Every integration whose credential works is in it
+    # as verified — except the signal sources, which also ask whether the store
+    # is holding anything, and the stand-in vendor answers every read with an
+    # empty body. That is the empty-window state doing its job all the way out
+    # to the summary, so the assertion names the cause rather than excusing it:
+    # nothing may fail here for any reason other than an empty store.
+    failing = [report for report in reports if not report.ok]
+    for report in failing:
+        assert report.data_window is not None and report.data_window.is_finding, (
+            f"{report.integration} failed verification against a vendor that accepted every "
+            f"call: {report_message(report)}"
+        )
+    if not failing:
+        assert summary_line(reports) == f"{len(reports)} integration(s) verified"
+    else:
+        assert summary_line(reports).startswith(f"{len(failing)} of {len(reports)}")

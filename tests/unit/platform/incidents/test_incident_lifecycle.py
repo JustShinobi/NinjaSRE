@@ -7,6 +7,7 @@ the two an operator will notice immediately when it does not.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -491,3 +492,306 @@ async def test_a_failing_detector_becomes_its_own_incident(
     assert len(report.failures) == 1
     assert report.failures[0].correlation_key.startswith("detector-failure:")
     assert "nothing is watching" in report.failures[0].summary
+
+
+# --- Reasoning: receipt, hypotheses, evidence, diagnosis, delivery --------------------------
+
+
+#: A value shaped like a real delivery-token secret. Never passed as an
+#: argument anywhere below — its only job is to prove, by its absence, that
+#: nothing here leaks it.
+_SECRET_TOKEN_VALUE = "nsre_live_9f21c3ab8d4e5f60_do_not_leak_this"
+
+
+def _leak_scan(entry) -> bool:  # noqa: ANN001 - TimelineEntry, kept untyped to scan generically
+    """Return whether ``_SECRET_TOKEN_VALUE`` appears anywhere on ``entry``.
+
+    Walks every field by name rather than checking a hand-picked few, so a
+    field added later is covered without anyone remembering to update this
+    scan.
+    """
+    return any(
+        isinstance(value, str) and _SECRET_TOKEN_VALUE in value
+        for value in (getattr(entry, field.name) for field in dataclasses.fields(entry))
+    )
+
+
+async def test_alert_received_names_the_credential_and_carries_the_labels(
+    gateway: PersistenceGateway,
+) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        entry = await lifecycle.record_alert_received(
+            incident.incident_id,
+            labels={"alertname": "InstanceDown", "severity": "critical"},
+            credential_name="delivery token am-cluster",
+            now=at(1),
+        )
+
+    assert entry.kind is TimelineKind.ALERT_RECEIVED
+    assert "am-cluster" in entry.cause
+    assert "alertname=InstanceDown" in entry.detail
+    assert "severity=critical" in entry.detail
+
+
+async def test_alert_received_never_carries_the_credentials_secret_value(
+    gateway: PersistenceGateway,
+) -> None:
+    """The display name is recorded; the value that authenticated it never is."""
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        entry = await lifecycle.record_alert_received(
+            incident.incident_id,
+            labels={"alertname": "InstanceDown", "instance": "host-1:9100"},
+            credential_name="delivery token am-cluster",
+            now=at(1),
+        )
+        history = await lifecycle.timeline(incident.incident_id)
+
+    assert not _leak_scan(entry)
+    assert not any(_leak_scan(item) for item in history)
+    # Not vacuous: the display name a caller is meant to show is really there.
+    assert "am-cluster" in entry.cause
+
+
+async def test_the_leak_scan_would_catch_a_secret_that_was_actually_present(
+    gateway: PersistenceGateway,
+) -> None:
+    """Proves the scan above is not vacuously true by giving it something to find.
+
+    Labels are stored verbatim — this feature never asks them to be scrubbed
+    — so a caller that put a secret in a label value would see it recorded.
+    That is exactly why the delivery token's value never reaches this method
+    as an argument in the first place; this test is the demonstration that
+    the previous test's "absent" means what it claims.
+    """
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        entry = await lifecycle.record_alert_received(
+            incident.incident_id,
+            labels={"leaked_by_a_careless_caller": _SECRET_TOKEN_VALUE},
+            credential_name="delivery token am-cluster",
+            now=at(1),
+        )
+
+    assert _leak_scan(entry)
+
+
+async def test_alert_received_refuses_without_a_credential_name(
+    gateway: PersistenceGateway,
+) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        with pytest.raises(ValueError, match="display name"):
+            await lifecycle.record_alert_received(
+                incident.incident_id, labels={}, credential_name="", now=at(1)
+            )
+
+
+async def test_hypotheses_are_recorded_before_the_first_evidence_entry(
+    gateway: PersistenceGateway,
+) -> None:
+    """The claim is order, so the assertion is a position, not a membership check."""
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        await lifecycle.record_hypotheses(
+            incident.incident_id,
+            hypotheses=("the host is down", "the exporter crashed"),
+            now=at(1),
+        )
+        await lifecycle.record_evidence(
+            incident.incident_id,
+            query='up{instance="host-1:9100"}',
+            result="0",
+            conclusion="the exporter is not responding",
+            now=at(2),
+        )
+        await lifecycle.record_evidence(
+            incident.incident_id,
+            query="pct status 101",
+            result="status: stopped",
+            conclusion="the container is stopped",
+            now=at(3),
+        )
+
+        history = await lifecycle.timeline(incident.incident_id)
+
+    kinds = [item.kind for item in history]
+    hypotheses_index = kinds.index(TimelineKind.HYPOTHESES_DRAWN)
+    evidence_indexes = [index for index, kind in enumerate(kinds) if kind is TimelineKind.EVIDENCE]
+    assert evidence_indexes, "the test needs at least one evidence entry to order against"
+    assert hypotheses_index < min(evidence_indexes)
+
+
+async def test_hypotheses_refuses_an_empty_list(gateway: PersistenceGateway) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        with pytest.raises(ValueError, match="at least one"):
+            await lifecycle.record_hypotheses(incident.incident_id, hypotheses=(), now=at(1))
+
+
+async def test_evidence_carries_the_query_and_the_result_on_the_entry_itself(
+    gateway: PersistenceGateway,
+) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        entry = await lifecycle.record_evidence(
+            incident.incident_id,
+            query='up{instance="host-1:9100"}',
+            result="0",
+            conclusion="the exporter is not responding",
+            now=at(1),
+        )
+
+    assert entry.kind is TimelineKind.EVIDENCE
+    assert entry.query == 'up{instance="host-1:9100"}'
+    assert entry.result == "0"
+    assert entry.cause == "the exporter is not responding"
+
+
+async def test_evidence_refuses_without_the_query_that_was_run(
+    gateway: PersistenceGateway,
+) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        with pytest.raises(ValueError, match="query"):
+            await lifecycle.record_evidence(
+                incident.incident_id, query="", result="0", conclusion="x", now=at(1)
+            )
+
+
+async def test_a_diagnosis_backed_by_evidence_is_recorded_as_a_diagnosis(
+    gateway: PersistenceGateway,
+) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+        evidence = await lifecycle.record_evidence(
+            incident.incident_id,
+            query="pct status 101",
+            result="status: stopped",
+            conclusion="the container is stopped",
+            now=at(1),
+        )
+
+        entry = await lifecycle.record_diagnosis(
+            incident.incident_id,
+            sentence="the container on host-1 is stopped",
+            supporting_evidence_ids=(evidence.entry_id,),
+            now=at(2),
+        )
+        history = await lifecycle.timeline(incident.incident_id)
+
+    assert entry.kind is TimelineKind.DIAGNOSIS
+    assert entry.cause == "the container on host-1 is stopped"
+    assert evidence.entry_id in entry.detail
+    assert TimelineKind.DIAGNOSIS in {item.kind for item in history}
+
+
+async def test_a_diagnosis_with_no_supporting_evidence_is_a_hypothesis_not_a_diagnosis(
+    gateway: PersistenceGateway,
+) -> None:
+    """Both halves of the claim: no diagnosis appears, and a hypothesis does."""
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        entry = await lifecycle.record_diagnosis(
+            incident.incident_id,
+            sentence="the container on host-1 might be stopped",
+            supporting_evidence_ids=(),
+            now=at(1),
+        )
+        history = await lifecycle.timeline(incident.incident_id)
+
+    # Half one: nothing on the timeline is a diagnosis.
+    assert TimelineKind.DIAGNOSIS not in {item.kind for item in history}
+    # Half two: the unsupported conclusion is present, as a hypothesis.
+    assert entry.kind is TimelineKind.HYPOTHESES_DRAWN
+    hypothesis_entries = [item for item in history if item.kind is TimelineKind.HYPOTHESES_DRAWN]
+    assert any(
+        item.cause == "the container on host-1 might be stopped" for item in hypothesis_entries
+    )
+
+
+async def test_diagnosis_refuses_an_empty_sentence(gateway: PersistenceGateway) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        with pytest.raises(ValueError, match="sentence"):
+            await lifecycle.record_diagnosis(incident.incident_id, sentence="", now=at(1))
+
+
+async def test_report_delivery_names_its_destinations(gateway: PersistenceGateway) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        entry = await lifecycle.record_report_delivered(
+            incident.incident_id,
+            destinations=("#sre-oncall", "ada@example.test"),
+            now=at(1),
+        )
+
+    assert entry.kind is TimelineKind.REPORT_DELIVERED
+    assert "#sre-oncall" in entry.detail
+    assert "ada@example.test" in entry.detail
+
+
+async def test_report_delivery_refuses_with_no_destinations(
+    gateway: PersistenceGateway,
+) -> None:
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+
+        with pytest.raises(ValueError, match="destination"):
+            await lifecycle.record_report_delivered(
+                incident.incident_id, destinations=(), now=at(1)
+            )
+
+
+async def test_reasoning_entries_coexist_with_lifecycle_entries_on_one_timeline(
+    gateway: PersistenceGateway,
+) -> None:
+    """Reasoning is appended alongside lifecycle history, never in a second list."""
+    async with gateway.begin(TenantScope(org_id="acme")) as uow:
+        lifecycle = IncidentLifecycle(store=uow.incidents)
+        incident = await lifecycle.raise_incident(a_raise(), now=at())
+        await lifecycle.record_alert_received(
+            incident.incident_id,
+            labels={"alertname": "InstanceDown"},
+            credential_name="delivery token am-cluster",
+            now=at(1),
+        )
+        await lifecycle.transition(
+            incident.incident_id,
+            IncidentState.INVESTIGATING,
+            cause="an investigation started",
+            now=at(2),
+        )
+
+        history = await lifecycle.timeline(incident.incident_id)
+
+    assert [item.kind for item in history] == [
+        TimelineKind.OPENED,
+        TimelineKind.ALERT_RECEIVED,
+        TimelineKind.STATE_CHANGED,
+    ]

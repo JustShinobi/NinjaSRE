@@ -31,6 +31,7 @@ from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.state import GatewayState
 from platform.config_service.service import ConfigService
 from platform.incidents.errors import UnknownIncident
+from platform.incidents.investigation_summary import InvestigationSummary, summarise_investigation
 from platform.incidents.service import DetectorService, DetectorView, IncidentService
 from platform.observation.detectors.conditions import Observation
 from platform.observation.errors import UnknownDetector
@@ -96,6 +97,12 @@ class TimelineEntryView(BaseModel):
     actor: str
     cause: str = ""
     detail: str = ""
+    #: The query an evidence step actually ran. Empty on every other kind —
+    #: see ``TimelineEntry.query`` on the port this mirrors.
+    query: str = ""
+    #: What ``query`` returned. Carried beside it, not folded into a sentence,
+    #: so the screen can render what was actually asked and what came back.
+    result: str = ""
 
 
 class ObservationView(BaseModel):
@@ -109,6 +116,20 @@ class ObservationView(BaseModel):
     observed_at: datetime
 
 
+class InvestigationSummaryView(BaseModel):
+    """How many steps the investigation took, how long it ran, and what it cost.
+
+    ``duration_ms`` and ``cost`` are ``None`` — never a fabricated zero — while
+    the run has not finished, or while nothing it did carried a priced figure.
+    ``step_count`` gets no such treatment: a run that has taken no turns yet
+    has taken zero turns, which is a fact worth showing exactly as it is.
+    """
+
+    step_count: int
+    duration_ms: int | None = None
+    cost: float | None = None
+
+
 class IncidentDetailView(BaseModel):
     """One incident's page: what it is, who it is about, and how it got there."""
 
@@ -117,6 +138,10 @@ class IncidentDetailView(BaseModel):
     observations: list[ObservationView] = Field(default_factory=list)
     timeline: list[TimelineEntryView] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
+    #: ``None`` only when no run was ever attached to this incident. An
+    #: attached run always summarises to something, even before it has
+    #: produced a single turn.
+    investigation: InvestigationSummaryView | None = None
 
 
 class DetectorSummaryView(BaseModel):
@@ -132,6 +157,14 @@ class DetectorSummaryView(BaseModel):
     subjects_total: int
     last_verdict: str
     last_evaluated_at: datetime | None = None
+    #: The document that proposed this detector, when one did. Empty for every
+    #: detector somebody wrote by hand, and what lets a client separate "this is
+    #: running" from "somebody's runbook suggests this and nobody has decided".
+    origin: str = ""
+    origin_excerpt: str = ""
+    #: ``origin`` is set. Served rather than left to the client to derive, so
+    #: two surfaces cannot disagree about what makes a row a candidate.
+    proposed: bool = False
 
 
 class DetectorListView(BaseModel):
@@ -232,6 +265,42 @@ def _entry(entry: TimelineEntry) -> TimelineEntryView:
         actor=entry.actor,
         cause=entry.cause,
         detail=entry.detail,
+        query=entry.query,
+        result=entry.result,
+    )
+
+
+async def _investigation(
+    state: GatewayState, auth: AuthenticatedRequest, run_ids: tuple[str, ...]
+) -> InvestigationSummaryView | None:
+    """Return this incident's investigation summary, or ``None`` if none was ever attached.
+
+    An incident with no run attached has nothing to summarise, and says so with
+    ``None`` rather than a summary of zeroes. Once a run *is* attached, this
+    always returns something — even before that run has produced a single
+    turn, and even in the moment right after attaching, before its own trace
+    row exists yet — because the incident's own timeline already says an
+    investigation started. Only the two numbers a run can genuinely lack,
+    duration and cost, are ever omitted; the step count is a real count,
+    zero included.
+    """
+    if not run_ids:
+        return None
+    run_id = run_ids[0]
+    async with state.gateway.begin(auth.scope) as uow:
+        run = await uow.run_traces.get_run(run_id)
+        turns = await uow.run_traces.turns_for_run(run_id) if run is not None else ()
+    summary = (
+        summarise_investigation(run, turns)
+        if run is not None
+        else InvestigationSummary(step_count=0)
+    )
+    return InvestigationSummaryView(
+        step_count=summary.step_count,
+        duration_ms=(
+            round(summary.duration_seconds * 1000) if summary.duration_seconds is not None else None
+        ),
+        cost=summary.cost_usd,
     )
 
 
@@ -259,6 +328,9 @@ def _detector(view: DetectorView) -> DetectorSummaryView:
         subjects_total=view.subjects_total,
         last_verdict=view.last_verdict,
         last_evaluated_at=view.last_evaluated_at,
+        origin=declaration.origin,
+        origin_excerpt=declaration.origin_excerpt,
+        proposed=declaration.proposed,
     )
 
 
@@ -350,6 +422,7 @@ async def incident_detail(
         ],
         timeline=[_entry(entry) for entry in detail.timeline],
         actions=list(detail.incident.actions),
+        investigation=await _investigation(state, auth, detail.incident.run_ids),
     )
 
 

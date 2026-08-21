@@ -2,7 +2,7 @@
 
 # metrics capabilities
 
-12 tools and 6 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
+13 tools and 6 skills the agent may call in this domain. Every entry is generated from the declaration the approval gate reads, so the side-effect level below is the one that is actually enforced.
 
 ## Skills
 
@@ -275,6 +275,27 @@ Evaluate a metric query over a window and return the series grouped by one label
 
 - reading an individual log line, which a metric never contains
 - a question about a single request, where a metric has no resolution
+
+#### `prometheus_resource_pressure`
+
+Return what one estate resource is short of — memory, CPU, disk — with the query built from the signal map rather than written by hand. For a container the series read are the host's, keyed by the guest's own identifier, because a container shares the host's kernel and counters read from inside it report the host's figures under the guest's name.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from prometheus
+- **Parallel safe:** yes
+- **Requires:** prometheus
+
+**Use when:**
+
+- how much memory, CPU or disk a hypervisor guest is using, without asking inside it
+- checking whether a container that is being OOM-killed is at its own ceiling
+- resource usage for a guest where no agent runs and nothing can be installed
+
+**Not for:**
+
+- an arbitrary PromQL expression, which prometheus_metric_statistics evaluates
+- which alerts are firing, which prometheus_active_alerts answers
+- reading a log line, which a metric never contains
 
 #### `victoriametrics_active_alerts`
 

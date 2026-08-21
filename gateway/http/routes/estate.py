@@ -10,16 +10,34 @@ to have exactly one.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from config.constants.estate import DEFAULT_TRANSITION_HISTORY, MAX_ESTATE_PAGE_SIZE
+from config.constants.changes import DEFAULT_CHANGE_WINDOW_HOURS
+from config.constants.estate import (
+    DEFAULT_TRANSITION_HISTORY,
+    MAX_ESTATE_PAGE_SIZE,
+    MAX_UNRESOLVED_ALERT_TARGETS,
+)
+from config.constants.observation import MAX_INCIDENT_PAGE_SIZE
+from gateway.http.change_sources import change_sources_from
+from gateway.http.configured import configured_integrations
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.state import GatewayState
+from integrations._base.changes import UnsupportedGitHost
+from platform.changes.correlation import CorrelatedChange, views_of
+from platform.changes.models import ChangeWindow
+from platform.changes.service import ChangeAnswer, ChangeInquiry
+from platform.config_service.errors import UnknownNode
+from platform.config_service.service import ConfigService
+from platform.estate.alert_resolution import UnresolvedTargetFinding, unresolved_targets
 from platform.estate.service import EstateService, ResourceDetail, ResourceView
+from platform.estate.signal_map import SignalMap, signal_map_for
+from platform.knowledge.base.estate_links import EstateLinker, LinkedDocument
 from platform.persistence.errors import BoundExceeded, RecordNotFound
 from platform.persistence.ports.estate_repository import (
     EstateQuery,
@@ -29,6 +47,7 @@ from platform.persistence.ports.estate_repository import (
     ResourceHealth,
     ResourceReference,
 )
+from platform.persistence.ports.incident_store import IncidentOrigin, IncidentQuery
 
 router = APIRouter(prefix="/v1/estate", tags=["estate"])
 
@@ -76,6 +95,10 @@ class ResourceSummaryView(BaseModel):
     source: str
     sources: list[str] = Field(default_factory=list)
     native_id: str = ""
+    #: What two descriptions of one thing agree on, and what a declared
+    #: inventory is matched against. Served so a client can mark the rows a
+    #: divergence report names without a second lookup per row.
+    correlation_key: str = ""
     parent_id: str | None = None
     #: The parent's display name when the same read produced it, empty
     #: otherwise. A table shows this rather than the parent's identifier.
@@ -110,6 +133,95 @@ class ReferenceView(BaseModel):
     summary: str = ""
 
 
+class SignalSourceView(BaseModel):
+    """Which source answers one question about this resource, and by what key."""
+
+    question: str
+    integration: str
+    keyed_by: str
+    key: str
+    detail: str
+
+
+class MissingSignalView(BaseModel):
+    """A question nothing configured answers, and what would answer it."""
+
+    question: str
+    wanted: list[str] = Field(default_factory=list)
+    why: str
+
+
+class SignalsView(BaseModel):
+    """Where an investigation of this resource should go for each question.
+
+    Two lists rather than one with nulls in it. "Prometheus answers this, keyed
+    by vmid" and "nothing answers this, loki or openobserve would" are different
+    kinds of statement, and a client that had to inspect a field to tell them
+    apart would render one as the other on the day somebody adds a field.
+    """
+
+    sources: list[SignalSourceView] = Field(default_factory=list)
+    missing: list[MissingSignalView] = Field(default_factory=list)
+
+
+class LinkedDocumentView(BaseModel):
+    """One document somebody has written about this resource.
+
+    ``matched`` and ``matched_on`` are served rather than kept internal because
+    they are what lets an operator dismiss a link that is wrong: a list with no
+    reason beside each entry is a list that has to be trusted whole.
+    """
+
+    document_id: str
+    title: str
+    location: str
+    document_type: str
+    matched: str = ""
+    matched_on: str = ""
+
+
+class CorrelatedChangeView(BaseModel):
+    """One change that landed in the window, and what connects it to this resource.
+
+    ``strength`` and ``temporal_only`` are both served, and the redundancy is
+    deliberate: the first is what the panel groups on and the second is what a
+    client that has never met a new strength still renders correctly.
+    """
+
+    change_id: str
+    author: str
+    message: str
+    component: str
+    applied: bool
+    instant: str
+    strength: str
+    temporal_only: bool
+    why: str
+    paths: list[str] = Field(default_factory=list)
+    source: str = ""
+
+
+class ResourceChangesView(BaseModel):
+    """What changed under this resource, and the claim that goes with it.
+
+    ``statement`` is served rather than composed by the client, because it is
+    the same sentence the investigation's own report carries — and a console
+    that phrased it differently would be a second opinion nobody asked for.
+
+    ``answered`` is the field that stops an empty panel being read as "nothing
+    has changed". A deployment that consulted nothing has established nothing.
+    """
+
+    statement: str = ""
+    answered: bool = False
+    window_hours: float = 0.0
+    sources: list[str] = Field(default_factory=list)
+    total: int = 0
+    truncated: bool = False
+    degraded: list[str] = Field(default_factory=list)
+    entries: list[CorrelatedChangeView] = Field(default_factory=list)
+
+
 class ResourceDetailView(BaseModel):
     """One resource's page: its state, why, its history, and what touched it."""
 
@@ -122,6 +234,19 @@ class ResourceDetailView(BaseModel):
     references: list[ReferenceView] = Field(default_factory=list)
     children: list[ResourceSummaryView] = Field(default_factory=list)
     parent: ResourceSummaryView | None = None
+    #: Derived per request from what this team has configured, never stored. A
+    #: map written down once is a map that is right until somebody connects a
+    #: log store.
+    signals: SignalsView = Field(default_factory=SignalsView)
+    #: What has been written about this resource, from the corpus. Empty is the
+    #: normal answer for most of any estate and for all of one whose corpus has
+    #: not been synced, which is why it is a list rather than an absent block.
+    documents: list[LinkedDocumentView] = Field(default_factory=list)
+    #: What changed under this resource in the last day, correlated through the
+    #: resource rather than by the clock. Served from the same rule the agent's
+    #: own capability uses, because two rules would eventually disagree and the
+    #: page would then show a link the report does not make.
+    changes: ResourceChangesView = Field(default_factory=ResourceChangesView)
 
 
 class EstateSummaryView(BaseModel):
@@ -133,6 +258,22 @@ class EstateSummaryView(BaseModel):
     problems: int = 0
     maintenance: int = 0
     absent: int = 0
+
+
+class UnresolvedTargetView(BaseModel):
+    """An alert that arrived for something this estate does not hold."""
+
+    value: str
+    label: str
+    zone: str
+    why: str
+    incident_id: str
+    alert_name: str
+    observed_at: str
+
+
+class UnresolvedTargetListView(BaseModel):
+    targets: list[UnresolvedTargetView] = Field(default_factory=list)
 
 
 class MaintenanceRequest(BaseModel):
@@ -149,6 +290,18 @@ class MaintenanceRequest(BaseModel):
 
 def _service(state: GatewayState) -> EstateService:
     return EstateService(gateway=state.gateway, kinds=state.estate_kinds)
+
+
+def _unresolved(finding: UnresolvedTargetFinding) -> UnresolvedTargetView:
+    return UnresolvedTargetView(
+        value=finding.target.value,
+        label=finding.target.label,
+        zone=finding.target.zone,
+        why=finding.target.why,
+        incident_id=finding.incident_id,
+        alert_name=finding.alert_name,
+        observed_at=finding.observed_at.isoformat(),
+    )
 
 
 def _signal(signal: Any) -> SignalView:
@@ -185,6 +338,7 @@ def _row(view: ResourceView) -> ResourceSummaryView:
         source=resource.source,
         sources=[entry.integration for entry in resource.sources],
         native_id=resource.native_id,
+        correlation_key=resource.correlation_key,
         parent_id=resource.parent_id,
         parent_name=view.parent_name,
         team_node_id=resource.team_node_id,
@@ -233,7 +387,106 @@ def _summary(summary: EstateSummary) -> EstateSummaryView:
     )
 
 
-def _detail(detail: ResourceDetail) -> ResourceDetailView:
+def _signals(found: SignalMap) -> SignalsView:
+    return SignalsView(
+        sources=[
+            SignalSourceView(
+                question=source.question,
+                integration=source.integration,
+                keyed_by=source.keyed_by,
+                key=source.key,
+                detail=source.detail,
+            )
+            for source in found.sources
+        ],
+        missing=[
+            MissingSignalView(question=gap.question, wanted=list(gap.wanted), why=gap.why)
+            for gap in found.missing
+        ],
+    )
+
+
+def _document(entry: LinkedDocument) -> LinkedDocumentView:
+    return LinkedDocumentView(
+        document_id=entry.document_id,
+        title=entry.title,
+        location=entry.location,
+        document_type=entry.document_type.value,
+        matched=entry.matched,
+        matched_on=entry.matched_on,
+    )
+
+
+def _change(entry: CorrelatedChange) -> CorrelatedChangeView:
+    """Return one correlated change as the panel reads it."""
+    return CorrelatedChangeView(
+        change_id=entry.change.change_id,
+        author=entry.change.author,
+        message=entry.change.message,
+        component=entry.component or entry.change.component,
+        applied=entry.change.applied,
+        instant=entry.change.instant.isoformat(),
+        strength=entry.strength.value,
+        temporal_only=entry.strength.is_temporal_only,
+        why=entry.why,
+        paths=list(entry.change.paths),
+        source=entry.change.source,
+    )
+
+
+def _changes(answer: ChangeAnswer) -> ResourceChangesView:
+    """Return the change half of a resource's page."""
+    return ResourceChangesView(
+        statement=answer.statement,
+        answered=answer.answered,
+        window_hours=answer.window.hours,
+        sources=list(answer.sources),
+        total=answer.total,
+        truncated=answer.truncated,
+        degraded=list(answer.degraded),
+        entries=[_change(entry) for entry in answer.changes],
+    )
+
+
+async def _changes_for(
+    state: GatewayState,
+    auth: AuthenticatedRequest,
+    detail: ResourceDetail,
+    *,
+    now: datetime,
+) -> ChangeAnswer:
+    """Return what changed under this resource, from whatever is configured.
+
+    Built per request from *this caller's* configuration, falling back to what
+    the process composed at startup. That is the same reason the signal map is
+    derived per request: point the deployment at a repository in the console and
+    the next render of this page says so, with nothing to restart and nothing to
+    migrate.
+
+    A vendor nothing can read falls back rather than raising. The change block
+    is one part of a resource page, and a typo in an optional setting must not
+    take the whole page down.
+    """
+    try:
+        effective = await ConfigService(gateway=state.gateway, scope=auth.scope).resolve(
+            auth.team_node_id or auth.scope.org_id
+        )
+        configured = change_sources_from(effective.config.policies.changes)
+    except (UnsupportedGitHost, UnknownNode):
+        configured = ()
+
+    view = views_of([detail.view.resource])[0]
+    return await ChangeInquiry(sources=list(configured or state.change_sources)).about(
+        view, window=ChangeWindow.ending(now, hours=DEFAULT_CHANGE_WINDOW_HOURS)
+    )
+
+
+def _detail(
+    detail: ResourceDetail,
+    signals: SignalMap,
+    documents: Sequence[LinkedDocument] = (),
+    changes: ChangeAnswer | None = None,
+) -> ResourceDetailView:
     return ResourceDetailView(
         resource=_row(detail.view),
         derivation=_derivation(detail.view.derivation),
@@ -252,6 +505,9 @@ def _detail(detail: ResourceDetail) -> ResourceDetailView:
         references=[_reference(entry) for entry in detail.references],
         children=[_row(child) for child in detail.children],
         parent=_row(detail.parent) if detail.parent is not None else None,
+        signals=_signals(signals),
+        documents=[_document(entry) for entry in documents],
+        changes=_changes(changes) if changes is not None else ResourceChangesView(),
     )
 
 
@@ -314,6 +570,28 @@ async def list_resources(
     return ResourceListView(resources=[_row(view) for view in found])
 
 
+@router.get("/unresolved-alert-targets", response_model=UnresolvedTargetListView)
+async def list_unresolved_alert_targets(
+    state: GatewayState = Depends(get_state),
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> UnresolvedTargetListView:
+    """Return the alert targets this estate does not hold, newest first.
+
+    A finding of the same class as the reconciliation divergence a sweep
+    produces, and read from the live incidents that recorded it rather than from
+    a store of its own: the incident is already the record that the alert
+    arrived, and a second one would be a second thing to expire.
+    """
+    async with state.gateway.begin(auth.scope) as uow:
+        incidents = await uow.incidents.query(
+            IncidentQuery(
+                origins=(IncidentOrigin.ALERT,), live_only=True, limit=MAX_INCIDENT_PAGE_SIZE
+            )
+        )
+    findings = unresolved_targets(incidents)[:MAX_UNRESOLVED_ALERT_TARGETS]
+    return UnresolvedTargetListView(targets=[_unresolved(entry) for entry in findings])
+
+
 @router.get("/summary", response_model=EstateSummaryView)
 async def estate_summary(
     state: GatewayState = Depends(get_state),
@@ -331,16 +609,32 @@ async def resource_detail(
     auth: AuthenticatedRequest = Depends(authorized),
     history: int = DEFAULT_TRANSITION_HISTORY,
 ) -> ResourceDetailView:
-    """Return one resource's state, why, its history, and what touched it."""
-    detail = await _service(state).detail(
-        auth.scope, resource_id, now=datetime.now(UTC), history=history
-    )
+    """Return one resource's state, why, its history, and what touched it.
+
+    The ``signals`` block is derived here rather than by the estate service,
+    because it needs a fact the estate does not hold: which integrations this
+    team has a credential for. Deriving it per request is also what keeps it
+    correct — connect a log store and the next render of this page says so,
+    with nothing to migrate.
+    """
+    now = datetime.now(UTC)
+    detail = await _service(state).detail(auth.scope, resource_id, now=now, history=history)
     if detail is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"no resource {resource_id!r} in this estate",
         )
-    return _detail(detail)
+    configured = await configured_integrations(state, auth)
+    documents = await EstateLinker(gateway=state.gateway, scope=auth.scope).documents_for(
+        resource_id
+    )
+    changes = await _changes_for(state, auth, detail, now=now)
+    return _detail(
+        detail,
+        signal_map_for(detail.view.resource, configured=configured),
+        documents,
+        changes,
+    )
 
 
 @router.post("/resources/{resource_id}/maintenance", response_model=ResourceSummaryView)

@@ -78,6 +78,13 @@ MAX_MAINTENANCE_SECONDS: Final[int] = 604_800
 #: the one read whose natural size is "the whole estate".
 MAX_ESTATE_PAGE_SIZE: Final[int] = 500
 
+#: How many pages a whole-estate pass walks before it stops. The ceiling under
+#: "page until the estate runs out": at the page bound above this is 25,000
+#: resources, which is far past any deployment this platform is aimed at and
+#: still a number rather than "until it ends". A pass with no ceiling is one
+#: that turns an estate somebody grew into a request that never returns.
+MAX_ESTATE_SWEEP_PAGES: Final[int] = 50
+
 #: Seconds a summary over the whole estate may take. Declared here rather than
 #: in the benchmark, so the budget and the assertion cannot drift apart.
 ESTATE_SUMMARY_BUDGET_SECONDS: Final[float] = 1.0
@@ -102,6 +109,48 @@ DEFAULT_TRANSITION_HISTORY: Final[int] = 50
 #: in one screen does not explain anything.
 MAX_HEALTH_SIGNALS: Final[int] = 20
 
+# --- Declared inventory, ingested for enrichment -------------------------------
+
+#: Bytes one ingested inventory document may be. An operator points this at a
+#: directory somebody else maintains, so the size of what arrives is not a
+#: decision this deployment took — which is exactly the shape everything else in
+#: this module bounds. A megabyte is two orders of magnitude above the reference
+#: repository's largest file and small enough that a wrong path fails loudly
+#: rather than filling memory.
+MAX_ENRICHMENT_DOCUMENT_BYTES: Final[int] = 1_048_576
+
+#: Entries one ingested document may declare. Separate from the byte bound
+#: because a small file can still declare a hundred thousand hosts, and it is
+#: the entry count that decides how much annotation work follows.
+MAX_ENRICHMENT_ENTRIES: Final[int] = 5_000
+
+# --- An alert's target, and the resource it is about ---------------------------
+
+#: The labels that may name what an alert is about, in the order they are tried.
+#:
+#: Order is the whole of the rule. A host-side exporter labels a guest's series
+#: with the *host's* address and the guest's number, so an alert about a
+#: container carries both — and resolving the address first would produce an
+#: investigation of the hypervisor about the container's memory. The numeric
+#: identifier is the specific answer, so it is asked for first.
+ALERT_TARGET_LABELS: Final[tuple[str, ...]] = ("vmid", "target", "instance", "host", "node")
+
+#: The label whose value is a hypervisor guest's own number rather than an
+#: address or a name. Named apart because it is the one that resolves by lookup
+#: instead of by matching what the resource reports about itself.
+ALERT_VMID_LABEL: Final = "vmid"
+
+#: The prefix length an unmatched address is placed by when no zone map is
+#: declared: the estate's own resources on the same network say which zone it
+#: is. A /24 because that is how the reference estate is divided, and because a
+#: wider inference would place an address in a zone by coincidence.
+ALERT_ZONE_INFERENCE_PREFIX: Final[int] = 24
+
+#: Unresolved alert targets one listing returns. A finding per alert that
+#: named something unknown, and a deployment pointed at the wrong receiver can
+#: produce them faster than anybody reads them.
+MAX_UNRESOLVED_ALERT_TARGETS: Final[int] = 50
+
 # --- Retention ----------------------------------------------------------------
 
 #: How long estate history is kept when the operator configures nothing. Longer
@@ -111,6 +160,9 @@ MAX_HEALTH_SIGNALS: Final[int] = 20
 RETENTION_DAYS_ESTATE_HISTORY: Final[int] = 180
 
 __all__ = [
+    "ALERT_TARGET_LABELS",
+    "ALERT_VMID_LABEL",
+    "ALERT_ZONE_INFERENCE_PREFIX",
     "DEFAULT_DISCOVERY_INTERVAL_SECONDS",
     "DEFAULT_FRESHNESS_SECONDS",
     "DEFAULT_TRANSITION_HISTORY",
@@ -119,12 +171,16 @@ __all__ = [
     "ESTATE_DISCOVERY_JOB_KIND",
     "ESTATE_SUMMARY_BUDGET_RESOURCES",
     "ESTATE_SUMMARY_BUDGET_SECONDS",
+    "MAX_ENRICHMENT_DOCUMENT_BYTES",
+    "MAX_ENRICHMENT_ENTRIES",
     "MAX_ESTATE_PAGE_SIZE",
+    "MAX_ESTATE_SWEEP_PAGES",
     "MAX_HEALTH_SIGNALS",
     "MAX_MAINTENANCE_SECONDS",
     "MAX_SWEEP_PROVIDER_CALLS",
     "MAX_SWEEP_RESOURCES",
     "MAX_SWEEP_SECONDS",
+    "MAX_UNRESOLVED_ALERT_TARGETS",
     "MIN_DISCOVERY_INTERVAL_SECONDS",
     "MIN_FRESHNESS_SECONDS",
     "RETENTION_DAYS_ESTATE_HISTORY",

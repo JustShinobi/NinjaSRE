@@ -18,6 +18,8 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
+from core.domain.alerts.sources import ALERT_SOURCES
+from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 from tools.mockplane.records import CapturedRecord
 
 
@@ -87,9 +89,18 @@ REFERENCE_KEYS: Final[Mapping[str, str]] = {
 TYPED_REFERENCE_KEYS: Final[Mapping[str, str]] = {"resource_id": "resource_kind"}
 
 #: The ``subject`` namespace is a union: an observation is about a resource, a
-#: datastore, a thin pool, a backup job, or the cluster itself. Declared here so
-#: the union is a decision rather than an accident of what happened to resolve.
-SUBJECT_NAMESPACES: Final = ("resource", "backup-job", "datastore", "thin-pool", "cluster")
+#: datastore, a thin pool, a backup job, the cluster itself, or — for an
+#: ingested alert nothing resolved — the target that could not be found.
+#: Declared here so the union is a decision rather than an accident of what
+#: happened to resolve.
+SUBJECT_NAMESPACES: Final = (
+    "resource",
+    "backup-job",
+    "datastore",
+    "thin-pool",
+    "cluster",
+    "unresolved-target",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,7 +139,20 @@ def declared(records: Sequence[CapturedRecord]) -> dict[str, set[str]]:
                 name = pool.get("name")
                 if isinstance(name, str):
                     namespaces.setdefault("thin-pool", set()).add(name)
+        if record.slug == "estate-unresolved-targets" and isinstance(record.body, Mapping):
+            for target in _rows(record.body, "targets"):
+                value = target.get("value")
+                if isinstance(value, str) and value:
+                    namespaces.setdefault("unresolved-target", set()).add(
+                        f"{UNRESOLVED_TARGET_PREFIX}{value}"
+                    )
     namespaces.setdefault("cluster", set()).add("cluster")
+
+    # An incident's ``detector`` field is its *origin*: a detector when something
+    # here noticed, and the alert source when something else did. The catalogue
+    # is closed on both sides, so both are declared rather than the check being
+    # narrowed to whichever kind the dataset happened to hold first.
+    namespaces.setdefault("detector", set()).update(source.value for source in ALERT_SOURCES)
 
     namespaces["subject"] = {
         identifier

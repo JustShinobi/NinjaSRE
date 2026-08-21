@@ -44,6 +44,7 @@ from config.constants.first_run import (
     CHECK_DATABASE,
     CHECK_DISK_SPACE,
     CHECK_INTEGRATIONS,
+    CHECK_INVESTIGATION_RUNTIME,
     CHECK_MODEL_PROVIDER,
     CHECK_OBSERVER,
     CHECK_SCHEDULER,
@@ -584,6 +585,51 @@ def integrations_check(report: Callable[[], Any] | None = None) -> Check:
     return Check(name=CHECK_INTEGRATIONS, run=body)
 
 
+def investigation_runtime_check(composed: Callable[[], Any] | None = None) -> Check:
+    """Return the check that something here can actually drive an investigation.
+
+    The one dependency that leaves no trace on any screen. An account, a
+    provider key, a resource in the estate — all of them are visible from the
+    console; a process with nothing composed to run a ReAct loop looks exactly
+    like one that has, right up to the moment somebody presses Investigate and
+    the run fails before it starts.
+
+    Neither sentence names a setting of the process. The console renders this
+    report, and a finding whose text is a deploy instruction puts the
+    environment variable back on the screen the failure translation exists to
+    keep it off. The variable is named where it belongs: in the refusal the
+    entry point raises, and in the deployment documentation.
+    """
+
+    async def body() -> CheckOutcome:
+        # Not supplied and answered-no are one finding here, unlike the
+        # scheduler's two: a runtime nobody composed and a runtime that reports
+        # itself absent are the same deployment from an operator's chair.
+        answered: Any = composed() if composed is not None else False
+        if hasattr(answered, "__await__"):
+            answered = await answered
+        if answered:
+            return CheckOutcome.fine(
+                CHECK_INVESTIGATION_RUNTIME, detail="an investigation has something to run in"
+            )
+        return CheckOutcome.problem(
+            CHECK_INVESTIGATION_RUNTIME,
+            problem=(
+                "nothing in this deployment can drive an investigation — a model provider "
+                "and an integration may both be configured, and the part that puts them "
+                "together has not been supplied to this process"
+            ),
+            action=(
+                "whoever operates this deployment supplies the investigation runtime; "
+                "until they do, starting an investigation fails immediately and every "
+                "screen fed by one stays empty"
+            ),
+            blocks=BLOCKS_INVESTIGATION,
+        )
+
+    return Check(name=CHECK_INVESTIGATION_RUNTIME, run=body)
+
+
 def scheduler_check(running: Callable[[], Any] | None = None) -> Check:
     """Return the check that scheduled work is being claimed by something."""
 
@@ -667,6 +713,7 @@ CHECK_BUILDERS: Mapping[str, Callable[..., Any]] = {
     CHECK_SCHEMA: store_checks,
     CHECK_CREDENTIAL_PROXY: credential_proxy_check,
     CHECK_MODEL_PROVIDER: model_provider_check,
+    CHECK_INVESTIGATION_RUNTIME: investigation_runtime_check,
     CHECK_INTEGRATIONS: integrations_check,
     CHECK_SCHEDULER: scheduler_check,
     CHECK_OBSERVER: observer_check,
@@ -680,6 +727,7 @@ def deployment_checks(
     *,
     credential_proxy: Callable[[], Any] | None = None,
     model_provider: Callable[[], Any] | None = None,
+    investigation_runtime: Callable[[], Any] | None = None,
     integrations: Callable[[], Any] | None = None,
     scheduler: Callable[[], Any] | None = None,
     observer: Callable[[], Any] | None = None,
@@ -697,6 +745,7 @@ def deployment_checks(
         *store_checks(gateway),
         credential_proxy_check(credential_proxy),
         model_provider_check(model_provider),
+        investigation_runtime_check(investigation_runtime),
         integrations_check(integrations),
         scheduler_check(scheduler),
         observer_check(observer),
@@ -731,6 +780,7 @@ __all__ = [
     "disk_space_check",
     "human_bytes",
     "integrations_check",
+    "investigation_runtime_check",
     "model_provider_check",
     "observer_check",
     "run_checks",

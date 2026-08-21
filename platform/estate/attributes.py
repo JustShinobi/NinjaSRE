@@ -29,7 +29,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Final
 
 from platform.guardrails.engine import GuardrailEngine
 from platform.masking.apply import mask
@@ -130,6 +130,25 @@ def typed(
     return TypedAttributes(values=values, dropped=tuple(dropped), invalid=tuple(invalid))
 
 
+#: Attributes that are the estate's own structure rather than free-form provider
+#: detail, and are therefore redacted but never masked.
+#:
+#: The rule this extends is the one the kind, source, native identifier and
+#: display name already hold: an operator looking for ``pve1`` has to be able to
+#: find ``pve1``, and a value replaced by a token is a resource nobody can
+#: search for. An address is the same kind of thing twice over — it is how a
+#: resource is found *and* what its zone is derived from, so a masked one turns
+#: an estate divided into seven networks into an estate divided into none. A
+#: domain is the edge between "the site is not answering" and "this container
+#: is down", and a masked one cannot be resolved to anything.
+#:
+#: Secret *redaction* still applies to them. What is exempt is identifier
+#: masking, which exists to stop an infrastructure name reaching a model the
+#: deployment does not host — a decision taken where a prompt is built, not by
+#: making the estate unable to describe itself.
+STRUCTURAL_ATTRIBUTES: Final[frozenset[str]] = frozenset({"address", "domain"})
+
+
 def screened(
     values: Mapping[str, Any],
     *,
@@ -162,7 +181,11 @@ def screened(
             continue
 
         redacted = scanner.scan(value).text
-        masked = mask(redacted, policy=masking, mapping=mapping)
+        masked = (
+            redacted
+            if name in STRUCTURAL_ATTRIBUTES
+            else mask(redacted, policy=masking, mapping=mapping)
+        )
         kept[name] = masked
         if masked != value:
             altered.append(name)
@@ -171,6 +194,7 @@ def screened(
 
 
 __all__ = [
+    "STRUCTURAL_ATTRIBUTES",
     "AttributeType",
     "ScreenedAttributes",
     "TypedAttributes",

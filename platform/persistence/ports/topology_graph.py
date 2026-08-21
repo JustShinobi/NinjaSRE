@@ -43,7 +43,7 @@ before committing to a plan that needs an answer.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
@@ -73,6 +73,19 @@ class NodeKind(StrEnum):
     #: enumeration is not: a traversal must keep working when a deployment
     #: connects a hypervisor nobody here has heard of.
     RESOURCE = "resource"
+    #: A network the estate is divided into — the thing every guest inside it
+    #: depends on and whose gateway failing takes all of them with it. Distinct
+    #: from ``RESOURCE`` because a zone is not something a sweep discovered: it
+    #: is a division somebody declared, and a traversal asking "what else is on
+    #: this network" must not have to filter resources by an attribute.
+    ZONE = "zone"
+    #: A document in the knowledge base — a runbook, a post-mortem, a policy.
+    #: It sits in the graph for the same reason an episode does: "what has been
+    #: written about this thing" is a traversal from the thing, and the
+    #: alternative is a join table that duplicates what the graph is for. It is
+    #: not infrastructure and nothing depends on it, which is why the edge that
+    #: reaches it is excluded from every dependency walk.
+    DOCUMENT = "document"
 
 
 class EdgeKind(StrEnum):
@@ -101,6 +114,13 @@ class EdgeKind(StrEnum):
     #: A resource's state is copied to another. Traversed for the same reason
     #: ``BACKS_UP`` is: a replica's failure is a fact about its primary.
     REPLICATES_TO = "replicates_to"
+    #: Somebody has written about this resource. From the resource to the
+    #: document, which is the direction ``edges_from`` walks and the direction
+    #: the question is asked in. **Not a dependency** — a runbook cannot fail,
+    #: and a blast radius that reached one would answer "what does this outage
+    #: take with it" with a document. It is excluded from every dependency
+    #: traversal, exactly as ``INVOLVED`` is and for the same reason.
+    DOCUMENTED_BY = "documented_by"
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,7 +184,7 @@ class TopologyAvailability:
 
 @runtime_checkable
 class TopologyGraph(Protocol):
-    """The eleven parameterised shapes, within one tenant."""
+    """The twelve parameterised shapes, within one tenant."""
 
     async def availability(self) -> TopologyAvailability:
         """Return whether graph storage is usable right now (FR-002).
@@ -189,7 +209,9 @@ class TopologyGraph(Protocol):
         would mean dropping real topology on ordering alone.
         """
 
-    async def edges_from(self, node_id: str) -> tuple[TopologyEdge, ...]:
+    async def edges_from(
+        self, node_id: str, *, kinds: Sequence[EdgeKind] = ()
+    ) -> tuple[TopologyEdge, ...]:
         """Return the edges leaving ``node_id``, with their stored properties.
 
         The only method that returns edges rather than nodes, and it exists for
@@ -197,6 +219,13 @@ class TopologyGraph(Protocol):
         delete an operator's edge both require reading what is on the edge.
         Ordered by target then kind, so two runs over an unchanged graph produce
         the same diff. Bounded by ``MAX_GRAPH_RESULTS``.
+
+        ``kinds`` empty means the dependency edges — what reconciliation asks
+        for, and the default because it is the reading that must not change by
+        accident when a non-dependency kind is added. Naming kinds returns
+        exactly those, including the ones a dependency walk never crosses: that
+        is how "which documents is this resource written about in" is asked,
+        without the answer also appearing in a blast radius.
         """
 
     async def delete_edge(self, edge: TopologyEdge) -> bool:
@@ -212,6 +241,25 @@ class TopologyGraph(Protocol):
 
     async def direct_dependents(self, node_id: str) -> TraversalResult:
         """Return what depends on ``node_id``, one hop in."""
+
+    async def transitive_dependencies(
+        self,
+        node_id: str,
+        *,
+        depth: int = DEFAULT_GRAPH_DEPTH,
+    ) -> TraversalResult:
+        """Return everything ``node_id`` depends on within ``depth`` hops.
+
+        The mirror of ``transitive_dependents``, and it exists for the same
+        reason the backend rather than the caller should walk: composing it from
+        ``direct_dependencies`` means one round trip per node in the frontier,
+        which is a query count that grows with the estate to answer a question
+        the database can answer in one. The origin is excluded — a cycle would
+        otherwise report a service as its own dependency, which is true of the
+        graph and useless to an operator.
+
+        Raises ``BoundExceeded`` above ``MAX_GRAPH_DEPTH``.
+        """
 
     async def transitive_dependents(
         self,

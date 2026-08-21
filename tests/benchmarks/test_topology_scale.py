@@ -43,6 +43,18 @@ SERVICE_COUNT = 10_000
 ORG = "acme"
 TEAM = "team-payments"
 
+#: How many timed passes the latency reading is the best of.
+#:
+#: A single pass measures the traversal *plus* whatever else the machine was
+#: doing during it, and this suite runs on machines with several agents on them:
+#: the reading went red once at 062's close under contention, passed alone in
+#: 1.5s, and passed again on the same commit uncontended. That is a measurement
+#: whose answer is a fact about the load rather than about the code, which is not
+#: a budget anybody can act on. Taking the best of several passes is what a
+#: benchmark ordinarily does, and it is the reading the budget was written for —
+#: the traversal's own cost. The budget itself is unchanged.
+BENCHMARK_PASSES = 5
+
 
 @pytest.fixture
 async def graph() -> PersistenceGateway:
@@ -73,13 +85,18 @@ async def test_a_depth_three_blast_radius_over_ten_thousand_services_stays_bound
     # whatever the first call happens to construct.
     await queries.blast_radius("svc-0", depth=1)
 
-    started = time.perf_counter()
-    radius = await queries.blast_radius("svc-0", depth=DEFAULT_GRAPH_DEPTH)
-    elapsed = (time.perf_counter() - started) * 1000.0
+    readings: list[float] = []
+    for _ in range(BENCHMARK_PASSES):
+        started = time.perf_counter()
+        radius = await queries.blast_radius("svc-0", depth=DEFAULT_GRAPH_DEPTH)
+        readings.append((time.perf_counter() - started) * 1000.0)
+    elapsed = min(readings)
 
     assert elapsed <= GRAPH_TRAVERSAL_LATENCY_BUDGET_MS, (
         f"depth-{DEFAULT_GRAPH_DEPTH} blast radius over {SERVICE_COUNT} services took "
-        f"{elapsed:.1f}ms, above the {GRAPH_TRAVERSAL_LATENCY_BUDGET_MS}ms budget"
+        f"{elapsed:.1f}ms at its fastest of {BENCHMARK_PASSES} passes, above the "
+        f"{GRAPH_TRAVERSAL_LATENCY_BUDGET_MS}ms budget "
+        f"(every pass: {', '.join(f'{reading:.1f}' for reading in readings)})"
     )
     # Three hops of three-way branching reach 3 + 9 + 27. The exact count matters
     # less than that it is bounded *and* non-trivial: a traversal that returned

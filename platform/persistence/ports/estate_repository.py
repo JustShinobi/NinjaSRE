@@ -47,6 +47,7 @@ from config.constants.estate import (
     DEFAULT_FRESHNESS_SECONDS,
     DEFAULT_TRANSITION_HISTORY,
     MAX_ESTATE_PAGE_SIZE,
+    MAX_ESTATE_SWEEP_PAGES,
     MAX_MAINTENANCE_SECONDS,
 )
 from platform.persistence.errors import BoundExceeded
@@ -282,6 +283,12 @@ class SweepRecord:
     provider_calls: int = 0
     cursor: str = ""
     reason: str = ""
+    #: What this sweep concluded beyond the counts. Free-form because it is what
+    #: a *post-step* produced — today an enrichment's divergence report, which is
+    #: content rather than an error and has to survive the process that found it.
+    #: Kept on the sweep rather than on the resources because the interesting
+    #: half of a divergence is the entry that has no resource.
+    findings: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,6 +317,13 @@ class EstateQuery:
     #: operator counting their estate is not counting what they deleted.
     include_absent: bool = False
     limit: int = 50
+    #: Where to resume: only resources whose identifier sorts strictly after
+    #: this one. A keyset cursor rather than an offset, because ``query``
+    #: orders by ``resource_id`` and an estate grows underneath an offset — a
+    #: sweep that offset-paged one would skip whatever was inserted before its
+    #: cursor. Empty means "from the beginning", which is what every caller
+    #: that reads one page keeps saying without knowing it.
+    after: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -460,7 +474,10 @@ class EstateRepository(Protocol):
         Ordered by ``resource_id`` rather than by anything an operator would
         prefer, because a stable order is what makes paging correct and the
         preferred orders differ per screen. Raises ``BoundExceeded`` above
-        ``MAX_ESTATE_PAGE_SIZE``.
+        ``MAX_ESTATE_PAGE_SIZE``. Ordered by ``resource_id`` so ``after`` is a
+        resumable cursor: a caller that wants the whole estate reads a page,
+        takes the last identifier, and asks again — which is what makes an
+        estate larger than one page answerable rather than truncated.
         """
 
     async def summarise(self, *, now: datetime) -> EstateSummary:
@@ -588,6 +605,39 @@ class EstateRepository(Protocol):
         """Return what referenced ``resource_id``, most recent first."""
 
 
+async def whole_estate(
+    repository: EstateRepository,
+    query: EstateQuery,
+    *,
+    max_pages: int = MAX_ESTATE_SWEEP_PAGES,
+) -> tuple[Resource, ...]:
+    """Return every resource ``query`` matches, paging past the page bound.
+
+    The answer to "an estate larger than one page resolves against its first
+    page", which 053 recorded, 055 recorded again, and every whole-estate pass
+    since has quietly lived with. It pages on ``after``, which is a keyset
+    cursor over the same ordering ``query`` returns — so a resource inserted
+    while the sweep runs is either seen or not yet reached, and never skipped
+    the way an offset would skip it.
+
+    ``max_pages`` is a bound and not a formality: this walks the whole table,
+    and a pass with no ceiling is one that turns an estate somebody grew into a
+    request that never ends. Reaching it returns what was read rather than
+    raising, because a caller enriching four thousand resources wants the four
+    thousand it got — and ``len(...) == max_pages * limit`` is how it can tell.
+    """
+    limit = check_estate_limit(query.limit)
+    collected: list[Resource] = []
+    cursor = query.after
+    for _ in range(max_pages):
+        page = await repository.query(replace(query, after=cursor, limit=limit))
+        collected.extend(page)
+        if len(page) < limit:
+            break
+        cursor = page[-1].resource_id
+    return tuple(collected)
+
+
 __all__ = [
     "EstateQuery",
     "EstateRepository",
@@ -602,6 +652,7 @@ __all__ = [
     "ResourceSource",
     "SweepOutcome",
     "SweepRecord",
+    "whole_estate",
     "check_estate_limit",
     "check_maintenance_window",
     "merged",

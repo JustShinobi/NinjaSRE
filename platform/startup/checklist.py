@@ -1,7 +1,16 @@
 """What an operator has left to do, established by asking rather than by reading.
 
-Four steps, in the order they depend on each other: claim the deployment, give
-it something to think with, give it something to look at, and watch it look.
+Five steps, in the order they depend on each other: claim the deployment, give
+it something to think with, give it something to look at, give it something to
+look *with*, and watch it look.
+
+The fourth is the one that reads oddly and is the reason this docstring is
+longer than it was. Every other step leaves a trace an operator can find from
+the console — an account, a key, a resource in the estate. A process with no
+investigation runtime composed leaves none: it looks identical to one that has,
+until somebody presses Investigate and the run fails before it starts. A
+checklist that could go to five-of-five on that deployment would be promising a
+first investigation the deployment cannot perform, so it carries the step.
 
 The rule the whole module is built around is FR-012's: **a step is done because
 the dependency answered, never because a setting is present**. A checklist that
@@ -17,6 +26,15 @@ outstanding step could be shown as "to do", but three of the four cannot
 usefully be attempted yet, and a console that offered all four as equal choices
 would send an operator to configure an integration before they have an account
 of their own.
+
+**Readiness is a third vocabulary, and it is not the same as state.** A step is
+``done`` or it is not; a *thing* — the model provider, one vendor integration —
+is ``absent``, ``configured``, or ``verified``. The middle one is why it exists:
+a stored key nobody has checked is neither nothing nor working, it is the state a
+wrong key sits in until an incident finds it, and a console that had only a
+boolean would show it as one of the two things it is not. The first run screen
+and ``ninjasre doctor`` both branch on this, from this one document, because two
+implementations of "are we set up" would disagree on the day it mattered.
 """
 
 from __future__ import annotations
@@ -27,15 +45,22 @@ from typing import Any
 
 from config.constants.first_run import (
     BOOTSTRAP_PRINCIPAL_ID,
+    SETUP_READINESS_ABSENT,
+    SETUP_READINESS_CONFIGURED,
+    SETUP_READINESS_VERIFIED,
     SETUP_STATE_BLOCKED,
     SETUP_STATE_DONE,
     SETUP_STATE_READY,
     SETUP_STEP_DURABLE_CREDENTIAL,
     SETUP_STEP_FIRST_INVESTIGATION,
     SETUP_STEP_INFRASTRUCTURE_SOURCE,
+    SETUP_STEP_INVESTIGATION_RUNTIME,
     SETUP_STEP_MODEL_PROVIDER,
 )
+from config.constants.llm import SUPPORTED_PROVIDERS
 from core.llm.verification import ModelVerdict
+from platform.credentials.schemas import CredentialSchemaRegistry
+from platform.credentials.vault import Vault
 from platform.persistence.ports.estate_repository import EstateQuery, Resource
 from platform.persistence.ports.run_trace_store import AgentRun, RunStatus, TurnRecord
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
@@ -59,6 +84,10 @@ class ChecklistStep:
     #: The next action. Present on every step including a done one, because
     #: "done" still wants to say what it is done *with*.
     action: str = ""
+    #: How far along the thing this step configures is, where that is a question
+    #: with more than two answers. Steps whose subject is either done or not —
+    #: an account exists, a run finished — carry ``absent`` until they are done.
+    readiness: str = SETUP_READINESS_ABSENT
 
     @property
     def done(self) -> bool:
@@ -73,7 +102,25 @@ class ChecklistStep:
             "state": self.state,
             "detail": self.detail,
             "action": self.action,
+            "readiness": self.readiness,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class IntegrationReadiness:
+    """One integration this deployment declares, and how far along it is.
+
+    ``absent`` here means declared and holding nothing — the list only ever
+    contains integrations the deployment knows about, so "not in the list" and
+    "in the list with nothing stored" are different facts and both are useful.
+    """
+
+    name: str
+    readiness: str = SETUP_READINESS_ABSENT
+
+    def to_record(self) -> dict[str, Any]:
+        """Return the JSON-serialisable form the console renders."""
+        return {"name": self.name, "readiness": self.readiness}
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +128,22 @@ class SetupChecklist:
     """Every step, in order, with the state of each."""
 
     steps: tuple[ChecklistStep, ...]
+    #: Every integration this deployment declares, in name order. Empty when the
+    #: caller supplied none — this module is tier 3 and may not walk the
+    #: integration catalogue itself, so which vendors exist is told to it.
+    integrations: tuple[IntegrationReadiness, ...] = ()
+
+    @property
+    def provider_readiness(self) -> str:
+        """Return how far along this deployment's model provider is.
+
+        The three answers acceptance asks a console to tell apart: no provider,
+        a provider configured and unverified, and one that answered.
+        """
+        return next(
+            (step.readiness for step in self.steps if step.name == SETUP_STEP_MODEL_PROVIDER),
+            SETUP_READINESS_ABSENT,
+        )
 
     @property
     def complete(self) -> bool:
@@ -103,6 +166,8 @@ class SetupChecklist:
             "complete": self.complete,
             "steps": [step.to_record() for step in self.steps],
             "next": None if self.next_step is None else self.next_step.name,
+            "provider": self.provider_readiness,
+            "integrations": [entry.to_record() for entry in self.integrations],
         }
 
 
@@ -111,6 +176,9 @@ async def build_checklist(
     *,
     organisation_id: str,
     verify_model: Callable[[], Awaitable[ModelVerdict]] | None = None,
+    integrations: Sequence[str] = (),
+    verified_integrations: Sequence[str] = (),
+    runtime_composed: bool = False,
 ) -> SetupChecklist:
     """Return the checklist this deployment is actually at.
 
@@ -119,8 +187,23 @@ async def build_checklist(
     rendering a console page must not be able to spend their tokens by accident.
     Absent, the step reports that nothing has been verified — which is not the
     same as reporting that nothing is configured, and the wording says so.
+
+    ``integrations`` is which vendors this deployment declares and
+    ``verified_integrations`` is which of them a live run has actually reached.
+    Both are told to this module rather than discovered by it: the catalogue and
+    the health ledger are tier 2, and reaching up for them is the boundary
+    ``make check-imports`` exists to hold.
+
+    ``runtime_composed`` is whether this process holds something that can
+    actually drive an investigation. Told for the same reason and one more: the
+    runtime lives in the entry point that composed it, which is a tier above
+    this and is the one fact about a deployment that no store can be asked.
+    ``False`` is the honest default — a caller who did not say has not
+    established it, and guessing yes is how the checklist comes to promise a
+    first investigation the deployment cannot perform.
     """
     scope = TenantScope(org_id=organisation_id)
+    stored = await _stored_credentials(gateway, scope)
 
     async with gateway.begin(scope) as uow:
         people = [
@@ -138,12 +221,53 @@ async def build_checklist(
         resources = await uow.estate.query(EstateQuery(limit=1))
         finished = await uow.run_traces.list_runs(status=RunStatus.COMPLETED, limit=1)
 
+    configured_providers = tuple(name for name in SUPPORTED_PROVIDERS if name in stored)
     credential = _credential_step(claimed, people_count=len(people))
-    provider = await _provider_step(verify_model, blocked=not credential.done)
+    provider = await _provider_step(
+        verify_model, blocked=not credential.done, configured=configured_providers
+    )
     source = _source_step(bool(resources), blocked=not provider.done)
-    investigation = _investigation_step(bool(finished), blocked=not source.done)
+    runtime = _runtime_step(runtime_composed, blocked=not source.done)
+    investigation = _investigation_step(bool(finished), blocked=not runtime.done)
 
-    return SetupChecklist(steps=(credential, provider, source, investigation))
+    verified = set(verified_integrations)
+    return SetupChecklist(
+        steps=(credential, provider, source, runtime, investigation),
+        integrations=tuple(
+            IntegrationReadiness(
+                name=name,
+                readiness=_readiness(configured=name in stored, verified=name in verified),
+            )
+            for name in sorted(set(integrations))
+        ),
+    )
+
+
+def _readiness(*, configured: bool, verified: bool) -> str:
+    """Return how far along one thing is, given what was found about it.
+
+    Verified implies configured, and is reported without re-establishing it:
+    something a live run reached is something whose credential resolved.
+    """
+    if verified:
+        return SETUP_READINESS_VERIFIED
+    return SETUP_READINESS_CONFIGURED if configured else SETUP_READINESS_ABSENT
+
+
+async def _stored_credentials(gateway: PersistenceGateway, scope: TenantScope) -> frozenset[str]:
+    """Return every integration this organisation holds a live credential for.
+
+    Across teams, not only the organisation-wide handle. The question a first
+    run asks is "has anybody configured Datadog on this deployment", and a read
+    scoped to one team would answer no for a deployment where the one operator
+    who set it up did so under theirs.
+
+    Metadata only — the vault exposes no path that reads a value, which is what
+    lets a checklist ask this at all. The empty schema registry is the honest
+    argument for a read: nothing here validates anything.
+    """
+    vault = Vault(gateway=gateway, schemas=CredentialSchemaRegistry())
+    return frozenset(version.integration for version in await vault.list(scope))
 
 
 def _state(done: bool, *, blocked: bool) -> str:
@@ -176,23 +300,40 @@ def _credential_step(claimed: bool, *, people_count: int) -> ChecklistStep:
 
 
 async def _provider_step(
-    verify: Callable[[], Awaitable[ModelVerdict]] | None, *, blocked: bool
+    verify: Callable[[], Awaitable[ModelVerdict]] | None,
+    *,
+    blocked: bool,
+    configured: Sequence[str],
 ) -> ChecklistStep:
     """Return the step that says whether a usable model is configured.
 
     Usable, not configured. The verification exercises tool calling and
     structured output against the endpoint, so this step goes green only for a
     model that could actually run an investigation.
+
+    ``configured`` is which providers hold a credential, and it is what makes
+    the middle state sayable. Without it this step has one sentence for a
+    deployment with nothing at all and for one whose key is sitting in the vault
+    unchecked, and those are two different next actions.
     """
     if verify is None:
+        stored = ", ".join(configured)
         return ChecklistStep(
             name=SETUP_STEP_MODEL_PROVIDER,
             title="Connect a model provider",
             state=_state(False, blocked=blocked),
-            detail="no provider has been verified against this deployment",
+            readiness=_readiness(configured=bool(configured), verified=False),
+            detail=(
+                f"a credential is stored for {stored}, and nothing has verified it against "
+                f"this deployment — a stored key and a working one are different facts"
+                if configured
+                else "no provider is configured on this deployment"
+            ),
             action=(
-                "configure a provider and verify it — verification calls a tool and asks for "
-                "structured output, rather than checking that the endpoint answers"
+                "verify the provider — verification calls a tool and asks for structured "
+                "output, rather than checking that the endpoint answers"
+                if configured
+                else "configure a provider, then verify it"
             ),
         )
 
@@ -201,6 +342,9 @@ async def _provider_step(
         name=SETUP_STEP_MODEL_PROVIDER,
         title="Connect a model provider",
         state=_state(verdict.satisfied, blocked=blocked),
+        readiness=_readiness(
+            configured=bool(configured) or verdict.satisfied, verified=verdict.satisfied
+        ),
         detail=verdict.summary_line if verdict.satisfied else verdict.limitation,
         action="nothing further" if verdict.satisfied else verdict.remedy,
     )
@@ -224,6 +368,41 @@ def _source_step(has_resources: bool, *, blocked: bool) -> ChecklistStep:
             "nothing further"
             if has_resources
             else "configure an integration and run a discovery sweep"
+        ),
+    )
+
+
+def _runtime_step(composed: bool, *, blocked: bool) -> ChecklistStep:
+    """Return the step that says whether anything here can run an investigation.
+
+    Neither sentence names a setting of the process. This document is what the
+    console renders, and a step whose text is a deploy instruction would put the
+    environment variable back on the screen an operator opens — which is the
+    thing the console's failure translation exists to keep it off. The variable
+    is still named where it belongs: in the refusal the entry point logs, and in
+    the deployment documentation.
+    """
+    return ChecklistStep(
+        name=SETUP_STEP_INVESTIGATION_RUNTIME,
+        title="Give it something to investigate with",
+        state=_state(composed, blocked=blocked),
+        readiness=_readiness(configured=composed, verified=composed),
+        detail=(
+            "this deployment holds a runtime, so an investigation has something to run in"
+            if composed
+            else (
+                "nothing here can drive an investigation yet — a model provider and an "
+                "integration are both configured, and the part that puts them together "
+                "has not been supplied to this process"
+            )
+        ),
+        action=(
+            "nothing further"
+            if composed
+            else (
+                "whoever operates this deployment supplies the investigation runtime; "
+                "until they do, starting an investigation will fail immediately"
+            )
         ),
     )
 
@@ -318,6 +497,7 @@ def readable_transcript(run: AgentRun, turns: Sequence[TurnRecord]) -> str:
 
 __all__ = [
     "ChecklistStep",
+    "IntegrationReadiness",
     "SetupChecklist",
     "build_checklist",
     "guided_objective",

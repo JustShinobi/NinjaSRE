@@ -20,7 +20,7 @@ from core.agent.interaction.models import Answer, Interaction, InteractionState
 from gateway.http.app import create_app
 from gateway.http.services import InvestigationStart
 from gateway.http.state import GatewayState
-from platform.identity.audit.recorder import AuditContext
+from platform.identity.audit.recorder import AuditContext, AuditRecorder
 from platform.identity.permissions import Role
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
@@ -123,16 +123,26 @@ async def issue_token(
         user_id=user_id,
         name=f"{user_id}-token",
         node_id=node_id,
+        # This bearer secret stands in for the person just granted `role` —
+        # a session-shaped credential, not a narrowly scoped machine token —
+        # so it keeps resolving to whatever that person holds.
+        unscoped=True,
     )
     return issued.secret
 
 
 @pytest.fixture
 async def deployment() -> Deployment:
-    """Return a wired gateway with an organisation already created."""
+    """Return a wired gateway with an organisation already created.
+
+    ``tokens`` carries a recorder, matching the real gateway's own
+    composition (`gateway/http/asgi.py`) — without one, every token issuance
+    and revocation is silently missing from the audit trail regardless of
+    what a route asks it to record.
+    """
     gateway = FakePersistence()
     await _seed_org(gateway)
-    tokens = TokenService(gateway=gateway)
+    tokens = TokenService(gateway=gateway, recorder=AuditRecorder(gateway=gateway))
     runner = FakeInvestigationRunner()
     state = GatewayState(gateway=gateway, tokens=tokens, investigator=runner)
     return Deployment(gateway=gateway, tokens=tokens, state=state, runner=runner)

@@ -125,6 +125,8 @@ def declaration_of(entry: DetectorSettings) -> DetectorDeclaration:
         grouping_key=GroupingKey(entry.grouping_key),
         enabled=entry.enabled,
         capabilities=tuple(entry.capabilities),
+        origin=entry.origin,
+        origin_excerpt=entry.origin_excerpt,
     )
 
 

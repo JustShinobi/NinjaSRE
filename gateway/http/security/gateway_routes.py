@@ -112,6 +112,11 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
     # --- Schedules -------------------------------------------------------------
     Route(method="GET", path="/v1/schedules", permission=Permission.SCHEDULE_MANAGE),
     Route(method="POST", path="/v1/schedules", permission=Permission.SCHEDULE_MANAGE),
+    Route(
+        method="POST",
+        path="/v1/schedules/preview",
+        permission=Permission.SCHEDULE_MANAGE,
+    ),
     Route(method="GET", path="/v1/schedules/{job_id}", permission=Permission.SCHEDULE_MANAGE),
     Route(method="PUT", path="/v1/schedules/{job_id}", permission=Permission.SCHEDULE_MANAGE),
     Route(method="DELETE", path="/v1/schedules/{job_id}", permission=Permission.SCHEDULE_MANAGE),
@@ -153,11 +158,16 @@ GATEWAY_ROUTES: Final[tuple[Route, ...]] = (
     ),
 )
 
-#: Alert ingestion is public in the permission sense: there is no NinjaSRE
-#: principal behind an Alertmanager receiver. Trust is established per source by
-#: signature, shared secret, or mTLS in ``gateway/webhooks/verification/``, and
-#: an unverified request is rejected and audited (FR-016) — a different boundary
-#: than ``Permission``, enforced in the handler rather than by this table.
+#: Alert ingestion is public in the permission sense, and the table is the wrong
+#: place to say otherwise: trust is established per source by signature, shared
+#: secret, or mTLS in ``gateway/webhooks/verification/``, and an unverified
+#: request is rejected and audited (FR-016).
+#:
+#: A sender with no signing scheme may instead present a machine token scoped to
+#: ``Permission.WEBHOOK_DELIVER``, which the handler checks after every
+#: configured verifier has declined. That check is deliberately not a row here:
+#: a guard on the route would refuse the signature-verified deliveries, which
+#: carry no NinjaSRE principal at all and never will.
 WEBHOOK_ROUTES: Final[tuple[Route, ...]] = tuple(
     Route(
         method="POST",
@@ -169,13 +179,53 @@ WEBHOOK_ROUTES: Final[tuple[Route, ...]] = tuple(
     )
     for source in (
         "alertmanager",
-        "pagerduty",
-        "datadog",
         "grafana",
-        "sentry",
-        "opsgenie",
         "generic",
     )
 )
 
-__all__ = ["GATEWAY_ROUTES", "WEBHOOK_ROUTES"]
+#: What to paste into the system that will send the alerts. A read, and an
+#: operator's: it is the first step of connecting a source, which is the same
+#: act ``INTEGRATION_MANAGE`` guards everywhere else. It carries no secret —
+#: the credential is issued through the token route and shown once — but it does
+#: describe every way into this deployment, and that is a map a viewer has no
+#: use for.
+INGRESS_ROUTES: Final[tuple[Route, ...]] = (
+    Route(method="GET", path="/v1/ingress/sources", permission=Permission.INTEGRATION_MANAGE),
+)
+
+#: Where data came from and where it went. The reads are ``CONFIG_READ``: what a
+#: source has delivered, which rule caught it, and where a result went are facts
+#: about how this deployment is *configured to behave*, and they sit beside the
+#: hierarchy on the same screen. Simulation is a read too — it stores nothing,
+#: for the same reason ``preview`` does not — and the one write, a re-send,
+#: needs ``CONFIG_WRITE``, because putting a report in front of somebody again
+#: is an act rather than a look.
+TRANSIT_ROUTES: Final[tuple[Route, ...]] = (
+    Route(method="GET", path="/v1/transit/ingress", permission=Permission.CONFIG_READ),
+    Route(method="GET", path="/v1/transit/deliveries", permission=Permission.CONFIG_READ),
+    Route(method="GET", path="/v1/transit/rules", permission=Permission.CONFIG_READ),
+    Route(method="GET", path="/v1/transit/destinations", permission=Permission.CONFIG_READ),
+    Route(method="POST", path="/v1/transit/simulate", permission=Permission.CONFIG_READ),
+    Route(
+        method="POST",
+        path="/v1/transit/deliveries/{delivery_id}/resend",
+        permission=Permission.CONFIG_WRITE,
+    ),
+)
+
+#: Reading what a team's bridged servers offer. ``CONFIG_READ`` rather than a
+#: permission of its own: the registrations *are* configuration, and somebody
+#: who may read a team's configuration is already able to read the list of
+#: servers it declares. What this adds is what those servers answered.
+PROTOCOL_ROUTES: Final[tuple[Route, ...]] = (
+    Route(method="GET", path="/v1/protocols/catalogue", permission=Permission.CONFIG_READ),
+)
+
+__all__ = [
+    "GATEWAY_ROUTES",
+    "INGRESS_ROUTES",
+    "PROTOCOL_ROUTES",
+    "TRANSIT_ROUTES",
+    "WEBHOOK_ROUTES",
+]

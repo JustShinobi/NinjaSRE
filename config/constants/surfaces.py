@@ -183,6 +183,17 @@ WEBHOOK_MAX_PAYLOAD_BYTES: Final[int] = 1_048_576
 #: short enough that a genuinely new incident an hour later is not swallowed.
 ALERT_DEDUP_WINDOW_SECONDS: Final[float] = 600.0
 
+#: How long one *delivery* is remembered as already processed. Shorter than the
+#: deduplication window on purpose, and the difference is what separates the two
+#: questions. This one bounds an HTTP retry — a receiver that timed out and sent
+#: the same body again — which happens in seconds. Anything arriving later is a
+#: fresh notification, and falling out of this window while still inside the
+#: deduplication one is what lets it be *linked* to the open investigation
+#: rather than answered as a duplicate and forgotten. When the two were equal, a
+#: re-notification of an unchanged Alertmanager group had no path to the
+#: investigation it belonged to.
+WEBHOOK_DELIVERY_RETRY_WINDOW_SECONDS: Final[float] = 60.0
+
 #: Inbound webhooks accepted per source per team, per window, before ingestion
 #: sheds load (FR-020). An alert storm past this is recorded as shed, never
 #: silently dropped.
@@ -298,6 +309,53 @@ REPL_HISTORY_FILE_NAME: Final = "repl-history"
 #: unwind, short enough that a second Ctrl+C is not the operator's first idea.
 REPL_CANCEL_GRACE_SECONDS: Final[float] = 10.0
 
+# --- The credential and verification vocabulary -------------------------------
+
+#: The canonical words every surface uses for a credential's own state, and for
+#: what the last live check against it found. One module declares them —
+#: ``console/src/design/status.ts`` mirrors this tuple exactly — so a screen
+#: cannot drift onto a synonym ("it answered", "stored, unchecked", "HEALTHY")
+#: for a fact the other three already have a word for.
+CREDENTIAL_STATUS_NOT_CONNECTED: Final = "not_connected"
+CREDENTIAL_STATUS_STORED: Final = "stored"
+CREDENTIAL_STATUS_VERIFIED: Final = "verified"
+CREDENTIAL_STATUS_FAILING: Final = "failing"
+#: The degrade every one of the four above falls back to when nothing could be
+#: read at all — not a fifth thing a credential itself can be, but the state a
+#: chip takes when the gateway that would say which of the four it is cannot be
+#: reached. Never invented as a stand-in for one of the other four.
+CREDENTIAL_STATUS_UNKNOWN: Final = "unknown"
+
+CREDENTIAL_STATUSES: Final[tuple[str, ...]] = (
+    CREDENTIAL_STATUS_NOT_CONNECTED,
+    CREDENTIAL_STATUS_STORED,
+    CREDENTIAL_STATUS_VERIFIED,
+    CREDENTIAL_STATUS_FAILING,
+    CREDENTIAL_STATUS_UNKNOWN,
+)
+
+# --- The configuration-screen scroll budget ------------------------------------
+
+#: The viewport a configuration screen's height is measured against: Full HD,
+#: the resolution the visual audit behind this feature used and the mockups
+#: are drawn at. Deliberately not the browser suite's own global viewport
+#: (1440x900, fixed for its own reasons) — a spec measuring this budget
+#: declares this viewport explicitly rather than inheriting the suite's.
+CONFIG_SCREEN_VIEWPORT_WIDTH_PX: Final[int] = 1920
+CONFIG_SCREEN_VIEWPORT_HEIGHT_PX: Final[int] = 1080
+
+#: How many of that viewport's heights a configuration screen may occupy,
+#: with representative data, before it must gain search, a filter, or
+#: pagination instead of asking for more scrolling.
+CONFIG_SCREEN_SCROLL_BUDGET_VIEWPORTS: Final[float] = 2.0
+
+#: How many of that same viewport's heights a single tab of a tabbed
+#: configuration screen may occupy. Narrower than the whole-page budget above
+#: on purpose: once a screen is cut into tabs, each tab answers one question
+#: rather than the whole page's worth, and a tab that still needed two
+#: viewports would mean the cut did not actually reduce what one screen asks
+#: a reader to hold at once.
+CONFIG_SCREEN_TAB_SCROLL_BUDGET_VIEWPORTS: Final[float] = 1.5
 
 __all__ = [
     "ALERT_DEDUP_WINDOW_SECONDS",
@@ -323,11 +381,21 @@ __all__ = [
     "CHAT_THREAD_HISTORY_MAX_CHARS",
     "CLI_COMMAND_NAME",
     "COLUMNS_ENV",
+    "CONFIG_SCREEN_SCROLL_BUDGET_VIEWPORTS",
+    "CONFIG_SCREEN_TAB_SCROLL_BUDGET_VIEWPORTS",
+    "CONFIG_SCREEN_VIEWPORT_HEIGHT_PX",
+    "CONFIG_SCREEN_VIEWPORT_WIDTH_PX",
     "CONSOLE_ORG_TREE_BENCHMARK_NODES",
     "CONSOLE_ORG_TREE_BUDGET_MS",
     "CONSOLE_TRANSCRIPT_BENCHMARK_EVENTS",
     "CONSOLE_TRANSCRIPT_RENDER_BUDGET_MS",
     "CONSOLE_TRANSCRIPT_SCALING_TOLERANCE",
+    "CREDENTIAL_STATUSES",
+    "CREDENTIAL_STATUS_FAILING",
+    "CREDENTIAL_STATUS_NOT_CONNECTED",
+    "CREDENTIAL_STATUS_STORED",
+    "CREDENTIAL_STATUS_UNKNOWN",
+    "CREDENTIAL_STATUS_VERIFIED",
     "DEFAULT_API_HOST",
     "DEFAULT_API_PORT",
     "DEFAULT_CONSOLE_PORT",
@@ -376,6 +444,7 @@ __all__ = [
     "TERM_ENV",
     "TRANSPORT_LOCAL",
     "TRANSPORT_REMOTE",
+    "WEBHOOK_DELIVERY_RETRY_WINDOW_SECONDS",
     "WEBHOOK_MAX_PAYLOAD_BYTES",
     "WEBHOOK_MAX_REQUESTS_PER_TEAM",
     "WEBHOOK_RATE_LIMIT_WINDOW_SECONDS",

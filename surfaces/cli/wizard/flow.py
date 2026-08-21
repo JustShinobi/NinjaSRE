@@ -18,19 +18,40 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from core.llm.onboarding import (
+    ProviderOnboarding,
+    UnknownProviderError,
+    all_onboardings,
+    onboarding_for,
+)
 from platform.observability.logging import get_logger
 from surfaces.cli.client import PlatformClient
 from surfaces.cli.errors import ConfigurationError
 from surfaces.cli.models import IntegrationStatus, OnboardingOutcome
 from surfaces.cli.wizard.integrations import setup_many
 from surfaces.cli.wizard.prompts import Prompter
-from surfaces.cli.wizard.providers import (
-    ProviderOnboarding,
-    all_onboardings,
-    onboarding_for,
-)
 
 logger = get_logger(__name__)
+
+
+def _chosen(provider_id: str) -> ProviderOnboarding:
+    """Return the named provider's onboarding, in this surface's error vocabulary.
+
+    The descriptors sit below the surfaces and raise a lookup failure of their
+    own. Translating it here is what keeps a mistyped provider a
+    ``ConfigurationError`` with an exit code an operator's script can branch on,
+    rather than a traceback from a package they have never heard of.
+
+    Raises:
+        ConfigurationError: no provider answers to that identifier.
+    """
+    try:
+        return onboarding_for(provider_id)
+    except UnknownProviderError as unknown:
+        raise ConfigurationError(
+            f"{provider_id!r} is not a provider this build knows how to set up",
+            remedy=f"choose one of: {', '.join(unknown.known)}",
+        ) from unknown
 
 
 @dataclass(slots=True)
@@ -62,7 +83,7 @@ class OnboardingFlow:
             raise ConfigurationError("this build declares no providers")
 
         if self.provider_id:
-            return onboarding_for(self.provider_id)
+            return _chosen(self.provider_id)
 
         self.prompter.say("Which model provider should this deployment use?")
         for onboarding in available:
@@ -74,7 +95,7 @@ class OnboardingFlow:
             [onboarding.provider_id for onboarding in available],
             default=available[0].provider_id,
         )
-        return onboarding_for(chosen)
+        return _chosen(chosen)
 
     async def enter_provider_credential(self, onboarding: ProviderOnboarding) -> IntegrationStatus:
         """Collect the provider's credential into the vault and report on it.
@@ -115,6 +136,18 @@ class OnboardingFlow:
             return ()
 
         self.prompter.say("Which integrations should this deployment use?")
+        # What the estate turned up comes first and carries its address, because
+        # the hard part of this step is not choosing a vendor — it is knowing
+        # which of fifty-seven containers is the one. The deployment already
+        # swept the cluster and the answer is in the catalogue's own order.
+        found = [status for status in known if status.suggested_address]
+        if found:
+            self.prompter.say(
+                "  found in your estate: "
+                + ", ".join(
+                    f"{status.integration} ({status.suggested_address})" for status in found
+                )
+            )
         self.prompter.say(f"  available: {', '.join(status.integration for status in known)}")
         answer = self.prompter.ask(
             "Integrations, comma-separated (empty to skip)",

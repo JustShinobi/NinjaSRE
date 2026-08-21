@@ -1,4 +1,4 @@
-"""Scheduled investigations: create, list, read, update, delete, enable, disable.
+"""Scheduled investigations: create, list, read, update, delete, enable, disable, preview.
 
 A thin wrapper over ``platform.scheduler.service.ScheduleService``, which
 already does everything this route needs — validating the cron expression
@@ -7,15 +7,17 @@ before storing it, and computing the first due time.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from config.constants.runs import DEFAULT_SCHEDULE_TIMEZONE
+from config.constants.runs import DEFAULT_SCHEDULE_TIMEZONE, SCHEDULE_PREVIEW_FIRING_COUNT
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.state import GatewayState
 from platform.persistence.errors import RecordNotFound
-from platform.scheduler.cron import CronError
+from platform.scheduler.cron import CronError, CronExpression
 from platform.scheduler.models import MisfirePolicy, Schedule
 from platform.scheduler.service import ScheduleService
 
@@ -45,6 +47,24 @@ class CreateScheduleRequest(BaseModel):
 class UpdateScheduleRequest(BaseModel):
     cron: str = Field(min_length=1)
     timezone: str | None = None
+
+
+class SchedulePreviewRequest(BaseModel):
+    cron: str = Field(min_length=1)
+    timezone: str = DEFAULT_SCHEDULE_TIMEZONE
+
+
+class ScheduleFiringView(BaseModel):
+    """One instant a cron expression would fire at, resolved and nothing else."""
+
+    at: str
+    #: Whether daylight saving moved this firing — see ``FireTime`` for why
+    #: that is the answer rather than skipping or doubling it.
+    shifted: bool = False
+
+
+class SchedulePreviewView(BaseModel):
+    firings: list[ScheduleFiringView]
 
 
 def _view(schedule: Schedule) -> ScheduleView:
@@ -100,6 +120,40 @@ async def create_schedule(
         except CronError as error:
             raise bad_request(str(error)) from error
     return _view(schedule)
+
+
+@router.post("/preview", response_model=SchedulePreviewView)
+async def preview_schedule(
+    body: SchedulePreviewRequest,
+    auth: AuthenticatedRequest = Depends(authorized),
+) -> SchedulePreviewView:
+    """Return what ``cron`` would fire, storing nothing.
+
+    Parsed through the same ``CronExpression`` the write path validates
+    with — a form calling this and a form calling ``create`` can never
+    disagree about what an expression means, because there is one
+    implementation of cron in this deployment rather than a console-side
+    second opinion beside a server-side first one. A refused expression is
+    refused here exactly as ``create`` would refuse it, before anything
+    would have been stored.
+    """
+    del auth  # the permission check is the whole reason this parameter exists
+    try:
+        expression = CronExpression.parse(body.cron, timezone=body.timezone)
+    except CronError as error:
+        raise bad_request(str(error)) from error
+
+    firings: list[ScheduleFiringView] = []
+    moment = datetime.now(UTC)
+    for _ in range(SCHEDULE_PREVIEW_FIRING_COUNT):
+        try:
+            fire = expression.next_after(moment)
+        except CronError as error:
+            raise bad_request(str(error)) from error
+        firings.append(ScheduleFiringView(at=fire.at.isoformat(), shifted=fire.shifted))
+        moment = fire.at
+
+    return SchedulePreviewView(firings=firings)
 
 
 @router.get("/{job_id}", response_model=ScheduleView)

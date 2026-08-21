@@ -33,6 +33,7 @@ could start a hundred of them.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 
@@ -363,6 +364,159 @@ class IncidentLifecycle:
         """Return ``incident_id``'s history, oldest first."""
         return await self.store.timeline(incident_id)
 
+    # --- reasoning -------------------------------------------------------------
+
+    async def record_alert_received(
+        self,
+        incident_id: str,
+        *,
+        labels: Mapping[str, str],
+        credential_name: str,
+        actor: str = SYSTEM_ACTOR,
+        now: datetime,
+    ) -> TimelineEntry:
+        """Record what the investigation took in: the alert's labels and the
+        identity of the delivery that authenticated it.
+
+        ``credential_name`` is the delivery credential's *display* name —
+        "delivery token am-cluster", never the secret that authenticated the
+        request. There is no parameter here a caller could put the value in:
+        the signature is the guarantee, not a convention somebody has to
+        remember to follow.
+        """
+        if not credential_name:
+            raise ValueError(
+                "Recording an alert's receipt needs the display name of the "
+                "credential that authenticated the delivery."
+            )
+        incident = await self._require(incident_id)
+        rendered = ", ".join(f"{key}={value}" for key, value in labels.items())
+        return await self._record(
+            incident,
+            TimelineKind.ALERT_RECEIVED,
+            at=now,
+            actor=actor,
+            cause=f"the delivery was authenticated by {credential_name}",
+            detail=rendered,
+        )
+
+    async def record_hypotheses(
+        self,
+        incident_id: str,
+        *,
+        hypotheses: Sequence[str],
+        actor: str = SYSTEM_ACTOR,
+        now: datetime,
+    ) -> TimelineEntry:
+        """Record what the investigation considered before it queried anything.
+
+        Refuses an empty list. An investigation that named nothing has
+        nothing here to record, and a hollow entry would read as a step that
+        happened when it did not.
+        """
+        if not hypotheses:
+            raise ValueError("Recording hypotheses needs at least one to record.")
+        incident = await self._require(incident_id)
+        return await self._record(
+            incident,
+            TimelineKind.HYPOTHESES_DRAWN,
+            at=now,
+            actor=actor,
+            cause="; ".join(hypotheses),
+            detail=f"{len(hypotheses)} hypothesis(es)",
+        )
+
+    async def record_evidence(
+        self,
+        incident_id: str,
+        *,
+        query: str,
+        result: str,
+        conclusion: str,
+        actor: str = SYSTEM_ACTOR,
+        now: datetime,
+    ) -> TimelineEntry:
+        """Record one piece of evidence: what was asked, what came back, and
+        what it means.
+
+        ``query`` and ``result`` land on the entry itself, not folded into a
+        sentence about them, so a screen can show the block a person can
+        check against the query that actually ran instead of trusting a
+        summary of it.
+        """
+        if not query:
+            raise ValueError("Recording evidence needs the query that was actually run.")
+        incident = await self._require(incident_id)
+        return await self._record(
+            incident,
+            TimelineKind.EVIDENCE,
+            at=now,
+            actor=actor,
+            cause=conclusion,
+            query=query,
+            result=result,
+        )
+
+    async def record_diagnosis(
+        self,
+        incident_id: str,
+        *,
+        sentence: str,
+        supporting_evidence_ids: Sequence[str] = (),
+        actor: str = SYSTEM_ACTOR,
+        now: datetime,
+    ) -> TimelineEntry:
+        """Record the investigation's conclusion — or its best hypothesis.
+
+        Recorded as a diagnosis only when ``supporting_evidence_ids`` names at
+        least one evidence entry it rests on. With nothing to point at,
+        ``sentence`` is exactly as true or false as it was going to be, but it
+        has not been demonstrated: it is recorded as a hypothesis, on the same
+        kind the earlier ``record_hypotheses`` entry uses, and it is never
+        presented as a diagnosis.
+        """
+        if not sentence:
+            raise ValueError("Recording a diagnosis needs the sentence it concluded.")
+        incident = await self._require(incident_id)
+        if supporting_evidence_ids:
+            return await self._record(
+                incident,
+                TimelineKind.DIAGNOSIS,
+                at=now,
+                actor=actor,
+                cause=sentence,
+                detail=", ".join(supporting_evidence_ids),
+            )
+        return await self._record(
+            incident,
+            TimelineKind.HYPOTHESES_DRAWN,
+            at=now,
+            actor=actor,
+            cause=sentence,
+            detail="no evidence supports this yet",
+        )
+
+    async def record_report_delivered(
+        self,
+        incident_id: str,
+        *,
+        destinations: Sequence[str],
+        actor: str = SYSTEM_ACTOR,
+        now: datetime,
+    ) -> TimelineEntry:
+        """Record that the investigation's report went out, and to where."""
+        if not destinations:
+            raise ValueError("Recording a delivered report needs at least one destination.")
+        incident = await self._require(incident_id)
+        return await self._record(
+            incident,
+            TimelineKind.REPORT_DELIVERED,
+            at=now,
+            actor=actor,
+            cause="the investigation's report was delivered",
+            detail=", ".join(destinations),
+        )
+
     # --- internals -----------------------------------------------------------
 
     async def _correlate(
@@ -404,6 +558,8 @@ class IncidentLifecycle:
         actor: str,
         cause: str,
         detail: str = "",
+        query: str = "",
+        result: str = "",
     ) -> TimelineEntry:
         """Append one entry to ``incident``'s timeline and return it."""
         entry = TimelineEntry(
@@ -414,6 +570,8 @@ class IncidentLifecycle:
             actor=actor,
             cause=cause,
             detail=detail,
+            query=query,
+            result=result,
         )
         await self.store.append((entry,))
         return entry

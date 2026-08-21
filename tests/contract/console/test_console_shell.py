@@ -29,6 +29,7 @@ from config.constants.console import (
     CONSOLE_LOCALES,
     CONSOLE_ROUTE_TRANSITION_BUDGET_MS,
     CONSOLE_SESSION_COOKIE,
+    CONSOLE_SESSION_ENDPOINT,
     CONSOLE_SESSION_EXPIRY_COOKIE,
     CONSOLE_SESSION_LIFETIME_SECONDS,
     CONSOLE_SESSION_WARNING_SECONDS,
@@ -43,6 +44,7 @@ from gateway.http.security.gateway_routes import GATEWAY_ROUTES
 from gateway.http.security.route_permissions import ROUTE_TABLE
 from platform.identity.permissions import ROLE_ORDER, Permission, permissions_for
 from tools.console_roles import drifted, roles_path
+from tools.console_smoke import SHELL_PATHS
 from tools.console_toolchain import console_root
 from tools.mockplane.endpoints import CONSOLE_ENDPOINTS
 
@@ -65,16 +67,35 @@ def _source(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+#: One entry's identifier. Each object literal in the manifest declares exactly
+#: one, which is what makes it the thing to split the file on.
+_ENTRY: Final = re.compile(r"\bid: '([a-z-]+)',")
+
+
 def declared_areas() -> tuple[tuple[str, str, str], ...]:
-    """Return ``(id, path, permission)`` for every area the console declares."""
+    """Return ``(id, path, permission)`` for every area the console declares.
+
+    Read from each identifier rather than from the opening brace. The earlier
+    reading anchored on ``{`` followed by ``id``, so an entry whose explanatory
+    comment sat *inside* its braces matched nothing here — and an area this
+    function cannot see is one no check below can require anybody to walk. Two
+    were hidden that way, ``/first-run`` and the whole agent screen, and both
+    were absent from the deploy walk with the coverage test green.
+
+    Each entry is read only as far as the next identifier, so a field one entry
+    omits is a failure here rather than a value borrowed from its neighbour.
+    """
     source = _source(ROUTES_MODULE)
+    entries = list(_ENTRY.finditer(source))
     found: list[tuple[str, str, str]] = []
-    for block in re.finditer(
-        r"\{\s*id:\s*'([a-z-]+)',\s*path:\s*'([^']+)',.*?permission:\s*'([a-z.]+)',",
-        source,
-        re.DOTALL,
-    ):
-        found.append((block.group(1), block.group(2), block.group(3)))
+    for position, entry in enumerate(entries):
+        ends = entries[position + 1].start() if position + 1 < len(entries) else len(source)
+        body = source[entry.end() : ends]
+        path = re.search(r"\bpath: '([^']+)',", body)
+        permission = re.search(r"\bpermission: '([a-z.]+)',", body)
+        assert path is not None, f"{entry.group(1)} declares no path"
+        assert permission is not None, f"{entry.group(1)} declares no permission"
+        found.append((entry.group(1), path.group(1), permission.group(1)))
     return tuple(found)
 
 
@@ -93,6 +114,20 @@ def _number_constant(source: str, name: str) -> float:
 # --- The manifest is a manifest ---------------------------------------------------
 
 
+def test_the_parser_sees_every_entry_the_manifest_spells_out() -> None:
+    """No area may be invisible to the reader the coverage checks are built on.
+
+    ``declared_areas`` is the only list of areas Python has, and every check
+    below is a statement about what it returns. So an entry it cannot see is not
+    a gap in one test — it is an area excluded from all of them, silently, while
+    they pass. Counted here against the identifiers the file spells with a
+    quoted literal, which is one per entry and independent of how the entry is
+    laid out.
+    """
+    spelled = re.findall(r"^\s+id: '([a-z-]+)',$", _source(ROUTES_MODULE), re.MULTILINE)
+    assert [identifier for identifier, _, _ in declared_areas()] == spelled
+
+
 def test_the_console_declares_at_least_the_areas_the_design_draws() -> None:
     """At least the twelve the reference navigation shows, each with its own path."""
     areas = declared_areas()
@@ -108,22 +143,59 @@ def test_every_declared_permission_is_one_the_platform_has() -> None:
         assert permission in catalogue, f"{identifier} names {permission}, which does not exist"
 
 
+#: Settings-page identifiers, as `declared_areas` reads them — every one of
+#: them regex-visible the same way an `Area` is, because the hybrid
+#: navigation's `SettingsPage` entries in `routes.ts` follow the identical
+#: "`id:` right after the brace" contract. That is what makes every check
+#: above this line already cover the nine Settings pages without change: the
+#: parser does not distinguish an `Area` from a `SettingsPage`, so a
+#: permission it declares is already checked against the platform's own
+#: catalogue, and a duplicate id is already refused.
+def declared_settings_page_ids() -> frozenset[str]:
+    """Return the ids `declared_areas` finds that belong to the Settings subnav."""
+    return frozenset(
+        identifier for identifier, _, _ in declared_areas() if identifier.startswith("settings")
+    )
+
+
+def test_the_console_declares_the_nine_settings_pages_the_subnav_needs() -> None:
+    """Nine pages, none of them invisible to the parser every other check reads."""
+    assert declared_settings_page_ids() == {
+        "settings",
+        "settings-members-roles",
+        "settings-single-sign-on",
+        "settings-machine-tokens",
+        "settings-audit-log",
+        "settings-models-providers",
+        "settings-autonomy-guardrails",
+        "settings-notifications",
+        "settings-alert-intake",
+        "settings-schedules-destinations",
+    }
+
+
 #: Which route each area reads, for the areas whose data the gateway already
-#: serves. The four that are missing — incidents, resources, detectors and
-#: autonomy — are projections with no gateway row yet; the permission-catalogue
-#: test above is what holds those, and this table gains a row for each of them
-#: as the endpoint that serves it lands.
+#: serves *and* whose route is declared in the table this file composes below
+#: (`ROUTE_TABLE` extended with `GATEWAY_ROUTES` and `CONSOLE_ROUTES` — not
+#: every route table the application has; `incident_routes.py`'s is one of
+#: several this composition leaves out). The areas missing here — incidents,
+#: resources, autonomy, and now Signals — are either projections with no
+#: gateway row yet, or read a route declared in a table this composition does
+#: not reach; the permission-catalogue test above is what holds those.
+#:
+#: Decisions stands in for the fusion the menu reorganisation built: it reads
+#: the same `/v1/approvals` Approvals always did, and its sibling tab
+#: (Proposed changes) shares the identical `approval.read` permission, so
+#: one representative route still proves the area's own gate. Knowledge and
+#: Administration are unchanged — both already covered a fusion's worth of
+#: tabs under one permission before this reorganisation gave them more.
 AREA_ROUTE: Final[dict[str, tuple[str, str]]] = {
     "dashboard": ("GET", "/v1/runs"),
     "runs": ("GET", "/v1/runs"),
-    "approvals": ("GET", "/v1/approvals"),
-    "topology": ("GET", "/v1/topology/{node_id}"),
-    "memory": ("GET", "/v1/memory/stats"),
+    "decisions": ("GET", "/v1/approvals"),
     "knowledge": ("GET", "/v1/knowledge/documents"),
     "configuration": ("GET", "/v1/config"),
-    "catalogue": ("GET", "/v1/capabilities"),
     "administration": ("GET", "/identity/principals"),
-    "audit": ("GET", "/audit/events"),
 }
 
 
@@ -149,6 +221,64 @@ def test_an_area_takes_the_permission_the_gateway_requires_of_its_data(area: str
         f"{area} declares {declared[area]}, but the gateway requires "
         f"{_server_permission(method, path)} on {method} {path}"
     )
+
+
+#: The same walk as `AREA_ROUTE`, over the four Settings pages whose data the
+#: gateway already serves at a route this composition reaches. The other five
+#: (Models & providers, Autonomy & guardrails, Notifications, Alert intake,
+#: Schedules & destinations) render the shared empty state rather
+#: than reading anything yet — `test_every_declared_permission_is_one_the_
+#: platform_has` is what holds those, the same way it holds `autonomy` and
+#: `signals` above.
+SETTINGS_PAGE_ROUTE: Final[dict[str, tuple[str, str]]] = {
+    "settings-members-roles": ("GET", "/identity/principals"),
+    "settings-single-sign-on": ("GET", "/identity/sso"),
+    "settings-machine-tokens": ("GET", "/identity/tokens"),
+    "settings-audit-log": ("GET", "/audit/events"),
+}
+
+
+@pytest.mark.parametrize("page", sorted(SETTINGS_PAGE_ROUTE))
+def test_a_settings_page_takes_the_permission_the_gateway_requires_of_its_data(
+    page: str,
+) -> None:
+    """The console reads the permission the server enforces, by name — same contract as an area."""
+    declared = {identifier: permission for identifier, _, permission in declared_areas()}
+    method, path = SETTINGS_PAGE_ROUTE[page]
+
+    assert declared[page] == _server_permission(method, path), (
+        f"{page} declares {declared[page]}, but the gateway requires "
+        f"{_server_permission(method, path)} on {method} {path}"
+    )
+
+
+def test_the_deploy_walk_covers_exactly_the_areas_the_console_declares() -> None:
+    """One fact, two holders, and this is what forces them to agree.
+
+    The console's manifest is the only list of what routes exist, and the deploy
+    flow's walk cannot import it — it is Python and the manifest is TypeScript.
+    So the walk restates the paths and this holds the restatement level. A
+    fifteenth area whose route nobody walks would otherwise be promoted the same
+    way the two broken ones were.
+
+    The nine Settings pages plus their own hub are read by `declared_areas`
+    (their ids follow the identical id-after-brace contract an `Area` does)
+    but are deliberately absent from this comparison: the hybrid navigation
+    gave four of the areas this walk already covered a
+    redirect at their own address instead of a second, separate render, and
+    `SHELL_PATHS` — `tools/console_smoke.py`'s own restatement — walks each of
+    those at the one address that still answers 200, not at both. Extending
+    the deploy walk itself to the ten Settings addresses is that tool's own
+    change to make, not this contract's.
+    """
+    declared = {
+        path for identifier, path, _ in declared_areas() if not identifier.startswith("settings")
+    }
+
+    assert set(SHELL_PATHS) == declared, {
+        "walked but not declared": sorted(set(SHELL_PATHS) - declared),
+        "declared but not walked": sorted(declared - set(SHELL_PATHS)),
+    }
 
 
 def test_the_role_matrix_can_tell_two_roles_apart() -> None:
@@ -204,6 +334,7 @@ def test_the_console_and_this_tier_agree_about_the_session() -> None:
     assert _string_constant(source, "SESSION_EXPIRY_COOKIE") == CONSOLE_SESSION_EXPIRY_COOKIE
     assert _string_constant(source, "LOCALE_COOKIE") == CONSOLE_LOCALE_COOKIE
     assert _string_constant(source, "SIGN_IN_PATH") == CONSOLE_SIGN_IN_PATH
+    assert _string_constant(source, "SESSION_ENDPOINT") == CONSOLE_SESSION_ENDPOINT
     assert _number_constant(source, "SESSION_LIFETIME_SECONDS") == CONSOLE_SESSION_LIFETIME_SECONDS
     assert _number_constant(source, "SESSION_WARNING_SECONDS") == CONSOLE_SESSION_WARNING_SECONDS
 
@@ -252,13 +383,20 @@ def test_the_budgets_the_browser_suite_reads_are_the_ones_declared_here() -> Non
 
 
 def test_the_fixture_server_answers_endpoints_the_dataset_actually_has() -> None:
-    """Its table is held against the mock plane's own catalogue.
+    """Its table is held against the mock plane's own catalogue, method by method.
 
-    Against the ``GET`` half of it, because the fixture server answers reads and
-    nothing else: one path is both a read and a write — ``/v1/config/{node_id}``
-    is the effective configuration on ``GET`` and a patch on ``PUT`` — and a
-    comparison that ignored the method would hold the read table against
-    whichever of the two the catalogue happened to list second.
+    Reads are matched against the ``GET`` half, because one path is both a read
+    and a write — ``/v1/config/{node_id}`` is the effective configuration on
+    ``GET`` and a patch on ``PUT`` — and a comparison that ignored the method
+    would hold the read table against whichever of the two the catalogue
+    happened to list second.
+
+    The writes the capture answers are matched against the *write* half rather
+    than exempted from the check. There is more than one now — a configuration
+    preview, a rule simulation, a re-send — and a list of literals to skip is a
+    list somebody appends to when a path fails this test, which is the moment it
+    stops being a check at all. Held this way an entry still has to name an
+    endpoint the catalogue declares, with the slug the catalogue gives it.
     """
     source = _source(FIXTURE_SERVER)
     table = re.search(r"SHELL_ENDPOINTS = Object\.freeze\(\{(.*?)\}\)", source, re.DOTALL)
@@ -268,13 +406,13 @@ def test_the_fixture_server_answers_endpoints_the_dataset_actually_has() -> None
     by_path = {
         endpoint.path: endpoint.slug for endpoint in CONSOLE_ENDPOINTS if endpoint.method == "GET"
     }
+    written = {
+        endpoint.path: endpoint.slug for endpoint in CONSOLE_ENDPOINTS if endpoint.method != "GET"
+    }
     for path, slug in declared.items():
-        if path == "/v1/config/{node_id}/preview":
-            # The one write the capture answers, because the configuration screen
-            # asks for a preview before it can draw one.
-            continue
-        assert path in by_path, f"{path} is not a read the dataset covers"
-        assert by_path[path] == slug, f"{path} is fixture {by_path[path]}, not {slug}"
+        covered = by_path.get(path, written.get(path))
+        assert covered is not None, f"{path} is not an endpoint the dataset covers"
+        assert covered == slug, f"{path} is fixture {covered}, not {slug}"
 
 
 # --- Each success criterion, against the test that proves it ----------------------

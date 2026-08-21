@@ -76,6 +76,15 @@ class PostgresRetentionSweeper:
                 # themselves are deliberately not swept: an absent resource *is*
                 # the record that something was removed.
                 return await self._purge_estate_history(cutoff)
+            case DataClass.TRANSIT:
+                # Delivery rows only. The masked samples beside them are keyed
+                # by source and replaced rather than appended, so the table is
+                # bounded by how many sources exist — and ageing it out would
+                # delete "what does this source send" from the sources that
+                # send rarely, which is the question the sample is there for.
+                statement = delete(models.TransitDeliveryRow).where(
+                    models.TransitDeliveryRow.occurred_at < cutoff
+                )
             case DataClass.AUDIT:  # pragma: no cover — refused before reaching here
                 raise RetentionExempt(data_class.value)
 

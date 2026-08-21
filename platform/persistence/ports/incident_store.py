@@ -96,7 +96,14 @@ class IncidentOrigin(StrEnum):
 
 
 class TimelineKind(StrEnum):
-    """What one entry on an incident's timeline records."""
+    """What one entry on an incident's timeline records.
+
+    Ten lifecycle members and five reasoning ones, on one enum rather than
+    two. A second, parallel "investigation steps" list would be a second
+    source of truth for the same incident's history — the timeline is append
+    to one sequence, in the order things actually happened, whatever kind
+    each entry is.
+    """
 
     OPENED = "opened"
     #: A second firing of the same cause landed on this incident.
@@ -106,6 +113,22 @@ class TimelineKind(StrEnum):
     SUBJECT_ABSENT = "subject_absent"
     STATE_CHANGED = "state_changed"
     RUN_STARTED = "run_started"
+    #: The investigation took in what started it: the labels it arrived
+    #: with and the identity of the delivery that authenticated it.
+    ALERT_RECEIVED = "alert_received"
+    #: The hypotheses the investigation considered, named before any
+    #: integration was queried.
+    HYPOTHESES_DRAWN = "hypotheses_drawn"
+    #: One piece of evidence. Carries the query actually run and the result
+    #: it returned on the entry itself — see ``TimelineEntry.query`` and
+    #: ``TimelineEntry.result`` — not only a sentence about them.
+    EVIDENCE = "evidence"
+    #: The investigation's conclusion, as one sentence, referencing the
+    #: evidence entries that support it. A conclusion with nothing to point
+    #: at is a hypothesis, not a diagnosis, and is recorded as one.
+    DIAGNOSIS = "diagnosis"
+    #: The report went out. Names the destinations it went to.
+    REPORT_DELIVERED = "report_delivered"
     ACTION_TAKEN = "action_taken"
     ESCALATED = "escalated"
     SUPPRESSED = "suppressed"
@@ -148,6 +171,14 @@ class TimelineEntry:
     #: Why. Never empty for a state change: "it closed" is not an answer.
     cause: str = ""
     detail: str = ""
+    #: The query an evidence entry actually ran. Empty on every kind but
+    #: ``EVIDENCE`` — the text of the query, not a sentence describing it, so
+    #: a screen can render what was actually asked.
+    query: str = ""
+    #: What ``query`` returned. Carried beside it rather than folded into
+    #: ``cause`` or ``detail``, because a conclusion that cannot point at the
+    #: result it rests on is a hypothesis, not a diagnosis (Article I).
+    result: str = ""
 
 
 @dataclass(frozen=True, slots=True)

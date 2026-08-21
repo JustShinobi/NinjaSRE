@@ -260,7 +260,36 @@ INTEGRATION_STATUS: Final[dict[str, Any]] = _object(
         "healthy": _BOOLEAN,
         "credential_state": _STRING,
         "detail": _STRING,
+        # Where this deployment's own estate says the vendor is running. Empty
+        # for everything the estate says nothing about, which is most of the
+        # catalogue — so it is always present and usually blank, rather than
+        # sometimes absent.
+        "suggested_address": _STRING,
     }
+)
+
+#: What ``integrations verify --report`` adds: the vendor's own answer, which
+#: differs per vendor by design and is therefore not described field by field.
+#: ``null`` is a real value here and means this deployment cannot reach the
+#: vendor at all, which is a different fact from an empty document.
+INTEGRATION_VERIFY: Final[dict[str, Any]] = _object(
+    {
+        "integration": _STRING,
+        "configured": _BOOLEAN,
+        "healthy": _BOOLEAN,
+        "credential_state": _STRING,
+        "detail": _STRING,
+        "suggested_address": _STRING,
+        "report": {"type": ["object", "null"]},
+    },
+    required=[
+        "integration",
+        "configured",
+        "healthy",
+        "credential_state",
+        "detail",
+        "suggested_address",
+    ],
 )
 
 CONFIG_ENTRY: Final[dict[str, Any]] = _object(
@@ -715,7 +744,7 @@ COMMAND_SCHEMAS: Final[Mapping[str, Mapping[str, Any]]] = {
     "integrations.list": _object({"integrations": _array(INTEGRATION_STATUS)}),
     "integrations.health": INTEGRATION_HEALTH,
     "integrations.setup": INTEGRATION_STATUS,
-    "integrations.verify": INTEGRATION_STATUS,
+    "integrations.verify": INTEGRATION_VERIFY,
     "onboard": _object(
         {
             "provider_id": _STRING,

@@ -18,15 +18,32 @@ from dataclasses import dataclass, field
 
 from config.constants.surfaces import ALERT_DEDUP_WINDOW_SECONDS
 from core.domain.alerts.normalisation import NormalisedAlert
+from platform.estate.alert_resolution import AlertResolution
 
 
-def fingerprint(alert: NormalisedAlert, *, team_node_id: str) -> str:
-    """Return the deduplication key for ``alert`` within ``team_node_id``."""
+def fingerprint(
+    alert: NormalisedAlert,
+    *,
+    team_node_id: str,
+    resolution: AlertResolution | None = None,
+) -> str:
+    """Return the deduplication key for ``alert`` within ``team_node_id``.
+
+    The resolved resource joins the key when the caller has one. Two containers
+    complaining about the same rule are two problems and the alert names are
+    identical, so a key that ignored the resource would link the second to the
+    first's investigation and leave nobody looking at it.
+
+    A caller with no estate passes nothing and gets the key this always
+    produced, byte for byte.
+    """
+    resolved = resolution.resolved if resolution is not None else None
     parts = (
         team_node_id,
         alert.alert_source.value,
         alert.alert_name.strip().lower(),
         ",".join(sorted(component.strip().lower() for component in alert.components)),
+        *((resolved.resource_id,) if resolved is not None else ()),
     )
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 

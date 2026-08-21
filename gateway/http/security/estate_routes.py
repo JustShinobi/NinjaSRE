@@ -19,6 +19,33 @@ from gateway.http.security.route_permissions import Route
 from platform.identity.permissions import Permission
 
 ESTATE_ROUTES: Final[tuple[Route, ...]] = (
+    # --- Pointing the deployment at a source, and looking before it does ------
+    # Both take ``estate.manage`` rather than ``estate.read``. The preview
+    # stores nothing, which makes it tempting to call a read — but it spends
+    # somebody else's provider calls against somebody else's cluster, and a
+    # permission that let a viewer do that would be a permission that let a
+    # viewer sweep a hypervisor from a browser tab.
+    Route(
+        method="POST",
+        path="/v1/estate/discovery/preview",
+        permission=Permission.ESTATE_MANAGE,
+    ),
+    Route(
+        method="POST",
+        path="/v1/estate/discovery/sources",
+        permission=Permission.ESTATE_MANAGE,
+    ),
+    # What the last sweep disagreed with the declared inventory about. A read:
+    # it answers from what this deployment already stored and reaches nothing.
+    Route(method="GET", path="/v1/estate/discovery/report", permission=Permission.ESTATE_READ),
+    # Alerts that arrived for something this estate does not hold. The same
+    # class of finding as a divergence, and the same permission: it answers from
+    # incidents this deployment already stored.
+    Route(
+        method="GET",
+        path="/v1/estate/unresolved-alert-targets",
+        permission=Permission.ESTATE_READ,
+    ),
     Route(method="GET", path="/v1/estate/resources", permission=Permission.ESTATE_READ),
     Route(method="GET", path="/v1/estate/summary", permission=Permission.ESTATE_READ),
     Route(

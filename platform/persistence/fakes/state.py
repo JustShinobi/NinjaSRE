@@ -55,7 +55,9 @@ from platform.persistence.ports.schedule_store import JobClaim, ScheduledJob
 from platform.persistence.ports.session_store import SessionRecord
 from platform.persistence.ports.signal_store import Signal
 from platform.persistence.ports.topology_graph import TopologyEdge, TopologyNode
+from platform.persistence.ports.transit_ledger import PayloadSample, TransitDelivery
 from platform.persistence.ports.vector_index import IndexDescriptor, VectorRecord
+from platform.persistence.ports.verification_ledger import VerificationRecord
 
 #: Identifies an edge: two endpoints and a kind. Two services can be related in
 #: more than one way — a service both calls an API and reads its database — and
@@ -74,6 +76,12 @@ StrategyKey = tuple[str, str, str]
 #: appended so that linking the same run twice is one row — a run that touched a
 #: resource in nine turns touched it once.
 ReferenceKey = tuple[str, str, str]
+
+#: Identifies one recorded check: what class of thing was checked, and which one.
+#: The kind is in the key because a vendor integration and a model provider can
+#: share a name, and one row for both would leak a verdict from one onto the
+#: other — a green tick on a model nobody exercised.
+VerificationKey = tuple[str, str]
 
 
 def check_limit(limit: int, *, parameter: str = "limit") -> int:
@@ -206,6 +214,16 @@ class TenantState:
     #: rather than two verifications of one change.
     remediation_outcomes: dict[str, RemediationOutcome] = field(default_factory=dict)
     remediation_problems: dict[str, RecurringProblem] = field(default_factory=dict)
+    #: Keyed by the delivery id the caller derived, so a handler that retried
+    #: its own ledger write records one crossing of the boundary rather than two.
+    transit_deliveries: dict[str, TransitDelivery] = field(default_factory=dict)
+    #: Keyed by source, which is what makes "one sample per source" a property
+    #: of the storage rather than of every caller remembering to replace one.
+    transit_samples: dict[str, PayloadSample] = field(default_factory=dict)
+    #: Keyed by ``(kind, subject)``. A check is current state rather than
+    #: history, so checking the same thing twice replaces the answer instead of
+    #: leaving two rows a surface would have to choose between.
+    verifications: dict[VerificationKey, VerificationRecord] = field(default_factory=dict)
 
 
 @dataclass
@@ -239,6 +257,7 @@ __all__ = [
     "TenantState",
     "VectorGeneration",
     "VectorNamespace",
+    "VerificationKey",
     "check_limit",
     "check_payload",
 ]

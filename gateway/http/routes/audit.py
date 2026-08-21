@@ -97,7 +97,17 @@ async def list_events(
             until=window_end,
             limit=limit,
         )
-        total = await uow.audit.count(since=window_start, until=window_end)
+        # The same filters the listing was narrowed by, so the total answers
+        # the question the listing itself answers rather than a wider one
+        # confined only to the window.
+        total = await uow.audit.count(
+            actor_id=actor_id or None,
+            action=action or None,
+            resource_kind=resource_kind or None,
+            resource_id=resource_id or None,
+            since=window_start,
+            until=window_end,
+        )
     return AuditEventList(events=[_view(event) for event in events], total=total)
 
 
