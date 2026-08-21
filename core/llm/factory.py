@@ -38,6 +38,36 @@ from core.llm.transports.sdk import SdkTransport
 #: The role used when a caller names none.
 DEFAULT_ROLE = "default"
 
+#: What the configuration tree binds each role to, as ``role -> (provider, model)``.
+#:
+#: Process-wide, and published by the composition root rather than read here.
+#: ``resolve_binding`` is synchronous and resolving the configuration tree is
+#: not, so the alternative would be for this module to learn to await — which
+#: would make every caller in the investigation loop async for a value that
+#: changes when an operator saves a form, not per turn.
+#:
+#: Empty is the honest starting state: a deployment that has not been set up
+#: yet has bound nothing, and every role falls through to the environment and
+#: then to the shipped default.
+_CONFIGURED_BINDINGS: dict[str, tuple[str, str]] = {}
+
+
+def publish_configured_bindings(bindings: dict[str, tuple[str, str]]) -> None:
+    """Replace what configuration says each role runs on.
+
+    Called by the composition root after it resolves the configuration tree,
+    and again whenever that tree changes. Replaces rather than merges: a role
+    an operator has unbound must stop being bound, and a merge would leave the
+    old answer in place with nothing to say it was withdrawn.
+    """
+    _CONFIGURED_BINDINGS.clear()
+    _CONFIGURED_BINDINGS.update(bindings)
+
+
+def reset_configured_bindings() -> None:
+    """Forget every published binding, returning to environment and defaults."""
+    _CONFIGURED_BINDINGS.clear()
+
 
 @dataclass(frozen=True, slots=True)
 class ProviderBinding:
@@ -75,16 +105,35 @@ def resolve_binding(
 ) -> ProviderBinding:
     """Return the binding for ``role``.
 
-    Explicit arguments win, then the environment, then the shipped default. The
-    resolved binding is returned rather than applied so a caller — or the run
-    trace — can see what an investigation is about to run on before it starts.
+    Explicit arguments win, then this role's configured binding, then the
+    environment, then the shipped default. The resolved binding is returned
+    rather than applied so a caller — or the run trace — can see what an
+    investigation is about to run on before it starts.
+
+    Configuration sits above the environment because choosing a model provider
+    is something an operator does in the console, at first run, and changes
+    later without touching a deployment manifest. The environment keeps its
+    place below it rather than losing it: naming a provider in a manifest is a
+    supported shape, and it still answers for every role configuration does not
+    bind.
     """
     catalogue = registry or default_registry()
+    configured_provider, configured_model = _CONFIGURED_BINDINGS.get(role, ("", ""))
 
     resolved_provider = (
-        provider_id or os.environ.get(NINJASRE_LLM_PROVIDER_ENV, "").strip() or DEFAULT_PROVIDER
+        provider_id
+        or configured_provider
+        or os.environ.get(NINJASRE_LLM_PROVIDER_ENV, "").strip()
+        or DEFAULT_PROVIDER
     )
-    resolved_model = model_id or os.environ.get(NINJASRE_LLM_MODEL_ENV, "").strip()
+    # A model is only inherited from the same source that chose the provider. A
+    # model name means something to one provider, and carrying the environment's
+    # across a configured provider would ask Ollama for a Claude model.
+    resolved_model = model_id or (
+        configured_model
+        if provider_id is None and configured_provider
+        else os.environ.get(NINJASRE_LLM_MODEL_ENV, "").strip()
+    )
 
     if not resolved_model:
         try:
@@ -198,6 +247,8 @@ __all__ = [
     "ProviderBinding",
     "build_transport",
     "get_llm",
+    "publish_configured_bindings",
+    "reset_configured_bindings",
     "reset_factory",
     "resolve_binding",
 ]

@@ -18,18 +18,21 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import uvicorn
 
 from config.constants.deployment import NINJASRE_ADMIN_TOKEN_ENV
 from config.constants.surfaces import DEFAULT_API_HOST, DEFAULT_API_PORT
+from core.llm.factory import publish_configured_bindings
 from gateway.http.app import create_app
 from gateway.http.asgi import Deployment, build_deployment
+from platform.config_service.service import ConfigService
 from platform.credentials.errors import VaultKeyMismatch
 from platform.observability.logging import get_logger
+from platform.persistence.ports import TenantScope
 from platform.persistence.ports.health import StoreHealth
-from platform.startup.bootstrap import announcement, bring_up, credential_path
+from platform.startup.bootstrap import announcement, bring_up, credential_path, organisation_id
 from platform.startup.diagnostics import forget_failure, record_failure
 from platform.startup.errors import StartupError
 from platform.startup.readiness import DependencyReadiness, DependencyState, report
@@ -98,12 +101,54 @@ def readiness_of(health: StoreHealth) -> tuple[DependencyReadiness, ...]:
     return tuple(entries)
 
 
+async def _publish_model_bindings(deployment: Deployment) -> None:
+    """Tell ``core.llm`` which provider and model each role is configured to run on.
+
+    Configuration is resolved once here rather than per turn, because
+    ``resolve_binding`` is synchronous and the answer changes when an operator
+    saves a form, not between two calls in the same investigation.
+
+    Advisory in both directions. A deployment that has configured nothing
+    publishes nothing and every role falls through to the environment and then
+    to the shipped default — which is the state a deployment starts in, before
+    anybody has been to the first-run screen. And a failure to read
+    configuration is logged rather than raised: a console, a history and a
+    health endpoint that all work are worth having up while somebody fixes the
+    configuration tree.
+    """
+    try:
+        scope = TenantScope(org_id=organisation_id())
+        async with deployment.store.begin(scope) as uow:
+            root = await uow.config.root()
+        service = ConfigService(gateway=deployment.store, scope=scope)
+        effective = await service.resolve(root.node_id)
+        models = effective.values.get("models")
+        if not isinstance(models, Mapping):
+            publish_configured_bindings({})
+            return
+        bindings = {
+            role: (str(bound.get("provider", "")), str(bound.get("model", "")))
+            for role, bound in models.items()
+            if isinstance(bound, Mapping) and bound.get("provider")
+        }
+        publish_configured_bindings(bindings)
+        if bindings:
+            _LOGGER.info("deployment.model_bindings", roles=sorted(bindings))
+    except Exception as error:  # noqa: BLE001 — configuration must not stop a boot
+        _LOGGER.warning("deployment.model_bindings_unavailable", error=str(error))
+        publish_configured_bindings({})
+
+
 async def boot(deployment: Deployment) -> StartupResult:
     """Run the startup sequence against ``deployment``'s store, and return what it found.
 
     Raises ``VaultKeyMismatch`` before any migration when the configured key
     does not open what is stored (FR-020), which is the whole reason the check
     is here rather than at the first credential read.
+
+    The key is *loaded* before it is checked. Without that the check passed on
+    every deployment that had stored nothing yet, and the ring was still empty
+    when somebody wrote their first credential.
     """
 
     async def verify_credentials() -> None:
@@ -113,8 +158,10 @@ async def boot(deployment: Deployment) -> StartupResult:
 
     result = await run_startup(
         migrator=deployment.store.migrator(),
+        install_key=deployment.store.install_encryption_key,
         verify_credentials=verify_credentials,
     )
+    await _publish_model_bindings(deployment)
     health = await deployment.store.health()
     return StartupResult(
         topology=result.topology,
@@ -122,6 +169,7 @@ async def boot(deployment: Deployment) -> StartupResult:
         migration=result.migration,
         readiness=report(readiness_of(health)),
         credentials_verified=result.credentials_verified,
+        key_installed=result.key_installed,
     )
 
 
