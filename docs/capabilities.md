@@ -4,9 +4,18 @@ Generated from the declarations by `tools/generate_capability_docs.py`. Do not
 edit by hand — edit the capability and regenerate, or the two will disagree and
 this file will be the one that is wrong.
 
-219 tools and 93 skills, 36 of them approval-gated.
+225 tools and 95 skills, 36 of them approval-gated.
 
 ## Skills
+
+### `changes`
+
+Asking what changed before this broke, and refusing to blame a coincidence.
+
+- **Domain:** changes
+
+Directs no tools — methodology only.
+
 
 ### `cicd-argocd`
 
@@ -1006,6 +1015,17 @@ MetricsQL against VictoriaMetrics and the alerts vmalert is holding, for the est
 - `victoriametrics_metric_statistics`
 - `victoriametrics_active_alerts`
 
+### `model-provider-google-gemini`
+
+Whether this deployment's provider key can call the model it is configured for, which is the failure a refusal naming a model hides behind one naming the key.
+
+- **Domain:** model_provider
+- **Requires:** google_gemini
+
+**Directs:**
+
+- `google_gemini_available_models`
+
 ### `observability`
 
 Reading logs, metrics, and traces in the order that narrows fastest.
@@ -1227,6 +1247,28 @@ Code search across every repository at once: where a symbol, a string, or a conf
 - `sourcegraph_recent_changes`
 
 ## Tools
+
+### changes
+
+#### `changes_in_window`
+
+Return what changed for a specific resource in a window, correlated through the resource rather than by time: each result says whether the change altered something that manages this resource, touched policy the resource shares, or merely landed in the same window. A change reported as a temporal coincidence is not evidence of a cause. An empty answer is a finding — it states that nothing touched this resource, and names what was consulted to establish it. Call this once you know which resource is affected, not on the alert text.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** change from change_history
+- **Parallel safe:** yes
+
+**Use when:**
+
+- checking whether anything was deployed shortly before a symptom started
+- ruling deploys out, so an investigation stops looking at them and looks elsewhere
+- finding which apply touched the component that manages an affected workload
+
+**Not for:**
+
+- asking on the alert text before an affected resource has been identified
+- reading what a change contained, which this deliberately never reports
+- listing a repository's history, which is a report rather than an investigation
 
 ### cicd
 
@@ -2192,6 +2234,27 @@ Return whether a Proxmox guest could move and, per candidate node, exactly what 
 - performing a migration — nothing here writes
 - which datastores exist where, which proxmox_datastore_availability reads
 - why the guest will not start where it is, which proxmox_guest_start_diagnosis answers
+
+#### `proxmox_node_health`
+
+Return a node's failed systemd units, whether its configured bridges are up, and its LVM thin-pool metadata usage — the three readings that explained the reference cluster's only total outage and that no Proxmox REST endpoint answers. Reported as unavailable, by name, for whichever of the three nothing is publishing, rather than as an absence that could be mistaken for health.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from proxmox
+- **Parallel safe:** yes
+- **Requires:** proxmox
+
+**Use when:**
+
+- checking whether a node's failed systemd units explain a guest that will not start
+- checking whether a configured bridge is down before blaming the guests on top of it
+- checking an LVM thin pool's metadata usage, which stops writes while data usage still looks comfortable
+
+**Not for:**
+
+- a guest's own CPU or memory pressure, which proxmox_guest_pressure reads
+- a physical disk's SMART attributes, which proxmox_disk_health reads
+- trend or history over these three readings — this asks for the node's state now
 
 #### `proxmox_orphaned_volumes`
 
@@ -3235,6 +3298,28 @@ Return the slowest statements recorded, capped, with their timing. Call it after
 
 - whether the database is the problem at all, which sessions answer first
 - a connectivity failure, where no statement ever ran
+
+### estate
+
+#### `run_on_node`
+
+Run one command from a closed, declared list on a cluster node and return what it said. Used for the readings a hypervisor's API does not have — failed systemd units, bridge state, thin-pool metadata fill — each of which has decided a real outage and none of which is a REST endpoint. The command is named, never composed: this cannot run arbitrary commands and cannot change anything.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** configuration from node
+- **Parallel safe:** yes
+
+**Use when:**
+
+- reading a node's failed systemd units, which no Proxmox endpoint reports
+- checking whether a configured bridge exists before blaming the guests behind it
+- reading a thin pool's metadata fill, which stops writes while its data fill looks fine
+
+**Not for:**
+
+- running an arbitrary command, which this deliberately cannot do
+- changing anything on a node, which goes through the path that requires an approval
+- reaching a guest's own shell, which this never does — every command runs on the host
 
 ### incident
 
@@ -4493,6 +4578,27 @@ Evaluate a metric query over a window and return the series grouped by one label
 - reading an individual log line, which a metric never contains
 - a question about a single request, where a metric has no resolution
 
+#### `prometheus_resource_pressure`
+
+Return what one estate resource is short of — memory, CPU, disk — with the query built from the signal map rather than written by hand. For a container the series read are the host's, keyed by the guest's own identifier, because a container shares the host's kernel and counters read from inside it report the host's figures under the guest's name.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** metric from prometheus
+- **Parallel safe:** yes
+- **Requires:** prometheus
+
+**Use when:**
+
+- how much memory, CPU or disk a hypervisor guest is using, without asking inside it
+- checking whether a container that is being OOM-killed is at its own ceiling
+- resource usage for a guest where no agent runs and nothing can be installed
+
+**Not for:**
+
+- an arbitrary PromQL expression, which prometheus_metric_statistics evaluates
+- which alerts are firing, which prometheus_active_alerts answers
+- reading a log line, which a metric never contains
+
 #### `victoriametrics_active_alerts`
 
 List the alert rules currently firing, with their labels and the time each started. Reach for it early: what else is already alerting is the cheapest way to tell a local failure from a shared one.
@@ -4530,6 +4636,49 @@ Evaluate a metric query over a window and return the series grouped by one label
 
 - reading an individual log line, which a metric never contains
 - a question about a single request, where a metric has no resolution
+
+### model_provider
+
+#### `google_gemini_available_models`
+
+List the models this deployment's Google Gemini key is allowed to call. The question an operator has after storing a key, and the one a provider refusal naming a model raises. Spends no inference quota.
+
+- **Side effect:** `read` — reads only
+- **Evidence:** configuration from google_gemini
+- **Parallel safe:** yes
+- **Requires:** google_gemini
+
+**Use when:**
+
+- checking that a stored provider key can call the model this deployment is configured for
+- explaining a provider refusal that names a model rather than the key
+
+**Not for:**
+
+- running an inference, which goes through the model layer rather than here
+- choosing a model for a task, which is a configuration decision rather than a reading
+
+### observability
+
+#### `logs_for_resource`
+
+Return what a specific resource's log stream held in a recent window, with the bound that shaped the answer. Every result says how much of the window was actually read: a source keeping less than the window asked for, or an answer stopped at the line limit, is reported rather than left to look like a quiet guest. An empty answer from a source that responded is a finding — it means the resource logged nothing, not that nobody could look. Call this once you know which resource is affected, not on the alert text.
+
+- **Side effect:** `read_sensitive` — reads data that may identify people
+- **Evidence:** log from logs
+- **Parallel safe:** yes
+
+**Use when:**
+
+- reading what a guest was logging around the time a symptom started
+- confirming a service inside a container restarted, rather than inferring it from metrics
+- establishing that a guest logged nothing unusual, so the cause is elsewhere
+
+**Not for:**
+
+- asking on the alert text before an affected resource has been identified
+- searching the whole cluster's logs for a string, which this deliberately cannot do
+- reading a log stream to build a dashboard, which is a report rather than an investigation
 
 ### remediation
 

@@ -145,8 +145,42 @@ export interface paths {
          */
         get: operations["list_grants_identity_grants_get"];
         put?: never;
-        post?: never;
+        /**
+         * Add Grant
+         * @description Give somebody a role, and record who gave it to them.
+         *
+         *     The principal has to exist first. Creating one here would make a typo in an
+         *     identifier into a new account holding a role, which is the shape of mistake
+         *     an identity surface must not be able to make quietly.
+         */
+        post: operations["add_grant_identity_grants_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/grants/{grant_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Grant
+         * @description Take a role away, unless doing so would leave nobody able to give it back.
+         *
+         *     The last-owner rule is evaluated over the whole organisation rather than
+         *     over the grant being removed, which is why it lives in
+         *     ``require_owner_retained`` and not here: handing ownership over is allowed
+         *     and removing the last owner is not, and a per-grant check gets one of those
+         *     two wrong whichever way it is written.
+         */
+        delete: operations["remove_grant_identity_grants__grant_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -165,7 +199,138 @@ export interface paths {
          */
         get: operations["list_principals_identity_principals_get"];
         put?: never;
+        /**
+         * Create Principal
+         * @description Create a person with a local password, and record who did it.
+         *
+         *     Refused before this body ever runs for a caller who lacks
+         *     ``identity.write`` — the route table's guard, the same dependency every
+         *     write in this file goes through, not a second check written here. That
+         *     refusal carries no information about whether ``body.email`` is already
+         *     taken: the permission is checked before the request reaches this
+         *     function, so the response to somebody who may not create an account is
+         *     identical whether or not one already exists at that address.
+         *
+         *     Grants nothing. There is no role on the request body, so a caller who
+         *     may create a person can never come away from this one call holding an
+         *     account that outranks them — widening what the new principal may do is
+         *     a separate, already-guarded request to ``POST /identity/grants``.
+         *
+         *     The password is hashed with the same construction the environment
+         *     account uses (``hash_local_password``), stored once by a write dedicated
+         *     to that column alone, and never appears in this function's return value
+         *     or in anything logged about the call.
+         */
+        post: operations["create_principal_identity_principals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Roles
+         * @description Return the roles this deployment has, least privileged first.
+         *
+         *     Served rather than left to the client, for the reason ``tools/console_roles``
+         *     already gives about the fixture it generates: a second copy of the catalogue
+         *     written in a front end is the copy that is wrong on the day somebody adds a
+         *     permission. A form offering a role this build does not have is a form whose
+         *     every submission is refused.
+         *
+         *     The permissions are on each row because "what does granting this actually
+         *     do" is the question somebody asks before granting it, and answering it
+         *     anywhere else would mean the console deriving it.
+         */
+        get: operations["list_roles_identity_roles_get"];
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/sso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Sso
+         * @description Return the identity provider this deployment is pointed at.
+         */
+        get: operations["read_sso_identity_sso_get"];
+        /**
+         * Write Sso
+         * @description Replace the configuration, and drop any test result it invalidates.
+         *
+         *     The digest is cleared explicitly as well as being invalidated by
+         *     construction, so the *stored* document never carries a result that belongs
+         *     to settings it no longer holds. Two mechanisms for one property, and the
+         *     reason is that this is the property somebody gets locked out over.
+         */
+        put: operations["write_sso_identity_sso_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/sso/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Sso
+         * @description Make this provider the way in, refusing until a test has passed on it.
+         *
+         *     Three refusals, and they are one refusal: there is no result, the settings
+         *     are not usable, or the result was produced by different settings. All three
+         *     mean nobody has watched this configuration complete a sign-in, and every one
+         *     of them ends with an operator locked out.
+         */
+        post: operations["activate_sso_identity_sso_activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/identity/sso/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Sso
+         * @description Run a real claim set through the configuration, and record whether it worked.
+         *
+         *     The result is stored as the digest of the settings it passed against, so it
+         *     covers *these* settings and nothing else. A failure stores nothing, which
+         *     leaves activation refused — the correct outcome, and the one that does not
+         *     depend on anybody reading the response.
+         */
+        post: operations["test_sso_identity_sso_test_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -192,6 +357,10 @@ export interface paths {
         /**
          * Issue Token
          * @description Issue a machine token and return its secret exactly once.
+         *
+         *     A second issuance for the same owner and the same purpose — the name a
+         *     token was given, at the same node — supersedes the one it replaces rather
+         *     than accumulating beside it.
          */
         post: operations["issue_token_identity_tokens_post"];
         delete?: never;
@@ -235,6 +404,26 @@ export interface paths {
          * @description Revoke one token.
          */
         delete: operations["revoke_token_identity_tokens__token_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agent/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Pipeline
+         * @description Return the stages an investigation runs, in order, with what each consults.
+         */
+        get: operations["read_pipeline_v1_agent_pipeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -284,6 +473,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/approvals/{approval_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Approval
+         * @description Approve or reject an approval request, in the caller's name.
+         *
+         *     Approving records the decision, the decider and the instant, and nothing
+         *     else: this route never invokes the capability the approval names. The
+         *     store itself refuses to record an approval with no rollback plan stored
+         *     against it, so the guarantee that a change above read is undoable does not
+         *     depend on this handler getting an order right — there is no order to get
+         *     wrong, because nothing here writes a plan, only reads one already there.
+         *
+         *     Rejecting without a reason is refused before either store is touched. The
+         *     console's own control disables the reject button until a reason is typed;
+         *     this is the rule behind that courtesy.
+         */
+        post: operations["decide_approval_v1_approvals__approval_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/approvals/{approval_id}/rollback": {
         parameters: {
             query?: never;
@@ -315,11 +535,26 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Kill Switch
+         * @description Return whether automated writes are stopped for this caller.
+         *
+         *     A read of its own, because the two write routes answer the question only for
+         *     whoever just changed it — and the thing that has to be visible is the
+         *     engaged state, on every screen, to everybody. A dashboard where nothing is
+         *     happening looks the same whether nothing needed doing or everything is
+         *     stopped, and only one of those is something a person has to be told.
+         */
+        get: operations["read_kill_switch_v1_autonomy_kill_switch_get"];
         put?: never;
         /**
          * Engage Kill Switch
          * @description Stop every automated write, immediately, with no configuration in the way.
+         *
+         *     Audited after the switch is thrown rather than before it. The stop is the
+         *     urgent half and must not wait on a database; the record is written straight
+         *     afterwards, and a store that could not take it still leaves the auditor's own
+         *     log line — which is the arrangement ``RemediationAuditor`` exists for.
          */
         post: operations["engage_kill_switch_v1_autonomy_kill_switch_post"];
         /**
@@ -420,6 +655,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/autonomy/policy/{node_id}/outlook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Outlook
+         * @description Return what an action of each risk class would meet under this posture.
+         *
+         *     The reading the policy document does not give. A table of rules answers
+         *     "what did somebody configure"; this answers "what will this do if something
+         *     happens now", which is the question asked before a deployment is trusted
+         *     with an estate — and it is answered by the deployment's own gate rather than
+         *     by a client's reading of the rules, so what is shown and what would happen
+         *     cannot drift.
+         */
+        get: operations["read_outlook_v1_autonomy_policy__node_id__outlook_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/autonomy/policy/{node_id}/overrides": {
         parameters: {
             query?: never;
@@ -435,6 +697,31 @@ export interface paths {
          */
         post: operations["grant_override_v1_autonomy_policy__node_id__overrides_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/autonomy/policy/{node_id}/overrides/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Override
+         * @description Take an override away before it expires, and say whether one was there.
+         *
+         *     404 rather than a quiet success for an override this node did not grant: an
+         *     operator who asked for a widening to be taken away, and was told it was,
+         *     would stop looking — and the widening would still be in force from a level
+         *     above, where it has to be revoked instead.
+         */
+        delete: operations["revoke_override_v1_autonomy_policy__node_id__overrides__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -524,6 +811,21 @@ export interface paths {
         /**
          * Write Config
          * @description Apply a patch to ``node_id``'s own settings and return the new effective view.
+         *
+         *     Given both live registries, which is what makes validation here the same
+         *     validation the read routes report. The integration directory is what lets a
+         *     field a vendor's own schema calls secret be refused, which is the way round
+         *     ``PUT /v1/integrations/{name}/credential`` and has to be shut. The capability
+         *     catalogue is what lets a name no capability answers to be refused, which is
+         *     otherwise a setting that stores happily and never does anything.
+         *
+         *     Withholding the catalogue was once argued for on the grounds that a write
+         *     would then refuse what ``POST /{node_id}/preview`` accepts. The preview runs
+         *     no validation at all — it answers what a document would *resolve* to — so
+         *     every refusal this route makes is already one the preview does not predict,
+         *     and the argument protected a property that does not exist. Predicting them is
+         *     worth doing, and it is a change to what the preview returns rather than a
+         *     reason to check less here.
          */
         put: operations["write_config_v1_config__node_id__put"];
         post?: never;
@@ -550,6 +852,37 @@ export interface paths {
          *     of those are something an operator can fix in a minute.
          */
         get: operations["node_catalogue_v1_config__node_id__catalogue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config/{node_id}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Node Fields
+         * @description Return every field this node can be edited by, described by the schema.
+         *
+         *     Served rather than shipped in a client, for the reason the whole
+         *     configuration surface is: a client holding its own table of field types and
+         *     ranges agrees with the deployment on the day it is written and drifts from
+         *     then on. The drift arrives as a control offering a value the write path
+         *     refuses, which reads to an operator as the platform being arbitrary.
+         *
+         *     The per-node half — the value, which level supplied it, whether this node
+         *     overrides it, what locks it — cannot be assembled by a client at all. It
+         *     needs the ancestors' documents, and nothing outside this deployment has
+         *     them.
+         */
+        get: operations["node_fields_v1_config__node_id__fields_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -614,6 +947,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/config/{node_id}/operating-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Node Operating Context
+         * @description Return this node's operating context, what it costs, and the text it becomes.
+         *
+         *     Three things a client cannot assemble for itself, and one it should not try.
+         *
+         *     ``prompt`` is the *exact* string the investigator's next run will be sent —
+         *     the shipped-or-overridden prompt with the rendered sections appended, by the
+         *     same function the runtime hook uses. A console that concatenated the pieces
+         *     itself would be a second implementation of the assembly, and the day it
+         *     drifted somebody would approve a prompt nobody sends.
+         *
+         *     ``provenance`` per section is the ancestors' documents, which nothing
+         *     outside this deployment holds.
+         *
+         *     ``template`` is served only where the node resolves to no sections at all.
+         *     It is derived from what the estate has discovered — kinds, zones and their
+         *     networks, the source answering each signal question — plus the facts that
+         *     are true of any deployment of this kind and the questions only a person can
+         *     answer. It is a suggestion: nothing here stores it, and it disappears the
+         *     moment anything is written, because a field that kept re-offering its own
+         *     starting text over somebody's edits is a field they stop editing.
+         */
+        get: operations["node_operating_context_v1_config__node_id__operating_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config/{node_id}/operating-context/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Operating Context
+         * @description Return the prompt this context would produce, and everything wrong with it.
+         *
+         *     The 058 discipline, where the "effect" happens to be the most literal one on
+         *     the platform: what a person is shown before saving is the *text the model
+         *     will read*. Assembled by the deployment from the same merge and the same
+         *     function a run uses, so there is no arrangement of the pieces a client could
+         *     get differently.
+         *
+         *     Two refusals are reported rather than raised, because this is a preview and
+         *     a refusal an operator can still act on is worth more than a 4xx: a document
+         *     past the token budget, and a section body carrying something
+         *     credential-shaped. The second never quotes what it found — a refusal that
+         *     echoed the secret would be the first place it was written down.
+         *
+         *     ``over_budget`` is computed against the **merged** result rather than
+         *     against this node's own document. A node whose own text fits can still
+         *     inherit its way past the ceiling, and the resolution's answer to that is to
+         *     send no context at all — which is safe and silent, and this is where it
+         *     stops being silent.
+         */
+        post: operations["preview_operating_context_v1_config__node_id__operating_context_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/config/{node_id}/preview": {
         parameters: {
             query?: never;
@@ -631,6 +1041,13 @@ export interface paths {
          *     that merged the patch itself would be a second implementation of
          *     inheritance, locking, and gating — and the day it drifted, somebody would
          *     save a change that did something other than what they were shown.
+         *
+         *     ``errors`` is the fourth thing the write decides and the last one this route
+         *     learned to predict. The merge, the locks and the gates were always here;
+         *     validation was not, so a document the write would refuse previewed clean and
+         *     the refusal arrived as a 400 after somebody pressed save. It is reported
+         *     rather than raised for the reason the whole surface exists: somebody who can
+         *     still edit the field is better served by being told than by a status code.
          */
         post: operations["preview_config_v1_config__node_id__preview_post"];
         delete?: never;
@@ -719,6 +1136,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/estate/discovery/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Discovery
+         * @description Return what one pass over ``integration`` would find, storing none of it.
+         *
+         *     Raises:
+         *         ApiProblem: no source for that integration is composed (404).
+         */
+        post: operations["preview_discovery_v1_estate_discovery_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/discovery/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Discovery Report
+         * @description Return each swept source's last pass and every disagreement it recorded.
+         *
+         *     Divergence is content, so it is served rather than logged. Naming a
+         *     ``source`` narrows to one and answers 404 when nothing has ever swept it —
+         *     which is a different fact from a sweep that found nothing to disagree with,
+         *     and collapsing the two would let an unconfigured deployment read as a
+         *     perfectly reconciled one. Naming none returns what there is, which for a
+         *     deployment that has swept nothing is an empty list.
+         *
+         *     Raises:
+         *         ApiProblem: a named source nothing has ever swept (404).
+         */
+        get: operations["discovery_report_v1_estate_discovery_report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/discovery/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register Discovery Source
+         * @description Register ``integration``'s recurring sweep, and say when it is next due.
+         *
+         *     Due immediately. An operator who has just confirmed a preview expects the
+         *     estate to fill, and a first sweep that waited out the declared interval
+         *     would leave them looking at an empty screen for five minutes with nothing
+         *     to distinguish "scheduled" from "broken".
+         *
+         *     Raises:
+         *         ApiProblem: no source for that integration is composed (404).
+         */
+        post: operations["register_discovery_source_v1_estate_discovery_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/estate/resources": {
         parameters: {
             query?: never;
@@ -749,6 +1247,12 @@ export interface paths {
         /**
          * Resource Detail
          * @description Return one resource's state, why, its history, and what touched it.
+         *
+         *     The ``signals`` block is derived here rather than by the estate service,
+         *     because it needs a fact the estate does not hold: which integrations this
+         *     team has a credential for. Deriving it per request is also what keeps it
+         *     correct — connect a log store and the next render of this page says so,
+         *     with nothing to migrate.
          */
         get: operations["resource_detail_v1_estate_resources__resource_id__get"];
         put?: never;
@@ -795,6 +1299,31 @@ export interface paths {
          * @description Return the estate in the numbers a dashboard tile shows.
          */
         get: operations["estate_summary_v1_estate_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/estate/unresolved-alert-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Unresolved Alert Targets
+         * @description Return the alert targets this estate does not hold, newest first.
+         *
+         *     A finding of the same class as the reconciliation divergence a sweep
+         *     produces, and read from the live incidents that recorded it rather than from
+         *     a store of its own: the incident is already the record that the alert
+         *     arrived, and a second one would be a second thing to expire.
+         */
+        get: operations["list_unresolved_alert_targets_v1_estate_unresolved_alert_targets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -883,6 +1412,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ingress/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ingress Sources
+         * @description Return every receiver this deployment serves, with its address and its body.
+         */
+        get: operations["list_ingress_sources_v1_ingress_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/integrations": {
         parameters: {
             query?: never;
@@ -893,11 +1442,66 @@ export interface paths {
         /**
          * List Integrations
          * @description Return the catalogue: every installed integration and what is known about it.
+         *
+         *     Ordered by relevance where the estate supplies any and by name otherwise.
+         *     The ordering is computed here rather than by each surface, because the
+         *     console wizard and the CLI wizard ask the same question and two surfaces
+         *     deriving relevance separately is how one of them offers Prometheus first
+         *     while the other buries it, with nobody able to say which is right.
          */
         get: operations["list_integrations_v1_integrations_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{name}/credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Store Credential
+         * @description Store this team's credential for ``name`` and report what it now is.
+         *
+         *     ``name`` is an installed integration or a supported model provider. One
+         *     route for both, because a provider key that took a different path would be
+         *     a second place credentials live and the one the audit misses.
+         *
+         *     The team is the token's, exactly as it is for every other write on this
+         *     surface: a body field naming somebody else's team would be a permission
+         *     decision taken by the client.
+         *
+         *     Raises:
+         *         ApiProblem: nothing answers to ``name`` (404), or the values do not fit
+         *             the declared schema (400). The refusal names the fields and never
+         *             quotes one.
+         */
+        put: operations["store_credential_v1_integrations__name__credential_put"];
+        post?: never;
+        /**
+         * Delete Credential
+         * @description Disconnect: remove this team's stored credential for ``name``, every version.
+         *
+         *     The same permission as the write beside it (``credential.write``), because
+         *     whoever may put a credential in the vault is whoever may take it back out —
+         *     a narrower rule here would be a second, undocumented gate on the same
+         *     material. Idempotent: disconnecting an integration with nothing stored
+         *     removes zero versions rather than refusing, so a viewer who reloads a stale
+         *     panel and presses it again does not meet an error over a fact that is
+         *     already true.
+         *
+         *     Raises:
+         *         ApiProblem: nothing answers to ``name`` (404) — the same refusal the
+         *             write beside it gives, for the same reason.
+         */
+        delete: operations["delete_credential_v1_integrations__name__credential_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -915,8 +1519,48 @@ export interface paths {
         /**
          * Verify Integration
          * @description Check this team's credential for ``name``: configured, current, decryptable.
+         *
+         *     ``name`` is an installed integration or a supported model provider, the same
+         *     two as the write beside it — the guided first run stores a provider key and
+         *     then verifies it, and a verify that only knew about vendor packages would
+         *     refuse the second half of its own flow.
+         *
+         *     The answer is written down. A check whose result lived only in the response
+         *     left the first run's "check that each of them works" step uncompletable:
+         *     green while the tab was open, "nobody has checked this one" on reload.
          */
         post: operations["verify_integration_v1_integrations__name__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations/{name}/verify/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Integration Deeply
+         * @description Run ``name``'s own verifier against the vendor and return its report.
+         *
+         *     A separate route rather than a flag on the verify beside it, and the
+         *     separation is the point. The shallow verify is cheap and safe to call from
+         *     any screen that wants to know whether a credential is configured; this one
+         *     makes live vendor calls and answers with a document. Two behaviours behind
+         *     one route with a query parameter is how a screen accidentally makes the
+         *     expensive call on every render.
+         *
+         *     Raises:
+         *         ApiProblem: this deployment composed no deep verifier, or ``name`` has
+         *             none to run (404). The refusal says which of the two it was.
+         */
+        post: operations["verify_integration_deeply_v1_integrations__name__verify_report_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1295,6 +1939,222 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description Return what is waiting on this team, longest-waiting first.
+         *
+         *     The acceptance figure travels with the list rather than on an endpoint of
+         *     its own. It is a property of the queue — how this team has answered — and a
+         *     second request for one number is a second thing to be out of date.
+         */
+        get: operations["list_proposals_v1_proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Count Proposals
+         * @description Return how many proposals are waiting, for the badge and the band.
+         */
+        get: operations["count_proposals_v1_proposals_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Proposal
+         * @description Return one proposal with everything a decision rests on.
+         */
+        get: operations["get_proposal_v1_proposals__proposal_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Proposal
+         * @description Approve or reject a proposal, in the caller's name.
+         *
+         *     A rejection without a reason is refused here as well as in the console. A
+         *     control is a courtesy and a server check is a rule, and the reason is what
+         *     the next proposal of the same thing is read against.
+         */
+        post: operations["decide_proposal_v1_proposals__proposal_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/protocols/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bridged Catalogue View
+         * @description Return this team's bridged tools, their origin, and each server's health.
+         *
+         *     Built from the team's own registrations rather than from whatever the
+         *     adapter happens to hold, so a server registered and never reached still
+         *     appears — with the reason where its tools would be.
+         */
+        get: operations["bridged_catalogue_view_v1_protocols_catalogue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Providers
+         * @description Return every supported provider, in the order the platform documents them.
+         */
+        get: operations["list_providers_v1_providers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/{provider_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show Provider
+         * @description Return one provider with everything needed to set it up.
+         *
+         *     Raises:
+         *         ApiProblem: no supported provider answers to ``provider_id`` (404).
+         */
+        get: operations["show_provider_v1_providers__provider_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/{provider_id}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Models
+         * @description Return the models ``provider_id``'s own endpoint currently serves, curated.
+         *
+         *     Free, like the other two ``GET``s: listing spends no tokens, so a screen
+         *     may call this on every render. ``refresh=true`` ignores whatever is
+         *     cached, for an operator's own "Reload models".
+         *
+         *     Raises:
+         *         ApiProblem: no supported provider answers to ``provider_id`` (404).
+         */
+        get: operations["list_models_v1_providers__provider_id__models_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/providers/{provider_id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Provider
+         * @description Check ``provider_id`` end to end and report what came back.
+         *
+         *     A real request, and the claim being made is about what happened rather than
+         *     about what is configured. "It should work now" is not the same statement as
+         *     "a call went out, called a tool, and returned structure", and the difference
+         *     is discovered at 03:00 by whoever was told the first one.
+         *
+         *     The model exercised is the one this deployment is configured to run, when
+         *     the configuration names one for this provider. An operator told "choose a
+         *     model that supports tool calling" changes the configuration and presses the
+         *     button again — a check that kept testing the registry's default would
+         *     return the same refusal forever.
+         *
+         *     Raises:
+         *         ApiProblem: no supported provider answers to ``provider_id`` (404).
+         */
+        post: operations["verify_provider_v1_providers__provider_id__verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/remediations": {
         parameters: {
             query?: never;
@@ -1523,6 +2383,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Schedule
+         * @description Return what ``cron`` would fire, storing nothing.
+         *
+         *     Parsed through the same ``CronExpression`` the write path validates
+         *     with — a form calling this and a form calling ``create`` can never
+         *     disagree about what an expression means, because there is one
+         *     implementation of cron in this deployment rather than a console-side
+         *     second opinion beside a server-side first one. A refused expression is
+         *     refused here exactly as ``create`` would refuse it, before anything
+         *     would have been stored.
+         */
+        post: operations["preview_schedule_v1_schedules_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/schedules/{job_id}": {
         parameters: {
             query?: never;
@@ -1601,6 +2489,13 @@ export interface paths {
         /**
          * Checklist
          * @description Return what is left to set up, each step verified against its dependency.
+         *
+         *     The integration catalogue and its health ledger are read here rather than in
+         *     ``build_checklist``: that module is tier 3 and reaching up for ``integrations``
+         *     would be the boundary ``make check-imports`` exists to hold. Health is what
+         *     the recorded checks found, so "verified" means something answered rather than
+         *     that a credential is present — and it means that on the next request too,
+         *     which is the whole reason the answer is written down.
          */
         get: operations["checklist_v1_setup_checklist_get"];
         put?: never;
@@ -1694,6 +2589,11 @@ export interface paths {
         /**
          * Run Self Check
          * @description Run every check in one pass and return the findings, most blocking first.
+         *
+         *     The runtime check is handed what this process actually composed, because
+         *     that is a fact only the running process holds — no store can be asked
+         *     whether anything here can drive an investigation, and it is the one
+         *     dependency that leaves no trace on any screen.
          */
         get: operations["run_self_check_v1_setup_self_check_get"];
         put?: never;
@@ -1742,6 +2642,148 @@ export interface paths {
         get: operations["get_topology_v1_topology__node_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deliveries
+         * @description Return recent crossings, newest first, in either direction.
+         */
+        get: operations["deliveries_v1_transit_deliveries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/deliveries/{delivery_id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Delivery
+         * @description Send a failed outbound delivery again, and record that a person asked.
+         *
+         *     A re-send puts a report in front of somebody, so it is a human act and is
+         *     audited like every other one — Article III. Refused for a delivery that
+         *     did not fail: re-sending a message the destination already accepted would
+         *     be this deployment producing a duplicate nobody asked for.
+         */
+        post: operations["resend_delivery_v1_transit_deliveries__delivery_id__resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Destinations
+         * @description Return every declared destination, and why one cannot be configured.
+         *
+         *     A deployment whose catalogue holds nothing that can deliver a message says
+         *     so once, here, rather than rendering rows that would silently never send.
+         */
+        get: operations["destinations_v1_transit_destinations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/ingress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ingress Status
+         * @description Return every receiver this deployment serves, and what it has done lately.
+         *
+         *     Built by enumerating the *configured* sources and joining the ledger onto
+         *     them, never the other way round. A listing built from the ledger would omit
+         *     exactly the source this screen exists to show: the one that has never
+         *     delivered anything.
+         */
+        get: operations["ingress_status_v1_transit_ingress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rules
+         * @description Return the ordered rule set, with the catch-all always present and last.
+         *
+         *     A deployment that has configured nothing gets the default set rather than an
+         *     empty list, because "what happens to a delivery here" always has an answer
+         *     and the screen has to be able to show it.
+         */
+        get: operations["rules_v1_transit_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/transit/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simulate
+         * @description Return which rule would catch this delivery, where it would go, and what would happen.
+         *
+         *     Takes either a pasted ``payload`` with its ``source``, or the
+         *     ``delivery_id`` of a crossing already in the ledger. Both end in the same
+         *     ``evaluate`` call the live ingress path makes — asserted by construction
+         *     rather than by comparison, because there is only one implementation to call.
+         */
+        post: operations["simulate_v1_transit_simulate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1871,6 +2913,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptanceView */
+        AcceptanceView: {
+            /** Approved */
+            approved: number;
+            /** Decided */
+            decided: number;
+            /** Rate */
+            rate: number;
+        };
         /** AnswerRequest */
         AnswerRequest: {
             /**
@@ -1880,6 +2931,27 @@ export interface components {
             selected_option: string;
             /** Text */
             text: string;
+        };
+        /** ApprovalDecisionRequest */
+        ApprovalDecisionRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Verdict */
+            verdict: string;
+        };
+        /** ApprovalDecisionResult */
+        ApprovalDecisionResult: {
+            /** Approval Id */
+            approval_id: string;
+            /** Decided At */
+            decided_at: string;
+            /** Decided By */
+            decided_by: string;
+            /** State */
+            state: string;
         };
         /** ApprovalList */
         ApprovalList: {
@@ -1896,6 +2968,8 @@ export interface components {
             arguments: {
                 [key: string]: unknown;
             };
+            /** Blast Radius Count */
+            blast_radius_count?: number | null;
             /** Decided At */
             decided_at?: string | null;
             /** Decided By */
@@ -1984,6 +3058,94 @@ export interface components {
              */
             stopped: boolean;
         };
+        /**
+         * BridgedCatalogueView
+         * @description Everything one team bridges, as a screen renders it.
+         */
+        BridgedCatalogueView: {
+            /** Awaiting Classification */
+            awaiting_classification?: string[];
+            /** Declared */
+            declared?: string[];
+            /** Excluded */
+            excluded?: components["schemas"]["ExcludedToolView"][];
+            /** Servers */
+            servers?: components["schemas"]["BridgedServerView"][];
+            /**
+             * Unavailable Reason
+             * @default
+             */
+            unavailable_reason: string;
+        };
+        /**
+         * BridgedServerView
+         * @description One registered server: whether it answered, and what it gave.
+         */
+        BridgedServerView: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Protocol
+             * @default
+             */
+            protocol: string;
+            /**
+             * Reachable
+             * @default true
+             */
+            reachable: boolean;
+            /** Server */
+            server: string;
+            /** Tools */
+            tools?: components["schemas"]["BridgedToolView"][];
+        };
+        /**
+         * BridgedToolView
+         * @description One tool a server offers, with where it came from and what it may do.
+         */
+        BridgedToolView: {
+            /**
+             * Awaiting Classification
+             * @default false
+             */
+            awaiting_classification: boolean;
+            /** Catalogue Name */
+            catalogue_name: string;
+            /**
+             * Classification
+             * @default
+             */
+            classification: string;
+            /**
+             * Declared Side Effect
+             * @default
+             */
+            declared_side_effect: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Executable
+             * @default false
+             */
+            executable: boolean;
+            /** Qualified Name */
+            qualified_name: string;
+            /** Server */
+            server: string;
+            /** Tool */
+            tool: string;
+        };
         /** BulkRevokeRequest */
         BulkRevokeRequest: {
             /**
@@ -2039,6 +3201,24 @@ export interface components {
             /** Tags */
             tags: string[];
         };
+        /**
+         * CheckResultView
+         * @description One preflight check, mirrored rather than collapsed into the boolean verdict.
+         *
+         *     A screen renders the state each of these actually reports — passed,
+         *     degraded or failed — never a translation of it into a word the backend
+         *     did not send.
+         */
+        CheckResultView: {
+            /** Detail */
+            detail: string;
+            /** Duration Ms */
+            duration_ms: number;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+        };
         /** ChecklistStepView */
         ChecklistStepView: {
             /**
@@ -2053,6 +3233,8 @@ export interface components {
             detail: string;
             /** Name */
             name: string;
+            /** Readiness */
+            readiness: string;
             /** State */
             state: string;
             /** Title */
@@ -2062,10 +3244,59 @@ export interface components {
         ChecklistView: {
             /** Complete */
             complete: boolean;
+            /** Integrations */
+            integrations: components["schemas"]["IntegrationReadinessView"][];
             /** Next */
             next?: string | null;
+            /** Provider */
+            provider: string;
             /** Steps */
             steps: components["schemas"]["ChecklistStepView"][];
+        };
+        /**
+         * ClassOutlookView
+         * @description What one risk class would meet under the posture as it stands.
+         *
+         *     ``sentence`` is the whole point and the rest is what a reader checks it
+         *     against. A level and a bound are a policy's vocabulary; "would wait for a
+         *     person's approval before anything happened" is an answer.
+         */
+        ClassOutlookView: {
+            /** Capability */
+            capability: string;
+            /** Decision */
+            decision: string;
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Level */
+            level: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Refused By
+             * @default
+             */
+            refused_by: string;
+            /**
+             * Resource Kind
+             * @default
+             */
+            resource_kind: string;
+            /** Risk Class */
+            risk_class: string;
+            /** Sentence */
+            sentence: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
         };
         /**
          * ClearRequest
@@ -2109,6 +3340,95 @@ export interface components {
              */
             resolved: boolean;
         };
+        /**
+         * ConfigFieldView
+         * @description One editable field, as the schema declares it and this node stands on it.
+         *
+         *     Everything a client needs to draw a control and to know what pressing save
+         *     would do — and nothing it could have worked out for itself, because there is
+         *     nothing here it could have. The type, range and default come from the
+         *     Pydantic section the write path validates against; the value, provenance,
+         *     lock and gate come from this node's chain.
+         */
+        ConfigFieldView: {
+            /** Allowed Values */
+            allowed_values?: unknown[] | null;
+            /**
+             * Approval Gated
+             * @default false
+             */
+            approval_gated: boolean;
+            /** Default */
+            default?: unknown;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
+            /** Item Fields */
+            item_fields?: components["schemas"]["ItemFieldView"][];
+            /** Label */
+            label: string;
+            /**
+             * Locked By
+             * @default
+             */
+            locked_by: string;
+            /** Max Items */
+            max_items?: number | null;
+            /** Max Length */
+            max_length?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Path */
+            path: string;
+            /**
+             * Provenance
+             * @default
+             */
+            provenance: string;
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Section
+             * @default
+             */
+            section: string;
+            /**
+             * Section Help
+             * @default
+             */
+            section_help: string;
+            /**
+             * Section Summary
+             * @default
+             */
+            section_summary: string;
+            /**
+             * Set Here
+             * @default false
+             */
+            set_here: boolean;
+            /** Type */
+            type: string;
+            /** Value */
+            value?: unknown;
+        };
+        /** ConfigFieldsView */
+        ConfigFieldsView: {
+            /** Fields */
+            fields: components["schemas"]["ConfigFieldView"][];
+        };
         /** ConfigNodeView */
         ConfigNodeView: {
             /** Kind */
@@ -2126,13 +3446,22 @@ export interface components {
             patch?: {
                 [key: string]: unknown;
             };
+            /** Remove */
+            remove?: string[];
         };
         /** ConfigPreviewView */
         ConfigPreviewView: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
             /** Approval Gated */
             approval_gated: string[];
             /** Changes */
             changes: components["schemas"]["PreviewChangeView"][];
+            /** Errors */
+            errors?: components["schemas"]["FieldErrorView"][];
             /** Locked */
             locked: {
                 [key: string]: string;
@@ -2143,8 +3472,12 @@ export interface components {
             provenance: {
                 [key: string]: string;
             };
+            /** Redundant */
+            redundant?: components["schemas"]["InheritedValueView"][];
             /** Requires Approval */
             requires_approval: boolean;
+            /** Reverts */
+            reverts?: components["schemas"]["InheritedValueView"][];
             /** Values */
             values: {
                 [key: string]: unknown;
@@ -2183,6 +3516,21 @@ export interface components {
              */
             won: boolean;
         };
+        /**
+         * ContextSectionView
+         * @description One named section: what it says, and which level said it.
+         */
+        ContextSectionView: {
+            /** Body */
+            body: string;
+            /** Name */
+            name: string;
+            /**
+             * Provenance
+             * @default
+             */
+            provenance: string;
+        };
         /** ContributionView */
         ContributionView: {
             /**
@@ -2197,6 +3545,41 @@ export interface components {
             /** Observed At */
             observed_at?: string | null;
         };
+        /**
+         * CorrelatedChangeView
+         * @description One change that landed in the window, and what connects it to this resource.
+         *
+         *     ``strength`` and ``temporal_only`` are both served, and the redundancy is
+         *     deliberate: the first is what the panel groups on and the second is what a
+         *     client that has never met a new strength still renders correctly.
+         */
+        CorrelatedChangeView: {
+            /** Applied */
+            applied: boolean;
+            /** Author */
+            author: string;
+            /** Change Id */
+            change_id: string;
+            /** Component */
+            component: string;
+            /** Instant */
+            instant: string;
+            /** Message */
+            message: string;
+            /** Paths */
+            paths?: string[];
+            /**
+             * Source
+             * @default
+             */
+            source: string;
+            /** Strength */
+            strength: string;
+            /** Temporal Only */
+            temporal_only: boolean;
+            /** Why */
+            why: string;
+        };
         /** CreateInvestigationRequest */
         CreateInvestigationRequest: {
             /**
@@ -2210,6 +3593,26 @@ export interface components {
             };
             /** Objective */
             objective: string;
+        };
+        /**
+         * CreatePrincipalRequest
+         * @description A new person, with the password they will sign in with locally.
+         *
+         *     Creation only. There is no field here for a role: granting one is a
+         *     second request, through ``POST /identity/grants``, which needs the same
+         *     permission this route does and leaves its own audit row. A route that
+         *     could create a principal and hand it a role in the same call would be a
+         *     route that could mint an account holding more than its caller ever had
+         *     to be granted anything to obtain — this one cannot, because it never
+         *     grants at all.
+         */
+        CreatePrincipalRequest: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
         };
         /** CreateScheduleRequest */
         CreateScheduleRequest: {
@@ -2232,18 +3635,131 @@ export interface components {
              */
             timezone: string;
         };
-        /** CredentialFieldView */
-        CredentialFieldView: {
-            /** Help */
-            help: string;
-            /** Label */
-            label: string;
-            /** Name */
-            name: string;
-            /** Required */
-            required: boolean;
-            /** Secret */
-            secret: boolean;
+        /**
+         * CredentialDeleteView
+         * @description What disconnecting removed. Nothing here a value could ever have sat in.
+         */
+        CredentialDeleteView: {
+            /** Integration */
+            integration: string;
+            /** Versions Removed */
+            versions_removed: number;
+        };
+        /**
+         * CredentialWriteRequest
+         * @description A flat map of field name to value, checked against the vendor's own schema.
+         *
+         *     Flat rather than nested, because a credential is a set of named strings and
+         *     a shape with room for anything else would be a shape a secret could be
+         *     smuggled through under a key nothing validates.
+         */
+        CredentialWriteRequest: {
+            /** Values */
+            values?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * CredentialWriteView
+         * @description What was written, described without any part of it being readable.
+         *
+         *     There is no field here a value could sit in, which is the same argument
+         *     ``CredentialVersion`` makes one layer down: the type is the guarantee rather
+         *     than a rule somebody has to remember when adding a key.
+         */
+        CredentialWriteView: {
+            /** Fields */
+            fields: string[];
+            /** Integration */
+            integration: string;
+            /** State */
+            state: string;
+            /** Usable */
+            usable: boolean;
+            /** Version */
+            version: number;
+        };
+        /** DecisionRequest */
+        DecisionRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Verdict */
+            verdict: string;
+        };
+        /** DecisionResult */
+        DecisionResult: {
+            /**
+             * Applied
+             * @default
+             */
+            applied: string;
+            /** Proposal Id */
+            proposal_id: string;
+            /** State */
+            state: string;
+        };
+        /**
+         * DeliveryView
+         * @description One crossing of the boundary, as a screen renders it.
+         */
+        DeliveryView: {
+            /**
+             * Attempt
+             * @default 1
+             */
+            attempt: number;
+            /** Delivery Id */
+            delivery_id: string;
+            /** Detail */
+            detail?: {
+                [key: string]: string;
+            };
+            /** Direction */
+            direction: string;
+            /**
+             * Event Type
+             * @default
+             */
+            event_type: string;
+            /**
+             * Incident Id
+             * @default
+             */
+            incident_id: string;
+            /**
+             * Matched Rule
+             * @default
+             */
+            matched_rule: string;
+            /** Occurred At */
+            occurred_at: string;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Resource Id
+             * @default
+             */
+            resource_id: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+            /** Source */
+            source: string;
+            /**
+             * Team Node Id
+             * @default
+             */
+            team_node_id: string;
         };
         /** DemoRemovalView */
         DemoRemovalView: {
@@ -2299,6 +3815,50 @@ export interface components {
             /** State */
             state: string;
         };
+        /**
+         * DestinationView
+         * @description One place results go, and the policy that decides how much of them.
+         */
+        DestinationView: {
+            /** Channel */
+            channel: string;
+            /** Destination Id */
+            destination_id: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Events */
+            events?: string[];
+            /**
+             * Masking Policy
+             * @default
+             */
+            masking_policy: string;
+            /**
+             * Unconfigurable Reason
+             * @default
+             */
+            unconfigurable_reason: string;
+        };
+        /** DestinationsView */
+        DestinationsView: {
+            /** Destinations */
+            destinations?: components["schemas"]["DestinationView"][];
+            /** Events */
+            events?: string[];
+            /**
+             * Unconfigurable Reason
+             * @default
+             */
+            unconfigurable_reason: string;
+        };
         /** DetectorListView */
         DetectorListView: {
             /** Detectors */
@@ -2331,6 +3891,21 @@ export interface components {
             last_verdict: string;
             /** Name */
             name: string;
+            /**
+             * Origin
+             * @default
+             */
+            origin: string;
+            /**
+             * Origin Excerpt
+             * @default
+             */
+            origin_excerpt: string;
+            /**
+             * Proposed
+             * @default false
+             */
+            proposed: boolean;
             /** Severity */
             severity: string;
             /** Signal */
@@ -2355,6 +3930,135 @@ export interface components {
             settings?: string[];
             /** Stage */
             stage: string;
+        };
+        /**
+         * DiscoveryPreviewRequest
+         * @description What to preview, and what to place its resources into.
+         *
+         *     ``zones`` is optional and is a plain CIDR-to-name mapping rather than an
+         *     ingestion of the operator's inventory: the preview happens before anything
+         *     is stored, so it must be answerable from what the request carries plus what
+         *     the provider says. A preview with no zone map reports every resource as
+         *     unplaced, which is honest rather than empty.
+         */
+        DiscoveryPreviewRequest: {
+            /** Integration */
+            integration: string;
+            /** Zones */
+            zones?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * DiscoveryPreviewView
+         * @description What a sweep would find, counted, with nothing written.
+         */
+        DiscoveryPreviewView: {
+            /** By Kind */
+            by_kind?: {
+                [key: string]: number;
+            };
+            /** By Zone */
+            by_zone?: {
+                [key: string]: number;
+            };
+            /** Complete */
+            complete: boolean;
+            /** Guests */
+            guests: number;
+            /** Integration */
+            integration: string;
+            /** Nodes */
+            nodes: number;
+            /** Provider Calls */
+            provider_calls: number;
+            /** Running */
+            running: number;
+            /** Total */
+            total: number;
+            /**
+             * Unplaced
+             * @default 0
+             */
+            unplaced: number;
+            /** Zones */
+            zones: number;
+        };
+        /**
+         * DiscoveryReportListView
+         * @description One report per source that has ever been swept, in name order.
+         */
+        DiscoveryReportListView: {
+            /** Reports */
+            reports?: components["schemas"]["DiscoveryReportView"][];
+        };
+        /**
+         * DiscoveryReportView
+         * @description The last sweep of one source, and what it disagreed with the file about.
+         */
+        DiscoveryReportView: {
+            /**
+             * Annotated
+             * @default 0
+             */
+            annotated: number;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Divergences */
+            divergences?: components["schemas"]["DivergenceView"][];
+            /** Outcome */
+            outcome: string;
+            /**
+             * Provider Calls
+             * @default 0
+             */
+            provider_calls: number;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Seen Count
+             * @default 0
+             */
+            seen_count: number;
+            /** Source */
+            source: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+        };
+        /**
+         * DiscoverySourceView
+         * @description The sweep this deployment will now run, and when it next comes due.
+         */
+        DiscoverySourceView: {
+            /** Integration */
+            integration: string;
+            /** Interval Seconds */
+            interval_seconds: number;
+            /** Job Id */
+            job_id: string;
+            /**
+             * Next Run At
+             * Format: date-time
+             */
+            next_run_at: string;
+        };
+        /**
+         * DivergenceView
+         * @description One disagreement between the declared inventory and the live source.
+         */
+        DivergenceView: {
+            /** Detail */
+            detail: string;
+            /** Kind */
+            kind: string;
+            /** Subject */
+            subject: string;
         };
         /** DryRunRequest */
         DryRunRequest: {
@@ -2402,6 +4106,13 @@ export interface components {
             token_id: string;
             /** User Id */
             user_id: string;
+        };
+        /** EffectView */
+        EffectView: {
+            /** Mechanism */
+            mechanism: string;
+            /** Target */
+            target: string;
         };
         /** EffectiveConfigView */
         EffectiveConfigView: {
@@ -2533,6 +4244,25 @@ export interface components {
             total: number;
         };
         /**
+         * ExcludedToolView
+         * @description A tool that was offered and is not available, and why.
+         */
+        ExcludedToolView: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Qualified Name */
+            qualified_name: string;
+            /** Reason */
+            reason: string;
+            /** Server */
+            server: string;
+            /** Tool */
+            tool: string;
+        };
+        /**
          * ExplainRequest
          * @description A hypothetical action, asked about before anybody proposes it.
          */
@@ -2599,6 +4329,16 @@ export interface components {
              */
             winning_rule: string;
         };
+        /**
+         * FieldErrorView
+         * @description One reason a document would be refused, at the path it is about.
+         */
+        FieldErrorView: {
+            /** Message */
+            message: string;
+            /** Path */
+            path: string;
+        };
         /** FindingView */
         FindingView: {
             /** Action */
@@ -2614,6 +4354,36 @@ export interface components {
         GrantList: {
             /** Grants */
             grants: components["schemas"]["GrantView"][];
+        };
+        /**
+         * GrantRemovedView
+         * @description Which grant went, and whose it was.
+         */
+        GrantRemovedView: {
+            /** Grant Id */
+            grant_id: string;
+            /** Node Id */
+            node_id?: string | null;
+            /** Principal Id */
+            principal_id: string;
+            /** Role */
+            role: string;
+        };
+        /**
+         * GrantRequest
+         * @description A role for somebody, somewhere in the tree.
+         *
+         *     ``node_id`` absent means the organisation as a whole, which is a different
+         *     thing from a grant at the root node: an organisation-wide grant survives the
+         *     tree being reshaped and a grant at a node does not.
+         */
+        GrantRequest: {
+            /** Node Id */
+            node_id?: string | null;
+            /** Principal Id */
+            principal_id: string;
+            /** Role */
+            role: string;
         };
         /** GrantView */
         GrantView: {
@@ -2673,6 +4443,7 @@ export interface components {
             /** Actions */
             actions?: string[];
             incident: components["schemas"]["IncidentSummaryView"];
+            investigation?: components["schemas"]["InvestigationSummaryView"] | null;
             /** Observations */
             observations?: components["schemas"]["ObservationView"][];
             /** Subjects */
@@ -2746,15 +4517,117 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** IngressSourceListView */
+        IngressSourceListView: {
+            /**
+             * Delivery Permission
+             * @default webhook.deliver
+             */
+            delivery_permission: string;
+            /** Sources */
+            sources?: components["schemas"]["IngressSourceView"][];
+        };
+        /**
+         * IngressSourceStatusView
+         * @description One receiver: where to point it, and whether anything ever arrived.
+         */
+        IngressSourceStatusView: {
+            /** Counts */
+            counts?: {
+                [key: string]: number;
+            };
+            /** Expects */
+            expects: string;
+            /**
+             * Last Delivery At
+             * @default
+             */
+            last_delivery_at: string;
+            /**
+             * Last Outcome
+             * @default
+             */
+            last_outcome: string;
+            /**
+             * Never Delivered
+             * @default true
+             */
+            never_delivered: boolean;
+            /** Path */
+            path: string;
+            /** Recent Rejections */
+            recent_rejections?: components["schemas"]["DeliveryView"][];
+            sample?: components["schemas"]["SampleView"] | null;
+            /** Source */
+            source: string;
+            /** Url */
+            url: string;
+            /** Verification */
+            verification: string;
+            /**
+             * Week Count
+             * @default 0
+             */
+            week_count: number;
+        };
+        /**
+         * IngressSourceView
+         * @description One receiver an alert router can be pointed at.
+         */
+        IngressSourceView: {
+            /** Expects */
+            expects: string;
+            /** Path */
+            path: string;
+            /** Receiver Yaml */
+            receiver_yaml?: string | null;
+            /** Source */
+            source: string;
+            /** Url */
+            url: string;
+            /** Verification */
+            verification: string;
+        };
+        /** IngressStatusView */
+        IngressStatusView: {
+            /** Sources */
+            sources?: components["schemas"]["IngressSourceStatusView"][];
+            /**
+             * Window Hours
+             * @default 24
+             */
+            window_hours: number;
+        };
+        /**
+         * InheritedValueView
+         * @description One path, a value, and the node that supplies it from above.
+         */
+        InheritedValueView: {
+            /** Inherited From */
+            inherited_from: string;
+            /** Path */
+            path: string;
+            /** Value */
+            value?: unknown;
+        };
         /** IntegrationList */
         IntegrationList: {
             /** Integrations */
             integrations: components["schemas"]["IntegrationView"][];
+            /** Known Gaps */
+            known_gaps?: components["schemas"]["KnownGapView"][];
+        };
+        /** IntegrationReadinessView */
+        IntegrationReadinessView: {
+            /** Name */
+            name: string;
+            /** Readiness */
+            readiness: string;
         };
         /** IntegrationSchemaView */
         IntegrationSchemaView: {
             /** Credential Fields */
-            credential_fields: components["schemas"]["CredentialFieldView"][];
+            credential_fields: components["schemas"]["gateway__http__routes__config__CredentialFieldView"][];
             /** Display Name */
             display_name: string;
             /** Hosts */
@@ -2762,7 +4635,7 @@ export interface components {
             /** Name */
             name: string;
             /** Settings Fields */
-            settings_fields: components["schemas"]["CredentialFieldView"][];
+            settings_fields: components["schemas"]["gateway__http__routes__config__CredentialFieldView"][];
         };
         /** IntegrationSchemasView */
         IntegrationSchemasView: {
@@ -2778,12 +4651,35 @@ export interface components {
             /** Usable */
             usable: boolean;
         };
+        /**
+         * IntegrationVerificationReport
+         * @description What an integration's own verifier found, in the vendor's own terms.
+         *
+         *     ``report`` is deliberately untyped at this layer. Each verifier answers the
+         *     question its vendor can actually be asked — Proxmox reports the token's
+         *     effective privileges because Proxmox has an endpoint for them; another
+         *     vendor reports which probes were permitted because it has not. A schema
+         *     imposed here would either be the union of every vendor's answer or the
+         *     intersection, and the intersection is a boolean.
+         */
+        IntegrationVerificationReport: {
+            /** Integration */
+            integration: string;
+            /** Report */
+            report: {
+                [key: string]: unknown;
+            };
+        };
         /** IntegrationView */
         IntegrationView: {
             /** Capabilities */
             capabilities: string[];
             /** Category */
             category: string;
+            /** Display Name */
+            display_name: string;
+            /** Fields */
+            fields: components["schemas"]["gateway__http__routes__integrations__CredentialFieldView"][];
             /** Health */
             health: string;
             /** Health Detail */
@@ -2796,12 +4692,11 @@ export interface components {
             name: string;
             /** Parity */
             parity: string;
+            /** Permissions */
+            permissions: components["schemas"]["RequiredPermissionView"][];
             /** Regions */
             regions: string[];
-            /** Required Credentials */
-            required_credentials: string[];
-            /** Required Permissions */
-            required_permissions: string[];
+            suggested?: components["schemas"]["SuggestionView"] | null;
             /** Summary */
             summary: string;
         };
@@ -2850,6 +4745,23 @@ export interface components {
             /** Trigger */
             trigger: string;
         };
+        /**
+         * InvestigationSummaryView
+         * @description How many steps the investigation took, how long it ran, and what it cost.
+         *
+         *     ``duration_ms`` and ``cost`` are ``None`` — never a fabricated zero — while
+         *     the run has not finished, or while nothing it did carried a priced figure.
+         *     ``step_count`` gets no such treatment: a run that has taken no turns yet
+         *     has taken zero turns, which is a fact worth showing exactly as it is.
+         */
+        InvestigationSummaryView: {
+            /** Cost */
+            cost?: number | null;
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Step Count */
+            step_count: number;
+        };
         /** IssueTokenRequest */
         IssueTokenRequest: {
             /** Description */
@@ -2860,6 +4772,8 @@ export interface components {
             name: string;
             /** Node Id */
             node_id?: string | null;
+            /** Permissions */
+            permissions?: string[];
             /**
              * User Id
              * @default
@@ -2870,7 +4784,47 @@ export interface components {
         IssuedTokenView: {
             /** Secret */
             secret: string;
+            /** Superseded */
+            superseded?: string[];
             token: components["schemas"]["TokenView"];
+        };
+        /**
+         * ItemFieldView
+         * @description One field inside an entry of an ordered list of objects.
+         *
+         *     A separate model from ``ConfigFieldView`` because half of that one is about
+         *     a node — provenance, whether this node sets it, which node locks it — and
+         *     none of it is true of a field *inside* a list entry. A list replaces
+         *     entirely, so the entry inherits the list's answer to all of those and has
+         *     none of its own.
+         */
+        ItemFieldView: {
+            /** Allowed Values */
+            allowed_values?: unknown[] | null;
+            /** Default */
+            default?: unknown;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Help
+             * @default
+             */
+            help: string;
+            /** Label */
+            label: string;
+            /** Max Length */
+            max_length?: number | null;
+            /** Maximum */
+            maximum?: number | null;
+            /** Minimum */
+            minimum?: number | null;
+            /** Path */
+            path: string;
+            /** Type */
+            type: string;
         };
         /**
          * KillSwitchRequest
@@ -2936,6 +4890,56 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /**
+         * KnownGapView
+         * @description A vendor this catalogue does not cover, and why it does not.
+         *
+         *     ``cause`` separates "the architecture cannot reach this" from "this was
+         *     weighed and decided against". Collapsing them would turn a decision somebody
+         *     can reopen into a limitation nobody can.
+         */
+        KnownGapView: {
+            /** Category */
+            category: string;
+            /** Cause */
+            cause: string;
+            /** Display Name */
+            display_name: string;
+            /** Integration */
+            integration: string;
+            /** Reason */
+            reason: string;
+            /** Resolution */
+            resolution: string;
+        };
+        /**
+         * LinkedDocumentView
+         * @description One document somebody has written about this resource.
+         *
+         *     ``matched`` and ``matched_on`` are served rather than kept internal because
+         *     they are what lets an operator dismiss a link that is wrong: a list with no
+         *     reason beside each entry is a list that has to be trusted whole.
+         */
+        LinkedDocumentView: {
+            /** Document Id */
+            document_id: string;
+            /** Document Type */
+            document_type: string;
+            /** Location */
+            location: string;
+            /**
+             * Matched
+             * @default
+             */
+            matched: string;
+            /**
+             * Matched On
+             * @default
+             */
+            matched_on: string;
+            /** Title */
+            title: string;
+        };
         /** LivenessView */
         LivenessView: {
             /** Live */
@@ -2962,6 +4966,62 @@ export interface components {
         MemoryStats: {
             /** Episode Count */
             episode_count: number;
+        };
+        /**
+         * MissingSignalView
+         * @description A question nothing configured answers, and what would answer it.
+         */
+        MissingSignalView: {
+            /** Question */
+            question: string;
+            /** Wanted */
+            wanted?: string[];
+            /** Why */
+            why: string;
+        };
+        /**
+         * ModelCapabilityView
+         * @description One model a provider's onboarding lists, and what the registry knows about it.
+         *
+         *     ``supports_tools`` is ``None`` when the registry holds no row for this model
+         *     at all — a name the onboarding lists that nothing has described yet. That is
+         *     never presented as "does not support": a console reading it that way would
+         *     send an operator away from a model that might work perfectly well, on the
+         *     strength of a gap in this build's own catalogue rather than a fact about the
+         *     model.
+         */
+        ModelCapabilityView: {
+            /** Model Id */
+            model_id: string;
+            /** Supports Tools */
+            supports_tools?: boolean | null;
+        };
+        /**
+         * ModelListingView
+         * @description The models one provider currently offers, curated, and where the list came from.
+         */
+        ModelListingView: {
+            /** Models */
+            models: components["schemas"]["ModelOfferingView"][];
+            /** Provider Id */
+            provider_id: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Source */
+            source: string;
+        };
+        /**
+         * ModelOfferingView
+         * @description One model a provider's listing offers, by the name the endpoint gave it.
+         */
+        ModelOfferingView: {
+            /** Display Name */
+            display_name: string;
+            /** Model Id */
+            model_id: string;
         };
         /** ObservationListView */
         ObservationListView: {
@@ -2993,6 +5053,99 @@ export interface components {
             subject: string;
             /** Verdict */
             verdict: string;
+        };
+        /**
+         * OperatingContextPatch
+         * @description A pending context, as a client holds it before deciding to save it.
+         */
+        OperatingContextPatch: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Remove */
+            remove?: string[];
+            /** Sections */
+            sections?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * OperatingContextPreviewView
+         * @description The prompt a pending context would produce, and everything wrong with it.
+         */
+        OperatingContextPreviewView: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /**
+             * Context
+             * @default
+             */
+            context: string;
+            /** Errors */
+            errors?: components["schemas"]["FieldErrorView"][];
+            /** Node Id */
+            node_id: string;
+            /**
+             * Over Budget
+             * @default false
+             */
+            over_budget: boolean;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /**
+             * Token Budget
+             * @default 0
+             */
+            token_budget: number;
+            /**
+             * Tokens Used
+             * @default 0
+             */
+            tokens_used: number;
+        };
+        /**
+         * OperatingContextView
+         * @description A node's operating context, its cost, and the prompt it becomes.
+         */
+        OperatingContextView: {
+            /**
+             * Context
+             * @default
+             */
+            context: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Node Id */
+            node_id: string;
+            /**
+             * Prompt
+             * @default
+             */
+            prompt: string;
+            /** Roles */
+            roles?: string[];
+            /** Sections */
+            sections?: components["schemas"]["ContextSectionView"][];
+            /** Template */
+            template?: components["schemas"]["ContextSectionView"][];
+            /**
+             * Token Budget
+             * @default 0
+             */
+            token_budget: number;
+            /**
+             * Tokens Used
+             * @default 0
+             */
+            tokens_used: number;
         };
         /** OutcomeListView */
         OutcomeListView: {
@@ -3091,6 +5244,21 @@ export interface components {
             verified_at?: string | null;
         };
         /**
+         * OutlookView
+         * @description One reading per risk class, least dangerous first.
+         */
+        OutlookView: {
+            /** Classes */
+            classes?: components["schemas"]["ClassOutlookView"][];
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Node Id */
+            node_id: string;
+        };
+        /**
          * OverrideRequest
          * @description A raise in autonomy that ends by itself.
          *
@@ -3140,6 +5308,16 @@ export interface components {
              */
             team_node_id: string;
         };
+        /**
+         * OverrideRevokedView
+         * @description Which override went, and from whose document.
+         */
+        OverrideRevokedView: {
+            /** Name */
+            name: string;
+            /** Node Id */
+            node_id: string;
+        };
         /** OverrideView */
         OverrideView: {
             /**
@@ -3165,6 +5343,16 @@ export interface components {
             scope: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * PipelineView
+         * @description The investigation's shape, and the roles a deployment may bind.
+         */
+        PipelineView: {
+            /** Model Roles */
+            model_roles?: string[];
+            /** Stages */
+            stages?: components["schemas"]["StageView"][];
         };
         /**
          * PolicyDocumentView
@@ -3324,6 +5512,17 @@ export interface components {
              */
             team_node_id: string;
         };
+        /** PriorRejectionView */
+        PriorRejectionView: {
+            /** Decided At */
+            decided_at?: string | null;
+            /** Decided By */
+            decided_by: string;
+            /** Proposal Id */
+            proposal_id: string;
+            /** Reason */
+            reason: string;
+        };
         /** ProblemListView */
         ProblemListView: {
             /** Problems */
@@ -3382,6 +5581,170 @@ export interface components {
             /** Window Seconds */
             window_seconds: number;
         };
+        /**
+         * ProposalCount
+         * @description What the sidebar badge and the dashboard band both read.
+         */
+        ProposalCount: {
+            /** Pending */
+            pending: number;
+        };
+        /** ProposalList */
+        ProposalList: {
+            acceptance: components["schemas"]["AcceptanceView"];
+            /** Proposals */
+            proposals: components["schemas"]["ProposalView"][];
+        };
+        /** ProposalView */
+        ProposalView: {
+            /**
+             * Correlation Id
+             * @default
+             */
+            correlation_id: string;
+            /** Decided At */
+            decided_at?: string | null;
+            /**
+             * Decided By
+             * @default
+             */
+            decided_by: string;
+            effect: components["schemas"]["EffectView"];
+            /** Evidence */
+            evidence?: string[];
+            /** Node Id */
+            node_id: string;
+            /** Payload */
+            payload?: {
+                [key: string]: unknown;
+            };
+            /** Prior Rejections */
+            prior_rejections?: components["schemas"]["PriorRejectionView"][];
+            /** Proposal Id */
+            proposal_id: string;
+            /** Proposal Type */
+            proposal_type: string;
+            /** Proposed At */
+            proposed_at?: string | null;
+            /** Rationale */
+            rationale: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Run Id
+             * @default
+             */
+            run_id: string;
+            /** State */
+            state: string;
+            /** Summary */
+            summary: string;
+        };
+        /**
+         * ProviderDetailView
+         * @description One provider in full: everything a form or a prompt needs to set it up.
+         */
+        ProviderDetailView: {
+            /** Configured */
+            configured: boolean;
+            /** Default Model */
+            default_model: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Display Name */
+            display_name: string;
+            /** Fields */
+            fields: components["schemas"]["gateway__http__routes__providers__CredentialFieldView"][];
+            /**
+             * Guidance
+             * @default
+             */
+            guidance: string;
+            /**
+             * Install Hint
+             * @default
+             */
+            install_hint: string;
+            /** Local */
+            local: boolean;
+            /** Model Capabilities */
+            model_capabilities: components["schemas"]["ModelCapabilityView"][];
+            /** Models */
+            models: string[];
+            /** Provider Id */
+            provider_id: string;
+            /** Verified */
+            verified: boolean;
+            /**
+             * Where To Get It
+             * @default
+             */
+            where_to_get_it: string;
+        };
+        /** ProviderList */
+        ProviderList: {
+            /** Providers */
+            providers: components["schemas"]["ProviderView"][];
+        };
+        /**
+         * ProviderVerificationView
+         * @description What a real request to the provider's endpoint came back with.
+         *
+         *     ``detail`` is the sentence — the working configuration when it passed, the
+         *     limitation when it did not. Never "verification failed", which is a
+         *     restatement rather than something anybody can act on.
+         */
+        ProviderVerificationView: {
+            /** Alternatives */
+            alternatives: string[];
+            /** Checks */
+            checks?: components["schemas"]["CheckResultView"][];
+            /** Detail */
+            detail: string;
+            /** Model Id */
+            model_id: string;
+            /** Provider Id */
+            provider_id: string;
+            /**
+             * Remedy
+             * @default
+             */
+            remedy: string;
+            /** Verified */
+            verified: boolean;
+        };
+        /**
+         * ProviderView
+         * @description One provider, its descriptor and this deployment's state for it.
+         *
+         *     There is no field here a stored credential could be read back into, which is
+         *     what lets the whole document be served to anyone who may read configuration.
+         */
+        ProviderView: {
+            /** Configured */
+            configured: boolean;
+            /** Default Model */
+            default_model: string;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Display Name */
+            display_name: string;
+            /** Local */
+            local: boolean;
+            /** Provider Id */
+            provider_id: string;
+            /** Verified */
+            verified: boolean;
+        };
         /** QueueMessageRequest */
         QueueMessageRequest: {
             /** Text */
@@ -3427,15 +5790,87 @@ export interface components {
             reason: string;
         };
         /**
+         * RequiredPermissionView
+         * @description One permission the credential has to be allowed, exactly as declared.
+         *
+         *     Replaces the bare list of permission names this route used to serve. A
+         *     name alone left an operator to look up what it grants and where it is
+         *     turned on; this is the vendor's own declaration
+         *     (`integrations._verification.permissions.RequiredPermission`), read
+         *     through the gateway rather than copied by the console. Every one of these
+         *     is probed, not merely declared — `tools.verify_integrations` makes the
+         *     call each names.
+         */
+        RequiredPermissionView: {
+            /** Capabilities */
+            capabilities?: string[];
+            /** Grants */
+            grants: string;
+            /** Name */
+            name: string;
+            /**
+             * Where
+             * @default
+             */
+            where: string;
+        };
+        /**
+         * ResourceChangesView
+         * @description What changed under this resource, and the claim that goes with it.
+         *
+         *     ``statement`` is served rather than composed by the client, because it is
+         *     the same sentence the investigation's own report carries — and a console
+         *     that phrased it differently would be a second opinion nobody asked for.
+         *
+         *     ``answered`` is the field that stops an empty panel being read as "nothing
+         *     has changed". A deployment that consulted nothing has established nothing.
+         */
+        ResourceChangesView: {
+            /**
+             * Answered
+             * @default false
+             */
+            answered: boolean;
+            /** Degraded */
+            degraded?: string[];
+            /** Entries */
+            entries?: components["schemas"]["CorrelatedChangeView"][];
+            /** Sources */
+            sources?: string[];
+            /**
+             * Statement
+             * @default
+             */
+            statement: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+            /**
+             * Window Hours
+             * @default 0
+             */
+            window_hours: number;
+        };
+        /**
          * ResourceDetailView
          * @description One resource's page: its state, why, its history, and what touched it.
          */
         ResourceDetailView: {
+            changes?: components["schemas"]["ResourceChangesView"];
             /** Children */
             children?: components["schemas"]["ResourceSummaryView"][];
             /** Contributions */
             contributions?: components["schemas"]["ContributionView"][];
             derivation?: components["schemas"]["DerivationView"] | null;
+            /** Documents */
+            documents?: components["schemas"]["LinkedDocumentView"][];
             /** Freshness Seconds */
             freshness_seconds: number;
             parent?: components["schemas"]["ResourceSummaryView"] | null;
@@ -3444,6 +5879,7 @@ export interface components {
             resource: components["schemas"]["ResourceSummaryView"];
             /** Rollup Rule */
             rollup_rule: string;
+            signals?: components["schemas"]["SignalsView"];
             /** Transitions */
             transitions?: components["schemas"]["TransitionView"][];
         };
@@ -3463,6 +5899,11 @@ export interface components {
             attributes?: {
                 [key: string]: unknown;
             };
+            /**
+             * Correlation Key
+             * @default
+             */
+            correlation_key: string;
             /** Display Name */
             display_name: string;
             /**
@@ -3519,6 +5960,24 @@ export interface components {
             /** Token Ids */
             token_ids: string[];
         };
+        /**
+         * RoleList
+         * @description Every role, least privileged first.
+         */
+        RoleList: {
+            /** Roles */
+            roles: components["schemas"]["RoleView"][];
+        };
+        /**
+         * RoleView
+         * @description One role this deployment declares, and what holding it means.
+         */
+        RoleView: {
+            /** Name */
+            name: string;
+            /** Permissions */
+            permissions: string[];
+        };
         /** RollbackPlanView */
         RollbackPlanView: {
             /** Approval Id */
@@ -3554,6 +6013,47 @@ export interface components {
             /** Ordinal */
             ordinal: number;
         };
+        /**
+         * RuleView
+         * @description One ordered rule, as the editor renders it.
+         */
+        RuleView: {
+            /**
+             * Action
+             * @default
+             */
+            action: string;
+            /** Criticalities */
+            criticalities?: string[];
+            /**
+             * Is Catch All
+             * @default false
+             */
+            is_catch_all: boolean;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Resources */
+            resources?: string[];
+            /** Rule Id */
+            rule_id: string;
+            /** Sources */
+            sources?: string[];
+            /**
+             * Team
+             * @default
+             */
+            team: string;
+            /** Zones */
+            zones?: string[];
+        };
+        /** RulesView */
+        RulesView: {
+            /** Rules */
+            rules?: components["schemas"]["RuleView"][];
+        };
         /** RunList */
         RunList: {
             /** Runs */
@@ -3571,6 +6071,51 @@ export interface components {
             total_tokens: number;
             /** Turns */
             turns: components["schemas"]["ThreadTurnView"][];
+        };
+        /**
+         * SampleView
+         * @description The last payload a source sent, after masking, and which policy did it.
+         */
+        SampleView: {
+            /** Body */
+            body: string;
+            /** Captured At */
+            captured_at: string;
+            /** Masking Policy */
+            masking_policy: string;
+            /**
+             * Truncated
+             * @default false
+             */
+            truncated: boolean;
+        };
+        /**
+         * ScheduleFiringView
+         * @description One instant a cron expression would fire at, resolved and nothing else.
+         */
+        ScheduleFiringView: {
+            /** At */
+            at: string;
+            /**
+             * Shifted
+             * @default false
+             */
+            shifted: boolean;
+        };
+        /** SchedulePreviewRequest */
+        SchedulePreviewRequest: {
+            /** Cron */
+            cron: string;
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /** SchedulePreviewView */
+        SchedulePreviewView: {
+            /** Firings */
+            firings: components["schemas"]["ScheduleFiringView"][];
         };
         /** ScheduleView */
         ScheduleView: {
@@ -3695,6 +6240,22 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * SignalSourceView
+         * @description Which source answers one question about this resource, and by what key.
+         */
+        SignalSourceView: {
+            /** Detail */
+            detail: string;
+            /** Integration */
+            integration: string;
+            /** Key */
+            key: string;
+            /** Keyed By */
+            keyed_by: string;
+            /** Question */
+            question: string;
+        };
         /** SignalView */
         SignalView: {
             /** Name */
@@ -3712,12 +6273,239 @@ export interface components {
             /** Value */
             value: string;
         };
+        /**
+         * SignalsView
+         * @description Where an investigation of this resource should go for each question.
+         *
+         *     Two lists rather than one with nulls in it. "Prometheus answers this, keyed
+         *     by vmid" and "nothing answers this, loki or openobserve would" are different
+         *     kinds of statement, and a client that had to inspect a field to tell them
+         *     apart would render one as the other on the day somebody adds a field.
+         */
+        SignalsView: {
+            /** Missing */
+            missing?: components["schemas"]["MissingSignalView"][];
+            /** Sources */
+            sources?: components["schemas"]["SignalSourceView"][];
+        };
+        /**
+         * SimulationView
+         * @description What today's rules would do with this payload, before anything is saved.
+         */
+        SimulationView: {
+            /** Action */
+            action: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Rule Id */
+            rule_id: string;
+            /** Signals */
+            signals?: {
+                [key: string]: string;
+            };
+            /** Team */
+            team: string;
+        };
         /** SkillView */
         SkillView: {
             /** Description */
             description: string;
             /** Name */
             name: string;
+        };
+        /** SsoClaimView */
+        SsoClaimView: {
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string;
+            /** Groups */
+            groups: string;
+            /** Subject */
+            subject: string;
+        };
+        /**
+         * SsoTestRequest
+         * @description The claim set the provider returned for a test user.
+         */
+        SsoTestRequest: {
+            /** Claims */
+            claims?: {
+                [key: string]: unknown;
+            };
+        };
+        /** SsoTestView */
+        SsoTestView: {
+            /**
+             * Email
+             * @default
+             */
+            email: string;
+            /** Groups */
+            groups?: string[];
+            /**
+             * Mapped Node Id
+             * @default
+             */
+            mapped_node_id: string;
+            /** Problems */
+            problems?: string[];
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /** Succeeded */
+            succeeded: boolean;
+            /**
+             * Used Default
+             * @default false
+             */
+            used_default: boolean;
+        };
+        /**
+         * SsoView
+         * @description The configuration, and the two facts about it that decide what may happen.
+         */
+        SsoView: {
+            /**
+             * Authorisation Endpoint
+             * @default
+             */
+            authorisation_endpoint: string;
+            claims: components["schemas"]["SsoClaimView"];
+            /**
+             * Client Id
+             * @default
+             */
+            client_id: string;
+            /**
+             * Default Node Id
+             * @default
+             */
+            default_node_id: string;
+            /** Group To Node */
+            group_to_node?: {
+                [key: string]: string;
+            };
+            /**
+             * Is Active
+             * @default false
+             */
+            is_active: boolean;
+            /**
+             * Issuer
+             * @default
+             */
+            issuer: string;
+            /**
+             * Jwks Uri
+             * @default
+             */
+            jwks_uri: string;
+            /** Problems */
+            problems?: string[];
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Redirect Uri
+             * @default
+             */
+            redirect_uri: string;
+            /** Scopes */
+            scopes?: string[];
+            /**
+             * Token Endpoint
+             * @default
+             */
+            token_endpoint: string;
+            /**
+             * Verified
+             * @default false
+             */
+            verified: boolean;
+        };
+        /** SsoWriteRequest */
+        SsoWriteRequest: {
+            /**
+             * Authorisation Endpoint
+             * @default
+             */
+            authorisation_endpoint: string;
+            claims?: components["schemas"]["SsoClaimView"] | null;
+            /**
+             * Client Id
+             * @default
+             */
+            client_id: string;
+            /**
+             * Default Node Id
+             * @default
+             */
+            default_node_id: string;
+            /** Group To Node */
+            group_to_node?: {
+                [key: string]: string;
+            };
+            /**
+             * Issuer
+             * @default
+             */
+            issuer: string;
+            /**
+             * Jwks Uri
+             * @default
+             */
+            jwks_uri: string;
+            /**
+             * Provider
+             * @default
+             */
+            provider: string;
+            /**
+             * Redirect Uri
+             * @default
+             */
+            redirect_uri: string;
+            /** Scopes */
+            scopes?: string[];
+            /**
+             * Token Endpoint
+             * @default
+             */
+            token_endpoint: string;
+        };
+        /**
+         * StageView
+         * @description One stage: where it sits, what it reads, and what it is allowed to change.
+         */
+        StageView: {
+            /** Consults */
+            consults?: string[];
+            /**
+             * Dispatches Subagents
+             * @default false
+             */
+            dispatches_subagents: boolean;
+            /**
+             * Model Role
+             * @default
+             */
+            model_role: string;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            /** Summary */
+            summary: string;
+            /** Writes */
+            writes?: string[];
         };
         /**
          * SubjectRequest
@@ -3761,6 +6549,26 @@ export interface components {
             observed_at?: string | null;
             /** Resource Id */
             resource_id: string;
+        };
+        /**
+         * SuggestionView
+         * @description Where this deployment already found this vendor running.
+         *
+         *     Present only where the estate makes it obvious, which is the whole design:
+         *     a suggestion that had to be guessed is one an operator has to verify, and
+         *     then the alphabet would have been cheaper.
+         */
+        SuggestionView: {
+            /** Address */
+            address: string;
+            /** Because */
+            because: string;
+            /** From Resource */
+            from_resource: string;
+            /** Resource Kind */
+            resource_kind: string;
+            /** Resource Label */
+            resource_label: string;
         };
         /**
          * SuppressRequest
@@ -3877,6 +6685,16 @@ export interface components {
             detail: string;
             /** Kind */
             kind: string;
+            /**
+             * Query
+             * @default
+             */
+            query: string;
+            /**
+             * Result
+             * @default
+             */
+            result: string;
         };
         /** TokenList */
         TokenList: {
@@ -4004,6 +6822,31 @@ export interface components {
             /** Turn Id */
             turn_id: string;
         };
+        /** UnresolvedTargetListView */
+        UnresolvedTargetListView: {
+            /** Targets */
+            targets?: components["schemas"]["UnresolvedTargetView"][];
+        };
+        /**
+         * UnresolvedTargetView
+         * @description An alert that arrived for something this estate does not hold.
+         */
+        UnresolvedTargetView: {
+            /** Alert Name */
+            alert_name: string;
+            /** Incident Id */
+            incident_id: string;
+            /** Label */
+            label: string;
+            /** Observed At */
+            observed_at: string;
+            /** Value */
+            value: string;
+            /** Why */
+            why: string;
+            /** Zone */
+            zone: string;
+        };
         /** UpdateScheduleRequest */
         UpdateScheduleRequest: {
             /** Cron */
@@ -4041,6 +6884,79 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** CredentialFieldView */
+        gateway__http__routes__config__CredentialFieldView: {
+            /**
+             * Guide Url
+             * @default
+             */
+            guide_url: string;
+            /** Help */
+            help: string;
+            /** Label */
+            label: string;
+            /**
+             * Min Scope
+             * @default
+             */
+            min_scope: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Secret */
+            secret: boolean;
+        };
+        /**
+         * CredentialFieldView
+         * @description One credential field, exactly as a form renders it.
+         *
+         *     Replaces the bare list of field names this route used to serve. A name
+         *     alone left the console inventing a label and leaving "where do I get this"
+         *     and "what permission does it need" unanswered; this is the vendor's own
+         *     declaration (``platform.credentials.schemas.CredentialField``), read
+         *     through the gateway rather than copied by the console.
+         */
+        gateway__http__routes__integrations__CredentialFieldView: {
+            /**
+             * Guide Url
+             * @default
+             */
+            guide_url: string;
+            /** Help */
+            help: string;
+            /** Label */
+            label: string;
+            /**
+             * Min Scope
+             * @default
+             */
+            min_scope: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Secret */
+            secret: boolean;
+        };
+        /** CredentialFieldView */
+        gateway__http__routes__providers__CredentialFieldView: {
+            /**
+             * Environment Variable
+             * @default
+             */
+            environment_variable: string;
+            /** Help */
+            help: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Secret */
+            secret: boolean;
         };
     };
     responses: never;
@@ -4265,6 +7181,74 @@ export interface operations {
             };
         };
     };
+    add_grant_identity_grants_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrantView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_grant_identity_grants__grant_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                grant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrantRemovedView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_principals_identity_principals_get: {
         parameters: {
             query?: never;
@@ -4283,6 +7267,204 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_principal_identity_principals_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePrincipalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_roles_identity_roles_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_sso_identity_sso_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    write_sso_identity_sso_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SsoWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_sso_identity_sso_activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_sso_identity_sso_test_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SsoTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SsoTestView"];
                 };
             };
             /** @description Validation Error */
@@ -4432,6 +7614,37 @@ export interface operations {
             };
         };
     };
+    read_pipeline_v1_agent_pipeline_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_approvals_v1_approvals_get: {
         parameters: {
             query?: {
@@ -4499,6 +7712,43 @@ export interface operations {
             };
         };
     };
+    decide_approval_v1_approvals__approval_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalDecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     record_rollback_v1_approvals__approval_id__rollback_post: {
         parameters: {
             query?: never;
@@ -4519,6 +7769,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RollbackResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_kill_switch_v1_autonomy_kill_switch_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KillSwitchView"];
                 };
             };
             /** @description Validation Error */
@@ -4777,6 +8058,39 @@ export interface operations {
             };
         };
     };
+    read_outlook_v1_autonomy_policy__node_id__outlook_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutlookView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     grant_override_v1_autonomy_policy__node_id__overrides_post: {
         parameters: {
             query?: never;
@@ -4801,6 +8115,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OverrideView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_override_v1_autonomy_policy__node_id__overrides__name__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverrideRevokedView"];
                 };
             };
             /** @description Validation Error */
@@ -5008,6 +8356,39 @@ export interface operations {
             };
         };
     };
+    node_fields_v1_config__node_id__fields_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigFieldsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     node_guardian_v1_config__node_id__guardian_get: {
         parameters: {
             query?: never;
@@ -5061,6 +8442,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationSchemasView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    node_operating_context_v1_config__node_id__operating_context_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatingContextView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_operating_context_v1_config__node_id__operating_context_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatingContextPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatingContextPreviewView"];
                 };
             };
             /** @description Validation Error */
@@ -5228,6 +8679,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DetectorSummaryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_discovery_v1_estate_discovery_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoveryPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryPreviewView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discovery_report_v1_estate_discovery_report_get: {
+        parameters: {
+            query?: {
+                source?: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryReportListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_discovery_source_v1_estate_discovery_sources_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoveryPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverySourceView"];
                 };
             };
             /** @description Validation Error */
@@ -5417,6 +8971,37 @@ export interface operations {
             };
         };
     };
+    list_unresolved_alert_targets_v1_estate_unresolved_alert_targets_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnresolvedTargetListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_incidents_v1_incidents_get: {
         parameters: {
             query?: {
@@ -5562,10 +9147,43 @@ export interface operations {
             };
         };
     };
+    list_ingress_sources_v1_ingress_sources_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngressSourceListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_integrations_v1_integrations_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -5578,6 +9196,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    store_credential_v1_integrations__name__credential_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialWriteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialWriteView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_credential_v1_integrations__name__credential_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialDeleteView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -5602,6 +9299,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IntegrationVerification"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_integration_deeply_v1_integrations__name__verify_report_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationVerificationReport"];
                 };
             };
             /** @description Validation Error */
@@ -6258,6 +9988,303 @@ export interface operations {
             };
         };
     };
+    list_proposals_v1_proposals_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_proposals_v1_proposals_count_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalCount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_proposal_v1_proposals__proposal_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_proposal_v1_proposals__proposal_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bridged_catalogue_view_v1_protocols_catalogue_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BridgedCatalogueView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_providers_v1_providers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    show_provider_v1_providers__provider_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderDetailView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_models_v1_providers__provider_id__models_get: {
+        parameters: {
+            query?: {
+                refresh?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelListingView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_provider_v1_providers__provider_id__verify_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                provider_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderVerificationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_remediations_v1_remediations_get: {
         parameters: {
             query?: {
@@ -6655,6 +10682,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScheduleView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_schedule_v1_schedules_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchedulePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulePreviewView"];
                 };
             };
             /** @description Validation Error */
@@ -7082,6 +11144,206 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TopologyView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliveries_v1_transit_deliveries_get: {
+        parameters: {
+            query?: {
+                direction?: string;
+                outcome?: string;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_delivery_v1_transit_deliveries__delivery_id__resend_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    destinations_v1_transit_destinations_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DestinationsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingress_status_v1_transit_ingress_get: {
+        parameters: {
+            query?: {
+                rejections?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngressStatusView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rules_v1_transit_rules_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RulesView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulate_v1_transit_simulate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationView"];
                 };
             };
             /** @description Validation Error */

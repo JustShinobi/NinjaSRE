@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "AcceptanceView": {
+        "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "integer"
+          },
+          "decided": {
+            "title": "Decided",
+            "type": "integer"
+          },
+          "rate": {
+            "title": "Rate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "decided",
+          "approved",
+          "rate"
+        ],
+        "title": "AcceptanceView",
+        "type": "object"
+      },
       "AnswerRequest": {
         "properties": {
           "selected_option": {
@@ -18,6 +41,52 @@
           "text"
         ],
         "title": "AnswerRequest",
+        "type": "object"
+      },
+      "ApprovalDecisionRequest": {
+        "properties": {
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict"
+        ],
+        "title": "ApprovalDecisionRequest",
+        "type": "object"
+      },
+      "ApprovalDecisionResult": {
+        "properties": {
+          "approval_id": {
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "title": "Decided At",
+            "type": "string"
+          },
+          "decided_by": {
+            "title": "Decided By",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approval_id",
+          "state",
+          "decided_at",
+          "decided_by"
+        ],
+        "title": "ApprovalDecisionResult",
         "type": "object"
       },
       "ApprovalList": {
@@ -50,6 +119,17 @@
             "additionalProperties": true,
             "title": "Arguments",
             "type": "object"
+          },
+          "blast_radius_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blast Radius Count"
           },
           "decided_at": {
             "anyOf": [
@@ -280,6 +360,141 @@
         "title": "BoundsResponse",
         "type": "object"
       },
+      "BridgedCatalogueView": {
+        "description": "Everything one team bridges, as a screen renders it.",
+        "properties": {
+          "awaiting_classification": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Awaiting Classification",
+            "type": "array"
+          },
+          "declared": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Declared",
+            "type": "array"
+          },
+          "excluded": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedToolView"
+            },
+            "title": "Excluded",
+            "type": "array"
+          },
+          "servers": {
+            "items": {
+              "$ref": "#/components/schemas/BridgedServerView"
+            },
+            "title": "Servers",
+            "type": "array"
+          },
+          "unavailable_reason": {
+            "default": "",
+            "title": "Unavailable Reason",
+            "type": "string"
+          }
+        },
+        "title": "BridgedCatalogueView",
+        "type": "object"
+      },
+      "BridgedServerView": {
+        "description": "One registered server: whether it answered, and what it gave.",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "protocol": {
+            "default": "",
+            "title": "Protocol",
+            "type": "string"
+          },
+          "reachable": {
+            "default": true,
+            "title": "Reachable",
+            "type": "boolean"
+          },
+          "server": {
+            "title": "Server",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/BridgedToolView"
+            },
+            "title": "Tools",
+            "type": "array"
+          }
+        },
+        "required": [
+          "server"
+        ],
+        "title": "BridgedServerView",
+        "type": "object"
+      },
+      "BridgedToolView": {
+        "description": "One tool a server offers, with where it came from and what it may do.",
+        "properties": {
+          "awaiting_classification": {
+            "default": false,
+            "title": "Awaiting Classification",
+            "type": "boolean"
+          },
+          "catalogue_name": {
+            "title": "Catalogue Name",
+            "type": "string"
+          },
+          "classification": {
+            "default": "",
+            "title": "Classification",
+            "type": "string"
+          },
+          "declared_side_effect": {
+            "default": "",
+            "title": "Declared Side Effect",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "executable": {
+            "default": false,
+            "title": "Executable",
+            "type": "boolean"
+          },
+          "qualified_name": {
+            "title": "Qualified Name",
+            "type": "string"
+          },
+          "server": {
+            "title": "Server",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qualified_name",
+          "catalogue_name",
+          "server",
+          "tool"
+        ],
+        "title": "BridgedToolView",
+        "type": "object"
+      },
       "BulkRevokeRequest": {
         "properties": {
           "node_id": {
@@ -419,6 +634,35 @@
         "title": "CatalogueEntryView",
         "type": "object"
       },
+      "CheckResultView": {
+        "description": "One preflight check, mirrored rather than collapsed into the boolean verdict.\n\nA screen renders the state each of these actually reports — passed,\ndegraded or failed — never a translation of it into a word the backend\ndid not send.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "detail",
+          "duration_ms"
+        ],
+        "title": "CheckResultView",
+        "type": "object"
+      },
       "ChecklistStepView": {
         "properties": {
           "action": {
@@ -435,6 +679,10 @@
             "title": "Name",
             "type": "string"
           },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          },
           "state": {
             "title": "State",
             "type": "string"
@@ -447,7 +695,8 @@
         "required": [
           "name",
           "title",
-          "state"
+          "state",
+          "readiness"
         ],
         "title": "ChecklistStepView",
         "type": "object"
@@ -457,6 +706,13 @@
           "complete": {
             "title": "Complete",
             "type": "boolean"
+          },
+          "integrations": {
+            "items": {
+              "$ref": "#/components/schemas/IntegrationReadinessView"
+            },
+            "title": "Integrations",
+            "type": "array"
           },
           "next": {
             "anyOf": [
@@ -469,6 +725,10 @@
             ],
             "title": "Next"
           },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
           "steps": {
             "items": {
               "$ref": "#/components/schemas/ChecklistStepView"
@@ -479,9 +739,70 @@
         },
         "required": [
           "complete",
-          "steps"
+          "steps",
+          "provider",
+          "integrations"
         ],
         "title": "ChecklistView",
+        "type": "object"
+      },
+      "ClassOutlookView": {
+        "description": "What one risk class would meet under the posture as it stands.\n\n``sentence`` is the whole point and the rest is what a reader checks it\nagainst. A level and a bound are a policy's vocabulary; \"would wait for a\nperson's approval before anything happened\" is an answer.",
+        "properties": {
+          "capability": {
+            "title": "Capability",
+            "type": "string"
+          },
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "level": {
+            "title": "Level",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "refused_by": {
+            "default": "",
+            "title": "Refused By",
+            "type": "string"
+          },
+          "resource_kind": {
+            "default": "",
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "risk_class": {
+            "title": "Risk Class",
+            "type": "string"
+          },
+          "sentence": {
+            "title": "Sentence",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk_class",
+          "capability",
+          "sentence",
+          "decision",
+          "level"
+        ],
+        "title": "ClassOutlookView",
         "type": "object"
       },
       "ClearRequest": {
@@ -534,6 +855,165 @@
         "title": "CloseRequest",
         "type": "object"
       },
+      "ConfigFieldView": {
+        "description": "One editable field, as the schema declares it and this node stands on it.\n\nEverything a client needs to draw a control and to know what pressing save\nwould do — and nothing it could have worked out for itself, because there is\nnothing here it could have. The type, range and default come from the\nPydantic section the write path validates against; the value, provenance,\nlock and gate come from this node's chain.",
+        "properties": {
+          "allowed_values": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Values"
+          },
+          "approval_gated": {
+            "default": false,
+            "title": "Approval Gated",
+            "type": "boolean"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "help": {
+            "default": "",
+            "title": "Help",
+            "type": "string"
+          },
+          "item_fields": {
+            "items": {
+              "$ref": "#/components/schemas/ItemFieldView"
+            },
+            "title": "Item Fields",
+            "type": "array"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "locked_by": {
+            "default": "",
+            "title": "Locked By",
+            "type": "string"
+          },
+          "max_items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Items"
+          },
+          "max_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "provenance": {
+            "default": "",
+            "title": "Provenance",
+            "type": "string"
+          },
+          "required": {
+            "default": false,
+            "title": "Required",
+            "type": "boolean"
+          },
+          "section": {
+            "default": "",
+            "title": "Section",
+            "type": "string"
+          },
+          "section_help": {
+            "default": "",
+            "title": "Section Help",
+            "type": "string"
+          },
+          "section_summary": {
+            "default": "",
+            "title": "Section Summary",
+            "type": "string"
+          },
+          "set_here": {
+            "default": false,
+            "title": "Set Here",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "type"
+        ],
+        "title": "ConfigFieldView",
+        "type": "object"
+      },
+      "ConfigFieldsView": {
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ConfigFieldView"
+            },
+            "title": "Fields",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fields"
+        ],
+        "title": "ConfigFieldsView",
+        "type": "object"
+      },
       "ConfigNodeView": {
         "properties": {
           "kind": {
@@ -574,6 +1054,13 @@
             "additionalProperties": true,
             "title": "Patch",
             "type": "object"
+          },
+          "remove": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Remove",
+            "type": "array"
           }
         },
         "title": "ConfigPatchRequest",
@@ -581,6 +1068,11 @@
       },
       "ConfigPreviewView": {
         "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
           "approval_gated": {
             "items": {
               "type": "string"
@@ -593,6 +1085,13 @@
               "$ref": "#/components/schemas/PreviewChangeView"
             },
             "title": "Changes",
+            "type": "array"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FieldErrorView"
+            },
+            "title": "Errors",
             "type": "array"
           },
           "locked": {
@@ -613,9 +1112,23 @@
             "title": "Provenance",
             "type": "object"
           },
+          "redundant": {
+            "items": {
+              "$ref": "#/components/schemas/InheritedValueView"
+            },
+            "title": "Redundant",
+            "type": "array"
+          },
           "requires_approval": {
             "title": "Requires Approval",
             "type": "boolean"
+          },
+          "reverts": {
+            "items": {
+              "$ref": "#/components/schemas/InheritedValueView"
+            },
+            "title": "Reverts",
+            "type": "array"
           },
           "values": {
             "additionalProperties": true,
@@ -699,6 +1212,30 @@
         "title": "ConsideredRuleView",
         "type": "object"
       },
+      "ContextSectionView": {
+        "description": "One named section: what it says, and which level said it.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "provenance": {
+            "default": "",
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "body"
+        ],
+        "title": "ContextSectionView",
+        "type": "object"
+      },
       "ContributionView": {
         "properties": {
           "display_name": {
@@ -734,6 +1271,72 @@
         "title": "ContributionView",
         "type": "object"
       },
+      "CorrelatedChangeView": {
+        "description": "One change that landed in the window, and what connects it to this resource.\n\n``strength`` and ``temporal_only`` are both served, and the redundancy is\ndeliberate: the first is what the panel groups on and the second is what a\nclient that has never met a new strength still renders correctly.",
+        "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "change_id": {
+            "title": "Change Id",
+            "type": "string"
+          },
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "instant": {
+            "title": "Instant",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Paths",
+            "type": "array"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "strength": {
+            "title": "Strength",
+            "type": "string"
+          },
+          "temporal_only": {
+            "title": "Temporal Only",
+            "type": "boolean"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "change_id",
+          "author",
+          "message",
+          "component",
+          "applied",
+          "instant",
+          "strength",
+          "temporal_only",
+          "why"
+        ],
+        "title": "CorrelatedChangeView",
+        "type": "object"
+      },
       "CreateInvestigationRequest": {
         "properties": {
           "alert_source": {
@@ -758,6 +1361,33 @@
           "objective"
         ],
         "title": "CreateInvestigationRequest",
+        "type": "object"
+      },
+      "CreatePrincipalRequest": {
+        "description": "A new person, with the password they will sign in with locally.\n\nCreation only. There is no field here for a role: granting one is a\nsecond request, through ``POST /identity/grants``, which needs the same\npermission this route does and leaves its own audit row. A route that\ncould create a principal and hand it a role in the same call would be a\nroute that could mint an account holding more than its caller ever had\nto be granted anything to obtain — this one cannot, because it never\ngrants at all.",
+        "properties": {
+          "display_name": {
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "minLength": 1,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "display_name",
+          "password"
+        ],
+        "title": "CreatePrincipalRequest",
         "type": "object"
       },
       "CreateScheduleRequest": {
@@ -802,37 +1432,196 @@
         "title": "CreateScheduleRequest",
         "type": "object"
       },
-      "CredentialFieldView": {
+      "CredentialDeleteView": {
+        "description": "What disconnecting removed. Nothing here a value could ever have sat in.",
         "properties": {
-          "help": {
-            "title": "Help",
+          "integration": {
+            "title": "Integration",
             "type": "string"
           },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "required": {
-            "title": "Required",
-            "type": "boolean"
-          },
-          "secret": {
-            "title": "Secret",
-            "type": "boolean"
+          "versions_removed": {
+            "title": "Versions Removed",
+            "type": "integer"
           }
         },
         "required": [
-          "name",
-          "label",
-          "secret",
-          "required",
-          "help"
+          "integration",
+          "versions_removed"
         ],
-        "title": "CredentialFieldView",
+        "title": "CredentialDeleteView",
+        "type": "object"
+      },
+      "CredentialWriteRequest": {
+        "description": "A flat map of field name to value, checked against the vendor's own schema.\n\nFlat rather than nested, because a credential is a set of named strings and\na shape with room for anything else would be a shape a secret could be\nsmuggled through under a key nothing validates.",
+        "properties": {
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "title": "CredentialWriteRequest",
+        "type": "object"
+      },
+      "CredentialWriteView": {
+        "description": "What was written, described without any part of it being readable.\n\nThere is no field here a value could sit in, which is the same argument\n``CredentialVersion`` makes one layer down: the type is the guarantee rather\nthan a rule somebody has to remember when adding a key.",
+        "properties": {
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "usable": {
+            "title": "Usable",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "integration",
+          "state",
+          "usable",
+          "version",
+          "fields"
+        ],
+        "title": "CredentialWriteView",
+        "type": "object"
+      },
+      "DecisionRequest": {
+        "properties": {
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict"
+        ],
+        "title": "DecisionRequest",
+        "type": "object"
+      },
+      "DecisionResult": {
+        "properties": {
+          "applied": {
+            "default": "",
+            "title": "Applied",
+            "type": "string"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "state"
+        ],
+        "title": "DecisionResult",
+        "type": "object"
+      },
+      "DeliveryView": {
+        "description": "One crossing of the boundary, as a screen renders it.",
+        "properties": {
+          "attempt": {
+            "default": 1,
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "delivery_id": {
+            "title": "Delivery Id",
+            "type": "string"
+          },
+          "detail": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Detail",
+            "type": "object"
+          },
+          "direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "event_type": {
+            "default": "",
+            "title": "Event Type",
+            "type": "string"
+          },
+          "incident_id": {
+            "default": "",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "matched_rule": {
+            "default": "",
+            "title": "Matched Rule",
+            "type": "string"
+          },
+          "occurred_at": {
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "resource_id": {
+            "default": "",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "run_id": {
+            "default": "",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "team_node_id": {
+            "default": "",
+            "title": "Team Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "delivery_id",
+          "direction",
+          "source",
+          "occurred_at",
+          "outcome"
+        ],
+        "title": "DeliveryView",
         "type": "object"
       },
       "DemoRemovalView": {
@@ -933,6 +1722,77 @@
         "title": "DerivationView",
         "type": "object"
       },
+      "DestinationView": {
+        "description": "One place results go, and the policy that decides how much of them.",
+        "properties": {
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "destination_id": {
+            "title": "Destination Id",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "masking_policy": {
+            "default": "",
+            "title": "Masking Policy",
+            "type": "string"
+          },
+          "unconfigurable_reason": {
+            "default": "",
+            "title": "Unconfigurable Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "destination_id",
+          "channel"
+        ],
+        "title": "DestinationView",
+        "type": "object"
+      },
+      "DestinationsView": {
+        "properties": {
+          "destinations": {
+            "items": {
+              "$ref": "#/components/schemas/DestinationView"
+            },
+            "title": "Destinations",
+            "type": "array"
+          },
+          "events": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "unconfigurable_reason": {
+            "default": "",
+            "title": "Unconfigurable Reason",
+            "type": "string"
+          }
+        },
+        "title": "DestinationsView",
+        "type": "object"
+      },
       "DetectorListView": {
         "properties": {
           "detectors": {
@@ -993,6 +1853,21 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "origin": {
+            "default": "",
+            "title": "Origin",
+            "type": "string"
+          },
+          "origin_excerpt": {
+            "default": "",
+            "title": "Origin Excerpt",
+            "type": "string"
+          },
+          "proposed": {
+            "default": false,
+            "title": "Proposed",
+            "type": "boolean"
           },
           "severity": {
             "title": "Severity",
@@ -1058,6 +1933,228 @@
           "action"
         ],
         "title": "DiagnosisView",
+        "type": "object"
+      },
+      "DiscoveryPreviewRequest": {
+        "description": "What to preview, and what to place its resources into.\n\n``zones`` is optional and is a plain CIDR-to-name mapping rather than an\ningestion of the operator's inventory: the preview happens before anything\nis stored, so it must be answerable from what the request carries plus what\nthe provider says. A preview with no zone map reports every resource as\nunplaced, which is honest rather than empty.",
+        "properties": {
+          "integration": {
+            "minLength": 1,
+            "title": "Integration",
+            "type": "string"
+          },
+          "zones": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Zones",
+            "type": "object"
+          }
+        },
+        "required": [
+          "integration"
+        ],
+        "title": "DiscoveryPreviewRequest",
+        "type": "object"
+      },
+      "DiscoveryPreviewView": {
+        "description": "What a sweep would find, counted, with nothing written.",
+        "properties": {
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Kind",
+            "type": "object"
+          },
+          "by_zone": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Zone",
+            "type": "object"
+          },
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "guests": {
+            "title": "Guests",
+            "type": "integer"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "nodes": {
+            "title": "Nodes",
+            "type": "integer"
+          },
+          "provider_calls": {
+            "title": "Provider Calls",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "unplaced": {
+            "default": 0,
+            "title": "Unplaced",
+            "type": "integer"
+          },
+          "zones": {
+            "title": "Zones",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "integration",
+          "complete",
+          "provider_calls",
+          "total",
+          "nodes",
+          "guests",
+          "running",
+          "zones"
+        ],
+        "title": "DiscoveryPreviewView",
+        "type": "object"
+      },
+      "DiscoveryReportListView": {
+        "description": "One report per source that has ever been swept, in name order.",
+        "properties": {
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryReportView"
+            },
+            "title": "Reports",
+            "type": "array"
+          }
+        },
+        "title": "DiscoveryReportListView",
+        "type": "object"
+      },
+      "DiscoveryReportView": {
+        "description": "The last sweep of one source, and what it disagreed with the file about.",
+        "properties": {
+          "annotated": {
+            "default": 0,
+            "title": "Annotated",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "divergences": {
+            "items": {
+              "$ref": "#/components/schemas/DivergenceView"
+            },
+            "title": "Divergences",
+            "type": "array"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "provider_calls": {
+            "default": 0,
+            "title": "Provider Calls",
+            "type": "integer"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "seen_count": {
+            "default": 0,
+            "title": "Seen Count",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "outcome",
+          "started_at"
+        ],
+        "title": "DiscoveryReportView",
+        "type": "object"
+      },
+      "DiscoverySourceView": {
+        "description": "The sweep this deployment will now run, and when it next comes due.",
+        "properties": {
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "interval_seconds": {
+            "title": "Interval Seconds",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "next_run_at": {
+            "format": "date-time",
+            "title": "Next Run At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "integration",
+          "job_id",
+          "interval_seconds",
+          "next_run_at"
+        ],
+        "title": "DiscoverySourceView",
+        "type": "object"
+      },
+      "DivergenceView": {
+        "description": "One disagreement between the declared inventory and the live source.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject",
+          "detail"
+        ],
+        "title": "DivergenceView",
         "type": "object"
       },
       "DryRunRequest": {
@@ -1158,6 +2255,24 @@
           "user_id"
         ],
         "title": "DurableCredentialView",
+        "type": "object"
+      },
+      "EffectView": {
+        "properties": {
+          "mechanism": {
+            "title": "Mechanism",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mechanism",
+          "target"
+        ],
+        "title": "EffectView",
         "type": "object"
       },
       "EffectiveConfigView": {
@@ -1376,6 +2491,40 @@
         "title": "EstateSummaryView",
         "type": "object"
       },
+      "ExcludedToolView": {
+        "description": "A tool that was offered and is not available, and why.",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "qualified_name": {
+            "title": "Qualified Name",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "server": {
+            "title": "Server",
+            "type": "string"
+          },
+          "tool": {
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qualified_name",
+          "server",
+          "tool",
+          "reason"
+        ],
+        "title": "ExcludedToolView",
+        "type": "object"
+      },
       "ExplainRequest": {
         "description": "A hypothetical action, asked about before anybody proposes it.",
         "properties": {
@@ -1486,6 +2635,25 @@
         "title": "ExplanationView",
         "type": "object"
       },
+      "FieldErrorView": {
+        "description": "One reason a document would be refused, at the path it is about.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "message"
+        ],
+        "title": "FieldErrorView",
+        "type": "object"
+      },
       "FindingView": {
         "properties": {
           "action": {
@@ -1528,6 +2696,73 @@
           "grants"
         ],
         "title": "GrantList",
+        "type": "object"
+      },
+      "GrantRemovedView": {
+        "description": "Which grant went, and whose it was.",
+        "properties": {
+          "grant_id": {
+            "title": "Grant Id",
+            "type": "string"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "principal_id": {
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "grant_id",
+          "principal_id",
+          "role"
+        ],
+        "title": "GrantRemovedView",
+        "type": "object"
+      },
+      "GrantRequest": {
+        "description": "A role for somebody, somewhere in the tree.\n\n``node_id`` absent means the organisation as a whole, which is a different\nthing from a grant at the root node: an organisation-wide grant survives the\ntree being reshaped and a grant at a node does not.",
+        "properties": {
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "principal_id": {
+            "minLength": 1,
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "role": {
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "principal_id",
+          "role"
+        ],
+        "title": "GrantRequest",
         "type": "object"
       },
       "GrantView": {
@@ -1650,6 +2885,16 @@
           },
           "incident": {
             "$ref": "#/components/schemas/IncidentSummaryView"
+          },
+          "investigation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvestigationSummaryView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "observations": {
             "items": {
@@ -1805,6 +3050,187 @@
         "title": "IncidentSummaryView",
         "type": "object"
       },
+      "IngressSourceListView": {
+        "properties": {
+          "delivery_permission": {
+            "default": "webhook.deliver",
+            "title": "Delivery Permission",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IngressSourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "title": "IngressSourceListView",
+        "type": "object"
+      },
+      "IngressSourceStatusView": {
+        "description": "One receiver: where to point it, and whether anything ever arrived.",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "expects": {
+            "title": "Expects",
+            "type": "string"
+          },
+          "last_delivery_at": {
+            "default": "",
+            "title": "Last Delivery At",
+            "type": "string"
+          },
+          "last_outcome": {
+            "default": "",
+            "title": "Last Outcome",
+            "type": "string"
+          },
+          "never_delivered": {
+            "default": true,
+            "title": "Never Delivered",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "recent_rejections": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryView"
+            },
+            "title": "Recent Rejections",
+            "type": "array"
+          },
+          "sample": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SampleView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "verification": {
+            "title": "Verification",
+            "type": "string"
+          },
+          "week_count": {
+            "default": 0,
+            "title": "Week Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "path",
+          "url",
+          "expects",
+          "verification"
+        ],
+        "title": "IngressSourceStatusView",
+        "type": "object"
+      },
+      "IngressSourceView": {
+        "description": "One receiver an alert router can be pointed at.",
+        "properties": {
+          "expects": {
+            "title": "Expects",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "receiver_yaml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receiver Yaml"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "verification": {
+            "title": "Verification",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "path",
+          "url",
+          "expects",
+          "verification"
+        ],
+        "title": "IngressSourceView",
+        "type": "object"
+      },
+      "IngressStatusView": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IngressSourceStatusView"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "window_hours": {
+            "default": 24,
+            "title": "Window Hours",
+            "type": "integer"
+          }
+        },
+        "title": "IngressStatusView",
+        "type": "object"
+      },
+      "InheritedValueView": {
+        "description": "One path, a value, and the node that supplies it from above.",
+        "properties": {
+          "inherited_from": {
+            "title": "Inherited From",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "path",
+          "inherited_from"
+        ],
+        "title": "InheritedValueView",
+        "type": "object"
+      },
       "IntegrationList": {
         "properties": {
           "integrations": {
@@ -1812,6 +3238,13 @@
               "$ref": "#/components/schemas/IntegrationView"
             },
             "title": "Integrations",
+            "type": "array"
+          },
+          "known_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/KnownGapView"
+            },
+            "title": "Known Gaps",
             "type": "array"
           }
         },
@@ -1821,11 +3254,29 @@
         "title": "IntegrationList",
         "type": "object"
       },
+      "IntegrationReadinessView": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "readiness": {
+            "title": "Readiness",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "readiness"
+        ],
+        "title": "IntegrationReadinessView",
+        "type": "object"
+      },
       "IntegrationSchemaView": {
         "properties": {
           "credential_fields": {
             "items": {
-              "$ref": "#/components/schemas/CredentialFieldView"
+              "$ref": "#/components/schemas/gateway__http__routes__config__CredentialFieldView"
             },
             "title": "Credential Fields",
             "type": "array"
@@ -1847,7 +3298,7 @@
           },
           "settings_fields": {
             "items": {
-              "$ref": "#/components/schemas/CredentialFieldView"
+              "$ref": "#/components/schemas/gateway__http__routes__config__CredentialFieldView"
             },
             "title": "Settings Fields",
             "type": "array"
@@ -1902,6 +3353,26 @@
         "title": "IntegrationVerification",
         "type": "object"
       },
+      "IntegrationVerificationReport": {
+        "description": "What an integration's own verifier found, in the vendor's own terms.\n\n``report`` is deliberately untyped at this layer. Each verifier answers the\nquestion its vendor can actually be asked — Proxmox reports the token's\neffective privileges because Proxmox has an endpoint for them; another\nvendor reports which probes were permitted because it has not. A schema\nimposed here would either be the union of every vendor's answer or the\nintersection, and the intersection is a boolean.",
+        "properties": {
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "report": {
+            "additionalProperties": true,
+            "title": "Report",
+            "type": "object"
+          }
+        },
+        "required": [
+          "integration",
+          "report"
+        ],
+        "title": "IntegrationVerificationReport",
+        "type": "object"
+      },
       "IntegrationView": {
         "properties": {
           "capabilities": {
@@ -1914,6 +3385,17 @@
           "category": {
             "title": "Category",
             "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/gateway__http__routes__integrations__CredentialFieldView"
+            },
+            "title": "Fields",
+            "type": "array"
           },
           "health": {
             "title": "Health",
@@ -1945,6 +3427,13 @@
             "title": "Parity",
             "type": "string"
           },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredPermissionView"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
           "regions": {
             "items": {
               "type": "string"
@@ -1952,19 +3441,15 @@
             "title": "Regions",
             "type": "array"
           },
-          "required_credentials": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Credentials",
-            "type": "array"
-          },
-          "required_permissions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Required Permissions",
-            "type": "array"
+          "suggested": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestionView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "summary": {
             "title": "Summary",
@@ -1973,13 +3458,14 @@
         },
         "required": [
           "name",
+          "display_name",
           "category",
           "summary",
           "hosts",
           "regions",
           "capabilities",
-          "required_credentials",
-          "required_permissions",
+          "fields",
+          "permissions",
           "health",
           "health_detail",
           "parity",
@@ -2121,6 +3607,42 @@
         "title": "InvestigationSummary",
         "type": "object"
       },
+      "InvestigationSummaryView": {
+        "description": "How many steps the investigation took, how long it ran, and what it cost.\n\n``duration_ms`` and ``cost`` are ``None`` — never a fabricated zero — while\nthe run has not finished, or while nothing it did carried a priced figure.\n``step_count`` gets no such treatment: a run that has taken no turns yet\nhas taken zero turns, which is a fact worth showing exactly as it is.",
+        "properties": {
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "step_count": {
+            "title": "Step Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step_count"
+        ],
+        "title": "InvestigationSummaryView",
+        "type": "object"
+      },
       "IssueTokenRequest": {
         "properties": {
           "description": {
@@ -2161,6 +3683,13 @@
             ],
             "title": "Node Id"
           },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
           "user_id": {
             "default": "",
             "title": "User Id",
@@ -2179,6 +3708,13 @@
             "title": "Secret",
             "type": "string"
           },
+          "superseded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Superseded",
+            "type": "array"
+          },
           "token": {
             "$ref": "#/components/schemas/TokenView"
           }
@@ -2188,6 +3724,88 @@
           "secret"
         ],
         "title": "IssuedTokenView",
+        "type": "object"
+      },
+      "ItemFieldView": {
+        "description": "One field inside an entry of an ordered list of objects.\n\nA separate model from ``ConfigFieldView`` because half of that one is about\na node — provenance, whether this node sets it, which node locks it — and\nnone of it is true of a field *inside* a list entry. A list replaces\nentirely, so the entry inherits the list's answer to all of those and has\nnone of its own.",
+        "properties": {
+          "allowed_values": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Values"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "help": {
+            "default": "",
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "label",
+          "type"
+        ],
+        "title": "ItemFieldView",
         "type": "object"
       },
       "KillSwitchRequest": {
@@ -2343,6 +3961,84 @@
         "title": "KnowledgeDocumentView",
         "type": "object"
       },
+      "KnownGapView": {
+        "description": "A vendor this catalogue does not cover, and why it does not.\n\n``cause`` separates \"the architecture cannot reach this\" from \"this was\nweighed and decided against\". Collapsing them would turn a decision somebody\ncan reopen into a limitation nobody can.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "cause": {
+            "title": "Cause",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "resolution": {
+            "title": "Resolution",
+            "type": "string"
+          }
+        },
+        "required": [
+          "integration",
+          "display_name",
+          "category",
+          "cause",
+          "reason",
+          "resolution"
+        ],
+        "title": "KnownGapView",
+        "type": "object"
+      },
+      "LinkedDocumentView": {
+        "description": "One document somebody has written about this resource.\n\n``matched`` and ``matched_on`` are served rather than kept internal because\nthey are what lets an operator dismiss a link that is wrong: a list with no\nreason beside each entry is a list that has to be trusted whole.",
+        "properties": {
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_type": {
+            "title": "Document Type",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "matched": {
+            "default": "",
+            "title": "Matched",
+            "type": "string"
+          },
+          "matched_on": {
+            "default": "",
+            "title": "Matched On",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "title",
+          "location",
+          "document_type"
+        ],
+        "title": "LinkedDocumentView",
+        "type": "object"
+      },
       "LivenessView": {
         "properties": {
           "live": {
@@ -2388,6 +4084,108 @@
           "episode_count"
         ],
         "title": "MemoryStats",
+        "type": "object"
+      },
+      "MissingSignalView": {
+        "description": "A question nothing configured answers, and what would answer it.",
+        "properties": {
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "wanted": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Wanted",
+            "type": "array"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "why"
+        ],
+        "title": "MissingSignalView",
+        "type": "object"
+      },
+      "ModelCapabilityView": {
+        "description": "One model a provider's onboarding lists, and what the registry knows about it.\n\n``supports_tools`` is ``None`` when the registry holds no row for this model\nat all — a name the onboarding lists that nothing has described yet. That is\nnever presented as \"does not support\": a console reading it that way would\nsend an operator away from a model that might work perfectly well, on the\nstrength of a gap in this build's own catalogue rather than a fact about the\nmodel.",
+        "properties": {
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "supports_tools": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supports Tools"
+          }
+        },
+        "required": [
+          "model_id"
+        ],
+        "title": "ModelCapabilityView",
+        "type": "object"
+      },
+      "ModelListingView": {
+        "description": "The models one provider currently offers, curated, and where the list came from.",
+        "properties": {
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOfferingView"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "models",
+          "source"
+        ],
+        "title": "ModelListingView",
+        "type": "object"
+      },
+      "ModelOfferingView": {
+        "description": "One model a provider's listing offers, by the name the endpoint gave it.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model_id",
+          "display_name"
+        ],
+        "title": "ModelOfferingView",
         "type": "object"
       },
       "ObservationListView": {
@@ -2446,6 +4244,143 @@
           "observed_at"
         ],
         "title": "ObservationView",
+        "type": "object"
+      },
+      "OperatingContextPatch": {
+        "description": "A pending context, as a client holds it before deciding to save it.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "remove": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Remove",
+            "type": "array"
+          },
+          "sections": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Sections",
+            "type": "object"
+          }
+        },
+        "title": "OperatingContextPatch",
+        "type": "object"
+      },
+      "OperatingContextPreviewView": {
+        "description": "The prompt a pending context would produce, and everything wrong with it.",
+        "properties": {
+          "accepted": {
+            "default": true,
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "context": {
+            "default": "",
+            "title": "Context",
+            "type": "string"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/FieldErrorView"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "over_budget": {
+            "default": false,
+            "title": "Over Budget",
+            "type": "boolean"
+          },
+          "prompt": {
+            "default": "",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "token_budget": {
+            "default": 0,
+            "title": "Token Budget",
+            "type": "integer"
+          },
+          "tokens_used": {
+            "default": 0,
+            "title": "Tokens Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "OperatingContextPreviewView",
+        "type": "object"
+      },
+      "OperatingContextView": {
+        "description": "A node's operating context, its cost, and the prompt it becomes.",
+        "properties": {
+          "context": {
+            "default": "",
+            "title": "Context",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "prompt": {
+            "default": "",
+            "title": "Prompt",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ContextSectionView"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "template": {
+            "items": {
+              "$ref": "#/components/schemas/ContextSectionView"
+            },
+            "title": "Template",
+            "type": "array"
+          },
+          "token_budget": {
+            "default": 0,
+            "title": "Token Budget",
+            "type": "integer"
+          },
+          "tokens_used": {
+            "default": 0,
+            "title": "Tokens Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "node_id",
+          "enabled"
+        ],
+        "title": "OperatingContextView",
         "type": "object"
       },
       "OutcomeListView": {
@@ -2599,6 +4534,32 @@
         "title": "OutcomeView",
         "type": "object"
       },
+      "OutlookView": {
+        "description": "One reading per risk class, least dangerous first.",
+        "properties": {
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassOutlookView"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "dry_run": {
+            "default": false,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "node_id"
+        ],
+        "title": "OutlookView",
+        "type": "object"
+      },
       "OverrideRequest": {
         "description": "A raise in autonomy that ends by itself.\n\n``reason`` is required. An override nobody explained is one the next person\ncannot decide whether to renew, and the person who granted it will not be\nthe person who finds it.",
         "properties": {
@@ -2662,6 +4623,25 @@
         "title": "OverrideRequest",
         "type": "object"
       },
+      "OverrideRevokedView": {
+        "description": "Which override went, and from whose document.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "node_id"
+        ],
+        "title": "OverrideRevokedView",
+        "type": "object"
+      },
       "OverrideView": {
         "properties": {
           "expires_at": {
@@ -2700,6 +4680,27 @@
           "expires_at"
         ],
         "title": "OverrideView",
+        "type": "object"
+      },
+      "PipelineView": {
+        "description": "The investigation's shape, and the roles a deployment may bind.",
+        "properties": {
+          "model_roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Model Roles",
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageView"
+            },
+            "title": "Stages",
+            "type": "array"
+          }
+        },
+        "title": "PipelineView",
         "type": "object"
       },
       "PolicyDocumentView": {
@@ -2985,6 +4986,40 @@
         "title": "PrincipalView",
         "type": "object"
       },
+      "PriorRejectionView": {
+        "properties": {
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "title": "Decided By",
+            "type": "string"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "reason",
+          "decided_by"
+        ],
+        "title": "PriorRejectionView",
+        "type": "object"
+      },
       "ProblemListView": {
         "properties": {
           "problems": {
@@ -3102,6 +5137,335 @@
         "title": "ProblemView",
         "type": "object"
       },
+      "ProposalCount": {
+        "description": "What the sidebar badge and the dashboard band both read.",
+        "properties": {
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pending"
+        ],
+        "title": "ProposalCount",
+        "type": "object"
+      },
+      "ProposalList": {
+        "properties": {
+          "acceptance": {
+            "$ref": "#/components/schemas/AcceptanceView"
+          },
+          "proposals": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalView"
+            },
+            "title": "Proposals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proposals",
+          "acceptance"
+        ],
+        "title": "ProposalList",
+        "type": "object"
+      },
+      "ProposalView": {
+        "properties": {
+          "correlation_id": {
+            "default": "",
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "default": "",
+            "title": "Decided By",
+            "type": "string"
+          },
+          "effect": {
+            "$ref": "#/components/schemas/EffectView"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "node_id": {
+            "title": "Node Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "prior_rejections": {
+            "items": {
+              "$ref": "#/components/schemas/PriorRejectionView"
+            },
+            "title": "Prior Rejections",
+            "type": "array"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "proposal_type": {
+            "title": "Proposal Type",
+            "type": "string"
+          },
+          "proposed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed At"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "run_id": {
+            "default": "",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_id",
+          "proposal_type",
+          "node_id",
+          "summary",
+          "rationale",
+          "effect",
+          "state"
+        ],
+        "title": "ProposalView",
+        "type": "object"
+      },
+      "ProviderDetailView": {
+        "description": "One provider in full: everything a form or a prompt needs to set it up.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "default_model": {
+            "title": "Default Model",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/gateway__http__routes__providers__CredentialFieldView"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "guidance": {
+            "default": "",
+            "title": "Guidance",
+            "type": "string"
+          },
+          "install_hint": {
+            "default": "",
+            "title": "Install Hint",
+            "type": "string"
+          },
+          "local": {
+            "title": "Local",
+            "type": "boolean"
+          },
+          "model_capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCapabilityView"
+            },
+            "title": "Model Capabilities",
+            "type": "array"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          },
+          "where_to_get_it": {
+            "default": "",
+            "title": "Where To Get It",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "display_name",
+          "local",
+          "configured",
+          "verified",
+          "default_model",
+          "fields",
+          "models",
+          "model_capabilities"
+        ],
+        "title": "ProviderDetailView",
+        "type": "object"
+      },
+      "ProviderList": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderView"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "providers"
+        ],
+        "title": "ProviderList",
+        "type": "object"
+      },
+      "ProviderVerificationView": {
+        "description": "What a real request to the provider's endpoint came back with.\n\n``detail`` is the sentence — the working configuration when it passed, the\nlimitation when it did not. Never \"verification failed\", which is a\nrestatement rather than something anybody can act on.",
+        "properties": {
+          "alternatives": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckResultView"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "remedy": {
+            "default": "",
+            "title": "Remedy",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider_id",
+          "verified",
+          "model_id",
+          "detail",
+          "alternatives"
+        ],
+        "title": "ProviderVerificationView",
+        "type": "object"
+      },
+      "ProviderView": {
+        "description": "One provider, its descriptor and this deployment's state for it.\n\nThere is no field here a stored credential could be read back into, which is\nwhat lets the whole document be served to anyone who may read configuration.",
+        "properties": {
+          "configured": {
+            "title": "Configured",
+            "type": "boolean"
+          },
+          "default_model": {
+            "title": "Default Model",
+            "type": "string"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "local": {
+            "title": "Local",
+            "type": "boolean"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider_id",
+          "display_name",
+          "local",
+          "configured",
+          "verified",
+          "default_model"
+        ],
+        "title": "ProviderView",
+        "type": "object"
+      },
       "QueueMessageRequest": {
         "properties": {
           "text": {
@@ -3217,9 +5581,96 @@
         "title": "RejectRequest",
         "type": "object"
       },
+      "RequiredPermissionView": {
+        "description": "One permission the credential has to be allowed, exactly as declared.\n\nReplaces the bare list of permission names this route used to serve. A\nname alone left an operator to look up what it grants and where it is\nturned on; this is the vendor's own declaration\n(`integrations._verification.permissions.RequiredPermission`), read\nthrough the gateway rather than copied by the console. Every one of these\nis probed, not merely declared — `tools.verify_integrations` makes the\ncall each names.",
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "grants": {
+            "title": "Grants",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "where": {
+            "default": "",
+            "title": "Where",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "grants"
+        ],
+        "title": "RequiredPermissionView",
+        "type": "object"
+      },
+      "ResourceChangesView": {
+        "description": "What changed under this resource, and the claim that goes with it.\n\n``statement`` is served rather than composed by the client, because it is\nthe same sentence the investigation's own report carries — and a console\nthat phrased it differently would be a second opinion nobody asked for.\n\n``answered`` is the field that stops an empty panel being read as \"nothing\nhas changed\". A deployment that consulted nothing has established nothing.",
+        "properties": {
+          "answered": {
+            "default": false,
+            "title": "Answered",
+            "type": "boolean"
+          },
+          "degraded": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degraded",
+            "type": "array"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/CorrelatedChangeView"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "statement": {
+            "default": "",
+            "title": "Statement",
+            "type": "string"
+          },
+          "total": {
+            "default": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "window_hours": {
+            "default": 0.0,
+            "title": "Window Hours",
+            "type": "number"
+          }
+        },
+        "title": "ResourceChangesView",
+        "type": "object"
+      },
       "ResourceDetailView": {
         "description": "One resource's page: its state, why, its history, and what touched it.",
         "properties": {
+          "changes": {
+            "$ref": "#/components/schemas/ResourceChangesView"
+          },
           "children": {
             "items": {
               "$ref": "#/components/schemas/ResourceSummaryView"
@@ -3243,6 +5694,13 @@
                 "type": "null"
               }
             ]
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedDocumentView"
+            },
+            "title": "Documents",
+            "type": "array"
           },
           "freshness_seconds": {
             "title": "Freshness Seconds",
@@ -3271,6 +5729,9 @@
           "rollup_rule": {
             "title": "Rollup Rule",
             "type": "string"
+          },
+          "signals": {
+            "$ref": "#/components/schemas/SignalsView"
           },
           "transitions": {
             "items": {
@@ -3323,6 +5784,11 @@
             "additionalProperties": true,
             "title": "Attributes",
             "type": "object"
+          },
+          "correlation_key": {
+            "default": "",
+            "title": "Correlation Key",
+            "type": "string"
           },
           "display_name": {
             "title": "Display Name",
@@ -3478,6 +5944,45 @@
         "title": "RevocationResult",
         "type": "object"
       },
+      "RoleList": {
+        "description": "Every role, least privileged first.",
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleView"
+            },
+            "title": "Roles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "title": "RoleList",
+        "type": "object"
+      },
+      "RoleView": {
+        "description": "One role this deployment declares, and what holding it means.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ],
+        "title": "RoleView",
+        "type": "object"
+      },
       "RollbackPlanView": {
         "properties": {
           "approval_id": {
@@ -3575,6 +6080,81 @@
         "title": "RollbackStepView",
         "type": "object"
       },
+      "RuleView": {
+        "description": "One ordered rule, as the editor renders it.",
+        "properties": {
+          "action": {
+            "default": "",
+            "title": "Action",
+            "type": "string"
+          },
+          "criticalities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Criticalities",
+            "type": "array"
+          },
+          "is_catch_all": {
+            "default": false,
+            "title": "Is Catch All",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "team": {
+            "default": "",
+            "title": "Team",
+            "type": "string"
+          },
+          "zones": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rule_id"
+        ],
+        "title": "RuleView",
+        "type": "object"
+      },
+      "RulesView": {
+        "properties": {
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleView"
+            },
+            "title": "Rules",
+            "type": "array"
+          }
+        },
+        "title": "RulesView",
+        "type": "object"
+      },
       "RunList": {
         "properties": {
           "runs": {
@@ -3625,6 +6205,89 @@
           "is_interrupted"
         ],
         "title": "RunReplayView",
+        "type": "object"
+      },
+      "SampleView": {
+        "description": "The last payload a source sent, after masking, and which policy did it.",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "captured_at": {
+            "title": "Captured At",
+            "type": "string"
+          },
+          "masking_policy": {
+            "title": "Masking Policy",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "captured_at",
+          "body",
+          "masking_policy"
+        ],
+        "title": "SampleView",
+        "type": "object"
+      },
+      "ScheduleFiringView": {
+        "description": "One instant a cron expression would fire at, resolved and nothing else.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "shifted": {
+            "default": false,
+            "title": "Shifted",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "at"
+        ],
+        "title": "ScheduleFiringView",
+        "type": "object"
+      },
+      "SchedulePreviewRequest": {
+        "properties": {
+          "cron": {
+            "minLength": 1,
+            "title": "Cron",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "UTC",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cron"
+        ],
+        "title": "SchedulePreviewRequest",
+        "type": "object"
+      },
+      "SchedulePreviewView": {
+        "properties": {
+          "firings": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleFiringView"
+            },
+            "title": "Firings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "firings"
+        ],
+        "title": "SchedulePreviewView",
         "type": "object"
       },
       "ScheduleView": {
@@ -3866,6 +6529,40 @@
         "title": "SignInView",
         "type": "object"
       },
+      "SignalSourceView": {
+        "description": "Which source answers one question about this resource, and by what key.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "integration": {
+            "title": "Integration",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "keyed_by": {
+            "title": "Keyed By",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "integration",
+          "keyed_by",
+          "key",
+          "detail"
+        ],
+        "title": "SignalSourceView",
+        "type": "object"
+      },
       "SignalView": {
         "properties": {
           "name": {
@@ -3895,6 +6592,63 @@
         "title": "SignalView",
         "type": "object"
       },
+      "SignalsView": {
+        "description": "Where an investigation of this resource should go for each question.\n\nTwo lists rather than one with nulls in it. \"Prometheus answers this, keyed\nby vmid\" and \"nothing answers this, loki or openobserve would\" are different\nkinds of statement, and a client that had to inspect a field to tell them\napart would render one as the other on the day somebody adds a field.",
+        "properties": {
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/MissingSignalView"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SignalSourceView"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "title": "SignalsView",
+        "type": "object"
+      },
+      "SimulationView": {
+        "description": "What today's rules would do with this payload, before anything is saved.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "signals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "object"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule_id",
+          "action",
+          "team"
+        ],
+        "title": "SimulationView",
+        "type": "object"
+      },
       "SkillView": {
         "properties": {
           "description": {
@@ -3911,6 +6665,295 @@
           "description"
         ],
         "title": "SkillView",
+        "type": "object"
+      },
+      "SsoClaimView": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "groups": {
+            "title": "Groups",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "email",
+          "display_name",
+          "groups"
+        ],
+        "title": "SsoClaimView",
+        "type": "object"
+      },
+      "SsoTestRequest": {
+        "description": "The claim set the provider returned for a test user.",
+        "properties": {
+          "claims": {
+            "additionalProperties": true,
+            "title": "Claims",
+            "type": "object"
+          }
+        },
+        "title": "SsoTestRequest",
+        "type": "object"
+      },
+      "SsoTestView": {
+        "properties": {
+          "email": {
+            "default": "",
+            "title": "Email",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "mapped_node_id": {
+            "default": "",
+            "title": "Mapped Node Id",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "subject": {
+            "default": "",
+            "title": "Subject",
+            "type": "string"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "boolean"
+          },
+          "used_default": {
+            "default": false,
+            "title": "Used Default",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "succeeded"
+        ],
+        "title": "SsoTestView",
+        "type": "object"
+      },
+      "SsoView": {
+        "description": "The configuration, and the two facts about it that decide what may happen.",
+        "properties": {
+          "authorisation_endpoint": {
+            "default": "",
+            "title": "Authorisation Endpoint",
+            "type": "string"
+          },
+          "claims": {
+            "$ref": "#/components/schemas/SsoClaimView"
+          },
+          "client_id": {
+            "default": "",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "default_node_id": {
+            "default": "",
+            "title": "Default Node Id",
+            "type": "string"
+          },
+          "group_to_node": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Group To Node",
+            "type": "object"
+          },
+          "is_active": {
+            "default": false,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "issuer": {
+            "default": "",
+            "title": "Issuer",
+            "type": "string"
+          },
+          "jwks_uri": {
+            "default": "",
+            "title": "Jwks Uri",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "provider": {
+            "default": "",
+            "title": "Provider",
+            "type": "string"
+          },
+          "redirect_uri": {
+            "default": "",
+            "title": "Redirect Uri",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "token_endpoint": {
+            "default": "",
+            "title": "Token Endpoint",
+            "type": "string"
+          },
+          "verified": {
+            "default": false,
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "claims"
+        ],
+        "title": "SsoView",
+        "type": "object"
+      },
+      "SsoWriteRequest": {
+        "properties": {
+          "authorisation_endpoint": {
+            "default": "",
+            "title": "Authorisation Endpoint",
+            "type": "string"
+          },
+          "claims": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SsoClaimView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "client_id": {
+            "default": "",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "default_node_id": {
+            "default": "",
+            "title": "Default Node Id",
+            "type": "string"
+          },
+          "group_to_node": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Group To Node",
+            "type": "object"
+          },
+          "issuer": {
+            "default": "",
+            "title": "Issuer",
+            "type": "string"
+          },
+          "jwks_uri": {
+            "default": "",
+            "title": "Jwks Uri",
+            "type": "string"
+          },
+          "provider": {
+            "default": "",
+            "title": "Provider",
+            "type": "string"
+          },
+          "redirect_uri": {
+            "default": "",
+            "title": "Redirect Uri",
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scopes",
+            "type": "array"
+          },
+          "token_endpoint": {
+            "default": "",
+            "title": "Token Endpoint",
+            "type": "string"
+          }
+        },
+        "title": "SsoWriteRequest",
+        "type": "object"
+      },
+      "StageView": {
+        "description": "One stage: where it sits, what it reads, and what it is allowed to change.",
+        "properties": {
+          "consults": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Consults",
+            "type": "array"
+          },
+          "dispatches_subagents": {
+            "default": false,
+            "title": "Dispatches Subagents",
+            "type": "boolean"
+          },
+          "model_role": {
+            "default": "",
+            "title": "Model Role",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "writes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Writes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "order",
+          "summary"
+        ],
+        "title": "StageView",
         "type": "object"
       },
       "SubjectRequest": {
@@ -3993,6 +7036,40 @@
           "resource_id"
         ],
         "title": "SubjectView",
+        "type": "object"
+      },
+      "SuggestionView": {
+        "description": "Where this deployment already found this vendor running.\n\nPresent only where the estate makes it obvious, which is the whole design:\na suggestion that had to be guessed is one an operator has to verify, and\nthen the alphabet would have been cheaper.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "because": {
+            "title": "Because",
+            "type": "string"
+          },
+          "from_resource": {
+            "title": "From Resource",
+            "type": "string"
+          },
+          "resource_kind": {
+            "title": "Resource Kind",
+            "type": "string"
+          },
+          "resource_label": {
+            "title": "Resource Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "from_resource",
+          "because",
+          "resource_label",
+          "resource_kind"
+        ],
+        "title": "SuggestionView",
         "type": "object"
       },
       "SuppressRequest": {
@@ -4208,6 +7285,16 @@
           },
           "kind": {
             "title": "Kind",
+            "type": "string"
+          },
+          "query": {
+            "default": "",
+            "title": "Query",
+            "type": "string"
+          },
+          "result": {
+            "default": "",
+            "title": "Result",
             "type": "string"
           }
         },
@@ -4556,6 +7643,63 @@
         "title": "TurnView",
         "type": "object"
       },
+      "UnresolvedTargetListView": {
+        "properties": {
+          "targets": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedTargetView"
+            },
+            "title": "Targets",
+            "type": "array"
+          }
+        },
+        "title": "UnresolvedTargetListView",
+        "type": "object"
+      },
+      "UnresolvedTargetView": {
+        "description": "An alert that arrived for something this estate does not hold.",
+        "properties": {
+          "alert_name": {
+            "title": "Alert Name",
+            "type": "string"
+          },
+          "incident_id": {
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "observed_at": {
+            "title": "Observed At",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "why": {
+            "title": "Why",
+            "type": "string"
+          },
+          "zone": {
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "zone",
+          "why",
+          "incident_id",
+          "alert_name",
+          "observed_at"
+        ],
+        "title": "UnresolvedTargetView",
+        "type": "object"
+      },
       "UpdateScheduleRequest": {
         "properties": {
           "cron": {
@@ -4668,6 +7812,131 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "gateway__http__routes__config__CredentialFieldView": {
+        "properties": {
+          "guide_url": {
+            "default": "",
+            "title": "Guide Url",
+            "type": "string"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "min_scope": {
+            "default": "",
+            "title": "Min Scope",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "secret",
+          "required",
+          "help"
+        ],
+        "title": "CredentialFieldView",
+        "type": "object"
+      },
+      "gateway__http__routes__integrations__CredentialFieldView": {
+        "description": "One credential field, exactly as a form renders it.\n\nReplaces the bare list of field names this route used to serve. A name\nalone left the console inventing a label and leaving \"where do I get this\"\nand \"what permission does it need\" unanswered; this is the vendor's own\ndeclaration (``platform.credentials.schemas.CredentialField``), read\nthrough the gateway rather than copied by the console.",
+        "properties": {
+          "guide_url": {
+            "default": "",
+            "title": "Guide Url",
+            "type": "string"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "min_scope": {
+            "default": "",
+            "title": "Min Scope",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "secret",
+          "required",
+          "help"
+        ],
+        "title": "CredentialFieldView",
+        "type": "object"
+      },
+      "gateway__http__routes__providers__CredentialFieldView": {
+        "properties": {
+          "environment_variable": {
+            "default": "",
+            "title": "Environment Variable",
+            "type": "string"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "secret",
+          "required",
+          "help"
+        ],
+        "title": "CredentialFieldView",
         "type": "object"
       }
     }
@@ -5101,6 +8370,123 @@
         "tags": [
           "identity"
         ]
+      },
+      "post": {
+        "description": "Give somebody a role, and record who gave it to them.\n\nThe principal has to exist first. Creating one here would make a typo in an\nidentifier into a new account holding a role, which is the shape of mistake\nan identity surface must not be able to make quietly.",
+        "operationId": "add_grant_identity_grants_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Grant",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/grants/{grant_id}": {
+      "delete": {
+        "description": "Take a role away, unless doing so would leave nobody able to give it back.\n\nThe last-owner rule is evaluated over the whole organisation rather than\nover the grant being removed, which is why it lives in\n``require_owner_retained`` and not here: handing ownership over is allowed\nand removing the last owner is not, and a per-grant check gets one of those\ntwo wrong whichever way it is written.",
+        "operationId": "remove_grant_identity_grants__grant_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "title": "Grant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantRemovedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Grant",
+        "tags": [
+          "identity"
+        ]
       }
     },
     "/identity/principals": {
@@ -5148,6 +8534,332 @@
           }
         },
         "summary": "List Principals",
+        "tags": [
+          "identity"
+        ]
+      },
+      "post": {
+        "description": "Create a person with a local password, and record who did it.\n\nRefused before this body ever runs for a caller who lacks\n``identity.write`` — the route table's guard, the same dependency every\nwrite in this file goes through, not a second check written here. That\nrefusal carries no information about whether ``body.email`` is already\ntaken: the permission is checked before the request reaches this\nfunction, so the response to somebody who may not create an account is\nidentical whether or not one already exists at that address.\n\nGrants nothing. There is no role on the request body, so a caller who\nmay create a person can never come away from this one call holding an\naccount that outranks them — widening what the new principal may do is\na separate, already-guarded request to ``POST /identity/grants``.\n\nThe password is hashed with the same construction the environment\naccount uses (``hash_local_password``), stored once by a write dedicated\nto that column alone, and never appears in this function's return value\nor in anything logged about the call.",
+        "operationId": "create_principal_identity_principals_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePrincipalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Principal",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/roles": {
+      "get": {
+        "description": "Return the roles this deployment has, least privileged first.\n\nServed rather than left to the client, for the reason ``tools/console_roles``\nalready gives about the fixture it generates: a second copy of the catalogue\nwritten in a front end is the copy that is wrong on the day somebody adds a\npermission. A form offering a role this build does not have is a form whose\nevery submission is refused.\n\nThe permissions are on each row because \"what does granting this actually\ndo\" is the question somebody asks before granting it, and answering it\nanywhere else would mean the console deriving it.",
+        "operationId": "list_roles_identity_roles_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Roles",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/sso": {
+      "get": {
+        "description": "Return the identity provider this deployment is pointed at.",
+        "operationId": "read_sso_identity_sso_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Sso",
+        "tags": [
+          "identity"
+        ]
+      },
+      "put": {
+        "description": "Replace the configuration, and drop any test result it invalidates.\n\nThe digest is cleared explicitly as well as being invalidated by\nconstruction, so the *stored* document never carries a result that belongs\nto settings it no longer holds. Two mechanisms for one property, and the\nreason is that this is the property somebody gets locked out over.",
+        "operationId": "write_sso_identity_sso_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Sso",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/sso/activate": {
+      "post": {
+        "description": "Make this provider the way in, refusing until a test has passed on it.\n\nThree refusals, and they are one refusal: there is no result, the settings\nare not usable, or the result was produced by different settings. All three\nmean nobody has watched this configuration complete a sign-in, and every one\nof them ends with an operator locked out.",
+        "operationId": "activate_sso_identity_sso_activate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Sso",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/identity/sso/test": {
+      "post": {
+        "description": "Run a real claim set through the configuration, and record whether it worked.\n\nThe result is stored as the digest of the settings it passed against, so it\ncovers *these* settings and nothing else. A failure stores nothing, which\nleaves activation refused — the correct outcome, and the one that does not\ndepend on anybody reading the response.",
+        "operationId": "test_sso_identity_sso_test_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SsoTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SsoTestView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Sso",
         "tags": [
           "identity"
         ]
@@ -5213,7 +8925,7 @@
         ]
       },
       "post": {
-        "description": "Issue a machine token and return its secret exactly once.",
+        "description": "Issue a machine token and return its secret exactly once.\n\nA second issuance for the same owner and the same purpose — the name a\ntoken was given, at the same node — supersedes the one it replaces rather\nthan accumulating beside it.",
         "operationId": "issue_token_identity_tokens_post",
         "parameters": [
           {
@@ -5390,6 +9102,56 @@
         ]
       }
     },
+    "/v1/agent/pipeline": {
+      "get": {
+        "description": "Return the stages an investigation runs, in order, with what each consults.",
+        "operationId": "read_pipeline_v1_agent_pipeline_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Pipeline",
+        "tags": [
+          "agent"
+        ]
+      }
+    },
     "/v1/approvals": {
       "get": {
         "description": "Return undecided approvals, longest-waiting first (FR-008).\n\nEach carries its rollback plan, because the queue is where a reviewer\ndecides which one to open — and \"this one has no undo\" is exactly the fact\nthat decides it.",
@@ -5519,6 +9281,75 @@
         ]
       }
     },
+    "/v1/approvals/{approval_id}/decision": {
+      "post": {
+        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and nothing\nelse: this route never invokes the capability the approval names. The\nstore itself refuses to record an approval with no rollback plan stored\nagainst it, so the guarantee that a change above read is undoable does not\ndepend on this handler getting an order right — there is no order to get\nwrong, because nothing here writes a plan, only reads one already there.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
+        "operationId": "decide_approval_v1_approvals__approval_id__decision_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalDecisionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
     "/v1/approvals/{approval_id}/rollback": {
       "post": {
         "description": "Record that the stored rollback plan for ``approval_id`` was executed (FR-011).\n\nRefused for an approval that was never granted. Undoing something nobody\nauthorised is not a rollback, and recording one would put a step in the\naudit trail that never had a decision behind it.",
@@ -5637,8 +9468,56 @@
           "autonomy"
         ]
       },
+      "get": {
+        "description": "Return whether automated writes are stopped for this caller.\n\nA read of its own, because the two write routes answer the question only for\nwhoever just changed it — and the thing that has to be visible is the\nengaged state, on every screen, to everybody. A dashboard where nothing is\nhappening looks the same whether nothing needed doing or everything is\nstopped, and only one of those is something a person has to be told.",
+        "operationId": "read_kill_switch_v1_autonomy_kill_switch_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KillSwitchView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Kill Switch",
+        "tags": [
+          "autonomy"
+        ]
+      },
       "post": {
-        "description": "Stop every automated write, immediately, with no configuration in the way.",
+        "description": "Stop every automated write, immediately, with no configuration in the way.\n\nAudited after the switch is thrown rather than before it. The stop is the\nurgent half and must not wait on a database; the record is written straight\nafterwards, and a store that could not take it still leaves the auditor's own\nlog line — which is the arrangement ``RemediationAuditor`` exists for.",
         "operationId": "engage_kill_switch_v1_autonomy_kill_switch_post",
         "parameters": [
           {
@@ -6019,6 +9898,65 @@
         ]
       }
     },
+    "/v1/autonomy/policy/{node_id}/outlook": {
+      "get": {
+        "description": "Return what an action of each risk class would meet under this posture.\n\nThe reading the policy document does not give. A table of rules answers\n\"what did somebody configure\"; this answers \"what will this do if something\nhappens now\", which is the question asked before a deployment is trusted\nwith an estate — and it is answered by the deployment's own gate rather than\nby a client's reading of the rules, so what is shown and what would happen\ncannot drift.",
+        "operationId": "read_outlook_v1_autonomy_policy__node_id__outlook_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutlookView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Outlook",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
     "/v1/autonomy/policy/{node_id}/overrides": {
       "post": {
         "description": "Raise autonomy in a scope until it expires, and record who did it.",
@@ -6083,6 +10021,74 @@
           }
         },
         "summary": "Grant Override",
+        "tags": [
+          "autonomy"
+        ]
+      }
+    },
+    "/v1/autonomy/policy/{node_id}/overrides/{name}": {
+      "delete": {
+        "description": "Take an override away before it expires, and say whether one was there.\n\n404 rather than a quiet success for an override this node did not grant: an\noperator who asked for a widening to be taken away, and was told it was,\nwould stop looking — and the widening would still be in force from a level\nabove, where it has to be revoked instead.",
+        "operationId": "revoke_override_v1_autonomy_policy__node_id__overrides__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverrideRevokedView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Override",
         "tags": [
           "autonomy"
         ]
@@ -6311,7 +10317,7 @@
         ]
       },
       "put": {
-        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.",
+        "description": "Apply a patch to ``node_id``'s own settings and return the new effective view.\n\nGiven both live registries, which is what makes validation here the same\nvalidation the read routes report. The integration directory is what lets a\nfield a vendor's own schema calls secret be refused, which is the way round\n``PUT /v1/integrations/{name}/credential`` and has to be shut. The capability\ncatalogue is what lets a name no capability answers to be refused, which is\notherwise a setting that stores happily and never does anything.\n\nWithholding the catalogue was once argued for on the grounds that a write\nwould then refuse what ``POST /{node_id}/preview`` accepts. The preview runs\nno validation at all — it answers what a document would *resolve* to — so\nevery refusal this route makes is already one the preview does not predict,\nand the argument protected a property that does not exist. Predicting them is\nworth doing, and it is a change to what the preview returns rather than a\nreason to check less here.",
         "operationId": "write_config_v1_config__node_id__put",
         "parameters": [
           {
@@ -6437,6 +10443,65 @@
         ]
       }
     },
+    "/v1/config/{node_id}/fields": {
+      "get": {
+        "description": "Return every field this node can be edited by, described by the schema.\n\nServed rather than shipped in a client, for the reason the whole\nconfiguration surface is: a client holding its own table of field types and\nranges agrees with the deployment on the day it is written and drifts from\nthen on. The drift arrives as a control offering a value the write path\nrefuses, which reads to an operator as the platform being arbitrary.\n\nThe per-node half — the value, which level supplied it, whether this node\noverrides it, what locks it — cannot be assembled by a client at all. It\nneeds the ancestors' documents, and nothing outside this deployment has\nthem.",
+        "operationId": "node_fields_v1_config__node_id__fields_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigFieldsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Node Fields",
+        "tags": [
+          "config"
+        ]
+      }
+    },
     "/v1/config/{node_id}/guardian": {
       "get": {
         "description": "Return the shipped detector set as ``node_id`` runs it (FR-015).\n\nResolved here rather than by whatever is rendering it. The shipped\ncatalogue, the detected topology and this node's overrides all meet in one\nfunction, and a client that combined them itself would be a client whose\nidea of what a threshold resolves to could drift from the deployment's —\nwhich is the failure that makes a reassuring screen wrong.\n\nEvery detector that is *not* active is named too, because a detector missing\nfrom a list reads as one that does not exist, and an operator on a\nsingle-node installation deserves to know the quorum detectors are waiting\nfor a second node.",
@@ -6555,9 +10620,137 @@
         ]
       }
     },
+    "/v1/config/{node_id}/operating-context": {
+      "get": {
+        "description": "Return this node's operating context, what it costs, and the text it becomes.\n\nThree things a client cannot assemble for itself, and one it should not try.\n\n``prompt`` is the *exact* string the investigator's next run will be sent —\nthe shipped-or-overridden prompt with the rendered sections appended, by the\nsame function the runtime hook uses. A console that concatenated the pieces\nitself would be a second implementation of the assembly, and the day it\ndrifted somebody would approve a prompt nobody sends.\n\n``provenance`` per section is the ancestors' documents, which nothing\noutside this deployment holds.\n\n``template`` is served only where the node resolves to no sections at all.\nIt is derived from what the estate has discovered — kinds, zones and their\nnetworks, the source answering each signal question — plus the facts that\nare true of any deployment of this kind and the questions only a person can\nanswer. It is a suggestion: nothing here stores it, and it disappears the\nmoment anything is written, because a field that kept re-offering its own\nstarting text over somebody's edits is a field they stop editing.",
+        "operationId": "node_operating_context_v1_config__node_id__operating_context_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatingContextView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Node Operating Context",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/{node_id}/operating-context/preview": {
+      "post": {
+        "description": "Return the prompt this context would produce, and everything wrong with it.\n\nThe 058 discipline, where the \"effect\" happens to be the most literal one on\nthe platform: what a person is shown before saving is the *text the model\nwill read*. Assembled by the deployment from the same merge and the same\nfunction a run uses, so there is no arrangement of the pieces a client could\nget differently.\n\nTwo refusals are reported rather than raised, because this is a preview and\na refusal an operator can still act on is worth more than a 4xx: a document\npast the token budget, and a section body carrying something\ncredential-shaped. The second never quotes what it found — a refusal that\nechoed the secret would be the first place it was written down.\n\n``over_budget`` is computed against the **merged** result rather than\nagainst this node's own document. A node whose own text fits can still\ninherit its way past the ceiling, and the resolution's answer to that is to\nsend no context at all — which is safe and silent, and this is where it\nstops being silent.",
+        "operationId": "preview_operating_context_v1_config__node_id__operating_context_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatingContextPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperatingContextPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Operating Context",
+        "tags": [
+          "config"
+        ]
+      }
+    },
     "/v1/config/{node_id}/preview": {
       "post": {
-        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating — and the day it drifted, somebody would\nsave a change that did something other than what they were shown.",
+        "description": "Return what saving ``patch`` would resolve to, storing nothing (FR-017).\n\nThe server computes it, through the same merge a write would take. A client\nthat merged the patch itself would be a second implementation of\ninheritance, locking, and gating — and the day it drifted, somebody would\nsave a change that did something other than what they were shown.\n\n``errors`` is the fourth thing the write decides and the last one this route\nlearned to predict. The merge, the locks and the gates were always here;\nvalidation was not, so a document the write would refuse previewed clean and\nthe refusal arrived as a 400 after somebody pressed save. It is reported\nrather than raised for the reason the whole surface exists: somebody who can\nstill edit the field is better served by being told than by a status code.",
         "operationId": "preview_config_v1_config__node_id__preview_post",
         "parameters": [
           {
@@ -6851,6 +11044,186 @@
         ]
       }
     },
+    "/v1/estate/discovery/preview": {
+      "post": {
+        "description": "Return what one pass over ``integration`` would find, storing none of it.\n\nRaises:\n    ApiProblem: no source for that integration is composed (404).",
+        "operationId": "preview_discovery_v1_estate_discovery_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryPreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Discovery",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/discovery/report": {
+      "get": {
+        "description": "Return each swept source's last pass and every disagreement it recorded.\n\nDivergence is content, so it is served rather than logged. Naming a\n``source`` narrows to one and answers 404 when nothing has ever swept it —\nwhich is a different fact from a sweep that found nothing to disagree with,\nand collapsing the two would let an unconfigured deployment read as a\nperfectly reconciled one. Naming none returns what there is, which for a\ndeployment that has swept nothing is an empty list.\n\nRaises:\n    ApiProblem: a named source nothing has ever swept (404).",
+        "operationId": "discovery_report_v1_estate_discovery_report_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryReportListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Discovery Report",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/discovery/sources": {
+      "post": {
+        "description": "Register ``integration``'s recurring sweep, and say when it is next due.\n\nDue immediately. An operator who has just confirmed a preview expects the\nestate to fill, and a first sweep that waited out the declared interval\nwould leave them looking at an empty screen for five minutes with nothing\nto distinguish \"scheduled\" from \"broken\".\n\nRaises:\n    ApiProblem: no source for that integration is composed (404).",
+        "operationId": "register_discovery_source_v1_estate_discovery_sources_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoverySourceView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register Discovery Source",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
     "/v1/estate/resources": {
       "get": {
         "description": "Return the resources matching every filter given, by identifier.",
@@ -6995,7 +11368,7 @@
     },
     "/v1/estate/resources/{resource_id}": {
       "get": {
-        "description": "Return one resource's state, why, its history, and what touched it.",
+        "description": "Return one resource's state, why, its history, and what touched it.\n\nThe ``signals`` block is derived here rather than by the estate service,\nbecause it needs a fact the estate does not hold: which integrations this\nteam has a credential for. Deriving it per request is also what keeps it\ncorrect — connect a log store and the next render of this page says so,\nwith nothing to migrate.",
         "operationId": "resource_detail_v1_estate_resources__resource_id__get",
         "parameters": [
           {
@@ -7233,6 +11606,56 @@
           }
         },
         "summary": "Estate Summary",
+        "tags": [
+          "estate"
+        ]
+      }
+    },
+    "/v1/estate/unresolved-alert-targets": {
+      "get": {
+        "description": "Return the alert targets this estate does not hold, newest first.\n\nA finding of the same class as the reconciliation divergence a sweep\nproduces, and read from the live incidents that recorded it rather than from\na store of its own: the incident is already the record that the alert\narrived, and a second one would be a second thing to expire.",
+        "operationId": "list_unresolved_alert_targets_v1_estate_unresolved_alert_targets_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnresolvedTargetListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Unresolved Alert Targets",
         "tags": [
           "estate"
         ]
@@ -7554,10 +11977,78 @@
         ]
       }
     },
+    "/v1/ingress/sources": {
+      "get": {
+        "description": "Return every receiver this deployment serves, with its address and its body.",
+        "operationId": "list_ingress_sources_v1_ingress_sources_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngressSourceListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Ingress Sources",
+        "tags": [
+          "ingress"
+        ]
+      }
+    },
     "/v1/integrations": {
       "get": {
-        "description": "Return the catalogue: every installed integration and what is known about it.",
+        "description": "Return the catalogue: every installed integration and what is known about it.\n\nOrdered by relevance where the estate supplies any and by name otherwise.\nThe ordering is computed here rather than by each surface, because the\nconsole wizard and the CLI wizard ask the same question and two surfaces\nderiving relevance separately is how one of them offers Prometheus first\nwhile the other buries it, with nobody able to say which is right.",
         "operationId": "list_integrations_v1_integrations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -7568,6 +12059,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Integrations",
@@ -7576,9 +12077,135 @@
         ]
       }
     },
+    "/v1/integrations/{name}/credential": {
+      "delete": {
+        "description": "Disconnect: remove this team's stored credential for ``name``, every version.\n\nThe same permission as the write beside it (``credential.write``), because\nwhoever may put a credential in the vault is whoever may take it back out —\na narrower rule here would be a second, undocumented gate on the same\nmaterial. Idempotent: disconnecting an integration with nothing stored\nremoves zero versions rather than refusing, so a viewer who reloads a stale\npanel and presses it again does not meet an error over a fact that is\nalready true.\n\nRaises:\n    ApiProblem: nothing answers to ``name`` (404) — the same refusal the\n        write beside it gives, for the same reason.",
+        "operationId": "delete_credential_v1_integrations__name__credential_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialDeleteView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Credential",
+        "tags": [
+          "integrations"
+        ]
+      },
+      "put": {
+        "description": "Store this team's credential for ``name`` and report what it now is.\n\n``name`` is an installed integration or a supported model provider. One\nroute for both, because a provider key that took a different path would be\na second place credentials live and the one the audit misses.\n\nThe team is the token's, exactly as it is for every other write on this\nsurface: a body field naming somebody else's team would be a permission\ndecision taken by the client.\n\nRaises:\n    ApiProblem: nothing answers to ``name`` (404), or the values do not fit\n        the declared schema (400). The refusal names the fields and never\n        quotes one.",
+        "operationId": "store_credential_v1_integrations__name__credential_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialWriteView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Store Credential",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/v1/integrations/{name}/verify": {
       "post": {
-        "description": "Check this team's credential for ``name``: configured, current, decryptable.",
+        "description": "Check this team's credential for ``name``: configured, current, decryptable.\n\n``name`` is an installed integration or a supported model provider, the same\ntwo as the write beside it — the guided first run stores a provider key and\nthen verifies it, and a verify that only knew about vendor packages would\nrefuse the second half of its own flow.\n\nThe answer is written down. A check whose result lived only in the response\nleft the first run's \"check that each of them works\" step uncompletable:\ngreen while the tab was open, \"nobody has checked this one\" on reload.",
         "operationId": "verify_integration_v1_integrations__name__verify_post",
         "parameters": [
           {
@@ -7630,6 +12257,65 @@
           }
         },
         "summary": "Verify Integration",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/v1/integrations/{name}/verify/report": {
+      "post": {
+        "description": "Run ``name``'s own verifier against the vendor and return its report.\n\nA separate route rather than a flag on the verify beside it, and the\nseparation is the point. The shallow verify is cheap and safe to call from\nany screen that wants to know whether a credential is configured; this one\nmakes live vendor calls and answers with a document. Two behaviours behind\none route with a query parameter is how a screen accidentally makes the\nexpensive call on every render.\n\nRaises:\n    ApiProblem: this deployment composed no deep verifier, or ``name`` has\n        none to run (404). The refusal says which of the two it was.",
+        "operationId": "verify_integration_deeply_v1_integrations__name__verify_report_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationVerificationReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Integration Deeply",
         "tags": [
           "integrations"
         ]
@@ -8806,6 +13492,531 @@
         ]
       }
     },
+    "/v1/proposals": {
+      "get": {
+        "description": "Return what is waiting on this team, longest-waiting first.\n\nThe acceptance figure travels with the list rather than on an endpoint of\nits own. It is a property of the queue — how this team has answered — and a\nsecond request for one number is a second thing to be out of date.",
+        "operationId": "list_proposals_v1_proposals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Proposals",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/count": {
+      "get": {
+        "description": "Return how many proposals are waiting, for the badge and the band.",
+        "operationId": "count_proposals_v1_proposals_count_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalCount"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Count Proposals",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}": {
+      "get": {
+        "description": "Return one proposal with everything a decision rests on.",
+        "operationId": "get_proposal_v1_proposals__proposal_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Proposal",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}/decision": {
+      "post": {
+        "description": "Approve or reject a proposal, in the caller's name.\n\nA rejection without a reason is refused here as well as in the console. A\ncontrol is a courtesy and a server check is a rule, and the reason is what\nthe next proposal of the same thing is read against.",
+        "operationId": "decide_proposal_v1_proposals__proposal_id__decision_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide Proposal",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/protocols/catalogue": {
+      "get": {
+        "description": "Return this team's bridged tools, their origin, and each server's health.\n\nBuilt from the team's own registrations rather than from whatever the\nadapter happens to hold, so a server registered and never reached still\nappears — with the reason where its tools would be.",
+        "operationId": "bridged_catalogue_view_v1_protocols_catalogue_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgedCatalogueView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bridged Catalogue View",
+        "tags": [
+          "protocols"
+        ]
+      }
+    },
+    "/v1/providers": {
+      "get": {
+        "description": "Return every supported provider, in the order the platform documents them.",
+        "operationId": "list_providers_v1_providers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Providers",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/v1/providers/{provider_id}": {
+      "get": {
+        "description": "Return one provider with everything needed to set it up.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
+        "operationId": "show_provider_v1_providers__provider_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Show Provider",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/v1/providers/{provider_id}/models": {
+      "get": {
+        "description": "Return the models ``provider_id``'s own endpoint currently serves, curated.\n\nFree, like the other two ``GET``s: listing spends no tokens, so a screen\nmay call this on every render. ``refresh=true`` ignores whatever is\ncached, for an operator's own \"Reload models\".\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
+        "operationId": "list_models_v1_providers__provider_id__models_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Refresh",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelListingView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/v1/providers/{provider_id}/verify": {
+      "post": {
+        "description": "Check ``provider_id`` end to end and report what came back.\n\nA real request, and the claim being made is about what happened rather than\nabout what is configured. \"It should work now\" is not the same statement as\n\"a call went out, called a tool, and returned structure\", and the difference\nis discovered at 03:00 by whoever was told the first one.\n\nThe model exercised is the one this deployment is configured to run, when\nthe configuration names one for this provider. An operator told \"choose a\nmodel that supports tool calling\" changes the configuration and presses the\nbutton again — a check that kept testing the registry's default would\nreturn the same refusal forever.\n\nRaises:\n    ApiProblem: no supported provider answers to ``provider_id`` (404).",
+        "operationId": "verify_provider_v1_providers__provider_id__verify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderVerificationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Provider",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
     "/v1/remediations": {
       "get": {
         "description": "Return what the deployment has changed, most recent first.",
@@ -9593,6 +14804,66 @@
         ]
       }
     },
+    "/v1/schedules/preview": {
+      "post": {
+        "description": "Return what ``cron`` would fire, storing nothing.\n\nParsed through the same ``CronExpression`` the write path validates\nwith — a form calling this and a form calling ``create`` can never\ndisagree about what an expression means, because there is one\nimplementation of cron in this deployment rather than a console-side\nsecond opinion beside a server-side first one. A refused expression is\nrefused here exactly as ``create`` would refuse it, before anything\nwould have been stored.",
+        "operationId": "preview_schedule_v1_schedules_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SchedulePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePreviewView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Schedule",
+        "tags": [
+          "schedules"
+        ]
+      }
+    },
     "/v1/schedules/{job_id}": {
       "delete": {
         "description": "Remove a scheduled investigation.",
@@ -9889,7 +15160,7 @@
     },
     "/v1/setup/checklist": {
       "get": {
-        "description": "Return what is left to set up, each step verified against its dependency.",
+        "description": "Return what is left to set up, each step verified against its dependency.\n\nThe integration catalogue and its health ledger are read here rather than in\n``build_checklist``: that module is tier 3 and reaching up for ``integrations``\nwould be the boundary ``make check-imports`` exists to hold. Health is what\nthe recorded checks found, so \"verified\" means something answered rather than\nthat a credential is present — and it means that on the next request too,\nwhich is the whole reason the answer is written down.",
         "operationId": "checklist_v1_setup_checklist_get",
         "parameters": [
           {
@@ -10157,7 +15428,7 @@
     },
     "/v1/setup/self-check": {
       "get": {
-        "description": "Run every check in one pass and return the findings, most blocking first.",
+        "description": "Run every check in one pass and return the findings, most blocking first.\n\nThe runtime check is handed what this process actually composed, because\nthat is a fact only the running process holds — no store can be asked\nwhether anything here can drive an investigation, and it is the one\ndependency that leaves no trace on any screen.",
         "operationId": "run_self_check_v1_setup_self_check_get",
         "parameters": [
           {
@@ -10323,6 +15594,370 @@
         "summary": "Get Topology",
         "tags": [
           "topology"
+        ]
+      }
+    },
+    "/v1/transit/deliveries": {
+      "get": {
+        "description": "Return recent crossings, newest first, in either direction.",
+        "operationId": "deliveries_v1_transit_deliveries_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Outcome",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeliveryView"
+                  },
+                  "title": "Response Deliveries V1 Transit Deliveries Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deliveries",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/deliveries/{delivery_id}/resend": {
+      "post": {
+        "description": "Send a failed outbound delivery again, and record that a person asked.\n\nA re-send puts a report in front of somebody, so it is a human act and is\naudited like every other one — Article III. Refused for a delivery that\ndid not fail: re-sending a message the destination already accepted would\nbe this deployment producing a duplicate nobody asked for.",
+        "operationId": "resend_delivery_v1_transit_deliveries__delivery_id__resend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "delivery_id",
+            "required": true,
+            "schema": {
+              "title": "Delivery Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resend Delivery",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/destinations": {
+      "get": {
+        "description": "Return every declared destination, and why one cannot be configured.\n\nA deployment whose catalogue holds nothing that can deliver a message says\nso once, here, rather than rendering rows that would silently never send.",
+        "operationId": "destinations_v1_transit_destinations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DestinationsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Destinations",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/ingress": {
+      "get": {
+        "description": "Return every receiver this deployment serves, and what it has done lately.\n\nBuilt by enumerating the *configured* sources and joining the ledger onto\nthem, never the other way round. A listing built from the ledger would omit\nexactly the source this screen exists to show: the one that has never\ndelivered anything.",
+        "operationId": "ingress_status_v1_transit_ingress_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "rejections",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "title": "Rejections",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngressStatusView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingress Status",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/rules": {
+      "get": {
+        "description": "Return the ordered rule set, with the catch-all always present and last.\n\nA deployment that has configured nothing gets the default set rather than an\nempty list, because \"what happens to a delivery here\" always has an answer\nand the screen has to be able to show it.",
+        "operationId": "rules_v1_transit_rules_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulesView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rules",
+        "tags": [
+          "transit"
+        ]
+      }
+    },
+    "/v1/transit/simulate": {
+      "post": {
+        "description": "Return which rule would catch this delivery, where it would go, and what would happen.\n\nTakes either a pasted ``payload`` with its ``source``, or the\n``delivery_id`` of a crossing already in the ledger. Both end in the same\n``evaluate`` call the live ingress path makes — asserted by construction\nrather than by comparison, because there is only one implementation to call.",
+        "operationId": "simulate_v1_transit_simulate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Simulate",
+        "tags": [
+          "transit"
         ]
       }
     },
