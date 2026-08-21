@@ -865,7 +865,6 @@ export const EN = {
   'incident.investigation.step.evidence': 'Evidence',
   'incident.investigation.step.diagnosis': 'Diagnosis',
   'incident.investigation.step.delivery': 'Report delivered',
-  'incident.investigation.step.receipt.tokenLabel': 'Delivery credential:',
 
   'incident.evidenceTrail.title': 'Evidence trail',
   'incident.evidenceTrail.body':

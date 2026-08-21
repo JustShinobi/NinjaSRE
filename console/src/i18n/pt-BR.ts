@@ -671,7 +671,6 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.investigation.step.evidence': 'Evidência',
   'incident.investigation.step.diagnosis': 'Diagnóstico',
   'incident.investigation.step.delivery': 'Relatório entregue',
-  'incident.investigation.step.receipt.tokenLabel': 'Credencial de entrega:',
 
   'incident.evidenceTrail.title': 'Trilha de evidências',
   'incident.evidenceTrail.body':

@@ -341,10 +341,10 @@ export async function IncidentDetailScreen(
                     <time
                       data-testid="step-time"
                       dateTime={at.iso}
-                      title={at.absolute}
+                      title={at.relative}
                       className="text-meta text-muted tabular-nums shrink-0"
                     >
-                      {at.relative}
+                      {at.absolute}
                     </time>
                     <div className="min-w-0 flex flex-col gap-1">
                       <p className="text-small">
@@ -356,28 +356,23 @@ export async function IncidentDetailScreen(
                           )}
                         </span>
                         {' — '}
-                        <span data-testid="step-detail">
+                        {/* On the receipt this sentence is what authenticated
+                            the delivery — the recorder writes the credential's
+                            display name into it, so naming it here is naming
+                            the token rather than repeating it on a line of its
+                            own. */}
+                        <span
+                          data-testid={
+                            kind === 'receipt' ? 'delivery-token-name' : 'step-detail'
+                          }
+                        >
                           {cause === '' ? none : cause}
                         </span>
                       </p>
                       {kind === 'receipt' ? (
-                        <>
-                          <span
-                            data-testid="step-labels"
-                            className="font-mono text-meta"
-                          >
-                            {detailText === '' ? none : detailText}
-                          </span>
-                          <p className="text-meta text-muted">
-                            {message(
-                              locale,
-                              'incident.investigation.step.receipt.tokenLabel',
-                            )}{' '}
-                            <span data-testid="delivery-token-name">
-                              {detailText === '' ? none : detailText}
-                            </span>
-                          </p>
-                        </>
+                        <span data-testid="step-labels" className="font-mono text-meta">
+                          {detailText === '' ? none : detailText}
+                        </span>
                       ) : null}
                       {kind === 'hypotheses' ? (
                         <ul className="flex flex-col gap-1">

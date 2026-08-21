@@ -52,7 +52,17 @@ export function formatCurrency(
   value: number,
   currency: string,
 ): string {
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value);
+  // A model call that cost fractions of a cent is ordinary, and two decimal
+  // places render it as nothing spent. "$0.00" beside a finished investigation
+  // does not read as "very cheap" — it reads as "free", which is a different
+  // claim and a false one. Small non-zero amounts keep enough places to stay
+  // true; everything at or above a cent formats the way money usually does.
+  const tiny = value !== 0 && Math.abs(value) < 0.01;
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    ...(tiny ? { maximumFractionDigits: 4 } : {}),
+  }).format(value);
 }
 
 /**
