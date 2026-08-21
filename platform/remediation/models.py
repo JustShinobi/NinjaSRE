@@ -65,10 +65,19 @@ class ExecutionOutcome(StrEnum):
     five pods restarted is the ordinary result of acting on a live system, and
     it needs a rollback plan covering three — which is a different obligation
     from either of its neighbours.
+
+    ``UNCHANGED`` is a first-class outcome too, and for the same reason:
+    a target the control plane read as already in the desired state was
+    attempted and answered, not skipped and not refused. Collapsing it into
+    ``FAILED`` would report an action that worked — in the sense that its
+    intent already held — as one that went wrong, which is the same
+    "pretended execution" the success direction is guarded against, just
+    read backwards.
     """
 
     SUCCEEDED = "succeeded"
     PARTIAL = "partial"
+    UNCHANGED = "unchanged"
     FAILED = "failed"
     REFUSED = "refused"
 
@@ -696,10 +705,20 @@ def outcome_of(results: Sequence[SubTargetResult], *, expected: Sequence[str]) -
     Expected rather than attempted, because an action that never reached three
     of its five sub-targets produced no result for them at all — and counting
     only what came back would report a partial as a success.
+
+    An empty ``results`` and a ``results`` that is entirely ``changed=False``
+    are different facts and must not share an outcome. The first is a control
+    plane that was asked and came back with nothing at all — a real failure.
+    The second is a control plane that answered for every piece it was asked
+    about and found none of them needed moving, which is
+    :class:`SubTargetResult`'s own documented meaning of ``changed=False``: a
+    piece already in the desired state, not a piece that failed to change.
     """
+    if not results:
+        return ExecutionOutcome.FAILED
     changed = [result for result in results if result.changed]
     if not changed:
-        return ExecutionOutcome.FAILED
+        return ExecutionOutcome.UNCHANGED
     if len(changed) < len(expected) or len(results) < len(expected):
         return ExecutionOutcome.PARTIAL
     return ExecutionOutcome.SUCCEEDED
