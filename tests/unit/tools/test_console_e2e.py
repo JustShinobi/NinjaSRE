@@ -125,8 +125,15 @@ def test_the_compose_backing_builds_the_images_it_is_about_to_run() -> None:
     end = source.index("\ndef ", start)
     body = source[start:end]
 
-    up_call = next(line for line in body.splitlines() if '"up"' in line)
-
-    assert "--build" in up_call, (
-        f"the compose backing brings the stack up without rebuilding: {up_call.strip()}"
+    assert '"build"' in body, (
+        "the compose backing brings the stack up without rebuilding what it is about to run"
     )
+
+    built = next(line for line in body.splitlines() if '"build"' in line)
+
+    # The database is not in the rebuild set on purpose: its image carries none
+    # of this repository's source and builds by fetching an extension over the
+    # network, so rebuilding it every run would fail the whole backing on a
+    # machine that cannot reach the download.
+    assert "_SOURCE_SERVICES" in built, built.strip()
+    assert console_e2e._SOURCE_SERVICES == ("app", "console", "proxy")

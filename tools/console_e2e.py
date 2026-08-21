@@ -384,6 +384,11 @@ def _durable_secret(api_url: str, bootstrap_secret: str) -> str:
     return secret
 
 
+#: The compose services built from this repository's own source. The database
+#: is deliberately absent: its image carries none of our code.
+_SOURCE_SERVICES: Final = ("app", "console", "proxy")
+
+
 @contextlib.contextmanager
 def compose_stack() -> Iterator[Backing]:
     """Bring the deployment's own compose stack up and yield the gateway's address.
@@ -419,15 +424,21 @@ def compose_stack() -> Iterator[Backing]:
     # failed partway, still leaves something running. ``down --volumes`` is
     # harmless to run over a project nothing was ever created for.
     try:
-        # ``--build`` rather than plain ``up``: compose reuses an existing image,
-        # so without it the stack serves whatever the image was built from and
-        # the run reports a confident answer about code nobody has. That cost a
-        # slice of this feature nine red assertions against a backend image
-        # built before the routes it was being asked about existed. Rebuilding
-        # is cheap when nothing changed, because the layers cache.
+        # Rebuild the services that carry this repository's source, then bring
+        # the stack up. Without a rebuild compose reuses whatever image already
+        # exists, so the run serves code nobody has and reports a confident
+        # answer about it — that cost a slice of this feature nine red
+        # assertions against a backend image older than the routes it was being
+        # asked about.
+        #
+        # Only these three, and not the whole project: the database image
+        # carries no source of ours and builds by downloading a graph extension
+        # from the internet, so rebuilding it every run buys nothing and fails
+        # the whole backing on any machine that cannot reach the download.
         subprocess.run(
-            [*base, "up", "--build", "--detach"], check=True, cwd=REPO_ROOT, env=up_environment
+            [*base, "build", *_SOURCE_SERVICES], check=True, cwd=REPO_ROOT, env=up_environment
         )
+        subprocess.run([*base, "up", "--detach"], check=True, cwd=REPO_ROOT, env=up_environment)
         _wait_for_service_healthy(base, "postgres")
         _wait_for_service_healthy(base, "app")
         _seed(base)
