@@ -10,7 +10,7 @@
 # a bigger process.
 
 # syntax=docker/dockerfile:1
-ARG BASE_PYTHON=python:3.12.11-slim-bookworm
+ARG BASE_PYTHON=python:3.14.7-slim-trixie
 
 FROM ${BASE_PYTHON} AS build
 

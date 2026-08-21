@@ -14,6 +14,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Monitoring",
 ]
 
@@ -43,32 +44,32 @@ classifiers = [
 # anything, which is what keeps the telemetry deny-list satisfied by
 # construction rather than by review.
 dependencies = [
-    "alembic>=1.14",
-    "asyncpg>=0.30",
-    "cryptography>=44.0",
+    "alembic>=1.19",
+    "asyncpg>=0.31",
+    "cryptography>=50.0",
     # The REST/SSE surface (feature 020). Unlike the credential proxy's
     # hand-written ASGI, this surface is dozens of versioned routes with a
     # generated OpenAPI document (FR-006) — routing and schema by hand at that
     # size is where the hand-rolled approach stops paying for itself.
-    "fastapi>=0.115",
-    "pgvector>=0.3.6",
+    "fastapi>=0.141",
+    "pgvector>=0.5",
     # The interactive session's input: history, completion, and the terminal
     # handling that lets Ctrl+C reach the loop rather than the process.
-    "prompt-toolkit>=3.0",
+    "prompt-toolkit>=3.0.53",
     "pydantic>=2.13.4",
-    "pyyaml>=6.0",
+    "pyyaml>=6.0.3",
     # Rendering for a person. The degradation layer decides what a terminal can
     # show before this is asked to draw anything, so a terminal with no colour
     # and no Unicode is served by the same code path.
-    "rich>=13.9",
-    "sqlalchemy[asyncio]>=2.0.36",
-    "structlog>=24.4.0",
+    "rich>=15.0",
+    "sqlalchemy[asyncio]>=2.0.51",
+    "structlog>=26.1",
     # The CLI framework, and the shell completion that comes with it.
-    "typer>=0.15",
+    "typer>=0.27",
     # The REST/SSE server. A production deployment runs behind whatever ASGI
     # server the operator already trusts; this is the one that ships so
     # ``ninjasre serve`` works with nothing extra to install.
-    "uvicorn>=0.32",
+    "uvicorn>=0.52",
 ]
 
 # Vendor LLM SDKs are extras, never runtime dependencies. A deployment that runs
@@ -77,36 +78,36 @@ dependencies = [
 # mean if it is going to mean anything. ``core/llm/transports/sdk.py`` imports
 # each of these inside a function and reports the missing extra by name.
 [project.optional-dependencies]
-anthropic = ["anthropic>=0.40"]
-openai = ["openai>=1.60"]
+anthropic = ["anthropic>=0.120"]
+openai = ["openai>=2.53"]
 # Azure OpenAI, OpenRouter, NVIDIA NIM, and Ollama/vLLM all speak the OpenAI
 # wire, so they share its client.
-azure = ["openai>=1.60"]
-openrouter = ["openai>=1.60"]
-nvidia = ["openai>=1.60"]
-ollama = ["openai>=1.60"]
-bedrock = ["boto3>=1.35"]
-google = ["google-genai>=1.0"]
-litellm = ["litellm>=1.50"]
+azure = ["openai>=2.53"]
+openrouter = ["openai>=2.53"]
+nvidia = ["openai>=2.53"]
+ollama = ["openai>=2.53"]
+bedrock = ["boto3>=1.43"]
+google = ["google-genai>=2.16"]
+litellm = ["litellm>=1.95"]
 all-providers = [
-    "anthropic>=0.40",
-    "boto3>=1.35",
-    "google-genai>=1.0",
-    "openai>=1.60",
+    "anthropic>=0.120",
+    "boto3>=1.43",
+    "google-genai>=2.16",
+    "openai>=2.53",
 ]
 
 [dependency-groups]
 dev = [
     # Drives the ASGI app under test — FastAPI's own TestClient is built on it.
     # Never imported outside test code.
-    "httpx>=0.27",
-    "import-linter>=2.1",
-    "mypy>=1.13",
-    "pre-commit>=4.0",
-    "pytest>=8.3",
-    "pytest-asyncio>=0.24",
-    "pytest-cov>=6.0",
-    "ruff>=0.8",
+    "httpx>=0.28",
+    "import-linter>=2.13",
+    "mypy>=2.3",
+    "pre-commit>=4.6",
+    "pytest>=9.1",
+    "pytest-asyncio>=1.4",
+    "pytest-cov>=7.1",
+    "ruff>=0.16",
     # PyYAML ships no inline types, and ``mypy --strict`` over ``platform/``
     # covers the guardrail rule loader. A stubs package rather than an
     # ``ignore_missing_imports`` entry: the loader is parsing an operator's file
@@ -115,7 +116,7 @@ dev = [
     # Provides the PostgreSQL the contract suite runs its second backend
     # against. Absent a Docker daemon the suite still runs, against the fakes
     # alone, and says so rather than reporting a pass it did not earn.
-    "testcontainers>=4.9",
+    "testcontainers>=4.15",
 ]
 
 # The one command an operator runs. Nothing else is exposed: a second entry

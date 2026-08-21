@@ -10,7 +10,7 @@
 # for a user the kubelet cannot resolve, which is a confusing way to find out.
 
 # syntax=docker/dockerfile:1
-ARG BASE_PYTHON=python:3.12.11-slim-bookworm
+ARG BASE_PYTHON=python:3.14.7-slim-trixie
 
 FROM ${BASE_PYTHON} AS build
 
@@ -33,8 +33,19 @@ COPY surfaces ./surfaces
 
 # Into a virtual environment rather than the system interpreter, so the runtime
 # stage copies one directory and inherits nothing else the build needed.
+#
+# With the provider extras, not bare. A bare install leaves every provider
+# adapter unimportable, and nothing notices until a model is actually invoked —
+# health is green, the credential verifies, the console renders, and the first
+# investigation fails with a message about a missing extra.
+#
+# Every provider rather than one: which provider an operator configures is not
+# knowable at build time, and an image that works for one and not another is an
+# image whose behaviour depends on a setting made long after it was built.
 RUN python -m venv /opt/ninjasre \
-    && /opt/ninjasre/bin/pip install --no-cache-dir .
+    && /opt/ninjasre/bin/pip install --no-cache-dir ".[all-providers]" \
+    && ln -s "$(/opt/ninjasre/bin/python -c 'import site; print(site.getsitepackages()[0])')" \
+        /opt/ninjasre/site-packages
 
 FROM ${BASE_PYTHON} AS runtime
 
@@ -45,7 +56,8 @@ LABEL org.opencontainers.image.title="NinjaSRE" \
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/ninjasre/bin:${PATH}"
+    PATH="/opt/ninjasre/bin:${PATH}" \
+    PYTHONPATH="/opt/ninjasre/site-packages"
 
 # 10001 rather than the distribution's first free UID: high enough not to
 # collide with a host user if the filesystem is ever shared, and fixed so a
