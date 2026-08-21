@@ -364,7 +364,15 @@ class AlertmanagerAdapter:
         return "receiver" in payload or "groupKey" in payload or "commonLabels" in payload
 
     def normalise(self, raw: RawAlert) -> NormalisedAlert:
-        """Return the group's leading alert, with the group's labels merged in."""
+        """Return the group's leading alert, with the group's labels merged in.
+
+        The leading alert decides the headline — its labels, its window, its
+        annotations — but every member's own component is kept, not only the
+        leading one's. A group of two members firing on two different hosts
+        is one incident about two hosts, and a component list that named only
+        the first would leave the second one invisible to whoever reads the
+        incident afterwards.
+        """
         payload = raw.payload
         alerts = [_mapping(item) for item in _items(payload.get("alerts"))]
         firing = next((item for item in alerts if _first(item, "status") == "firing"), None)
@@ -376,6 +384,7 @@ class AlertmanagerAdapter:
         }
         annotations = _labels(_mapping(leading.get("annotations")))
         status = _first(leading, "status") or _first(payload, "status")
+        member_labels = tuple(_labels(_mapping(member.get("labels"))) for member in alerts)
 
         return NormalisedAlert(
             alert_source=self.source,
@@ -383,7 +392,7 @@ class AlertmanagerAdapter:
             severity=_severity(labels.get("severity", "")),
             summary=annotations.get("summary", "") or annotations.get("title", ""),
             description=annotations.get("description", "") or annotations.get("message", ""),
-            components=_components(labels),
+            components=_components(labels, *member_labels),
             error_text=annotations.get("description", ""),
             started_at=_moment(leading.get("startsAt")),
             ended_at=_moment(leading.get("endsAt")),

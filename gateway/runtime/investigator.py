@@ -104,7 +104,11 @@ class ReActInvestigationRunner:
 
         Raises :class:`InvestigationDidNotComplete` when the loop's own
         outcome is ``FAILED`` — the loop ran and produced nothing usable — so
-        the caller records the run as failed rather than completed.
+        the caller records the run as failed rather than completed. A
+        ``PARTIAL`` outcome is not this: it is a real completion on less
+        evidence than the loop asked for, and is reported here with the
+        product's own canonical word for that state — "degraded" — rather
+        than as a summary a reader would have to infer the state from.
         """
         await self._record_receipt(request)
 
@@ -119,6 +123,8 @@ class ReActInvestigationRunner:
             raise InvestigationDidNotComplete(
                 result.failure or "the investigation produced no answer"
             )
+        if result.degraded:
+            return _degraded_summary(result.answer)
         return result.answer or f"investigation ended {result.status.value}"
 
     async def _record_receipt(self, request: InvestigationStart) -> None:
@@ -265,6 +271,20 @@ class ReActInvestigationRunner:
             session_id=request.run_id,
             context=dict(request.context),
         )
+
+
+def _degraded_summary(answer: str) -> str:
+    """Return a degraded run's summary, naming the degradation by its canonical word.
+
+    ``answer`` already carries the operator-facing detail: what the run
+    gathered, and why it stopped short of a full answer. This only makes sure
+    the product's own word for the state — "degraded" — is actually present,
+    rather than left for a reader to infer from a sentence that never uses
+    it, or lost entirely once nothing downstream reads ``RunResult.degraded``
+    itself.
+    """
+    detail = answer or "no evidence was gathered before the run ended"
+    return f"degraded: {detail}"
 
 
 __all__ = [

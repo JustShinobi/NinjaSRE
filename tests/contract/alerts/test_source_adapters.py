@@ -22,6 +22,7 @@ import pytest
 
 from core.domain.alerts.normalisation import NormalisedAlert, RawAlert, Severity, normalise
 from core.domain.alerts.sources import ALERT_SOURCES, AlertSource
+from tests.contract.alerts.fixtures_alertmanager_delivery import ALERTMANAGER_FIRING_GROUPED
 
 pytestmark = pytest.mark.contract
 
@@ -154,6 +155,25 @@ def test_alertmanagers_zero_end_time_means_the_alert_has_not_ended() -> None:
     """``0001-01-01T00:00:00Z`` parses cleanly and means "still firing"; taking
     it literally would produce a window that closed two thousand years ago."""
     assert normalise(_raw(ALERTMANAGER)).ended_at is None
+
+
+def test_a_group_of_several_alerts_keeps_every_members_component_not_only_the_leading_ones() -> (
+    None
+):
+    """The adapter's own claim is 'the rest become components and labels,
+    because an alert group is one incident seen from several instances' — so
+    a two-member group naming two different services must show both, or an
+    operator reading the resulting incident has no way to learn the second
+    host is down too. Both members fire the same rule and share every common
+    label; only their own ``service`` label tells them apart."""
+    alert = normalise(_raw(ALERTMANAGER_FIRING_GROUPED))
+
+    assert "cedar" in alert.components, (
+        f"the leading (first firing) member's own component must survive: {alert.components!r}"
+    )
+    assert "birch" in alert.components, (
+        f"a group member beyond the leading one must not be dropped silently: {alert.components!r}"
+    )
 
 
 def test_a_resolved_alertmanager_notification_is_marked_resolved() -> None:

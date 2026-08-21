@@ -157,14 +157,20 @@ class TestInvestigate:
         assert summary == "diagnosis: disk on host-1 is full"
 
     async def test_a_run_where_every_turn_errors_is_reported_degraded_not_raised(self) -> None:
-        """Characterises ``ReActLoop`` rather than asserting a guess about it.
+        """The edge case for a degraded provider: two claims, not one.
 
         Every turn the loop tries comes back as a soft provider failure — the
         shape a real outage produces, not a raised exception. The canonical
         loop's own answer to "nothing landed" is ``PARTIAL`` ("the evidence
-        gathered so far is intact"), which the edge case for a degraded
-        provider asks this composition to report as a completion, not a
-        failure — so this must return normally rather than raise.
+        gathered so far is intact"), and the edge case asks this composition
+        for two separate things: report it as a completion rather than a
+        failure (so this must return normally rather than raise), and name
+        the degradation with the product's own canonical word rather than
+        leaving a reader to infer it from a sentence that never uses it. An
+        assertion that only checked the return type would pass equally
+        against a summary that never mentioned the degradation at all — which
+        is exactly what this composition did before this test asserted the
+        word.
         """
         runner = ReActInvestigationRunner(
             llm=ScriptedLLM([failed_turn()], repeat_last=True),
@@ -173,7 +179,10 @@ class TestInvestigate:
 
         summary = await runner.investigate(_request())
 
-        assert isinstance(summary, str)  # returned, not raised
+        assert isinstance(summary, str)  # returned, not raised — not refused
+        assert "degraded" in summary.lower(), (
+            f"the canonical word for this outcome must be named, not implied: {summary!r}"
+        )
 
     async def test_a_runtime_reported_as_failed_raises_rather_than_reads_as_completed(
         self, monkeypatch: pytest.MonkeyPatch

@@ -147,6 +147,38 @@ async def test_the_real_grouped_body_is_accepted(deployment: Deployment) -> None
     assert body["run_id"]
 
 
+async def test_a_groups_several_members_correlate_onto_one_incident_not_duplicates(
+    deployment: Deployment,
+) -> None:
+    """One delivery, two alerts (cedar and birch) firing together in one
+    group. The correlation decision this delivery represents — both members
+    belong to the same incident — must be readable afterwards: exactly one
+    incident exists (the count is what would catch a regression toward
+    duplicates), and its subjects name both members rather than only the
+    first one the group happened to list. A second host silently missing from
+    the incident is the same "duplicated without explanation" failure shape
+    in reverse: the operator has no way to learn it is down at all.
+    """
+    _, secret = await _delivery_token(deployment)
+
+    response = await _deliver(deployment, ALERTMANAGER_FIRING_GROUPED, token=secret)
+    assert response.status_code == 202, response.text
+    incident_id = response.json()["incident_id"]
+
+    assert await _incident_count(deployment) == 1
+
+    async with deployment.gateway.begin(TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)) as uow:
+        incident = await uow.incidents.get(incident_id)
+
+    assert incident is not None
+    subject_ids = {subject.resource_id for subject in incident.subjects}
+    assert "cedar" in subject_ids, f"the leading member must still be a subject: {subject_ids!r}"
+    assert "birch" in subject_ids, (
+        f"the group's second member must be a subject of the same incident, "
+        f"not dropped without a trace: {subject_ids!r}"
+    )
+
+
 # --- Authentication: no token, and a revoked one, are both refused ----------------
 
 
