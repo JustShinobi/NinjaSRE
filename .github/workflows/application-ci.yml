@@ -21,13 +21,13 @@ concurrency:
 jobs:
   verify:
     if: github.event_name == 'pull_request'
-    uses: JustShinobi/platform-workflows/.github/workflows/verify.yml@1def53efaaec9e85fa82e82a197e5b8c0a3438de
+    uses: JustShinobi/platform-workflows/.github/workflows/verify.yml@1472c2963006f33d7b15768cf799560ce086aac8
     with:
       descriptor: .ci/application.yaml
 
   release:
     if: github.event_name != 'pull_request'
-    uses: JustShinobi/platform-workflows/.github/workflows/application-release.yml@1def53efaaec9e85fa82e82a197e5b8c0a3438de
+    uses: JustShinobi/platform-workflows/.github/workflows/application-release.yml@1472c2963006f33d7b15768cf799560ce086aac8
     with:
       descriptor: .ci/application.yaml
     secrets: inherit
