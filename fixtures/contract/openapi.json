@@ -43,6 +43,52 @@
         "title": "AnswerRequest",
         "type": "object"
       },
+      "ApprovalDecisionRequest": {
+        "properties": {
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict"
+        ],
+        "title": "ApprovalDecisionRequest",
+        "type": "object"
+      },
+      "ApprovalDecisionResult": {
+        "properties": {
+          "approval_id": {
+            "title": "Approval Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "title": "Decided At",
+            "type": "string"
+          },
+          "decided_by": {
+            "title": "Decided By",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approval_id",
+          "state",
+          "decided_at",
+          "decided_by"
+        ],
+        "title": "ApprovalDecisionResult",
+        "type": "object"
+      },
       "ApprovalList": {
         "properties": {
           "approvals": {
@@ -73,6 +119,17 @@
             "additionalProperties": true,
             "title": "Arguments",
             "type": "object"
+          },
+          "blast_radius_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blast Radius Count"
           },
           "decided_at": {
             "anyOf": [
@@ -9219,6 +9276,75 @@
           }
         },
         "summary": "Get Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/{approval_id}/decision": {
+      "post": {
+        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and nothing\nelse: this route never invokes the capability the approval names. The\nstore itself refuses to record an approval with no stored rollback plan\n(Article III), so that guarantee does not depend on this handler getting\nthe order right — there is no order to get wrong, because there is no\nwrite to a plan here at all, only a read of one that already exists.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
+        "operationId": "decide_approval_v1_approvals__approval_id__decision_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalDecisionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide Approval",
         "tags": [
           "approvals"
         ]
