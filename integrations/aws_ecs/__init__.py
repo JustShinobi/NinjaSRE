@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS ECS",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="The ECS control plane: which clusters this account runs and which task definitions have been registered, which is where a deployment shows up.",
     regions=REGIONS,

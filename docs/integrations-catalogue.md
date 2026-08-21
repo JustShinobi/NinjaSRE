@@ -8,7 +8,7 @@ Every integration ships the same seven artefacts. The build fails naming both
 the integration and the artefact when one is missing, which is what makes "full
 parity" a property rather than an aspiration.
 
-84 integration(s), 84 at full parity, 7 recorded as unreachable.
+85 integration(s), 85 at full parity, 9 recorded as unreachable.
 
 ## The seven artefacts
 
@@ -556,6 +556,7 @@ A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, da
 - `proxmox_guest_tasks`
 - `proxmox_ha_state`
 - `proxmox_migration_feasibility`
+- `proxmox_node_health`
 - `proxmox_orphaned_volumes`
 - `proxmox_protection_gaps`
 - `proxmox_quorum_status`
@@ -1941,6 +1942,7 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 
 - `prometheus_active_alerts`
 - `prometheus_metric_statistics`
+- `prometheus_resource_pressure`
 
 **Permissions:**
 
@@ -1981,6 +1983,29 @@ MetricsQL against VictoriaMetrics and the alerts vmalert is holding, for the est
 
 - `query_metric` — cursor on `start`
 - `list_alerts` — cursor on `start`
+
+### model_provider
+
+### `google_gemini`
+
+Google Gemini, declared so a provider key stored in the vault is reachable through the credential proxy rather than only through the process environment.
+
+- **Category:** model_provider
+- **Regions:** global
+- **Credentials:** api_key
+- **SDK strategy:** `direct_client`
+- **Parity:** complete
+- **Health:** unknown
+
+**Capabilities:**
+
+- `google_gemini_available_models`
+
+**Permissions:**
+
+| Permission | Grants | Without it |
+|---|---|---|
+| `generativelanguage.models.list` | list the models this key may use, and call them | `google_gemini_available_models` |
 
 ### ticketing
 
@@ -2416,13 +2441,13 @@ A vendor nobody wrote is a vendor nobody is told about, so the omissions are a d
 
 - **Category:** database
 - **Why not:** The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.
-- **What would change it:** A protocol bridge that terminates the credential outside the agent process, the way the HTTP proxy does. Until there is one, a managed PostgreSQL is reachable through its cloud control plane — `aws_rds` for RDS and Aurora, `supabase` for Supabase — which answers instance state, failovers, and parameter changes but not sessions or query plans.
+- **What would change it:** A protocol bridge that terminates the credential outside the agent process, the way the HTTP proxy does. Nothing in the catalogue reaches a managed PostgreSQL's control plane today.
 
 ### `mysql` — MySQL
 
 - **Category:** database
 - **Why not:** The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.
-- **What would change it:** The same bridge PostgreSQL needs. A managed MySQL is reachable through `aws_rds`, which answers instance state and the event history and not what is executing inside the engine.
+- **What would change it:** The same bridge PostgreSQL needs. Nothing in the catalogue reaches a managed MySQL's control plane today.
 
 ### `mariadb` — MariaDB
 
@@ -2434,7 +2459,7 @@ A vendor nobody wrote is a vendor nobody is told about, so the omissions are a d
 
 - **Category:** database
 - **Why not:** The server speaks its own binary wire protocol on its own port. The credential proxy is HTTP: it attaches a secret to a request, and there is no request here to attach one to. Building the client anyway would mean holding the credential in the agent's process, which Article IV forbids outright.
-- **What would change it:** A protocol bridge, or Atlas: `mongodb_atlas` reaches a hosted deployment through the Atlas administration API and answers process and cluster state. A self-hosted replica set on port 27017 has no equivalent.
+- **What would change it:** A protocol bridge. Nothing in the catalogue reaches a hosted deployment's administration API today, and a self-hosted replica set on port 27017 has no equivalent either way.
 
 ### `redis_server` — Redis (self-hosted)
 
@@ -2446,10 +2471,22 @@ A vendor nobody wrote is a vendor nobody is told about, so the omissions are a d
 
 - **Category:** communication
 - **Why not:** SMTP is a stateful line protocol over its own port, not a request-response API. The credential proxy attaches a secret to an HTTP request; an SMTP session has no such request, and authentication happens inside a conversation the proxy cannot participate in.
-- **What would change it:** Either a protocol bridge that terminates the SMTP credential outside the agent process, or delivery through a vendor with an HTTP API — `twilio` and `pushover` are both in the catalogue and reach a person without an SMTP session.
+- **What would change it:** Either a protocol bridge that terminates the SMTP credential outside the agent process, or delivery through a vendor with an HTTP API — `pushover` is in the catalogue and reaches a person without an SMTP session.
 
 ### `helm` — Helm
 
 - **Category:** cicd
 - **Why not:** Helm 3 has no server component. A release is a Secret in the cluster and the CLI is what reads it, so there is no API for an integration to hold a credential against — the credential that matters is the cluster's.
 - **What would change it:** Nothing about Helm. Release history is already reachable: `kubernetes` reads the release Secrets in a namespace, and `argocd` answers the same question for the estates that deploy charts through it.
+
+### `gatus` — Gatus
+
+- **Category:** observability
+- **Why not:** Gatus answers one question — is this endpoint responding — and two configured sources already answer it by different routes: the hypervisor reports each guest's own state, and a blackbox exporter reports reachability from outside, both reaching the platform through Prometheus. A third path to the same answer is a third thing to keep credentials for and no new signal, and an investigation offered three sources for one question spends turns choosing between them.
+- **What would change it:** A synthetic check that asserts something neither of the other two can — a login flow, a certificate chain, a response body — or an estate where Gatus is the only thing watching a class of endpoint the hypervisor cannot see.
+
+### `netbox` — NetBox
+
+- **Category:** infrastructure
+- **Why not:** NetBox is a source of truth for network and addressing, and both already reach the platform: the addressing comes from the hypervisor with each guest, and the zones come from the declared inventory the estate is reconciled against. Ingesting the same facts from a third place is a third answer to 'which network is this on', and the failure that produces is two of them disagreeing quietly.
+- **What would change it:** An estate that grows past what the repository's own inventory describes — hardware, circuits, addressing NetBox is the only record of — at which point it stops being a duplicate and becomes the source for facts nothing else holds.

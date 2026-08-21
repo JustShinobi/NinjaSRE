@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Blameless",
     category=IntegrationCategory.INCIDENT_MANAGEMENT,
     summary="Blameless's incident record: what is open, one incident's events, and the update that says an automated investigation is under way.",
     regions=REGIONS,

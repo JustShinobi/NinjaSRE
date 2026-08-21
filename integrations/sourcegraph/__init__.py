@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Sourcegraph",
     category=IntegrationCategory.VERSION_CONTROL,
     summary="Code search across every repository at once: where a symbol, a string, or a configuration key actually appears.",
     regions=REGIONS,

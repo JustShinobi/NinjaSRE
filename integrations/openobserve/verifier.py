@@ -14,8 +14,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
+from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
+from integrations._verification.diagnostics import (
+    ClockSkewProbe,
+    DataWindow,
+    DataWindowProbe,
+    client_clock_probe,
+    client_window_probe,
+)
 from integrations._verification.framework import Connectivity
 from integrations._verification.permissions import (
     PermissionProbe,
@@ -82,6 +90,17 @@ PERMISSIONS: Final[tuple[RequiredPermission, ...]] = (
 )
 
 
+#: The client's own default when no SQL is given, spelled out so the probe's
+#: description and the query it makes cannot drift apart.
+_WINDOW_QUERY: Final = "SELECT * FROM logs"
+
+_WINDOW_ADVICE: Final = (
+    "OpenObserve answered and is holding no records at all for this window. Nothing is "
+    "ingesting into the default stream, or its retention was cut below the window — check "
+    "the shippers that write to it before checking anything here."
+)
+
+
 @dataclass(frozen=True, slots=True)
 class OpenobserveVerifier:
     """Checks a stored OpenObserve credential end to end, and what it may do."""
@@ -112,6 +131,40 @@ class OpenobserveVerifier:
                 call=lambda client: client.recent_logs(limit=1),
                 fallback_note=_NO_INTROSPECTION,
             ),
+        )
+
+    def data_window_probe(self) -> DataWindowProbe | None:
+        """Return the read that proves this OpenObserve is holding recent records."""
+
+        async def read(client: OpenobserveClient, window: DataWindow) -> int:
+            answer = await client.recent_logs(
+                _WINDOW_QUERY,
+                start=window.start_epoch_microseconds,
+                end=window.end_epoch_microseconds,
+                limit=VERIFY_WINDOW_SAMPLE_LIMIT,
+            )
+            return len(answer)
+
+        return client_window_probe(
+            description=(
+                f"runs {_WINDOW_QUERY!r} over /api/default/_search for the window, in the "
+                f"microseconds this API indexes in — unfiltered, so an empty result means "
+                f"the store and not the predicate"
+            ),
+            build=self._client,
+            read=read,
+            advice=_WINDOW_ADVICE,
+        )
+
+    def clock_probe(self) -> ClockSkewProbe | None:
+        """Return the reading that says what time this OpenObserve thinks it is."""
+        return client_clock_probe(
+            description=(
+                "reads the Date header OpenObserve returns on /api/default/_health, which "
+                "costs no extra call and is the server's own clock rather than a proxy's"
+            ),
+            build=self._client,
+            call=lambda client: client.ping(),
         )
 
     async def connect(self, transport: object, context: object) -> Connectivity:

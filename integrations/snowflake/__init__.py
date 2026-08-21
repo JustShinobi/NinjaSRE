@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Snowflake",
     category=IntegrationCategory.DATABASE,
     summary="Snowflake over its SQL REST API: what is running in the account now, and the slowest statements the query history recorded.",
     regions=REGIONS,

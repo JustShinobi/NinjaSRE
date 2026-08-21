@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS ELB",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="Elastic Load Balancing state: which load balancers exist and in what state, and the target groups behind them.",
     regions=REGIONS,

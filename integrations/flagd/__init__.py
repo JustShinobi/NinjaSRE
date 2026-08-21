@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="flagd",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="OpenFeature's flagd: which feature flags this deployment is serving and in what state, which is the change history nothing else records.",
     regions=REGIONS,

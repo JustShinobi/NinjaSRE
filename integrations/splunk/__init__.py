@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Splunk",
     category=IntegrationCategory.LOG_STORE,
     summary="SPL search against Splunk, counted before it is read, for the estates whose logs have been in Splunk longer than the services producing them.",
     regions=REGIONS,

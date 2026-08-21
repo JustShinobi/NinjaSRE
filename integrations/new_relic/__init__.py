@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="New Relic",
     category=IntegrationCategory.METRICS_STORE,
     summary="NRQL over New Relic's telemetry, and the alert violations currently open, for the accounts whose metrics and events live there.",
     regions=REGIONS,

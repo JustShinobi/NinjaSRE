@@ -52,6 +52,10 @@ class IntegrationCategory(StrEnum):
     INCIDENT_MANAGEMENT = "incident"
     COMMUNICATION = "communication"
     DATA_PLATFORM = "data_platform"
+    #: A language-model provider. Present because Article IV applies to a
+    #: provider key exactly as it applies to a vendor key — more so, since it
+    #: is the one credential every investigation spends.
+    MODEL_PROVIDER = "model_provider"
 
 
 class HealthStatus(StrEnum):
@@ -65,6 +69,11 @@ class HealthStatus(StrEnum):
     #: reporting it as healthy is the same failure as reporting a truncated
     #: answer as a complete one.
     UNKNOWN = "unknown"
+    #: No credential is stored for this integration at all. Distinct from
+    #: ``UNKNOWN``, which means a credential exists and nothing has checked it
+    #: yet — collapsing the two would show the same word for "nothing to do
+    #: here" and "this is the one you still have to connect".
+    UNCONFIGURED = "unconfigured"
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,13 +85,29 @@ class IntegrationProfile:
     """
 
     integration: str
+    #: What a person calls this vendor — "Azure Monitor", never `azure_monitor`.
+    #: The console and the generated documentation use this in every title,
+    #: list and label; the raw id below stays for technical contexts only
+    #: (the API, the audit trail, this profile's own identity).
+    display_name: str
     category: IntegrationCategory
     summary: str
     regions: RegionMap
     permissions: tuple[RequiredPermission, ...] = ()
     pagination: tuple[EndpointPagination, ...] = ()
+    #: Where a default install of this vendor listens, for the ones an operator
+    #: runs themselves. Nought for a hosted API, and the difference matters: a
+    #: container somebody called ``datadog`` is not a Datadog endpoint, so a
+    #: vendor with no port here is never offered a local address derived from
+    #: the estate.
+    default_port: int = 0
 
     def __post_init__(self) -> None:
+        if not 0 <= self.default_port <= 65_535:
+            raise ValueError(
+                f"{self.integration}: {self.default_port} is not a port. Nought means this "
+                f"vendor is hosted and has no default install to point at."
+            )
         if self.regions.integration != self.integration:
             raise ValueError(
                 f"the profile for {self.integration!r} carries a region map for "
@@ -92,6 +117,12 @@ class IntegrationProfile:
             raise ValueError(
                 f"{self.integration}: a profile with no summary gives the console and the "
                 f"generated documentation nothing to say about this vendor"
+            )
+        if not self.display_name.strip():
+            raise ValueError(
+                f"{self.integration}: a profile with no display_name leaves the console and "
+                f"the generated documentation with only the raw id to title this vendor with, "
+                f"which is not a name a person reads"
             )
         endpoints = [declared.endpoint for declared in self.pagination]
         duplicates = sorted({name for name in endpoints if endpoints.count(name) > 1})
@@ -114,6 +145,11 @@ class CatalogueEntry:
     health_detail: str = ""
 
     @property
+    def display_name(self) -> str:
+        """Return what a person calls this vendor, never the raw id."""
+        return self.profile.display_name
+
+    @property
     def category(self) -> IntegrationCategory:
         """Return what class of system this vendor is."""
         return self.profile.category
@@ -134,6 +170,16 @@ class CatalogueEntry:
         return tuple(permission.name for permission in self.profile.permissions)
 
     @property
+    def permissions(self) -> tuple[RequiredPermission, ...]:
+        """Return every required permission whole — grants and where, not only its name.
+
+        The gateway's own catalogue route reads this rather than
+        ``required_permissions``: a bare vendor scope name is exactly the shape
+        ``RequiredPermission``'s own docstring warns an operator has to look up.
+        """
+        return self.profile.permissions
+
+    @property
     def regions(self) -> tuple[str, ...]:
         """Return every region this vendor can be reached in."""
         return self.profile.regions.names()
@@ -149,6 +195,7 @@ class CatalogueEntry:
         """Return the JSON-serialisable form the console and docs generation read."""
         return {
             "name": self.name,
+            "display_name": self.display_name,
             "category": self.category.value,
             "summary": self.summary,
             "capabilities": list(self.capabilities),

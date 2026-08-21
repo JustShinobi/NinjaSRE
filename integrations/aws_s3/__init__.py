@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS S3",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="What is in the bucket this team configured: the objects and their storage class, and the version history, which is the closest S3 has to a change log.",
     regions=REGIONS,

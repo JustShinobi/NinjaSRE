@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS RDS",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="The RDS control plane: which database instances exist and in what state, and the events RDS recorded against them — failovers, restarts, parameter changes.",
     regions=REGIONS,

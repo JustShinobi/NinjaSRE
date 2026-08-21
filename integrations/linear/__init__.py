@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Linear",
     category=IntegrationCategory.TICKETING,
     summary="What Linear already tracks about a symptom: how many issues match, in what state, and which are worth reading before another is filed.",
     regions=REGIONS,

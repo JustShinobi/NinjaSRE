@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Flink",
     category=IntegrationCategory.DATA_PLATFORM,
     summary="Flink's JobManager REST API: which jobs are running, and the ones that failed or restarted, which is where a streaming backlog starts.",
     regions=REGIONS,

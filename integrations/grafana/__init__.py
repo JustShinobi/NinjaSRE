@@ -33,11 +33,14 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Grafana",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="What Grafana knows about a stack: which dashboards and folders exist, and the annotation timeline of deploys, alert state changes, and anything else a human marked.",
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port a default Grafana serves on.
+    default_port=3000,
 )
 
 __all__ = [

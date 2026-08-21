@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="ClickHouse",
     category=IntegrationCategory.DATABASE,
     summary="ClickHouse over its HTTP interface: what the server is currently executing, and the slowest queries in the log.",
     regions=REGIONS,

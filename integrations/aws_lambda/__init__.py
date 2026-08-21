@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS Lambda",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="The Lambda control plane: which functions exist, on which runtime and memory setting, and when each was last modified.",
     regions=REGIONS,

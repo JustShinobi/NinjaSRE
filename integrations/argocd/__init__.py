@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Argo CD",
     category=IntegrationCategory.CI_CD,
     summary="What Argo CD has actually applied: which applications are synced and healthy, and the ones that are not.",
     regions=REGIONS,

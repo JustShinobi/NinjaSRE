@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Jenkins",
     category=IntegrationCategory.CI_CD,
     summary="Jenkins build history: how a job has been doing lately, and the builds that failed, for the estates whose pipelines still run there.",
     regions=REGIONS,

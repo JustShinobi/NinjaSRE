@@ -58,6 +58,7 @@ DESCRIPTOR: Final = PROXMOX
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Proxmox VE",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary=(
         "A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, "

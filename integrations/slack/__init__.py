@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Slack",
     category=IntegrationCategory.COMMUNICATION,
     summary="The conversation an incident is already happening in: what responders have said, and a finding delivered where they will read it.",
     regions=REGIONS,

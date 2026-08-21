@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Spark",
     category=IntegrationCategory.DATA_PLATFORM,
     summary="Spark's history and status API: which applications and jobs are in which state, and the ones that failed.",
     regions=REGIONS,

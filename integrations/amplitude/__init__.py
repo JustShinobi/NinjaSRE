@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Amplitude",
     category=IntegrationCategory.METRICS_STORE,
     summary="Amplitude's product analytics: how user-facing event volume moved during a window, and which annotations mark what changed.",
     regions=REGIONS,

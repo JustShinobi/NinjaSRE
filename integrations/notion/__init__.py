@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Notion",
     category=IntegrationCategory.TICKETING,
     summary="What the team has written in Notion: the pages matching a search, and the ones most recently edited.",
     regions=REGIONS,

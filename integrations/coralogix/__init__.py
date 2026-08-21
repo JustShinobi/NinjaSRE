@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Coralogix",
     category=IntegrationCategory.LOG_STORE,
     summary="Coralogix log search over DataPrime or Lucene, counted by severity or application before any line is read.",
     regions=REGIONS,

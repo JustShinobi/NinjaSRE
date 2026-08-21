@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Trello",
     category=IntegrationCategory.TICKETING,
     summary="What a Trello board is holding: the cards on it, which list each is in, and which were touched most recently.",
     regions=REGIONS,

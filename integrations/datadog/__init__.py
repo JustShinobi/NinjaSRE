@@ -44,6 +44,7 @@ DESCRIPTOR: Final = DATADOG
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Datadog",
     category=IntegrationCategory.LOG_STORE,
     summary=(
         "Log search and aggregation, metric series, and monitor state, across Datadog's "

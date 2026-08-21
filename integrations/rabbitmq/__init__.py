@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="RabbitMQ",
     category=IntegrationCategory.DATA_PLATFORM,
     summary="RabbitMQ's management API: which queues exist and how deep they are, which is the first question of every message-backlog incident.",
     regions=REGIONS,

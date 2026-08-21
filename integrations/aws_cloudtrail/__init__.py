@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS CloudTrail",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="Who changed what in this AWS account, and when. The change history most incidents turn out to need and most investigations reach for too late.",
     regions=REGIONS,

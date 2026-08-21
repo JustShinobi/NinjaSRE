@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="groundcover",
     category=IntegrationCategory.METRICS_STORE,
     summary="groundcover's eBPF-derived service metrics and the monitors currently firing, for clusters instrumented without code changes.",
     regions=REGIONS,

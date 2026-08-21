@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Hermes",
     category=IntegrationCategory.LOG_STORE,
     summary="Hermes log tailing and classification: what a stream is currently emitting, grouped by the class its own model assigned.",
     regions=REGIONS,

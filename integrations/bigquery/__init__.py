@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="BigQuery",
     category=IntegrationCategory.DATABASE,
     summary="BigQuery job state for a project: what is running or queued, and the jobs that took longest, which is where a data-freshness incident usually starts.",
     regions=REGIONS,

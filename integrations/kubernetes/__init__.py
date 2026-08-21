@@ -49,6 +49,7 @@ DESCRIPTOR: Final = KUBERNETES
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Kubernetes",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary=(
         "Workload events and rollout history from a cluster's API server, at whichever "

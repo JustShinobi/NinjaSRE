@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Azure",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="The Azure Resource Manager control plane: what exists in a subscription, and the activity log entries that changed it.",
     regions=REGIONS,

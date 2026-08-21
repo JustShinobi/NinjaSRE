@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Dagster",
     category=IntegrationCategory.DATA_PLATFORM,
     summary="Dagster run state through its GraphQL API: which runs are in which status, and the failures behind a stale asset.",
     regions=REGIONS,

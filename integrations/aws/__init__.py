@@ -51,6 +51,7 @@ DESCRIPTOR: Final = AWS
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS CloudWatch",
     category=IntegrationCategory.LOG_STORE,
     summary=(
         "CloudWatch Logs: log group inventory and event reads, with every request signed "

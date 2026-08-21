@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="GitLab",
     category=IntegrationCategory.VERSION_CONTROL,
     summary="What landed in a GitLab project: the commits on a branch and the merge requests recently merged into it.",
     regions=REGIONS,

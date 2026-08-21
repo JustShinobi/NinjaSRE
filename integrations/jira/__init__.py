@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Jira",
     category=IntegrationCategory.TICKETING,
     summary="What Jira already knows about a symptom: how many issues match, in what state, and which ones are worth reading before another is opened.",
     regions=REGIONS,

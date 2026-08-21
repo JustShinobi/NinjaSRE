@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Railway",
     category=IntegrationCategory.CI_CD,
     summary="Railway deployments and their status, for the services this project runs on it.",
     regions=REGIONS,

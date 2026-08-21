@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="ServiceNow",
     category=IntegrationCategory.INCIDENT_MANAGEMENT,
     summary="ServiceNow incident records: what is open, one incident's work notes, and the update that records an automated investigation.",
     regions=REGIONS,

@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Docker",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="The Docker Engine API: which containers exist and in what state, and the engine events that changed them.",
     regions=REGIONS,

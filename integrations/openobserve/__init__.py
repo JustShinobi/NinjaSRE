@@ -33,11 +33,14 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="OpenObserve",
     category=IntegrationCategory.LOG_STORE,
     summary="SQL search over OpenObserve streams, counted by field before any record is read, for the estates that chose it for its storage cost.",
     regions=REGIONS,
     permissions=PERMISSIONS,
     pagination=PAGINATION,
+    # the port a default OpenObserve serves its API and UI on.
+    default_port=5080,
 )
 
 __all__ = [

@@ -297,8 +297,8 @@ class ProxmoxDiscovery:
         if spend.exhausted:
             return emitted, True
 
-        await client.high_availability()
-        spend.spend(3)
+        availability = await client.high_availability()
+        spend.spend(availability.provider_calls)
         if spend.exhausted:
             return emitted, True
 
@@ -430,9 +430,20 @@ class ProxmoxDiscovery:
         if node in offline:
             signals["stale"] = "the node hosting it is not answering"
 
+        address = guest_address(configuration)
+        if address:
+            signals["address"] = address
+
         attributes: dict[str, Any] = {
             "cores": int(row.get("maxcpu", 0) or 0),
             "memory_bytes": int(row.get("maxmem", 0) or 0),
+            "address": address,
+            # What the host's exporter labels this guest's series with. Emitted
+            # as a declared attribute rather than left to be recovered from the
+            # correlation key, because a query assembled by splitting a string
+            # fails silently — and an empty metric result reads as a healthy
+            # guest.
+            "vmid": vmid,
         }
         if kind == "qemu":
             attributes["disk_bytes"] = int(row.get("maxdisk", 0) or 0)
@@ -514,6 +525,7 @@ def _node_resources(
                     "cpu_count": int(row.get("maxcpu", 0) or 0),
                     "memory_bytes": int(row.get("maxmem", 0) or 0),
                     "uptime_seconds": int(row.get("uptime", 0) or 0),
+                    "address": member.address,
                 },
                 signals={
                     "address": member.address,
@@ -581,6 +593,32 @@ def _backup_job_resource(cluster: str, job: BackupJob) -> DiscoveredResource:
     )
 
 
+def guest_address(configuration: Mapping[str, Any]) -> str:
+    """Return the first static IPv4 a guest's network lines declare, or ``""``.
+
+    Read from the configuration rather than from a running guest, and that is
+    the point: the address a container was *given* is a fact about it whether or
+    not it is up, and a zone derived from the guest agent would disappear
+    exactly when the guest stopped — which is the moment somebody needs to know
+    which zone the stopped guest was in.
+
+    ``dhcp``, ``manual`` and an IPv6 address all return empty. A guest whose
+    address this cannot state is one the enrichment reports as unplaced, which
+    is a finding; inventing an address for it would be a wrong answer that looks
+    like a right one.
+    """
+    for key in sorted(configuration):
+        if not str(key).startswith("net"):
+            continue
+        for part in str(configuration[key]).split(","):
+            name, separator, value = part.partition("=")
+            if separator and name.strip() == "ip":
+                candidate = value.strip().split("/", 1)[0]
+                if candidate and candidate[0].isdigit():
+                    return candidate
+    return ""
+
+
 def _guest_status(row: Mapping[str, Any]) -> str:
     """Return the status word for a guest, preferring what Proxmox itself said."""
     if int(row.get("template", 0) or 0):
@@ -627,4 +665,5 @@ __all__ = [
     "PROXMOX_KINDS",
     "RATE_LIMIT_PER_MINUTE",
     "ProxmoxDiscovery",
+    "guest_address",
 ]

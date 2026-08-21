@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="Sentry",
     category=IntegrationCategory.LOG_STORE,
     summary="Application errors as Sentry groups them: which issues are open, how often each is firing, and the events behind the ones that matter.",
     regions=REGIONS,

@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="MongoDB Atlas",
     category=IntegrationCategory.DATABASE,
     summary="The Atlas control plane: which clusters and processes exist in a project, and the slow-query entries Atlas's performance advisor has collected.",
     regions=REGIONS,

@@ -33,6 +33,7 @@ DESCRIPTOR: Final = IntegrationDescriptor(
 
 PROFILE: Final = IntegrationProfile(
     integration=INTEGRATION,
+    display_name="AWS EKS",
     category=IntegrationCategory.CLOUD_CONTROL_PLANE,
     summary="The EKS control plane: which clusters this account runs, their version and status, and the cluster updates that have been applied to them.",
     regions=REGIONS,
