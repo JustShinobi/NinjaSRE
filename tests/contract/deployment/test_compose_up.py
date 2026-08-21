@@ -139,9 +139,18 @@ def test_the_standard_profiles_whole_project_boots_with_no_credential_at_all() -
     read too and asserted at zero: a container that crash-looped five times
     before recovering would still end up healthy, and would still be the
     defect this test exists to catch.
+
+    An encryption key is set, and it is not a counter-example to the name.
+    The key is what seals a credential, not a credential itself: the standard
+    profile runs the credential proxy as its own process, so every credential
+    it will ever hold arrives through the vault and a deployment without a key
+    cannot store the first one. Supplying it here is what an operator does
+    once with ``openssl rand -base64 32``; the point being made is still that
+    no *provider* credential is needed to bring the stack up.
     """
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setenv("NINJASRE_LLM_PROVIDER", "ollama")
+    monkeypatch.setenv("NINJASRE_DATABASE_ENCRYPTION_KEY", "A" * 43 + "=")
     try:
         _compose("down", "--volumes")
         try:

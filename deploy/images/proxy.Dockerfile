@@ -29,8 +29,17 @@ COPY integrations ./integrations
 COPY platform ./platform
 COPY surfaces ./surfaces
 
+# No provider extras: the proxy injects credentials at the network edge and
+# never invokes a model, so a vendor SDK here would be weight with no purpose.
+#
+# The symlink is not cosmetic. `platform/` shadows the standard library module
+# of that name and only wins it when its own directory leads the path, so the
+# runtime stage puts `site-packages` on `PYTHONPATH` explicitly and this is the
+# stable name it points at.
 RUN python -m venv /opt/ninjasre \
-    && /opt/ninjasre/bin/pip install --no-cache-dir .
+    && /opt/ninjasre/bin/pip install --no-cache-dir . \
+    && ln -s "$(/opt/ninjasre/bin/python -c 'import site; print(site.getsitepackages()[0])')" \
+        /opt/ninjasre/site-packages
 
 FROM ${BASE_PYTHON} AS runtime
 
@@ -40,7 +49,8 @@ LABEL org.opencontainers.image.title="NinjaSRE credential proxy" \
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/ninjasre/bin:${PATH}"
+    PATH="/opt/ninjasre/bin:${PATH}" \
+    PYTHONPATH="/opt/ninjasre/site-packages"
 
 RUN groupadd --gid 10001 ninjasre \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin ninjasre
@@ -53,7 +63,7 @@ WORKDIR /var/lib/ninjasre
 EXPOSE 8422
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
-    CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8422/health', timeout=4).status == 200 else 1)"]
+    CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8422/internal/health', timeout=4).status == 200 else 1)"]
 
-ENTRYPOINT ["python", "-m", "platform.credentials.proxy"]
+ENTRYPOINT ["python", "-m", "gateway.proxy"]
 CMD ["--host", "0.0.0.0", "--port", "8422"]

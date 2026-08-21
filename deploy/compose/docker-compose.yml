@@ -27,7 +27,7 @@ name: ninjasre
 x-image-build: &image-build
   context: ../..
   args:
-    BASE_PYTHON: ${BASE_PYTHON:-python:3.12.11-slim-bookworm}
+    BASE_PYTHON: ${BASE_PYTHON:-python:3.14.7-slim-trixie}
 
 services:
   postgres:
@@ -35,13 +35,18 @@ services:
       context: ../..
       dockerfile: deploy/images/postgres.Dockerfile
       args:
-        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
+        BASE_POSTGRES: ${BASE_POSTGRES:-postgres:18.4-trixie}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
       POSTGRES_DB: ${POSTGRES_DB:-ninjasre}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # A single mount at the parent directory, not at `.../data`. Postgres
+      # 18's official image keys its data directory to the major version
+      # (`/var/lib/postgresql/<major>/docker`) and its own entrypoint treats
+      # any *other* mount at the pre-18 path as leftover data from an
+      # unmanaged upgrade — even an empty one — and refuses to start.
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       # `pg_isready` against the database by name, not just the port. A server
       # accepting connections before its initdb scripts have created the
@@ -83,6 +88,10 @@ services:
       NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
       NINJASRE_CREDENTIAL_PROXY_TOKEN: ${NINJASRE_CREDENTIAL_PROXY_TOKEN:-}
       NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
+      # The tenant bring-up creates. Missing from this file until now, so every
+      # deployment bootstrapped into `default` regardless of what an operator
+      # might otherwise want the first organisation called.
+      NINJASRE_ORGANISATION: ${NINJASRE_ORGANISATION:-default}
       NINJASRE_SETUP_TEMPLATE: ${NINJASRE_SETUP_TEMPLATE:-}
       NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
       NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-anthropic}
@@ -119,19 +128,49 @@ services:
     build:
       <<: *image-build
       dockerfile: deploy/images/console.Dockerfile
+    # The same wheel as `app`, started at a different entry point (see
+    # deploy/images/console.Dockerfile) — a second `gateway.http.serve`, not a
+    # thin front end. It composes the same deployment `app` does, provider
+    # included, so it needs the same configuration `app` gets below, plus the
+    # one setting that is only its own.
     environment:
       NINJASRE_DEPLOYMENT_PROFILE: ${NINJASRE_DEPLOYMENT_PROFILE:-standard}
       NINJASRE_DATABASE_URL: ${NINJASRE_DATABASE_URL:-postgresql://ninjasre:ninjasre@postgres:5432/ninjasre}
       NINJASRE_DATABASE_ENCRYPTION_KEY: ${NINJASRE_DATABASE_ENCRYPTION_KEY:-}
       NINJASRE_CREDENTIAL_PROXY_URL: ${NINJASRE_CREDENTIAL_PROXY_URL:-http://proxy:8422}
-      NINJASRE_ENDPOINT: ${NINJASRE_ENDPOINT:-http://app:8420}
+      NINJASRE_CREDENTIAL_PROXY_TOKEN: ${NINJASRE_CREDENTIAL_PROXY_TOKEN:-}
+      NINJASRE_ADMIN_TOKEN: ${NINJASRE_ADMIN_TOKEN:-}
+      NINJASRE_ORGANISATION: ${NINJASRE_ORGANISATION:-default}
+      NINJASRE_SETUP_TEMPLATE: ${NINJASRE_SETUP_TEMPLATE:-}
+      NINJASRE_INVESTIGATOR: ${NINJASRE_INVESTIGATOR:-}
+      NINJASRE_LLM_PROVIDER: ${NINJASRE_LLM_PROVIDER:-anthropic}
+      NINJASRE_LLM_MODEL: ${NINJASRE_LLM_MODEL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      NINJASRE_AIR_GAPPED: ${NINJASRE_AIR_GAPPED:-false}
+      NINJASRE_EGRESS_ALLOWLIST: ${NINJASRE_EGRESS_ALLOWLIST:-}
+      NINJASRE_CA_BUNDLE: ${NINJASRE_CA_BUNDLE:-}
+      NINJASRE_OTEL_ENDPOINT: ${NINJASRE_OTEL_ENDPOINT:-}
       NINJASRE_LOG_LEVEL: ${NINJASRE_LOG_LEVEL:-INFO}
       NINJASRE_LOG_FORMAT: ${NINJASRE_LOG_FORMAT:-json}
+      NINJASRE_LOCAL_ACCOUNT_USERNAME: ${NINJASRE_LOCAL_ACCOUNT_USERNAME:-}
+      NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH: ${NINJASRE_LOCAL_ACCOUNT_PASSWORD_HASH:-}
+      NINJASRE_LOCAL_ACCOUNT_DEMO: ${NINJASRE_LOCAL_ACCOUNT_DEMO:-}
+      # The one setting that is only console's own: where the deployment it
+      # fronts is, for whatever in this image still reads it.
+      NINJASRE_ENDPOINT: ${NINJASRE_ENDPOINT:-http://app:8420}
     ports:
       - "127.0.0.1:${NINJASRE_CONSOLE_PORT:-8421}:8421"
     depends_on:
       app:
-        condition: service_started
+        # Healthy rather than merely started. This service runs the same entry
+        # point the application does, and that entry point migrates — so two of
+        # them coming up together are two writers racing for the schema lock,
+        # which is exactly what the proxy refuses to be. Waiting until the
+        # application is serving means the schema is already at head and this
+        # one's own migration step finds nothing to do.
+        condition: service_healthy
     restart: unless-stopped
     networks: [internal]
 

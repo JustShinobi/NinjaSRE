@@ -374,15 +374,25 @@ class PostgresPersistence:
         Skipped entirely when no key is configured: a deployment that stores no
         credentials should not be reported as degraded for a key it will never
         use, and one that does store them fails at the first write instead.
+
+        A schema that is not there yet is not a failure either. The boot
+        sequence verifies the key *before* it migrates, on purpose — a key that
+        did not survive a restore should fail in seconds rather than after a
+        schema change — so on a deployment's very first start this runs against
+        a database with no tables in it. There are no stored credentials to be
+        undecryptable, which is exactly what an empty answer says.
         """
         if not KEY_RING.is_configured:
             return ()
 
         handles: list[str] = []
-        async with self._sessions() as session, session.begin():
-            for organisation in await PostgresOrgDirectory(session).list_organisations():
-                store = PostgresCredentialStore(organisation.org_id, session)
-                handles.extend(await store.verify_decryptable())
+        try:
+            async with self._sessions() as session, session.begin():
+                for organisation in await PostgresOrgDirectory(session).list_organisations():
+                    store = PostgresCredentialStore(organisation.org_id, session)
+                    handles.extend(await store.verify_decryptable())
+        except DBAPIError:
+            return ()
         return tuple(handles)
 
 

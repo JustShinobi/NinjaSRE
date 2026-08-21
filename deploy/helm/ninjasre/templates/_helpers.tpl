@@ -121,63 +121,65 @@ produce a deployment whose sandbox and concurrency did not match its shape.
 {{- end -}}
 
 {{/*
-The variable each provider's own SDK reads its key from. There is no catch-all:
-a vendor SDK reads the name its vendor chose, and a chart that invented one
-would be setting a variable nothing reads — which is what this chart used to do.
-Ollama is absent on purpose; it authenticates to nothing.
-*/}}
-{{- define "ninjasre.providerCredentialEnv" -}}
-{{- $names := dict
-  "anthropic" "ANTHROPIC_API_KEY"
-  "openai" "OPENAI_API_KEY"
-  "azure_openai" "AZURE_OPENAI_API_KEY"
-  "aws_bedrock" "AWS_ACCESS_KEY_ID"
-  "google_gemini" "GOOGLE_API_KEY"
-  "google_vertex_ai" "GOOGLE_API_KEY"
-  "openrouter" "OPENROUTER_API_KEY"
-  "nvidia_nim" "NVIDIA_API_KEY"
--}}
-{{- index $names . | default "" -}}
-{{- end -}}
+The provider's credential — needed by the application, which is the one
+workload that composes an investigation runtime and calls the provider. The
+credential proxy stopped needing this once it stopped validating the
+deployment's own provider (see `ninjasre.providerEnv`'s one remaining include
+site, in app-deployment.yaml): handing it a model credential would spread a
+secret to a process that never calls a model.
 
-{{/* Where a provider is reached, when the operator points it somewhere else. */}}
-{{- define "ninjasre.providerBaseUrlEnv" -}}
-{{- $names := dict
-  "anthropic" "ANTHROPIC_BASE_URL"
-  "openai" "OPENAI_BASE_URL"
-  "openrouter" "OPENROUTER_BASE_URL"
-  "nvidia_nim" "NVIDIA_NIM_BASE_URL"
-  "ollama" "OLLAMA_BASE_URL"
--}}
-{{- index $names . | default "" -}}
+The environment-variable NAME depends on which provider is selected. A chart
+cannot import `platform.startup.validation.PROVIDER_CREDENTIAL_ENV`, so the
+mapping below restates it by hand; a contract test reads that constant and
+checks this block against it, which is what keeps the two from drifting apart
+silently rather than this comment. Ollama needs no credential at all and has
+no branch here: mounting a secret reference for a provider that reads none
+would be exactly the unneeded exposure this chart elsewhere avoids.
+*/}}
+{{- define "ninjasre.providerCredentialEnvName" -}}
+{{- if eq .Values.provider.id "anthropic" -}}
+ANTHROPIC_API_KEY
+{{- else if eq .Values.provider.id "openai" -}}
+OPENAI_API_KEY
+{{- else if eq .Values.provider.id "azure_openai" -}}
+AZURE_OPENAI_API_KEY
+{{- else if eq .Values.provider.id "aws_bedrock" -}}
+AWS_ACCESS_KEY_ID
+{{- else if eq .Values.provider.id "google_gemini" -}}
+GOOGLE_API_KEY
+{{- else if eq .Values.provider.id "google_vertex_ai" -}}
+GOOGLE_API_KEY
+{{- else if eq .Values.provider.id "openrouter" -}}
+OPENROUTER_API_KEY
+{{- else if eq .Values.provider.id "nvidia_nim" -}}
+NVIDIA_API_KEY
+{{- else -}}
+{{ fail (printf "provider.id %q has no known credential variable. Set it to one of: anthropic, openai, azure_openai, aws_bedrock, google_gemini, google_vertex_ai, openrouter, nvidia_nim, ollama." .Values.provider.id) }}
+{{- end -}}
 {{- end -}}
 
 {{/*
-The provider credential, for the application alone.
+The provider credential, for the workloads that compose the deployment.
 
-Optional in both directions, and that is the design rather than a convenience.
-Connecting a model provider is a first-run step: the operator enters the key in
-the console and it is stored in the vault, encrypted with
-``encryptionKey.secret``. This block is the other way — for a deployment that
-would rather hand the container its provider than click one — so nothing here
-renders unless ``provider.id`` names one, and the secret is referenced only when
-the operator supplied its name. A chart that demanded a Secret nobody had
-created would refuse to start a deployment that was configured correctly.
+Optional in both directions, and that is the design rather than a
+convenience. Connecting a model provider is a first-run step: the operator
+chooses one in the console and the key is stored in the vault, encrypted
+with `encryptionKey.secret`. This block is the other way — for a deployment
+that would rather be handed its provider than click one — so nothing renders
+unless `provider.id` names one, and the Secret is referenced only when its
+name is given. A chart that demanded a Secret nobody had created would
+refuse to install a deployment that was configured correctly.
+
+Ollama is skipped whatever else is set: a local model reads no vendor key.
 */}}
 {{- define "ninjasre.providerEnv" -}}
-{{- $credentialEnv := include "ninjasre.providerCredentialEnv" .Values.provider.id }}
-{{- $baseUrlEnv := include "ninjasre.providerBaseUrlEnv" .Values.provider.id }}
-{{- if and .Values.provider.baseUrl $baseUrlEnv }}
-- name: {{ $baseUrlEnv }}
-  value: {{ .Values.provider.baseUrl | quote }}
-{{- end }}
-{{- if and $credentialEnv .Values.provider.credentialSecret.name }}
-- name: {{ $credentialEnv }}
+{{- if and .Values.provider.id (ne .Values.provider.id "ollama") .Values.provider.credentialSecret.name }}
+- name: {{ include "ninjasre.providerCredentialEnvName" . }}
   valueFrom:
     secretKeyRef:
       name: {{ .Values.provider.credentialSecret.name }}
       key: {{ .Values.provider.credentialSecret.key }}
-{{- end }}
+{{- end -}}
 {{- end -}}
 
 {{/* The trust bundle mount, when the operator supplied one. */}}

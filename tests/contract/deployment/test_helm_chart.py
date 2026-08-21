@@ -245,7 +245,7 @@ def test_ollama_has_no_credential_variable_because_none_is_required() -> None:
     """
     assert "ollama" not in PROVIDER_CREDENTIAL_ENV
     assert "ollama" not in _provider_credential_env_name_mapping()
-    assert '{{- if ne .Values.provider.id "ollama" }}' in template_text("_helpers.tpl")
+    assert '(ne .Values.provider.id "ollama")' in template_text("_helpers.tpl")
 
 
 def test_no_dead_provider_setting_names_remain_in_the_chart() -> None:
@@ -276,27 +276,28 @@ def test_the_application_still_receives_a_provider_credential() -> None:
     assert 'include "ninjasre.providerEnv"' in template_text("app-deployment.yaml")
 
 
-def test_every_workload_that_validates_a_provider_is_given_its_credential() -> None:
+def test_every_workload_that_boots_the_deployment_can_be_given_a_provider() -> None:
     """Three of this chart's workloads boot through the same entry point.
 
     ``app``, ``console`` and the migration Job all run ``gateway.http.serve``,
-    which composes the deployment — and that composition validates the whole
-    configuration, a model provider included, before it does anything else. The
-    migration Job validates before it even reaches its own migrate-and-exit
-    branch, so a chart that withheld the credential from it would fail to
-    install rather than fail to serve.
+    which composes the deployment. None of them refuses to start without a
+    model provider any more — connecting one is a first-run step and the boot
+    reports its absence rather than failing over it — so this is no longer
+    about a credential being withheld.
 
-    Asserted over the set of workloads rather than one at a time: the defect
-    this closes was two templates that never included the helper at all, which a
-    test naming only the templates that already did could not have seen.
+    What it is still about is the three of them agreeing. An operator who does
+    hand the deployment its provider in values expects every workload composed
+    from those values to receive it, and a template that quietly skipped the
+    helper would produce one process configured differently from its siblings
+    for no reason anybody wrote down.
     """
-    withheld = [
+    without = [
         name
         for name in ("app-deployment.yaml", "console-deployment.yaml", "migration-job.yaml")
         if 'include "ninjasre.providerEnv"' not in template_text(name)
     ]
 
-    assert not withheld, (
-        f"these workloads run gateway.http.serve, which refuses to start without a "
-        f"provider, and are never given one: {withheld}"
+    assert not without, (
+        f"these workloads compose the same deployment from the same values and "
+        f"would not all see the provider it names: {without}"
     )
