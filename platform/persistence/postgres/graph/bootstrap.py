@@ -81,15 +81,42 @@ class GraphReadiness:
 
 
 async def load(conn: AsyncConnection) -> bool:
-    """Load AGE onto this connection, and report whether it took.
+    """Make AGE usable on this connection, and report whether it is.
 
     Idempotent and cheap on a connection that already has it, which is what
     makes calling it per unit of work acceptable rather than something to cache
     and get wrong after the pool recycles a connection.
+
+    **A refused ``LOAD`` is not the same fact as AGE being unavailable.**
+    ``LOAD`` is superuser-only unless the library sits in ``$libdir/plugins``,
+    and a PostgreSQL that carries AGE commonly puts it in
+    ``shared_preload_libraries`` instead — precisely so no session has to load
+    it and no application needs a superuser to run one. That deployment is the
+    good shape, and reading its refusal as "this database has no graph" reports
+    it as broken. So a refusal is followed by asking whether AGE answers
+    anyway; only a database where it does not answer has none.
     """
     try:
         await conn.execute(text("LOAD 'age'"))
     except DBAPIError:
+        # The refused statement poisons the transaction, and the question after
+        # it needs a connection that can still be asked one.
+        await conn.rollback()
+        return await _answers(conn)
+    return True
+
+
+async def _answers(conn: AsyncConnection) -> bool:
+    """Return whether AGE is usable on ``conn`` without having been loaded here.
+
+    Reads the catalogue every Cypher statement goes through. It resolves only
+    when the library is in the backend, which is exactly the question a refused
+    ``LOAD`` leaves open.
+    """
+    try:
+        await conn.scalar(text("SELECT count(*) FROM ag_catalog.ag_graph"))
+    except DBAPIError:
+        await conn.rollback()
         return False
     return True
 
