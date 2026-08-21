@@ -32,16 +32,6 @@ components:
     platforms:
       - linux/amd64
 
-  - name: postgres
-    context: .
-    dockerfile: deploy/images/postgres.Dockerfile
-    image: registry.lan.kyo.ninja/ninjasre/postgres
-    workload: postgres
-    container: postgres
-    rolloutProfile: deployment
-    platforms:
-      - linux/amd64
-
 gitops:
   repository: JustShinobi/k3s-gitops-prod
   baseBranch: main

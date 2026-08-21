@@ -17,7 +17,3 @@ dependencies:
     version: 1.3.1
     repository: oci://registry.lan.kyo.ninja/charts
     alias: proxy
-  - name: homelab-k8s-app-chart
-    version: 1.3.1
-    repository: oci://registry.lan.kyo.ninja/charts
-    alias: postgres
