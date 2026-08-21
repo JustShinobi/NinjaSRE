@@ -25,6 +25,11 @@
           "team_node_id": "",
           "title": "Backup job exists and is disabled"
         },
+        "investigation": {
+          "cost": 0.004,
+          "duration_ms": 41000,
+          "step_count": 6
+        },
         "observations": [
           {
             "detail": "primary baseline exists on schedule 08:00 and is disabled",
@@ -73,8 +78,8 @@
           {
             "actor": "user-flint",
             "at": "2026-08-07T12:02:00+00:00",
-            "cause": "the backup coverage sweep flagged backup-1f376301, backup-7d831311",
-            "detail": "detector:backup-job-disabled — raised by the deployment's own detector, not a delivered webhook, so no delivery token authenticated it",
+            "cause": "raised by this deployment's own detector rather than delivered, so no delivery token authenticated it",
+            "detail": "detector=backup-job-disabled, subjects=backup-1f376301, backup-7d831311",
             "kind": "alert_received",
             "query": "",
             "result": ""
@@ -153,6 +158,7 @@
           "team_node_id": "",
           "title": "Datastore near full"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "store-cove is 95.65% full",
@@ -299,6 +305,7 @@
           "team_node_id": "",
           "title": "Guest covered by no enabled backup job"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "amber is named by no enabled backup job",
@@ -1236,6 +1243,7 @@
           "team_node_id": "",
           "title": "Guest volume near full"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "vm-100-disk-0 is at 99.6% of its own volume",
@@ -1323,6 +1331,7 @@
           "team_node_id": "",
           "title": "Kernel installed and never booted"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
@@ -1396,6 +1405,7 @@
           "team_node_id": "",
           "title": "No replication with node-local guest storage"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "no replication job exists while guests are on node-local storage",
@@ -1455,6 +1465,7 @@
           "team_node_id": "",
           "title": "Quorum device configured but contributing nothing"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "a quorum device appears in the membership view and the configuration declares none",
@@ -1515,6 +1526,7 @@
           "team_node_id": "",
           "title": "Quorum margin is zero"
         },
+        "investigation": null,
         "observations": [
           {
             "detail": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
@@ -1577,6 +1589,7 @@
           "team_node_id": "",
           "title": "ContainerMemoryHigh"
         },
+        "investigation": null,
         "observations": [],
         "timeline": [
           {
@@ -1623,6 +1636,7 @@
           "team_node_id": "",
           "title": "anchor is not responding"
         },
+        "investigation": null,
         "observations": [],
         "timeline": [
           {

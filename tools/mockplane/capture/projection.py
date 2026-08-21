@@ -374,6 +374,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
                         and item.subject in incident["subjects"]
                     ],
                     "timeline": _timeline(incident, investigated=index == 0),
+                    "investigation": _investigation_summary(incident, investigated=index == 0),
                 },
                 Provenance.GATEWAY,
             )
@@ -1147,6 +1148,27 @@ def _investigated(incident: dict[str, Any]) -> dict[str, Any]:
     return {**incident, "run_id": _INVESTIGATED_RUN_ID}
 
 
+def _investigation_summary(
+    incident: Mapping[str, Any], *, investigated: bool
+) -> dict[str, Any] | None:
+    """Return what the incident's run spent, or ``None`` when nothing ran.
+
+    The gateway derives this from the run's own turns; the capture states it,
+    because a projection that left it out made the mock plane show "no
+    investigation" beside a timeline full of reasoning steps — a screen
+    disagreeing with itself, and one that looked right against a real
+    deployment and wrong here.
+
+    A duration and a cost are given only for the incident that actually has a
+    run, and are stated rather than computed from the timeline: the numbers a
+    real deployment reports are what the run recorded, not what an onlooker
+    could add up afterwards.
+    """
+    if not investigated or not incident.get("run_id"):
+        return None
+    return {"step_count": 6, "duration_ms": 41_000, "cost": 0.004}
+
+
 def _timeline(incident: Mapping[str, Any], *, investigated: bool = False) -> list[dict[str, str]]:
     """Return the timeline an incident starts with, in the route's own shape.
 
@@ -1208,11 +1230,15 @@ def _investigation_timeline(incident: Mapping[str, Any]) -> list[dict[str, str]]
             "at": _at(2),
             "kind": "alert_received",
             "actor": "system:observation",
-            "cause": f"the backup coverage sweep flagged {subjects}",
-            "detail": (
-                "detector:backup-job-disabled — raised by the deployment's own detector, "
-                "not a delivered webhook, so no delivery token authenticated it"
+            # ``cause`` names what authenticated the delivery and ``detail``
+            # carries the labels that arrived — the same halves the deployment's
+            # own recorder writes, so a screen reading one of them does not have
+            # to know which dataset it is looking at.
+            "cause": (
+                "raised by this deployment's own detector rather than delivered, "
+                "so no delivery token authenticated it"
             ),
+            "detail": f"detector=backup-job-disabled, subjects={subjects}",
             "query": "",
             "result": "",
         },
