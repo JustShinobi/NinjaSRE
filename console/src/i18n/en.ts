@@ -582,6 +582,12 @@ export const EN = {
   'firstRun.provider.hosted': 'Hosted — requests leave your infrastructure',
   'firstRun.provider.choose': 'Use this provider',
   'firstRun.credential.chooseFirst': 'No provider has been chosen yet.',
+  'firstRun.credential.checking': 'Asking the provider whether this key works…',
+  'firstRun.credential.accepted':
+    'The provider accepted this key and listed the models below.',
+  'firstRun.credential.notListed':
+    'The key is stored, but the provider would not list what it serves:',
+  'firstRun.credential.chooseModel': 'Which of these this deployment thinks with:',
 
   'firstRun.model.known': 'Model',
   'firstRun.model.free': 'Model identifier',

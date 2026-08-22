@@ -121,6 +121,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'firstRun.provider.hosted': 'Hospedado — as requisições saem da sua infraestrutura',
   'firstRun.provider.choose': 'Usar este provider',
   'firstRun.credential.chooseFirst': 'Nenhum provider foi escolhido ainda.',
+  'firstRun.credential.checking': 'Perguntando ao provedor se esta chave funciona…',
+  'firstRun.credential.accepted':
+    'O provedor aceitou esta chave e listou os modelos abaixo.',
+  'firstRun.credential.notListed':
+    'A chave foi guardada, mas o provedor não quis listar o que serve:',
+  'firstRun.credential.chooseModel': 'Com qual destes esta instalação pensa:',
 
   'firstRun.model.known': 'Modelo',
   'firstRun.model.free': 'Identificador do modelo',
