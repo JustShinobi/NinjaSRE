@@ -40,4 +40,19 @@ fi
 
 uv sync
 export NINJASRE_CHAOS_KUBECONFIG=/dev/null
+
+# Fewer workers than a developer machine takes, because this one is not sized
+# like a developer machine. The runner has six CPUs available and 4GiB, and the
+# console gate's Node process alone was measured at 2.39GiB resident — leaving
+# about 1.6GiB for everything else. Four pytest workers at roughly 300MiB each
+# do not fit beside it: the kernel's cgroup OOM killer took nineteen processes
+# at once and the run ended mid-test with no failure to read.
+#
+# Two costs almost nothing in wall clock. `--dist loadgroup` keeps the console
+# suites on a single worker and they are the longest thing in the run, so the
+# suite takes as long as they take either way; what parallelism buys is
+# everything else finishing beside them rather than after them, and two workers
+# already finish it well before they are done.
+export PYTEST_WORKERS=2
+
 exec make verify
