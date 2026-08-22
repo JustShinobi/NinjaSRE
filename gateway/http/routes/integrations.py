@@ -88,6 +88,16 @@ _CREDENTIAL_RESOURCE_KIND = "credential"
 #: second page of a listing that renders on every visit to the catalogue.
 MAX_ESTATE_SCAN = 500
 
+#: The version reported for a write that stored no credential at all.
+#:
+#: An address on its own is a complete configuration for a vendor that ships no
+#: authentication, and writing an empty credential version to represent it would
+#: be worse than writing nothing: the proxy goes out unauthenticated only when a
+#: rule is optional *and* nothing resolved, and an empty version resolves. Nought
+#: rather than one, because no version was written and a number that named a
+#: version nobody could roll back to would be a lie a console renders.
+ADDRESS_ONLY_VERSION = 0
+
 
 class SuggestionView(BaseModel):
     """Where this deployment already found this vendor running.
@@ -585,10 +595,12 @@ async def store_credential(
         schemas=CredentialSchemaRegistry.from_schemas(stored_schema),
     )
     handle = CredentialHandle(integration=name, team_id=_team_of(auth))
-    try:
-        stored = await vault.store(auth.scope, handle, secrets)
-    except CredentialSchemaViolation as violation:
-        raise bad_request(str(violation)) from violation
+    version = ADDRESS_ONLY_VERSION
+    if secrets:
+        try:
+            version = (await vault.store(auth.scope, handle, secrets)).version
+        except CredentialSchemaViolation as violation:
+            raise bad_request(str(violation)) from violation
 
     for address in addresses.values():
         # The organisation's node, not the caller's team. The binding that makes
@@ -621,7 +633,7 @@ async def store_credential(
         action=CREDENTIAL_AUDIT_ACTION_WRITE,
         resource_kind=_CREDENTIAL_RESOURCE_KIND,
         resource_id=name,
-        detail={"integration": name, "fields": names, "version": stored.version},
+        detail={"integration": name, "fields": names, "version": version},
     )
     # The field names, never their values. This is the line that gets pasted
     # into a support thread.
@@ -641,7 +653,7 @@ async def store_credential(
         integration=name,
         state=entry.state.value,
         usable=entry.state.usable,
-        version=stored.version,
+        version=version,
         fields=names,
     )
 

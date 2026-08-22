@@ -16,6 +16,7 @@ what says whether it will.
 from __future__ import annotations
 
 from gateway.http.deps import AuthenticatedRequest
+from gateway.http.integration_endpoints import configured_endpoints
 from gateway.http.state import GatewayState
 from integrations._catalogue.discovery import catalogue
 from platform.credentials.schemas import CredentialSchemaRegistry
@@ -36,7 +37,15 @@ async def configured_integrations(
     )
     vault = Vault(gateway=state.gateway, schemas=schemas)
     stored = await vault.list(auth.scope)
-    return tuple(sorted({version.integration for version in stored}))
+    # An address counts. A vendor that ships no authentication — a self-hosted
+    # Alertmanager or Prometheus — is completely configured by being pointed at,
+    # and reporting it unconfigured would tell an operator there was a step left
+    # that there is not. "Configured" is still not "working": that is the
+    # verify beside this, and it stays a separate question.
+    addressed = await configured_endpoints(
+        state.gateway, scope=auth.scope, node_id=auth.scope.org_id
+    )
+    return tuple(sorted({version.integration for version in stored} | set(addressed)))
 
 
 __all__ = ["configured_integrations"]

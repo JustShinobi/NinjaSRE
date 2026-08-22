@@ -148,3 +148,63 @@ async def test_changing_the_address_replaces_it_rather_than_adding_a_second(
     active = effective.config.integrations.active
     assert [entry.name for entry in active] == ["alertmanager"]
     assert active[0].base_url == "https://alertmanager.acme.example"
+
+
+async def test_an_address_alone_stores_no_credential_version(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """An empty credential is not "no credential", and the difference decides a call.
+
+    The proxy goes out unauthenticated only when a rule is optional *and*
+    nothing resolved. A stored version holding no values resolves, so the
+    optional path never runs — and then the vendor is asked for a header the
+    credential does not carry. Writing nothing is what makes "this one needs no
+    token" true rather than nearly true.
+    """
+    written = await client.put(
+        "/v1/integrations/alertmanager/credential",
+        headers=await _admin(deployment),
+        json={"values": {"endpoint": ADDRESS}},
+    )
+
+    assert written.status_code == 200, written.text
+    assert written.json()["version"] == 0
+
+    from integrations.alertmanager.schema import SCHEMA
+
+    scope = TenantScope(org_id=ORG, team_node_id=TEAM_PAYMENTS)
+    vault = Vault(
+        gateway=deployment.gateway,
+        schemas=CredentialSchemaRegistry.from_schemas(SCHEMA.for_vault()),
+    )
+    assert await vault.list(scope) == ()
+
+
+async def test_an_integration_with_only_an_address_still_reads_as_connected(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """Pointed at a real instance and working. Reporting it unconfigured would be wrong."""
+    headers = await _admin(deployment)
+    await client.put(
+        "/v1/integrations/alertmanager/credential",
+        headers=headers,
+        json={"values": {"endpoint": ADDRESS}},
+    )
+
+    answer = await client.get("/v1/integrations", headers=headers)
+    entry = next(row for row in answer.json()["integrations"] if row["name"] == "alertmanager")
+    assert entry["health"] != "unconfigured", entry
+
+
+async def test_a_secret_supplied_alongside_the_address_is_still_stored(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    headers = await _admin(deployment)
+    written = await client.put(
+        "/v1/integrations/alertmanager/credential",
+        headers=headers,
+        json={"values": {"endpoint": ADDRESS, "token": "a-token-behind-a-proxy"}},
+    )
+
+    assert written.status_code == 200, written.text
+    assert written.json()["version"] == 1
