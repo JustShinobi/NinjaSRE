@@ -33,6 +33,19 @@ from tests.unit.harness.conftest import (  # noqa: F401 — re-exported as fixtu
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEPLOY = REPO_ROOT / "deploy"
 COMPOSE = DEPLOY / "compose"
+
+#: The xdist group the compose-driving tests are pinned to.
+#:
+#: They share one docker project, so two of them at once are two `up` runs
+#: against the same containers and networks: the second finds the first's
+#: half-created network, and compose gives up with `proxy is missing dependency
+#: postgres` — a message about a dependency that is declared correctly.
+#:
+#: `--dist loadgroup` distributes an *ungrouped* test on its own rather than
+#: with the rest of its file, so the two tests in one module are enough to
+#: collide. Naming the group is what keeps them together.
+COMPOSE_PROJECT_GROUP = "compose-project"
+
 IMAGES = DEPLOY / "images"
 CHART = DEPLOY / "helm" / "ninjasre"
 OPS = DEPLOY / "ops"

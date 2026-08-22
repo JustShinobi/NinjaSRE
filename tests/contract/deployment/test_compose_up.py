@@ -23,9 +23,14 @@ import subprocess
 
 import pytest
 
-from tests.contract.deployment.conftest import COMPOSE, REPO_ROOT
+from tests.contract.deployment.conftest import COMPOSE, COMPOSE_PROJECT_GROUP, REPO_ROOT
 
-pytestmark = [pytest.mark.contract, pytest.mark.e2e]
+pytestmark = [
+    pytest.mark.contract,
+    pytest.mark.e2e,
+    # One docker project, so one worker. See COMPOSE_PROJECT_GROUP.
+    pytest.mark.xdist_group(COMPOSE_PROJECT_GROUP),
+]
 
 
 def _has_compose() -> bool:
