@@ -16,15 +16,25 @@ if ! command -v uv >/dev/null 2>&1; then
   export PATH="$HOME/.local/bin:$PATH"
 fi
 
-if ! command -v make >/dev/null 2>&1; then
-  # `make verify` is this repository's declared gate, and the runner image is
-  # deliberately minimal — it ships no build tools at all. Installing the one
-  # this contract names is cheaper than restating the gate here, which would
-  # drift from the Makefile the moment either changed.
+# The runner image is deliberately minimal: it ships no build tools and none of
+# the system libraries a browser needs. `make verify` is this repository's
+# declared gate and it drives a real Chromium, so both have to be there before
+# the gate can say anything at all — the alternative is restating the gate here,
+# which would drift from the Makefile the moment either changed.
+#
+# `libnspr4` and `libnss3` are the two the headless shell fails to load without;
+# the rest are what it opens once it starts.
+APT_NEEDED=""
+command -v make >/dev/null 2>&1 || APT_NEEDED="$APT_NEEDED make"
+if ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\.so'; then
+  APT_NEEDED="$APT_NEEDED libnspr4 libnss3 libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 libcups2t64 libdrm2 libgbm1 libpango-1.0-0 libxcomposite1 libxdamage1 libxfixes3 libxkbcommon0 libxrandr2"
+fi
+if [ -n "$APT_NEEDED" ]; then
+  # shellcheck disable=SC2086
   if command -v sudo >/dev/null 2>&1; then
-    sudo apt-get update -qq && sudo apt-get install -y -qq make
+    sudo apt-get update -qq && sudo apt-get install -y -qq $APT_NEEDED
   else
-    apt-get update -qq && apt-get install -y -qq make
+    apt-get update -qq && apt-get install -y -qq $APT_NEEDED
   fi
 fi
 
