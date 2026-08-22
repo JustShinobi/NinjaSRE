@@ -221,6 +221,35 @@ delivered by the operator that exists for exactly that.
 
 ---
 
+## An investigation that ran leaves the run detail empty
+
+Now that investigations reach a model and finish, the next thing visible is that
+almost nothing about them is written down in the shape the console reads. One
+completed run against staging produced a full root-cause document naming three
+reads it had made — `prometheus_active_alerts`, a resource lookup, a knowledge
+lookup — and left:
+
+```
+trace_events | tool_calls | turns | evidence
+          39 |          0 |     0 |        0
+```
+
+So the narrative survives in the run's summary and the events survive in the
+trace, and the three tables the run-detail screen is built on hold nothing. An
+operator opening a finished investigation sees a conclusion with no working.
+
+`start_investigation`'s own docstring points at the seam: the receipt and the
+reasoning are written by "a runner composed with somewhere to record reasoning
+through (`gateway/runtime`)", and it warns that only one of two places should
+be wired at a time. Which suggests neither currently is — the same shape as the
+deep verifier, where every piece existed and nothing composed them.
+
+**How it should be judged.** A run that made four tool calls shows four tool
+calls, with what each returned, and the evidence they produced — from the store,
+after a reload, not from the process that happened to run it.
+
+---
+
 ## The model gateway needs a key that exists nowhere
 
 `OLLAMA_BASE_URL` now points at the gateway that is actually there, and the
