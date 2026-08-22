@@ -49,8 +49,19 @@ format-check: ## Fail if any file is not formatted (CI uses this)
 typecheck: ## Run mypy in strict mode over the first-party packages and repo tooling
 	$(RUN) mypy $(PYTHON_SOURCE_PATHS) $(wildcard tools)
 
-test: ## Run the test suite
-	$(RUN) pytest
+# How many workers the suite runs across. A number rather than `auto`, because
+# `auto` asks the machine how many CPUs it has and a container is told the
+# node's count, not its own cgroup's — on the CI runner that is ten workers
+# against a six-CPU, 4Gi limit, which thrashes instead of finishing sooner.
+#
+# Four rather than more because `--dist loadgroup` keeps the console suites on
+# one worker, so the run is bounded by how long they take. Past a couple of
+# workers everything else already finishes before they do, and further workers
+# buy memory pressure and nothing else.
+PYTEST_WORKERS ?= 4
+
+test: ## Run the test suite across $(PYTEST_WORKERS) workers
+	$(RUN) pytest -n $(PYTEST_WORKERS) --dist loadgroup
 
 # Not part of `verify`: it builds a PostgreSQL image, starts it, and creates a
 # database per test. That is a minute the gate should not spend on every commit,

@@ -58,6 +58,28 @@ SEEDED_DESTINATIONS: Final = (
     "tests/e2e/seeded.spec.ts",
 )
 
+#: The xdist group every test in this directory is put into.
+#:
+#: The lock below is per process, and an xdist worker is a process with its own
+#: session. Spread across workers, every worker after the first would find the
+#: lock taken and call ``pytest.exit`` — the suite failing over contention it
+#: created itself. One group means one worker holds the checkout, which is the
+#: same guarantee a serial run gave.
+#:
+#: It costs less than it sounds. These suites are the longest in the repository,
+#: so they set the floor either way; what parallelism buys is everything *else*
+#: finishing alongside them rather than after them.
+CONSOLE_TREE_GROUP: Final = "console-tree"
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Pin every test collected from this directory to one worker."""
+    here = Path(__file__).parent
+    for item in items:
+        if here in Path(str(item.fspath)).parents:
+            item.add_marker(pytest.mark.xdist_group(CONSOLE_TREE_GROUP))
+
+
 #: Where the lock lives. Inside the toolchain directory because that is already
 #: ignored, so the lock never shows up as a change somebody has to explain.
 _LOCK: Final = console_root() / ".toolchain" / "tree-writing-suite.lock"

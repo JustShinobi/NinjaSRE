@@ -107,6 +107,7 @@ dev = [
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
     "pytest-cov>=7.1",
+    "pytest-xdist>=3.8",
     "ruff>=0.16",
     # PyYAML ships no inline types, and ``mypy --strict`` over ``platform/``
     # covers the guardrail rule loader. A stubs package rather than an
