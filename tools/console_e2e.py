@@ -69,6 +69,8 @@ from config.constants.fixtures import (
     FIXTURE_ROOT_DIR_NAME,
     NINJASRE_FIXTURE_ROOT_ENV,
 )
+from config.constants.llm import NINJASRE_LLM_PROVIDER_ENV
+from config.constants.persistence import NINJASRE_DATABASE_ENCRYPTION_KEY_ENV
 from platform.startup.demo.dataset import load_dataset
 from tools.console_toolchain import (
     REPO_ROOT,
@@ -418,7 +420,22 @@ def compose_stack() -> Iterator[Backing]:
     compose_file = REPO_ROOT / "deploy" / "compose" / "docker-compose.yml"
     base = [docker, "compose", "--file", str(compose_file)]
     tenant = load_dataset().organisation_id
+    # The two settings a deployment refuses to start without, supplied the way
+    # an operator supplies them rather than defaulted away in the compose file.
+    #
+    # The standard profile selects `anthropic` and carries no key, so a bare
+    # `up` here died on two fatal findings before a browser was ever launched —
+    # and the failure read as "the compose stack did not come up", which names
+    # neither. `ollama` is the one supported provider that needs no credential,
+    # so the stack comes up from one variable and no secret; the encryption key
+    # is what seals a stored credential and is never generated for you, which
+    # is why a throwaway stack has to be handed one too.
+    #
+    # `setdefault` rather than an override: a run that already has either of
+    # these set means somebody chose it on purpose.
     up_environment = {**os.environ, NINJASRE_ORGANISATION_ENV: tenant}
+    up_environment.setdefault(NINJASRE_LLM_PROVIDER_ENV, "ollama")
+    up_environment.setdefault(NINJASRE_DATABASE_ENCRYPTION_KEY_ENV, "A" * 43 + "=")
     # One try/finally around the whole sequence, not the ``up`` call alone: a
     # container that failed its own health check, or a seeding step that
     # failed partway, still leaves something running. ``down --volumes`` is
@@ -445,7 +462,23 @@ def compose_stack() -> Iterator[Backing]:
         credential = _durable_secret(_COMPOSE_API_URL, _bootstrap_secret(base))
         yield Backing(api_url=_COMPOSE_API_URL, credential=credential)
     except subprocess.CalledProcessError as error:
-        raise HarnessError(f"the compose stack did not come up: {error}") from error
+        # The command's own exit status says nothing about which container
+        # refused and why, and the `finally` below removes the containers that
+        # could have been asked. Every diagnosis of this failure so far has
+        # started by reproducing it somewhere the logs still existed, so they
+        # are collected here while there is still something to collect.
+        logs = subprocess.run(
+            [*base, "logs", "--tail", "40"],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=REPO_ROOT,
+        )
+        detail = (logs.stdout or logs.stderr or "").strip()
+        raise HarnessError(
+            f"the compose stack did not come up: {error}"
+            + (f"\n--- container logs ---\n{detail}" if detail else "")
+        ) from error
     finally:
         subprocess.run([*base, "down", "--volumes"], check=False, cwd=REPO_ROOT)
 
