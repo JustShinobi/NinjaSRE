@@ -309,6 +309,15 @@ async def test_a_1000_event_storm_is_bounded_with_a_complete_shed_record(
     everything shed recorded and reportable through GET /health/ready."""
     client, state = webhook_app
 
+    # A fixed instant, so "in a minute" is a property of the assertion rather
+    # than of how fast this machine posts a thousand requests. The shedder
+    # counts in fixed windows off a monotonic clock: on a loaded machine the
+    # loop outran the window, five hundred landed in one and five hundred in
+    # the next, nothing exceeded the limit and nothing was shed — the test
+    # failing with `1000 == 500` while the shedder behaved perfectly. Holding
+    # the clock still is what makes this a storm rather than a race.
+    state.webhook_shedder.clock = lambda: 0.0  # type: ignore[method-assign]
+
     admitted = 0
     shed = 0
     for index in range(1000):
