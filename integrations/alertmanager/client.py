@@ -109,7 +109,13 @@ class AlertmanagerClient(IntegrationClient):
         del start, end
 
         async def fetch(parameters: Mapping[str, str]) -> Page[dict[str, Any]]:
-            asked: dict[str, str] = {"active": "true", "silenced": "false", "filter": status}
+            # An empty ``filter`` is not "no narrowing" to Alertmanager, it is a
+            # matcher it cannot parse — `400 bad matcher format`. So the
+            # ordinary call, the one that asks what is firing without narrowing
+            # anything, was the one that failed.
+            asked: dict[str, str] = {"active": "true", "silenced": "false"}
+            if status:
+                asked["filter"] = status
             asked.update(parameters)
             answer = (await self.get(LIST_INCIDENTS_PATH, params=asked)).json()
             return Page(
@@ -142,7 +148,10 @@ class AlertmanagerClient(IntegrationClient):
         del start, end
 
         async def fetch(parameters: Mapping[str, str]) -> Page[dict[str, Any]]:
-            asked: dict[str, str] = {"active": "true", "filter": incident}
+            # Omitted when empty, for the reason ``list_incidents`` gives above.
+            asked: dict[str, str] = {"active": "true"}
+            if incident:
+                asked["filter"] = incident
             asked.update(parameters)
             answer = (await self.get(INCIDENT_TIMELINE_PATH, params=asked)).json()
             return Page(
