@@ -36,6 +36,7 @@ that is an incident. The manifest records the key's fingerprint — never the ke
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -78,6 +79,9 @@ class BackupManifest:
     extensions: dict[str, str] = field(default_factory=dict)
     row_counts: dict[str, int] = field(default_factory=dict)
     encryption_key_fingerprint: str = ""
+    #: SHA-256 of the dump, hex. Empty on a manifest written before this
+    #: existed, which is not a reason to refuse the archive.
+    dump_sha256: str = ""
     manifest_version: int = BACKUP_MANIFEST_VERSION
 
     def to_record(self) -> dict[str, Any]:
@@ -91,6 +95,7 @@ class BackupManifest:
             "extensions": dict(self.extensions),
             "row_counts": dict(self.row_counts),
             "encryption_key_fingerprint": self.encryption_key_fingerprint,
+            "dump_sha256": self.dump_sha256,
         }
 
     @classmethod
@@ -131,6 +136,7 @@ class BackupManifest:
             extensions={str(k): str(v) for k, v in dict(record.get("extensions", {})).items()},
             row_counts={str(k): int(v) for k, v in dict(record.get("row_counts", {})).items()},
             encryption_key_fingerprint=str(record.get("encryption_key_fingerprint", "")),
+            dump_sha256=str(record.get("dump_sha256", "")),
             manifest_version=version or BACKUP_MANIFEST_VERSION,
         )
 
@@ -283,6 +289,43 @@ COPY_PREFIX = "COPY "
 COPY_TERMINATOR = "\\."
 
 
+def dump_digest(dump: Path) -> str:
+    """Return the SHA-256 of ``dump``, hex, read in chunks.
+
+    The counts below answer "did rows go missing". This answers "is this the
+    same file", which is a different question and the one a truncated copy
+    fails. ``pg_dump`` writes the schema, then the data, then the indexes,
+    constraints and foreign keys — so a transfer that stopped early usually
+    loses the tail, and a tail holds no ``COPY`` rows. Every count matches, and
+    what restores is a database with the right rows and none of the constraints
+    that make them mean anything.
+    """
+    digest = hashlib.sha256()
+    with dump.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def verify_dump_digest(manifest: BackupManifest, dump: Path) -> str | None:
+    """Return why ``dump`` is not the artefact the manifest describes, or ``None``.
+
+    A manifest that records no digest was written before this existed, and is
+    not refused for it: turning every backup taken so far into an unrestorable
+    one would be a worse failure than the one this prevents.
+    """
+    if not manifest.dump_sha256:
+        return None
+    found = dump_digest(dump)
+    if found == manifest.dump_sha256:
+        return None
+    return (
+        f"the dump does not match the manifest: recorded {manifest.dump_sha256[:12]}…, "
+        f"found {found[:12]}… ({dump.stat().st_size} bytes). The archive was truncated or "
+        f"altered after it was written."
+    )
+
+
 def row_counts_in(dump: Path) -> dict[str, int]:
     """Return how many rows ``dump`` holds for each table, by table name.
 
@@ -335,6 +378,8 @@ __all__ = [
     "RestoreAction",
     "RestoreDecision",
     "decide_restore",
+    "dump_digest",
     "row_counts_in",
+    "verify_dump_digest",
     "verify_row_counts",
 ]

@@ -38,6 +38,7 @@ from platform.startup.backup import (  # noqa: E402
     RestoreAction,
     decide_restore,
     row_counts_in,
+    verify_dump_digest,
     verify_row_counts,
 )
 from platform.startup.keys import configured_key, key_fingerprint  # noqa: E402
@@ -71,6 +72,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     if decision.permitted and arguments.dump is not None:
+        # The bytes first. Counting rows answers "did rows go missing", and a
+        # copy that stopped early usually loses the tail `pg_dump` writes last
+        # — the indexes, constraints and foreign keys, which hold no rows to
+        # count. That archive restores with every count matching and none of
+        # the constraints.
+        altered = verify_dump_digest(manifest, arguments.dump)
+        if altered is not None:
+            print(altered, file=sys.stderr)  # noqa: T201
+            print(  # noqa: T201
+                "The archive is not the one the manifest describes, so it was truncated "
+                "or altered after it was written. Restoring it would lose whatever is "
+                "missing, silently.",
+                file=sys.stderr,
+            )
+            print(str(RestoreAction.REFUSE))  # noqa: T201
+            return REFUSED_EXIT
+
         problems = verify_row_counts(manifest, row_counts_in(arguments.dump))
         if problems:
             for problem in problems:

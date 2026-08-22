@@ -17,7 +17,9 @@ from platform.startup.backup import (
     BackupManifest,
     RestoreAction,
     decide_restore,
+    dump_digest,
     row_counts_in,
+    verify_dump_digest,
     verify_row_counts,
 )
 from platform.startup.errors import BackupIncompatible
@@ -235,6 +237,53 @@ def test_a_truncated_artefact_is_caught_before_it_restores_quietly(tmp_path: Pat
     assert len(problems) == 1
     assert "episodes" in problems[0]
     assert "40" in problems[0] and "9" in problems[0]
+
+
+def test_a_dump_cut_short_of_its_trailing_ddl_is_still_caught(tmp_path: Path) -> None:
+    """Row counts cannot see the end of a dump, and that is where a cut lands.
+
+    ``pg_dump`` writes the schema, then the data, then the indexes, constraints
+    and foreign keys. A copy that stopped early most often loses that tail — and
+    a tail carries no ``COPY`` rows, so every count still matches and the
+    archive is accepted. What restores from it is a database with the right
+    number of rows and none of the constraints that make them mean anything.
+
+    The digest sees the bytes, so it sees this.
+    """
+    dump = tmp_path / "database.sql"
+    dump.write_text(
+        _dump({"public.agent_runs": 3})
+        + "ALTER TABLE public.agent_runs ADD CONSTRAINT pk PRIMARY KEY (id);\n"
+        + "CREATE INDEX runs_started ON public.agent_runs (started_at);\n",
+        encoding="utf-8",
+    )
+    recorded = dump_digest(dump)
+
+    whole = dump.read_text(encoding="utf-8").splitlines()
+    dump.write_text("\n".join(whole[:-2]) + "\n", encoding="utf-8")
+
+    assert row_counts_in(dump) == {"public.agent_runs": 3}, "no row was lost, which is the point"
+    assert verify_dump_digest(manifest(dump_sha256=recorded), dump) is not None
+
+
+def test_an_intact_dump_matches_its_recorded_digest(tmp_path: Path) -> None:
+    """The other direction: an untouched artefact must not be refused."""
+    dump = tmp_path / "database.sql"
+    dump.write_text(_dump({"public.agent_runs": 3}), encoding="utf-8")
+
+    assert verify_dump_digest(manifest(dump_sha256=dump_digest(dump)), dump) is None
+
+
+def test_a_manifest_written_before_digests_is_still_restorable(tmp_path: Path) -> None:
+    """An archive taken by an older release records no digest, and is not refused for it.
+
+    A check that turned every existing backup into an unrestorable one would be
+    a worse failure than the one it prevents.
+    """
+    dump = tmp_path / "database.sql"
+    dump.write_text(_dump({"public.agent_runs": 3}), encoding="utf-8")
+
+    assert verify_dump_digest(manifest(), dump) is None
 
 
 def test_a_table_missing_from_the_restore_entirely_is_reported_as_zero() -> None:

@@ -43,7 +43,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from config.constants.persistence import NINJASRE_DATABASE_URL_ENV  # noqa: E402
 from platform.persistence.postgres.gateway import PostgresPersistence  # noqa: E402
-from platform.startup.backup import BackupManifest, row_counts_in  # noqa: E402
+from platform.startup.backup import (  # noqa: E402
+    BackupManifest,
+    dump_digest,
+    row_counts_in,
+)
 from platform.startup.keys import configured_key, key_fingerprint  # noqa: E402
 
 
@@ -90,6 +94,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         extensions=extensions,
         row_counts=row_counts_in(arguments.dump),
         encryption_key_fingerprint="" if key is None else key_fingerprint(key),
+        dump_sha256=dump_digest(arguments.dump),
     )
     manifest.write(arguments.output)
     print(arguments.output)  # noqa: T201 — the shell script consumes this
