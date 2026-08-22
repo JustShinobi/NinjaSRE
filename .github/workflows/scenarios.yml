@@ -17,10 +17,9 @@
 name: scenarios
 
 on:
-  schedule:
-    # 04:00 UTC daily, which is after the day's merges and before anyone reads
-    # the result.
-    - cron: "0 4 * * *"
+  # No cron. The scenario corpus runs on hosted minutes, and an unattended
+  # schedule spends them with nobody reading what it found. Ask for it when
+  # somebody is going to look at the answer.
   workflow_dispatch:
     inputs:
       attempts:

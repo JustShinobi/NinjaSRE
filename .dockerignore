@@ -1,0 +1,42 @@
+# What never belongs in a build context.
+#
+# Two reasons, and the second is the one that cost a build. Every image here is
+# built from the repository root, so without this the daemon receives 2.9GB of
+# which 2.2GB is provisioned output nothing in an image uses.
+#
+# The one that bites: `web.Dockerfile` installs the console's dependencies from
+# its lockfile and then copies the console in. With `console/node_modules`
+# present in the context, that copy lands a developer machine's tree on top of
+# the one just installed, pnpm finds a modules directory that does not match
+# the lockfile, and the build fails asking for a TTY to confirm removing it.
+# Nothing in that message mentions a build context.
+
+.git
+.github
+
+# Provisioned, not authored. Reinstalled inside the image from the lockfiles.
+.venv
+console/node_modules
+console/.toolchain
+
+# Build output. Every image builds its own; a stale one copied in is a
+# deployment serving something nobody built here.
+console/.next
+docs/site/build
+build
+dist
+
+# Test and tool residue.
+console/test-results
+console/playwright-report
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Not part of any image, and large.
+_research
+.codegraph
+specs

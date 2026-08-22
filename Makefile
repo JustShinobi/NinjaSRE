@@ -393,11 +393,106 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 # The console's checks come after the Python ones and before the Python suite:
 # they are the ones a contributor is most likely to have broken while working on
 # the console, and the Python suite is the longest single step in the gate.
+
+
+# What a local run leaves behind, and why this has its own target.
+#
+# `make ci` builds four images for the scan and three more for the browser
+# suite, every time. Left alone they accumulate — this repository put four
+# gigabytes of build cache and three and a half of scratch tags on one disk in
+# a single afternoon.
+#
+# The reason to care is that a full disk does not announce itself as one. Trivy
+# reported `no space left on device` while a hundred gigabytes were free, and
+# two image layers were written truncated, so containers started and Python
+# refused their own source for containing null bytes. Neither symptom mentions
+# the disk, and both cost hours to trace back to it.
+#
+# Scoped to this repository's own images. Nothing here touches another
+# project's, which is why it is not `docker system prune`.
+clean-containers: ## Remove the images, caches and containers a local run leaves behind
+	@echo "Removing this repository's scratch images..."
+	-@docker images --format '{{.Repository}}:{{.Tag}}' \
+		| grep -E '^(ninjasre-verify-|ninjasre/[a-z]+:(ci|cve|scan|fix))' \
+		| xargs -r docker rmi -f >/dev/null 2>&1
+	@echo "Removing stopped containers and dangling layers..."
+	-@docker container prune -f >/dev/null 2>&1
+	-@docker image prune -f >/dev/null 2>&1
+	@echo "Removing unused build cache..."
+	-@docker builder prune -f >/dev/null 2>&1
+	@echo "Removing browser traces and rendered output..."
+	-@rm -rf console/test-results console/playwright-report
+	@# The built site's contents, not its directory: `docs/site/build/.gitignore`
+	@# is tracked, and removing the directory deleted a committed file. A sweep
+	@# that takes something out of Git is worse than the accumulation it was
+	@# written to prevent.
+	-@find docs/site/build -mindepth 1 ! -name .gitignore -delete 2>/dev/null || true
+	@$(MAKE) --no-print-directory disk
+
+disk: ## Report what this repository is occupying, and what is left
+	@df -h . | tail -1 | awk '{printf "disk:   %s of %s used, %s free (%s)\n", $$3, $$2, $$4, $$5}'
+	@docker system df 2>/dev/null \
+		| awk 'NR>1 {printf "docker: %-14s %8s total, %8s reclaimable\n", $$1" "$$2, $$4, $$5}'
+	@# Images no container is using and this repository does not declare. Named
+	@# rather than removed: this machine builds more than this project, and a
+	@# sweep that guessed would take somebody else's base image with it. A
+	@# toolchain pulled for one experiment is easy to forget and expensive to
+	@# keep — the Go image behind one abandoned attempt was 1.26GB.
+	@echo 'unused, not declared in deploy/images/base-images.env:'
+	@docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' 2>/dev/null \
+		| grep -vE "^($$(sed -n 's/^BASE_[A-Z_]*=//p' deploy/images/base-images.env \
+			| paste -sd'|' -)|ninjasre)" \
+		| while read -r image size; do \
+			docker ps -a --format '{{.Image}}' | grep -qxF "$$image" || printf '  %-46s %s\n' "$$image" "$$size"; \
+		done | sort -k2 -hr | head -8
+
+# Everything the hosted workflow used to do, here.
+#
+# `verify.yml` no longer runs on a push. Every job it had runs on a developer
+# machine, and running them on hosted minutes for every push spent most of a
+# month's allowance in an afternoon without once showing something a local run
+# had not. This target is what replaced it, and the workflow is still there for
+# the runs where a clean machine is the point.
+#
+# Ordered cheapest first, so a failure that a second of linting would have
+# caught does not arrive twenty minutes into a browser suite.
+#
+# Needs Docker for the persistence, compose, visual, image and backup halves,
+# and `helm` for the chart. Each says so when it cannot run.
+ci: ## Everything CI used to run, locally, cleaning up after itself
+	$(MAKE) ci-run
+	@$(MAKE) --no-print-directory clean
+
+# The work itself. Separate from `ci` so the cleanup above runs whether this
+# passed or failed — a failed run leaves the most behind, and is exactly when
+# somebody is least likely to remember to sweep.
+ci-run: verify test-postgres test-synthetic docs-build console-build console-visual \
+	console-e2e-run images-scan chart-check backup-cycle ## The gate, without the sweep
+
+images-scan: ## Build every deployment image and scan it for fixable HIGH/CRITICAL
+	@for component in app console proxy; do \
+		docker build -f "deploy/images/$$component.Dockerfile" -t "ninjasre/$$component:ci" . || exit 1; \
+	done
+	docker build -f deploy/images/postgres.Dockerfile -t ninjasre/postgres:ci .
+	@for image in app console proxy postgres; do \
+		docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+			-v "$(PWD)/.trivyignore.yaml:/tmp/ignore.yaml:ro" \
+			aquasec/trivy:0.74.0 image --severity HIGH,CRITICAL --ignore-unfixed \
+			--ignorefile /tmp/ignore.yaml --exit-code 1 --quiet "ninjasre/$$image:ci" || exit 1; \
+	done
+
+chart-check: ## Lint the chart and render it, the way the workflow did
+	helm lint deploy/helm/ninjasre
+	helm template ninjasre deploy/helm/ninjasre > /dev/null
+
+backup-cycle: ## Back up, restore into a clean database, and verify the result
+	sh test-infra/backup/cycle.sh
+
 verify: lint format-check typecheck check-imports check-constants \
 	check-protocols check-deps check-vendor-sdks check-literals check-raw-sql \
 	check-credentials check-console-boundary check-integrations \
 	check-integration-docs check-env-example check-docs check-doc-examples \
-	console-check test ## The single quality gate CI runs
+	console-check test ## The single quality gate
 
 # Which wave of specs the branch/slug contract reads. Override per invocation
 # (`make close-task SPECS_DIR=specs_v2`) or export NINJASRE_SPECS_DIR once for a
@@ -407,7 +502,7 @@ SPECS_DIR ?= $(or $(NINJASRE_SPECS_DIR),specs)
 close-task: verify ## Fast-forward master to the current task branch and open the next one
 	$(RUN) python tools/close_task_branch.py --specs-dir $(SPECS_DIR)
 
-clean: ## Remove caches and build artefacts
+clean: clean-containers ## Remove caches and build artefacts, containers included
 	rm -rf build dist .pytest_cache .mypy_cache .ruff_cache .coverage htmlcov
 	find . -type d -name __pycache__ -not -path './.venv/*' -not -path './_research/*' \
 		-exec rm -rf {} + 2>/dev/null || true

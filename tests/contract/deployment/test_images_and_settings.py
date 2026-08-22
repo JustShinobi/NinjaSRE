@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 import config.constants as constants
 from platform.startup.settings import (
@@ -23,7 +24,7 @@ from platform.startup.settings import (
     required_settings,
     setting_names,
 )
-from tests.contract.deployment.conftest import COMPOSE, IMAGES, OPS, dockerfiles
+from tests.contract.deployment.conftest import COMPOSE, IMAGES, OPS, REPO_ROOT, dockerfiles
 
 pytestmark = pytest.mark.contract
 
@@ -34,15 +35,55 @@ _OWN_ENV_PATTERN = re.compile(r"^NINJASRE_[A-Z0-9_]+$")
 # -- images -------------------------------------------------------------------
 
 
+#: The image that is not a delivered component. The datastore is what an
+#: operator runs, or points at their own; the pipeline does not publish it.
+INFRASTRUCTURE_IMAGE = "postgres.Dockerfile"
+
+
 def test_every_image_is_shipped() -> None:
     names = {path.name for path in dockerfiles()}
 
     assert names == {
         "app.Dockerfile",
+        # The gateway the console calls, and the console a browser loads. Two
+        # images because they are two things: one answers requests, the other
+        # renders what a person looks at.
         "console.Dockerfile",
+        "web.Dockerfile",
         "proxy.Dockerfile",
-        "postgres.Dockerfile",
+        INFRASTRUCTURE_IMAGE,
     }
+
+
+def test_every_image_that_is_not_infrastructure_is_a_delivered_component() -> None:
+    """An image nothing builds is an image no deployment ever gets.
+
+    That is not hypothetical. The console a browser loads existed in this
+    repository, was built by `make console-build`, and was driven by the whole
+    browser suite — and no component declared it, so no pipeline published it
+    and no deployment ran it. The ingress pointed a browser at the gateway,
+    which answered `/` with a JSON 404 because a gateway is not a console, and
+    the staging host was down for as long as that was true.
+
+    Both directions, because both are the same mistake seen from either end: a
+    descriptor naming a Dockerfile that does not exist fails the build, and a
+    Dockerfile no descriptor names fails nothing at all until somebody opens
+    the URL.
+    """
+    descriptor = yaml.safe_load((REPO_ROOT / ".ci" / "application.yaml").read_text("utf-8"))
+    declared = {
+        str(component["dockerfile"]).rsplit("/", 1)[-1]
+        for component in descriptor.get("components") or []
+    }
+    present = {path.name for path in dockerfiles()} - {INFRASTRUCTURE_IMAGE}
+
+    assert declared <= present, (
+        f"the descriptor names {sorted(declared - present)}, which is not in deploy/images"
+    )
+    assert present <= declared, (
+        f"{sorted(present - declared)} is built by nothing. An image no component "
+        f"declares is never published, and never runs anywhere."
+    )
 
 
 @pytest.mark.parametrize("path", dockerfiles(), ids=lambda path: path.name)

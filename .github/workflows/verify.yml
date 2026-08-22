@@ -14,10 +14,22 @@
 
 name: verify
 
+# On demand only, and the reason is cost rather than value. Every job below
+# runs on a developer machine — `make verify`, the console gate, the browser
+# suite against a real compose stack, the image build and its scan, the chart,
+# the backup cycle — and running the same work on hosted runners for every push
+# spent most of a month's allowance in one afternoon while showing nothing a
+# local run had not already shown.
+#
+# The comment above already said the gate is exactly what a contributor runs
+# locally. That was the argument for running it here on every push; it is now
+# the argument against.
+#
+# This stays for the runs where a clean machine is the point: a release
+# candidate, a dependency bump, an answer to "does it pass anywhere but your
+# laptop".
 on:
-  push:
-    branches: [master]
-  pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

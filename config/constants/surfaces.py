@@ -127,6 +127,15 @@ DEFAULT_API_PORT: Final[int] = 8420
 DEFAULT_CONSOLE_PORT: Final[int] = 8421
 DEFAULT_CREDENTIAL_PROXY_PORT: Final[int] = 8422
 
+#: Where the console a browser loads listens.
+#:
+#: Its own port and its own process, because it is a different thing from the
+#: gateway on 8421. That one answers the console's requests; this one is the
+#: Next.js server that renders what a person looks at and calls the other from
+#: the server side. Running them together would put a browser-facing process in
+#: the same container as one holding a gateway's credentials.
+DEFAULT_CONSOLE_WEB_PORT: Final[int] = 8425
+
 # --- Streaming ---------------------------------------------------------------
 
 #: Server-sent events carry live investigation progress. The keep-alive keeps

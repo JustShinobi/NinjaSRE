@@ -15,10 +15,9 @@
 name: chaos
 
 on:
-  schedule:
-    # 05:00 UTC daily, after the scenario corpus has run and before anyone reads
-    # either result.
-    - cron: "0 5 * * *"
+  # No cron. The chaos drill runs on hosted minutes, and an unattended
+  # schedule spends them with nobody reading what it found. Ask for it when
+  # somebody is going to look at the answer.
   workflow_dispatch:
     inputs:
       experiment:

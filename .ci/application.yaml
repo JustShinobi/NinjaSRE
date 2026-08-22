@@ -22,6 +22,20 @@ components:
     platforms:
       - linux/amd64
 
+  # The console a browser loads. A separate component from `console`, which is
+  # the gateway it calls: one answers requests, the other renders what a person
+  # looks at. Without this the ingress points a browser at a gateway and every
+  # request for `/` is a JSON 404.
+  - name: web
+    context: .
+    dockerfile: deploy/images/web.Dockerfile
+    image: registry.lan.kyo.ninja/ninjasre/web
+    workload: web
+    container: web
+    rolloutProfile: deployment
+    platforms:
+      - linux/amd64
+
   - name: proxy
     context: .
     dockerfile: deploy/images/proxy.Dockerfile
