@@ -649,10 +649,20 @@ async def store_credential(
     health = CredentialHealth(vault=vault)
     report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
+    # Named for what it is rather than `state`, which on this route is the
+    # deployment's own.
+    credential_state = entry.state
+    if credential_state is CredentialHealthState.MISSING and not stored_schema.required_names:
+        # The vault answers "is a credential present", and for a vendor that
+        # needs none the honest answer to that question is "no" — and the wrong
+        # answer to the one being asked. An operator who has just pointed this
+        # deployment at their own Alertmanager is reading the sentence under the
+        # button they pressed, and `missing` is not what happened.
+        credential_state = CredentialHealthState.CONFIGURED
     return CredentialWriteView(
         integration=name,
-        state=entry.state.value,
-        usable=entry.state.usable,
+        state=credential_state.value,
+        usable=credential_state.usable,
         version=version,
         fields=names,
     )

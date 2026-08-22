@@ -208,3 +208,39 @@ async def test_a_secret_supplied_alongside_the_address_is_still_stored(
 
     assert written.status_code == 200, written.text
     assert written.json()["version"] == 1
+
+
+async def test_the_write_reports_configured_for_a_vendor_that_needs_no_secret(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """The catalogue and the write must not answer the same question differently.
+
+    The vault is asked "is a credential present", and for a vendor that needs
+    none the honest answer to *that* question is "no". It is the wrong question:
+    the operator has just finished connecting an Alertmanager, and the sentence
+    under the button they pressed said `missing`.
+    """
+    written = await client.put(
+        "/v1/integrations/alertmanager/credential",
+        headers=await _admin(deployment),
+        json={"values": {"endpoint": ADDRESS}},
+    )
+
+    assert written.status_code == 200, written.text
+    assert written.json()["state"] == "configured"
+    assert written.json()["usable"] is True
+
+
+async def test_a_vendor_that_does_need_a_secret_still_reports_it_missing(
+    client: AsyncClient, deployment: Deployment
+) -> None:
+    """The relaxation is for a schema with nothing required, not for every write."""
+    written = await client.put(
+        "/v1/integrations/grafana/credential",
+        headers=await _admin(deployment),
+        json={"values": {"endpoint": "https://grafana.acme.example", "token": "a-viewer-token"}},
+    )
+
+    assert written.status_code == 200, written.text
+    assert written.json()["state"] == "configured"
+    assert written.json()["version"] == 1
