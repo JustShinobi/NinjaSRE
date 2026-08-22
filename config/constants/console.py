@@ -258,7 +258,21 @@ NINJASRE_CONSOLE_CLOCK_ENV: Final = "NINJASRE_CONSOLE_CLOCK"
 
 #: A clean checkout, nothing cached, both halves of the gate. Generous, because
 #: it includes provisioning a Node distribution and a browser.
-CONSOLE_COLD_VERIFY_BUDGET_SECONDS: Final = 1800.0
+#:
+#: Recalibrated, and the reason matters more than the number. The previous 1800s
+#: was met only while the suite was not collecting: a delivery commit had
+#: truncated the modules, the unit suite failed to import, and a gate that
+#: collects nothing finishes in 394s. The first runs after the modules came back
+#: measured 2023s, 2028s, 2102s and 2181s on a four-core hosted runner — the
+#: first honest measurements of this gate, against a budget that had never
+#: described it.
+#:
+#: This is not the same act as widening a latency budget that a real regression
+#: broke. Those measure code against a number that once held; this one was
+#: measuring an absence. 2700s carries the worst observed run plus roughly a
+#: quarter, so an ordinary slow day does not go red while a genuine doubling
+#: still does.
+CONSOLE_COLD_VERIFY_BUDGET_SECONDS: Final = 2700.0
 
 #: The same gate with the toolchain already provisioned and the caches warm.
 #: This is the number that decides whether people run it before pushing.
