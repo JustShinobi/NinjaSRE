@@ -37,9 +37,15 @@ pytestmark = pytest.mark.contract
 
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "verify.yml"
 
-#: The platforms the workflow covers. Named here so that dropping one from the
-#: workflow fails, rather than reducing what "all three platforms" means.
-PLATFORMS = ("ubuntu-latest", "macos-latest", "windows-latest")
+#: The platform the gate runs on. Named here so that changing it in the
+#: workflow is a change to this contract too, rather than something that drifts.
+#:
+#: One rather than three: NinjaSRE deploys to Linux, ships Linux images and runs
+#: on a Linux cluster, so a gate on macOS and Windows spent two thirds of every
+#: run reporting about machines nothing ships to. The Makefile is still POSIX
+#: shell only and still needs no WSL, so a contributor on either can run the
+#: same gate locally — CI simply no longer waits on them.
+GATE_PLATFORM = "ubuntu-latest"
 
 
 def workflow() -> dict[str, Any]:
@@ -134,11 +140,14 @@ def test_a_production_build_is_audited_for_third_party_requests() -> None:
     assert "page.on('request'" in audit.read_text(encoding="utf-8")
 
 
-def test_the_gate_runs_on_every_platform_the_workflow_covers() -> None:
-    """All three, and each one enforcing the console half rather than skipping it."""
+def test_the_gate_runs_on_the_platform_this_deployment_targets() -> None:
+    """Linux, and enforcing the console half rather than skipping it."""
     gate = jobs()["verify"]
 
-    assert tuple(gate["strategy"]["matrix"]["os"]) == PLATFORMS
+    assert gate["runs-on"] == GATE_PLATFORM
+    assert "strategy" not in gate, (
+        "the gate is one job on one platform; a matrix here is a fan-out nobody asked for"
+    )
     assert gate["env"][NINJASRE_CONSOLE_TOOLCHAIN_ENV] == REQUIRED, (
         "the gate would let the console checks skip on the platforms it covers"
     )

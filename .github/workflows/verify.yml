@@ -1,4 +1,11 @@
-# The quality gate, on the three platforms FR-017 says NinjaSRE must run on.
+# The quality gate, on Linux.
+#
+# It ran on Linux, macOS and Windows for as long as NinjaSRE was expected to be
+# developed on all three. It is deployed to Linux, its images are Linux, and its
+# cluster is Linux — so two thirds of every gate run was spending minutes to
+# report on machines nothing ships to. The Makefile stays POSIX shell only and
+# nothing here requires WSL, so a contributor on either can still run it; what
+# changed is that CI no longer waits on them.
 #
 # One job, one command. CI runs exactly `make verify` — the same thing a
 # contributor runs locally — so a green local run means a green CI run. A CI
@@ -21,19 +28,11 @@ permissions:
 
 jobs:
   verify:
-    name: verify (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      # Every platform reports. A Windows-only path failure is exactly the kind
-      # of thing a fail-fast matrix hides behind an unrelated Linux error.
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: verify
+    runs-on: ubuntu-latest
 
     defaults:
       run:
-        # Git Bash on Windows. The Makefile is POSIX shell only, and FR-017
-        # rules out requiring WSL.
         shell: bash
 
     env:
@@ -46,10 +45,6 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
-
-      - name: Install GNU Make
-        if: runner.os == 'Windows'
-        run: choco install make --no-progress --yes
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
