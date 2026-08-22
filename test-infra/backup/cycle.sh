@@ -90,7 +90,16 @@ echo "Backing up..." >&2
 ARCHIVE="$(sh deploy/ops/backup.sh "${WORK}")"
 
 echo "Restoring into a clean database..." >&2
-docker exec "${CONTAINER}" psql -U ninjasre -d postgres -c "CREATE DATABASE restored" >/dev/null
+# From `template0`, which is what "restore into a clean database" has to mean
+# for this schema. `template1` on this image already carries `vector` and `age`
+# — the init script puts them there on purpose, so a database created later
+# has them — and a NinjaSRE dump carries the `CREATE SCHEMA ag_catalog` that
+# Apache AGE's own extension emits. Restoring one into the other collides on
+# `schema "ag_catalog" already exists`, and `ON_ERROR_STOP` correctly makes
+# that the end of the restore. The persistence contract suite creates its
+# restore targets from `template0` for exactly this reason.
+docker exec "${CONTAINER}" psql -U ninjasre -d postgres \
+    -c "CREATE DATABASE restored TEMPLATE template0" >/dev/null
 RESTORE_URL="postgresql://ninjasre:ninjasre@127.0.0.1:55433/restored"
 
 echo "Verifying..." >&2
