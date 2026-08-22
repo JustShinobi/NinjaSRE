@@ -67,6 +67,22 @@ done
 export NINJASRE_DATABASE_URL="postgresql://ninjasre:ninjasre@127.0.0.1:55433/ninjasre"
 export NINJASRE_DATABASE_ENCRYPTION_KEY="$(openssl rand -base64 32)"
 
+# `backup.sh` and `restore.sh` are the operator's scripts and are run here
+# exactly as an operator runs them — which means they call plain `python`, and
+# rightly so: in a deployment that is the container's interpreter, with the
+# application installed beside it. On a CI runner it is the system Python,
+# which has none of this project's dependencies, and the cycle died writing the
+# manifest with `No module named 'sqlalchemy'`.
+#
+# So the environment is made to look like a deployment's rather than the
+# scripts made to look like tests. Putting the project's interpreter first on
+# PATH is what a container image does; the scripts stay untouched, and what
+# runs here is still the procedure an operator would follow.
+VENV_BIN="$(uv run python -c 'import pathlib, sys; print(pathlib.Path(sys.executable).parent)')"
+PATH="${VENV_BIN}:${PATH}"
+export PATH
+export PYTHONPATH="${REPO_ROOT}"
+
 echo "Migrating and seeding..." >&2
 PYTHONPATH="${REPO_ROOT}" uv run python test-infra/backup/seed.py
 
