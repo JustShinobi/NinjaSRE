@@ -97,11 +97,16 @@ async def load(conn: AsyncConnection) -> bool:
     anyway; only a database where it does not answer has none.
     """
     try:
-        await conn.execute(text("LOAD 'age'"))
+        async with conn.begin_nested():
+            await conn.execute(text("LOAD 'age'"))
     except DBAPIError:
         # The refused statement poisons the transaction, and the question after
-        # it needs a connection that can still be asked one.
-        await conn.rollback()
+        # it needs one that can still be asked. A savepoint is the only undo
+        # available here: ``ensure`` runs this inside ``engine.begin()``, so the
+        # transaction belongs to that block. Rolling it back from in here closes
+        # it, and the probe below would then raise ``InvalidRequestError``
+        # rather than the database error this catches — killing the deployment
+        # on precisely the refusal this function exists to survive.
         return await _answers(conn)
     return True
 
@@ -114,9 +119,9 @@ async def _answers(conn: AsyncConnection) -> bool:
     ``LOAD`` leaves open.
     """
     try:
-        await conn.scalar(text("SELECT count(*) FROM ag_catalog.ag_graph"))
+        async with conn.begin_nested():
+            await conn.scalar(text("SELECT count(*) FROM ag_catalog.ag_graph"))
     except DBAPIError:
-        await conn.rollback()
         return False
     return True
 
