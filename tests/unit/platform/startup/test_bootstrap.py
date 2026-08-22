@@ -216,6 +216,42 @@ async def test_bringing_up_twice_does_not_duplicate_the_organisation_or_the_gran
     assert len(bindings) == 1
 
 
+async def test_a_second_container_does_not_revoke_the_first_ones_credential(
+    store: FakePersistence, tokens: TokenService, environ: dict[str, str], tmp_path: Path
+) -> None:
+    """One deployment, several containers of the same image, one database.
+
+    That is the standard compose profile: the application, the console and the
+    proxy all run this image and all bring up. The credential is written to a
+    *host file*, which each container has its own of, while the token lives in
+    the database they share — so the second bring-up finds no credential of its
+    own, issues one, and supersedes what it finds under the same name. What it
+    finds is the first container's, still live, still the one an operator will
+    be handed.
+
+    The failure is quiet and lands on the operator: `ninjasre setup credential`
+    on the first container keeps printing a secret, and the API rejects it. The
+    documented way to recover a lost first-run token returns a dead one.
+
+    A live credential belonging to somebody else is not this issuance's to
+    spend. The rows `supersede` exists to clear are the expired ones.
+    """
+    first = await bring_up(store, tokens, environ=environ)
+
+    # A second container: same database, its own empty credential file.
+    other_environ = dict(environ)
+    other_environ[NINJASRE_STATE_DIR_ENV] = str(tmp_path / "second-container")
+
+    second = await bring_up(store, tokens, environ=other_environ)
+
+    assert second.issued is True, "the second container has no credential of its own"
+    assert second.credential.secret != first.credential.secret
+
+    # The point: the first container's credential still authenticates.
+    authenticated = await tokens.authenticate(first.credential.secret)
+    assert authenticated is not None
+
+
 async def test_a_credential_that_expired_is_replaced_rather_than_reused(
     store: FakePersistence, tokens: TokenService, environ: dict[str, str]
 ) -> None:

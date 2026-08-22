@@ -198,6 +198,7 @@ class TokenService:
         lifetime_days: int | None = None,
         lifetime: timedelta | None = None,
         supersede: bool = False,
+        supersede_expired_only: bool = False,
         unscoped: bool = False,
     ) -> IssuedToken:
         """Return a new token, its plaintext included exactly once.
@@ -232,6 +233,17 @@ class TokenService:
         first. Machine-token issuance (the console's own route) and the
         bootstrap credential (whose unrevoked, merely-expired rows are exactly
         what accumulated before this existed) both ask for it.
+
+        ``supersede_expired_only`` narrows that to the rows it was introduced
+        for. One deployment can be several containers of one image sharing one
+        database — the standard compose profile is three — and each keeps its
+        bootstrap credential in a host file of its own while the token lives in
+        the database they share. The second container to start finds no
+        credential of its own, issues one, and would supersede what it finds
+        under the same name: the first container's, still live, and still the
+        one an operator is told to read. The reasoning is the same one that
+        keeps a second browser tab from revoking the first; only the thing
+        starting twice is different.
         """
         if lifetime is not None:
             span = lifetime
@@ -268,7 +280,14 @@ class TokenService:
                 superseded = tuple(
                     token.token_id
                     for token in existing
-                    if not token.is_revoked and token.name == name and token.team_node_id == node_id
+                    if not token.is_revoked
+                    and token.name == name
+                    and token.team_node_id == node_id
+                    and not (
+                        supersede_expired_only
+                        and token.expires_at is not None
+                        and token.expires_at > now
+                    )
                 )
                 if superseded:
                     await uow.identity.revoke_tokens(superseded, revoked_at=now)

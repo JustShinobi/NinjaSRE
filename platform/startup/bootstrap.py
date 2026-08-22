@@ -439,6 +439,11 @@ async def _issue(
         # identical "bootstrap" rows a deployment restarted over days
         # accumulates.
         supersede=True,
+        # Only the expired ones. A live bootstrap credential under this name
+        # belongs to another container of this same deployment — they share a
+        # database and each keeps its own host file — and revoking it hands its
+        # operator a credential the API then rejects.
+        supersede_expired_only=True,
     )
     expires_at = issued.token.expires_at or datetime.now(UTC) + timedelta(
         seconds=BOOTSTRAP_CREDENTIAL_LIFETIME_SECONDS
