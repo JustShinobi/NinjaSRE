@@ -60,8 +60,15 @@ typecheck: ## Run mypy in strict mode over the first-party packages and repo too
 # buy memory pressure and nothing else.
 PYTEST_WORKERS ?= 4
 
-test: ## Run the test suite across $(PYTEST_WORKERS) workers
-	$(RUN) pytest -n $(PYTEST_WORKERS) --dist loadgroup
+# Two runs, and the split is the point. A latency budget measured while three
+# other workers have the CPU measures contention, not the code it names — and a
+# budget that fails for that reason teaches people to widen budgets. The
+# `benchmark` marker already means "asserts a latency budget rather than a
+# behaviour", so it is exactly the line to cut along: everything else in
+# parallel, the budgets alone on an uncontended machine.
+test: ## Run the test suite: behaviour across $(PYTEST_WORKERS) workers, budgets alone
+	$(RUN) pytest -n $(PYTEST_WORKERS) --dist loadgroup -m "not benchmark"
+	$(RUN) pytest -m benchmark
 
 # Not part of `verify`: it builds a PostgreSQL image, starts it, and creates a
 # database per test. That is a minute the gate should not spend on every commit,
