@@ -299,6 +299,67 @@ describe('Test again', () => {
     expect(outcome).toHaveTextContent('token rejected');
     expect(outcome.querySelector('[data-credential-status="failing"]')).not.toBeNull();
   });
+
+  it('reports a vendor that answered with no credential at all as verified', async () => {
+    // Alertmanager ships no authentication. The deployment stores nothing for
+    // it, reaches it by address, and the only thing worth showing is what it
+    // said — which used to come back as a failure about a missing credential.
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        reachable: true,
+        verified: true,
+        reason: 'Alertmanager answered.',
+      }),
+    );
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ health: 'healthy' })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^Test again$/ }));
+
+    const outcome = await screen.findByTestId('credential-outcome');
+    expect(outcome).toHaveTextContent('Alertmanager answered.');
+    expect(outcome.querySelector('[data-credential-status="verified"]')).not.toBeNull();
+  });
+
+  it('shows a vendor that answered with a caveat as degraded rather than as either extreme', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering(200, {
+        reachable: true,
+        verified: true,
+        degraded: true,
+        reason: 'Prometheus answered.',
+      }),
+    );
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="alertmanager"
+        item={item({ health: 'healthy' })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^Test again$/ }));
+
+    const outcome = await screen.findByTestId('credential-outcome');
+    expect(outcome.querySelector('[data-credential-status="degraded"]')).not.toBeNull();
+  });
 });
 
 describe('Replace credential', () => {

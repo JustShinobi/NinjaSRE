@@ -155,7 +155,12 @@ export interface IntegrationPanelProps {
 }
 
 interface Verdict {
-  readonly status: 'verified' | 'failing';
+  /**
+   * Three words rather than two, because the vendor can answer and still say
+   * something that makes its answers unsafe to trust whole — a clock forty
+   * seconds out is not a failure and is not nothing.
+   */
+  readonly status: 'verified' | 'degraded' | 'failing';
   readonly detail: string;
 }
 
@@ -232,9 +237,14 @@ export function IntegrationPanel({
         setUnreachable(true);
       } else {
         const verified = Reflect.get(Object(body), 'verified') === true;
+        const degraded = Reflect.get(Object(body), 'degraded') === true;
+        // The detail is the vendor's own sentence where there was one. "401
+        // Unauthorized" sends somebody to re-issue a key and "could not reach
+        // the host" sends them to their egress rules; a chip alone sends them
+        // to the logs.
         const reason: unknown = Reflect.get(Object(body), 'reason');
         setVerdict({
-          status: verified ? 'verified' : 'failing',
+          status: verified ? (degraded ? 'degraded' : 'verified') : 'failing',
           detail: typeof reason === 'string' ? reason : '',
         });
       }
