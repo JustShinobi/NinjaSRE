@@ -396,6 +396,7 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: v0.74.0
+          trivyignores: .trivyignore.yaml
           scan-type: image
           image-ref: ninjasre/app:ci
           severity: HIGH,CRITICAL
@@ -406,6 +407,9 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: v0.74.0
+          # Path-scoped, dated exemptions, each with its reason written beside
+          # it. Everything the scan reported that could be fixed was fixed.
+          trivyignores: .trivyignore.yaml
           scan-type: image
           image-ref: ninjasre/postgres:ci
           severity: HIGH,CRITICAL

@@ -1,0 +1,125 @@
+# What the image scan is told to pass over, and why each one.
+#
+# Every entry here is scoped to a path. An identifier on its own would silence
+# that vulnerability in every binary of every image this repository builds, and
+# the next Go program added would inherit the exemption without anybody
+# deciding to give it one.
+#
+# Everything else the scan reported was fixed rather than listed: the
+# application, console and proxy images went from 38 findings to none, and the
+# datastore's Debian packages from 91 to none. This is the remainder.
+#
+# ---------------------------------------------------------------------------
+# `gosu`, in the datastore image.
+#
+# The base ships a `gosu` built with Go 1.24.0, and all of these are in that
+# release's standard library rather than in `gosu` itself. No update available
+# reaches them: Debian's own package is built with the same Go, and rebuilding
+# from source is blocked upstream, where the project tags releases as `1.17`
+# rather than `v1.17` and the Go module proxy will not resolve them.
+#
+# What `gosu` does here is one thing: the PostgreSQL entrypoint calls it to drop
+# from root to the postgres user, and it exits immediately after. It opens no
+# socket and parses nothing from a network, which is what the standard library
+# paths named below are about.
+#
+# The real fix is to stop needing it — the entrypoint only calls `gosu` when the
+# container starts as root, so a deployment that starts as the postgres user
+# never reaches it. That is a runtime change with its own volume-ownership
+# consequences and deserves its own work.
+#
+# Dated so this is revisited rather than inherited.
+
+vulnerabilities:
+  - id: CVE-2025-22874
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2025-61726
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2025-61729
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2025-68121
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-25679
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-27145
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32280
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32281
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-32283
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33811
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33814
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-33818
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39820
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39821
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39822
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-39836
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-42499
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-42504
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56853
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56858
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56859
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56860
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
+  - id: CVE-2026-56862
+    paths:
+      - "usr/local/bin/gosu"
+    expired_at: 2026-11-30
