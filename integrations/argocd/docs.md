@@ -6,6 +6,7 @@ What Argo CD has actually applied: which applications are synced and healthy, an
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
+| `endpoint` | Argo CD address — https://argocd.internal | no | yes |
 | `token` | Argo CD API token for a project-scoped account | yes | yes |
 
 ```bash
@@ -17,6 +18,10 @@ The prompt asks for each field the schema declares and writes the values
 straight to the vault. Nothing is displayed back, and nothing reaches the agent:
 a capability carries a handle and the credential proxy injects the real value at
 the network edge.
+
+`endpoint` is the one exception: it goes to the configuration tree, not the
+vault, because it is where the credential proxy reads its egress allow-list
+from rather than part of the credential.
 
 Declared regions: `self-hosted`.
 

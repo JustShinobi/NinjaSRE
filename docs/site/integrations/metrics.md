@@ -10,7 +10,7 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 
 - **Category:** metrics
 - **Regions:** self-hosted
-- **Credentials:** token
+- **Credentials:** endpoint
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown

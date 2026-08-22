@@ -64,7 +64,8 @@ from integrations.proxmox.models import (
     ThinVolume,
     parse_upid,
 )
-from integrations.proxmox.schema import DEFAULT_HOST, INTEGRATION, base_url
+from integrations.proxmox.schema import API_BASE, DEFAULT_HOST, INTEGRATION
+from integrations.proxmox.schema import base_url as base_url_of
 from platform.observability.logging import get_logger
 
 #: The two guest kinds, spelled the way Proxmox spells them in its own paths.
@@ -113,6 +114,35 @@ PAGINATION: Final[tuple[EndpointPagination, ...]] = (
 logger = get_logger(__name__)
 
 
+def _host_of(address: str) -> str:
+    """Return the bare host an address names, or "" when it names none.
+
+    The endpoint ring is a ring of *hosts* — failover walks node names — while
+    the configured address is a URL. This is the one translation between them,
+    and it is here rather than in the ring because the ring has no business
+    knowing about schemes.
+    """
+    trimmed = address.strip()
+    if not trimmed:
+        return ""
+    authority = trimmed.split("://", 1)[-1].split("/", 1)[0]
+    if authority.startswith("["):
+        return authority.partition("]")[0].lstrip("[")
+    return authority.split(":", 1)[0]
+
+
+def _api_root(address: str) -> str:
+    """Return ``address`` with Proxmox's API prefix, added once.
+
+    An operator types the address they sign in at. Every path in this client is
+    relative to ``/api2/json``, and appending it here rather than asking for it
+    is the difference between a working credential and a 404 that reads like a
+    permissions problem.
+    """
+    trimmed = address.strip().rstrip("/")
+    return trimmed if trimmed.endswith(API_BASE) else f"{trimmed}{API_BASE}"
+
+
 class ProxmoxClient(IntegrationClient):
     """Proxmox VE reads, reached through the credential proxy and never around it."""
 
@@ -127,13 +157,16 @@ class ProxmoxClient(IntegrationClient):
         context: RequestContext,
         endpoints: Sequence[str] = (),
         trust: CertificateTrust = DEFAULT_TRUST,
+        base_url: str = "",
         retry: RetryPolicy | None = None,
     ) -> None:
-        ring = EndpointRing.of(*(tuple(endpoints) or (DEFAULT_HOST,)), integration=INTEGRATION)
+        ring = EndpointRing.of(
+            *(tuple(endpoints) or (_host_of(base_url) or DEFAULT_HOST,)), integration=INTEGRATION
+        )
         super().__init__(
             transport=transport,
             context=context,
-            base_url=base_url(ring.current),
+            base_url=_api_root(base_url) if base_url else base_url_of(ring.current),
             retry=retry,
         )
         self._endpoints = ring
@@ -163,7 +196,7 @@ class ProxmoxClient(IntegrationClient):
         """
 
         async def fetch(host: str) -> ClientResponse:
-            return await self.get(f"{base_url(host)}{path}", params=params)
+            return await self.get(f"{base_url_of(host)}{path}", params=params)
 
         return await self._endpoints.attempt(fetch)
 
@@ -176,7 +209,7 @@ class ProxmoxClient(IntegrationClient):
         """
 
         async def fetch(host: str) -> Any:
-            response = await self.get(f"{base_url(host)}{path}", params=params)
+            response = await self.get(f"{base_url_of(host)}{path}", params=params)
             answer = response.json()
             if not isinstance(answer, dict) or "data" not in answer:
                 raise IntegrationError(
@@ -211,7 +244,7 @@ class ProxmoxClient(IntegrationClient):
 
     async def ping(self) -> Any:
         """Read the API version — the cheapest authenticated call Proxmox offers."""
-        return await self.get(f"{base_url(self._endpoints.current)}/version")
+        return await self.get(f"{base_url_of(self._endpoints.current)}/version")
 
     async def version(self) -> Mapping[str, Any]:
         """Return the version, release and build of the node that answered."""

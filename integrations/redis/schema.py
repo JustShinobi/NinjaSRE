@@ -26,8 +26,20 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("api_key", "Redis Cloud account key", min_length=8),
-    secret("secret_key", "Redis Cloud user secret key", min_length=8),
+    secret(
+        "api_key",
+        "Redis Cloud account key",
+        min_length=8,
+        label="Account key",
+        guide_url="https://redis.io/docs/latest/operate/rc/api/get-started/",
+    ),
+    secret(
+        "secret_key",
+        "Redis Cloud user secret key",
+        min_length=8,
+        label="Secret key",
+        min_scope="subscriptions:read",
+    ),
 )
 
 RULE: Final = InjectionRule(

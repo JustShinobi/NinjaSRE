@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, secret
+from integrations._base.schema import credential_schema, endpoint, secret
 from platform.credentials.proxy.injection import BearerTokenInjection, InjectionRule
 
 INTEGRATION: Final = "prometheus"
@@ -29,10 +29,23 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
+    endpoint(
+        "endpoint",
+        "Where your Prometheus answers, scheme and port included — "
+        "http://prometheus.example.com:9090. Nobody packaging this knows where "
+        "yours is, so until it is declared every query goes to the documented "
+        "placeholder.",
+        label="Prometheus address",
+    ),
     secret(
         "token",
-        "Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own",
+        "Only if something in front of Prometheus asks for one. Prometheus "
+        "ships no authentication of its own, so an install reached directly "
+        "needs nothing here.",
         min_length=8,
+        required=False,
+        label="Bearer token",
+        min_scope="whatever your reverse proxy or ingress accepts",
     ),
 )
 
@@ -40,6 +53,10 @@ RULE: Final = InjectionRule(
     integration=INTEGRATION,
     hosts=HOSTS,
     injections=(BearerTokenInjection(field="token"),),
+    # Prometheus ships no authentication. Requiring one made the ordinary
+    # install — bare, on a private address, behind nothing — the one shape
+    # this integration could not be connected to.
+    credential_optional=True,
 )
 
 

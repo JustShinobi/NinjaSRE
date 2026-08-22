@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, public, secret
+from integrations._base.schema import credential_schema, endpoint, public, secret
 from platform.credentials.proxy.injection import BearerTokenInjection, InjectionRule
 
 INTEGRATION: Final = "grafana"
@@ -29,8 +29,23 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("token", "Grafana service account token, with the Viewer role at minimum", min_length=8),
-    public("org", "Grafana organisation id, when the stack has more than one"),
+    endpoint(
+        "endpoint",
+        "Where your Grafana answers, scheme and port included — "
+        "http://grafana.example.com:3000. The same address you sign in at.",
+        label="Grafana address",
+    ),
+    secret(
+        "token",
+        "Grafana service account token, with the Viewer role at minimum",
+        min_length=8,
+        label="Service account token",
+        min_scope="Viewer role",
+        guide_url="https://grafana.com/docs/grafana/latest/administration/service-accounts/",
+    ),
+    public(
+        "org", "Grafana organisation id, when the stack has more than one", label="Organisation ID"
+    ),
 )
 
 RULE: Final = InjectionRule(

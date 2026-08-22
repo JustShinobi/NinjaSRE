@@ -19,6 +19,10 @@ from tests.synthetic.integration_scenarios import IntegrationScenario, json_resp
 #: Not a real credential. The suite asserts that none of these values reaches a
 #: client, a result, or a trace, which is the property SC-003 is about.
 CREDENTIAL: Final[dict[str, str]] = {
+    # What an operator submits on one screen. The address is not a credential
+    # and is not stored with one — ``vault_values`` in the contract conftest is
+    # what splits this the way the write route does.
+    "endpoint": "https://argocd.example.com",
     "token": "ninjasre-scenario-token-000000",
 }
 

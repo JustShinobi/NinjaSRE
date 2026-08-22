@@ -55,6 +55,30 @@ ENTRIES: dict[str, CatalogueEntry] = {entry.name: entry for entry in CATALOGUE}
 PROFILES = profiles()
 
 
+def vault_values(name: str) -> dict[str, str]:
+    """Return ``name``'s scenario credential without the fields the vault does not hold.
+
+    A scenario declares what an operator submits, which since addresses became
+    configurable is a credential *and* an address. The vault holds the first
+    half; the second is configuration, and handing it over would be refused as
+    a field the vault's view of the schema does not declare.
+    """
+    schema = ENTRIES[name].descriptor.schema
+    addresses = set(schema.endpoint_names)
+    return {
+        field: value for field, value in CREDENTIALS.get(name, {}).items() if field not in addresses
+    }
+
+
+def endpoint_values(name: str) -> dict[str, str]:
+    """Return the address half of ``name``'s scenario credential, if it declares one."""
+    schema = ENTRIES[name].descriptor.schema
+    addresses = set(schema.endpoint_names)
+    return {
+        field: value for field, value in CREDENTIALS.get(name, {}).items() if field in addresses
+    }
+
+
 def integration_ids() -> tuple[str, ...]:
     """Return every catalogued integration name, in order."""
     return tuple(entry.name for entry in CATALOGUE)
@@ -119,11 +143,16 @@ async def stand_up(
     async with gateway.begin_system() as system:
         await system.orgs.create_organisation(ORG_ID, "Acme")
 
-    schemas = CredentialSchemaRegistry.from_schemas(*(found.schema for found in descriptors))
+    # The vault's view of each schema: everything but the address, which is
+    # stored in the configuration tree rather than here. Seeding the whole
+    # declaration would ask the vault to hold a field it does not hold.
+    schemas = CredentialSchemaRegistry.from_schemas(
+        *(stored for found in descriptors if (stored := found.schema.for_vault()) is not None)
+    )
     vault = Vault(gateway=gateway, schemas=schemas)
     for name in seeded:
         await vault.store(
-            SCOPE, CredentialHandle(integration=name, team_id=TEAM_ID), CREDENTIALS[name]
+            SCOPE, CredentialHandle(integration=name, team_id=TEAM_ID), vault_values(name)
         )
 
     vendor = RecordingVendor()

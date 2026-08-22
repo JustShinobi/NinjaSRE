@@ -79,6 +79,20 @@ export interface IntegrationPanelItem {
    * invents one from a vendor's default port or a constant on the screen.
    */
   readonly discoveredAddress: string;
+  /**
+   * Which way this vendor's traffic flows: `outbound` when this deployment only
+   * calls it, `both` when it also posts alerts here. Served by the catalogue,
+   * derived there from the webhook router's own source list rather than
+   * declared per vendor.
+   *
+   * It is on the screen because two different secrets share the word "token".
+   * The credential written below is always the outbound one; a vendor that also
+   * delivers needs a delivery token as well, issued somewhere else and held by
+   * the alert router rather than by this deployment.
+   */
+  readonly direction: string;
+  /** Where this vendor posts, when it posts. Empty for an outbound-only vendor. */
+  readonly intakePath: string;
 }
 
 export interface IntegrationPanelLabels {
@@ -108,6 +122,16 @@ export interface IntegrationPanelLabels {
   readonly disconnect: string;
   /** What "Disconnect" removes, said before the write happens. */
   readonly disconnectConsequence: string;
+  /** What a vendor this deployment only reads is described as. */
+  readonly directionOutbound: string;
+  /** What a vendor that also delivers alerts here is described as. */
+  readonly directionBoth: string;
+  /** The heading over the step that happens outside this deployment. */
+  readonly intakeTitle: string;
+  /** What that step is, in one sentence. */
+  readonly intakeBody: string;
+  /** What the link to the alert-intake screen is called. */
+  readonly intakeAction: string;
 }
 
 export interface IntegrationPanelProps {
@@ -118,6 +142,8 @@ export interface IntegrationPanelProps {
   readonly closeHref: string;
   /** Where the roadmap's reference page lives — offered beside the way back, for a name the cut removed. */
   readonly notCoveredHref: string;
+  /** Where an operator goes to finish an inbound integration. */
+  readonly intakeHref: string;
   /**
    * Whether this viewer holds `integration.manage`. The area itself is gated
    * on the same permission, so a viewer without it cannot reach this panel in
@@ -140,6 +166,7 @@ export function IntegrationPanel({
   item,
   closeHref,
   notCoveredHref,
+  intakeHref,
   writable,
   labels,
 }: IntegrationPanelProps): ReactNode {
@@ -293,6 +320,11 @@ export function IntegrationPanel({
         <div className="flex flex-col gap-3">
           <p className="text-meta text-muted">
             {item.categoryLabel} · {item.summary}
+          </p>
+          <p className="text-meta text-muted" data-testid="panel-direction">
+            {item.direction === 'both'
+              ? labels.directionBoth
+              : labels.directionOutbound}
           </p>
           <StatusChip locale={locale} status={item.health} />
           {item.healthDetail === '' ? null : (
@@ -449,6 +481,34 @@ export function IntegrationPanel({
               >
                 {labels.security}
               </p>
+
+              {item.direction === 'both' ? (
+                // The step that closes the loop, on the screen the operator is
+                // already on. Everything above stores a credential this
+                // deployment presents; this is the one that makes anything
+                // arrive, and it happens in the alert router rather than here.
+                <div
+                  className="flex flex-col gap-2 rounded-2 edge px-3 py-2"
+                  data-testid="panel-intake-handover"
+                >
+                  <h3 className="text-micro uppercase tracking-wide text-muted">
+                    {labels.intakeTitle}
+                  </h3>
+                  <p className="text-meta text-muted">{labels.intakeBody}</p>
+                  {item.intakePath === '' ? null : (
+                    <p className="text-meta text-muted">
+                      <code>{item.intakePath}</code>
+                    </p>
+                  )}
+                  <NextLink
+                    href={intakeHref}
+                    data-testid="panel-intake-link"
+                    className="text-meta text-accent underline underline-offset-2 motion-hover hover:opacity-80"
+                  >
+                    {labels.intakeAction}
+                  </NextLink>
+                </div>
+              ) : null}
 
               <ConfirmDestructive
                 open={confirmingDisconnect}

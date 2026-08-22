@@ -6,6 +6,7 @@ What landed in a repository and when: the commits on its default branch and the 
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
+| `endpoint` | Only for GitHub Enterprise Server — https://github.acme.example/api/v3 | no | no |
 | `token` | GitHub token — a fine-grained personal access token or an app installation token | yes | yes |
 | `owner` | Default organisation or user the repositories belong to | no | no |
 
@@ -18,6 +19,10 @@ The prompt asks for each field the schema declares and writes the values
 straight to the vault. Nothing is displayed back, and nothing reaches the agent:
 a capability carries a handle and the credential proxy injects the real value at
 the network edge.
+
+`endpoint` goes to the configuration tree rather than the vault — it is where
+the credential proxy reads its egress allow-list from, and it stays empty for
+github.com.
 
 Declared regions: `github.com`, `enterprise`.
 

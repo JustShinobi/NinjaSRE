@@ -35,7 +35,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, public, secret
+from integrations._base.schema import credential_schema, endpoint, public, secret
 from platform.credentials.proxy.injection import HeaderInjection, InjectionRule
 
 INTEGRATION: Final = "proxmox"
@@ -79,6 +79,13 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
+    endpoint(
+        "endpoint",
+        "Where a node of your cluster answers, port included — "
+        "https://proxmox.example.com:8006. Any node will do: the API answers cluster-"
+        "wide questions from whichever one is asked.",
+        label="Proxmox node address",
+    ),
     secret(
         "api_token",
         "Proxmox API token as one line, exactly as the header wants it: "
@@ -87,11 +94,18 @@ SCHEMA: Final = credential_schema(
         "and simply holds fewer privileges, which verification reports.",
         pattern=API_TOKEN_PATTERN,
         alternatives=("password",),
+        label="API token",
+        min_scope=(
+            "Sys.Audit on /, VM.Audit on /vms and Datastore.Audit on /storage — "
+            "granted together by the PVEAuditor role on /"
+        ),
+        guide_url="https://pve.proxmox.com/pve-docs/chapter-pveum.html",
     ),
     public(
         "username",
         "Login name with its realm, such as ninjasre@pve. Only for deployments "
         "that cannot issue an API token.",
+        label="Login name",
     ),
     secret(
         "password",
@@ -99,18 +113,21 @@ SCHEMA: Final = credential_schema(
         "proxy side and never read here.",
         required=False,
         alternatives=("api_token",),
+        label="Password",
     ),
     secret(
         "ticket",
         "The short-lived ticket the proxy exchanged the password for. Written by "
         "the refresher, never by an operator.",
         required=False,
+        label="Session ticket",
     ),
     secret(
         "csrf_token",
         "The CSRF prevention token that accompanies a ticket. Written by the "
         "refresher, never by an operator.",
         required=False,
+        label="CSRF token",
     ),
 )
 

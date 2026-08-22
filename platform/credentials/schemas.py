@@ -31,6 +31,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Final
+from urllib.parse import urlsplit
 
 from platform.credentials.errors import CredentialSchemaViolation, UnknownIntegration
 
@@ -80,11 +81,28 @@ def _derive_label(name: str) -> str:
     )
 
 
+#: The schemes an endpoint field accepts. A vendor is reached over HTTP by
+#: everything in this catalogue, and a field that took any scheme would let an
+#: address the proxy cannot forward through validation and fail it later.
+_ENDPOINT_SCHEMES: Final[frozenset[str]] = frozenset({"http", "https"})
+
+
 class FieldKind(StrEnum):
-    """Whether a field is the secret or the configuration around it."""
+    """Whether a field is the secret, the address, or the configuration around them.
+
+    ``ENDPOINT`` is separated from ``PUBLIC`` because the two are stored in
+    different places and that is a property of what they are rather than a
+    routing decision somebody made. Public configuration is part of the
+    credential and lives in the vault beside it. An address is not part of a
+    credential at all — it is where the deployment points, the proxy already
+    reads its egress allow-list from the configuration tree, and putting it in
+    the vault would make the one fact the client needs the one fact nothing
+    outside the proxy may read.
+    """
 
     SECRET = "secret"
     PUBLIC = "public"
+    ENDPOINT = "endpoint"
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +155,11 @@ class CredentialField:
         return self.kind is FieldKind.SECRET
 
     @property
+    def is_endpoint(self) -> bool:
+        """Return whether this field is the address the vendor is reached at."""
+        return self.kind is FieldKind.ENDPOINT
+
+    @property
     def display_label(self) -> str:
         """Return ``label``, or a label derived from ``name`` when none is declared."""
         declared = self.label.strip()
@@ -160,7 +183,32 @@ class CredentialField:
             )
         if self.pattern is not None and re.fullmatch(self.pattern, value) is None:
             found.append(f"{self.name} does not match the format this vendor issues")
+        if self.is_endpoint:
+            found.extend(self._address_problems(value))
         return tuple(found)
+
+    def _address_problems(self, value: str) -> tuple[str, ...]:
+        """Return what is wrong with ``value`` as an address, never quoting it.
+
+        An operator's first attempt is almost always ``host:port`` with no
+        scheme, which ``urlsplit`` reads as a scheme of ``host`` and a path of
+        the port — plausible, wrong, and silent. Saying which half is missing is
+        the difference between a fix and a second attempt at the same guess.
+        """
+        split = urlsplit(value.strip())
+        if split.scheme.lower() not in _ENDPOINT_SCHEMES:
+            return (
+                f"{self.name} must start with http:// or https:// — an address without "
+                f"a scheme is not one this deployment can tell how to reach",
+            )
+        if not split.hostname:
+            return (f"{self.name} names no host, so there is nowhere for a call to go",)
+        if split.query or split.fragment:
+            return (
+                f"{self.name} is a base address rather than a request: a query or "
+                f"fragment here would be sent on every call this integration makes",
+            )
+        return ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +233,13 @@ class CredentialSchema:
                 f"the credential schema for {self.integration!r} declares "
                 f"{sorted(duplicates)} more than once"
             )
+        endpoints = [declared.name for declared in self.fields if declared.is_endpoint]
+        if len(endpoints) > 1:
+            raise ValueError(
+                f"the credential schema for {self.integration!r} declares more than one "
+                f"endpoint ({', '.join(sorted(endpoints))}), and a client asked to address "
+                f"two places would have to pick one"
+            )
 
     def get(self, name: str) -> CredentialField | None:
         """Return the field called ``name``, or ``None``."""
@@ -204,6 +259,37 @@ class CredentialSchema:
     def secret_names(self) -> tuple[str, ...]:
         """Return the names of the fields the agent must never see."""
         return tuple(declared.name for declared in self.fields if declared.is_secret)
+
+    @property
+    def endpoint_names(self) -> tuple[str, ...]:
+        """Return the address fields, which are stored as configuration rather than in the vault.
+
+        A tuple rather than an optional single name so that a caller splitting a
+        submitted form by destination writes one comprehension instead of a
+        branch, and so the empty case — every vendor with a real public API —
+        needs no special reading.
+        """
+        return tuple(declared.name for declared in self.fields if declared.is_endpoint)
+
+    @property
+    def vault_names(self) -> tuple[str, ...]:
+        """Return the fields that belong in the vault: everything but the address."""
+        return tuple(declared.name for declared in self.fields if not declared.is_endpoint)
+
+    def for_vault(self) -> CredentialSchema | None:
+        """Return this schema without its address fields, or ``None`` if nothing is left.
+
+        The vault validates what it is asked to store, and an address is not
+        stored there — so validating the vault's half against the whole schema
+        refuses a perfectly good write for the absence of a field that went
+        somewhere else. ``None`` is the honest answer for a vendor that declares
+        an address and no credential at all: there is nothing for the vault to
+        hold, and a schema with no fields is one this class refuses to build.
+        """
+        kept = tuple(declared for declared in self.fields if not declared.is_endpoint)
+        if not kept:
+            return None
+        return CredentialSchema(integration=self.integration, fields=kept)
 
     def validate(self, values: Mapping[str, str]) -> None:
         """Raise ``CredentialSchemaViolation`` unless ``values`` fits this schema.

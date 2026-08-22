@@ -10,7 +10,7 @@ What Grafana knows about a stack: which dashboards and folders exist, and the an
 
 - **Category:** cloud_control_plane
 - **Regions:** self-hosted
-- **Credentials:** token
+- **Credentials:** endpoint, token
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown
@@ -66,7 +66,7 @@ A Proxmox VE cluster read whole: quorum, nodes, containers, virtual machines, da
 
 - **Category:** cloud_control_plane
 - **Regions:** self-hosted
-- **Credentials:** api_token
+- **Credentials:** endpoint, api_token
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown

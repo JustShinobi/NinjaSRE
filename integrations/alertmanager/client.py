@@ -24,7 +24,8 @@ from integrations._base.pagination import (
 from integrations._base.payload import records
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations.alertmanager.schema import INTEGRATION, base_url
+from integrations.alertmanager.schema import INTEGRATION
+from integrations.alertmanager.schema import base_url as _region_url
 
 PING_PATH: Final = "/api/v2/status"
 LIST_INCIDENTS_PATH: Final = "/api/v2/alerts"
@@ -75,12 +76,17 @@ class AlertmanagerClient(IntegrationClient):
         transport: ProxyTransport,
         context: RequestContext,
         region: str = "",
+        base_url: str = "",
         retry: RetryPolicy | None = None,
     ) -> None:
+        # The operator's own address wins over the shipped region, which is a
+        # placeholder: nobody packaging this knows where a self-hosted
+        # Alertmanager is. The egress allow-list still decides whether the host
+        # may be reached.
         super().__init__(
             transport=transport,
             context=context,
-            base_url=base_url(region),
+            base_url=base_url or _region_url(region),
             retry=retry,
         )
 

@@ -26,7 +26,13 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("token", "Telegram bot token, as BotFather issued it", min_length=8),
+    secret(
+        "token",
+        "Telegram bot token, as BotFather issued it",
+        min_length=8,
+        label="Bot token",
+        guide_url="https://core.telegram.org/bots",
+    ),
 )
 
 RULE: Final = InjectionRule(

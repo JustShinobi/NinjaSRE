@@ -46,21 +46,38 @@ SCHEMA: Final = CredentialSchema(
     integration=INTEGRATION,
     fields=(
         CredentialField(
+            name="endpoint",
+            description=(
+                "Where the API server answers — https://k8s.example.com:6443. "
+                "Leave empty when NinjaSRE runs inside the cluster it is "
+                "watching: the in-cluster address is the one thing that is the "
+                "same everywhere, and it is always permitted."
+            ),
+            kind=FieldKind.ENDPOINT,
+            required=False,
+            label="API server address",
+        ),
+        CredentialField(
             name="token",
             description="Service account token with the read roles the capabilities need.",
             min_length=16,
+            label="Service account token",
+            min_scope="get/list on events, deployments.apps and replicasets.apps",
+            guide_url="https://kubernetes.io/docs/reference/access-authn-authz/rbac/",
         ),
         CredentialField(
             name="cluster",
             description="Name of the cluster this token authenticates against.",
             kind=FieldKind.PUBLIC,
             required=False,
+            label="Cluster name",
         ),
         CredentialField(
             name="namespace",
             description="Default namespace for namespaced reads.",
             kind=FieldKind.PUBLIC,
             required=False,
+            label="Default namespace",
         ),
     ),
 )

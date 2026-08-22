@@ -16,11 +16,28 @@ from __future__ import annotations
 
 import pytest
 
-from gateway.proxy.hosts import hosts_from_configuration, with_configured_hosts
+from gateway.proxy.hosts import (
+    hosts_from_configuration,
+    refresh_configured_hosts,
+    with_configured_hosts,
+)
 from integrations.proxmox.schema import RULE as PROXMOX_RULE
-from platform.credentials.proxy.injection import InjectionRuleRegistry
+from platform.credentials.proxy.injection import (
+    BearerTokenInjection,
+    InjectionRule,
+    InjectionRuleRegistry,
+)
 
 pytestmark = pytest.mark.unit
+
+
+def _rule(integration: str, *hosts: str) -> InjectionRule:
+    """Return a rule for ``integration`` permitting exactly ``hosts``."""
+    return InjectionRule(
+        integration=integration,
+        hosts=hosts,
+        injections=(BearerTokenInjection(field="token"),),
+    )
 
 
 def _registry() -> InjectionRuleRegistry:
@@ -169,3 +186,89 @@ zuaihH5AgDB6vnDKbrqftlZ5bUj6VJpn6bLzpTzfpq6y0gTd1PObros3YEZdJA3h
 Tu0EH34Gp5koJOuHwl6fy3E9H0MqD8jESV9T1Sg=
 -----END CERTIFICATE-----
 """
+
+
+# --- Re-reading, so a change does not wait for a restart -----------------------
+
+
+def test_an_address_removed_from_the_configuration_stops_being_permitted() -> None:
+    """Widening in place cannot narrow, and the docstring above promises it does.
+
+    "Switching an integration off closes what it opened" is true of a fresh
+    registry built at start-up and false of one that has only ever been widened.
+    A refresh has to put the shipped rules back before applying what is
+    configured now, or a host an operator removed stays reachable until the
+    process restarts — which is the shape of a permission that outlives the
+    decision to grant it.
+    """
+    rules = InjectionRuleRegistry.from_rules(_rule("acme", "acme.example.com"))
+
+    refresh_configured_hosts(
+        rules, shipped=(_rule("acme", "acme.example.com"),), hosts={"acme": ("acme.internal",)}
+    )
+    assert rules.get("acme").permits("acme.internal")
+
+    refresh_configured_hosts(rules, shipped=(_rule("acme", "acme.example.com"),), hosts={})
+    assert not rules.get("acme").permits("acme.internal")
+    assert rules.get("acme").permits("acme.example.com")
+
+
+def test_a_refresh_keeps_the_shipped_host_permitted() -> None:
+    """A deployment may reach a vendor's public API and an appliance of its own."""
+    rules = InjectionRuleRegistry.from_rules(_rule("acme", "acme.example.com"))
+
+    refresh_configured_hosts(
+        rules, shipped=(_rule("acme", "acme.example.com"),), hosts={"acme": ("acme.internal",)}
+    )
+
+    assert rules.get("acme").permits("acme.example.com")
+    assert rules.get("acme").permits("acme.internal")
+
+
+def test_a_refresh_does_not_invent_a_rule_for_an_integration_nobody_installed() -> None:
+    rules = InjectionRuleRegistry.from_rules(_rule("acme", "acme.example.com"))
+
+    refresh_configured_hosts(
+        rules,
+        shipped=(_rule("acme", "acme.example.com"),),
+        hosts={"nobody": ("elsewhere.internal",)},
+    )
+
+    assert rules.integrations() == ("acme",)
+
+
+async def test_the_watcher_applies_a_change_without_the_process_restarting() -> None:
+    """The whole point of the loop: an address entered now decides the next call.
+
+    Driven by calling the refresh the watcher calls, rather than by waiting for
+    its sleep — a test that slept for the interval would be a minute of the
+    suite spent proving arithmetic.
+    """
+    rules = InjectionRuleRegistry.from_rules(_rule("acme", "acme.example.com"))
+    shipped = (_rule("acme", "acme.example.com"),)
+
+    assert not rules.get("acme").permits("acme.internal")
+
+    refresh_configured_hosts(
+        rules,
+        shipped=shipped,
+        hosts=hosts_from_configuration(
+            [{"name": "acme", "enabled": True, "base_url": "http://acme.internal:9093"}]
+        ),
+    )
+
+    assert rules.get("acme").permits("acme.internal")
+
+
+async def test_a_disabled_entry_closes_what_it_opened() -> None:
+    rules = InjectionRuleRegistry.from_rules(_rule("acme", "acme.example.com"))
+    shipped = (_rule("acme", "acme.example.com"),)
+    entry = {"name": "acme", "enabled": True, "base_url": "http://acme.internal:9093"}
+
+    refresh_configured_hosts(rules, shipped=shipped, hosts=hosts_from_configuration([entry]))
+    assert rules.get("acme").permits("acme.internal")
+
+    refresh_configured_hosts(
+        rules, shipped=shipped, hosts=hosts_from_configuration([{**entry, "enabled": False}])
+    )
+    assert not rules.get("acme").permits("acme.internal")

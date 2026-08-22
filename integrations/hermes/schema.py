@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, public, secret
+from integrations._base.schema import credential_schema, endpoint, public, secret
 from platform.credentials.proxy.injection import HeaderInjection, InjectionRule
 
 INTEGRATION: Final = "hermes"
@@ -29,8 +29,19 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("api_key", "Hermes access token for the workspace holding this stream", min_length=8),
-    public("stream", "Default stream to read"),
+    endpoint(
+        "endpoint",
+        "Where your Hermes answers, scheme and port included.",
+        label="Hermes address",
+    ),
+    secret(
+        "api_key",
+        "Hermes access token for the workspace holding this stream",
+        min_length=8,
+        label="Access token",
+        min_scope="logs:read",
+    ),
+    public("stream", "Default stream to read", label="Default stream"),
 )
 
 RULE: Final = InjectionRule(

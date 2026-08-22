@@ -18,6 +18,14 @@ transport is what turns them into an authenticated request.
 **No proxy means no binding.** A vendor call goes through the proxy and never
 around it, so a deployment without one has nothing to bind — and its tools say
 so by name rather than answering as though the vendor had nothing to report.
+
+**The binding carries where each vendor is.** An integration ships a placeholder
+host, because nobody packaging one knows where your cluster is, and the operator
+declares the real address in the configuration tree. Reading it here is what
+turns that declaration into the address a client actually uses; without it a
+deployment could configure an Alertmanager completely and still have every call
+addressed to ``alertmanager.example.com``. It is re-read whenever an address is
+written, so a change takes effect on the next call rather than the next restart.
 """
 
 from __future__ import annotations
@@ -25,10 +33,12 @@ from __future__ import annotations
 from typing import Any
 
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
+from gateway.http.integration_endpoints import configured_endpoints
 from integrations._base import access
 from integrations._base.access import IntegrationAccess
 from integrations._base.transport import HttpProxyTransport
 from platform.observability.logging import get_logger
+from platform.persistence.ports.transaction import TenantScope
 
 logger = get_logger(__name__)
 
@@ -52,11 +62,47 @@ async def compose_integration_access(
         transport=HttpProxyTransport(base_url=proxy_url.strip()),
         org_id=org_id,
         team_id=CREDENTIAL_ORG_WIDE_TEAM,
+        endpoints=await _endpoints(state, org_id=org_id),
     )
     access.bind(bound)
     state.integration_access = bound
-    logger.info("integrations.access_composed", org_id=org_id)
+    logger.info("integrations.access_composed", org_id=org_id, endpoints=sorted(bound.endpoints))
     return bound
 
 
-__all__ = ["compose_integration_access"]
+async def _endpoints(state: Any, *, org_id: str) -> dict[str, str]:
+    """Return the configured addresses, or none and a line saying why.
+
+    A deployment whose configuration cannot be read still makes calls: every
+    integration falls back to the region its own package ships, which is exactly
+    the behaviour before addresses were configurable. Refusing to bind over an
+    unreadable document would take the whole catalogue offline for a fact that
+    is empty on most deployments anyway.
+    """
+    try:
+        return await configured_endpoints(
+            state.gateway, scope=TenantScope(org_id=org_id), node_id=org_id
+        )
+    except Exception as unreadable:  # noqa: BLE001 — the catalogue must still work
+        logger.warning("integrations.endpoints_unreadable", error=str(unreadable))
+        return {}
+
+
+async def refresh_integration_endpoints(state: Any, *, org_id: str) -> None:
+    """Re-read the configured addresses into this process's binding.
+
+    Called after an address is written, so that an operator who corrects a typo
+    and presses test does not have to know that the answer they get is about the
+    address they replaced. A deployment with no binding has nothing to refresh,
+    which is the ordinary case for a process composed without a proxy.
+    """
+    bound = access.current()
+    if bound is None:
+        return
+    refreshed = bound.with_endpoints(await _endpoints(state, org_id=org_id))
+    access.bind(refreshed)
+    state.integration_access = refreshed
+    logger.info("integrations.endpoints_refreshed", endpoints=sorted(refreshed.endpoints))
+
+
+__all__ = ["compose_integration_access", "refresh_integration_endpoints"]

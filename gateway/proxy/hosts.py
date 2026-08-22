@@ -28,7 +28,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
-from platform.credentials.proxy.injection import InjectionRuleRegistry
+from platform.credentials.proxy.injection import InjectionRule, InjectionRuleRegistry
 from platform.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -93,6 +93,31 @@ def hosts_from_configuration(
     return found
 
 
+def refresh_configured_hosts(
+    rules: InjectionRuleRegistry,
+    *,
+    shipped: Iterable[InjectionRule],
+    hosts: Mapping[str, Sequence[str]],
+) -> InjectionRuleRegistry:
+    """Rebuild the allow-list from ``shipped`` and re-apply what is configured now.
+
+    ``with_configured_hosts`` below only ever widens, which is right the first
+    time and wrong every time after: the module promises that switching an
+    integration off closes what it opened, and a registry that has only been
+    widened cannot close anything. Put back what the packages declare, then
+    apply what the configuration says today, and the reachable set follows the
+    configuration rather than outliving it.
+
+    This is what lets an address entered in the console take effect on the next
+    call. Read only at start-up, the proxy refuses the very cluster an operator
+    has just pointed it at, and the fix looks like restarting a pod for a reason
+    nothing on the screen explains.
+    """
+    for rule in shipped:
+        rules.register(rule)
+    return with_configured_hosts(rules, hosts)
+
+
 def with_configured_hosts(
     rules: InjectionRuleRegistry, hosts: Mapping[str, Sequence[str]]
 ) -> InjectionRuleRegistry:
@@ -114,4 +139,9 @@ def with_configured_hosts(
     return rules
 
 
-__all__ = ["hosts_from_configuration", "with_configured_hosts"]
+__all__ = [
+    "bridge_hosts",
+    "hosts_from_configuration",
+    "refresh_configured_hosts",
+    "with_configured_hosts",
+]

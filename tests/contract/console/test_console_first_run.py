@@ -361,5 +361,10 @@ def _plausible(field: object) -> str:
     holding something that looked like a real one is a fixture somebody
     eventually tries against a deployment.
     """
+    if bool(getattr(field, "is_endpoint", False)):
+        # An address, because that is what an address field is checked as. It
+        # goes to the configuration tree rather than the vault, which is the one
+        # half of this write that is meant to be readable afterwards.
+        return "https://not-a-real-deployment.example.com"
     minimum = int(getattr(field, "min_length", 0) or 0)
     return "not-a-real-credential".ljust(max(minimum, 1), "x")

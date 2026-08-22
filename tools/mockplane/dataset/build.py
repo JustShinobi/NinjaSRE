@@ -341,6 +341,8 @@ def empty_records() -> tuple[CapturedRecord, ...]:
 #: otherwise.
 _PROMETHEUS_INTEGRATION: Final[Mapping[str, Any]] = {
     "name": "prometheus",
+    "direction": "outbound",
+    "intake_path": "",
     "display_name": "Prometheus",
     "category": "metrics",
     "summary": (
@@ -358,6 +360,15 @@ _PROMETHEUS_INTEGRATION: Final[Mapping[str, Any]] = {
     ],
     "fields": [
         {
+            "name": "endpoint",
+            "label": "Prometheus address",
+            "secret": False,
+            "required": True,
+            "help": "Where your Prometheus answers, scheme and port included.",
+            "min_scope": "",
+            "guide_url": "",
+        },
+        {
             "name": "token",
             "label": "Token",
             "secret": True,
@@ -365,7 +376,7 @@ _PROMETHEUS_INTEGRATION: Final[Mapping[str, Any]] = {
             "help": "Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own",
             "min_scope": "",
             "guide_url": "",
-        }
+        },
     ],
     "permissions": [
         {
@@ -381,6 +392,8 @@ _PROMETHEUS_INTEGRATION: Final[Mapping[str, Any]] = {
 
 _PROXMOX_INTEGRATION: Final[Mapping[str, Any]] = {
     "name": "proxmox",
+    "direction": "outbound",
+    "intake_path": "",
     "display_name": "Proxmox VE",
     "category": "cloud_control_plane",
     "summary": (
@@ -394,6 +407,15 @@ _PROXMOX_INTEGRATION: Final[Mapping[str, Any]] = {
     "capabilities": ["proxmox_cluster_health", "proxmox_guest_pressure"],
     "fields": [
         {
+            "name": "endpoint",
+            "label": "Proxmox node address",
+            "secret": False,
+            "required": True,
+            "help": "Where a node of your cluster answers, port included.",
+            "min_scope": "",
+            "guide_url": "",
+        },
+        {
             "name": "api_token",
             "label": "API Token",
             "secret": True,
@@ -401,7 +423,7 @@ _PROXMOX_INTEGRATION: Final[Mapping[str, Any]] = {
             "help": "Proxmox API token as one line: user@realm!tokenid=secret",
             "min_scope": "",
             "guide_url": "",
-        }
+        },
     ],
     "permissions": [
         {
@@ -502,6 +524,8 @@ def first_run_records() -> tuple[CapturedRecord, ...]:
                 dict(_PROXMOX_INTEGRATION),
                 {
                     "name": "metrics-store",
+                    "direction": "outbound",
+                    "intake_path": "",
                     "display_name": "Metrics store",
                     "category": "observability",
                     "summary": "Range queries against the metrics store.",

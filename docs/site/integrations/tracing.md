@@ -10,7 +10,7 @@ SigNoz's span store: where latency and errors concentrate for a service, and the
 
 - **Category:** tracing
 - **Regions:** self-hosted
-- **Credentials:** api_key
+- **Credentials:** endpoint, api_key
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown

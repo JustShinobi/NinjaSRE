@@ -6,6 +6,7 @@ SigNoz's span store: where latency and errors concentrate for a service, and the
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
+| `endpoint` | Where your SigNoz query service answers, scheme and port included | no | yes |
 | `api_key` | SigNoz API key for the workspace holding this service's telemetry | yes | yes |
 
 ```bash
@@ -17,6 +18,11 @@ The prompt asks for each field the schema declares and writes the values
 straight to the vault. Nothing is displayed back, and nothing reaches the agent:
 a capability carries a handle and the credential proxy injects the real value at
 the network edge.
+
+`endpoint` is the exception: it is not a credential. It goes to the
+configuration tree, not the vault, which is where the credential proxy already
+reads its egress allow-list from — declaring the address and permitting it are
+one act.
 
 Declared regions: `self-hosted`.
 

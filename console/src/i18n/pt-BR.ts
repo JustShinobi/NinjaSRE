@@ -1339,6 +1339,12 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'catalogue.integrations.panel.permissions.grantedAt': 'Concedida em',
   'catalogue.integrations.panel.readOnly':
     'Você não tem a permissão para alterar esta integração.',
+  'catalogue.integrations.panel.direction.outbound':
+    'Esta implanta\u00e7\u00e3o chama esse servi\u00e7o. Nada chega dele, e a credencial abaixo \u00e9 o que ela apresenta ao chamar.',
+  'catalogue.integrations.panel.direction.both':
+    'Nos dois sentidos. Esta implanta\u00e7\u00e3o l\u00ea a API dele com a credencial abaixo, e ele envia alertas para c\u00e1 com outra \u2014 um token de entrega, emitido \u00e0 parte.',
+  'catalogue.integrations.panel.intake.action':
+    'Aponte seu roteador de alertas para c\u00e1',
   'catalogue.integrations.panel.security':
     'Guardada no vault; nunca é exibida de novo. O teste faz uma requisição real — armazenada e funcionando são estados diferentes.',
   'catalogue.integrations.panel.saveAndTest': 'Salvar e testar',

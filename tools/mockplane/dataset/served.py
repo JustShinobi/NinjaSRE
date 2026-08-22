@@ -39,6 +39,7 @@ from config.constants.security import (
 )
 from core.llm.onboarding import ProviderOnboarding, all_onboardings
 from core.llm.registry import default_registry
+from gateway.http.routes.integrations import _direction as route_direction
 from gateway.webhooks.router import PROFILES
 from gateway.webhooks.sources import alertmanager
 from integrations._catalogue.discovery import catalogue as integration_catalogue
@@ -1763,6 +1764,17 @@ def _catalogue_integration_record(entry: CatalogueEntry) -> dict[str, Any]:
         "health_detail": entry.health_detail,
         "parity": entry.parity.status.value,
         "missing_artefacts": [artefact.value for artefact in entry.parity.missing],
+        # Read through the route's own helper rather than restated: the
+        # direction is derived from the webhook router's source list, and a
+        # second derivation here is a second thing to forget when a source is
+        # added.
+        **dict(
+            zip(
+                ("direction", "intake_path"),
+                route_direction(entry.name),
+                strict=True,
+            )
+        ),
     }
 
 
@@ -1862,6 +1874,8 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                 "integrations": [
                     {
                         "name": "metrics-store",
+                        "direction": "outbound",
+                        "intake_path": "",
                         "display_name": "Metrics store",
                         "category": "observability",
                         "summary": "Range queries against the metrics store.",
@@ -1912,6 +1926,8 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                     },
                     {
                         "name": "chat",
+                        "direction": "outbound",
+                        "intake_path": "",
                         "display_name": "Chat",
                         "category": "collaboration",
                         "summary": "Posts investigation summaries and takes approvals.",
@@ -1944,6 +1960,8 @@ def integration_records() -> tuple[CapturedRecord, ...]:
                     },
                     {
                         "name": "ticketing",
+                        "direction": "outbound",
+                        "intake_path": "",
                         "display_name": "Ticketing",
                         "category": "workflow",
                         "summary": "Opens and updates tickets from findings.",

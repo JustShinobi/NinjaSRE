@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from typing import Any
 
 import uvicorn
@@ -22,8 +23,10 @@ from gateway.proxy.composition import build_proxy_app
 from gateway.proxy.hosts import (
     bridge_hosts,
     hosts_from_configuration,
+    refresh_configured_hosts,
     with_configured_hosts,
 )
+from integrations.registry import injection_rules
 from platform.config_service.service import ConfigService
 from platform.credentials.errors import VaultKeyMismatch
 from platform.observability.logging import get_logger
@@ -36,6 +39,15 @@ _LOGGER = get_logger(__name__)
 
 #: Distinct from a crash, so a supervisor does not restart a typo forever.
 CONFIGURATION_EXIT = 3
+
+#: How often the allow-list is re-read from the configuration tree.
+#:
+#: The addresses an operator configures are the only part of the rule that is
+#: not compiled in, and reading them once at start-up made an address entered in
+#: the console take effect at the next restart — which is a pod restart for a
+#: reason nothing on the screen explains. A minute is short enough that nobody
+#: waits on it and long enough that it is one query per proxy per minute.
+HOST_REFRESH_SECONDS = 60
 
 
 def install_encryption_key() -> bool:
@@ -119,10 +131,41 @@ async def _serve(host: str, port: int) -> None:
         integrations=len(app.engine.rules.integrations()),
     )
 
+    watching = asyncio.create_task(_watch_configured_hosts(app, store))
     try:
         await uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_config=None)).serve()
     finally:
+        # Awaited, not just cancelled: a pending task nobody collected prints a
+        # warning at interpreter shutdown that reads like a bug in the proxy.
+        watching.cancel()
+        with suppress(asyncio.CancelledError):
+            await watching
         await store.close()
+
+
+async def _watch_configured_hosts(app: Any, store: Any) -> None:
+    """Keep the allow-list following the configuration rather than the process age.
+
+    Rebuilt from the shipped rules each time rather than widened, so an address
+    an operator removed stops being reachable — a permission that outlived the
+    decision to grant it is the failure this exists to avoid, and it is the one
+    a widen-only refresh would still have.
+
+    An unreadable configuration leaves the current rules in place and logs it.
+    The proxy's job is to keep forwarding what is already permitted; refusing
+    every call because one read failed would turn a transient database blip into
+    an outage of every integration.
+    """
+    declared = injection_rules()
+    shipped = tuple(declared.get(name) for name in declared.integrations())
+    while True:
+        await asyncio.sleep(HOST_REFRESH_SECONDS)
+        try:
+            hosts = await _configured_hosts(store)
+        except Exception as unreadable:  # noqa: BLE001 — the proxy must still serve
+            _LOGGER.warning("proxy.configuration_unreadable", error=str(unreadable))
+            continue
+        refresh_configured_hosts(app.engine.rules, shipped=shipped, hosts=hosts)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

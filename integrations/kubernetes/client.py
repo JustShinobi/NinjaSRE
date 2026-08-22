@@ -33,7 +33,8 @@ from integrations._base.pagination import (
 )
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations.kubernetes.schema import IN_CLUSTER_HOST, INTEGRATION, base_url
+from integrations.kubernetes.schema import IN_CLUSTER_HOST, INTEGRATION
+from integrations.kubernetes.schema import base_url as _host_url
 
 CORE_API: Final = "/api/v1"
 APPS_API: Final = "/apis/apps/v1"
@@ -73,12 +74,16 @@ class KubernetesClient(IntegrationClient):
         context: RequestContext,
         api_server: str = IN_CLUSTER_HOST,
         namespace: str = "default",
+        base_url: str = "",
         retry: RetryPolicy | None = None,
     ) -> None:
+        # The operator's own address wins. It carries a scheme and usually a
+        # port — an API server on 6443 is the ordinary case outside a cluster —
+        # neither of which a bare host name can express.
         super().__init__(
             transport=transport,
             context=context,
-            base_url=base_url(api_server),
+            base_url=base_url or _host_url(api_server),
             retry=retry,
         )
         self._namespace = namespace

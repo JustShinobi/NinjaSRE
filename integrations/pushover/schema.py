@@ -26,8 +26,20 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("token", "Pushover application API token", min_length=8),
-    secret("user_key", "Pushover user or group key", min_length=8),
+    secret(
+        "token",
+        "Pushover application API token",
+        min_length=8,
+        label="Application token",
+        guide_url="https://pushover.net/apps/build",
+    ),
+    secret(
+        "user_key",
+        "Pushover user or group key",
+        min_length=8,
+        label="User or group key",
+        guide_url="https://pushover.net/",
+    ),
 )
 
 RULE: Final = InjectionRule(

@@ -6,7 +6,8 @@ PromQL evaluation and the alert rules currently firing, from the server that hol
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
-| `token` | Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own | yes | yes |
+| `endpoint` | Where your Prometheus answers, scheme and port included | no | yes |
+| `token` | Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own | yes | no |
 
 ```bash
 ninjasre integrations setup prometheus
@@ -17,6 +18,15 @@ The prompt asks for each field the schema declares and writes the values
 straight to the vault. Nothing is displayed back, and nothing reaches the agent:
 a capability carries a handle and the credential proxy injects the real value at
 the network edge.
+
+`endpoint` is the exception: it is not a credential. It goes to the
+configuration tree, not the vault, which is where the credential proxy already
+reads its egress allow-list from — declaring the address and permitting it are
+one act.
+
+The token is optional because Prometheus ships no authentication of its own:
+an install reached directly needs nothing here, and this field only matters
+for whatever sits in front of it.
 
 Declared regions: `self-hosted`.
 

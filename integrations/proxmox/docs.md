@@ -17,6 +17,19 @@ it reads that tuple.
 
 ## Setup
 
+| Field | Where it comes from | Secret | Required |
+|---|---|---|---|
+| `endpoint` | A node's address, port included — https://pve01.internal:8006 | no | yes |
+| `api_token` | Proxmox API token as one line: user@realm!tokenid=secret | yes | yes (or `username`+`password`) |
+| `username` | Login name with its realm, for the ticket path | no | no |
+| `password` | Password for the ticket login | yes | no (or `api_token`) |
+
+`endpoint` goes to the configuration tree rather than the vault — it is where
+the credential proxy reads its egress allow-list from. The port, `8006`, is
+part of the address rather than a separate setting, and the client appends
+`/api2/json` itself, so the address to declare is the node's `https://` root
+and nothing more.
+
 ### 1. Create an API token
 
 In the Proxmox web interface: **Datacenter → Permissions → API Tokens → Add**.

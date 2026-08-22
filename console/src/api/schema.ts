@@ -4608,6 +4608,11 @@ export interface components {
             capabilities: string[];
             /** Category */
             category: string;
+            /**
+             * Direction
+             * @default outbound
+             */
+            direction: string;
             /** Display Name */
             display_name: string;
             /** Fields */
@@ -4618,6 +4623,11 @@ export interface components {
             health_detail: string;
             /** Hosts */
             hosts: string[];
+            /**
+             * Intake Path
+             * @default
+             */
+            intake_path: string;
             /** Missing Artefacts */
             missing_artefacts: string[];
             /** Name */

@@ -31,7 +31,8 @@ from typing import Any, Final
 
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations.proxmox.client import GUEST_KINDS, ProxmoxClient
-from integrations.proxmox.schema import INTEGRATION, base_url
+from integrations.proxmox.schema import INTEGRATION
+from integrations.proxmox.schema import base_url as base_url_of
 
 #: How Proxmox is asked to delete a lock from a guest's configuration. The API
 #: takes the *name of the property to remove* rather than an empty value, and an
@@ -262,7 +263,7 @@ class ProxmoxWriteClient(ProxmoxClient):
         """
         response = await self.request(
             method,
-            f"{base_url(self.endpoints.current)}{path}",
+            f"{base_url_of(self.endpoints.current)}{path}",
             params=params,
         )
         answer = response.json()

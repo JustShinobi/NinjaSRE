@@ -15,7 +15,7 @@ import inspect
 
 import pytest
 
-from gateway.http.routes.integrations import IntegrationView, list_integrations
+from gateway.http.routes.integrations import IntegrationView, _integration_view
 from integrations._catalogue.discovery import catalogue
 
 pytestmark = pytest.mark.contract
@@ -52,8 +52,8 @@ def test_the_route_forwards_the_profile_s_display_name_rather_than_the_raw_id() 
     a call is a poorer way to prove that a specific keyword argument is wired
     to a specific attribute than reading the one place it is written.
     """
-    source = inspect.getsource(list_integrations)
+    source = inspect.getsource(_integration_view)
     assert "display_name=entry.display_name" in source, (
-        "list_integrations does not forward entry.display_name into IntegrationView; "
+        "the catalogue view does not forward entry.display_name into IntegrationView; "
         "the console would still be titling cards with the raw id"
     )

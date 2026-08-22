@@ -55,12 +55,12 @@ from platform.credentials.vault import Vault
 from platform.persistence.fakes import FakePersistence
 from tests.contract.integrations.conftest import (
     CONTEXT,
-    CREDENTIALS,
     ENTRIES,
     ORG_ID,
     SCOPE,
     TEAM_ID,
     integration_ids,
+    vault_values,
 )
 
 pytestmark = pytest.mark.contract
@@ -202,9 +202,15 @@ async def stand_up_routing(
     async with gateway.begin_system() as system:
         await system.orgs.create_organisation(ORG_ID, "Acme")
 
-    schemas = CredentialSchemaRegistry.from_schemas(*(found.schema for found in descriptors))
+    # The vault's view of each schema: an address is configuration and is
+    # stored in the configuration tree, so the vault never declares it.
+    schemas = CredentialSchemaRegistry.from_schemas(
+        *(stored for found in descriptors if (stored := found.schema.for_vault()) is not None)
+    )
     vault = Vault(gateway=gateway, schemas=schemas)
-    await vault.store(SCOPE, CredentialHandle(integration=name, team_id=TEAM_ID), CREDENTIALS[name])
+    await vault.store(
+        SCOPE, CredentialHandle(integration=name, team_id=TEAM_ID), vault_values(name)
+    )
 
     vendor = RoutingVendor(body_for=body_for, date_header=date_header)
     engine = ProxyEngine(
