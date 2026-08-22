@@ -85,7 +85,8 @@ DEGRADED_REPORT: dict[str, Any] = {
 def reporting(deployment: _Deployment) -> _Deployment:  # noqa: F811
     """Compose a deep verifier that answers for Prometheus and nothing else."""
 
-    async def verify(name: str) -> Mapping[str, Any] | None:
+    async def verify(name: str, team_id: str) -> Mapping[str, Any] | None:
+        del team_id
         return DEGRADED_REPORT if name == INTEGRATION else None
 
     deployment.state.deep_verifier = verify

@@ -108,7 +108,8 @@ async def _deep_verifier(*, series: int, skew_seconds: float):
     transport = InProcessProxyTransport(create_proxy_app(engine))
     runner = runner_for(descriptors, clock=lambda: NOW)
 
-    async def verify(name: str) -> Mapping[str, Any] | None:
+    async def verify(name: str, team_id: str) -> Mapping[str, Any] | None:
+        del team_id
         if name != INTEGRATION:
             return None
         report = await runner.verify(name, transport=transport, context=CONTEXT)

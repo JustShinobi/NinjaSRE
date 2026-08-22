@@ -139,11 +139,30 @@ def bound_names() -> Sequence[str]:
     return () if _BOUND is None else (f"{_BOUND.org_id}/{_BOUND.team_id}",)
 
 
+def configured_base_url(integration: str) -> str:
+    """Return where the operator said ``integration`` is, or "" if nowhere.
+
+    The same lookup ``IntegrationAccess.client`` makes, exposed for the one
+    caller that cannot go through it: a verifier constructs its client itself,
+    because it is a singleton built at import time and the client it needs
+    varies per probe. Left to itself it would address the placeholder host its
+    package ships, and report a documentation host unreachable to an operator
+    who has configured their own.
+
+    Empty rather than an exception for a deployment that has composed no
+    binding at all — a verifier run from the CLI against a package's own region
+    is a legitimate thing to do, and it is what the empty string produces.
+    """
+    bound = _BOUND
+    return "" if bound is None else bound.endpoints.get(integration, "")
+
+
 __all__ = [
     "IntegrationAccess",
     "bind",
     "bound_names",
     "clear",
+    "configured_base_url",
     "current",
     "restore",
 ]

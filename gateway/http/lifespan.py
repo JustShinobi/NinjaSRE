@@ -23,6 +23,7 @@ from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
 from config.constants.executor import NINJASRE_NODE_EXECUTOR_URL_ENV
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
+from gateway.http.deep_verification import compose_deep_verifier
 from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
 from gateway.http.enrichment_plans import compose_enrichment_plans_for
 from gateway.http.integration_access import compose_integration_access
@@ -62,6 +63,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             org_id=organisation_id(),
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
         )
+        # Straight after the binding it reads, because "Test again" is the one
+        # control that turns "nobody has checked this" into a measurement, and
+        # without this line the route behind it refuses on every deployment.
+        compose_deep_verifier(state)
         await compose_change_sources(state, org_id=organisation_id())
         # The same moment and the same reasoning: a deployment whose cluster is
         # configured should have a source before anybody opens the estate,

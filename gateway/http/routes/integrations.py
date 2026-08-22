@@ -32,6 +32,7 @@ sequence somebody reconstructs six months later.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -509,6 +510,35 @@ async def verify_integration(
     return IntegrationVerification(integration=name, state=resolved.value, usable=resolved.usable)
 
 
+def _report_detail(report: Mapping[str, Any]) -> str:
+    """Return the one sentence the ledger keeps from a whole vendor report.
+
+    The vendor's own words first, because that is what decides what an operator
+    does next: "401 Unauthorized" is a key to re-issue and "could not reach the
+    host" is an egress rule to open, and a summary that lost the difference
+    would be a row nobody can act on.
+
+    A denied permission and a degradation ride along in the same sentence. The
+    ledger records two outcomes and only two — a check passed or it did not —
+    so a vendor that answered with a caveat is a pass whose detail says what the
+    caveat was, rather than a third state the store has no room for.
+    """
+    connectivity = report.get("connectivity")
+    said = ""
+    if isinstance(connectivity, Mapping):
+        said = str(connectivity.get("detail") or "")
+    said = said or ("the vendor answered" if report.get("ok") else "the vendor did not answer")
+
+    missing = [str(name) for name in report.get("missing_permissions") or ()]
+    if missing:
+        said = f"{said} Permissions the credential does not have: {', '.join(missing)}."
+
+    degradations = [str(line) for line in report.get("degradations") or ()]
+    if degradations:
+        said = f"{said} {' '.join(degradations)}"
+    return said.strip()
+
+
 @router.post("/{name}/verify/report", response_model=IntegrationVerificationReport)
 async def verify_integration_deeply(
     name: str,
@@ -528,7 +558,6 @@ async def verify_integration_deeply(
         ApiProblem: this deployment composed no deep verifier, or ``name`` has
             none to run (404). The refusal says which of the two it was.
     """
-    del auth
     if state.deep_verifier is None:
         raise not_found(
             f"This deployment cannot verify {name!r} against its vendor: no deep verifier "
@@ -536,13 +565,27 @@ async def verify_integration_deeply(
             f"which are wired at composition rather than guessed here. The credential "
             f"state itself is answered by POST /v1/integrations/{name}/verify."
         )
-    report = await state.deep_verifier(name)
+    report = await state.deep_verifier(name, _team_of(auth))
     if report is None:
         raise not_found(
             f"{name!r} has no verifier that produces a report. Its credential state is "
             f"answered by POST /v1/integrations/{name}/verify; there is nothing further "
             f"this vendor can be asked."
         )
+    # The stronger measurement wins the card. The console calls the shallow
+    # verify and then this one, so what an operator sees last is what the vendor
+    # itself said — the same reasoning the shallow route gives for refusing to
+    # write its cheap answer into a provider's row, applied the other way up.
+    await record_check(
+        state.gateway,
+        auth.scope,
+        kind=VerificationSubject.INTEGRATION,
+        subject=name,
+        passed=bool(report.get("ok")),
+        detail=_report_detail(report),
+        checked_by=auth.principal_id,
+        team_node_id=_team_of(auth),
+    )
     return IntegrationVerificationReport(integration=name, report=dict(report))
 
 
