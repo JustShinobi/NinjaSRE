@@ -115,6 +115,7 @@ export interface IntegrationPanelLabels {
   readonly foundHere: string;
   /** What a connected integration's panel says about where its credential lives. */
   readonly storedInVault: string;
+  readonly connectedByAddress: string;
   readonly testAgain: string;
   readonly replaceCredential: string;
   /** Leaving "Replace credential" unsaved, and leaving the disconnect confirmation unconfirmed. */
@@ -408,7 +409,11 @@ export function IntegrationPanel({
                     className="text-meta text-muted"
                     data-testid="credential-stored-note"
                   >
-                    {labels.storedInVault}
+                    {item.fields.some(
+                      (declared) => declared.secret && declared.required,
+                    )
+                      ? labels.storedInVault
+                      : labels.connectedByAddress}
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
                     <Button

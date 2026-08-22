@@ -1352,6 +1352,11 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   // --- Painel de uma integração conectada: estado e ações, nunca um formulário vazio ---
   'catalogue.integrations.panel.storedInVault':
     'Esta credencial está guardada no vault.',
+  // Para um fornecedor que não traz autenticação própria. Dizer que há uma
+  // credencial guardada onde não há nenhuma manda alguém procurar uma chave
+  // que ninguém digitou.
+  'catalogue.integrations.panel.connectedByAddress':
+    'Este fornecedor não pede credencial própria. Ele está conectado pelo endereço acima.',
   'catalogue.integrations.panel.testAgain': 'Testar de novo',
   'catalogue.integrations.panel.replaceCredential': 'Substituir credencial',
   // Compartilhado por duas saídas: sair de "Substituir credencial" sem

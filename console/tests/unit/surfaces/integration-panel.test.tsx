@@ -58,6 +58,7 @@ const LABELS: IntegrationPanelLabels = {
   grantedAt: 'Granted at',
   foundHere: 'Found in your estate at',
   storedInVault: 'This credential is stored in the vault.',
+  connectedByAddress: 'Connected by the address above.',
   testAgain: 'Test again',
   replaceCredential: 'Replace credential',
   cancel: 'Cancel',
@@ -148,7 +149,40 @@ describe('a connected integration: state and actions, not an empty form', () => 
     expect(screen.queryByTestId('credential')).toBeNull();
   });
 
-  it('affirms the credential is stored in the vault', () => {
+  it('affirms the credential is stored in the vault, where one is', () => {
+    render(
+      <IntegrationPanel
+        locale="en"
+        requestedName="redis"
+        item={item({
+          health: 'healthy',
+          fields: [
+            {
+              name: 'api_key',
+              label: 'API key',
+              help: 'The key.',
+              secret: true,
+              required: true,
+            },
+          ],
+        })}
+        closeHref={CLOSE_HREF}
+        notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
+        writable
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByTestId('credential-stored-note')).toHaveTextContent(
+      LABELS.storedInVault,
+    );
+  });
+
+  it('says a vendor that needs no credential is connected by its address', () => {
+    // The fixture is Alertmanager, whose only secret is optional because it
+    // ships no authentication. Telling an operator their credential is in the
+    // vault sends them looking for a key nobody ever entered.
     render(
       <IntegrationPanel
         locale="en"
@@ -163,7 +197,7 @@ describe('a connected integration: state and actions, not an empty form', () => 
     );
 
     expect(screen.getByTestId('credential-stored-note')).toHaveTextContent(
-      LABELS.storedInVault,
+      LABELS.connectedByAddress,
     );
   });
 

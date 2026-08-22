@@ -29,6 +29,7 @@ from gateway.http.enrichment_plans import compose_enrichment_plans_for
 from gateway.http.integration_access import compose_integration_access
 from gateway.http.log_sources import compose_log_sources
 from gateway.http.node_access import compose_node_access
+from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
@@ -63,6 +64,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             org_id=organisation_id(),
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
         )
+        # The provider keys the operator stored, so an investigation calls its
+        # model with the credential the console verified rather than with
+        # whatever the process environment holds — which, in a deployment
+        # configured through the console, is nothing.
+        await compose_provider_credentials(state, org_id=organisation_id())
         # Straight after the binding it reads, because "Test again" is the one
         # control that turns "nobody has checked this" into a measurement, and
         # without this line the route behind it refuses on every deployment.

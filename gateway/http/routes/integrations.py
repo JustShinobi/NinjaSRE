@@ -52,6 +52,7 @@ from gateway.http.integration_endpoints import (
     record_endpoint,
     split_by_destination,
 )
+from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.state import GatewayState
 from gateway.http.verifications import forget_check, integration_health, record_check
 from gateway.webhooks.router import PROFILES as WEBHOOK_PROFILES
@@ -693,6 +694,14 @@ async def store_credential(
     for kind in _affected_kinds(name):
         await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
 
+    if name in SUPPORTED_PROVIDERS:
+        # The model factory holds a lease taken at boot, because the port it
+        # implements is synchronous and the vault is not. A key replaced here
+        # and not re-leased would mean investigations kept using the one it
+        # replaced — the same "I fixed it and nothing changed" the address
+        # refresh above exists to prevent.
+        await compose_provider_credentials(state, org_id=auth.scope.org_id)
+
     health = CredentialHealth(vault=vault)
     report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
@@ -763,6 +772,11 @@ async def delete_credential(
     # working" from a credential that no longer exists.
     for kind in _affected_kinds(name):
         await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
+
+    if name in SUPPORTED_PROVIDERS:
+        # Same reason as the write: a key removed from the vault and left in the
+        # factory's lease is a credential the operator believes they revoked.
+        await compose_provider_credentials(state, org_id=auth.scope.org_id)
 
     return CredentialDeleteView(integration=name, versions_removed=removed)
 

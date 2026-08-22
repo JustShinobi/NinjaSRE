@@ -532,6 +532,10 @@ export async function IntegrationsScreen(
               locale,
               'catalogue.integrations.panel.storedInVault',
             ),
+            connectedByAddress: message(
+              locale,
+              'catalogue.integrations.panel.connectedByAddress',
+            ),
             testAgain: message(locale, 'catalogue.integrations.panel.testAgain'),
             replaceCredential: message(
               locale,
