@@ -27,11 +27,30 @@ from tests.contract.deployment.conftest import COMPOSE, REPO_ROOT
 
 pytestmark = [pytest.mark.contract, pytest.mark.e2e]
 
+
+def _has_compose() -> bool:
+    """Return whether this machine can run ``docker compose``.
+
+    Two separate facts, and a machine can have the first without the second: a
+    runner with Docker-in-Docker commonly ships the CLI and the daemon without
+    the Compose plugin, and there `docker compose --file …` is parsed as
+    ``docker`` with a flag it has never heard of. Skipping on the presence of
+    ``docker`` alone turns that into a failing assertion about a compose file
+    that is perfectly correct.
+    """
+    if shutil.which("docker") is None:
+        return False
+    probe = subprocess.run(
+        ("docker", "compose", "version"), capture_output=True, text=True, check=False
+    )
+    return probe.returncode == 0
+
+
 needs_docker = pytest.mark.skipif(
-    shutil.which("docker") is None,
+    not _has_compose(),
     reason=(
-        "this test brings up a real container with `docker compose up`; there is "
-        "no container runtime on this machine"
+        "this test brings up a real container with `docker compose up`; this "
+        "machine has no container runtime, or a Docker with no Compose plugin"
     ),
 )
 
