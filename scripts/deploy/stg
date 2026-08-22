@@ -85,14 +85,25 @@ trap 'rm -rf "$work"' EXIT
 gh api "repos/$GITOPS_REPO/contents/$GITOPS_PATH" --jq '.content' | base64 -d > "$work/images.yaml"
 sha="$(gh api "repos/$GITOPS_REPO/contents/$GITOPS_PATH" --jq '.sha')"
 
-python3 - "$work/images.yaml" <<PY
+# Handed over as a file rather than spliced into the program text. A
+# `printf %q` produces *shell* quoting, and a bare component name comes back
+# unquoted — which lands in the heredoc as a Python name error rather than a
+# string, after the images have already been pushed.
+: > "$work/digests.tsv"
+for component in "${!digests[@]}"; do
+    printf '%s\t%s\n' "$component" "${digests[$component]}" >> "$work/digests.tsv"
+done
+
+python3 - "$work/images.yaml" "$work/digests.tsv" <<'PY'
 import sys, yaml
 
-path = sys.argv[1]
+path, digest_file = sys.argv[1], sys.argv[2]
 replacements = {}
-$(for component in "${!digests[@]}"; do
-    printf "replacements[%q] = %q\n" "$component" "${digests[$component]}"
-done)
+with open(digest_file, encoding="utf-8") as handle:
+    for line in handle:
+        component, _, image = line.rstrip("\n").partition("\t")
+        if component:
+            replacements[component] = image
 
 documents = [document for document in yaml.safe_load_all(open(path)) if document]
 changed = []
