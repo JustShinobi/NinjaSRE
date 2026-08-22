@@ -20,7 +20,7 @@ the same way twice — which is what a trajectory comparison needs.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from core.agent.hooks.types import (
@@ -133,7 +133,7 @@ class HookRegistry:
         failures: list[HookFailure] = []
 
         for hook in self.hooks_at(HookPoint.PRE_TOOL_USE):
-            current = ToolCall(id=call.id, name=call.name, arguments=dict(arguments))
+            current = replace(call, arguments=dict(arguments))
             try:
                 decision = await hook.callback(current, context)
             except Exception as error:  # noqa: BLE001 — a crash is not a decision

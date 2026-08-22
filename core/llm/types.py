@@ -160,6 +160,17 @@ class ToolCall:
     id: str
     name: str
     arguments: Mapping[str, Any] = field(default_factory=dict)
+    #: What this provider handed back with the call and requires handed back to
+    #: it, verbatim, when the turn is replayed as history. Opaque on purpose:
+    #: Gemini calls its one a thought signature and refuses the conversation
+    #: without it, and the neutral vocabulary should carry that without learning
+    #: what it is. Empty for every provider that asks for nothing.
+    #:
+    #: Rebuild a call with ``dataclasses.replace`` rather than by naming fields:
+    #: a constructor listing the ones it knows about is how this gets dropped by
+    #: a guardrail that only meant to rewrite the arguments, and the refusal
+    #: then arrives a turn later with nothing pointing back here.
+    provider_state: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

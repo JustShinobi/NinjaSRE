@@ -70,7 +70,11 @@ def _parts(message: Message) -> list[dict[str, Any]]:
         parts.append({"text": message.text})
 
     for call in message.tool_calls:
-        parts.append({"functionCall": {"name": call.name, "args": dict(call.arguments)}})
+        # The signature rides on the part beside the call, which is where it
+        # arrived and where this wire looks for it.
+        part: dict[str, Any] = {"functionCall": {"name": call.name, "args": dict(call.arguments)}}
+        part.update(call.provider_state)
+        parts.append(part)
 
     return parts
 
@@ -134,6 +138,25 @@ def _parse_usage(document: Mapping[str, Any]) -> TokenCounts:
     )
 
 
+def _signature_of(part: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the thought signature this part carried, under the name it used.
+
+    Gemini returns one alongside every ``functionCall`` and refuses the next
+    request if the call comes back without it — the whole conversation, not just
+    that call. Keyed by the spelling it arrived under so it goes back the way it
+    came: the SDK sends ``thought_signature`` and the REST wire
+    ``thoughtSignature``, and echoing the other one is the same as echoing none.
+
+    Empty when there is none, so a part that never had one does not gain a null
+    field. An absent key and a key set to nothing are different documents.
+    """
+    for spelling in ("thoughtSignature", "thought_signature"):
+        value = part.get(spelling)
+        if value:
+            return {spelling: value}
+    return {}
+
+
 def _read_parts(parts: Any) -> tuple[str, tuple[ToolCall, ...]]:
     """Return the text and tool calls a part list carries."""
     text_parts: list[str] = []
@@ -159,6 +182,7 @@ def _read_parts(parts: Any) -> tuple[str, tuple[ToolCall, ...]]:
                     id=str(function_call.get("id") or f"{name}_{index}"),
                     name=name,
                     arguments=dict(arguments) if isinstance(arguments, Mapping) else {},
+                    provider_state=_signature_of(part),
                 )
             )
 
