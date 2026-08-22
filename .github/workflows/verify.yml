@@ -252,23 +252,23 @@ jobs:
         run: make test-postgres
 
   first-run:
-    name: install to first investigation (${{ matrix.os }})
-    # SC-001 gives a clean machine ten minutes to get from nothing to a working
-    # investigation, on all three platforms. The deterministic part of that
-    # path is measured here on every pull request; the part that spends real
-    # tokens against an operator's own provider is measured by
-    # `make preflight`, and the script says which is which rather than
-    # reporting a total that quietly excludes the slow leg.
+    name: install to first investigation
+    # A clean machine has ten minutes to get from nothing to a working
+    # investigation. The deterministic part of that path is measured here on
+    # every pull request; the part that spends real tokens against an
+    # operator's own provider is measured by `make preflight`, and the script
+    # says which is which rather than reporting a total that quietly excludes
+    # the slow leg.
     #
     # A separate job from `verify` because it installs into an empty
     # environment. Reusing the gate's environment would measure an install onto
     # a machine that already had every dependency, which is the one machine
-    # SC-001 is not about.
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    # this measurement is not about.
+    #
+    # On the platform the gate runs on, and only that one. NinjaSRE installs
+    # onto the Linux machines it ships to; measuring the same install on macOS
+    # and Windows tripled the job for a number nothing downstream reads.
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out the repository

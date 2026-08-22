@@ -157,6 +157,16 @@ def test_the_gate_runs_on_the_platform_this_deployment_targets() -> None:
     assert "make verify" in steps
 
 
+def test_the_first_run_measurement_runs_where_the_gate_does() -> None:
+    """One platform for the measurement too, and no matrix left to fan out on."""
+    measurement = jobs()["first-run"]
+
+    assert measurement["runs-on"] == GATE_PLATFORM
+    assert "strategy" not in measurement, (
+        "a matrix here fans the measurement back out over machines nothing ships to"
+    )
+
+
 def test_provisioning_is_cached_on_the_files_that_decide_what_it_is() -> None:
     """A run that changes no dependency restores; a run that changes one cannot."""
     caching = [
