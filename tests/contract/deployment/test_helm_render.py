@@ -41,6 +41,14 @@ needs_helm = pytest.mark.skipif(
 
 _RELEASE = "ninjasre-contract"
 
+#: The Secret the credential tests name. The chart references a Secret only
+#: when it is given a name — an operator who has not connected a provider yet
+#: must get a release that installs — so a test about the credential being
+#: rendered has to supply one, and a test about it *not* being rendered has to
+#: supply one too, or it passes on the absent name rather than on the rule it
+#: is checking.
+_CREDENTIAL_SECRET = "ninjasre-contract-provider"
+
 #: Every credential-variable name the chart can possibly emit, across every
 #: supported provider. Used to prove a workload receives *none* of them,
 #: which a check for one specific absent name would not.
@@ -93,7 +101,12 @@ def test_the_rendered_application_gets_the_credential_its_own_provider_reads(
     expands the way the unrendered source reads.
     """
     expected_name = PROVIDER_CREDENTIAL_ENV[provider_id][0]
-    rendered = _helm_template("--set", f"provider.id={provider_id}")
+    rendered = _helm_template(
+        "--set",
+        f"provider.id={provider_id}",
+        "--set",
+        f"provider.credentialSecret.name={_CREDENTIAL_SECRET}",
+    )
     env = _container_env(rendered, component="app", container="app")
 
     assert expected_name in env, f"{provider_id}: rendered app env is {sorted(env)}"
@@ -102,11 +115,44 @@ def test_the_rendered_application_gets_the_credential_its_own_provider_reads(
 
 
 @needs_helm
+@pytest.mark.parametrize("provider_id", sorted(PROVIDER_CREDENTIAL_ENV))
+def test_naming_a_provider_alone_references_no_secret(provider_id: str) -> None:
+    """Choosing a provider must not oblige the operator to have created a Secret.
+
+    Connecting a model provider is a first-run step: the operator picks one in
+    the console and the key goes to the vault. A chart that mounted a
+    ``secretKeyRef`` the moment a provider was named would refuse to install
+    until somebody created a Secret for a decision the console owns — which is
+    a release that will not start for a deployment that is configured
+    correctly.
+
+    The other half of the same rule the test above checks: name the Secret too
+    and the credential appears.
+    """
+    rendered = _helm_template("--set", f"provider.id={provider_id}")
+    env = _container_env(rendered, component="app", container="app")
+
+    present = set(env) & _EVERY_CREDENTIAL_NAME
+    assert not present, f"{provider_id}: named no Secret and still got {sorted(present)}"
+
+
+@needs_helm
 def test_ollama_renders_with_no_credential_secret_reference_at_all() -> None:
     """The one supported provider that needs no vendor key must not still
     demand an operator create a secret nothing reads.
+
+    Rendered *with* a credential Secret named, which is the only way this
+    means anything: a local model reads no vendor key, so naming a Secret must
+    not be enough to hand it one. Without the name the chart renders no
+    credential for any provider, and the test would pass without reaching the
+    rule about ollama at all.
     """
-    rendered = _helm_template("--set", "provider.id=ollama")
+    rendered = _helm_template(
+        "--set",
+        "provider.id=ollama",
+        "--set",
+        f"provider.credentialSecret.name={_CREDENTIAL_SECRET}",
+    )
     env = _container_env(rendered, component="app", container="app")
 
     present = set(env) & _EVERY_CREDENTIAL_NAME
