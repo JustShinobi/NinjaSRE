@@ -25,7 +25,11 @@ from config.constants.persistence import (
     NINJASRE_DATABASE_URL_ENV,
 )
 from config.constants.security import NINJASRE_CREDENTIAL_PROXY_URL_ENV
-from core.llm.factory import reset_factory
+from core.llm.factory import (
+    publish_configured_bindings,
+    reset_configured_bindings,
+    reset_factory,
+)
 from gateway.runtime.factory import build_investigator
 from gateway.runtime.investigator import ReActInvestigationRunner
 
@@ -52,6 +56,37 @@ def _isolated_llm_factory(monkeypatch: pytest.MonkeyPatch) -> None:
     for key, value in _ENVIRON.items():
         monkeypatch.setenv(key, value)
     reset_factory()
+
+
+def test_the_investigator_runs_on_the_model_configuration_bound_to_it() -> None:
+    """The role name is the whole of this, and it was wrong in the one place it counted.
+
+    ``gateway/http/serve.py`` reads the configuration tree at boot and publishes
+    the operator's choice under the role it is stored against — ``investigator``.
+    This factory asked for the default role, which nothing binds, so the answer
+    fell through to the environment every time. An operator who chose a provider
+    in the console watched every investigation run on whatever the manifest
+    happened to say, with no indication anywhere that their choice was being
+    read under a different name.
+    """
+    publish_configured_bindings({"investigator": ("google_gemini", "gemini-flash-latest")})
+    try:
+        runner = build_investigator()
+    finally:
+        reset_configured_bindings()
+
+    assert isinstance(runner, ReActInvestigationRunner)
+    assert runner.llm.provider_id == "google_gemini"
+    assert runner.llm.model_id == "gemini-flash-latest"
+
+
+def test_the_environment_still_answers_for_a_deployment_that_configured_nothing() -> None:
+    """Which is every deployment until somebody opens the first-run screen."""
+    reset_configured_bindings()
+
+    runner = build_investigator()
+
+    assert runner.llm.provider_id == "anthropic"
 
 
 def test_build_investigator_takes_no_argument_and_returns_a_real_runner() -> None:
