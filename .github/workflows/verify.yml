@@ -385,9 +385,17 @@ jobs:
       # and not failed on: a base image with an open CVE nobody has patched yet
       # is not something this repository can act on, and a gate that cannot be
       # made green is a gate somebody disables.
+      #
+      # Pinned by commit, and to the same commit and the same scanner version
+      # the release pipeline scans published images with. Two scanners that
+      # disagree on their version disagree on their findings, and a gate that
+      # passes what the release then fails is worse than no gate. The previous
+      # reference was a tag that does not exist upstream, which failed the job
+      # before it built anything.
       - name: Scan every image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.74.0
           scan-type: image
           image-ref: ninjasre/app:ci
           severity: HIGH,CRITICAL
@@ -395,8 +403,9 @@ jobs:
           exit-code: "1"
 
       - name: Scan the datastore image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.74.0
           scan-type: image
           image-ref: ninjasre/postgres:ci
           severity: HIGH,CRITICAL
