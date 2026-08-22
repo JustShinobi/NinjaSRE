@@ -395,6 +395,21 @@ preflight: ## Verify the configured LLM provider end to end (makes live calls)
 # the console, and the Python suite is the longest single step in the gate.
 
 
+
+# The loop for changing one screen and looking at it.
+#
+# Builds here, pushes to the registry, and writes the digests into the
+# repository the cluster reconciles from. It bypasses the delivery pipeline —
+# no SBOM, no scan, no verification of the source — and the commit it writes
+# says so, because a staging image nobody can trace is worth exactly as much
+# as the note explaining where it came from.
+#
+# Not `kubectl set image`. Argo runs this application with `selfHeal` on and
+# reverts anything the cluster is told directly, which looks like a deploy that
+# worked until it quietly is not there any more.
+deploy-stg: ## Build here, publish, and point staging at it (COMPONENTS=web to narrow)
+	scripts/deploy/stg $(COMPONENTS)
+
 # What a local run leaves behind, and why this has its own target.
 #
 # `make ci` builds four images for the scan and three more for the browser

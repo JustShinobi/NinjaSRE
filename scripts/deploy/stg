@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# Build here, publish, and put the digests where the cluster reads them.
+#
+# The delivery pipeline is the way a release reaches staging: it verifies the
+# source, builds on a trusted executor, records an SBOM, scans what it built,
+# and promotes digests nobody typed. This is not that, and it is not trying to
+# be — it is the loop for the twenty minutes when you are changing one screen
+# and want to see it, and it says so in the commit it writes.
+#
+# What it does not skip is Git. Argo runs this application with `selfHeal` and
+# `prune` on, so a `kubectl set image` is reverted within a couple of minutes
+# and the change looks like it worked until it does not. The digest has to land
+# in the repository the cluster reconciles from, which is what this writes.
+#
+# Usage:
+#     scripts/deploy/stg [component ...]     # default: every component
+#     scripts/deploy/stg web                 # just the console
+#
+# Needs a Docker credential for the registry (this machine's `~/.docker`), and
+# `gh` authenticated against the GitOps repository.
+
+set -euo pipefail
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repository_root="$(cd -- "$script_dir/../.." && pwd)"
+cd -- "$repository_root"
+
+DESCRIPTOR=".ci/application.yaml"
+GITOPS_REPO="JustShinobi/k3s-gitops-prod"
+GITOPS_PATH="clusters/prod/workloads/ninjasre-stg/images.yaml"
+ARGO_APP="stg-ninjasre"
+CLUSTER_HOST="${NINJASRE_CLUSTER_HOST:-root@192.168.68.159}"
+
+components=("$@")
+if [ ${#components[@]} -eq 0 ]; then
+    mapfile -t components < <(
+        python3 -c "
+import yaml
+for component in yaml.safe_load(open('$DESCRIPTOR'))['components']:
+    print(component['name'])
+"
+    )
+fi
+
+echo "==> building ${components[*]}" >&2
+
+declare -A digests=()
+for component in "${components[@]}"; do
+    read -r dockerfile image < <(
+        python3 -c "
+import sys, yaml
+name = sys.argv[1]
+for component in yaml.safe_load(open('$DESCRIPTOR'))['components']:
+    if component['name'] == name:
+        print(component['dockerfile'], component['image'])
+        break
+else:
+    raise SystemExit(f'{name} is not a component in $DESCRIPTOR')
+" "$component"
+    )
+
+    # Tagged by what it is and when, never `latest`. A moving tag on a cluster
+    # that pins digests is a tag nothing reads, and one somebody eventually
+    # believes.
+    tag="${image}:fast-$(date -u +%Y%m%dT%H%M%SZ)"
+    echo "==> $component: building $dockerfile" >&2
+    docker build --file "$dockerfile" --tag "$tag" .
+
+    echo "==> $component: pushing" >&2
+    docker push --quiet "$tag" >/dev/null
+
+    # Read the digest back from the registry rather than computing one here:
+    # what the cluster will pull is what the registry stored, and a local
+    # calculation that disagreed would be a deployment of something else.
+    digest="$(docker inspect --format '{{index .RepoDigests 0}}' "$tag" | cut -d@ -f2)"
+    [ -n "$digest" ] || { echo "$component: the registry returned no digest" >&2; exit 1; }
+    digests[$component]="${image}@${digest}"
+    echo "==> $component: ${digest:0:19}…" >&2
+done
+
+echo "==> writing digests to $GITOPS_REPO" >&2
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+gh api "repos/$GITOPS_REPO/contents/$GITOPS_PATH" --jq '.content' | base64 -d > "$work/images.yaml"
+sha="$(gh api "repos/$GITOPS_REPO/contents/$GITOPS_PATH" --jq '.sha')"
+
+python3 - "$work/images.yaml" <<PY
+import sys, yaml
+
+path = sys.argv[1]
+replacements = {}
+$(for component in "${!digests[@]}"; do
+    printf "replacements[%q] = %q\n" "$component" "${digests[$component]}"
+done)
+
+documents = [document for document in yaml.safe_load_all(open(path)) if document]
+changed = []
+for document in documents:
+    name = document["metadata"]["name"]
+    if name not in replacements:
+        continue
+    for container in document["spec"]["template"]["spec"]["containers"]:
+        if container["name"] == name:
+            container["image"] = replacements[name]
+            changed.append(name)
+
+missing = set(replacements) - set(changed)
+if missing:
+    raise SystemExit(
+        f"{sorted(missing)} has no entry in the image patch. A component the "
+        f"patch does not name is a digest the cluster never reads."
+    )
+
+with open(path, "w", encoding="utf-8") as handle:
+    yaml.safe_dump_all(documents, handle, sort_keys=False, explicit_start=True)
+print(" ".join(sorted(changed)))
+PY
+
+source_sha="$(git rev-parse --short HEAD)"
+dirty=""
+git diff --quiet || dirty=" plus uncommitted changes"
+
+gh api "repos/$GITOPS_REPO/contents/$GITOPS_PATH" -X PUT \
+    -f message="chore(ninjasre-stg): fast deploy of ${components[*]} from ${source_sha}${dirty}
+
+Built on a developer machine and pushed straight to the registry, bypassing the
+delivery pipeline. No SBOM was recorded and no scan ran for these images.
+
+The next pipeline promotion replaces these digests with ones it built and
+checked, which is the intended way for this to end." \
+    -f content="$(base64 -w0 "$work/images.yaml")" \
+    -f sha="$sha" --jq '"==> gitops " + .commit.sha[0:12]' >&2
+
+echo "==> asking Argo to reconcile" >&2
+ssh -o BatchMode=yes "$CLUSTER_HOST" \
+    "kubectl annotate application $ARGO_APP -n argocd argocd.argoproj.io/refresh=hard --overwrite" >/dev/null
+
+for _ in $(seq 1 60); do
+    state="$(ssh -o BatchMode=yes "$CLUSTER_HOST" \
+        "kubectl get application $ARGO_APP -n argocd -o jsonpath='{.status.sync.status}/{.status.health.status}'" 2>/dev/null || true)"
+    echo "    $state" >&2
+    [ "$state" = "Synced/Healthy" ] && { echo "==> deployed" >&2; exit 0; }
+    sleep 10
+done
+
+echo "Argo did not reach Synced/Healthy in ten minutes. Its last answer was ${state:-unknown}." >&2
+exit 1
