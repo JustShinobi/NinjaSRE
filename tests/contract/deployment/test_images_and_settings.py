@@ -77,6 +77,44 @@ def test_every_base_image_argument_has_a_default_from_the_one_list(path: Path) -
         )
 
 
+def test_no_compose_file_substitutes_a_base_image_of_its_own() -> None:
+    """A compose default that disagrees with the one list builds a different image.
+
+    The guard above holds the Dockerfiles to ``base-images.env``. The compose
+    files pass the same names in as build ``args`` with a default of their own,
+    and nothing compared the two — so a compose file could name any base at all
+    and the build would quietly use it instead of the pinned one.
+
+    That is not hypothetical. All three compose files defaulted the datastore to
+    a plain PostgreSQL 18 image while the Dockerfile pinned the Apache AGE build
+    for PostgreSQL 16 and installed the pgvector package for 16 on top. The
+    result had neither extension where the server could load it: the init script
+    died on ``CREATE EXTENSION``, the container never became healthy, and every
+    suite that brings the stack up failed on a symptom several steps from the
+    cause.
+    """
+    declared = dict(
+        line.split("=", 1)
+        for line in (IMAGES / "base-images.env").read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#")
+    )
+
+    compose = sorted(COMPOSE.glob("docker-compose*.yml"))
+    assert compose, "no compose files found"
+
+    for file in compose:
+        source = file.read_text(encoding="utf-8")
+        for match in re.finditer(r"(BASE_[A-Z_]+): \$\{\1:-([^}]*)\}", source):
+            name, default = match.group(1), match.group(2).strip()
+            assert name in declared, (
+                f"{file.name} substitutes {name}, which base-images.env does not declare"
+            )
+            assert default == declared[name], (
+                f"{file.name}'s default for {name} is {default!r} and base-images.env "
+                f"says {declared[name]!r}; a compose build must use the pinned base"
+            )
+
+
 def test_no_base_image_is_pinned_to_a_bare_major_version() -> None:
     """An exact version, so a patch release cannot change behaviour under a deployment."""
     for line in (IMAGES / "base-images.env").read_text(encoding="utf-8").splitlines():

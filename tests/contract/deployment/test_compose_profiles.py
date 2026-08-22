@@ -183,17 +183,33 @@ def test_the_state_that_matters_is_on_a_named_volume(
 
 
 #: ``BASE_POSTGRES`` is never resolved by ``yaml.safe_load`` — it stays the raw
-#: ``${VAR:-postgres:MAJOR.rest}`` expression — so the pinned major version is
-#: read out of the default rather than out of an environment nothing sets here.
-_PINNED_POSTGRES_IMAGE = re.compile(r"^\$\{BASE_POSTGRES:-postgres:(?P<major>\d+)\.[^}]*\}$")
+#: ``${VAR:-<image>}`` expression — so the pinned major version is read out of
+#: the default rather than out of an environment nothing sets here.
+#:
+#: Two image families, because the datastore's base is one of them and a plain
+#: PostgreSQL is the other. Apache AGE is a compiled extension built against a
+#: specific major, and its tag says which one in its own spelling
+#: (``release_PG16_1.6.0``); the official image says it in the ordinary one
+#: (``18.4-trixie``). Reading only the second is how a compose file that pins
+#: the AGE image stops being checked at all rather than failing.
+_PINNED_POSTGRES_IMAGES = (
+    re.compile(r"^\$\{BASE_POSTGRES:-postgres:(?P<major>\d+)\.[^}]*\}$"),
+    re.compile(r"^\$\{BASE_POSTGRES:-apache/age:release_PG(?P<major>\d+)_[^}]*\}$"),
+)
 
 
 def _pinned_postgres_major(compose: dict[str, Any]) -> int:
     """Return the PostgreSQL major version this compose file's postgres service pins."""
     expression = compose["services"]["postgres"]["build"]["args"]["BASE_POSTGRES"]
-    match = _PINNED_POSTGRES_IMAGE.match(expression)
-    assert match, f"{expression!r} does not pin a ${{BASE_POSTGRES:-postgres:<major>.<rest>}}"
-    return int(match.group("major"))
+    for pattern in _PINNED_POSTGRES_IMAGES:
+        match = pattern.match(expression)
+        if match:
+            return int(match.group("major"))
+    raise AssertionError(
+        f"{expression!r} names no major version this test can read. Expected "
+        f"${{BASE_POSTGRES:-postgres:<major>.<rest>}} or "
+        f"${{BASE_POSTGRES:-apache/age:release_PG<major>_<rest>}}"
+    )
 
 
 def _postgres_volume_target(compose: dict[str, Any]) -> str:

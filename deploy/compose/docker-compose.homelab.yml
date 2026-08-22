@@ -40,7 +40,7 @@ services:
       context: ../..
       dockerfile: deploy/images/postgres.Dockerfile
       args:
-        BASE_POSTGRES: ${BASE_POSTGRES:-postgres:18.4-trixie}
+        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}

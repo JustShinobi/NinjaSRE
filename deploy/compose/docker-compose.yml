@@ -35,17 +35,19 @@ services:
       context: ../..
       dockerfile: deploy/images/postgres.Dockerfile
       args:
-        BASE_POSTGRES: ${BASE_POSTGRES:-postgres:18.4-trixie}
+        BASE_POSTGRES: ${BASE_POSTGRES:-apache/age:release_PG16_1.6.0}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ninjasre}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ninjasre}
       POSTGRES_DB: ${POSTGRES_DB:-ninjasre}
     volumes:
-      # A single mount at the parent directory, not at `.../data`. Postgres
-      # 18's official image keys its data directory to the major version
-      # (`/var/lib/postgresql/<major>/docker`) and its own entrypoint treats
-      # any *other* mount at the pre-18 path as leftover data from an
-      # unmanaged upgrade — even an empty one — and refuses to start.
+      # A single mount at the parent directory, not at `.../data`. It is the
+      # one shape that survives a major-version bump: PostgreSQL 16 puts its
+      # data in `/var/lib/postgresql/data` and 18 keys the directory to the
+      # major version, and 18's entrypoint refuses to start when it finds any
+      # mount at the pre-18 path — even an empty one — reading it as leftover
+      # data from an unmanaged upgrade. Mounting the parent lets whichever
+      # entrypoint is in the image lay out its own subdirectory.
       - postgres-data:/var/lib/postgresql
     healthcheck:
       # `pg_isready` against the database by name, not just the port. A server
