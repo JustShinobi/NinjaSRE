@@ -33,17 +33,19 @@ firing of a condition correlate rather than open a second incident.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import Final, Protocol, runtime_checkable
 
 from config.constants.observation import (
     MAX_INCIDENT_PAGE_SIZE,
     MAX_INCIDENT_SUBJECTS,
     MAX_INCIDENT_TIMELINE,
 )
+from config.constants.persistence import MAX_IDENTIFIER_CHARS
 from platform.persistence.errors import BoundExceeded
 
 
@@ -276,6 +278,31 @@ class IncidentQuery:
     limit: int = 50
 
 
+#: How much of a digest stands in for the part of a key that did not fit.
+#: Sixteen hex characters is sixty-four bits: enough that two keys colliding is
+#: not a thing that happens, short enough to leave the readable part readable.
+_KEY_DIGEST_CHARS: Final = 16
+
+
+def _bounded(variable: str, suffix: str) -> str:
+    """Return ``variable + suffix``, shortened to fit an identifier column.
+
+    The suffix is kept whole — it is the part an operator reading a key
+    recognises, and it is bounded by construction. The variable part is the one
+    that grows, so it is what gets truncated, with a digest of the *whole*
+    composition appended so two keys that differed before still differ after.
+
+    Deterministic, which is the property every caller here depends on: a retried
+    write has to land on the row the first attempt made.
+    """
+    composed = f"{variable}{suffix}"
+    if len(composed) <= MAX_IDENTIFIER_CHARS:
+        return composed
+    digest = hashlib.sha256(composed.encode()).hexdigest()[:_KEY_DIGEST_CHARS]
+    marked = f"{suffix}#{digest}"
+    return f"{variable[: MAX_IDENTIFIER_CHARS - len(marked)]}{marked}"
+
+
 def incident_key(correlation_key: str, opened_at: datetime) -> str:
     """Return the identifier one incident for one cause at one instant gets.
 
@@ -286,7 +313,7 @@ def incident_key(correlation_key: str, opened_at: datetime) -> str:
     therefore gets its own incident, which is what keeps "it happened again"
     from being written into last week's history.
     """
-    return f"{correlation_key}@{opened_at.isoformat()}"
+    return _bounded(correlation_key, f"@{opened_at.isoformat()}")
 
 
 def timeline_key(incident_id: str, kind: TimelineKind, at: datetime) -> str:
@@ -295,8 +322,19 @@ def timeline_key(incident_id: str, kind: TimelineKind, at: datetime) -> str:
     Derived for the same reason, so a retried transition appends one entry
     rather than two — a timeline that double-records is a timeline an operator
     stops trusting to reconstruct what happened.
+
+    Bounded, because the caller composes ``incident_id`` with free text — a
+    resource identifier, "3 subject(s)" — and an incident correlated on a full
+    digest and opened at a microsecond instant composes past the width of the
+    column this is the key of. That failed on write with a database error that
+    read like an outage, and only against a real PostgreSQL: the in-memory store
+    every other test uses has no widths.
+
+    The shortening keeps the two properties the key exists for. It is still
+    deterministic, so a retry lands on the same row; and it still separates
+    entries, because what it digests is the whole of what was composed.
     """
-    return f"{incident_id}@{kind.value}@{at.isoformat()}"
+    return _bounded(incident_id, f"@{kind.value}@{at.isoformat()}")
 
 
 def check_incident_limit(limit: int) -> int:

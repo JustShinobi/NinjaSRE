@@ -60,6 +60,17 @@ DATABASE_POOL_TIMEOUT_SECONDS: Final[float] = 30.0
 #: Seconds a connection may sit idle before the pool recycles it.
 DATABASE_POOL_MAX_IDLE_SECONDS: Final[float] = 300.0
 
+#: How long an identifier column is, and therefore the longest identifier
+#: anything may derive.
+#:
+#: Stated here rather than only in the table definition because the code that
+#: *mints* an identifier is what has to respect it, and that code sits nowhere
+#: near the schema. An id composed past this width fails on write with a
+#: database error that reads like an outage, and the in-memory store used by
+#: almost every test has no widths at all — so the arithmetic has to be
+#: checkable without a real PostgreSQL.
+MAX_IDENTIFIER_CHARS: Final[int] = 128
+
 #: Server-side statement timeout, in milliseconds.
 DATABASE_STATEMENT_TIMEOUT_MS: Final[int] = 30_000
 
@@ -179,6 +190,7 @@ RETENTION_EXEMPT_DATA_CLASSES: Final[frozenset[str]] = frozenset({"audit"})
 __all__ = [
     "DATABASE_ENCRYPTION_KEY_BYTES",
     "DATABASE_POOL_MAX_IDLE_SECONDS",
+    "MAX_IDENTIFIER_CHARS",
     "DATABASE_POOL_MAX_SIZE",
     "DATABASE_POOL_MIN_SIZE",
     "DATABASE_POOL_TIMEOUT_SECONDS",
