@@ -47,6 +47,7 @@ CONTEXT = RequestContext(org_id=ORG_ID, team_id=TEAM_ID, capability="credential_
 #: does not need a second hand-written copy here — and "verify everything"
 #: below really does mean everything rather than the three somebody remembered.
 CREDENTIALS = conftest.CREDENTIALS
+vault_values = conftest.vault_values
 
 
 @dataclass(slots=True)
@@ -70,12 +71,18 @@ async def stand_up(*, seeded: tuple[str, ...], status: int = 200):
     async with gateway.begin_system() as system:
         await system.orgs.create_organisation(ORG_ID, "Acme")
 
+    # The vault's view of each schema: an address is configuration and is
+    # stored in the configuration tree, so the vault never declares it.
     schemas = CredentialSchemaRegistry()
-    schemas.register_all(descriptor.schema for descriptor in catalogue.values())
+    schemas.register_all(
+        stored
+        for descriptor in catalogue.values()
+        if (stored := descriptor.schema.for_vault()) is not None
+    )
     vault = Vault(gateway=gateway, schemas=schemas)
     for name in seeded:
         await vault.store(
-            SCOPE, CredentialHandle(integration=name, team_id=TEAM_ID), CREDENTIALS[name]
+            SCOPE, CredentialHandle(integration=name, team_id=TEAM_ID), vault_values(name)
         )
 
     vendor = AcceptingVendor(status=status)

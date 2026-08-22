@@ -15,7 +15,7 @@ from __future__ import annotations
 import inspect
 import re
 
-from gateway.http.routes.integrations import SuggestionView, list_integrations
+from gateway.http.routes.integrations import SuggestionView, _integration_view
 from platform.estate.signal_map import ADDRESS_ATTRIBUTE
 from platform.estate.suggestions import suggest_integrations
 from platform.persistence.ports.estate_repository import Resource
@@ -72,14 +72,14 @@ def test_the_suggested_address_is_derived_from_discovery_never_a_literal_in_the_
     because there is nothing for one to be doing there — every address the
     route can ever emit is read off a resource ``EstateService`` returned.
     """
-    source = inspect.getsource(list_integrations)
+    source = inspect.getsource(_integration_view)
     literal_addresses = _IPV4.findall(source)
     assert not literal_addresses, (
-        f"list_integrations names a literal address {literal_addresses}; the suggested "
+        f"the catalogue view names a literal address {literal_addresses}; the suggested "
         f"address must come from estate discovery, never from a constant in the route"
     )
-    assert "suggested[entry.name].address" in source, (
-        "list_integrations does not forward the discovered suggestion's own address into "
+    assert "address=suggested.address" in source, (
+        "the catalogue view does not forward the discovered suggestion's own address into "
         "SuggestionView; a placeholder with nowhere to read a real address from would be "
         "invented rather than discovered"
     )

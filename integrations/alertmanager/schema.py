@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, secret
+from integrations._base.schema import credential_schema, endpoint, secret
 from platform.credentials.proxy.injection import BearerTokenInjection, InjectionRule
 
 INTEGRATION: Final = "alertmanager"
@@ -29,13 +29,34 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("token", "Bearer token accepted by whatever fronts Alertmanager", min_length=8),
+    endpoint(
+        "endpoint",
+        "Where your Alertmanager answers, scheme and port included — "
+        "http://alertmanager.example.com:9093. Nobody packaging this knows where "
+        "yours is, so until it is declared every call goes to the documented "
+        "placeholder.",
+        label="Alertmanager address",
+    ),
+    secret(
+        "token",
+        "Only if something in front of Alertmanager asks for one. Alertmanager "
+        "ships no authentication of its own, so an install reached directly "
+        "needs nothing here.",
+        min_length=8,
+        required=False,
+        label="Bearer token",
+        min_scope="whatever your reverse proxy or ingress accepts",
+    ),
 )
 
 RULE: Final = InjectionRule(
     integration=INTEGRATION,
     hosts=HOSTS,
     injections=(BearerTokenInjection(field="token"),),
+    # Alertmanager ships no authentication. Requiring one made the ordinary
+    # install — bare, on a private address, behind nothing — the one shape this
+    # integration could not be connected to.
+    credential_optional=True,
 )
 
 

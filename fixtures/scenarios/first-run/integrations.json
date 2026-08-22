@@ -11,8 +11,18 @@
               "prometheus_resource_pressure"
             ],
             "category": "metrics",
+            "direction": "outbound",
             "display_name": "Prometheus",
             "fields": [
+              {
+                "guide_url": "",
+                "help": "Where your Prometheus answers, scheme and port included.",
+                "label": "Prometheus address",
+                "min_scope": "",
+                "name": "endpoint",
+                "required": true,
+                "secret": false
+              },
               {
                 "guide_url": "",
                 "help": "Bearer token accepted by whatever fronts Prometheus, which usually has no auth of its own",
@@ -28,6 +38,7 @@
             "hosts": [
               "prometheus.example.com"
             ],
+            "intake_path": "",
             "missing_artefacts": [],
             "name": "prometheus",
             "parity": "complete",
@@ -52,8 +63,18 @@
               "proxmox_guest_pressure"
             ],
             "category": "cloud_control_plane",
+            "direction": "outbound",
             "display_name": "Proxmox VE",
             "fields": [
+              {
+                "guide_url": "",
+                "help": "Where a node of your cluster answers, port included.",
+                "label": "Proxmox node address",
+                "min_scope": "",
+                "name": "endpoint",
+                "required": true,
+                "secret": false
+              },
               {
                 "guide_url": "",
                 "help": "Proxmox API token as one line: user@realm!tokenid=secret",
@@ -69,6 +90,7 @@
             "hosts": [
               "proxmox.example.com"
             ],
+            "intake_path": "",
             "missing_artefacts": [],
             "name": "proxmox",
             "parity": "complete",
@@ -92,6 +114,7 @@
               "metrics.range_query"
             ],
             "category": "observability",
+            "direction": "outbound",
             "display_name": "Metrics store",
             "fields": [
               {
@@ -109,6 +132,7 @@
             "hosts": [
               "metrics.example.invalid"
             ],
+            "intake_path": "",
             "missing_artefacts": [],
             "name": "metrics-store",
             "parity": "full",

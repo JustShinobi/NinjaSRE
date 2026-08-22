@@ -6,6 +6,7 @@ What Grafana knows about a stack: which dashboards and folders exist, and the an
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
+| `endpoint` | Where your Grafana answers, scheme and port included | no | yes |
 | `token` | Grafana service account token, with the Viewer role at minimum | yes | yes |
 | `org` | Grafana organisation id, when the stack has more than one | no | no |
 
@@ -18,6 +19,11 @@ The prompt asks for each field the schema declares and writes the values
 straight to the vault. Nothing is displayed back, and nothing reaches the agent:
 a capability carries a handle and the credential proxy injects the real value at
 the network edge.
+
+`endpoint` is the exception: it is not a credential. It goes to the
+configuration tree, not the vault, which is where the credential proxy already
+reads its egress allow-list from — declaring the address and permitting it are
+one act.
 
 Declared regions: `self-hosted`.
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, secret
+from integrations._base.schema import credential_schema, endpoint, secret
 from platform.credentials.proxy.injection import HeaderInjection, InjectionRule
 
 INTEGRATION: Final = "signoz"
@@ -29,8 +29,18 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
+    endpoint(
+        "endpoint",
+        "Where your SigNoz query service answers, scheme and port included — "
+        "http://signoz.example.com:8080. The address the UI is served at, not the "
+        "OTLP collector's.",
+        label="SigNoz address",
+    ),
     secret(
-        "api_key", "SigNoz API key for the workspace holding this service's telemetry", min_length=8
+        "api_key",
+        "SigNoz API key for the workspace holding this service's telemetry",
+        min_length=8,
+        label="API key",
     ),
 )
 

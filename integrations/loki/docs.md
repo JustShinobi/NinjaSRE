@@ -6,7 +6,8 @@ Log search over Loki's label index and LogQL, with the shape of a query counted 
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
-| `token` | Loki bearer token, or the Grafana Cloud access policy token | yes | yes |
+| `endpoint` | Where your Loki answers, scheme and port included | no | yes |
+| `token` | Loki bearer token, or the Grafana Cloud access policy token | yes | no |
 | `tenant` | Tenant id sent as X-Scope-OrgID on a multi-tenant install | no | no |
 
 ```bash
@@ -18,6 +19,14 @@ The prompt asks for each field the schema declares and writes the values
 straight to the vault. Nothing is displayed back, and nothing reaches the agent:
 a capability carries a handle and the credential proxy injects the real value at
 the network edge.
+
+`endpoint` is the exception: it is not a credential. It goes to the
+configuration tree, not the vault, which is where the credential proxy already
+reads its egress allow-list from — declaring the address and permitting it are
+one act.
+
+The token is optional because Loki ships no authentication of its own: a
+self-hosted install that is not behind an auth proxy needs nothing here.
 
 Declared regions: `self-hosted`.
 

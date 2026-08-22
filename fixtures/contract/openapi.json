@@ -3386,6 +3386,11 @@
             "title": "Category",
             "type": "string"
           },
+          "direction": {
+            "default": "outbound",
+            "title": "Direction",
+            "type": "string"
+          },
           "display_name": {
             "title": "Display Name",
             "type": "string"
@@ -3411,6 +3416,11 @@
             },
             "title": "Hosts",
             "type": "array"
+          },
+          "intake_path": {
+            "default": "",
+            "title": "Intake Path",
+            "type": "string"
           },
           "missing_artefacts": {
             "items": {

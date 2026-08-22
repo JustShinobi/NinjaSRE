@@ -27,8 +27,8 @@ authenticated request.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any
 
 from integrations._base.client import IntegrationClient
@@ -37,11 +37,22 @@ from integrations._base.transport import ProxyTransport, RequestContext
 
 @dataclass(frozen=True, slots=True)
 class IntegrationAccess:
-    """The transport and the tenant one process makes vendor calls for."""
+    """The transport, the tenant, and where each vendor is, for one process."""
 
     transport: ProxyTransport
     org_id: str
     team_id: str
+    #: Where each integration answers, by integration name — the addresses the
+    #: operator declared, read from the configuration tree the proxy builds its
+    #: egress allow-list from. Empty is ordinary: an integration with no entry
+    #: here is built against the region its own package ships, which is a
+    #: documentation placeholder for anything self-hosted.
+    #:
+    #: It belongs on the binding rather than in each tool because a tool that
+    #: resolved its own configuration is a tool one lookup away from acting on
+    #: somebody else's estate — the same argument the module makes above for the
+    #: transport and the tenant, applied to the third thing a call needs.
+    endpoints: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.org_id.strip() or not self.team_id.strip():
@@ -67,8 +78,33 @@ class IntegrationAccess:
         region, a namespace. There is deliberately no way to pass a credential:
         the factory is an ``IntegrationClient`` subclass, and none of those has a
         parameter one could arrive through.
+
+        The configured address is applied here, so that adding one is a change
+        to this method rather than to every tool module in the catalogue. A
+        caller that names ``base_url`` itself wins — that is the verifier
+        probing an address the operator has just typed and not yet stored, and
+        overriding it would make "test this" test something else.
         """
+        configured = self.endpoints.get(getattr(factory, "integration", ""), "")
+        if configured and "base_url" not in options:
+            options = {**options, "base_url": configured}
         return factory(transport=self.transport, context=self.context(capability), **options)
+
+    def with_endpoints(self, endpoints: Mapping[str, str]) -> IntegrationAccess:
+        """Return this binding pointed at ``endpoints`` instead.
+
+        A new binding rather than a mutation, because the type is frozen for the
+        same reason the arrangement is one-per-process: whoever composed the
+        deployment decides what a call is made with, and a caller that could
+        edit it in place would be a caller that could redirect somebody else's
+        in-flight investigation.
+        """
+        return IntegrationAccess(
+            transport=self.transport,
+            org_id=self.org_id,
+            team_id=self.team_id,
+            endpoints=dict(endpoints),
+        )
 
 
 _BOUND: IntegrationAccess | None = None

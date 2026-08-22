@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, public, secret
+from integrations._base.schema import credential_schema, endpoint, public, secret
 from platform.credentials.proxy.injection import BearerTokenInjection, InjectionRule
 
 INTEGRATION: Final = "loki"
@@ -29,14 +29,37 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("token", "Loki bearer token, or the Grafana Cloud access policy token", min_length=8),
-    public("tenant", "Tenant id sent as X-Scope-OrgID on a multi-tenant install"),
+    endpoint(
+        "endpoint",
+        "Where your Loki answers, scheme and port included — "
+        "http://loki.example.com:3100. For Grafana Cloud this is the address on "
+        "your stack's details page, not the Grafana one.",
+        label="Loki address",
+    ),
+    secret(
+        "token",
+        "A Loki bearer token, or a Grafana Cloud access policy token. Leave "
+        "empty for a self-hosted Loki that is not behind an auth proxy.",
+        min_length=8,
+        required=False,
+        label="Bearer token",
+        min_scope="logs:read",
+    ),
+    public(
+        "tenant",
+        "Tenant id sent as X-Scope-OrgID on a multi-tenant install",
+        label="Tenant ID",
+        guide_url="https://grafana.com/docs/loki/latest/operations/multi-tenancy/",
+    ),
 )
 
 RULE: Final = InjectionRule(
     integration=INTEGRATION,
     hosts=HOSTS,
     injections=(BearerTokenInjection(field="token"),),
+    # A self-hosted Loki behind nothing needs no token. Requiring one made
+    # the ordinary single-tenant install unconnectable.
+    credential_optional=True,
 )
 
 

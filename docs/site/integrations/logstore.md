@@ -10,7 +10,7 @@ Hermes log tailing and classification: what a stream is currently emitting, grou
 
 - **Category:** logstore
 - **Regions:** self-hosted
-- **Credentials:** api_key
+- **Credentials:** endpoint, api_key
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown
@@ -38,7 +38,7 @@ Log search over Loki's label index and LogQL, with the shape of a query counted 
 
 - **Category:** logstore
 - **Regions:** self-hosted
-- **Credentials:** token
+- **Credentials:** endpoint
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown
@@ -66,7 +66,7 @@ SQL search over OpenObserve streams, counted by field before any record is read,
 
 - **Category:** logstore
 - **Regions:** self-hosted
-- **Credentials:** username, password, organisation
+- **Credentials:** endpoint, username, password, organisation
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown

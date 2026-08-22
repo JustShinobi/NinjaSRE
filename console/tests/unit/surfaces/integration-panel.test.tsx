@@ -23,6 +23,7 @@ import {
 
 const CLOSE_HREF = '/integrations';
 const NOT_COVERED_HREF = '/integrations/not-covered';
+const INTAKE_HREF = '/settings/alert-intake';
 
 /**
  * An address the estate found a service on, built rather than written — the
@@ -63,6 +64,11 @@ const LABELS: IntegrationPanelLabels = {
   disconnect: 'Disconnect',
   disconnectConsequence:
     'This removes the stored credential from the vault. The integration returns to Available until it is reconnected.',
+  directionOutbound: 'This deployment calls it. Nothing arrives from it.',
+  directionBoth: 'Both ways. It also posts alerts here.',
+  intakeTitle: 'Where to send alerts',
+  intakeBody: 'The one step that happens outside this deployment.',
+  intakeAction: 'Point your alert router at it',
 };
 
 function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelItem {
@@ -84,6 +90,8 @@ function item(overrides: Partial<IntegrationPanelItem> = {}): IntegrationPanelIt
     ],
     permissions: [],
     discoveredAddress: '',
+    direction: 'outbound',
+    intakePath: '',
     ...overrides,
   };
 }
@@ -130,6 +138,7 @@ describe('a connected integration: state and actions, not an empty form', () => 
         item={item({ health: 'healthy', healthDetail: 'verified 3 hours ago' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -147,6 +156,7 @@ describe('a connected integration: state and actions, not an empty form', () => 
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -165,6 +175,7 @@ describe('a connected integration: state and actions, not an empty form', () => 
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -185,6 +196,7 @@ describe('a connected integration: state and actions, not an empty form', () => 
         item={item({ name: 'loki', displayName: 'Loki', health: 'unknown' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -207,6 +219,7 @@ describe('a connected integration: state and actions, not an empty form', () => 
         })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -224,6 +237,7 @@ describe('a connected integration: state and actions, not an empty form', () => 
         item={item({ health: 'unconfigured' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -245,6 +259,7 @@ describe('Test again', () => {
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -272,6 +287,7 @@ describe('Test again', () => {
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -294,6 +310,7 @@ describe('Replace credential', () => {
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -314,6 +331,7 @@ describe('Replace credential', () => {
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -344,6 +362,7 @@ describe('Replace credential', () => {
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -369,6 +388,7 @@ describe('Disconnect', () => {
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -486,6 +506,7 @@ describe('the estate-discovered address', () => {
         })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -504,6 +525,7 @@ describe('the estate-discovered address', () => {
         item={item({ health: 'unconfigured', discoveredAddress: '' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -520,6 +542,7 @@ describe('the estate-discovered address', () => {
         item={item({ health: 'unconfigured' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -538,6 +561,7 @@ describe('an integration the cut removed', () => {
         item={null}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -580,6 +604,7 @@ describe('security: no credential value ever reaches the DOM or an outbound resp
         item={item({ health: 'unconfigured' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -615,6 +640,7 @@ describe('security: no credential value ever reaches the DOM or an outbound resp
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -636,6 +662,7 @@ describe('security: no credential value ever reaches the DOM or an outbound resp
         item={item({ name: 'loki', displayName: 'Loki', health: 'unknown' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable
         labels={LABELS}
       />,
@@ -657,6 +684,7 @@ describe('a viewer without the permission to manage integrations', () => {
         item={item({ health: 'healthy' })}
         closeHref={CLOSE_HREF}
         notCoveredHref={NOT_COVERED_HREF}
+        intakeHref={INTAKE_HREF}
         writable={false}
         labels={LABELS}
       />,

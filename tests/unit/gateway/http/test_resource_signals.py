@@ -72,13 +72,23 @@ async def _seed(deployment: Deployment, *, integrations: tuple[str, ...]) -> Non
 
     from integrations._catalogue.discovery import catalogue
 
+    # The vault's view of each schema: an address is configuration and lives
+    # in the configuration tree, so the vault never declares or holds one.
     schemas = CredentialSchemaRegistry.from_schemas(
-        *(entry.descriptor.schema for entry in catalogue())
+        *(
+            stored
+            for entry in catalogue()
+            if (stored := entry.descriptor.schema.for_vault()) is not None
+        )
     )
     vault = Vault(gateway=deployment.gateway, schemas=schemas)
+    declared = {entry.name: entry.descriptor.schema for entry in catalogue()}
     for name in integrations:
+        addresses = set(declared[name].endpoint_names)
         await vault.store(
-            SCOPE, CredentialHandle(integration=name, team_id=TEAM_PAYMENTS), CREDENTIALS[name]
+            SCOPE,
+            CredentialHandle(integration=name, team_id=TEAM_PAYMENTS),
+            {field: value for field, value in CREDENTIALS[name].items() if field not in addresses},
         )
 
 

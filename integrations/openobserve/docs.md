@@ -6,9 +6,14 @@ SQL search over OpenObserve streams, counted by field before any record is read,
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
+| `endpoint` | Where your OpenObserve answers, scheme and port included | no | yes |
 | `username` | OpenObserve user email | yes | yes |
 | `password` | That user's password or token | yes | yes |
 | `organisation` | OpenObserve organisation | no | yes |
+
+The endpoint goes to the configuration tree rather than the vault — it is not
+part of the credential, and it is where the credential proxy reads its egress
+allow-list from, so declaring the address and permitting it stay one act.
 
 ```bash
 ninjasre integrations setup openobserve

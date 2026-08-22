@@ -136,7 +136,9 @@ async def _against(recorded: RecordedPrometheus, call: Any) -> Any:
     async with gateway.begin_system() as system:
         await system.orgs.create_organisation(ORG_ID, "Acme")
 
-    schemas = CredentialSchemaRegistry.from_schemas(descriptor.schema)
+    # The vault's view: everything but the address, which is configuration and
+    # is stored in the configuration tree rather than here.
+    schemas = CredentialSchemaRegistry.from_schemas(descriptor.schema.for_vault())
     await Vault(gateway=gateway, schemas=schemas).store(
         SCOPE,
         CredentialHandle(integration=INTEGRATION, team_id=TEAM_ID),

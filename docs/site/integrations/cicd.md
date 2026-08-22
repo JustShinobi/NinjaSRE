@@ -10,7 +10,7 @@ What Argo CD has actually applied: which applications are synced and healthy, an
 
 - **Category:** cicd
 - **Regions:** self-hosted
-- **Credentials:** token
+- **Credentials:** endpoint, token
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown

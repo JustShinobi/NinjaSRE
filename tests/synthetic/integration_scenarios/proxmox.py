@@ -25,6 +25,10 @@ from typing import Final
 from tests.synthetic.integration_scenarios import IntegrationScenario, json_response
 
 CREDENTIAL: Final[dict[str, str]] = {
+    # What an operator submits on one screen. The address is not a credential
+    # and is not stored with one — ``vault_values`` in the contract conftest is
+    # what splits this the way the write route does.
+    "endpoint": "https://proxmox.example.com:8006",
     "api_token": "ninjasre@pve!ninjasre=1a2b3c4d-5e6f-7890-abcd-ef1234567890",
     "username": "ninjasre@pve",
 }

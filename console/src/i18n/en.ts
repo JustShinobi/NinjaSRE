@@ -582,6 +582,12 @@ export const EN = {
   'firstRun.provider.hosted': 'Hosted — requests leave your infrastructure',
   'firstRun.provider.choose': 'Use this provider',
   'firstRun.credential.chooseFirst': 'No provider has been chosen yet.',
+  'firstRun.credential.checking': 'Asking the provider whether this key works…',
+  'firstRun.credential.accepted':
+    'The provider accepted this key and listed the models below.',
+  'firstRun.credential.notListed':
+    'The key is stored, but the provider would not list what it serves:',
+  'firstRun.credential.chooseModel': 'Which of these this deployment thinks with:',
 
   'firstRun.model.known': 'Model',
   'firstRun.model.free': 'Model identifier',
@@ -1583,6 +1589,11 @@ export const EN = {
   'catalogue.integrations.panel.permissions.grantedAt': 'Granted at',
   'catalogue.integrations.panel.readOnly':
     'You do not hold the permission to change this integration.',
+  'catalogue.integrations.panel.direction.outbound':
+    'This deployment calls it. Nothing arrives from it, and the credential below is what it presents when it calls.',
+  'catalogue.integrations.panel.direction.both':
+    'Both ways. This deployment reads its API with the credential below, and it posts alerts here with a different one \u2014 a delivery token, issued separately.',
+  'catalogue.integrations.panel.intake.action': 'Point your alert router at it',
   'catalogue.integrations.panel.security':
     'Stored in the vault; never shown again. Testing it makes a real request — stored and working are different states.',
   'catalogue.integrations.panel.saveAndTest': 'Save and test',

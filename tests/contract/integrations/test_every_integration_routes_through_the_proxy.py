@@ -31,6 +31,7 @@ import pytest
 from integrations._base.client import IntegrationClient
 from integrations.registry import descriptors, integration_names
 from platform.credentials.descriptor import IntegrationDescriptor, SdkStrategy
+from tests.contract.integrations.conftest import ENTRIES, integration_ids
 
 pytestmark = pytest.mark.contract
 
@@ -107,3 +108,43 @@ def test_the_vendor_sdk_decision_is_recorded(name: str) -> None:
 def test_the_integration_declares_a_verifier(name: str) -> None:
     """FR-021 needs somewhere to send the end-to-end check."""
     assert CATALOGUE[name].verifier.integration == name
+
+
+#: The host an integration ships when nobody packaging it could know the real
+#: one. Recognised by suffix rather than by a list, because the list is the thing
+#: that goes stale the first time a vendor is added.
+PLACEHOLDER_SUFFIX = ".example.com"
+
+
+@pytest.mark.parametrize("name", integration_ids())
+def test_an_integration_nobody_can_place_asks_where_it_is(name: str) -> None:
+    """A schema of secrets alone is a form an operator completes without connecting.
+
+    Every self-hosted vendor ships a documentation host — ``loki.example.com``,
+    ``proxmox.example.com`` — because the package cannot know where yours runs.
+    An integration that ships one and asks for no address is one whose every
+    call goes to the placeholder no matter what the operator entered, and whose
+    verifier reports the credential stored while nothing works. That is the
+    failure this pins, catalogue-wide, so the next self-hosted vendor cannot
+    land without the field.
+    """
+    schema = ENTRIES[name].descriptor.schema
+    placeholders = [
+        host for host in ENTRIES[name].descriptor.rule.hosts if host.endswith(PLACEHOLDER_SUFFIX)
+    ]
+    if not placeholders:
+        return
+    assert schema.endpoint_names, (
+        f"{name}: ships the placeholder host {placeholders} and declares no endpoint field, "
+        f"so nothing an operator can enter will change where its calls go"
+    )
+
+
+@pytest.mark.parametrize("name", integration_ids())
+def test_an_address_is_never_a_field_the_vault_holds(name: str) -> None:
+    """It is configuration. The proxy reads it, and the proxy cannot read the vault."""
+    schema = ENTRIES[name].descriptor.schema
+    for address in schema.endpoint_names:
+        assert address not in (schema.for_vault().field_names if schema.for_vault() else ())
+        declared = schema.get(address)
+        assert declared is not None and not declared.is_secret

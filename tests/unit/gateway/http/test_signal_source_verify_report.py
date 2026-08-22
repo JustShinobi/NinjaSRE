@@ -30,6 +30,7 @@ from gateway.http.state import GatewayState
 from integrations._base.transport import InProcessProxyTransport, RequestContext
 from integrations._catalogue.discovery import catalogue
 from integrations._verification.framework import runner_for
+from integrations.registry import credential_schemas
 from platform.credentials.handles import CredentialHandle
 from platform.credentials.proxy.app import create_proxy_app
 from platform.credentials.proxy.audit import ResolutionAuditor
@@ -37,7 +38,6 @@ from platform.credentials.proxy.engine import ProxyEngine
 from platform.credentials.proxy.injection import InjectionRuleRegistry
 from platform.credentials.proxy.model import OutboundRequest, OutboundResponse
 from platform.credentials.proxy.resolution import CredentialResolver
-from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
 from platform.identity.permissions import Role
 from platform.persistence.fakes import FakePersistence
@@ -89,7 +89,9 @@ async def _deep_verifier(*, series: int, skew_seconds: float):
     async with gateway.begin_system() as system:
         await system.orgs.create_organisation(ORG, "Acme")
 
-    schemas = CredentialSchemaRegistry.from_schemas(*(found.schema for found in descriptors))
+    # What the production composition hands the vault: the whole catalogue,
+    # minus the address fields, which are configuration rather than credentials.
+    schemas = credential_schemas()
     vault = Vault(gateway=gateway, schemas=schemas)
     await vault.store(
         SCOPE,

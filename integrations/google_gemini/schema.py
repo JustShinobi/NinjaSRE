@@ -42,6 +42,9 @@ SCHEMA: Final = credential_schema(
         "api_key",
         "The API key from Google AI Studio. Sent as x-goog-api-key on every request.",
         min_length=8,
+        label="API key",
+        min_scope="whole-project access to the Generative Language API; there is no narrower scope",
+        guide_url="https://aistudio.google.com/apikey",
     ),
 )
 

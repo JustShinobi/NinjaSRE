@@ -36,7 +36,11 @@ from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from core.llm.catalogue import ListingUnavailable, ModelOffering, catalogue_for, listing_for
 from core.llm.catalogue.cache import ModelCatalogueCache
-from core.llm.credentials import EnvironmentCredentialResolver, ProviderCredentials
+from core.llm.credentials import (
+    EnvironmentCredentialResolver,
+    ProviderCredentials,
+    ResolvedCredentialResolver,
+)
 from core.llm.onboarding import (
     ProviderOnboarding,
     UnknownProviderError,
@@ -646,10 +650,18 @@ async def _preflight(
     ``list_models`` is the curated listing above, so a refusal names real
     alternatives — the endpoint's own answer to "what else do you serve" —
     rather than the sentence this route used to emit when it never asked.
+
+    ``credentials`` is what the caller already resolved from the vault, and it
+    reaches the preflight itself rather than only the listing. Handing it to one
+    and not the other is how an operator who has just pasted a key into the
+    first-run screen gets told the credential is missing and to go and set an
+    environment variable: the preflight, given nothing, reads the process
+    environment, which in a vault-configured deployment holds nothing at all.
     """
     return await verify_model(
         provider_id=provider_id,
         model_id=model_id,
+        credentials=ResolvedCredentialResolver(credentials),
         list_models=lambda: _model_ids_for(
             provider_id, onboarding, credentials=credentials, team_id=team_id
         ),

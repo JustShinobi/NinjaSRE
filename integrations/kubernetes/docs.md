@@ -9,6 +9,7 @@ declares the hosts and the proxy enforces exactly those.
 
 | Field | Where it comes from | Secret |
 |---|---|---|
+| `endpoint` | The API server address — https://k8s.internal:6443 | no |
 | `token` | A service account token with the read roles below | yes |
 | `cluster` | A name for the cluster this token authenticates against | no |
 | `namespace` | The default namespace for namespaced reads | no |
@@ -21,6 +22,10 @@ ninjasre integrations verify kubernetes
 A token rather than a client certificate: a certificate would put a private key
 in the same place the token goes, and RBAC is expressed against the service
 account either way.
+
+`endpoint` goes to the configuration tree rather than the vault — it is where
+the credential proxy reads its egress allow-list from — and it may be left
+empty when NinjaSRE runs inside the cluster it watches.
 
 **Running inside the cluster needs no host configuration.** The in-cluster
 address `kubernetes.default.svc` is always permitted, because a deployment with

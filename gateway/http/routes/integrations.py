@@ -44,8 +44,11 @@ from gateway.http.configured import configured_integrations
 from gateway.http.credential_schemas import schema_for
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
+from gateway.http.integration_access import refresh_integration_endpoints
+from gateway.http.integration_endpoints import record_endpoint, split_by_destination
 from gateway.http.state import GatewayState
 from gateway.http.verifications import forget_check, integration_health, record_check
+from gateway.webhooks.router import PROFILES as WEBHOOK_PROFILES
 from integrations._catalogue.discovery import catalogue
 from integrations._catalogue.gaps import gaps
 from platform.credentials.errors import CredentialSchemaViolation
@@ -84,6 +87,16 @@ _CREDENTIAL_RESOURCE_KIND = "credential"
 #: fits inside it; past that, a suggestion nobody scrolled to was not worth a
 #: second page of a listing that renders on every visit to the catalogue.
 MAX_ESTATE_SCAN = 500
+
+#: The version reported for a write that stored no credential at all.
+#:
+#: An address on its own is a complete configuration for a vendor that ships no
+#: authentication, and writing an empty credential version to represent it would
+#: be worse than writing nothing: the proxy goes out unauthenticated only when a
+#: rule is optional *and* nothing resolved, and an empty version resolves. Nought
+#: rather than one, because no version was written and a number that named a
+#: version nobody could roll back to would be a lie a console renders.
+ADDRESS_ONLY_VERSION = 0
 
 
 class SuggestionView(BaseModel):
@@ -159,6 +172,34 @@ class RequiredPermissionView(BaseModel):
     capabilities: list[str] = Field(default_factory=list)
 
 
+#: What a vendor whose traffic only leaves this deployment is called.
+DIRECTION_OUTBOUND = "outbound"
+#: Both, which is Alertmanager and Grafana: this deployment reads their API, and
+#: they post alerts to it. Two directions, two entirely different credentials —
+#: which is the fact the catalogue exists to state, because both are "a token".
+DIRECTION_BOTH = "both"
+
+
+def _direction(name: str) -> tuple[str, str]:
+    """Return how ``name``'s traffic flows, and the path it delivers to.
+
+    Derived from the webhook router's own source list rather than declared on
+    each vendor profile. A vendor package sits below the gateway and cannot see
+    the router, so a declared direction would be fifteen separate chances to say
+    something the router does not agree with — and the one that drifts is the
+    one an operator is reading while waiting for an alert that is going
+    somewhere else.
+
+    Only two answers, because a catalogued integration always has a client: the
+    contract suite refuses a package without one. "Inbound only" is a state this
+    catalogue cannot hold, and a name for it would be a word nothing ever
+    returns and a branch no test could reach.
+    """
+    if name in WEBHOOK_PROFILES:
+        return DIRECTION_BOTH, f"/webhooks/{name}"
+    return DIRECTION_OUTBOUND, ""
+
+
 class IntegrationView(BaseModel):
     name: str
     #: What a person calls this vendor — never the raw id above, outside a
@@ -180,6 +221,16 @@ class IntegrationView(BaseModel):
     health_detail: str
     parity: str
     missing_artefacts: list[str]
+    #: Which way this vendor's traffic flows: ``outbound`` when this deployment
+    #: only calls it, ``both`` when it also delivers alerts here. The one fact
+    #: that makes "which token is this" answerable on the screen that asks for
+    #: one — the credential below is always the outbound one, and a vendor that
+    #: also delivers needs a second, separately issued delivery token.
+    direction: str = DIRECTION_OUTBOUND
+    #: Where this vendor posts, when it posts. Empty for an outbound-only
+    #: vendor, and a path rather than a URL: the absolute address depends on
+    #: which name the deployment was reached at, which only the request knows.
+    intake_path: str = ""
     #: Set when the estate holds something this vendor plainly runs on. Absent
     #: otherwise, and absent is the ordinary case.
     suggested: SuggestionView | None = None
@@ -334,37 +385,40 @@ async def list_integrations(
             )
             for record in (gap.to_record() for gap in gaps())
         ],
-        integrations=[
-            IntegrationView(
-                name=entry.name,
-                display_name=entry.display_name,
-                category=entry.category.value,
-                summary=entry.summary,
-                hosts=list(entry.descriptor.rule.hosts),
-                regions=list(entry.regions),
-                capabilities=list(entry.capabilities),
-                fields=[
-                    _credential_field_view(declared) for declared in entry.descriptor.schema.fields
-                ],
-                permissions=[_required_permission_view(declared) for declared in entry.permissions],
-                health=entry.health.value,
-                health_detail=entry.health_detail,
-                parity=entry.parity.status.value,
-                missing_artefacts=[artefact.value for artefact in entry.parity.missing],
-                suggested=(
-                    SuggestionView(
-                        address=suggested[entry.name].address,
-                        from_resource=suggested[entry.name].from_resource,
-                        because=suggested[entry.name].because,
-                        resource_label=suggested[entry.name].resource_label,
-                        resource_kind=suggested[entry.name].resource_kind,
-                    )
-                    if entry.name in suggested
-                    else None
-                ),
+        integrations=[_integration_view(entry, suggested.get(entry.name)) for entry in ordered],
+    )
+
+
+def _integration_view(entry: Any, suggested: Suggestion | None) -> IntegrationView:
+    """Return one catalogue entry as the view a console renders."""
+    direction, intake_path = _direction(entry.name)
+    return IntegrationView(
+        name=entry.name,
+        display_name=entry.display_name,
+        category=entry.category.value,
+        summary=entry.summary,
+        hosts=list(entry.descriptor.rule.hosts),
+        regions=list(entry.regions),
+        capabilities=list(entry.capabilities),
+        fields=[_credential_field_view(declared) for declared in entry.descriptor.schema.fields],
+        permissions=[_required_permission_view(declared) for declared in entry.permissions],
+        health=entry.health.value,
+        health_detail=entry.health_detail,
+        parity=entry.parity.status.value,
+        missing_artefacts=[artefact.value for artefact in entry.parity.missing],
+        direction=direction,
+        intake_path=intake_path,
+        suggested=(
+            None
+            if suggested is None
+            else SuggestionView(
+                address=suggested.address,
+                from_resource=suggested.from_resource,
+                because=suggested.because,
+                resource_label=suggested.resource_label,
+                resource_kind=suggested.resource_kind,
             )
-            for entry in ordered
-        ],
+        ),
     )
 
 
@@ -513,17 +567,61 @@ async def store_credential(
     values = dict(body.values)
     names = sorted(values)
 
-    vault = Vault(
-        gateway=state.gateway,
-        schemas=CredentialSchemaRegistry.from_schemas(schema_for(name)),
-    )
-    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
+    schema = schema_for(name)
+    # Two destinations, one form. The address is not a credential — it is
+    # public, it belongs in a diagnostic, and the process that has to read it is
+    # the proxy, which reads the configuration tree and cannot read the vault.
+    # Writing it into the vault would put the one fact a client needs behind the
+    # one door only the proxy may open.
+    secrets, addresses = split_by_destination(schema, values)
+
+    # Validated whole, before either half is written. The schema is what knows
+    # an address from a token, and a write that stored the secret and then
+    # refused the address would leave the deployment half-configured with a
+    # green tick on the half that landed.
     try:
-        stored = await vault.store(auth.scope, handle, values)
+        schema.validate(values)
     except CredentialSchemaViolation as violation:
         # ``CredentialSchemaViolation`` is written to name fields and never to
         # quote one, so it crosses the boundary as it stands.
         raise bad_request(str(violation)) from violation
+
+    # The vault's own view of the schema: everything but the address, because
+    # validating what the vault is asked to hold against fields that went
+    # elsewhere refuses a good write for a field that is not missing.
+    stored_schema = schema.for_vault() or schema
+    vault = Vault(
+        gateway=state.gateway,
+        schemas=CredentialSchemaRegistry.from_schemas(stored_schema),
+    )
+    handle = CredentialHandle(integration=name, team_id=_team_of(auth))
+    version = ADDRESS_ONLY_VERSION
+    if secrets:
+        try:
+            version = (await vault.store(auth.scope, handle, secrets)).version
+        except CredentialSchemaViolation as violation:
+            raise bad_request(str(violation)) from violation
+
+    for address in addresses.values():
+        # The organisation's node, not the caller's team. The binding that makes
+        # the call is organisation-wide (`compose_integration_access`), so an
+        # address written at a team node would be read by nothing and the
+        # symptom would be a form that accepted a value and changed no
+        # behaviour. Where a vendor lives is a fact about the deployment, not
+        # about who typed it.
+        await record_endpoint(
+            state.gateway,
+            scope=auth.scope,
+            node_id=auth.scope.org_id,
+            integration=name,
+            base_url=address,
+            actor_id=auth.principal_id,
+        )
+    if addresses:
+        # So the next call goes to the address just written rather than to the
+        # one it replaced. A binding refreshed at boot only would make "I fixed
+        # the typo" a fact that took a restart to become true.
+        await refresh_integration_endpoints(state, org_id=auth.scope.org_id)
 
     # The actor, the integration, the field names and the version sequence — and
     # no value. A credential replaced at 02:00 during an incident is a fact
@@ -535,7 +633,7 @@ async def store_credential(
         action=CREDENTIAL_AUDIT_ACTION_WRITE,
         resource_kind=_CREDENTIAL_RESOURCE_KIND,
         resource_id=name,
-        detail={"integration": name, "fields": names, "version": stored.version},
+        detail={"integration": name, "fields": names, "version": version},
     )
     # The field names, never their values. This is the line that gets pasted
     # into a support thread.
@@ -551,11 +649,21 @@ async def store_credential(
     health = CredentialHealth(vault=vault)
     report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
+    # Named for what it is rather than `state`, which on this route is the
+    # deployment's own.
+    credential_state = entry.state
+    if credential_state is CredentialHealthState.MISSING and not stored_schema.required_names:
+        # The vault answers "is a credential present", and for a vendor that
+        # needs none the honest answer to that question is "no" — and the wrong
+        # answer to the one being asked. An operator who has just pointed this
+        # deployment at their own Alertmanager is reading the sentence under the
+        # button they pressed, and `missing` is not what happened.
+        credential_state = CredentialHealthState.CONFIGURED
     return CredentialWriteView(
         integration=name,
-        state=entry.state.value,
-        usable=entry.state.usable,
-        version=stored.version,
+        state=credential_state.value,
+        usable=credential_state.usable,
+        version=version,
         fields=names,
     )
 

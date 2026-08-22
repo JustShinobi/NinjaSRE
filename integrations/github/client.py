@@ -24,7 +24,8 @@ from integrations._base.pagination import (
 from integrations._base.payload import records
 from integrations._base.retry import RetryPolicy
 from integrations._base.transport import ProxyTransport, RequestContext
-from integrations.github.schema import INTEGRATION, base_url
+from integrations.github.schema import INTEGRATION
+from integrations.github.schema import base_url as _region_url
 
 PING_PATH: Final = "/user"
 LIST_COMMITS_PATH: Final = "/search/commits"
@@ -74,12 +75,16 @@ class GithubClient(IntegrationClient):
         transport: ProxyTransport,
         context: RequestContext,
         region: str = "",
+        base_url: str = "",
         retry: RetryPolicy | None = None,
     ) -> None:
+        # An Enterprise Server address wins over the region, which for the
+        # enterprise region is a placeholder: nobody packaging this knows where
+        # your Enterprise Server is.
         super().__init__(
             transport=transport,
             context=context,
-            base_url=base_url(region),
+            base_url=base_url or _region_url(region),
             retry=retry,
         )
 

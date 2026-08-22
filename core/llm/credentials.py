@@ -205,6 +205,33 @@ class StaticCredentialResolver:
         return ProviderCredentials(provider_id, self._credentials.get(provider_id, {}))
 
 
+class ResolvedCredentialResolver:
+    """Serves one provider's already-resolved credentials, and nothing else.
+
+    The port is synchronous and vault resolution is not, so a caller that has
+    already awaited a lease holds a :class:`ProviderCredentials` rather than
+    something ``preflight`` accepts. This is the adapter between the two, and it
+    holds the resolved object rather than its values — there is no code path
+    here that reads one, which is what keeps a credential from being copied out
+    of the type built to not print it.
+
+    Another provider resolves to nothing, not to these credentials. A resolver
+    that answered every identifier with the one key it holds would let a
+    preflight for the wrong provider report a credential it does not have.
+    """
+
+    __slots__ = ("_credentials",)
+
+    def __init__(self, credentials: ProviderCredentials) -> None:
+        self._credentials = credentials
+
+    def resolve(self, provider_id: str) -> ProviderCredentials:
+        """Return the held credentials when they are this provider's, else nothing."""
+        if provider_id != self._credentials.provider_id:
+            return ProviderCredentials(provider_id, {})
+        return self._credentials
+
+
 def credential_names_for(provider_id: str) -> tuple[str, ...]:
     """Return the credential names a provider can be configured with."""
     return tuple(sorted(_ENVIRONMENT_SOURCES.get(provider_id, {})))
@@ -225,6 +252,7 @@ __all__ = [
     "EnvironmentCredentialResolver",
     "MissingCredentialError",
     "ProviderCredentials",
+    "ResolvedCredentialResolver",
     "StaticCredentialResolver",
     "credential_names_for",
     "environment_variables_for",

@@ -50,12 +50,21 @@ async def operator_token(deployment: Deployment) -> str:
 #: every test here silently exercise a refusal.
 _FIELDS = {"prometheus": "token", "google_gemini": "api_key"}
 
+#: Where each self-hosted thing under test is, for the schemas that ask. Spelled
+#: out for the same reason the field names above are: a vendor that gains an
+#: address field should break this file rather than quietly start refusing every
+#: write it makes.
+_ADDRESSES = {"prometheus": "https://prometheus.example.invalid"}
+
 
 async def _store_credential(client: AsyncClient, token: str, *, integration: str) -> None:
     """Put a credential in the vault through the real route."""
+    values = {_FIELDS[integration]: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}
+    if integration in _ADDRESSES:
+        values["endpoint"] = _ADDRESSES[integration]
     response = await client.put(
         f"/v1/integrations/{integration}/credential",
-        json={"values": {_FIELDS[integration]: "0f1e2d3c4b5a69788796a5b4c3d2e1f0"}},
+        json={"values": values},
         headers=_headers(token),
     )
     assert response.status_code == 200, response.text

@@ -10,7 +10,7 @@ What Prometheus Alertmanager is currently holding: which alerts are firing, how 
 
 - **Category:** incident
 - **Regions:** self-hosted
-- **Credentials:** token
+- **Credentials:** endpoint
 - **SDK strategy:** `direct_client`
 - **Parity:** complete
 - **Health:** unknown

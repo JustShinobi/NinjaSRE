@@ -145,10 +145,25 @@ def test_no_module_reads_the_process_environment(source: Path) -> None:
 
 
 def test_the_write_client_has_no_way_to_be_given_a_credential() -> None:
-    """Structural. There is no parameter to pass one to and no attribute to hold it."""
+    """Structural. There is no parameter to pass one to and no attribute to hold it.
+
+    ``base_url`` is where the cluster is, not how to authenticate to it: an
+    address is public configuration, it is what an operator types into the
+    catalogue, and the proxy still decides whether the host it names may be
+    reached. Pinning the whole set rather than only the absences is what makes a
+    parameter added later a decision somebody takes deliberately.
+    """
     parameters = set(inspect.signature(writes.ProxmoxWriteClient.__init__).parameters)
 
-    assert parameters == {"self", "transport", "context", "endpoints", "trust", "retry"}
+    assert parameters == {
+        "self",
+        "transport",
+        "context",
+        "endpoints",
+        "trust",
+        "base_url",
+        "retry",
+    }
 
 
 @pytest.mark.parametrize(

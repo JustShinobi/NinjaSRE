@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, public, secret
+from integrations._base.schema import credential_schema, endpoint, public, secret
 from platform.credentials.proxy.injection import BasicAuthInjection, InjectionRule
 
 INTEGRATION: Final = "openobserve"
@@ -29,9 +29,21 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("username", "OpenObserve user email", min_length=8),
-    secret("password", "That user's password or token", min_length=8),
-    public("organisation", "OpenObserve organisation", required=True),
+    endpoint(
+        "endpoint",
+        "Where your OpenObserve answers, scheme and port included — "
+        "http://openobserve.example.com:5080.",
+        label="OpenObserve address",
+    ),
+    secret("username", "OpenObserve user email", min_length=8, label="Email"),
+    secret(
+        "password",
+        "That user's password or token",
+        min_length=8,
+        label="Password or token",
+        min_scope="streams:read",
+    ),
+    public("organisation", "OpenObserve organisation", required=True, label="Organisation"),
 )
 
 RULE: Final = InjectionRule(

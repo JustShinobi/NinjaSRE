@@ -309,6 +309,11 @@ def synthesise_credential(schema: Any) -> dict[str, str]:
                     f"{schema.integration}.{declared.name}: the generated value does not "
                     f"satisfy this field's declared format"
                 )
+        elif declared.is_endpoint:
+            # An address, generated from the vendor's own placeholder host so a
+            # scenario reaches the same allow-listed name the shipped rule
+            # permits. It goes to configuration rather than to the vault.
+            value = f"https://{schema.integration}.example.com"
         elif declared.name in _KNOWN_PUBLIC_VALUES:
             value = _KNOWN_PUBLIC_VALUES[declared.name]
         else:
@@ -370,15 +375,22 @@ async def stand_up(
         await system.orgs.create_organisation(org_id, org_id.title())
 
     scope = TenantScope(org_id=org_id, team_node_id=team_id)
-    schemas = CredentialSchemaRegistry.from_schemas(*(found.schema for found in descriptors))
+    # The vault's view of each schema: an address is configuration, stored in
+    # the configuration tree, and the vault never declares it.
+    schemas = CredentialSchemaRegistry.from_schemas(
+        *(stored for found in descriptors if (stored := found.schema.for_vault()) is not None)
+    )
     vault = Vault(gateway=gateway, schemas=schemas)
 
     credentials: dict[str, dict[str, str]] = {}
     for descriptor in descriptors:
         values = synthesise_credential(descriptor.schema)
         credentials[descriptor.name] = values
+        addresses = set(descriptor.schema.endpoint_names)
         await vault.store(
-            scope, CredentialHandle(integration=descriptor.name, team_id=team_id), values
+            scope,
+            CredentialHandle(integration=descriptor.name, team_id=team_id),
+            {name: value for name, value in values.items() if name not in addresses},
         )
 
     boundary = MockVendorBoundary(

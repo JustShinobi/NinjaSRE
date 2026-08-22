@@ -11,10 +11,11 @@ import { may } from '@/session/viewer';
 import { checklistTitle } from './first-run-heading';
 import { credentialLabels, panelLabels, verifyLabels } from '../labels';
 import { Panel } from '../panel';
-import { CredentialField, type CredentialFieldSpec } from '../credential';
+import type { CredentialFieldSpec } from '../credential';
 import { EstateStep } from '../first-run/estate';
 import { IntegrationsStep, type IntegrationOffer } from '../first-run/integrations';
-import { ModelStep } from '../first-run/model';
+import { ModelStep, type ModelStepLabels } from '../first-run/model';
+import { ProviderCredentialStep } from '../first-run/provider-credential';
 import {
   INVESTIGATION_STEP,
   MODEL_PROVIDER_SETTING,
@@ -229,6 +230,29 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
             }),
           ),
         );
+
+  // One set of words for the model chooser, wherever it is drawn. It appears
+  // twice now — inside the credential step, against what the provider's own
+  // endpoint answered, and on the model step for somebody who came back to it
+  // later — and two copies of these labels would be two places to fix a typo.
+  const modelLabels: ModelStepLabels = {
+    known: message(locale, 'firstRun.model.known'),
+    free: message(locale, 'firstRun.model.free'),
+    preview: message(locale, 'firstRun.model.preview'),
+    previewing: message(locale, 'firstRun.model.previewing'),
+    save: message(locale, 'firstRun.model.save'),
+    saving: message(locale, 'firstRun.model.saving'),
+    wouldChange: message(locale, 'firstRun.model.wouldChange'),
+    nothingWouldChange: message(locale, 'firstRun.model.nothingWouldChange'),
+    saved: message(locale, 'firstRun.model.saved'),
+    refused: message(locale, 'firstRun.refused'),
+    unreachable: message(locale, 'firstRun.unreachable'),
+    needsPreview: message(locale, 'firstRun.model.needsPreview'),
+    fieldLabels: {
+      [MODEL_PROVIDER_SETTING]: message(locale, 'firstRun.model.field.provider'),
+      [MODEL_SETTING]: message(locale, 'firstRun.model.field.model'),
+    },
+  };
 
   const declared = new Map(
     list(dataOf(schemas), 'schemas').map((schema) => [text(schema, 'name'), schema]),
@@ -601,11 +625,21 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                     >
                       {text(detail, 'guidance')}
                     </p>
-                    <CredentialField
-                      integration={chosen}
+                    <ProviderCredentialStep
+                      provider={chosen}
                       fields={fieldsOf(detail, 'fields')}
                       whereToGetIt={text(detail, 'where_to_get_it')}
-                      labels={credentialLabels(locale)}
+                      staticModels={list(detail, 'models').map(String)}
+                      defaultModel={text(detail, 'default_model')}
+                      nodeId={node}
+                      labels={{
+                        credential: credentialLabels(locale),
+                        model: modelLabels,
+                        checking: message(locale, 'firstRun.credential.checking'),
+                        accepted: message(locale, 'firstRun.credential.accepted'),
+                        notListed: message(locale, 'firstRun.credential.notListed'),
+                        chooseModel: message(locale, 'firstRun.credential.chooseModel'),
+                      }}
                     />
                   </>
                 )
@@ -625,30 +659,7 @@ export async function FirstRunScreen(context: SurfaceContext): Promise<ReactNode
                     models={list(detail, 'models').map(String)}
                     defaultModel={text(detail, 'default_model')}
                     nodeId={node}
-                    labels={{
-                      known: message(locale, 'firstRun.model.known'),
-                      free: message(locale, 'firstRun.model.free'),
-                      preview: message(locale, 'firstRun.model.preview'),
-                      previewing: message(locale, 'firstRun.model.previewing'),
-                      save: message(locale, 'firstRun.model.save'),
-                      saving: message(locale, 'firstRun.model.saving'),
-                      wouldChange: message(locale, 'firstRun.model.wouldChange'),
-                      nothingWouldChange: message(
-                        locale,
-                        'firstRun.model.nothingWouldChange',
-                      ),
-                      saved: message(locale, 'firstRun.model.saved'),
-                      refused: message(locale, 'firstRun.refused'),
-                      unreachable: message(locale, 'firstRun.unreachable'),
-                      needsPreview: message(locale, 'firstRun.model.needsPreview'),
-                      fieldLabels: {
-                        [MODEL_PROVIDER_SETTING]: message(
-                          locale,
-                          'firstRun.model.field.provider',
-                        ),
-                        [MODEL_SETTING]: message(locale, 'firstRun.model.field.model'),
-                      },
-                    }}
+                    labels={modelLabels}
                   />
                 )
               ) : null}

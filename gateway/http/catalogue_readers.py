@@ -95,13 +95,25 @@ class InstalledIntegrations:
             name: IntegrationSchema(
                 name=name,
                 display_name=name,
+                # What the form asks for: the secrets, and the address, which
+                # is not a secret and is asked for on the same screen because
+                # neither works without the other. The write route splits them
+                # again by kind — the secret to the vault, the address to the
+                # configuration tree — so one form stays one request.
+                #
+                # ``settings_fields`` is the rest, and nothing renders it
+                # today. Putting the address there would have reproduced, one
+                # screen over, the failure the address field exists to fix: a
+                # form an operator completes without connecting anything.
                 credential_fields=tuple(
-                    _credential_field(each) for each in descriptor.schema.fields if each.is_secret
+                    _credential_field(each)
+                    for each in descriptor.schema.fields
+                    if each.is_secret or each.is_endpoint
                 ),
                 settings_fields=tuple(
                     _credential_field(each)
                     for each in descriptor.schema.fields
-                    if not each.is_secret
+                    if not (each.is_secret or each.is_endpoint)
                 ),
                 hosts=tuple(descriptor.rule.hosts),
             )

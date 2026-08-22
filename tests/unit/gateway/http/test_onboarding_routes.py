@@ -880,3 +880,58 @@ def test_credential_write_is_distinct_from_config_write() -> None:
     assert Permission.CREDENTIAL_WRITE is not Permission.CONFIG_WRITE
     assert Permission.CREDENTIAL_WRITE in permissions_for(Role.OWNER)
     assert Permission.CREDENTIAL_WRITE not in permissions_for(Role.RESPONDER)
+
+
+async def test_verifying_uses_the_key_in_the_vault_rather_than_the_environment(
+    client: AsyncClient, operator_token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stored key is the one the check is made with.
+
+    The route resolves the vault before it verifies, and the default
+    composition — no ``model_verifier`` on the state, which is what every
+    deployment that has not wired one runs — has to carry that resolution into
+    the preflight. Carrying it as far as the model listing and no further is
+    the shape of the bug this pins: an operator pastes a key into the first-run
+    screen, presses verify, and is told the credential is missing and to set an
+    environment variable, because the preflight went and read the process
+    environment instead of the vault it was just written to.
+    """
+    import core.llm.verification as verification
+    from core.llm.credentials import CredentialResolver
+    from core.llm.preflight import CheckResult, CheckStatus, PreflightReport
+
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+    stored = await client.put(
+        "/v1/integrations/google_gemini/credential",
+        headers=_headers(operator_token),
+        json={"values": {"api_key": SENTINEL_API_KEY}},
+    )
+    assert stored.status_code == 200
+
+    seen: list[CredentialResolver | None] = []
+
+    async def _capture(**binding: object) -> PreflightReport:
+        resolver = binding.get("credentials")
+        assert resolver is None or isinstance(resolver, CredentialResolver)
+        seen.append(resolver)
+        return PreflightReport(
+            provider_id="google_gemini",
+            model_id="gemini-pro-latest",
+            transport="sdk",
+            checks=(CheckResult("credentials", CheckStatus.PASSED, "present: api_key", 1.0),),
+        )
+
+    monkeypatch.setattr(verification, "preflight", _capture)
+
+    response = await client.post(
+        "/v1/providers/google_gemini/verify", headers=_headers(operator_token)
+    )
+
+    assert response.status_code == 200
+    assert len(seen) == 1
+    resolver = seen[0]
+    assert resolver is not None, (
+        "the preflight was handed no resolver, so it fell back to the environment"
+    )
+    assert resolver.resolve("google_gemini").has("api_key")

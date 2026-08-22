@@ -89,6 +89,41 @@ def public(
     )
 
 
+def endpoint(
+    name: str,
+    description: str,
+    *,
+    required: bool = True,
+    label: str = "",
+    guide_url: str = "",
+) -> CredentialField:
+    """Return the field naming where a self-hosted vendor actually answers.
+
+    Every self-hosted integration needs one and none of them declared one, which
+    is why an operator could fill a form in completely and still have the client
+    address ``vendor.example.com`` — the placeholder its package was written
+    with, because nobody packaging an integration knows where your cluster is.
+
+    Not a secret and not ordinary public configuration. It is neither part of
+    the credential nor stored with it: the value goes to the configuration tree,
+    where the proxy already reads its egress allow-list from, so declaring the
+    address and permitting the address stay one act. ``FieldKind.ENDPOINT`` is
+    what tells the write route which half of a submitted form this is.
+
+    Required by default, because an integration nobody can point anywhere is one
+    that cannot work. Optional for the vendors that have a real public API and
+    only *may* be self-hosted.
+    """
+    return CredentialField(
+        name=name,
+        description=description,
+        required=required,
+        kind=FieldKind.ENDPOINT,
+        label=label,
+        guide_url=guide_url,
+    )
+
+
 def credential_schema(integration: str, *fields: CredentialField) -> CredentialSchema:
     """Return the schema for ``integration``, built from ``fields``."""
     return CredentialSchema(integration=integration, fields=tuple(fields))
@@ -225,6 +260,7 @@ __all__ = [
     "basic_auth_schema",
     "bearer_token_schema",
     "credential_schema",
+    "endpoint",
     "key_pair_schema",
     "public",
     "secret",

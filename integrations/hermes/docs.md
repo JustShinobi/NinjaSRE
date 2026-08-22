@@ -6,8 +6,13 @@ Hermes log tailing and classification: what a stream is currently emitting, grou
 
 | Field | Where it comes from | Secret | Required |
 |---|---|---|---|
+| `endpoint` | Where your Hermes answers, scheme and port included | no | yes |
 | `api_key` | Hermes access token for the workspace holding this stream | yes | yes |
 | `stream` | Default stream to read | no | no |
+
+The endpoint goes to the configuration tree rather than the vault — it is not
+part of the credential, and it is where the credential proxy reads its egress
+allow-list from, so declaring the address and permitting it stay one act.
 
 ```bash
 ninjasre integrations setup hermes

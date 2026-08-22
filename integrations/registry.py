@@ -94,9 +94,19 @@ def credential_schemas() -> CredentialSchemaRegistry:
     This is what composition hands the vault, and it is why ``platform/`` never
     imports ``integrations/``: the tier below is given the declarations rather
     than going to look for them.
+
+    **The vault's view, not the form's.** An address field is declared on the
+    same schema as the credential, because an operator fills both in on one
+    screen — but it is stored in the configuration tree, not here. Handing the
+    vault the whole declaration would make it refuse a perfectly good write for
+    the absence of a field that went somewhere else. A surface rendering the
+    form wants the whole schema and reads it from the descriptor.
     """
     registry = CredentialSchemaRegistry()
-    registry.register_all(descriptor.schema for descriptor in discover().values())
+    for descriptor in discover().values():
+        stored = descriptor.schema.for_vault()
+        if stored is not None:
+            registry.register(stored)
     return registry
 
 

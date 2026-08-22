@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, public, secret
+from integrations._base.schema import credential_schema, endpoint, public, secret
 from platform.credentials.proxy.injection import HeaderInjection, InjectionRule
 
 INTEGRATION: Final = "github"
@@ -35,12 +35,29 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
+    endpoint(
+        "endpoint",
+        "Only for GitHub Enterprise Server — https://github.acme.example/api/v3. "
+        "Leave empty for github.com.",
+        required=False,
+        label="Enterprise Server address",
+    ),
     secret(
         "token",
         "GitHub token — a fine-grained personal access token or an app installation token",
         min_length=8,
+        label="Personal access token",
+        min_scope="Repository permissions: Contents (read-only) and Pull requests (read-only)",
+        guide_url=(
+            "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/"
+            "managing-your-personal-access-tokens"
+        ),
     ),
-    public("owner", "Default organisation or user the repositories belong to"),
+    public(
+        "owner",
+        "Default organisation or user the repositories belong to",
+        label="Default owner",
+    ),
 )
 
 RULE: Final = InjectionRule(

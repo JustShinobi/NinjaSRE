@@ -101,6 +101,16 @@ const CONFIG_WRITE = 'config.write';
 /** The one field this section owns: the configured-vendor list, as the schema declares it. */
 const INTEGRATIONS_ADVANCED_PREFIX = 'integrations.';
 
+/**
+ * Where an operator finishes an integration that also delivers here.
+ *
+ * That screen has linked to this one since it was written; this is the return
+ * leg. Without it an operator who stores an Alertmanager credential is told the
+ * credential is stored and nothing else, and the step that actually makes an
+ * alert arrive happens on a screen they were never sent to.
+ */
+const ALERT_INTAKE_HREF = '/settings/alert-intake';
+
 interface CatalogueItem {
   readonly name: string;
   readonly displayName: string;
@@ -111,6 +121,10 @@ interface CatalogueItem {
   readonly fields: readonly CredentialFieldSpec[];
   readonly capabilities: readonly string[];
   readonly permissions: readonly PermissionSpec[];
+  /** `outbound` or `both` — which way this vendor's traffic flows. */
+  readonly direction: string;
+  /** Where it posts, when it posts. Empty for an outbound-only vendor. */
+  readonly intakePath: string;
   readonly suggested?: {
     readonly address: string;
     readonly fromResource: string;
@@ -203,6 +217,8 @@ function itemOf(record: unknown): CatalogueItem {
     fields: fieldsOf(record),
     capabilities: strings(record, 'capabilities'),
     permissions: permissionsOf(record),
+    direction: text(record, 'direction'),
+    intakePath: text(record, 'intake_path'),
     ...(suggested === undefined ? {} : { suggested }),
   };
 }
@@ -478,10 +494,13 @@ export async function IntegrationsScreen(
                   // anything the estate has not found, which renders no
                   // placeholder at all rather than an invented one.
                   discoveredAddress: panelItem.suggested?.address ?? '',
+                  direction: panelItem.direction,
+                  intakePath: panelItem.intakePath,
                 }
           }
           closeHref={closeHref}
           notCoveredHref={notCoveredHref}
+          intakeHref={ALERT_INTAKE_HREF}
           writable={writable}
           labels={{
             close: message(locale, 'catalogue.integrations.panel.close'),
@@ -524,6 +543,17 @@ export async function IntegrationsScreen(
               locale,
               'catalogue.integrations.panel.disconnect.consequence',
             ),
+            directionOutbound: message(
+              locale,
+              'catalogue.integrations.panel.direction.outbound',
+            ),
+            directionBoth: message(
+              locale,
+              'catalogue.integrations.panel.direction.both',
+            ),
+            intakeTitle: message(locale, 'ingress.title'),
+            intakeBody: message(locale, 'ingress.body'),
+            intakeAction: message(locale, 'catalogue.integrations.panel.intake.action'),
           }}
         />
       )}

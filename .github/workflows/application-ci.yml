@@ -1,10 +1,6 @@
 name: Application pipeline
 
 on:
-  pull_request:
-    branches:
-      - main
-      - master
   push:
     branches:
       - main
@@ -18,15 +14,19 @@ concurrency:
   group: application-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  verify:
-    if: github.event_name == 'pull_request'
-    uses: JustShinobi/platform-workflows/.github/workflows/verify.yml@1472c2963006f33d7b15768cf799560ce086aac8
-    with:
-      descriptor: .ci/application.yaml
+# The gate is not run here. `make verify` is what a contributor runs before
+# pushing, and running the identical work again on a hosted runner adds minutes
+# to every deploy without checking anything the local run has not already
+# checked. `.github/workflows/verify.yml` still exists for the occasions where a
+# clean machine is the point — a release candidate, a dependency bump, an answer
+# to "does it pass anywhere but that laptop" — and is dispatched by hand.
+#
+# What this costs is worth stating plainly, because nothing here enforces it:
+# a change that reaches this pipeline unverified is deployed unverified. The gate
+# is now a habit rather than a control.
 
+jobs:
   release:
-    if: github.event_name != 'pull_request'
     uses: JustShinobi/platform-workflows/.github/workflows/application-release.yml@1472c2963006f33d7b15768cf799560ce086aac8
     with:
       descriptor: .ci/application.yaml

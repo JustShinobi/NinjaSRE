@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Final
 
 from integrations._base.regions import Region, RegionMap
-from integrations._base.schema import credential_schema, secret
+from integrations._base.schema import credential_schema, endpoint, secret
 from platform.credentials.proxy.injection import BearerTokenInjection, InjectionRule
 
 INTEGRATION: Final = "argocd"
@@ -29,7 +29,20 @@ HOSTS: Final[tuple[str, ...]] = REGIONS.hosts()
 
 SCHEMA: Final = credential_schema(
     INTEGRATION,
-    secret("token", "Argo CD API token for a project-scoped account", min_length=8),
+    endpoint(
+        "endpoint",
+        "Where your Argo CD API answers — https://argocd.example.com. The same "
+        "address the web UI is served at; the API lives under /api/v1 on it.",
+        label="Argo CD address",
+    ),
+    secret(
+        "token",
+        "Argo CD API token for a project-scoped account",
+        min_length=8,
+        label="API token",
+        min_scope="RBAC access granting `applications, get` and `account, get`",
+        guide_url="https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/",
+    ),
 )
 
 RULE: Final = InjectionRule(
