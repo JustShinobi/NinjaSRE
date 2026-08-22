@@ -165,7 +165,7 @@ class Deployment:
     store: PostgresPersistence
 
 
-def _investigator_of(source: Mapping[str, str]) -> InvestigationRunner:
+def investigator_of(source: Mapping[str, str]) -> InvestigationRunner:
     """Return the runner this deployment's configuration names, or the stand-in.
 
     A reference that is set but will not load does not stop the process from
@@ -207,7 +207,7 @@ def build_deployment(environ: Mapping[str, str] | None = None) -> Deployment:
 
     store = PostgresPersistence.from_url(source[NINJASRE_DATABASE_URL_ENV])
 
-    investigator: InvestigationRunner = _investigator_of(source)
+    investigator: InvestigationRunner = investigator_of(source)
 
     # Without a recorder, `TokenService._audit` is a no-op — every issuance,
     # revocation and rejection stays out of the audit trail regardless of what
