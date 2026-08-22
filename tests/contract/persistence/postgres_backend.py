@@ -215,6 +215,25 @@ def dump_and_restore_available() -> bool:
     return _docker("inspect", CONTAINER_NAME, check=False).returncode == 0
 
 
+def _libpq_url(url: str) -> str:
+    """Return ``url`` with any SQLAlchemy driver removed from its scheme.
+
+    ``pg_dump`` and ``psql`` are libpq programs, and libpq recognises a URI
+    only when the scheme is ``postgres`` or ``postgresql``. Given SQLAlchemy's
+    ``postgresql+asyncpg://…`` it does not complain: it takes the whole string
+    for a database name and connects to the default unix socket, which fails
+    somewhere that says nothing about a URL.
+
+    Only the scheme is touched. A password or a database name may contain a
+    plus, and rewriting one of those would be a different bug with the same
+    shape.
+    """
+    scheme, separator, rest = url.partition("://")
+    if not separator:
+        return url
+    return f"{scheme.partition('+')[0]}{separator}{rest}"
+
+
 def _run_client(tool: str, url: str, *arguments: str, stdin: str | None = None) -> str:
     """Run a PostgreSQL client program, on the host or inside our container.
 
@@ -225,7 +244,7 @@ def _run_client(tool: str, url: str, *arguments: str, stdin: str | None = None) 
     """
     if shutil.which(tool):
         result = subprocess.run(
-            [tool, url, *arguments],
+            [tool, _libpq_url(url), *arguments],
             capture_output=True,
             text=True,
             input=stdin,
