@@ -15,6 +15,7 @@ file and would let a prompt-injected URL make the vault do work.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -454,3 +455,59 @@ async def test_a_credential_well_inside_its_expiry_is_used_unchanged() -> None:
 
     assert harness.refresher.calls == 0
     assert harness.sender.keys_seen() == (FIRST_KEY,)
+
+
+# --- The scheme rule is about the credential, not about the scheme -------------
+
+
+def _make_credential_optional(harness: Harness) -> None:
+    """Re-register this integration's rule as one that may go out bare.
+
+    Which is what a self-hosted vendor with no authentication of its own
+    declares — Alertmanager, Prometheus, a single-tenant Loki.
+    """
+    declared = harness.engine.rules.get(INTEGRATION)
+    harness.engine.rules.register(replace(declared, credential_optional=True))
+
+
+async def test_a_bare_call_over_plain_http_is_permitted(harness: Harness) -> None:
+    """Nothing is injected, so nothing crosses the wire in clear.
+
+    A self-hosted Alertmanager or Prometheus ships no authentication and sits on
+    a private address. Refusing those was refusing a whole class of deployment
+    over a risk it does not carry — and it was the reason an operator could
+    configure one completely and still have every call refused.
+    """
+    _make_credential_optional(harness)
+
+    response = await harness.engine.forward(request(url=f"http://{HOST}/v1/logs"))
+
+    assert response.status_code == 200
+
+
+async def test_a_credential_still_never_crosses_plain_http(harness: Harness) -> None:
+    """The invariant that mattered, stated in terms of what it protects."""
+    _make_credential_optional(harness)
+    await harness.vault.store(harness.scope(), harness.handle(), {"api_key": FIRST_KEY})
+
+    with pytest.raises(EgressDenied):
+        await harness.engine.forward(request(url=f"http://{HOST}/v1/logs"))
+
+
+async def test_a_scheme_the_proxy_cannot_forward_is_refused_whatever_it_carries(
+    harness: Harness,
+) -> None:
+    _make_credential_optional(harness)
+
+    with pytest.raises(EgressDenied):
+        await harness.engine.forward(request(url=f"ftp://{HOST}/v1/logs"))
+
+
+async def test_the_host_is_still_checked_before_the_vault_is_touched(
+    harness: Harness,
+) -> None:
+    """Splitting the scheme check must not have moved the host check after it."""
+    _make_credential_optional(harness)
+
+    with pytest.raises(EgressDenied):
+        await harness.engine.forward(request(url="http://somewhere.else.invalid/v1/logs"))

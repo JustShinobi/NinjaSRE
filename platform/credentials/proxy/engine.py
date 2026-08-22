@@ -195,6 +195,11 @@ class ProxyEngine:
         handle = CredentialHandle(integration=request.integration, team_id=request.team_id)
         credential = await self._resolve(request, rule, handle)
         if credential is not None:
+            # Now that it is known something will be injected, the connection has
+            # to be one it is safe to inject over. A request going out bare —
+            # a self-hosted vendor with no authentication of its own — reaches
+            # this line with nothing to protect and is not held to it.
+            egress.refuse_credential_in_clear(rule, request.url)
             record = replace(record, handle=credential.handle.qualified, version=credential.version)
 
             now = self._clock()

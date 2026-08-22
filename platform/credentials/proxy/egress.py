@@ -10,9 +10,17 @@ leaks nothing. That matters more than it looks: the realistic way a request
 acquires a hostile URL is a prompt-injected log line the agent read, and the
 last thing that path should be able to do is make the proxy fetch a secret.
 
-Scheme is checked too. A vendor that is reachable over plain HTTP is a vendor
-whose credential is on the wire in clear, and there is no operator toggle for
-that — an integration that genuinely needs it is a different integration.
+Scheme is checked too, and the rule is about the credential rather than about
+the scheme. A vendor reached over plain HTTP while a credential is injected is a
+credential on the wire in clear, and there is no operator toggle for that. A
+vendor reached over plain HTTP with **nothing** injected puts nothing in the
+clear — and that is the ordinary shape of a self-hosted Alertmanager or
+Prometheus, which ship no authentication at all and sit on a private address.
+Refusing those was refusing a class of deployment over a risk it did not carry.
+
+So the check is split. The host is checked here, before the vault; the
+confidentiality check happens once it is known whether a credential resolved,
+which is the fact it actually depends on.
 """
 
 from __future__ import annotations
@@ -23,8 +31,13 @@ from urllib.parse import urlsplit
 from platform.credentials.proxy.errors import EgressDenied, MalformedProxyRequest
 from platform.credentials.proxy.injection import InjectionRule
 
-#: The only scheme a proxied request may use. Deliberately not configurable.
+#: The scheme a proxied request carrying a credential may use. Deliberately not
+#: configurable: an operator toggle here is a toggle for putting a key in clear.
 PERMITTED_SCHEME: Final = "https"
+
+#: Every scheme the proxy will forward at all. Anything else is not a request
+#: this component knows how to make, whatever it carries.
+FORWARDABLE_SCHEMES: Final[frozenset[str]] = frozenset({"http", "https"})
 
 #: Loopback is the exception, and only for a test double or a local emulator
 #: standing in for a vendor. It is spelled out rather than pattern-matched so
@@ -56,20 +69,44 @@ def enforce(rule: InjectionRule, url: str) -> str:
     Returns the host rather than nothing so the caller does not parse the URL a
     second time — and so the audit line records the host that was actually
     checked rather than one re-derived later.
+
+    Says nothing about whether the scheme is safe for what this request will
+    carry. That is ``refuse_credential_in_clear`` below, and it runs later
+    because it depends on whether a credential resolved.
     """
     split = urlsplit(url)
     host = host_of(url)
 
-    if split.scheme != PERMITTED_SCHEME and host not in LOOPBACK_HOSTS:
+    if split.scheme not in FORWARDABLE_SCHEMES:
         raise EgressDenied(rule.integration, host=f"{split.scheme}://{host}", allowed=rule.hosts)
     if not rule.permits(host):
         raise EgressDenied(rule.integration, host=host, allowed=rule.hosts)
     return host
 
 
+def refuse_credential_in_clear(rule: InjectionRule, url: str) -> None:
+    """Raise ``EgressDenied`` if a credential would go out over plain HTTP.
+
+    Called only where a credential actually resolved. The question this answers
+    is not "is the scheme https" but "is a secret about to cross an unencrypted
+    connection", and those differ exactly where it matters: an integration whose
+    rule is optional and whose operator configured no credential sends nothing
+    worth protecting, over any scheme.
+
+    Loopback is the same exception it has always been, and for the same reason:
+    a test double or a local emulator standing in for a vendor.
+    """
+    split = urlsplit(url)
+    host = host_of(url)
+    if split.scheme != PERMITTED_SCHEME and host not in LOOPBACK_HOSTS:
+        raise EgressDenied(rule.integration, host=f"{split.scheme}://{host}", allowed=rule.hosts)
+
+
 __all__ = [
+    "FORWARDABLE_SCHEMES",
     "LOOPBACK_HOSTS",
     "PERMITTED_SCHEME",
     "enforce",
     "host_of",
+    "refuse_credential_in_clear",
 ]
