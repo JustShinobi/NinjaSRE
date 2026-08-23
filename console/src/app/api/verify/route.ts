@@ -24,13 +24,16 @@ const TARGETS = {
 } as const;
 
 /**
- * The vendor's own answer, for an integration whose credential already works.
+ * The vendor's own answer, which for an integration is the answer that counts.
  *
- * A second call, and only where it can tell somebody something. The route above
- * reads what this deployment stored; this one makes live vendor calls, so it is
- * skipped for a provider (which has no such route) and for a credential that is
- * not usable — there is nothing to learn from asking a store to prove it holds
- * data with a key it will reject.
+ * A second call, made for every integration this deployment could answer for.
+ * It used to be made only where the first call had already reported a usable
+ * credential, and that gate was the defect: a self-hosted vendor that ships no
+ * authentication stores no credential, so the first answer carries no
+ * information about it at all — and the one call that could have said whether
+ * the thing works was the one being skipped.
+ *
+ * Still never made for a provider, which has no such route.
  */
 const REPORT = (name: string) =>
   `/v1/integrations/${encodeURIComponent(name)}/verify/report`;
@@ -41,18 +44,20 @@ function targetOf(value: unknown): Target | null {
   return value === 'provider' || value === 'integration' ? value : null;
 }
 
-/**
- * What the deployment measured that makes this source's answers unsafe.
- *
- * A 404 is not a failure here: the route answers it for a deployment that
- * composed no way to reach a vendor and for a vendor with nothing further to be
- * asked, and both of those are working deployments. Empty is the right answer
- * for them, and it renders as no findings rather than as a clean bill.
- */
-async function findingsFor(
+/** What the vendor itself said, as much of it as a chip and a line can carry. */
+interface VendorAnswer {
+  /** Whether the vendor answered and granted every permission that was probed. */
+  readonly ok: boolean;
+  /** The vendor's own sentence: "401 Unauthorized", "Alertmanager answered." */
+  readonly detail: string;
+  /** Measured facts that make the vendor's answers unsafe to trust whole. */
+  readonly degradations: readonly string[];
+}
+
+async function reportFor(
   name: string,
   credential: string,
-): Promise<readonly string[]> {
+): Promise<VendorAnswer | null> {
   try {
     const answer = await fetch(`${apiOrigin()}${REPORT(name)}`, {
       method: 'POST',
@@ -64,15 +69,26 @@ async function findingsFor(
       body: '{}',
       cache: 'no-store',
     });
-    if (!answer.ok) return [];
+    // A 404 is a working deployment. The route answers it for one that composed
+    // no way to reach a vendor and for a vendor with nothing further to be
+    // asked, and in both cases the credential state already fetched is the best
+    // answer there is — `null`, so the caller falls back to it rather than
+    // reading "the vendor said nothing" as "the vendor said no".
+    if (!answer.ok) return null;
     const body: unknown = await answer.json().catch(() => ({}));
-    const found: unknown = Reflect.get(
-      Object(Reflect.get(Object(body), 'report')),
-      'degradations',
-    );
-    return Array.isArray(found) ? found.filter((each) => typeof each === 'string') : [];
+    const report: unknown = Reflect.get(Object(body), 'report');
+    const connectivity: unknown = Reflect.get(Object(report), 'connectivity');
+    const said: unknown = Reflect.get(Object(connectivity), 'detail');
+    const found: unknown = Reflect.get(Object(report), 'degradations');
+    return {
+      ok: Reflect.get(Object(report), 'ok') === true,
+      detail: typeof said === 'string' ? said : '',
+      degradations: Array.isArray(found)
+        ? found.filter((each): each is string => typeof each === 'string')
+        : [],
+    };
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -134,20 +150,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const verified =
       Reflect.get(Object(verdict), 'verified') === true ||
       Reflect.get(Object(verdict), 'usable') === true;
-    const findings =
-      kind === 'integration' && answer.ok && verified
-        ? await findingsFor(name, credential)
-        : [];
+    const vendor =
+      kind === 'integration' && answer.ok ? await reportFor(name, credential) : null;
+    // The vendor's answer wins where there is one. "A credential is stored" and
+    // "the thing works" are different claims, and this is the only place the
+    // second one can be made — so a vault that is happy with a key the vendor
+    // rejects reports failing, and a vendor that answers with no credential at
+    // all reports verified.
+    const said = vendor === null ? '' : vendor.detail;
     return NextResponse.json(
       {
         ok: answer.ok,
         reachable: true,
-        verified: answer.ok && verified,
-        reason: typeof (answer.ok ? detail : problem) === 'string' ? detail : '',
+        verified: answer.ok && (vendor === null ? verified : vendor.ok),
+        degraded: vendor !== null && vendor.ok && vendor.degradations.length > 0,
+        reason:
+          said !== ''
+            ? said
+            : typeof (answer.ok ? detail : problem) === 'string'
+              ? detail
+              : '',
         remedy: typeof remedy === 'string' ? remedy : '',
         state: pick(verdict, 'state', ''),
         alternatives: pick(verdict, 'alternatives', []),
-        findings,
+        findings: vendor === null ? [] : vendor.degradations,
         checks: checksOf(verdict),
       },
       { status: answer.status },

@@ -26,7 +26,7 @@ import pytest
 from gateway.http.asgi import (
     InvestigatorNotConfigured,
     UnconfiguredInvestigator,
-    _investigator_of,
+    investigator_of,
 )
 from gateway.http.runtime import runtime_composed
 from gateway.runtime.factory import build_investigator
@@ -84,7 +84,7 @@ async def test_a_factory_that_will_not_load_answers_no_and_never_yes(
     runtime. Nothing loads, so there is none. The three surfaces read the
     composed object and say so.
     """
-    deployment.state.investigator = _investigator_of({_SETTING: "a.module.that.is.not:there"})
+    deployment.state.investigator = investigator_of({_SETTING: "a.module.that.is.not:there"})
 
     assert runtime_composed(deployment.state) is False
     assert _runtime_step(runtime_composed(deployment.state), blocked=False).done is False

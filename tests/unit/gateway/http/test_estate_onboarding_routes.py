@@ -134,7 +134,8 @@ def source() -> StubSource:
 async def wired(deployment: Deployment, source: StubSource) -> AsyncIterator[AsyncClient]:
     """A client over a deployment that has a source and a deep verifier composed."""
 
-    async def deep_verify(name: str) -> Mapping[str, Any] | None:
+    async def deep_verify(name: str, team_id: str) -> Mapping[str, Any] | None:
+        del team_id
         return PRIVILEGE_REPORT if name == INTEGRATION else None
 
     state: GatewayState = deployment.state

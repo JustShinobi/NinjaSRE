@@ -20,9 +20,21 @@ stronger one.
 from __future__ import annotations
 
 from capabilities.registry import build_registry
+from config.constants.config_service import MODEL_ROLE_INVESTIGATOR
 from core.llm.factory import get_llm
 from gateway.http.services import InvestigationRunner
 from gateway.runtime.investigator import ReActInvestigationRunner
+
+#: The role the operator's model choice is stored and published under.
+#:
+#: Spelled here rather than passed as a literal because the whole defect was one
+#: word: ``gateway/http/serve.py`` reads the configuration tree at boot and
+#: publishes the binding under this name, and this factory asked for the default
+#: role, which nothing binds. Every investigation therefore ran on whatever the
+#: deployment manifest named, and an operator who chose a provider in the
+#: console had no way to see that their choice was being read under a name
+#: nobody wrote to.
+INVESTIGATOR_ROLE = MODEL_ROLE_INVESTIGATOR
 
 
 def build_investigator() -> InvestigationRunner:
@@ -33,7 +45,7 @@ def build_investigator() -> InvestigationRunner:
     — so naming this factory costs one package walk, not one per
     investigation.
     """
-    return ReActInvestigationRunner(llm=get_llm(), registry=build_registry())
+    return ReActInvestigationRunner(llm=get_llm(INVESTIGATOR_ROLE), registry=build_registry())
 
 
-__all__ = ["build_investigator"]
+__all__ = ["INVESTIGATOR_ROLE", "build_investigator"]

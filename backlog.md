@@ -64,71 +64,29 @@ an identity provider gains no second one.
 
 ---
 
-## An integration cannot be told where it is
+## The screen has room the packages have not filled
 
-**What happens today.** The catalogue asks for a secret and never for an
-address. Every self-hosted vendor's `SCHEMA` declares credential fields only,
-and the client resolves its base URL from a `RegionMap` constant compiled into
-the package — `alertmanager.example.com`, `prometheus.example.com`,
-`grafana.example.com`. An operator whose Alertmanager answers on
-`http://10.20.20.36:9093` has nowhere to say so. The credential is stored, the
-verifier reports it stored, and every call the integration makes goes to a
-documentation placeholder.
+The larger half of this entry is done: a self-hosted vendor now declares an
+address, the write splits by field kind, the three that ship no authentication
+are `credential_optional`, the panel says which way the traffic goes, and "Test
+again" reaches the operator's own instance and reports what it said. What is
+left is the guidance around the fields.
 
-**The wire was designed and never connected.**
-`platform/config_service/schema/integrations.py` declares `base_url` on
-`IntegrationSettings`, described as "the address of your own instance, for a
-vendor you host yourself". Each self-hosted schema exposes `rule_for(*hosts)`
-and `regions_for(**endpoints)`, whose docstrings say the allow-list is a
-declaration the *operator* makes. Nothing outside `integrations/` and the test
-suite calls either, and nothing reads `base_url`. Three separate mechanisms for
-one fact, none of them reachable from a running deployment.
+`CredentialFieldView` serves `label`, `min_scope` and `guide_url`, and the
+console renders a minimum-permission hint and a step-by-step link from the last
+two. Every field now has a label. Twenty-eight of forty have no `min_scope` and
+twenty-nine no `guide_url`, so for most fields both renderings are still dead.
+`IntegrationPanel` never passes `whereToGetIt`, which the first-run screen does
+pass, so the same string is reachable on one screen and not the other. Each
+package carries a `docs.md` answering most of what an operator asks, and no
+route serves it.
 
-**The required field is the wrong one for the common case.** Alertmanager and
-Prometheus ship no authentication — both packages' own `docs.md` say so — and a
-homelab runs them bare on a private address. `secret("token", …)` is required,
-so those two cannot be connected at all. `InjectionRule.credential_optional`
-exists for exactly this ("a self-hosted vendor run with auth turned off, most
-often") and no integration sets it.
+None of this stops an integration working. All of it is the difference between
+a field somebody can fill in and a field somebody has to research.
 
-**Two different secrets share one word.** The token the catalogue stores is
-*outbound*: it authenticates NinjaSRE to the vendor. The token that makes alerts
-arrive is a delivery token, issued on the alert-intake screen, presented by the
-alert router when it posts to `/webhooks/alertmanager`. Both are called "token".
-They live on different screens, and only one of the two screens links to the
-other. An operator who stores the outbound token and waits for alerts waits
-forever, and nothing on the screen tells them why.
-
-**The screen has the room and nobody filled it.** `CredentialFieldView` already
-serves `label`, `min_scope` and `guide_url`; the console already renders a
-minimum-permission hint and a step-by-step guide link from them. All three are
-empty in all fifteen packages, so both are dead code. `IntegrationPanel` never
-passes `whereToGetIt`, so that string is unreachable too. Each package carries a
-`docs.md` answering most of what an operator asks — served by no route. The
-i18n keys written to say "point your alert router here" are referenced by no
-component.
-
-**What other applications do**, and what is worth taking from each:
-
-- **Address and credential in one form.** Grafana's data-source screen, Argo
-  CD's repository screen, and every self-hosted tool that integrates with
-  another self-hosted tool ask for the URL first and the secret second, on one
-  page, and test both together. The URL is not a secret and does not belong in a
-  vault; it does belong beside the field that cannot work without it.
-- **Naming the direction.** Sentry, PagerDuty and Grafana all distinguish "we
-  call you" from "you call us" in the setup UI itself, because the credential is
-  different in each direction and an operator who confuses them gets silence
-  rather than an error.
-- **Testing what was entered, not what was declared.** A connection test that
-  reaches the address the operator typed is the only test that answers the
-  question they are asking. Testing against a compiled-in host proves the vault
-  works.
-
-**How it should be judged.** Somebody with an Alertmanager on a private address
-and no reverse proxy in front of it can connect it from the console, without
-reading source, and see a test that actually reached it. The screen says which
-direction the traffic goes, and when the integration also receives, it says what
-to do next and links to where that is done.
+**How it should be judged.** An operator who has never seen the vendor's console
+can tell, from this screen, what to create there and what to tick — without
+opening a browser tab to find out.
 
 ---
 
@@ -158,41 +116,194 @@ work above and none of them is a copy problem.
 
 ---
 
-## "Test again" never reaches the vendor
+## A vendor with a self-signed certificate cannot be connected
 
-**What happens today.** The catalogue offers "Save and test" and "Test again",
-and neither makes a vendor call. `POST /v1/integrations/{name}/verify` answers a
-cheaper question — is a credential present, current and decryptable — and
-`POST /v1/integrations/{name}/verify/report`, the one that would reach the
-vendor, answers 404: *"no deep verifier is composed"*. `GatewayState.deep_verifier`
-defaults to `None` and nothing in any composition root sets it, so that 404 is
-every deployment's answer.
+**What happens today.** Proxmox is pointed at, its API token is stored, the
+catalogue reports it configured — and every call fails with *"Neither the
+credential proxy nor any configured Proxmox node answered"*. The reason is one
+line up from there: the proxy will not accept the certificate. Proxmox ships a
+self-signed one and generates a new one on install, which is not an unusual
+deployment. It is the default one.
 
-The machinery underneath is real and complete. Every one of the fifteen packages
-ships a verifier; `integrations/_verification/framework.py` has a runner that
-probes connectivity and then each declared permission, and reports which were
-granted; `python -m tools.verify_integrations --live` drives exactly that from
-CI. What is missing is the three lines that hand the runner the transport and
-context the gateway already holds.
+**The mechanism exists and is not wired.** `integrations/proxmox/certificates.py`
+has `CertificateTrust` with three ways to say what this deployment accepts — a
+pinned fingerprint, a supplied PEM, and an explicit `unverified(reason=…,
+accepted_by=…)` that makes accepting one a recorded decision rather than a flag.
+`integrations/proxmox/docs.md` documents all three. No schema field offers any
+of them, no configuration path carries one, and `ProxmoxClient` takes
+`DEFAULT_TRUST` because nothing ever passes anything else.
 
-**Why it is not simply those three lines.** A verifier builds its own client —
-`self._client(transport, context)` — rather than going through
-`IntegrationAccess.client(...)`, which is what applies the address an operator
-configured. Composed as it stands, "Test again" would faithfully test
-`alertmanager.example.com` and report that the placeholder is unreachable. The
-verifier protocol has to carry the address too, which is a change to
-`IntegrationVerifier.connect` and `.probe` and to fifteen implementations of
-them.
+**Why it is not one more schema field.** The client is not what opens the
+connection. Every vendor call goes through the credential proxy, and the TLS
+handshake happens on its egress side — so a trust decision expressed on the
+client reaches nothing. Whatever carries it has to reach `platform/credentials/proxy`,
+which is the one place in this codebase where a deliberate weakening of
+certificate verification would live. That makes it a change to the security
+boundary, and it deserves to be designed as one: who may accept an unverified
+certificate, whether the acceptance is per vendor or per address, and what the
+audit trail records when somebody does.
 
-**Why it matters more than it looks.** "Stored" and "works" are different facts,
-and this repository is careful about the difference everywhere else: the
-catalogue reports `unknown` rather than `healthy` for an integration nothing has
-run against, and a rotation forgets the previous verdict rather than carrying it
-forward. Then the one control that would turn `unknown` into a measurement is
-inert, so every integration an operator connects stays `unknown` for ever — and
-`unknown` is exactly what they connected it to find out.
+**How it should be judged.** An operator with an ordinary Proxmox install
+connects it, and either the deployment trusts the certificate they gave it or it
+refuses with a sentence naming the certificate — never with "no node answered",
+which sends them to check a network that is fine.
 
-**How it should be judged.** An operator presses "Test again" on an integration
-they have just pointed at their own instance, and gets back what that instance
-said: reachable or not, and which of the declared permissions the credential
-actually has. Nothing in the answer is about a placeholder host.
+---
+
+## The alert router had no way to reach this deployment, twice over
+
+**What happened.** Adding a webhook receiver to Alertmanager did not make the
+inbound loop work, and the two reasons are worth writing down because neither
+shows up as a failure anywhere an operator would look.
+
+The apply that renders the Alertmanager configuration asked Infisical for the
+NinjaSRE listener token, and that key had no arm in the mapping the fetch
+switches on — so every apply died naming a secret it had just been told to
+fetch. It is fixed, but the shape recurs: a resolver and a mapping in two places
+that have to agree, with no check that they do.
+
+Then the router could not resolve the name it was given. The container's
+configured nameserver had stopped existing; every `.lan.kyo.ninja` name returned
+nothing, and the receiver posted to a host that did not resolve. The
+receiver that has worked for years next to it uses a bare IP, which is why the
+gap was invisible.
+
+**What is still true.** The other two monitoring containers point at the same
+dead resolver. They work because everything reaches them by address. The first
+one that is given a name will fail the same way.
+
+---
+
+## Two seams the deep verify opened rather than closed
+
+**A team's credential verifies green and is invisible to an investigation.**
+The deep verify now resolves as the team of the caller, which is what makes a
+team-scoped credential test correctly. Vendor *tools* still run under the
+organisation-wide binding `compose_integration_access` sets. So an operator can
+connect an integration under their team, see it verified against the real
+vendor, and have every investigation report that same integration unavailable.
+The two should resolve the same way, and deciding which way is the work.
+
+**A credential against a plain-HTTP address is now refused, visibly.**
+`refuse_credential_in_clear` has always refused to send a credential over an
+unencrypted connection; until an operator could enter an address, nothing
+reached it. Now they can, and pointing a vendor at `http://…` with a token
+stored is met with a refusal. That is the correct behaviour and the message is
+the vendor-call one rather than a sentence about the scheme. It should say what
+happened and what to do: use the TLS address, or store no credential.
+
+---
+
+## A deployment cannot hold two service accounts
+
+Creating a second principal with no email address fails with a raw
+`asyncpg.exceptions.UniqueViolationError` on `ix_users_email`: the folded-email
+index treats two empty strings as a collision. `User` declares `email` as an
+ordinary string with no hint that empty is reserved, and the first service
+account a deployment creates takes it. Nothing in the type, the port or the
+message says so — the operator gets a Postgres constraint name.
+
+---
+
+## The Infisical operator in the cluster cannot authenticate
+
+Every `InfisicalSecret` in the cluster is failing to sync, and has been:
+
+> authentication failed for strategy [KUBERNETES_AUTH_MACHINE_IDENTITY] …
+> Failed to communicate with Kubernetes API server at
+> https://k3s-api.lan.kyo.ninja:6443: canceled
+
+Secrets already materialised survive, because the managed Kubernetes secret is
+owned rather than re-created, so nothing looks broken until something needs a
+new one or a rotated one. Not this project's defect, but it is the reason a
+credential for this deployment is written into its own vault by hand rather than
+delivered by the operator that exists for exactly that.
+
+---
+
+## An investigation that ran leaves the run detail empty
+
+Now that investigations reach a model and finish, the next thing visible is that
+almost nothing about them is written down in the shape the console reads. One
+completed run against staging produced a full root-cause document naming three
+reads it had made — `prometheus_active_alerts`, a resource lookup, a knowledge
+lookup — and left:
+
+```
+trace_events | tool_calls | turns | evidence
+          39 |          0 |     0 |        0
+```
+
+So the narrative survives in the run's summary and the events survive in the
+trace, and the three tables the run-detail screen is built on hold nothing. An
+operator opening a finished investigation sees a conclusion with no working.
+
+`start_investigation`'s own docstring points at the seam: the receipt and the
+reasoning are written by "a runner composed with somewhere to record reasoning
+through (`gateway/runtime`)", and it warns that only one of two places should
+be wired at a time. Which suggests neither currently is — the same shape as the
+deep verifier, where every piece existed and nothing composed them.
+
+**How it should be judged.** A run that made four tool calls shows four tool
+calls, with what each returned, and the evidence they produced — from the store,
+after a reload, not from the process that happened to run it.
+
+---
+
+## The half of the product that acts is not composed
+
+**What happens today.** An investigation reaches a conclusion and stops there.
+Not because acting was decided against — ADR 0006 decided *for* it, and every
+piece it named exists — but because nothing in any composition root builds the
+gate that would carry an action out.
+
+The capabilities are registered and real. Of eighty, forty-four are `read` and
+twelve `read_sensitive`; the other twenty-four write — fifteen reversibly, six
+irreversibly, three destructively — and twenty-four declare `requires_approval`
+with a reason and a rollback plan beside it.
+
+**The refusal is in the right place, and it works.** Each remediation
+capability's function body is a deliberate stub:
+
+> A remediation capability is not callable directly. It runs through the
+> remediation gate, which records the approval and the rollback plan before
+> anything changes, and refuses when neither exists.
+
+Returned as `PERMISSION_DENIED` rather than `APPROVAL_REQUIRED`, because in a
+composition with no approval desk nobody is being asked. That is fail-closed:
+the refusal is the default rather than a check somebody could forget to write,
+which is why an unfinished acting path is safe rather than dangerous.
+
+**What is missing is the wire.** `RemediationGate`
+(`platform/remediation/gating.py`) and `AutonomyGate`
+(`platform/autonomy/decision.py`) both exist. The console's approval and
+proposal routes exist and are permissioned. Search the tree for either gate
+being constructed and every hit is a test, a contract test, or the mock data
+plane. The same shape as the deep verifier before it was composed: everything
+written, nothing wired.
+
+**Two smaller things fall out of it.** The investigator's tool selection ranks
+by relevance to the alert and does not filter by side-effect level, so a model
+can be handed a remediation capability inside its schema budget, spend a call on
+it, and get the refusal — a wasted turn and a confusing transcript. And the
+composition raises no interactions at all (`pending_interactions` returns
+nothing, `answer_interaction` refuses), so even a gate that were wired would
+have nowhere to put the question.
+
+**How it should be judged.** An operator who has turned acting on sees a
+proposed change with its rollback plan, approves it, and watches it run and be
+recorded — and an operator who has not turned it on sees the investigation
+propose the change and stop, with the reason being their policy rather than an
+absent composition.
+
+---
+
+## The model gateway needs a key that exists nowhere
+
+`OLLAMA_BASE_URL` now points at the gateway that is actually there, and the
+route restricted to this cluster's nodes reaches it. It answers 401: the gateway
+requires an API key, and it requires one from its own host as well, so there is
+no source-address exemption to lean on. No such key is in the vault, and the
+deployment beside this one that uses the same gateway does not carry one either.
+Somebody has to issue one in the gateway's own console and store it; until then
+the only model provider this deployment can use is the one with a key.

@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
+from integrations._base.access import configured_base_url
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
 from integrations._verification.framework import Connectivity
@@ -149,7 +150,12 @@ class HermesVerifier:
         """Return a client for one probe. It holds no credential; the proxy injects one."""
         if not isinstance(transport, ProxyTransport) or not isinstance(context, RequestContext):
             raise TypeError("a hermes probe needs a proxy transport and a request context")
-        return HermesClient(transport=transport, context=context, region=self.region)
+        return HermesClient(
+            transport=transport,
+            context=context,
+            region=self.region,
+            base_url=configured_base_url(self.integration),
+        )
 
 
 __all__ = [

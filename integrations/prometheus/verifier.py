@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
+from integrations._base.access import configured_base_url
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
 from integrations._verification.diagnostics import (
@@ -188,7 +189,11 @@ class PrometheusVerifier:
             )
         return Connectivity(
             reachable=True,
-            detail="Prometheus accepted the credential.",
+            # Not "accepted the credential": this vendor ships no
+            # authentication and the ordinary configuration sends none, so
+            # the sentence would name a credential nobody entered. What was
+            # established is that it answered.
+            detail="Prometheus answered.",
             status_code=response.status_code,
         )
 
@@ -206,7 +211,12 @@ class PrometheusVerifier:
         """Return a client for one probe. It holds no credential; the proxy injects one."""
         if not isinstance(transport, ProxyTransport) or not isinstance(context, RequestContext):
             raise TypeError("a prometheus probe needs a proxy transport and a request context")
-        return PrometheusClient(transport=transport, context=context, region=self.region)
+        return PrometheusClient(
+            transport=transport,
+            context=context,
+            region=self.region,
+            base_url=configured_base_url(self.integration),
+        )
 
 
 __all__ = [

@@ -23,11 +23,14 @@ from config.constants.deployment import SCHEDULER_TICK_INTERVAL_SECONDS
 from config.constants.executor import NINJASRE_NODE_EXECUTOR_URL_ENV
 from config.constants.surfaces import GATEWAY_SHUTDOWN_DRAIN_SECONDS
 from gateway.http.change_sources import compose_change_sources
+from gateway.http.deep_verification import compose_deep_verifier
 from gateway.http.discovery_sources import compose_discovery_sources, compose_signal_sources
 from gateway.http.enrichment_plans import compose_enrichment_plans_for
 from gateway.http.integration_access import compose_integration_access
 from gateway.http.log_sources import compose_log_sources
 from gateway.http.node_access import compose_node_access
+from gateway.http.provider_credentials import compose_provider_credentials
+from gateway.http.runtime import recompose_investigator
 from gateway.http.scheduled_work import run_scheduler, worker_for
 from gateway.http.state import GatewayState
 from platform.observability.logging import get_logger
@@ -62,6 +65,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             org_id=organisation_id(),
             proxy_url=os.environ.get(NINJASRE_CREDENTIAL_PROXY_URL_ENV, ""),
         )
+        # The provider keys the operator stored, so an investigation calls its
+        # model with the credential the console verified rather than with
+        # whatever the process environment holds — which, in a deployment
+        # configured through the console, is nothing.
+        await compose_provider_credentials(state, org_id=organisation_id())
+        # And now the runner, again. It was built by `build_deployment` from the
+        # environment alone — the only thing a synchronous composition root
+        # has — before the model binding was published and before the line
+        # above put the vault's keys where the factory reads them. The client
+        # it resolved then is cached, so without this the operator's choice is
+        # published, correct, and never used.
+        recompose_investigator(state)
+        # Straight after the binding it reads, because "Test again" is the one
+        # control that turns "nobody has checked this" into a measurement, and
+        # without this line the route behind it refuses on every deployment.
+        compose_deep_verifier(state)
         await compose_change_sources(state, org_id=organisation_id())
         # The same moment and the same reasoning: a deployment whose cluster is
         # configured should have a source before anybody opens the estate,

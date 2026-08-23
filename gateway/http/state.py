@@ -76,14 +76,20 @@ ProviderVerifier = Callable[[str, str | None], Awaitable[ModelVerdict]]
 
 #: How this deployment runs an integration's *own* verifier — the one that makes
 #: live vendor calls and answers with a document rather than a boolean. Takes an
-#: integration name and returns its report, or ``None`` for an integration that
-#: has no deep verifier to run.
+#: integration name and the credential-handle team to resolve as, and returns
+#: that integration's report, or ``None`` for an integration that has no deep
+#: verifier to run.
+#:
+#: The team is a parameter rather than a property of the binding because a
+#: credential resolves team-first and falls back to the organisation, never the
+#: other way round: a verify that always asked as the organisation would report
+#: a team's working credential missing.
 #:
 #: Supplied at composition for the same reason ``ProviderVerifier`` is: reaching
 #: a vendor means a credential proxy and a transport, and a gateway that built
 #: one from whatever ambient configuration was present would be reaching a
 #: cluster nobody chose.
-DeepVerifier = Callable[[str], Awaitable[Mapping[str, Any] | None]]
+DeepVerifier = Callable[[str, str], Awaitable[Mapping[str, Any] | None]]
 
 
 @dataclass(slots=True)

@@ -70,7 +70,11 @@ def _parts(message: Message) -> list[dict[str, Any]]:
         parts.append({"text": message.text})
 
     for call in message.tool_calls:
-        parts.append({"functionCall": {"name": call.name, "args": dict(call.arguments)}})
+        # The signature rides on the part beside the call, which is where it
+        # arrived and where this wire looks for it.
+        part: dict[str, Any] = {"functionCall": {"name": call.name, "args": dict(call.arguments)}}
+        part.update(call.provider_state)
+        parts.append(part)
 
     return parts
 
@@ -87,6 +91,26 @@ def _usage_count(usage: Mapping[str, Any], camel: str, snake: str) -> int:
     return int(value or 0)
 
 
+def _either(document: Mapping[str, Any], wire: str, sdk: str) -> Any:
+    """Return whichever spelling of one field this document carries.
+
+    There are two paths to every parser in this module and they disagree. A
+    direct HTTP call returns the REST wire format, in camelCase; the SDK
+    transport — which is what a deployment actually runs — hands over
+    ``model_dump()`` of a pydantic model, and pydantic's default is the field
+    name, which is snake_case.
+
+    Reading only the wire spelling is not a cosmetic miss. It made every tool
+    call the model made invisible: ``functionCall`` is absent from an SDK
+    document, ``function_call`` holds it, and the platform therefore saw a model
+    that had answered in prose. Every investigation is a sequence of tool calls,
+    so nothing could run. ``_parse_usage`` below already reads both spellings,
+    for the same reason found earlier in the token counts.
+    """
+    found = document.get(wire)
+    return document.get(sdk) if found is None else found
+
+
 def _parse_usage(document: Mapping[str, Any]) -> TokenCounts:
     """Return the token counts from a usage block, in either spelling.
 
@@ -99,9 +123,7 @@ def _parse_usage(document: Mapping[str, Any]) -> TokenCounts:
     The prompt count includes the cached tokens, as on the OpenAI wire, so the
     cached count is subtracted to keep the neutral fields disjoint.
     """
-    usage = document.get("usageMetadata")
-    if usage is None:
-        usage = document.get("usage_metadata")
+    usage = _either(document, "usageMetadata", "usage_metadata")
     if not isinstance(usage, Mapping):
         return TokenCounts(estimated=True)
 
@@ -114,6 +136,25 @@ def _parse_usage(document: Mapping[str, Any]) -> TokenCounts:
         cached_input_tokens=cached,
         reasoning_tokens=_usage_count(usage, "thoughtsTokenCount", "thoughts_token_count"),
     )
+
+
+def _signature_of(part: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the thought signature this part carried, under the name it used.
+
+    Gemini returns one alongside every ``functionCall`` and refuses the next
+    request if the call comes back without it — the whole conversation, not just
+    that call. Keyed by the spelling it arrived under so it goes back the way it
+    came: the SDK sends ``thought_signature`` and the REST wire
+    ``thoughtSignature``, and echoing the other one is the same as echoing none.
+
+    Empty when there is none, so a part that never had one does not gain a null
+    field. An absent key and a key set to nothing are different documents.
+    """
+    for spelling in ("thoughtSignature", "thought_signature"):
+        value = part.get(spelling)
+        if value:
+            return {spelling: value}
+    return {}
 
 
 def _read_parts(parts: Any) -> tuple[str, tuple[ToolCall, ...]]:
@@ -129,7 +170,7 @@ def _read_parts(parts: Any) -> tuple[str, tuple[ToolCall, ...]]:
         text = part.get("text")
         if isinstance(text, str) and text:
             text_parts.append(text)
-        function_call = part.get("functionCall")
+        function_call = _either(part, "functionCall", "function_call")
         if isinstance(function_call, Mapping):
             arguments = function_call.get("args")
             name = str(function_call.get("name") or "")
@@ -141,6 +182,7 @@ def _read_parts(parts: Any) -> tuple[str, tuple[ToolCall, ...]]:
                     id=str(function_call.get("id") or f"{name}_{index}"),
                     name=name,
                     arguments=dict(arguments) if isinstance(arguments, Mapping) else {},
+                    provider_state=_signature_of(part),
                 )
             )
 
@@ -239,7 +281,7 @@ class GeminiAdapter(BaseAdapter):
         parts = content.get("parts") if isinstance(content, Mapping) else None
         text, tool_calls = _read_parts(parts)
 
-        raw_finish = str(candidate.get("finishReason") or "STOP").upper()
+        raw_finish = str(_either(candidate, "finishReason", "finish_reason") or "STOP").upper()
         finish_reason = _FINISH_REASONS.get(raw_finish, FinishReason.STOP)
         if tool_calls and finish_reason is FinishReason.STOP:
             finish_reason = FinishReason.TOOL_CALLS
@@ -279,7 +321,7 @@ class GeminiAdapter(BaseAdapter):
         for call in tool_calls:
             events.append(StreamEvent(kind=StreamEventKind.TOOL_CALL, tool_call=call))
 
-        raw_finish = candidate.get("finishReason")
+        raw_finish = _either(candidate, "finishReason", "finish_reason")
         if isinstance(raw_finish, str) and raw_finish:
             events.append(
                 StreamEvent(

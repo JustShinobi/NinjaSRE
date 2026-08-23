@@ -1601,6 +1601,11 @@ export const EN = {
   // --- A connected integration's panel: state and actions, not an empty form ------
   'catalogue.integrations.panel.storedInVault':
     'This credential is stored in the vault.',
+  // For a vendor that ships no authentication of its own. Saying a credential
+  // is stored for one that stores none is a sentence that sends somebody
+  // looking for a key nobody ever entered.
+  'catalogue.integrations.panel.connectedByAddress':
+    'This vendor needs no credential of its own. It is connected by the address above.',
   'catalogue.integrations.panel.testAgain': 'Test again',
   'catalogue.integrations.panel.replaceCredential': 'Replace credential',
   // Shared by two exits: leaving "Replace credential" without saving, and

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from config.constants.signals import VERIFY_WINDOW_SAMPLE_LIMIT
+from integrations._base.access import configured_base_url
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
 from integrations._verification.diagnostics import (
@@ -202,7 +203,12 @@ class OpenobserveVerifier:
         """Return a client for one probe. It holds no credential; the proxy injects one."""
         if not isinstance(transport, ProxyTransport) or not isinstance(context, RequestContext):
             raise TypeError("a openobserve probe needs a proxy transport and a request context")
-        return OpenobserveClient(transport=transport, context=context, region=self.region)
+        return OpenobserveClient(
+            transport=transport,
+            context=context,
+            region=self.region,
+            base_url=configured_base_url(self.integration),
+        )
 
 
 __all__ = [

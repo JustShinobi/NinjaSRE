@@ -16,6 +16,10 @@ not keep.
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
+from typing import Any
+
 from gateway.http.state import GatewayState
 
 
@@ -35,4 +39,29 @@ def runtime_composed(state: GatewayState) -> bool:
     return not isinstance(state.investigator, UnconfiguredInvestigator)
 
 
-__all__ = ["runtime_composed"]
+def recompose_investigator(state: Any, *, environ: Mapping[str, str] | None = None) -> None:
+    """Rebuild the runner now that the configuration it depends on has been read.
+
+    ``build_deployment`` composes the investigator from the environment alone,
+    which is the only thing a synchronous composition root has. The operator's
+    model choice is published afterwards, and the vault's provider keys later
+    still — and ``get_llm`` caches the client it built in between, so a runner
+    composed first keeps calling whatever the manifest named however the console
+    is configured.
+
+    Called once, after both are true. A deployment that names no factory keeps
+    its stand-in: "nothing is composed" is a state the checklist and the start
+    route both read, and a rebuild that quietly produced something in its place
+    would answer their question wrongly.
+
+    The import is local for the reason ``runtime_composed`` gives above: ``asgi``
+    is the composition root and imports the route table on the way up.
+    """
+    from gateway.http.asgi import UnconfiguredInvestigator, investigator_of
+
+    if isinstance(state.investigator, UnconfiguredInvestigator):
+        return
+    state.investigator = investigator_of(dict(environ if environ is not None else os.environ))
+
+
+__all__ = ["recompose_investigator", "runtime_composed"]

@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from config.constants.investigation import MAX_PARALLEL_TOOL_CALLS
@@ -232,7 +232,7 @@ async def execute_call(
                 reason="a pre_tool_use hook replaced the arguments before dispatch",
             )
         )
-        call = ToolCall(id=call.id, name=call.name, arguments=arguments)
+        call = replace(call, arguments=arguments)
 
     cached = cache.get(call.name, call.arguments)
     if cached is not None:

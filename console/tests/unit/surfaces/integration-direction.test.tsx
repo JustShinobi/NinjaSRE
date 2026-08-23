@@ -52,6 +52,7 @@ const LABELS: IntegrationPanelLabels = {
   grantedAt: 'Granted at',
   foundHere: 'Found in your estate at',
   storedInVault: 'This credential is stored in the vault.',
+  connectedByAddress: 'Connected by the address above.',
   testAgain: 'Test again',
   replaceCredential: 'Replace credential',
   cancel: 'Cancel',

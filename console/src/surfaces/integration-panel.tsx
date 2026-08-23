@@ -115,6 +115,7 @@ export interface IntegrationPanelLabels {
   readonly foundHere: string;
   /** What a connected integration's panel says about where its credential lives. */
   readonly storedInVault: string;
+  readonly connectedByAddress: string;
   readonly testAgain: string;
   readonly replaceCredential: string;
   /** Leaving "Replace credential" unsaved, and leaving the disconnect confirmation unconfirmed. */
@@ -155,7 +156,12 @@ export interface IntegrationPanelProps {
 }
 
 interface Verdict {
-  readonly status: 'verified' | 'failing';
+  /**
+   * Three words rather than two, because the vendor can answer and still say
+   * something that makes its answers unsafe to trust whole — a clock forty
+   * seconds out is not a failure and is not nothing.
+   */
+  readonly status: 'verified' | 'degraded' | 'failing';
   readonly detail: string;
 }
 
@@ -232,9 +238,14 @@ export function IntegrationPanel({
         setUnreachable(true);
       } else {
         const verified = Reflect.get(Object(body), 'verified') === true;
+        const degraded = Reflect.get(Object(body), 'degraded') === true;
+        // The detail is the vendor's own sentence where there was one. "401
+        // Unauthorized" sends somebody to re-issue a key and "could not reach
+        // the host" sends them to their egress rules; a chip alone sends them
+        // to the logs.
         const reason: unknown = Reflect.get(Object(body), 'reason');
         setVerdict({
-          status: verified ? 'verified' : 'failing',
+          status: verified ? (degraded ? 'degraded' : 'verified') : 'failing',
           detail: typeof reason === 'string' ? reason : '',
         });
       }
@@ -398,7 +409,11 @@ export function IntegrationPanel({
                     className="text-meta text-muted"
                     data-testid="credential-stored-note"
                   >
-                    {labels.storedInVault}
+                    {item.fields.some(
+                      (declared) => declared.secret && declared.required,
+                    )
+                      ? labels.storedInVault
+                      : labels.connectedByAddress}
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
                     <Button

@@ -32,6 +32,7 @@ sequence somebody reconstructs six months later.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -42,10 +43,16 @@ from config.constants.llm import SUPPORTED_PROVIDERS
 from config.constants.security import CREDENTIAL_ORG_WIDE_TEAM
 from gateway.http.configured import configured_integrations
 from gateway.http.credential_schemas import schema_for
+from gateway.http.credential_state import credential_detail, effective_credential_state
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import bad_request, not_found
 from gateway.http.integration_access import refresh_integration_endpoints
-from gateway.http.integration_endpoints import record_endpoint, split_by_destination
+from gateway.http.integration_endpoints import (
+    configured_endpoints,
+    record_endpoint,
+    split_by_destination,
+)
+from gateway.http.provider_credentials import compose_provider_credentials
 from gateway.http.state import GatewayState
 from gateway.http.verifications import forget_check, integration_health, record_check
 from gateway.webhooks.router import PROFILES as WEBHOOK_PROFILES
@@ -53,11 +60,7 @@ from integrations._catalogue.discovery import catalogue
 from integrations._catalogue.gaps import gaps
 from platform.credentials.errors import CredentialSchemaViolation
 from platform.credentials.handles import CredentialHandle
-from platform.credentials.health import (
-    CredentialHealth,
-    CredentialHealthState,
-    IntegrationCredentialHealth,
-)
+from platform.credentials.health import CredentialHealth
 from platform.credentials.schemas import CredentialSchemaRegistry
 from platform.credentials.vault import Vault
 from platform.estate.service import EstateService
@@ -446,21 +449,18 @@ def _affected_kinds(name: str) -> tuple[VerificationSubject, ...]:
     return (VerificationSubject.INTEGRATION,)
 
 
-def _check_detail(entry: IntegrationCredentialHealth) -> str:
-    """Return the sentence a recorded check carries, for each credential state.
+async def _is_addressed(state: GatewayState, auth: AuthenticatedRequest, name: str) -> bool:
+    """Return whether an operator has told this deployment where ``name`` is.
 
-    Written here rather than taken from the enum because the record is read by a
-    person: "undecryptable" is a state name, and "the stored credential cannot be
-    decrypted with this deployment's key" is something somebody can act on.
+    Read from the organisation's node, which is where ``record_endpoint`` writes
+    and where the proxy reads its egress allow-list from — the same join
+    ``gateway/http/configured.py`` makes for the catalogue, rather than a second
+    one that could disagree with it.
     """
-    return {
-        CredentialHealthState.CONFIGURED: "the stored credential is present and current",
-        CredentialHealthState.MISSING: "no credential is stored for this integration",
-        CredentialHealthState.EXPIRED: "the stored credential has expired",
-        CredentialHealthState.UNDECRYPTABLE: (
-            "the stored credential cannot be decrypted with this deployment's key"
-        ),
-    }[entry.state]
+    addresses = await configured_endpoints(
+        state.gateway, scope=auth.scope, node_id=auth.scope.org_id
+    )
+    return name in addresses
 
 
 @router.post("/{name}/verify", response_model=IntegrationVerification)
@@ -480,11 +480,19 @@ async def verify_integration(
     left the first run's "check that each of them works" step uncompletable:
     green while the tab was open, "nobody has checked this one" on reload.
     """
-    schemas = CredentialSchemaRegistry.from_schemas(schema_for(name))
+    schema = schema_for(name)
+    schemas = CredentialSchemaRegistry.from_schemas(schema)
     vault = Vault(gateway=state.gateway, schemas=schemas)
     health = CredentialHealth(vault=vault)
     report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
+    # A vendor that ships no authentication is configured by its address, and
+    # the vault's "nothing is stored" is a true answer to a question nobody
+    # asked. The write route beside this one has always said so; saying it in
+    # only one of the two is what made "Save and test" green and "Test again"
+    # red with nothing changed in between.
+    addressed = await _is_addressed(state, auth, name)
+    resolved = effective_credential_state(entry.state, schema=schema, addressed=addressed)
     # Always as an integration, even where ``name`` is also a model provider.
     # What this route establishes is that a stored credential is present and
     # decryptable; the provider's own check exercises tool calling against the
@@ -495,14 +503,41 @@ async def verify_integration(
         auth.scope,
         kind=VerificationSubject.INTEGRATION,
         subject=name,
-        passed=entry.state.usable,
-        detail=_check_detail(entry),
+        passed=resolved.usable,
+        detail=credential_detail(resolved, address_only=resolved is not entry.state),
         checked_by=auth.principal_id,
         team_node_id=_team_of(auth),
     )
-    return IntegrationVerification(
-        integration=name, state=entry.state.value, usable=entry.state.usable
-    )
+    return IntegrationVerification(integration=name, state=resolved.value, usable=resolved.usable)
+
+
+def _report_detail(report: Mapping[str, Any]) -> str:
+    """Return the one sentence the ledger keeps from a whole vendor report.
+
+    The vendor's own words first, because that is what decides what an operator
+    does next: "401 Unauthorized" is a key to re-issue and "could not reach the
+    host" is an egress rule to open, and a summary that lost the difference
+    would be a row nobody can act on.
+
+    A denied permission and a degradation ride along in the same sentence. The
+    ledger records two outcomes and only two — a check passed or it did not —
+    so a vendor that answered with a caveat is a pass whose detail says what the
+    caveat was, rather than a third state the store has no room for.
+    """
+    connectivity = report.get("connectivity")
+    said = ""
+    if isinstance(connectivity, Mapping):
+        said = str(connectivity.get("detail") or "")
+    said = said or ("the vendor answered" if report.get("ok") else "the vendor did not answer")
+
+    missing = [str(name) for name in report.get("missing_permissions") or ()]
+    if missing:
+        said = f"{said} Permissions the credential does not have: {', '.join(missing)}."
+
+    degradations = [str(line) for line in report.get("degradations") or ()]
+    if degradations:
+        said = f"{said} {' '.join(degradations)}"
+    return said.strip()
 
 
 @router.post("/{name}/verify/report", response_model=IntegrationVerificationReport)
@@ -524,7 +559,6 @@ async def verify_integration_deeply(
         ApiProblem: this deployment composed no deep verifier, or ``name`` has
             none to run (404). The refusal says which of the two it was.
     """
-    del auth
     if state.deep_verifier is None:
         raise not_found(
             f"This deployment cannot verify {name!r} against its vendor: no deep verifier "
@@ -532,13 +566,27 @@ async def verify_integration_deeply(
             f"which are wired at composition rather than guessed here. The credential "
             f"state itself is answered by POST /v1/integrations/{name}/verify."
         )
-    report = await state.deep_verifier(name)
+    report = await state.deep_verifier(name, _team_of(auth))
     if report is None:
         raise not_found(
             f"{name!r} has no verifier that produces a report. Its credential state is "
             f"answered by POST /v1/integrations/{name}/verify; there is nothing further "
             f"this vendor can be asked."
         )
+    # The stronger measurement wins the card. The console calls the shallow
+    # verify and then this one, so what an operator sees last is what the vendor
+    # itself said — the same reasoning the shallow route gives for refusing to
+    # write its cheap answer into a provider's row, applied the other way up.
+    await record_check(
+        state.gateway,
+        auth.scope,
+        kind=VerificationSubject.INTEGRATION,
+        subject=name,
+        passed=bool(report.get("ok")),
+        detail=_report_detail(report),
+        checked_by=auth.principal_id,
+        team_node_id=_team_of(auth),
+    )
     return IntegrationVerificationReport(integration=name, report=dict(report))
 
 
@@ -646,19 +694,31 @@ async def store_credential(
     for kind in _affected_kinds(name):
         await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
 
+    if name in SUPPORTED_PROVIDERS:
+        # The model factory holds a lease taken at boot, because the port it
+        # implements is synchronous and the vault is not. A key replaced here
+        # and not re-leased would mean investigations kept using the one it
+        # replaced — the same "I fixed it and nothing changed" the address
+        # refresh above exists to prevent.
+        await compose_provider_credentials(state, org_id=auth.scope.org_id)
+
     health = CredentialHealth(vault=vault)
     report = await health.report(auth.scope, integrations=(name,), team_id=_team_of(auth))
     entry = report.entries[0]
     # Named for what it is rather than `state`, which on this route is the
-    # deployment's own.
-    credential_state = entry.state
-    if credential_state is CredentialHealthState.MISSING and not stored_schema.required_names:
-        # The vault answers "is a credential present", and for a vendor that
-        # needs none the honest answer to that question is "no" — and the wrong
-        # answer to the one being asked. An operator who has just pointed this
-        # deployment at their own Alertmanager is reading the sentence under the
-        # button they pressed, and `missing` is not what happened.
-        credential_state = CredentialHealthState.CONFIGURED
+    # deployment's own. The same rule the verify route applies, from the same
+    # function: an operator who has just pointed this deployment at their own
+    # Alertmanager is reading the sentence under the button they pressed, and
+    # `missing` is not what happened.
+    #
+    # An address written in this very request counts, and so does one written by
+    # an earlier one — a token-only rotation on a vendor that was already
+    # addressed must not read as unaddressed.
+    credential_state = effective_credential_state(
+        entry.state,
+        schema=schema,
+        addressed=bool(addresses) or await _is_addressed(state, auth, name),
+    )
     return CredentialWriteView(
         integration=name,
         state=credential_state.value,
@@ -712,6 +772,11 @@ async def delete_credential(
     # working" from a credential that no longer exists.
     for kind in _affected_kinds(name):
         await forget_check(state.gateway, auth.scope, kind=kind, subject=name)
+
+    if name in SUPPORTED_PROVIDERS:
+        # Same reason as the write: a key removed from the vault and left in the
+        # factory's lease is a credential the operator believes they revoked.
+        await compose_provider_credentials(state, org_id=auth.scope.org_id)
 
     return CredentialDeleteView(integration=name, versions_removed=removed)
 

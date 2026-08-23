@@ -31,6 +31,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
+from integrations._base.access import configured_base_url
 from integrations._base.errors import IntegrationError, IntegrationErrorReason
 from integrations._base.transport import ProxyTransport, RequestContext
 from integrations._verification.framework import Connectivity
@@ -255,7 +256,11 @@ class ProxmoxVerifier:
         """Return a client for one probe. It holds no token; the proxy injects one."""
         if not isinstance(transport, ProxyTransport) or not isinstance(context, RequestContext):
             raise TypeError("a Proxmox probe needs a proxy transport and a request context")
-        return ProxmoxClient(transport=transport, context=context)
+        return ProxmoxClient(
+            transport=transport,
+            context=context,
+            base_url=configured_base_url(self.integration),
+        )
 
 
 #: The privileges the report above is built from, re-exported so a document
