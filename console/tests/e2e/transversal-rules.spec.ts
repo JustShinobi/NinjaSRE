@@ -197,14 +197,18 @@ interface Exception {
  * feature cut intake to three. Deleting a dead table entry is not evidence
  * that the route now passes the rule — nothing here measured that.
  *
- * The ten entries below are the five "Now" rules' own debt, each confirmed
+ * The nine entries below are the five "Now" rules' own debt, each confirmed
  * red against the dataset built to reproduce it before this line existed.
- * Nine were named ahead of time, from a diagnosis of the running deployment;
- * the tenth (`/` + `markdown`) was not — the dashboard's own recent-activity
+ * Eight were named ahead of time, from a diagnosis of the running deployment;
+ * one (`/` + `markdown`) was not — the dashboard's own recent-activity
  * feed reads every run's raw summary with the identical, unfiltered
  * mechanism the runs list and the run detail screen already carried an
- * entry for, and the violating dataset that gives the other nine their red
+ * entry for, and the violating dataset that gives the other eight their red
  * gives this one too, because it is the same defect, read a third time.
+ *
+ * `/incidents/{id}` + `identifier-as-name` is not here any more: an opaque,
+ * short incident id decoded once at the edge replaced the composite,
+ * percent-encoded route parameter the title used to fall back to.
  */
 const EXCEPTIONS: readonly Exception[] = [
   {
@@ -245,15 +249,6 @@ const EXCEPTIONS: readonly Exception[] = [
       "the breadcrumb's current crumb is the run id in full, because no " +
       'shorter name for a run exists yet — the same headline that removes ' +
       'the id from the runs list',
-  },
-  {
-    path: '/incidents/{id}',
-    rule: 'identifier-as-name',
-    reason:
-      "the incident detail screen's own title falls back to the raw route " +
-      'parameter, which for an alert-sourced incident is the composite, ' +
-      'percent-encoded id — an opaque, short incident id in its place, ' +
-      'decoded once at the edge instead of twice',
   },
   {
     path: '/runs',
