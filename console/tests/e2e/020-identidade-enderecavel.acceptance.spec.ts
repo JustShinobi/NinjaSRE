@@ -201,15 +201,18 @@ test.describe('identity: an alert-sourced incident opens', () => {
     'the timeline renders one entry per reasoning step the gateway returned',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
-      await openAlertIncident(page);
+      // The incident this dataset attaches a full, five-reasoning-step
+      // timeline to (the same one an investigated run points at) — found by
+      // its own title rather than a literal id, same as every other lookup
+      // in this file. This screen renders one `investigation-step` per
+      // reasoning-kind entry, never per lifecycle one, so five is what the
+      // gateway returns for this incident on this dataset; a broken read
+      // renders none of them.
+      const title = investigatedIncidentTitle();
+      await page.goto('/incidents');
+      await page.getByTestId('row').filter({ hasText: title }).locator('a').first().click();
 
-      // The dataset attaches three reasoning-kind entries to this incident
-      // (an alert receipt, a piece of evidence, a diagnosis) alongside the
-      // one lifecycle entry ("opened") every incident carries — and this
-      // screen renders one `investigation-step` per reasoning entry, never
-      // per lifecycle one. Three is what the gateway returns for this
-      // incident on this dataset; a broken read renders none of them.
-      await expect(page.getByTestId('investigation-step')).toHaveCount(3);
+      await expect(page.getByTestId('investigation-step')).toHaveCount(5);
     },
   );
 });
