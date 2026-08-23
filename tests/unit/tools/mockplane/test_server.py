@@ -306,6 +306,74 @@ async def test_the_session_header_separates_two_clients_over_the_wire(mock: Mock
     assert all(run["run_id"] != "run-0007" for run in json.loads(body)["runs"])
 
 
+# --- Request counting: what proves a page was served live -------------------------
+
+
+async def test_a_request_over_the_wire_is_counted_by_method_and_path(mock: MockPlane) -> None:
+    await call(mock, "GET", "/v1/runs")
+    await call(mock, "GET", "/v1/runs")
+    await call(mock, "GET", "/v1/incidents")
+    assert mock.request_counts() == {"GET /v1/runs": 2, "GET /v1/incidents": 1}
+
+
+async def test_counts_are_kept_per_session(mock: MockPlane) -> None:
+    await call(mock, "GET", "/v1/runs", headers={SESSION_HEADER: "alice"})
+    await call(mock, "GET", "/v1/runs", headers={SESSION_HEADER: "bob"})
+    await call(mock, "GET", "/v1/runs", headers={SESSION_HEADER: "bob"})
+    assert mock.request_counts("alice") == {"GET /v1/runs": 1}
+    assert mock.request_counts("bob") == {"GET /v1/runs": 2}
+
+
+async def test_answering_through_the_programmatic_entry_point_counts_nothing(
+    mock: MockPlane,
+) -> None:
+    # `.answer()` is a test harness's own entry point, not a request that
+    # arrived over the wire. Counting it would let a synthetic call in a unit
+    # test masquerade as evidence a browser actually reached this process.
+    mock.answer("GET", "/v1/runs")
+    assert mock.request_counts() == {}
+
+
+async def test_the_control_route_answers_the_session_it_is_asked_with(mock: MockPlane) -> None:
+    await call(mock, "GET", "/v1/runs", headers={SESSION_HEADER: "alice"})
+    status, body, headers = await call(
+        mock, "GET", "/__mockplane__/requests", headers={SESSION_HEADER: "alice"}
+    )
+    assert status == 200
+    assert headers["content-type"] == "application/json"
+    document = json.loads(body)
+    assert document["session"] == "alice"
+    assert document["counts"] == {"GET /v1/runs": 1}
+
+
+async def test_the_control_route_is_reached_before_the_gateways_own_routing(
+    mock: MockPlane,
+) -> None:
+    # `/__mockplane__/requests` is not a fixture-served path — it must answer
+    # even though no endpoint declares it, which only holds if it is resolved
+    # ahead of `match_request` rather than falling through to a 404.
+    status, _, _ = await call(mock, "GET", "/__mockplane__/requests")
+    assert status == 200
+
+
+async def test_asking_the_control_route_does_not_itself_get_counted(mock: MockPlane) -> None:
+    await call(mock, "GET", "/__mockplane__/requests")
+    await call(mock, "GET", "/v1/runs")
+    assert mock.request_counts() == {"GET /v1/runs": 1}
+
+
+async def test_an_undeclared_control_route_is_a_404(mock: MockPlane) -> None:
+    status, body, _ = await call(mock, "GET", "/__mockplane__/not-a-thing")
+    assert status == 404
+    assert b"not a control route this mock serves" in body
+
+
+async def test_a_reset_forgets_counts_too(mock: MockPlane) -> None:
+    await call(mock, "GET", "/v1/runs")
+    mock.reset()
+    assert mock.request_counts() == {}
+
+
 # --- Determinism ------------------------------------------------------------------
 
 
