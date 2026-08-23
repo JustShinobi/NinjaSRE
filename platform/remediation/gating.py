@@ -40,7 +40,7 @@ would have thrown away the diagnosis it had already reached.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
@@ -206,6 +206,14 @@ class RemediationGate:
     #: the deployment should stop deciding and none is a reason a person may not.
     guards: AutonomyGuards | None = None
     evaluator: ConditionEvaluator | None = None
+    #: How this deployment's posture is read at the moment a write is decided,
+    #: for a caller whose policy lives in configuration rather than in a value
+    #: it holds. Consulted only when ``autonomy`` is absent: a gate built at
+    #: boot would decide with the posture of the day it was built, and a person
+    #: changes that posture through routes that already exist. Resolved when a
+    #: write is actually decided rather than on every tool call, so the cost is
+    #: one configuration read per gated action and not one per turn.
+    resolve_autonomy: Callable[[], Awaitable[AutonomyGate]] | None = None
     waiter: DecisionWaiter | None = None
     policy: GatingPolicy = field(default_factory=GatingPolicy)
     run: RunContext = field(default_factory=lambda: RunContext(requester=""))
@@ -269,8 +277,9 @@ class RemediationGate:
                 # somebody has to be able to fix.
                 return await self._through_approval(action, because=guard.reason)
 
-            if self.autonomy is not None:
-                return await self._by_policy(action, self.autonomy)
+            autonomy = await self._policy_engine()
+            if autonomy is not None:
+                return await self._by_policy(action, autonomy)
             autonomous = await self._autonomous(action)
             if autonomous:
                 return await self._execute(action, approval_id="", autonomous=True)
@@ -279,6 +288,65 @@ class RemediationGate:
             return GateOutcome(
                 capability=action.capability,
                 permitted=False,
+                reason=str(refused),
+                classification=_classification_of(refused),
+            )
+
+    async def _policy_engine(self) -> AutonomyGate | None:
+        """Return the engine deciding this action, resolving it now if it is resolved.
+
+        A gate handed a built engine uses that one. A gate handed a resolver
+        calls it here, at the decision, so the posture is the one configured
+        when the write was proposed rather than the one configured at boot.
+        """
+        if self.autonomy is not None:
+            return self.autonomy
+        if self.resolve_autonomy is None:
+            return None
+        return await self.resolve_autonomy()
+
+    async def execute_approved(self, action: RemediationAction, *, approval_id: str) -> GateOutcome:
+        """Carry out ``action`` now that a person has authorised it.
+
+        The second entrance, and it goes through the same checks and the same
+        execution path the loop's does rather than reaching the executor. The
+        emergency stop and the closed loop's guards are consulted *again* here,
+        because an approval granted thirty seconds ago is exactly the kind an
+        operator reaches for the switch to stop, and because a blast radius that
+        was two services while somebody read the request may be twenty by the
+        time they press the button.
+
+        There is no waiting inside the loop, which is why this exists at all: an
+        approval is answered in minutes or hours, and an iteration suspended for
+        that long is an investigation holding a model and a sandbox open while
+        nobody is looking at it.
+        """
+        try:
+            self.kill_switch.check(team_node_id=action.team_node_id)
+        except KillSwitchEngaged as stopped:
+            return GateOutcome(
+                capability=action.capability,
+                permitted=False,
+                approval_id=approval_id,
+                reason=str(stopped),
+                classification=CapabilityErrorClass.PERMISSION_DENIED,
+            )
+
+        try:
+            guard = await self._guarded(action)
+            if not guard.permitted:
+                return GateOutcome(
+                    capability=action.capability,
+                    permitted=False,
+                    approval_id=approval_id,
+                    reason=guard.reason,
+                )
+            return await self._execute(action, approval_id=approval_id, autonomous=False)
+        except RemediationError as refused:
+            return GateOutcome(
+                capability=action.capability,
+                permitted=False,
+                approval_id=approval_id,
                 reason=str(refused),
                 classification=_classification_of(refused),
             )

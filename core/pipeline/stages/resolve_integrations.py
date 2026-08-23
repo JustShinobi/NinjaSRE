@@ -64,21 +64,29 @@ class ResolveIntegrationsStage:
             return StateUpdates(investigation=investigation)
 
         return StateUpdates(
-            investigation=replace(investigation, outcome=zero_integration_outcome(resolved, state))
+            investigation=replace(
+                investigation,
+                outcome=zero_integration_outcome(
+                    resolved, alert_source=detect_source(state.raw).value
+                ),
+            )
         )
 
 
 def zero_integration_outcome(
-    resolved: ResolvedCapabilities, state: AgentState
+    resolved: ResolvedCapabilities, *, alert_source: str
 ) -> InvestigationOutcome:
     """Return the outcome a team with nothing configured gets.
 
     Specific, and specific to *this* alert: the integration whose name matches
     the source that fired is suggested first, because that is the one whose
     capabilities were written for the payload sitting in front of the operator.
+
+    Takes the source rather than the whole state, so the path that serves a
+    request — which holds a request and never builds a pipeline state — calls
+    this one rather than writing a second answer that could drift from it.
     """
-    source = detect_source(state.raw)
-    missing = _ordered_by_relevance(resolved, source.value)
+    missing = _ordered_by_relevance(resolved, alert_source)
 
     steps = [
         NO_INTEGRATIONS_STEP.format(
@@ -93,7 +101,7 @@ def zero_integration_outcome(
         kind=OutcomeKind.NO_INTEGRATIONS,
         headline=NO_INTEGRATIONS_HEADLINE,
         detail=NO_INTEGRATIONS_DETAIL.format(
-            source=source.value, excluded_count=len(resolved.excluded)
+            source=alert_source, excluded_count=len(resolved.excluded)
         ),
         next_steps=tuple(steps) if steps else (NO_INTEGRATIONS_UNKNOWN_STEP,),
     )

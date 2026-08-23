@@ -47,6 +47,11 @@ from platform.remediation.models import RemediationAction, SubTargetResult
 pytestmark = pytest.mark.unit
 
 ORG = "acme"
+
+#: Where a sandbox reaches the credential proxy. Any absolute address: nothing
+#: in these tests sends a packet, and the policy type refuses to describe a
+#: sandbox with nowhere to authenticate through.
+PROXY = "http://127.0.0.1:8787"
 TEAM = "acme/payments"
 
 #: One write this deployment has components for, one it has not, and two reads
@@ -157,7 +162,7 @@ async def _offered(
     runner = ReActInvestigationRunner(llm=llm, registry=registry)  # type: ignore[arg-type]
     state = GatewayState(gateway=held, tokens=TokenService(gateway=held), investigator=runner)
     if desk:
-        composed = await compose_remediation(state, org_id=ORG)
+        composed = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
         assert composed is not None
     await runner.investigate(_start())
     assert llm.requests, "the loop never called the model, so nothing was offered"
@@ -270,7 +275,7 @@ async def test_the_cut_at_the_ceiling_happens_after_both_filters(
     store = FakePersistence()
     runner = ReActInvestigationRunner(llm=llm, registry=registry)  # type: ignore[arg-type]
     state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
-    assert await compose_remediation(state, org_id=ORG) is not None
+    assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
     await runner.investigate(
         InvestigationStart(
             run_id="run-3",
@@ -303,7 +308,7 @@ async def test_a_team_with_no_integrations_is_told_what_to_connect(
     store = FakePersistence()
     runner = ReActInvestigationRunner(llm=llm, registry=_catalogue(PROMETHEUS_READ, LOKI_READ))  # type: ignore[arg-type]
     state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
-    assert await compose_remediation(state, org_id=ORG) is not None
+    assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
 
     summary = await runner.investigate(_start())
 
@@ -326,7 +331,7 @@ async def test_the_alert_source_is_suggested_first(
     store = FakePersistence()
     runner = ReActInvestigationRunner(llm=llm, registry=_catalogue(PROMETHEUS_READ, LOKI_READ))  # type: ignore[arg-type]
     state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
-    assert await compose_remediation(state, org_id=ORG) is not None
+    assert await compose_remediation(state, org_id=ORG, proxy_url=PROXY) is not None
 
     summary = await runner.investigate(
         InvestigationStart(

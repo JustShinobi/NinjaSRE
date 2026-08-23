@@ -45,6 +45,11 @@ pytestmark = pytest.mark.unit
 
 ORG = "acme"
 
+#: Where a sandbox reaches the credential proxy. Any absolute address: nothing
+#: in these tests sends a packet, and the policy type refuses to describe a
+#: sandbox with nowhere to authenticate through.
+PROXY = "http://127.0.0.1:8787"
+
 
 class _Plane:
     """A control plane that answers, so the deployment can carry a write."""
@@ -93,7 +98,7 @@ def _state() -> GatewayState:
 async def test_a_deployment_that_can_remediate_gets_a_desk(plane: None) -> None:
     state = _state()
 
-    desk = await compose_remediation(state, org_id=ORG)
+    desk = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
 
     assert desk is not None, (
         "nothing composed a remediation desk for a deployment with a control plane, "
@@ -108,7 +113,7 @@ async def test_the_desk_carries_the_writes_this_deployment_has_components_for(
 ) -> None:
     state = _state()
 
-    desk = await compose_remediation(state, org_id=ORG)
+    desk = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
 
     assert desk is not None
     assert desk.handles("scale_workload")
@@ -122,7 +127,7 @@ async def test_the_runner_and_the_approval_route_read_one_desk(plane: None) -> N
     """Two consumers, one object — never two constructions that could disagree."""
     state = _state()
 
-    desk = await compose_remediation(state, org_id=ORG)
+    desk = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
 
     runner = state.investigator
     assert isinstance(runner, ReActInvestigationRunner)
@@ -135,7 +140,7 @@ async def test_the_runner_and_the_approval_route_read_one_desk(plane: None) -> N
 async def test_a_deployment_with_no_control_plane_composes_nothing(unbound: None) -> None:
     state = _state()
 
-    desk = await compose_remediation(state, org_id=ORG)
+    desk = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
 
     assert desk is None
     assert state.remediation is None

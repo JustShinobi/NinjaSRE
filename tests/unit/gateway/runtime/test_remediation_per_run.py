@@ -42,11 +42,17 @@ from gateway.runtime.investigator import ReActInvestigationRunner
 from platform.identity.tokens import TokenService
 from platform.persistence.fakes import FakePersistence
 from platform.persistence.ports import TenantScope
+from platform.persistence.ports.config_repository import ConfigNode, ConfigNodeKind
 from platform.remediation.models import RemediationAction, StateSnapshot, SubTargetResult
 
 pytestmark = pytest.mark.unit
 
 ORG = "acme"
+
+#: Where a sandbox reaches the credential proxy. Any absolute address: nothing
+#: in these tests sends a packet, and the policy type refuses to describe a
+#: sandbox with nowhere to authenticate through.
+PROXY = "http://127.0.0.1:8787"
 TEAM = "acme/payments"
 SCALE = "scale_workload"
 
@@ -150,13 +156,24 @@ def _registry() -> Registry:
     return Registry(tools={SCALE: found})
 
 
+async def _seed(store: FakePersistence) -> FakePersistence:
+    """Create the organisation and the team, as a real deployment's boot does."""
+    async with store.begin_system() as system:
+        await system.orgs.create_organisation(ORG, "Acme")
+    async with store.begin(TenantScope(org_id=ORG)) as uow:
+        await uow.config.upsert(
+            ConfigNode(node_id=TEAM, kind=ConfigNodeKind.TEAM, name="payments", parent_id=ORG)
+        )
+    return store
+
+
 async def _runner(
     store: FakePersistence, llm: _ScriptedLLM
 ) -> tuple[ReActInvestigationRunner, GatewayState]:
     """Return a runner composed the way the deployment's own roots compose one."""
     runner = ReActInvestigationRunner(llm=llm, registry=_registry())  # type: ignore[arg-type]
     state = GatewayState(gateway=store, tokens=TokenService(gateway=store), investigator=runner)
-    desk = await compose_remediation(state, org_id=ORG)
+    desk = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
     assert desk is not None, "the test deployment could not compose a remediation desk"
     return runner, state
 
@@ -184,7 +201,7 @@ async def _approvals(store: FakePersistence) -> list[Any]:
 
 async def test_a_write_inside_an_investigation_becomes_a_stored_proposal(plane: _Plane) -> None:
     """The property the whole feature exists for, asserted on the store."""
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     runner, _ = await _runner(store, _scaling_llm())
 
     await runner.investigate(_start("run-1", principal="ana"))
@@ -194,11 +211,16 @@ async def test_a_write_inside_an_investigation_becomes_a_stored_proposal(plane: 
         f"the investigation proposed a write and {len(pending)} approvals were stored. "
         f"A write that reached no queue is one nobody can answer."
     )
-    assert SCALE in pending[0].action
+    proposed = pending[0].arguments.get("proposed", {})
+    assert proposed.get("capability") == SCALE, (
+        f"the stored proposal names {proposed.get('capability')!r} rather than the "
+        f"capability the agent asked for."
+    )
+    assert proposed.get("target", {}).get("identifier") == "checkout"
 
 
 async def test_the_proposal_carries_the_plan_that_would_undo_it(plane: _Plane) -> None:
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     runner, _ = await _runner(store, _scaling_llm())
 
     await runner.investigate(_start("run-1", principal="ana"))
@@ -214,7 +236,7 @@ async def test_the_proposal_carries_the_plan_that_would_undo_it(plane: _Plane) -
 
 
 async def test_the_proposal_names_the_person_who_started_the_run(plane: _Plane) -> None:
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     runner, _ = await _runner(store, _scaling_llm())
 
     await runner.investigate(_start("run-1", principal="ana"))
@@ -224,7 +246,7 @@ async def test_the_proposal_names_the_person_who_started_the_run(plane: _Plane) 
 
 
 async def test_nothing_is_changed_while_the_deployment_only_proposes(plane: _Plane) -> None:
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     runner, _ = await _runner(store, _scaling_llm())
 
     await runner.investigate(_start("run-1", principal="ana"))
@@ -237,7 +259,7 @@ async def test_nothing_is_changed_while_the_deployment_only_proposes(plane: _Pla
 
 async def test_the_model_is_told_a_person_has_to_decide(plane: _Plane) -> None:
     """The sentence the model reads, so it records the gap instead of retrying."""
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     llm = _scaling_llm()
     runner, _ = await _runner(store, llm)
 
@@ -251,7 +273,7 @@ async def test_the_model_is_told_a_person_has_to_decide(plane: _Plane) -> None:
 
 
 async def test_the_refusal_says_the_policy_decided(plane: _Plane) -> None:
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     llm = _scaling_llm()
     runner, _ = await _runner(store, llm)
 
@@ -265,7 +287,7 @@ async def test_the_refusal_says_the_policy_decided(plane: _Plane) -> None:
 
 
 async def test_the_investigation_continues_after_the_proposal(plane: _Plane) -> None:
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     runner, _ = await _runner(store, _scaling_llm())
 
     summary = await runner.investigate(_start("run-1", principal="ana"))
@@ -278,7 +300,7 @@ async def test_the_investigation_continues_after_the_proposal(plane: _Plane) -> 
 
 async def test_two_concurrent_runs_do_not_share_a_requester(plane: _Plane) -> None:
     """A process-wide gate would attribute one person's proposal to the other."""
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     first, _ = await _runner(store, _scaling_llm())
     second, _ = await _runner(store, _scaling_llm())
 
@@ -297,7 +319,7 @@ async def test_two_concurrent_runs_do_not_share_a_requester(plane: _Plane) -> No
 
 
 async def test_two_concurrent_runs_do_not_share_a_run_identity(plane: _Plane) -> None:
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     first, _ = await _runner(store, _scaling_llm())
     second, _ = await _runner(store, _scaling_llm())
 
@@ -318,7 +340,7 @@ async def test_a_deployment_with_no_desk_proposes_nothing_and_still_investigates
     plane: _Plane,
 ) -> None:
     """Composed nothing is a working deployment, exactly as it was before."""
-    store = FakePersistence()
+    store = await _seed(FakePersistence())
     runner = ReActInvestigationRunner(llm=_scaling_llm(), registry=_registry())  # type: ignore[arg-type]
 
     summary = await runner.investigate(_start("run-1", principal="ana"))
