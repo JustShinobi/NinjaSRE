@@ -250,6 +250,54 @@ after a reload, not from the process that happened to run it.
 
 ---
 
+## The half of the product that acts is not composed
+
+**What happens today.** An investigation reaches a conclusion and stops there.
+Not because acting was decided against — ADR 0006 decided *for* it, and every
+piece it named exists — but because nothing in any composition root builds the
+gate that would carry an action out.
+
+The capabilities are registered and real. Of eighty, forty-four are `read` and
+twelve `read_sensitive`; the other twenty-four write — fifteen reversibly, six
+irreversibly, three destructively — and twenty-four declare `requires_approval`
+with a reason and a rollback plan beside it.
+
+**The refusal is in the right place, and it works.** Each remediation
+capability's function body is a deliberate stub:
+
+> A remediation capability is not callable directly. It runs through the
+> remediation gate, which records the approval and the rollback plan before
+> anything changes, and refuses when neither exists.
+
+Returned as `PERMISSION_DENIED` rather than `APPROVAL_REQUIRED`, because in a
+composition with no approval desk nobody is being asked. That is fail-closed:
+the refusal is the default rather than a check somebody could forget to write,
+which is why an unfinished acting path is safe rather than dangerous.
+
+**What is missing is the wire.** `RemediationGate`
+(`platform/remediation/gating.py`) and `AutonomyGate`
+(`platform/autonomy/decision.py`) both exist. The console's approval and
+proposal routes exist and are permissioned. Search the tree for either gate
+being constructed and every hit is a test, a contract test, or the mock data
+plane. The same shape as the deep verifier before it was composed: everything
+written, nothing wired.
+
+**Two smaller things fall out of it.** The investigator's tool selection ranks
+by relevance to the alert and does not filter by side-effect level, so a model
+can be handed a remediation capability inside its schema budget, spend a call on
+it, and get the refusal — a wasted turn and a confusing transcript. And the
+composition raises no interactions at all (`pending_interactions` returns
+nothing, `answer_interaction` refuses), so even a gate that were wired would
+have nowhere to put the question.
+
+**How it should be judged.** An operator who has turned acting on sees a
+proposed change with its rollback plan, approves it, and watches it run and be
+recorded — and an operator who has not turned it on sees the investigation
+propose the change and stop, with the reason being their policy rather than an
+absent composition.
+
+---
+
 ## The model gateway needs a key that exists nowhere
 
 `OLLAMA_BASE_URL` now points at the gateway that is actually there, and the
