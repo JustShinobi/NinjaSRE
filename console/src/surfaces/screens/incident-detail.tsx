@@ -16,6 +16,7 @@ import {
   authorised,
   dataOf,
   dependencyOf,
+  existenceOf,
   field,
   list,
   panelRead,
@@ -195,14 +196,26 @@ export async function IncidentDetailScreen(
     INCIDENT_STATE_LABEL[incidentState] ?? 'incident.chip.state.open',
   );
 
-  // `null` when the read itself failed: rendering "No investigation" over a
-  // read that never answered would be asserting the negative from evidence
-  // that does not exist. A read that succeeded and genuinely carries no
-  // investigation still says so — that is a fact, not a guess.
-  const investigationChip: { role: SemanticRole; shape: Shape; label: string } | null =
-    readFailed
-      ? null
-      : !hasInvestigation
+  // Four states, derived from the read's own outcome rather than from its
+  // body: `unknown` when the read itself failed — naming the dependency
+  // that did — never "No investigation" over a read that never answered.
+  // A read that succeeded and genuinely carries no investigation still
+  // says so; that is a fact, not a guess.
+  const investigationExistence = existenceOf(detail, hasInvestigation);
+  const investigationChip: {
+    role: SemanticRole;
+    shape: Shape;
+    label: string;
+    title?: string | undefined;
+  } =
+    investigationExistence.kind === 'unknown'
+      ? {
+          role: 'neutral',
+          shape: 'dash',
+          label: message(locale, 'incident.chip.investigation.unknown'),
+          title: message(locale, 'incident.chip.investigation.unknown.explain'),
+        }
+      : investigationExistence.kind === 'absent'
         ? {
             role: 'neutral',
             shape: 'dash',
@@ -280,14 +293,15 @@ export async function IncidentDetailScreen(
             shape={incidentPresented.shape}
             label={incidentStateLabel}
           />
-          {investigationChip === null ? null : (
-            <ResolvedChip
-              testId="incident-chip"
-              role={investigationChip.role}
-              shape={investigationChip.shape}
-              label={investigationChip.label}
-            />
-          )}
+          <ResolvedChip
+            testId="incident-chip"
+            role={investigationChip.role}
+            shape={investigationChip.shape}
+            label={investigationChip.label}
+            {...(investigationChip.title === undefined
+              ? {}
+              : { title: investigationChip.title })}
+          />
         </div>
         <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
           <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>

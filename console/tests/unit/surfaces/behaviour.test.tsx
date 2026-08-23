@@ -7,6 +7,7 @@ import { surfaceContext } from '@/surfaces/context';
 import {
   dataOf,
   dependencyOf,
+  existenceOf,
   panelRead,
   readProjectedPanel,
   stateOf,
@@ -323,6 +324,28 @@ describe('what a panel does with a refusal', () => {
     expect(stateOf(failed, false)).toBe('error');
     expect(dependencyOf(failed)).toBe('/v1/runs');
     expect(dataOf(failed)).toBeUndefined();
+  });
+
+  it('is unknown, not absent, for a fact whose read failed', async () => {
+    const failed = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.reject(new ApiError(502, 'no')),
+    );
+
+    const existence = existenceOf(failed, true);
+
+    expect(existence.kind).toBe('unknown');
+    expect(existence.kind === 'unknown' ? existence.dependency : '').toBe(
+      '/v1/incidents/{incident_id}',
+    );
+  });
+
+  it('is present or absent, never unknown, once a read has actually succeeded', async () => {
+    const ready = await panelRead<unknown>('/v1/incidents/{incident_id}', () =>
+      Promise.resolve({}),
+    );
+
+    expect(existenceOf(ready, true).kind).toBe('present');
+    expect(existenceOf(ready, false).kind).toBe('absent');
   });
 
   it('lets a defect in the console reach the route’s own boundary', async () => {

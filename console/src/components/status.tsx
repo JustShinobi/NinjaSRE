@@ -240,6 +240,13 @@ export interface ResolvedChipProps {
   readonly label: string;
   readonly testId: string;
   readonly className?: string | undefined;
+  /**
+   * What an unknown or otherwise unresolved state names as its own
+   * explanation — the same tooltip technique `StatusChip` already uses for
+   * its own `unknown` word, offered here for a chip whose label the caller
+   * resolves itself.
+   */
+  readonly title?: string | undefined;
 }
 
 export function ResolvedChip({
@@ -248,11 +255,13 @@ export function ResolvedChip({
   label,
   testId,
   className,
+  title,
 }: ResolvedChipProps): ReactNode {
   return (
     <span
       data-testid={testId}
       data-role={role}
+      {...(title === undefined ? {} : { title })}
       className={cx(
         'inline-flex items-center gap-1 px-2 rounded-1 edge text-micro',
         ROLE_SKIN[role],

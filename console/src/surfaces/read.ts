@@ -130,6 +130,37 @@ export function dataOf<T>(data: PanelData<T>): T | undefined {
   return data.status === 'ready' ? data.data : undefined;
 }
 
+/**
+ * Whether a fact a read carries exists, distinguishing "it does not" from
+ * "the read that would say so failed" — the third answer `stateOf` and
+ * `dependencyOf` give for the panel around it, given here for the fact
+ * inside it.
+ *
+ * A chip, a badge, or any short label that would otherwise say "No X" from
+ * a read that never answered derives from this instead: `unknown` names the
+ * dependency that failed, and only a `status: 'ready'` read is ever allowed
+ * to say `present` or `absent`. A screen deriving its own boolean from
+ * `dataOf(...) !== undefined` cannot tell "confirmed absent" from "never
+ * asked" apart — this function exists so nothing has to.
+ */
+export type Existence =
+  | { readonly kind: 'unknown'; readonly dependency: string }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'present' };
+
+/**
+ * The existence `data` implies for one fact inside it, given whether the
+ * caller found it once the read succeeded.
+ *
+ * `present`, mirroring `stateOf`'s own second parameter: the caller has
+ * already looked at the body and knows whether the fact is there, because
+ * only the caller knows which field of which shape it is looking for.
+ */
+export function existenceOf(data: PanelData<unknown>, present: boolean): Existence {
+  if (data.status === 'error') return { kind: 'unknown', dependency: data.dependency };
+  return present ? { kind: 'present' } : { kind: 'absent' };
+}
+
 // --- Picking fields out of a payload ---------------------------------------------
 
 /** One field of `record`, whatever it turns out to be. */
