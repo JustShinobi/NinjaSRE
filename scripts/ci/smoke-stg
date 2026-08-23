@@ -9,7 +9,11 @@ cd -- "$repository_root"
 
 export NINJASRE_SMOKE_APP_URL="${NINJASRE_SMOKE_APP_URL:-http://app.k3s-stg-ninjasre.svc.cluster.local:8420/health/live}"
 export NINJASRE_SMOKE_CONSOLE_URL="${NINJASRE_SMOKE_CONSOLE_URL:-${STAGING_BASE_URL:-http://console.k3s-stg-ninjasre.svc.cluster.local:8421/health/live}}"
-export NINJASRE_SMOKE_PROXY_URL="${NINJASRE_SMOKE_PROXY_URL:-http://proxy.k3s-stg-ninjasre.svc.cluster.local:8422/health}"
+# `/internal/health`, not `/health`: the proxy keeps its own liveness behind
+# `/internal` because it is the one surface nobody browses to. The path is
+# `PROXY_HEALTH_PATH` in `config/constants/security.py`, and the proxy's router
+# is built from it.
+export NINJASRE_SMOKE_PROXY_URL="${NINJASRE_SMOKE_PROXY_URL:-http://proxy.k3s-stg-ninjasre.svc.cluster.local:8422/internal/health}"
 
 echo "Checking NinjaSRE staging endpoints..."
 curl -fsS --retry 5 --retry-delay 3 "$NINJASRE_SMOKE_APP_URL"
