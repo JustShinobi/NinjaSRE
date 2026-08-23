@@ -721,7 +721,10 @@ export const LEGACY_ROUTE_REDIRECTS: readonly LegacyRouteRedirect[] = [
  * Where `path` (with `tab`, when the caller has one) redirects to, or
  * `undefined` when nothing retires it.
  */
-export function legacyRouteTarget(path: string, tab: string | null): string | undefined {
+export function legacyRouteTarget(
+  path: string,
+  tab: string | null,
+): string | undefined {
   const candidates = LEGACY_ROUTE_REDIRECTS.filter((entry) => entry.from === path);
   if (tab !== null) {
     const named = candidates.find((entry) => entry.tab === tab);

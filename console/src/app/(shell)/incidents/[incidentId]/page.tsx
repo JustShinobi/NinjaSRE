@@ -7,7 +7,10 @@ import { requestCredential, requestLocale } from '@/shell/request';
 import { routeParam } from '@/shell/route-params';
 import { field, text } from '@/surfaces/read';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
-import { incidentDetailFor, IncidentDetailScreen } from '@/surfaces/screens/incident-detail';
+import {
+  incidentDetailFor,
+  IncidentDetailScreen,
+} from '@/surfaces/screens/incident-detail';
 
 /**
  * One incident, named in the tab as well as on the page.

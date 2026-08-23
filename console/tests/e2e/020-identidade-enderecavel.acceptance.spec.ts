@@ -137,8 +137,12 @@ test.describe('identity: an alert-sourced incident opens', () => {
       await openAlertIncident(page);
       const tabTitle = await page.title();
 
-      expect(tabTitle, `"${tabTitle}" carries a reserved character`).not.toMatch(/[:@+]/);
-      expect(tabTitle, `"${tabTitle}" is percent-encoded`).not.toMatch(/%[0-9A-Fa-f]{2}/);
+      expect(tabTitle, `"${tabTitle}" carries a reserved character`).not.toMatch(
+        /[:@+]/,
+      );
+      expect(tabTitle, `"${tabTitle}" is percent-encoded`).not.toMatch(
+        /%[0-9A-Fa-f]{2}/,
+      );
     },
   );
 
@@ -166,9 +170,10 @@ test.describe('identity: an alert-sourced incident opens', () => {
       const path = new URL(page.url()).pathname;
 
       for (const char of RESERVED_LITERAL) {
-        expect(path, `${path} carries the literal reserved character "${char}"`).not.toContain(
-          char,
-        );
+        expect(
+          path,
+          `${path} carries the literal reserved character "${char}"`,
+        ).not.toContain(char);
       }
     },
   );
@@ -210,7 +215,12 @@ test.describe('identity: an alert-sourced incident opens', () => {
       // renders none of them.
       const title = investigatedIncidentTitle();
       await page.goto('/incidents');
-      await page.getByTestId('row').filter({ hasText: title }).locator('a').first().click();
+      await page
+        .getByTestId('row')
+        .filter({ hasText: title })
+        .locator('a')
+        .first()
+        .click();
 
       await expect(page.getByTestId('investigation-step')).toHaveCount(5);
     },
@@ -247,14 +257,18 @@ test.describe('routes answering by the name the product already uses', () => {
    */
   test('/investigations ends in /runs', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
     const response = await page.request.get('/investigations', { maxRedirects: 0 });
-    expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(300);
+    expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(
+      300,
+    );
     expect(response.status()).toBeLessThan(400);
     expect(response.headers().location ?? '').toBe('/runs');
   });
 
   test('/setup ends in /first-run', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
     const response = await page.request.get('/setup', { maxRedirects: 0 });
-    expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(300);
+    expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(
+      300,
+    );
     expect(response.status()).toBeLessThan(400);
     expect(response.headers().location ?? '').toBe('/first-run');
   });
@@ -268,7 +282,9 @@ test.describe('one address, every surface', () => {
     page,
   }) => {
     const row = await alertIncidentRow(page);
-    const titleCell = ((await row.locator('td').first().innerText()).split('\n')[0] ?? '').trim();
+    const titleCell = (
+      (await row.locator('td').first().innerText()).split('\n')[0] ?? ''
+    ).trim();
     expect(titleCell).not.toBe('');
 
     await row.locator('a').first().click();
@@ -282,7 +298,9 @@ test.describe('one address, every surface', () => {
     await command.click();
     const fromSearch = new URL(page.url()).pathname;
 
-    expect(fromSearch, `search opened ${fromSearch}, the list opens ${fromList}`).toBe(fromList);
+    expect(fromSearch, `search opened ${fromSearch}, the list opens ${fromList}`).toBe(
+      fromList,
+    );
   });
 
   test('the incident link on a run detail page points to the same address the list row does', async ({

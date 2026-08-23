@@ -405,7 +405,7 @@ describe('the redirect table from a retired route to its live address', () => {
     expect(legacyRouteTarget('/setup', null)).toBe('/first-run');
   });
 
-  it('falls back to the bare route\'s own destination when the tab named does not match any entry', () => {
+  it("falls back to the bare route's own destination when the tab named does not match any entry", () => {
     // /signals carries a tab-less entry as well as three tab-specific ones —
     // an unrecognised tab must fall through to that bare-route destination
     // rather than resolving to nothing, the same way a bookmarked but

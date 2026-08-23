@@ -10,7 +10,9 @@ import { routeParam } from '@/shell/route-params';
  */
 describe('routeParam: the edge decode every dynamic route parameter crosses', () => {
   it('decodes a parameter carrying reserved characters', () => {
-    const raw = encodeURIComponent('alert:alertmanager:abc123@2026-08-22T23:43:23+00:00');
+    const raw = encodeURIComponent(
+      'alert:alertmanager:abc123@2026-08-22T23:43:23+00:00',
+    );
 
     expect(routeParam(raw)).toBe('alert:alertmanager:abc123@2026-08-22T23:43:23+00:00');
   });
