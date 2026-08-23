@@ -65,6 +65,11 @@ class IncidentSummaryView(BaseModel):
     """One incident as a table row shows it."""
 
     incident_id: str
+    #: The short, URL-safe address this incident is reached by. What every
+    #: link and every address bar carries; ``incident_id`` stays on the
+    #: payload because the timeline references it and an operator debugging
+    #: from the database needs it, but the console never emits it as a link.
+    public_id: str
     title: str
     summary: str
     state: str
@@ -241,6 +246,7 @@ async def _detectors(state: GatewayState, auth: AuthenticatedRequest) -> Detecto
 def _row(incident: Incident) -> IncidentSummaryView:
     return IncidentSummaryView(
         incident_id=incident.incident_id,
+        public_id=incident.public_id,
         title=incident.title,
         summary=incident.summary,
         state=incident.state.value,
