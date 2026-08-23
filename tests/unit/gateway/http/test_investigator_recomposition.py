@@ -41,6 +41,9 @@ from core.llm.factory import (
 )
 from gateway.http.runtime import recompose_investigator
 from gateway.runtime.factory import build_investigator
+from platform.guardrails.engine import GuardrailEngine
+from platform.persistence.fakes import FakePersistence
+from platform.runs.stream import RunEventBroker
 
 pytestmark = pytest.mark.unit
 
@@ -62,6 +65,9 @@ class _State:
 
     def __init__(self, investigator: object) -> None:
         self.investigator = investigator
+        self.gateway = FakePersistence()
+        self.guardrails = GuardrailEngine()
+        self.broker = RunEventBroker()
 
 
 @pytest.fixture(autouse=True)

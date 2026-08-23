@@ -38,15 +38,23 @@ from core.pipeline.stages.plan_evidence import PlanEvidenceStage
 from core.pipeline.stages.resolve_integrations import ResolveIntegrationsStage
 from core.pipeline.stages.window_guard import IncidentWindowGuard
 from core.pipeline.streaming import EventStream
+from platform.runs.recording import RunTraceRecordingHook
 
 
-def investigation_hooks() -> HookRegistry:
+def investigation_hooks(*, recorder: RunTraceRecordingHook | None = None) -> HookRegistry:
     """Return the hooks an investigation runtime must be constructed with.
 
-    One so far: the incident-window guard. It belongs to the runtime
+    The incident-window guard is always present. It belongs to the runtime
     rather than to a stage because it acts on the loop's calls, and it reads the
     window from the session it is guarding — so one registry serves every
     concurrent investigation on a shared loop.
+
+    ``recorder`` is registered at ``on_turn_end`` only when the caller has
+    one — a runner composed with somewhere to write (see
+    ``gateway.runtime.investigator.ReActInvestigationRunner``). Without one,
+    this returns exactly what it always returned: the window guard alone,
+    which is what keeps a deployment that composed no store working
+    unchanged.
 
     The runtime is constructed by the caller, because which capabilities it can
     execute is a per-team question. This is the part of that construction the
@@ -54,6 +62,8 @@ def investigation_hooks() -> HookRegistry:
     """
     registry = HookRegistry()
     registry.register(HookPoint.PRE_TOOL_USE, IncidentWindowGuard(), name="incident_window")
+    if recorder is not None:
+        registry.register(HookPoint.ON_TURN_END, recorder.on_turn_end, name="run_trace_recorder")
     return registry
 
 
@@ -71,6 +81,15 @@ def build_pipeline(
     strict: bool = False,
 ) -> Pipeline:
     """Return the six-stage investigation pipeline.
+
+    Dormant: nothing in this deployment's serving path constructs a
+    ``Pipeline`` today. ``gateway.runtime.investigator.ReActInvestigationRunner``
+    is what a route-triggered investigation actually runs on — the canonical
+    loop directly, with its own hooks — and this function exists, tested, for
+    whichever later composition root decides a staged pipeline is the shape
+    it wants. Giving it a production caller is a decision about *how* an
+    investigation runs, not about registering what one already did, and it is
+    deliberately not made here.
 
     The runtime must have been built with ``investigation_hooks()`` attached,
     or the incident window is a suggestion in the prompt rather than a bound.

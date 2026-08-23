@@ -43,6 +43,10 @@ class InvestigationStart:
     objective: str
     team_node_id: str
     principal_id: str
+    #: The organisation this run belongs to. Alongside ``team_node_id`` because
+    #: a runner that can record needs a full tenant scope to open its own units
+    #: of work with — the team alone is not a scope the persistence layer opens.
+    org_id: str = ""
     alert_source: str = ""
     context: Mapping[str, str] = field(default_factory=dict)
     incident_id: str = ""

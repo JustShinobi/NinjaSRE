@@ -84,7 +84,12 @@ async def test_a_factory_that_will_not_load_answers_no_and_never_yes(
     runtime. Nothing loads, so there is none. The three surfaces read the
     composed object and say so.
     """
-    deployment.state.investigator = investigator_of({_SETTING: "a.module.that.is.not:there"})
+    deployment.state.investigator = investigator_of(
+        {_SETTING: "a.module.that.is.not:there"},
+        store=deployment.state.gateway,
+        guardrails=deployment.state.guardrails,
+        broker=deployment.state.broker,
+    )
 
     assert runtime_composed(deployment.state) is False
     assert _runtime_step(runtime_composed(deployment.state), blocked=False).done is False

@@ -39,8 +39,10 @@ from core.llm.types import LLMClient
 from core.pipeline.build import investigation_hooks
 from core.pipeline.ports import IncidentSignals
 from gateway.http.services import InvestigationStart
-from gateway.runtime.recording import InvestigationRecorder
-from platform.incidents.lifecycle import IncidentLifecycle
+from platform.guardrails.engine import GuardrailEngine
+from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
+from platform.runs.recording import RunTraceRecordingHook
+from platform.runs.stream import RunEventBroker
 
 
 class InvestigationDidNotComplete(RuntimeError):
@@ -76,6 +78,20 @@ class _LiveRun:
     session: Session | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class _RecordingComposition:
+    """What ``attach_recording`` gives a runner to write through.
+
+    Held as one small value rather than three loose fields so a single
+    ``is None`` check on ``ReActInvestigationRunner._recording`` answers
+    "can this runner record" for every collaborator at once.
+    """
+
+    gateway: PersistenceGateway
+    guardrails: GuardrailEngine
+    broker: RunEventBroker
+
+
 @dataclass(slots=True)
 class ReActInvestigationRunner:
     """Composes ``ReActLoop`` per investigation and steers it by run id.
@@ -85,19 +101,36 @@ class ReActInvestigationRunner:
     offered, the session identity, mid-run messages — is built inside
     ``investigate``.
 
-    ``incidents`` is the one collaborator this composition does not build for
-    itself: a tenant-scoped persistence handle is not something a
-    no-argument factory holds (the same gap already named for the credential
-    proxy binding — see ``_select_tools``). Left unset, ``investigate``
-    records nothing and behaves exactly as it did before this field existed;
-    a caller that composes one gets a real receipt entry for any run whose
-    request names an incident and a delivery credential.
+    Recording is attached after construction, through ``attach_recording``,
+    for the reason ``_select_tools`` already names for the credential proxy
+    binding: a tenant-scoped persistence handle is not something a
+    no-argument factory holds. A runner nobody attached one to writes
+    nothing and behaves exactly as it did before this feature — composed
+    nothing is still a valid, working deployment.
     """
 
     llm: LLMClient
     registry: Registry
-    incidents: IncidentLifecycle | None = None
     _live: dict[str, _LiveRun] = field(default_factory=dict)
+    _recording: _RecordingComposition | None = field(default=None, repr=False)
+
+    def attach_recording(
+        self, *, gateway: PersistenceGateway, guardrails: GuardrailEngine, broker: RunEventBroker
+    ) -> None:
+        """Give this runner somewhere to write what every investigation does.
+
+        Called once, by the composition root that built this runner
+        (``gateway.http.asgi.investigator_of``) — never by ``investigate``
+        itself, which has no store of its own to reach for.
+        """
+        self._recording = _RecordingComposition(
+            gateway=gateway, guardrails=guardrails, broker=broker
+        )
+
+    @property
+    def can_record(self) -> bool:
+        """Return whether this runner has somewhere to write what it does."""
+        return self._recording is not None
 
     async def investigate(self, request: InvestigationStart) -> str:
         """Run the investigation to completion and return its summary.
@@ -110,8 +143,6 @@ class ReActInvestigationRunner:
         product's own canonical word for that state — "degraded" — rather
         than as a summary a reader would have to infer the state from.
         """
-        await self._record_receipt(request)
-
         queue = MessageQueue(run_id=request.run_id)
         loop = self._build_runtime(request, messages=queue)
         live = _LiveRun(loop=loop, messages=queue)
@@ -126,20 +157,6 @@ class ReActInvestigationRunner:
         if result.degraded:
             return _degraded_summary(result.answer)
         return result.answer or f"investigation ended {result.status.value}"
-
-    async def _record_receipt(self, request: InvestigationStart) -> None:
-        """Record what arrived, before the loop takes its first turn.
-
-        A quiet no-op unless this runner was composed with somewhere to
-        write to (``incidents``) *and* the request names both an incident
-        and the delivery credential that authenticated it — an
-        operator-triggered investigation has neither, and is not an error
-        for lacking them.
-        """
-        if self.incidents is None or not request.incident_id or not request.credential_name:
-            return
-        recorder = InvestigationRecorder(lifecycle=self.incidents, incident_id=request.incident_id)
-        await recorder.receipt(labels=request.alert_labels, credential_name=request.credential_name)
 
     async def cancel(self, run_id: str) -> None:
         """Ask ``run_id`` to stop at its next safe point.
@@ -228,8 +245,25 @@ class ReActInvestigationRunner:
         return ReActLoop(
             llm=self.llm,
             tools=self._select_tools(request),
-            hooks=investigation_hooks(),
+            hooks=investigation_hooks(recorder=self._recording_hook_for(request)),
             messages=messages,
+        )
+
+    def _recording_hook_for(self, request: InvestigationStart) -> RunTraceRecordingHook | None:
+        """Return this investigation's own recording hook, or ``None`` when unattached.
+
+        A fresh hook per investigation, scoped to this run's own tenant and
+        identity — the same "one instance per investigation" shape
+        ``_LiveRun`` already keeps for the loop it drives.
+        """
+        if self._recording is None:
+            return None
+        return RunTraceRecordingHook(
+            gateway=self._recording.gateway,
+            scope=TenantScope(org_id=request.org_id, team_node_id=request.team_node_id),
+            run_id=request.run_id,
+            guardrails=self._recording.guardrails,
+            broker=self._recording.broker,
         )
 
     def _select_tools(self, request: InvestigationStart) -> tuple[RegisteredTool, ...]:

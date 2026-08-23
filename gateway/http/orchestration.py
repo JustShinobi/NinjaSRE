@@ -89,6 +89,7 @@ async def start_investigation(
                 objective=objective,
                 team_node_id=team_node_id,
                 principal_id=principal_id,
+                org_id=scope.org_id,
                 alert_source=alert_source,
                 context=dict(context or {}),
                 incident_id=incident_id,
