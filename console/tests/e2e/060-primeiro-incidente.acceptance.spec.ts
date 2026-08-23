@@ -61,8 +61,12 @@ import { signIn } from './session';
  * console's test suite has produced.
  */
 
-/** The incident the dataset details, and so the only one seeded with a timeline. */
-function detailedIncidentId(): string {
+/**
+ * The incident the dataset details, and so the only one seeded with a
+ * timeline — both the internal key (asserted never to leak as a name) and
+ * the public address the console now navigates by.
+ */
+function detailedIncident(): { readonly incidentId: string; readonly publicId: string } {
   const source = readFileSync(
     fileURLToPath(
       new URL(
@@ -73,21 +77,38 @@ function detailedIncidentId(): string {
     'utf8',
   );
   const captured = JSON.parse(source) as {
-    responses: { body?: { incident?: { incident_id?: string } } }[];
+    responses: {
+      body?: {
+        incident?: { incident_id?: string; public_id?: string };
+        investigation?: unknown;
+      };
+    }[];
   };
+  // The investigated one specifically — never "whichever response happens
+  // to be first once the file is written", which stopped being the same
+  // thing the day the file started keying its own records by the public
+  // address rather than the internal one, and sorted by it.
   for (const response of captured.responses) {
-    const found = response.body?.incident?.incident_id;
-    if (typeof found === 'string' && found !== '') {
-      return found;
+    const incidentId = response.body?.incident?.incident_id;
+    const publicId = response.body?.incident?.public_id;
+    if (
+      typeof incidentId === 'string' &&
+      incidentId !== '' &&
+      typeof publicId === 'string' &&
+      publicId !== '' &&
+      response.body?.investigation !== null &&
+      response.body?.investigation !== undefined
+    ) {
+      return { incidentId, publicId };
     }
   }
   throw new Error(
-    'the incident-detail capture names no incident, so no timeline is ever seeded',
+    'the incident-detail capture names no investigated incident, so no timeline is ever seeded',
   );
 }
 
-const INCIDENT_ID = detailedIncidentId();
-const INCIDENT_ROUTE = `/incidents/${INCIDENT_ID}`;
+const { incidentId: INCIDENT_ID, publicId: INCIDENT_PUBLIC_ID } = detailedIncident();
+const INCIDENT_ROUTE = `/incidents/${INCIDENT_PUBLIC_ID}`;
 
 /** The five reasoning steps, in the order an investigation produces them. */
 const STEP_ORDER = [

@@ -59,7 +59,13 @@ function registry(): Registry {
  */
 const DETAILED_INCIDENT_TOKEN = '{{detailed-incident-id}}';
 
-/** The incident the dataset details — the only one the seeder gives a timeline. */
+/**
+ * The public address of the incident the dataset details — the only one the
+ * seeder gives a timeline. Found by carrying an investigation, never by
+ * "whichever record the file lists first": the file's own record order
+ * follows its own keys (the public address each incident answers by), not
+ * the order the incidents were raised in.
+ */
 function detailedIncidentId(): string {
   const source = readFileSync(
     fileURLToPath(
@@ -71,16 +77,26 @@ function detailedIncidentId(): string {
     'utf8',
   );
   const captured = JSON.parse(source) as {
-    responses: { body?: { incident?: { incident_id?: string } } }[];
+    responses: {
+      body?: {
+        incident?: { public_id?: string };
+        investigation?: unknown;
+      };
+    }[];
   };
   for (const response of captured.responses) {
-    const found = response.body?.incident?.incident_id;
-    if (typeof found === 'string' && found !== '') {
+    const found = response.body?.incident?.public_id;
+    if (
+      typeof found === 'string' &&
+      found !== '' &&
+      response.body?.investigation !== null &&
+      response.body?.investigation !== undefined
+    ) {
       return found;
     }
   }
   throw new Error(
-    'the incident-detail capture names no incident, so no timeline is ever seeded',
+    'the incident-detail capture names no investigated incident, so no timeline is ever seeded',
   );
 }
 
