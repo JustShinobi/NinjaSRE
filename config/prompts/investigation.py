@@ -26,7 +26,11 @@ DEFAULT_RUNTIME_SYSTEM_PROMPT: Final[str] = (
     "Every claim in your conclusion must rest on an observation you actually made — "
     "if you could not establish something, say so rather than inferring it. Stop as "
     "soon as the evidence supports an answer; you are not required to use every "
-    "capability you were given."
+    "capability you were given.\n\n"
+    "When you conclude, write the full report first, then end your answer with one "
+    "more line in exactly this form: 'Headline: ' followed by a single sentence "
+    "naming what you found — no markdown, no line breaks, short enough to work as a "
+    "title. Write the headline last, after the report, not as its first line."
 )
 
 # --- Duplicate tool calls ----------------------------------------------------

@@ -22,8 +22,21 @@ exactly a title cut from the document's own opening line.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 
 from config.constants.runs import HEADLINE_MARKER, MAX_HEADLINE_LENGTH
+
+#: Label keys tried, in order, for "the resource this alert named" — there is
+#: no one canonical key across the alert sources this product ingests, so the
+#: first of these a delivery actually carries wins.
+_RESOURCE_LABEL_KEYS: tuple[str, ...] = (
+    "resource",
+    "resource_id",
+    "instance",
+    "node",
+    "host",
+    "pod",
+)
 
 #: Markdown syntax stripped from a headline candidate. Heading markers,
 #: emphasis, and inline code — the marks a model's prose carries that a title
@@ -131,9 +144,24 @@ def headline_for(
     return synthesize_headline(alert_name=alert_name, resource=resource, objective=objective)
 
 
+def resource_from_labels(labels: Mapping[str, str]) -> str:
+    """Return the resource an alert's labels name, or the empty string.
+
+    Tried in a fixed order because alert sources do not share one key for
+    "the thing this fired about" — the first label this delivery actually
+    carries, from ``_RESOURCE_LABEL_KEYS``, is what a headline names.
+    """
+    for key in _RESOURCE_LABEL_KEYS:
+        value = labels.get(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
 __all__ = [
     "extract_headline",
     "headline_for",
     "normalize_headline",
+    "resource_from_labels",
     "synthesize_headline",
 ]

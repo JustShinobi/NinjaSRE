@@ -50,6 +50,13 @@ class FakeIncidentStore:
             return None
         return max(live, key=lambda incident: (incident.opened_at, incident.incident_id))
 
+    async def find_by_run(self, run_id: str) -> Incident | None:
+        """Return the incident ``run_id`` is attached to, or ``None``."""
+        for incident in self.state.incidents.values():
+            if run_id in incident.run_ids:
+                return incident
+        return None
+
     async def query(self, query: IncidentQuery) -> tuple[Incident, ...]:
         """Return the incidents matching ``query``, most recently opened first."""
         limit = check_incident_limit(query.limit)

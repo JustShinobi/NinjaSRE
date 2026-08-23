@@ -413,6 +413,14 @@ class IncidentStore(Protocol):
         piece of last week's history.
         """
 
+    async def find_by_run(self, run_id: str) -> Incident | None:
+        """Return the incident ``run_id`` is attached to, or ``None``.
+
+        A direct lookup, not a page of ``query`` a caller filters by hand —
+        that is exactly the reachability a run's own detail view must not
+        depend on (FR-039).
+        """
+
     async def query(self, query: IncidentQuery) -> tuple[Incident, ...]:
         """Return the incidents matching ``query``, most recently opened first.
 

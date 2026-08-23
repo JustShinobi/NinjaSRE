@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from gateway.http.deps import AuthenticatedRequest, authorized, get_state
 from gateway.http.errors import not_found
-from gateway.http.routes.investigations import InvestigationSummary, summary_of
+from gateway.http.routes.investigations import InvestigationSummary, linked_summary, summary_of
 from gateway.http.routes.tenancy import visible
 from gateway.http.routes.threads import ThreadTurnView, thread_turn_view
 from gateway.http.state import GatewayState
@@ -28,7 +28,12 @@ class RunList(BaseModel):
 class RunReplayView(BaseModel):
     run_id: str
     turns: list[ThreadTurnView]
+    #: The sum of the turns that carried a recorded cost. Read this with
+    #: ``unpriced_turns`` — on its own it is a floor, not a total (FR-018).
     total_cost: float
+    #: How many turns carried no recorded cost, because their provider
+    #: published none. Never folded into ``total_cost`` as zero (FR-019).
+    unpriced_turns: int
     total_tokens: int
     is_interrupted: bool
 
@@ -54,9 +59,9 @@ async def get_run(
     """Return one run."""
     async with state.gateway.begin(auth.scope) as uow:
         run = await uow.run_traces.get_run(run_id)
-    if run is None or not visible(run, auth):
-        raise not_found(f"no run {run_id!r}")
-    return summary_of(run)
+        if run is None or not visible(run, auth):
+            raise not_found(f"no run {run_id!r}")
+        return await linked_summary(run, uow)
 
 
 @router.get("/{run_id}/replay", response_model=RunReplayView)
@@ -76,6 +81,7 @@ async def replay(
         run_id=run_id,
         turns=[thread_turn_view(turn) for turn in replayed.turns],
         total_cost=replayed.total_cost,
+        unpriced_turns=replayed.unpriced_turn_count,
         total_tokens=replayed.total_tokens,
         is_interrupted=replayed.is_interrupted,
     )

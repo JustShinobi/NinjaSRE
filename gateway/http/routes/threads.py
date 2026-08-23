@@ -45,6 +45,11 @@ class ThreadTurnView(BaseModel):
     turn_id: str
     index: int
     model: str = ""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    #: ``None`` when the provider publishes no price for this turn — never a
+    #: fabricated ``0.0`` standing in for "unknown" (FR-017).
+    cost: float | None = None
     selection_rationale: str = ""
     calls: list[ThreadCallView]
 
@@ -70,6 +75,9 @@ def thread_turn_view(turn: ReplayedTurn) -> ThreadTurnView:
         turn_id=turn.turn_id,
         index=turn.index,
         model=turn.model,
+        prompt_tokens=turn.prompt_tokens,
+        completion_tokens=turn.completion_tokens,
+        cost=turn.cost,
         selection_rationale=turn.selection_rationale,
         calls=[
             ThreadCallView(

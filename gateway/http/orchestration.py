@@ -18,6 +18,7 @@ from gateway.http.state import GatewayState
 from platform.incidents.lifecycle import IncidentLifecycle
 from platform.persistence.ports.run_trace_store import RunStatus
 from platform.persistence.ports.transaction import TenantScope
+from platform.runs.headline import headline_for, resource_from_labels
 from platform.runs.recorder import RunRecorder
 
 
@@ -121,11 +122,22 @@ async def _drive(state: GatewayState, *, scope: TenantScope, request: Investigat
         status = RunStatus.FAILED
         summary = f"{type(error).__name__}: {error}"
     finally:
+        # Extracted from what the model wrote when it followed the delivery
+        # prompt's instruction; synthesised from the run's own subject —
+        # never from ``summary`` — when it did not (FR-028 through FR-030).
+        headline = headline_for(
+            summary,
+            alert_name=request.alert_labels.get("alertname", ""),
+            resource=resource_from_labels(request.alert_labels),
+            objective=request.objective,
+        )
         async with state.gateway.begin(scope) as uow:
             recorder = RunRecorder(
                 store=uow.run_traces, guardrails=state.guardrails, broker=state.broker
             )
-            await recorder.complete_run(request.run_id, status=status, summary=summary)
+            await recorder.complete_run(
+                request.run_id, status=status, summary=summary, headline=headline
+            )
 
 
 __all__ = ["start_investigation"]

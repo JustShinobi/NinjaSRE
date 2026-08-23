@@ -38,9 +38,24 @@ from platform.persistence.ports.run_trace_store import (
     RunStatus,
     RunTrace,
     RunTraceStore,
+    ToolCallRecord,
     ToolCallStatus,
 )
 from platform.runs.events import RunEvent
+
+#: Argument keys tried, in order, for "the resource one call touched" — tool
+#: schemas across the capability catalogue do not share one name for it, so
+#: every key a call's own arguments might carry is tried.
+_RESOURCE_ARGUMENT_KEYS: tuple[str, ...] = (
+    "resource_id",
+    "resource",
+    "instance",
+    "node",
+    "host",
+    "pod",
+    "vmid",
+    "vm_id",
+)
 
 
 @runtime_checkable
@@ -256,6 +271,28 @@ def _optional_cost(value: Any) -> float | None:
     return None if value is None else float(value)
 
 
+def touched_resources_of(calls: Sequence[ToolCallRecord]) -> tuple[str, ...]:
+    """Return the resources ``calls`` named, derived from what was recorded.
+
+    Never from the alert's declared subjects (FR-038) — only from the
+    arguments a call was actually made with, read the same way ``replay_trace``
+    already unwraps them. A capability whose schema uses a name outside
+    ``_RESOURCE_ARGUMENT_KEYS`` contributes nothing; the list is a known,
+    declared heuristic over the catalogue's common argument names, not a
+    schema-aware reading of every capability's contract.
+    """
+    found: list[str] = []
+    seen: set[str] = set()
+    for record in calls:
+        arguments = _section(dict(record.arguments), "arguments")
+        for key in _RESOURCE_ARGUMENT_KEYS:
+            value = arguments.get(key)
+            if isinstance(value, str) and value and value not in seen:
+                seen.add(value)
+                found.append(value)
+    return tuple(found)
+
+
 def _optional_str(value: Any) -> str | None:
     """Return ``value`` as a string, or ``None`` when it was not recorded."""
     return None if value is None else str(value)
@@ -268,4 +305,5 @@ __all__ = [
     "ReplayedTurn",
     "replay_run",
     "replay_trace",
+    "touched_resources_of",
 ]

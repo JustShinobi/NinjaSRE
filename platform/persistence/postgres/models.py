@@ -935,6 +935,11 @@ class IncidentRow(Base):
         Index("ix_incidents_state", "org_id", "state"),
         Index("ix_incidents_team", "org_id", "team_node_id"),
         Index("ix_incidents_age", "closed_at"),
+        # Containment ("does this incident's run_ids array hold this run"),
+        # the same reasoning as ``episodes.components`` above: a btree cannot
+        # answer it, and a run's own incident is read on every run detail
+        # view, not swept for with a paginated incident query (FR-039).
+        Index("ix_incidents_run_ids", "run_ids", postgresql_using="gin"),
     )
 
     org_id: Mapped[str] = _org()

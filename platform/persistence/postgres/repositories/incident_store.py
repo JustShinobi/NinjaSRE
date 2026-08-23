@@ -92,6 +92,21 @@ class PostgresIncidentStore(TenantBound):
         row = found.scalar_one_or_none()
         return None if row is None else _incident(row)
 
+    async def find_by_run(self, run_id: str) -> Incident | None:
+        """Return the incident ``run_id`` is attached to, or ``None``.
+
+        A containment lookup over the GIN index on ``run_ids``, not a scan —
+        the same reasoning ``episodes.components`` already uses.
+        """
+        found = await self.session.execute(
+            select(models.IncidentRow).where(
+                models.IncidentRow.org_id == self.org_id,
+                models.IncidentRow.run_ids.contains([run_id]),
+            )
+        )
+        row = found.scalars().first()
+        return None if row is None else _incident(row)
+
     async def query(self, query: IncidentQuery) -> tuple[Incident, ...]:
         """Return the incidents matching ``query``, most recently opened first."""
         limit = check_incident_limit(query.limit)
