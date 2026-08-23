@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { apiOrigin } from '@/lib/api';
+import { routeParam } from '@/shell/route-params';
 import { SESSION_COOKIE } from '@/session/cookies';
 
 /**
@@ -37,7 +38,8 @@ export async function GET(
     return NextResponse.json({ streaming: false }, { status: 401 });
   }
 
-  const { runId } = await params;
+  const { runId: raw } = await params;
+  const runId = routeParam(raw);
   const cursor = request.nextUrl.searchParams.get('cursor') ?? '';
   const headers: Record<string, string> = {
     authorization: `Bearer ${credential}`,

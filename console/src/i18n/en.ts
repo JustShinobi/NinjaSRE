@@ -852,6 +852,7 @@ export const EN = {
   'incident.chip.investigation.none': 'No investigation',
   'incident.chip.investigation.running': 'Investigation running',
   'incident.chip.investigation.finished': 'Investigation finished',
+  'incident.header.unreadable': 'This incident could not be read',
 
   'incident.origin.alert': 'Alertmanager',
   'incident.origin.detector': "this deployment's own detectors",

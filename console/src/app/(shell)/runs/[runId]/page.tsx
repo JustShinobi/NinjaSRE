@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { deployment, documentTitle } from '@/shell/deployment';
 import { requestCredential, requestLocale } from '@/shell/request';
 import { message, type Locale } from '@/i18n/messages';
+import { routeParam } from '@/shell/route-params';
 import { readFailure } from '@/surfaces/failures';
 import { authorised, read, text } from '@/surfaces/read';
 import { surfaceContext, type SearchParams } from '@/surfaces/context';
@@ -30,7 +31,8 @@ export async function generateMetadata({
 }: {
   readonly params: Promise<{ readonly runId: string }>;
 }): Promise<Metadata> {
-  const { runId } = await params;
+  const { runId: raw } = await params;
+  const runId = routeParam(raw);
   const locale = await requestLocale();
   return {
     title: documentTitle(await subjectOf(runId, locale), deployment().name),
@@ -61,6 +63,7 @@ export default async function Page({
   readonly params: Promise<{ readonly runId: string }>;
   readonly searchParams: Promise<SearchParams>;
 }): Promise<ReactNode> {
-  const { runId } = await params;
+  const { runId: raw } = await params;
+  const runId = routeParam(raw);
   return RunDetailScreen(await surfaceContext(await searchParams), runId);
 }

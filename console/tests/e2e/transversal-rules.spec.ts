@@ -197,14 +197,23 @@ interface Exception {
  * feature cut intake to three. Deleting a dead table entry is not evidence
  * that the route now passes the rule — nothing here measured that.
  *
- * The ten entries below are the five "Now" rules' own debt, each confirmed
+ * The eight entries below are the five "Now" rules' own debt, each confirmed
  * red against the dataset built to reproduce it before this line existed.
- * Nine were named ahead of time, from a diagnosis of the running deployment;
- * the tenth (`/` + `markdown`) was not — the dashboard's own recent-activity
+ * Seven were named ahead of time, from a diagnosis of the running deployment;
+ * one (`/` + `markdown`) was not — the dashboard's own recent-activity
  * feed reads every run's raw summary with the identical, unfiltered
  * mechanism the runs list and the run detail screen already carried an
- * entry for, and the violating dataset that gives the other nine their red
+ * entry for, and the violating dataset that gives the other seven their red
  * gives this one too, because it is the same defect, read a third time.
+ *
+ * `/incidents/{id}` carries neither `identifier-as-name` nor
+ * `negative-assertion` any more: an opaque, short incident id decoded once
+ * at the edge replaced the composite, percent-encoded route parameter the
+ * title used to fall back to, and a read that fails no longer renders a
+ * chip that could assert anything about an investigation — there is
+ * nothing left on the page for either rule to catch. Only `two-placeholders`
+ * survives for this route, because it comes from the same failed read
+ * emptying the whole subtitle, not from the identifier's shape.
  */
 const EXCEPTIONS: readonly Exception[] = [
   {
@@ -247,15 +256,6 @@ const EXCEPTIONS: readonly Exception[] = [
       'the id from the runs list',
   },
   {
-    path: '/incidents/{id}',
-    rule: 'identifier-as-name',
-    reason:
-      "the incident detail screen's own title falls back to the raw route " +
-      'parameter, which for an alert-sourced incident is the composite, ' +
-      'percent-encoded id — an opaque, short incident id in its place, ' +
-      'decoded once at the edge instead of twice',
-  },
-  {
     path: '/runs',
     rule: 'two-placeholders',
     reason:
@@ -287,14 +287,6 @@ const EXCEPTIONS: readonly Exception[] = [
       'is not conditioning the control on it — removed by the console ' +
       'gating the control on the run\'s own status alongside the connection ' +
       'state, not on the connection state alone',
-  },
-  {
-    path: '/incidents/{id}',
-    rule: 'negative-assertion',
-    reason:
-      'the investigation chip derives "no investigation" from the same ' +
-      'failed detail read as the title and the subtitle — a chip that says ' +
-      'it does not know, once the read it depends on is fixed',
   },
 ];
 

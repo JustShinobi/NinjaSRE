@@ -8,6 +8,8 @@ import { SESSION_COOKIE } from '@/session/cookies';
 import AdministrationPage from '@/app/(shell)/administration/page';
 import AutonomyPage from '@/app/(shell)/autonomy/page';
 import FirstRunPage from '@/app/(shell)/first-run/page';
+import InvestigationsPage from '@/app/(shell)/investigations/page';
+import SetupPage from '@/app/(shell)/setup/page';
 import SignalsPage from '@/app/(shell)/signals/page';
 
 import { AREA_SCREENS } from '../support/screens';
@@ -277,6 +279,26 @@ describe('a retired route file', () => {
     );
 
     expect(screen.getByTestId('page-header')).toHaveAttribute('data-area', 'signals');
+  });
+
+  it.each([
+    [{}, '/runs'],
+    // A query parameter — the same shape the acceptance spec exercises —
+    // rides along, the same as every other redirect in this table.
+    [{ selected: 'run-1' }, '/runs?selected=run-1'],
+  ])('sends /investigations%s to /runs', async (params, target) => {
+    await expect(
+      InvestigationsPage({ searchParams: Promise.resolve(params) }),
+    ).rejects.toThrow(`redirected to ${target}`);
+  });
+
+  it.each([
+    [{}, '/first-run'],
+    [{ step: 'estate' }, '/first-run?step=estate'],
+  ])('sends /setup%s to /first-run', async (params, target) => {
+    await expect(SetupPage({ searchParams: Promise.resolve(params) })).rejects.toThrow(
+      `redirected to ${target}`,
+    );
   });
 });
 

@@ -658,6 +658,7 @@ export const PT_BR: Partial<Record<MessageKey, string>> = {
   'incident.chip.investigation.none': 'Sem investigação',
   'incident.chip.investigation.running': 'Investigação em andamento',
   'incident.chip.investigation.finished': 'Investigação concluída',
+  'incident.header.unreadable': 'Não foi possível ler este incidente',
 
   'incident.origin.alert': 'Alertmanager',
   'incident.origin.detector': 'os detectores deste deployment',

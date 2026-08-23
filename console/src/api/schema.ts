@@ -4421,6 +4421,8 @@ export interface components {
             opened_at: string;
             /** Origin */
             origin: string;
+            /** Public Id */
+            public_id: string;
             /** Run Id */
             run_id?: string | null;
             /**

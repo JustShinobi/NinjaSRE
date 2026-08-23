@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { cache, type ReactNode } from 'react';
 
 import { Breadcrumb } from '@/components/navigation';
 import { ResolvedChip } from '@/components/status';
@@ -25,6 +25,23 @@ import {
 } from '../read';
 import { IncidentDecisionControls } from './incident-decision-controls';
 import { UNPLACED, criticalityOf, zoneOf } from './resources-view';
+
+/**
+ * One incident's detail, read once per request.
+ *
+ * `React.cache` collapses this into a single fetch whichever caller reaches
+ * it first: `generateMetadata` (the tab title) and `IncidentDetailScreen`
+ * (the page body) both call it with the same `(credential, incidentId)`
+ * pair, so the H1 and the tab always name the same read rather than two
+ * requests that could answer differently. Exported so the route file can
+ * share it for the tab title instead of fetching a second time.
+ */
+export const incidentDetailFor = cache(async (credential: string, incidentId: string) =>
+  read('/v1/incidents/{incident_id}', {
+    ...authorised(credential),
+    params: { incident_id: incidentId },
+  }),
+);
 
 /**
  * One incident: what arrived, what was reasoned about it, what was found, what
@@ -111,11 +128,9 @@ export async function IncidentDetailScreen(
   const none = message(locale, 'surface.none');
 
   const detail = await panelRead('/v1/incidents/{incident_id}', () =>
-    read('/v1/incidents/{incident_id}', {
-      ...init,
-      params: { incident_id: incidentId },
-    }),
+    incidentDetailFor(credential, incidentId),
   );
+  const readFailed = detail.status === 'error';
   const body = dataOf(detail);
   const incident = field(body, 'incident');
   const timeline = list(body, 'timeline');
@@ -163,7 +178,14 @@ export async function IncidentDetailScreen(
   const cost = hasInvestigation ? numberOrNull(investigation, 'cost') : null;
 
   // --- Header: trail, title, the two chips -------------------------------------
-  const title = text(incident, 'title') || incidentId;
+  // The identifier is never the title, in any circumstance: not as a
+  // fallback for a successful read whose title happens to be empty (that
+  // reads as the console's own declared absence, `none`), and not for a
+  // read that failed outright (that reads as a stated failure to read,
+  // never the address that was asked for).
+  const title = readFailed
+    ? message(locale, 'incident.header.unreadable')
+    : text(incident, 'title') || none;
   const trail = trailFor(areaFor('incidents'), [{ label: title }]);
 
   const incidentState = text(incident, 'state');
@@ -173,24 +195,30 @@ export async function IncidentDetailScreen(
     INCIDENT_STATE_LABEL[incidentState] ?? 'incident.chip.state.open',
   );
 
-  const investigationChip: { role: SemanticRole; shape: Shape; label: string } =
-    !hasInvestigation
-      ? {
-          role: 'neutral',
-          shape: 'dash',
-          label: message(locale, 'incident.chip.investigation.none'),
-        }
-      : hasReportDelivered
+  // `null` when the read itself failed: rendering "No investigation" over a
+  // read that never answered would be asserting the negative from evidence
+  // that does not exist. A read that succeeded and genuinely carries no
+  // investigation still says so — that is a fact, not a guess.
+  const investigationChip: { role: SemanticRole; shape: Shape; label: string } | null =
+    readFailed
+      ? null
+      : !hasInvestigation
         ? {
-            role: 'success',
-            shape: 'filled-circle',
-            label: message(locale, 'incident.chip.investigation.finished'),
+            role: 'neutral',
+            shape: 'dash',
+            label: message(locale, 'incident.chip.investigation.none'),
           }
-        : {
-            role: 'info',
-            shape: 'rotated-square',
-            label: message(locale, 'incident.chip.investigation.running'),
-          };
+        : hasReportDelivered
+          ? {
+              role: 'success',
+              shape: 'filled-circle',
+              label: message(locale, 'incident.chip.investigation.finished'),
+            }
+          : {
+              role: 'info',
+              shape: 'rotated-square',
+              label: message(locale, 'incident.chip.investigation.running'),
+            };
 
   // --- Subtitle: rule, source, instant, zone, host -----------------------------
   const rule = text(incident, 'detector');
@@ -252,12 +280,14 @@ export async function IncidentDetailScreen(
             shape={incidentPresented.shape}
             label={incidentStateLabel}
           />
-          <ResolvedChip
-            testId="incident-chip"
-            role={investigationChip.role}
-            shape={investigationChip.shape}
-            label={investigationChip.label}
-          />
+          {investigationChip === null ? null : (
+            <ResolvedChip
+              testId="incident-chip"
+              role={investigationChip.role}
+              shape={investigationChip.shape}
+              label={investigationChip.label}
+            />
+          )}
         </div>
         <p data-testid="incident-subtitle" className="text-meta text-muted mb-5">
           <span data-testid="subtitle-rule">{rule === '' ? none : rule}</span>

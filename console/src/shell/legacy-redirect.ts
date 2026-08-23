@@ -1,5 +1,5 @@
 import type { SearchParams } from '@/surfaces/context';
-import { settingsRedirectTarget } from './routes';
+import { legacyRouteTarget } from './routes';
 
 /**
  * Where a retired route's request redirects to, or `undefined` when the
@@ -17,7 +17,7 @@ export function legacyRedirectHref(
 ): string | undefined {
   const rawTab = params.tab;
   const tab = typeof rawTab === 'string' ? rawTab : null;
-  const target = settingsRedirectTarget(path, tab);
+  const target = legacyRouteTarget(path, tab);
   if (target === undefined) return undefined;
 
   const search = new URLSearchParams();
