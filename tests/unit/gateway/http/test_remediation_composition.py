@@ -230,3 +230,63 @@ def test_the_desk_is_composed_after_the_bindings_its_executor_reaches_through() 
             f"the remediation desk is composed before {earlier}, so it would reach a "
             f"vendor through a binding that does not exist yet."
         )
+
+
+# -- the posture the gate decides with ----------------------------------------
+
+
+async def test_the_gate_for_a_run_resolves_this_deployments_posture(plane: None) -> None:
+    """The policy engine is built by the desk, not only by a test.
+
+    A sweep of this repository for a constructed autonomy gate used to return
+    the routes that explain a posture and nothing on the path of an
+    investigation — the deployment could say what it would do and had no way to
+    do it. This is the construction that closes that.
+    """
+    from platform.autonomy.decision import AutonomyGate
+    from platform.remediation.gating import RunContext
+
+    state = _state()
+    desk = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
+    assert desk is not None
+
+    gate = desk.gate_for(RunContext(requester="ana", team_node_id="acme/payments"))
+    assert gate.resolve_autonomy is not None, (
+        "the gate this deployment builds has no way to read its own posture, so a "
+        "write would be decided by the allow-list alone."
+    )
+    assert isinstance(await gate.resolve_autonomy(), AutonomyGate)
+
+
+async def test_a_deployment_that_configured_no_posture_resolves_to_proposing(
+    plane: None,
+) -> None:
+    """Silence is read as the strict answer, and it is read rather than assumed."""
+    from platform.autonomy.decision import Outcome
+    from platform.autonomy.risk import RiskClass
+    from platform.autonomy.subjects import ProposedAction, Subject
+    from platform.remediation.gating import RunContext
+
+    state = _state()
+    desk = await compose_remediation(state, org_id=ORG, proxy_url=PROXY)
+    assert desk is not None
+    gate = desk.gate_for(RunContext(requester="ana", team_node_id="acme/payments"))
+    assert gate.resolve_autonomy is not None
+
+    engine = await gate.resolve_autonomy()
+    decision = await engine.decide(
+        ProposedAction(
+            action_id="action-1",
+            capability="scale_workload",
+            subjects=(Subject(resource_id="checkout", kind="workload"),),
+            risk_class=RiskClass.LOW,
+            has_rollback_plan=True,
+            requester="ana",
+        )
+    )
+
+    assert decision.outcome is Outcome.PROPOSE, (
+        f"a deployment that configured no posture resolved to {decision.outcome.value}. "
+        f"Composing the gate must not move where silence points."
+    )
+    assert not decision.executed
