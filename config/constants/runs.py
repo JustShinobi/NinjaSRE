@@ -67,6 +67,19 @@ TURN_PAYLOAD_RATIONALE: Final[str] = "selection_rationale"
 TURN_PAYLOAD_CAPABILITIES: Final[str] = "offered_capabilities"
 TURN_USAGE_MODEL: Final[str] = "model"
 TURN_USAGE_PROMPT_TOKENS: Final[str] = "prompt_tokens"
+
+# --- Headline -----------------------------------------------------------------
+
+#: The literal line prefix the delivery prompt asks the model for, and the one
+#: the extraction that reads its answer looks for. One constant, so a prompt
+#: edit and the parser reading its output cannot drift apart from each other.
+HEADLINE_MARKER: Final[str] = "Headline:"
+
+#: Longest a headline may be once normalised. Long enough for a real sentence,
+#: short enough to sit in a title, a list column, and a push notification
+#: without wrapping. A longer candidate is cut at the nearest word boundary at
+#: or before this length.
+MAX_HEADLINE_LENGTH: Final[int] = 140
 TURN_USAGE_COMPLETION_TOKENS: Final[str] = "completion_tokens"
 TURN_USAGE_COST: Final[str] = "cost"
 TURN_USAGE_DURATION_MS: Final[str] = "duration_ms"
@@ -147,7 +160,9 @@ DEFAULT_RUN_HISTORY_PAGE_SIZE: Final[int] = 50
 __all__ = [
     "DEFAULT_RUN_HISTORY_PAGE_SIZE",
     "DEFAULT_SCHEDULE_TIMEZONE",
+    "HEADLINE_MARKER",
     "MAX_CRON_LOOKAHEAD_DAYS",
+    "MAX_HEADLINE_LENGTH",
     "MAX_MISFIRE_CATCH_UP_RUNS",
     "MAX_STREAM_BUFFER_EVENTS",
     "MAX_TRACE_PAYLOAD_BYTES",
