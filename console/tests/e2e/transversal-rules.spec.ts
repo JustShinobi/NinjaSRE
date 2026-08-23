@@ -197,18 +197,23 @@ interface Exception {
  * feature cut intake to three. Deleting a dead table entry is not evidence
  * that the route now passes the rule — nothing here measured that.
  *
- * The nine entries below are the five "Now" rules' own debt, each confirmed
+ * The eight entries below are the five "Now" rules' own debt, each confirmed
  * red against the dataset built to reproduce it before this line existed.
- * Eight were named ahead of time, from a diagnosis of the running deployment;
+ * Seven were named ahead of time, from a diagnosis of the running deployment;
  * one (`/` + `markdown`) was not — the dashboard's own recent-activity
  * feed reads every run's raw summary with the identical, unfiltered
  * mechanism the runs list and the run detail screen already carried an
- * entry for, and the violating dataset that gives the other eight their red
+ * entry for, and the violating dataset that gives the other seven their red
  * gives this one too, because it is the same defect, read a third time.
  *
- * `/incidents/{id}` + `identifier-as-name` is not here any more: an opaque,
- * short incident id decoded once at the edge replaced the composite,
- * percent-encoded route parameter the title used to fall back to.
+ * `/incidents/{id}` carries neither `identifier-as-name` nor
+ * `negative-assertion` any more: an opaque, short incident id decoded once
+ * at the edge replaced the composite, percent-encoded route parameter the
+ * title used to fall back to, and a read that fails no longer renders a
+ * chip that could assert anything about an investigation — there is
+ * nothing left on the page for either rule to catch. Only `two-placeholders`
+ * survives for this route, because it comes from the same failed read
+ * emptying the whole subtitle, not from the identifier's shape.
  */
 const EXCEPTIONS: readonly Exception[] = [
   {
@@ -276,14 +281,6 @@ const EXCEPTIONS: readonly Exception[] = [
       'settled status stays "running" indefinitely — removed once the ' +
       'recorder is composed in production and writes a real terminal status ' +
       'when an investigation actually ends',
-  },
-  {
-    path: '/incidents/{id}',
-    rule: 'negative-assertion',
-    reason:
-      'the investigation chip derives "no investigation" from the same ' +
-      'failed detail read as the title and the subtitle — a chip that says ' +
-      'it does not know, once the read it depends on is fixed',
   },
 ];
 
