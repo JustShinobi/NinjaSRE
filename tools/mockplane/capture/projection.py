@@ -24,6 +24,7 @@ from typing import Any, Final
 from platform.estate.alert_resolution import UNRESOLVED_TARGET_PREFIX
 from platform.estate.signal_map import signal_map_for
 from platform.persistence.ports.estate_repository import Resource
+from platform.persistence.ports.incident_store import public_incident_id
 from tools.mockplane.capture.parsers import (
     BootReading,
     MountReading,
@@ -340,6 +341,14 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
     # specifically, whatever detector produced it.
     if incidents:
         incidents = (_investigated(incidents[0]), *incidents[1:])
+    # The public address every incident answers by, derived the same way
+    # the platform derives it — imported rather than reimplemented, so the
+    # fixture and the real deployment never compute two different digests
+    # for the same internal key.
+    incidents = tuple(
+        {**incident, "public_id": public_incident_id(str(incident["incident_id"]))}
+        for incident in incidents
+    )
     records: list[CapturedRecord] = [
         _record("estate-summary", {}, _summary(reading), Provenance.GATEWAY),
         _record("estate-resources", {}, {"resources": _resources(reading)}, Provenance.GATEWAY),
@@ -364,7 +373,7 @@ def estate(reading: ClusterReading) -> tuple[CapturedRecord, ...]:
         records.append(
             _record(
                 "incident-detail",
-                {"incident_id": incident["incident_id"]},
+                {"incident_id": incident["public_id"]},
                 {
                     "incident": incident,
                     "observations": [
@@ -546,7 +555,7 @@ def _unattended_alert_incident(
         return ()
     return (
         {
-            "incident_id": "inc-alert-0002",
+            "incident_id": (f"alert:alertmanager:{resource_id_of(guest)}@{reading.captured_at}"),
             "title": f"{guest.name} is not responding",
             "severity": "high",
             "state": "open",

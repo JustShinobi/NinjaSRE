@@ -2,6 +2,284 @@
   "responses": [
     {
       "arguments": {
+        "incident_id": "inc_26c4e888538d9aa3"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "alertmanager",
+          "incident_id": "inc-alert-0001",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "alert",
+          "public_id": "inc_26c4e888538d9aa3",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "unresolved-target:184"
+          ],
+          "summary": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "ContainerMemoryHigh"
+        },
+        "investigation": null,
+        "observations": [],
+        "timeline": [
+          {
+            "actor": "user-lagoon",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
+            "detail": "alertmanager delivered an alert about 1 target(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc_36a1cd4294f9040c"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "guest-volume-near-full",
+          "incident_id": "inc-0004",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
+          "public_id": "inc_36a1cd4294f9040c",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "ct-100",
+            "ct-115",
+            "ct-140"
+          ],
+          "summary": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "Guest volume near full"
+        },
+        "investigation": null,
+        "observations": [
+          {
+            "detail": "vm-100-disk-0 is at 99.6% of its own volume",
+            "detector": "guest-volume-near-full",
+            "evidence": {
+              "node": "node02",
+              "pool": "pool-bulk"
+            },
+            "observation_id": "obs-0089",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "ct-100",
+            "verdict": "finding"
+          },
+          {
+            "detail": "vm-115-disk-0 is at 94.96% of its own volume",
+            "detector": "guest-volume-near-full",
+            "evidence": {
+              "node": "node02",
+              "pool": "pool-bulk"
+            },
+            "observation_id": "obs-0090",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "ct-115",
+            "verdict": "finding"
+          },
+          {
+            "detail": "vm-140-disk-0 is at 93.0% of its own volume",
+            "detector": "guest-volume-near-full",
+            "evidence": {
+              "node": "node02",
+              "pool": "pool-bulk"
+            },
+            "observation_id": "obs-0091",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "ct-140",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
+            "detail": "guest-volume-near-full found 3 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc_720a9d5e13d79aef"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "kernel-never-booted",
+          "incident_id": "inc-0005",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
+          "public_id": "inc_720a9d5e13d79aef",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "node-node01",
+            "node-node02"
+          ],
+          "summary": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "Kernel installed and never booted"
+        },
+        "investigation": null,
+        "observations": [
+          {
+            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
+            "detector": "kernel-never-booted",
+            "evidence": {
+              "installed": "7.0.14-9",
+              "running": "7.0.14-8"
+            },
+            "observation_id": "obs-0087",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "node-node01",
+            "verdict": "finding"
+          },
+          {
+            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
+            "detector": "kernel-never-booted",
+            "evidence": {
+              "installed": "7.0.14-9",
+              "running": "7.0.14-8"
+            },
+            "observation_id": "obs-0094",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "high",
+            "subject": "node-node02",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
+            "detail": "kernel-never-booted found 2 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc_872ed22d109cec0e"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "quorum-margin-zero",
+          "incident_id": "inc-0008",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
+          "public_id": "inc_872ed22d109cec0e",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "critical",
+          "state": "open",
+          "subjects": [
+            "cluster"
+          ],
+          "summary": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "Quorum margin is zero"
+        },
+        "investigation": null,
+        "observations": [
+          {
+            "detail": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+            "detector": "quorum-margin-zero",
+            "evidence": {
+              "quorum": "2",
+              "total_votes": "2",
+              "two_node": "false",
+              "wait_for_all": "false"
+            },
+            "observation_id": "obs-0001",
+            "observed_at": "2026-08-07T12:00:00+00:00",
+            "severity": "critical",
+            "subject": "cluster",
+            "verdict": "finding"
+          }
+        ],
+        "timeline": [
+          {
+            "actor": "user-flint",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
+            "detail": "quorum-margin-zero found 1 subject(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
         "incident_id": "inc_8f773cacef5126a0"
       },
       "body": {
@@ -136,56 +414,89 @@
     },
     {
       "arguments": {
-        "incident_id": "inc_f774859469232bd3"
+        "incident_id": "inc_c6f73e3be749fdea"
       },
       "body": {
         "incident": {
           "close_reason": "",
           "closed_at": null,
-          "detector": "datastore-near-full",
-          "incident_id": "inc-0002",
+          "detector": "alertmanager",
+          "incident_id": "alert:alertmanager:ct-102@2026-08-07T12:00:00+00:00",
           "opened_at": "2026-08-07T12:00:00+00:00",
-          "origin": "detector",
-          "public_id": "inc_f774859469232bd3",
+          "origin": "alert",
+          "public_id": "inc_c6f73e3be749fdea",
           "run_id": null,
           "self_resolved": false,
-          "severity": "critical",
+          "severity": "high",
           "state": "open",
           "subjects": [
-            "store-cove",
-            "store-ridge"
+            "ct-102"
           ],
-          "summary": "2 subjects: store-cove is 95.65% full",
+          "summary": "an alert opened this incident about anchor, and nothing has investigated it yet",
           "suppressed_by": "",
           "team_node_id": "",
-          "title": "Datastore near full"
+          "title": "anchor is not responding"
+        },
+        "investigation": null,
+        "observations": [],
+        "timeline": [
+          {
+            "actor": "user-lagoon",
+            "at": "2026-08-07T12:00:00+00:00",
+            "cause": "an alert opened this incident about anchor, and nothing has investigated it yet",
+            "detail": "alertmanager delivered an alert about 1 target(s)",
+            "kind": "opened"
+          }
+        ]
+      },
+      "contract_version": "1.0.0",
+      "provenance": "gateway",
+      "request": {
+        "command": "projected from a direct read (gateway)",
+        "method": "",
+        "node": "",
+        "path": "",
+        "query": {}
+      },
+      "status": 200
+    },
+    {
+      "arguments": {
+        "incident_id": "inc_e948c00ecb630986"
+      },
+      "body": {
+        "incident": {
+          "close_reason": "",
+          "closed_at": null,
+          "detector": "no-replication-node-local-storage",
+          "incident_id": "inc-0006",
+          "opened_at": "2026-08-07T12:00:00+00:00",
+          "origin": "detector",
+          "public_id": "inc_e948c00ecb630986",
+          "run_id": null,
+          "self_resolved": false,
+          "severity": "high",
+          "state": "open",
+          "subjects": [
+            "cluster"
+          ],
+          "summary": "no replication job exists while guests are on node-local storage",
+          "suppressed_by": "",
+          "team_node_id": "",
+          "title": "No replication with node-local guest storage"
         },
         "investigation": null,
         "observations": [
           {
-            "detail": "store-cove is 95.65% full",
-            "detector": "datastore-near-full",
+            "detail": "no replication job exists while guests are on node-local storage",
+            "detector": "no-replication-node-local-storage",
             "evidence": {
-              "node": "node01",
-              "used_percent": "95.65"
+              "guests": "84"
             },
-            "observation_id": "obs-0082",
-            "observed_at": "2026-08-07T12:00:00+00:00",
-            "severity": "critical",
-            "subject": "store-cove",
-            "verdict": "finding"
-          },
-          {
-            "detail": "store-ridge is 93.45% full",
-            "detector": "datastore-near-full",
-            "evidence": {
-              "node": "node01",
-              "used_percent": "93.45"
-            },
-            "observation_id": "obs-0083",
+            "observation_id": "obs-0096",
             "observed_at": "2026-08-07T12:00:00+00:00",
             "severity": "high",
-            "subject": "store-ridge",
+            "subject": "cluster",
             "verdict": "finding"
           }
         ],
@@ -193,8 +504,8 @@
           {
             "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
-            "cause": "2 subjects: store-cove is 95.65% full",
-            "detail": "datastore-near-full found 2 subject(s)",
+            "cause": "no replication job exists while guests are on node-local storage",
+            "detail": "no-replication-node-local-storage found 1 subject(s)",
             "kind": "opened"
           }
         ]
@@ -1222,70 +1533,56 @@
     },
     {
       "arguments": {
-        "incident_id": "inc_36a1cd4294f9040c"
+        "incident_id": "inc_f774859469232bd3"
       },
       "body": {
         "incident": {
           "close_reason": "",
           "closed_at": null,
-          "detector": "guest-volume-near-full",
-          "incident_id": "inc-0004",
+          "detector": "datastore-near-full",
+          "incident_id": "inc-0002",
           "opened_at": "2026-08-07T12:00:00+00:00",
           "origin": "detector",
-          "public_id": "inc_36a1cd4294f9040c",
+          "public_id": "inc_f774859469232bd3",
           "run_id": null,
           "self_resolved": false,
-          "severity": "high",
+          "severity": "critical",
           "state": "open",
           "subjects": [
-            "ct-100",
-            "ct-115",
-            "ct-140"
+            "store-cove",
+            "store-ridge"
           ],
-          "summary": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
+          "summary": "2 subjects: store-cove is 95.65% full",
           "suppressed_by": "",
           "team_node_id": "",
-          "title": "Guest volume near full"
+          "title": "Datastore near full"
         },
         "investigation": null,
         "observations": [
           {
-            "detail": "vm-100-disk-0 is at 99.6% of its own volume",
-            "detector": "guest-volume-near-full",
+            "detail": "store-cove is 95.65% full",
+            "detector": "datastore-near-full",
             "evidence": {
-              "node": "node02",
-              "pool": "pool-bulk"
+              "node": "node01",
+              "used_percent": "95.65"
             },
-            "observation_id": "obs-0089",
+            "observation_id": "obs-0082",
             "observed_at": "2026-08-07T12:00:00+00:00",
-            "severity": "high",
-            "subject": "ct-100",
+            "severity": "critical",
+            "subject": "store-cove",
             "verdict": "finding"
           },
           {
-            "detail": "vm-115-disk-0 is at 94.96% of its own volume",
-            "detector": "guest-volume-near-full",
+            "detail": "store-ridge is 93.45% full",
+            "detector": "datastore-near-full",
             "evidence": {
-              "node": "node02",
-              "pool": "pool-bulk"
+              "node": "node01",
+              "used_percent": "93.45"
             },
-            "observation_id": "obs-0090",
+            "observation_id": "obs-0083",
             "observed_at": "2026-08-07T12:00:00+00:00",
             "severity": "high",
-            "subject": "ct-115",
-            "verdict": "finding"
-          },
-          {
-            "detail": "vm-140-disk-0 is at 93.0% of its own volume",
-            "detector": "guest-volume-near-full",
-            "evidence": {
-              "node": "node02",
-              "pool": "pool-bulk"
-            },
-            "observation_id": "obs-0091",
-            "observed_at": "2026-08-07T12:00:00+00:00",
-            "severity": "high",
-            "subject": "ct-140",
+            "subject": "store-ridge",
             "verdict": "finding"
           }
         ],
@@ -1293,145 +1590,8 @@
           {
             "actor": "user-flint",
             "at": "2026-08-07T12:00:00+00:00",
-            "cause": "3 subjects: vm-100-disk-0 is at 99.6% of its own volume",
-            "detail": "guest-volume-near-full found 3 subject(s)",
-            "kind": "opened"
-          }
-        ]
-      },
-      "contract_version": "1.0.0",
-      "provenance": "gateway",
-      "request": {
-        "command": "projected from a direct read (gateway)",
-        "method": "",
-        "node": "",
-        "path": "",
-        "query": {}
-      },
-      "status": 200
-    },
-    {
-      "arguments": {
-        "incident_id": "inc_720a9d5e13d79aef"
-      },
-      "body": {
-        "incident": {
-          "close_reason": "",
-          "closed_at": null,
-          "detector": "kernel-never-booted",
-          "incident_id": "inc-0005",
-          "opened_at": "2026-08-07T12:00:00+00:00",
-          "origin": "detector",
-          "public_id": "inc_720a9d5e13d79aef",
-          "run_id": null,
-          "self_resolved": false,
-          "severity": "high",
-          "state": "open",
-          "subjects": [
-            "node-node01",
-            "node-node02"
-          ],
-          "summary": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
-          "suppressed_by": "",
-          "team_node_id": "",
-          "title": "Kernel installed and never booted"
-        },
-        "investigation": null,
-        "observations": [
-          {
-            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
-            "detector": "kernel-never-booted",
-            "evidence": {
-              "installed": "7.0.14-9",
-              "running": "7.0.14-8"
-            },
-            "observation_id": "obs-0087",
-            "observed_at": "2026-08-07T12:00:00+00:00",
-            "severity": "high",
-            "subject": "node-node01",
-            "verdict": "finding"
-          },
-          {
-            "detail": "7.0.14-9 is installed and 7.0.14-8 is running",
-            "detector": "kernel-never-booted",
-            "evidence": {
-              "installed": "7.0.14-9",
-              "running": "7.0.14-8"
-            },
-            "observation_id": "obs-0094",
-            "observed_at": "2026-08-07T12:00:00+00:00",
-            "severity": "high",
-            "subject": "node-node02",
-            "verdict": "finding"
-          }
-        ],
-        "timeline": [
-          {
-            "actor": "user-flint",
-            "at": "2026-08-07T12:00:00+00:00",
-            "cause": "2 subjects: 7.0.14-9 is installed and 7.0.14-8 is running",
-            "detail": "kernel-never-booted found 2 subject(s)",
-            "kind": "opened"
-          }
-        ]
-      },
-      "contract_version": "1.0.0",
-      "provenance": "gateway",
-      "request": {
-        "command": "projected from a direct read (gateway)",
-        "method": "",
-        "node": "",
-        "path": "",
-        "query": {}
-      },
-      "status": 200
-    },
-    {
-      "arguments": {
-        "incident_id": "inc_e948c00ecb630986"
-      },
-      "body": {
-        "incident": {
-          "close_reason": "",
-          "closed_at": null,
-          "detector": "no-replication-node-local-storage",
-          "incident_id": "inc-0006",
-          "opened_at": "2026-08-07T12:00:00+00:00",
-          "origin": "detector",
-          "public_id": "inc_e948c00ecb630986",
-          "run_id": null,
-          "self_resolved": false,
-          "severity": "high",
-          "state": "open",
-          "subjects": [
-            "cluster"
-          ],
-          "summary": "no replication job exists while guests are on node-local storage",
-          "suppressed_by": "",
-          "team_node_id": "",
-          "title": "No replication with node-local guest storage"
-        },
-        "investigation": null,
-        "observations": [
-          {
-            "detail": "no replication job exists while guests are on node-local storage",
-            "detector": "no-replication-node-local-storage",
-            "evidence": {
-              "guests": "84"
-            },
-            "observation_id": "obs-0096",
-            "observed_at": "2026-08-07T12:00:00+00:00",
-            "severity": "high",
-            "subject": "cluster",
-            "verdict": "finding"
-          }
-        ],
-        "timeline": [
-          {
-            "actor": "user-flint",
-            "at": "2026-08-07T12:00:00+00:00",
-            "cause": "no replication job exists while guests are on node-local storage",
-            "detail": "no-replication-node-local-storage found 1 subject(s)",
+            "cause": "2 subjects: store-cove is 95.65% full",
+            "detail": "datastore-near-full found 2 subject(s)",
             "kind": "opened"
           }
         ]
@@ -1495,193 +1655,6 @@
             "cause": "a quorum device appears in the membership view and the configuration declares none",
             "detail": "quorum-device-not-contributing found 1 subject(s)",
             "kind": "opened"
-          }
-        ]
-      },
-      "contract_version": "1.0.0",
-      "provenance": "gateway",
-      "request": {
-        "command": "projected from a direct read (gateway)",
-        "method": "",
-        "node": "",
-        "path": "",
-        "query": {}
-      },
-      "status": 200
-    },
-    {
-      "arguments": {
-        "incident_id": "inc_872ed22d109cec0e"
-      },
-      "body": {
-        "incident": {
-          "close_reason": "",
-          "closed_at": null,
-          "detector": "quorum-margin-zero",
-          "incident_id": "inc-0008",
-          "opened_at": "2026-08-07T12:00:00+00:00",
-          "origin": "detector",
-          "public_id": "inc_872ed22d109cec0e",
-          "run_id": null,
-          "self_resolved": false,
-          "severity": "critical",
-          "state": "open",
-          "subjects": [
-            "cluster"
-          ],
-          "summary": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
-          "suppressed_by": "",
-          "team_node_id": "",
-          "title": "Quorum margin is zero"
-        },
-        "investigation": null,
-        "observations": [
-          {
-            "detail": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
-            "detector": "quorum-margin-zero",
-            "evidence": {
-              "quorum": "2",
-              "total_votes": "2",
-              "two_node": "false",
-              "wait_for_all": "false"
-            },
-            "observation_id": "obs-0001",
-            "observed_at": "2026-08-07T12:00:00+00:00",
-            "severity": "critical",
-            "subject": "cluster",
-            "verdict": "finding"
-          }
-        ],
-        "timeline": [
-          {
-            "actor": "user-flint",
-            "at": "2026-08-07T12:00:00+00:00",
-            "cause": "2 of 2 required votes, so losing one node makes the cluster filesystem read-only",
-            "detail": "quorum-margin-zero found 1 subject(s)",
-            "kind": "opened"
-          }
-        ]
-      },
-      "contract_version": "1.0.0",
-      "provenance": "gateway",
-      "request": {
-        "command": "projected from a direct read (gateway)",
-        "method": "",
-        "node": "",
-        "path": "",
-        "query": {}
-      },
-      "status": 200
-    },
-    {
-      "arguments": {
-        "incident_id": "inc_26c4e888538d9aa3"
-      },
-      "body": {
-        "incident": {
-          "close_reason": "",
-          "closed_at": null,
-          "detector": "alertmanager",
-          "incident_id": "inc-alert-0001",
-          "opened_at": "2026-08-07T12:00:00+00:00",
-          "origin": "alert",
-          "public_id": "inc_26c4e888538d9aa3",
-          "run_id": null,
-          "self_resolved": false,
-          "severity": "high",
-          "state": "open",
-          "subjects": [
-            "unresolved-target:184"
-          ],
-          "summary": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
-          "suppressed_by": "",
-          "team_node_id": "",
-          "title": "ContainerMemoryHigh"
-        },
-        "investigation": null,
-        "observations": [],
-        "timeline": [
-          {
-            "actor": "user-lagoon",
-            "at": "2026-08-07T12:00:00+00:00",
-            "cause": "the alert is about hypervisor guest 184, and no guest in this estate carries that identifier. Either it was created since the last sweep, or this receiver is pointed at a deployment that does not watch that cluster",
-            "detail": "alertmanager delivered an alert about 1 target(s)",
-            "kind": "opened"
-          }
-        ]
-      },
-      "contract_version": "1.0.0",
-      "provenance": "gateway",
-      "request": {
-        "command": "projected from a direct read (gateway)",
-        "method": "",
-        "node": "",
-        "path": "",
-        "query": {}
-      },
-      "status": 200
-    },
-    {
-      "arguments": {
-        "incident_id": "inc_a729b2bdaee2314b"
-      },
-      "body": {
-        "incident": {
-          "close_reason": "",
-          "closed_at": null,
-          "detector": "alertmanager",
-          "incident_id": "alert:alertmanager:9f2c4a1b8e7d3506fa12ab34cd56ef78@2026-08-22T23:43:23.303208+00:00",
-          "opened_at": "2026-08-07T12:00:00+00:00",
-          "origin": "alert",
-          "public_id": "inc_a729b2bdaee2314b",
-          "run_id": null,
-          "self_resolved": false,
-          "severity": "critical",
-          "state": "open",
-          "subjects": [
-            "ct-102"
-          ],
-          "summary": "an alert opened this incident about anchor, and nothing has investigated it yet",
-          "suppressed_by": "",
-          "team_node_id": "",
-          "title": "anchor is not responding"
-        },
-        "investigation": null,
-        "observations": [],
-        "timeline": [
-          {
-            "actor": "user-lagoon",
-            "at": "2026-08-07T12:00:00+00:00",
-            "cause": "an alert opened this incident about anchor, and nothing has investigated it yet",
-            "detail": "alertmanager delivered an alert about 1 target(s)",
-            "kind": "opened"
-          },
-          {
-            "actor": "system:observation",
-            "at": "2026-08-07T12:00:05+00:00",
-            "cause": "InstanceDown fired for anchor, delivered by the cluster's Alertmanager",
-            "detail": "delivery token am-cluster",
-            "kind": "alert_received",
-            "query": "",
-            "result": ""
-          },
-          {
-            "actor": "system:observation",
-            "at": "2026-08-07T12:00:10+00:00",
-            "cause": "anchor has not answered its own probe in 6 minutes",
-            "detail": "",
-            "kind": "evidence",
-            "query": "up{instance=\"anchor\"}",
-            "result": "0 (last seen 1 at 11:54 UTC, 6m ago)"
-          },
-          {
-            "actor": "system:observation",
-            "at": "2026-08-07T12:00:15+00:00",
-            "cause": "anchor is down: it stopped responding to its own probe",
-            "detail": "",
-            "kind": "diagnosis",
-            "query": "",
-            "result": ""
           }
         ]
       },
