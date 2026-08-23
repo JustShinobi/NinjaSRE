@@ -154,6 +154,31 @@ with live credentials, and every integration appears in the console catalogue.
 | **Analytics & Config** | Amplitude, PostHog, flagd/OpenFeature |
 | **Protocols** | MCP, ACP, OpenClaw |
 
+### Integration scope
+
+The coverage table above states the full ambition. What is actually embedded
+— shipped as code, in the tree, with its scaffold-generated seven artefacts —
+is narrower, and staged by which environments exist to validate it end to
+end: its credential can be stored, its connection can be verified against the
+real system, and at least one real read has been exercised against it. This
+section is that current set, derived from the tree rather than copied from a
+plan, and it is the section the record of that decision points a reader to.
+
+**Embedded today** — the fifteen vendor packages `integrations/` carries:
+Alertmanager, ArgoCD, GitHub, Google Gemini, Grafana, Hermes, Kubernetes,
+Loki, OpenObserve, Prometheus, Proxmox, Pushover, Redis, SigNoz, Telegram.
+Thirteen of the fifteen correspond to a vendor named in the coverage table
+above. Two — Google Gemini and Proxmox — do not: both were embedded to
+validate against systems this deployment's own infrastructure actually runs,
+ahead of the original enumeration, which is exactly the staging this section
+exists to describe rather than a gap in it.
+
+**Deferred**: every other vendor the coverage table above names. Its intent
+is recorded there; its code is not in the tree. An integration returns by the
+same door it left — an environment that can store its credential, verify its
+connection, and exercise a real read against it, plus its synthetic scenario
+— not by a change to this section alone.
+
 ---
 
 ## Wave 7 — Evaluation
@@ -215,3 +240,8 @@ Every spec cross-references:
 | [0009](adr/0009-full-integration-parity.md) | Full parity across all ~85 integrations |
 | [0010](adr/0010-english-only.md) | English-only codebase and documentation |
 | [0011](adr/0011-attribution-in-readme-only.md) | Attribution lives in README and NOTICE only |
+| [0012](adr/0012-design-fidelity-expires.md) | A visual acceptance expires when the design reference it was reviewed against changes |
+| [0013](adr/0013-palette-revisions-keep-the-role-vocabulary.md) | A palette revision supplies new values for the existing role vocabulary, never a new vocabulary |
+| [0014](adr/0014-a-design-reference-is-committed.md) | A design reference is a committed, self-contained document a reviewer can open, not a picture in an uncommitted directory |
+| [0015](adr/0015-parity-per-embedded-integration.md) | Parity per embedded integration, unchanged in form; breadth staged by validatable environment rather than asserted as a total |
+| [0016](adr/0016-composed-or-it-is-not-shipped.md) | A merged mechanism is reachable from a serving composition root or declares itself dormant; a symbol only tests construct is not a delivery |

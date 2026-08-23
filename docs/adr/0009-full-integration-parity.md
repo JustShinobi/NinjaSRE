@@ -1,6 +1,6 @@
 # ADR 0009 — Full parity across all ~85 integrations
 
-- **Status:** Accepted
+- **Status:** Superseded by [0015](0015-parity-per-embedded-integration.md), 2026-08-17
 - **Date:** 2026-08-04
 - **Constitution impact:** Article IX, Article XII
 
