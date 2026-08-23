@@ -235,14 +235,25 @@ test.describe('routes answering by the name the product already uses', () => {
     },
   );
 
+  /**
+   * Checked against the redirect response itself, with no further redirect
+   * followed — `page.goto` would settle on wherever the *destination*
+   * itself goes next (`/first-run` redirects away on its own, to `/`, once
+   * this dataset's own checklist is complete), which answers a different
+   * question than the one this claim asks.
+   */
   test('AN-11: /investigations ends in /runs', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
-    await page.goto('/investigations');
-    expect(new URL(page.url()).pathname).toBe('/runs');
+    const response = await page.request.get('/investigations', { maxRedirects: 0 });
+    expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(300);
+    expect(response.status()).toBeLessThan(400);
+    expect(response.headers()['location'] ?? '').toBe('/runs');
   });
 
   test('AN-12: /setup ends in /first-run', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
-    await page.goto('/setup');
-    expect(new URL(page.url()).pathname).toBe('/first-run');
+    const response = await page.request.get('/setup', { maxRedirects: 0 });
+    expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(300);
+    expect(response.status()).toBeLessThan(400);
+    expect(response.headers()['location'] ?? '').toBe('/first-run');
   });
 });
 
