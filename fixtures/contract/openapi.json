@@ -9346,7 +9346,7 @@
     },
     "/v1/approvals/{approval_id}/decision": {
       "post": {
-        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and nothing\nelse: this route never invokes the capability the approval names. The\nstore itself refuses to record an approval with no rollback plan stored\nagainst it, so the guarantee that a change above read is undoable does not\ndepend on this handler getting an order right — there is no order to get\nwrong, because nothing here writes a plan, only reads one already there.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
+        "description": "Approve or reject an approval request, in the caller's name.\n\nApproving records the decision, the decider and the instant, and then —\nwhen the change is a remediation and this deployment composed a desk —\ncarries the action out through the gate. The store refuses to record an\napproval with no rollback plan stored against it, so the undo is already\nthere before anything runs; the recording happens first for the reason the\nmodule docstring gives.\n\nRejecting without a reason is refused before either store is touched. The\nconsole's own control disables the reject button until a reason is typed;\nthis is the rule behind that courtesy.",
         "operationId": "decide_approval_v1_approvals__approval_id__decision_post",
         "parameters": [
           {

@@ -402,10 +402,10 @@ def _sandbox_for(profile: SandboxProfile) -> Any:
             from platform.sandbox.profiles.kubernetes.runner import KubernetesSandbox
 
             return KubernetesSandbox(api=in_cluster())
-        from platform.sandbox.profiles.container.engine import DockerEngine
+        from platform.sandbox.profiles.container.engine import CliContainerEngine
         from platform.sandbox.profiles.container.runner import ContainerSandbox
 
-        return ContainerSandbox(engine=DockerEngine())
+        return ContainerSandbox(engine=CliContainerEngine())
     except Exception as unavailable:  # noqa: BLE001 — an absent runtime is a fact, not a crash
         logger.info(
             "remediation.sandbox_unavailable", profile=profile.value, error=str(unavailable)
