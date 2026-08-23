@@ -162,7 +162,7 @@ export async function IncidentsScreen(context: SurfaceContext): Promise<ReactNod
   });
 
   const rows: readonly ListRow[] = sorted.map((record) => {
-    const id = text(record, 'incident_id');
+    const id = text(record, 'public_id');
     return {
       id,
       href: `/incidents/${id}`,

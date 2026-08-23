@@ -160,7 +160,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   }
   for (const record of incidentRecords) {
     if (text(record, 'state') === 'closed') continue;
-    const id = text(record, 'incident_id');
+    const id = text(record, 'public_id');
     attention.push({
       id,
       kind: text(record, 'severity'),
@@ -197,7 +197,7 @@ export async function DashboardScreen(context: SurfaceContext): Promise<ReactNod
   // --- The narrative ---------------------------------------------------------
   const feed: ActivityEntry[] = [];
   for (const record of incidentRecords) {
-    const id = text(record, 'incident_id');
+    const id = text(record, 'public_id');
     feed.push({
       id: `incident-${id}`,
       kind: 'incident',
