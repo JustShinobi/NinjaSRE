@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   release:
-    uses: JustShinobi/platform-workflows/.github/workflows/application-release.yml@1472c2963006f33d7b15768cf799560ce086aac8
+    uses: JustShinobi/platform-workflows/.github/workflows/application-release.yml@9aa36133f80e32958a8afe7d539d04945a35d366
     with:
       descriptor: .ci/application.yaml
     secrets: inherit
