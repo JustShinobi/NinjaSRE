@@ -23,6 +23,8 @@ from config.constants.investigation import (
     MAX_INVESTIGATION_LOOPS,
     RUN_WALL_CLOCK_SECONDS,
 )
+from core.agent.handoff import HumanHandoff
+from core.agent.interaction.registry import InteractionRegistry
 from core.agent.react_loop import CANONICAL_RUNTIME_NAME, ReActLoop
 from core.agent.runtime_port import RunResult, RunStatus
 from core.agent.session import Session
@@ -40,6 +42,11 @@ pytestmark = pytest.mark.unit
 
 def _registry(*names: str) -> Registry:
     return Registry(tools={name: fixture_tool(name) for name in names})
+
+
+def _desk(request: InvestigationStart) -> HumanHandoff:
+    """Return the question desk one investigation is composed with."""
+    return HumanHandoff(registry=InteractionRegistry(run_id=request.run_id), run_id=request.run_id)
 
 
 def _request(run_id: str = "run-1") -> InvestigationStart:
@@ -62,7 +69,7 @@ class TestComposesTheCanonicalLoop:
             registry=_registry("fixture_probe"),
         )
 
-        built = runner._build_runtime(_request(), messages=None)  # type: ignore[arg-type]
+        built = runner._build_runtime(_request(), messages=None, tools=())  # type: ignore[arg-type]
 
         assert isinstance(built, ReActLoop)
         assert built.is_canonical is True
@@ -79,12 +86,14 @@ class TestComposesTheCanonicalLoop:
             llm=ScriptedLLM([text_turn("x")]), registry=_registry("fixture_probe")
         )
 
-        first = runner._build_runtime(_request("run-a"), messages=None)  # type: ignore[arg-type]
-        second = runner._build_runtime(_request("run-b"), messages=None)  # type: ignore[arg-type]
+        first = runner._build_runtime(_request("run-a"), messages=None, tools=())  # type: ignore[arg-type]
+        second = runner._build_runtime(_request("run-b"), messages=None, tools=())  # type: ignore[arg-type]
 
         assert first is not second
 
-    def test_the_tool_schema_ceiling_is_the_named_constant_not_merely_respected(self) -> None:
+    async def test_the_tool_schema_ceiling_is_the_named_constant_not_merely_respected(
+        self,
+    ) -> None:
         """The composed object is capped at exactly ``MAX_AGENT_TOOL_SCHEMAS``.
 
         The registry here declares more than the ceiling on purpose, so a
@@ -96,9 +105,9 @@ class TestComposesTheCanonicalLoop:
             llm=ScriptedLLM([text_turn("x")]), registry=_registry(*names)
         )
 
-        selected = runner._select_tools(_request())
+        selected = await runner._select_tools(_request(), handoff=_desk(_request()))
 
-        assert len(selected) == MAX_AGENT_TOOL_SCHEMAS
+        assert len(selected.tools) == MAX_AGENT_TOOL_SCHEMAS
 
     def test_the_loops_own_guard_is_what_the_cap_relies_on(self) -> None:
         """The ceiling is a real refusal on ``ReActLoop`` itself, not a convention.
@@ -188,7 +197,13 @@ class TestInvestigate:
         stubbed outcome rather than asserting behaviour no fixture can coax
         out of the canonical loop.
         """
-        runner = ReActInvestigationRunner(llm=ScriptedLLM([text_turn("x")]), registry=_registry())
+        # One capability rather than none: a run whose catalogue narrows to
+        # nothing now ends before a runtime is built at all, with the answer
+        # that names what to connect, so an empty registry would never reach
+        # the outcome this test is about.
+        runner = ReActInvestigationRunner(
+            llm=ScriptedLLM([text_turn("x")]), registry=_registry("fixture_probe")
+        )
 
         class _FailingLoop:
             is_canonical = True

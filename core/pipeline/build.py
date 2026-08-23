@@ -82,14 +82,19 @@ def build_pipeline(
 ) -> Pipeline:
     """Return the six-stage investigation pipeline.
 
-    Dormant: nothing in this deployment's serving path constructs a
-    ``Pipeline`` today. ``gateway.runtime.investigator.ReActInvestigationRunner``
-    is what a route-triggered investigation actually runs on — the canonical
-    loop directly, with its own hooks — and this function exists, tested, for
-    whichever later composition root decides a staged pipeline is the shape
-    it wants. Giving it a production caller is a decision about *how* an
-    investigation runs, not about registering what one already did, and it is
-    deliberately not made here.
+    Dormant, and the word is about composition rather than about worth.
+    Nothing in this deployment's serving path constructs a ``Pipeline``:
+    ``gateway.runtime.investigator.ReActInvestigationRunner`` is what a
+    route-triggered investigation actually runs on — the canonical loop
+    directly, with its own hooks. What does construct one is the evaluation
+    harness that runs the scenario corpus, which is a real caller and the
+    instrument this product is measured with; naming it here is the difference
+    between a reader knowing where to look and a reader having to search the
+    tree.
+
+    Giving this a serving caller is a decision about *how* an investigation
+    runs, not about registering what one already did, and it is deliberately
+    not made here.
 
     The runtime must have been built with ``investigation_hooks()`` attached,
     or the incident window is a suggestion in the prompt rather than a bound.

@@ -229,7 +229,7 @@ async def compose_remediation(
         obligations=LedgerVerification(
             gateway=state.gateway,
             scope=scope,
-            signals=_StoredSignals(gateway=state.gateway, scope=scope),
+            signals=_UnreadSignals(),
             registry=components,
         ),
     )
@@ -319,15 +319,22 @@ def _known_signals(state: Any) -> Sequence[str] | None:
 
 
 @dataclass(frozen=True, slots=True)
-class _StoredSignals:
-    """Reads the newest sample of each named signal through its own unit of work.
+class _UnreadSignals:
+    """Reports that this deployment reads no signal on the execution path.
 
-    What a long-lived executor holds. The signal store is a repository bound to
-    one transaction, and the executor outlives every transaction in the process.
+    The obligation to find out whether a change worked is still written — that
+    is the point of wiring the ledger at all — and what is missing is the
+    reading taken at the moment of the change to compare against later.
+
+    It is empty rather than store-backed on purpose. The recorder opens its own
+    unit of work and asks this from inside it, so an implementation that opened
+    another would re-enter a transaction the recorder already holds; against a
+    fake persistence that is a deadlock, and against a real one it is a second
+    connection taken while the first is open. What belongs here is a live
+    metrics source, which this composition root does not build — the observation
+    tick does, per sweep, and giving the executor one is later work rather than
+    something to fake here.
     """
-
-    gateway: Any
-    scope: TenantScope
 
     async def latest(
         self,
@@ -335,9 +342,14 @@ class _StoredSignals:
         names: tuple[str, ...] = (),
         resource_ids: tuple[str, ...] = (),
     ) -> tuple[Signal, ...]:
-        """Return the newest sample per name and resource, however old it is."""
-        async with self.gateway.begin(self.scope) as uow:
-            return await uow.signals.latest(names=names, resource_ids=resource_ids)
+        """Return nothing, and say so once per action rather than silently."""
+        logger.info(
+            "remediation.signals_unread",
+            signals=list(names),
+            resources=list(resource_ids),
+            reason="no synchronous signal readback is composed on the execution path",
+        )
+        return ()
 
 
 def _isolation(*, proxy_url: str) -> SandboxIsolation | None:
