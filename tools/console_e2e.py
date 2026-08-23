@@ -542,7 +542,12 @@ def playwright(
     if credential is not None:
         env[NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV] = credential
     if evidence_dir is not None:
-        env[NINJASRE_STAGING_EVIDENCE_DIR_ENV] = str(evidence_dir)
+        # Absolute, always. The browser runs with the console package as its
+        # working directory, so a relative path the caller meant against the
+        # repository root lands one directory down instead — and silently,
+        # because writing a capture somewhere is not an error. The caller then
+        # reads an empty directory and concludes nothing was captured.
+        env[NINJASRE_STAGING_EVIDENCE_DIR_ENV] = str(Path(evidence_dir).resolve())
     finished = subprocess.run(
         [
             str(toolchain.node),
