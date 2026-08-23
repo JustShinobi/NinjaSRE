@@ -276,11 +276,17 @@ const EXCEPTIONS: readonly Exception[] = [
     path: '/runs/{id}',
     rule: 'live-control',
     reason:
-      'the control panel and the live connection indicator are gated on the ' +
-      "run's own status alone, and a run whose recorder never wrote a " +
-      'settled status stays "running" indefinitely — removed once the ' +
-      'recorder is composed in production and writes a real terminal status ' +
-      'when an investigation actually ends',
+      'confirmed against a run whose own status is already terminal ' +
+      '("succeeded") in the fixture: the control panel still offers to stop ' +
+      'it. The badge is not reading the run\'s status at all — it is a label ' +
+      'for the live-connection state, and shows regardless of whether the ' +
+      'run underneath it has settled. Composing the recorder in production ' +
+      '(so a run really does close with a terminal status and a logged end ' +
+      'event) does not touch this: that fact was already true of a ' +
+      'completed run before and remains true after, and this screen simply ' +
+      'is not conditioning the control on it — removed by the console ' +
+      'gating the control on the run\'s own status alongside the connection ' +
+      'state, not on the connection state alone',
   },
   {
     path: '/incidents/{id}',
