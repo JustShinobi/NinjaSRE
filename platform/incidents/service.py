@@ -37,9 +37,26 @@ from platform.persistence.ports.incident_store import (
     Incident,
     IncidentQuery,
     IncidentState,
+    IncidentStore,
     TimelineEntry,
+    is_public_incident_id,
 )
 from platform.persistence.ports.transaction import PersistenceGateway, TenantScope
+
+
+async def _resolve(store: IncidentStore, candidate: str) -> Incident | None:
+    """Return the incident ``candidate`` names, whichever grafia it is.
+
+    A parameter matching the public address's own grammar resolves through
+    that column; anything else — including the internal key, which stays a
+    valid address on purpose — resolves through the primary key. A shape
+    decision rather than two lookups tried in sequence, so an ordinary
+    request costs one indexed read either way.
+    """
+    if is_public_incident_id(candidate):
+        return await store.get_by_public_id(candidate)
+    return await store.get(candidate)
+
 
 #: Resources one detector listing counts its coverage over. The estate page
 #: bound would be the natural number and is too large for a listing that runs a
@@ -88,13 +105,20 @@ class IncidentService:
             return await uow.incidents.query(query)
 
     async def detail(self, scope: TenantScope, incident_id: str) -> IncidentDetail | None:
-        """Return one incident with its timeline, or ``None``."""
+        """Return one incident with its timeline, or ``None``.
+
+        ``incident_id`` may be the internal key or the incident's own short
+        public address — ``_resolve`` picks the lookup by the parameter's
+        shape. The timeline is always read by the *internal* key once the
+        row is found, because that is the key every timeline entry actually
+        carries, whichever grafia the caller asked by.
+        """
         async with self.gateway.begin(scope) as uow:
-            incident = await uow.incidents.get(incident_id)
+            incident = await _resolve(uow.incidents, incident_id)
             if incident is None:
                 return None
             return IncidentDetail(
-                incident=incident, timeline=await uow.incidents.timeline(incident_id)
+                incident=incident, timeline=await uow.incidents.timeline(incident.incident_id)
             )
 
     async def close(
@@ -107,13 +131,20 @@ class IncidentService:
         state: IncidentState = IncidentState.CLOSED_WITHOUT_ACTION,
         now: datetime,
     ) -> Incident:
-        """Close ``incident_id`` on a person's behalf, with their reason."""
+        """Close ``incident_id`` on a person's behalf, with their reason.
+
+        ``incident_id`` may be either grafia, resolved the same way ``detail``
+        resolves it — a screen that opens an incident by its public address
+        must be able to act on the same address rather than needing the
+        internal key for the write.
+        """
         async with self.gateway.begin(scope) as uow:
-            lifecycle = IncidentLifecycle(store=uow.incidents)
-            if await uow.incidents.get(incident_id) is None:
+            resolved = await _resolve(uow.incidents, incident_id)
+            if resolved is None:
                 raise UnknownIncident(incident_id)
+            lifecycle = IncidentLifecycle(store=uow.incidents)
             return await lifecycle.close(
-                incident_id, reason=reason, actor=actor, state=state, now=now
+                resolved.incident_id, reason=reason, actor=actor, state=state, now=now
             )
 
     async def suppress(
@@ -126,12 +157,17 @@ class IncidentService:
         actor: str,
         now: datetime,
     ) -> Incident:
-        """Close ``incident_id`` as suppressed, naming what covered it."""
+        """Close ``incident_id`` as suppressed, naming what covered it.
+
+        ``incident_id`` may be either grafia, resolved the same way ``detail``
+        resolves it.
+        """
         async with self.gateway.begin(scope) as uow:
-            if await uow.incidents.get(incident_id) is None:
+            resolved = await _resolve(uow.incidents, incident_id)
+            if resolved is None:
                 raise UnknownIncident(incident_id)
             return await IncidentLifecycle(store=uow.incidents).suppress(
-                incident_id, by=by, reason=reason, actor=actor, now=now
+                resolved.incident_id, by=by, reason=reason, actor=actor, now=now
             )
 
 

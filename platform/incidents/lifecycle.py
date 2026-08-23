@@ -50,6 +50,7 @@ from platform.persistence.ports.incident_store import (
     TimelineEntry,
     TimelineKind,
     incident_key,
+    public_incident_id,
     timeline_key,
 )
 
@@ -98,8 +99,10 @@ class IncidentLifecycle:
         if existing is not None:
             return await self._correlate(existing, request, now=now)
 
+        new_incident_id = incident_key(request.correlation_key, now)
         incident = Incident(
-            incident_id=incident_key(request.correlation_key, now),
+            incident_id=new_incident_id,
+            public_id=public_incident_id(new_incident_id),
             correlation_key=request.correlation_key,
             title=request.title,
             summary=request.summary,

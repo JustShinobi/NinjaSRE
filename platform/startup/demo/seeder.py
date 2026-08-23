@@ -58,6 +58,7 @@ from platform.persistence.ports.incident_store import (
     IncidentSubject,
     TimelineEntry,
     TimelineKind,
+    public_incident_id,
 )
 from platform.persistence.ports.run_trace_store import (
     AgentRun,
@@ -577,6 +578,7 @@ async def _seed_incidents(
             await uow.incidents.upsert(
                 Incident(
                     incident_id=incident_id,
+                    public_id=public_incident_id(incident_id),
                     correlation_key=f"{row.get('detector', 'demo')}:{incident_id}",
                     title=str(row.get("title", incident_id)),
                     summary=str(row.get("summary", "")),
