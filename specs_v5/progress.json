@@ -1,0 +1,402 @@
+{
+  "wave": "specs_v5",
+  "updated": "2026-08-16",
+  "orchestrator": "Opus 5 lead session, /spec-wave",
+  "execution": "sequential — features share single-write files (console/src/i18n/*.ts, console/src/shell/routes.ts, console/visual/screens.json); no parallel workers in this shared worktree",
+  "feature_order": [
+    "001-fundacao-vocabulario-ux",
+    "010-navegacao-settings",
+    "020-integrations-catalogo",
+    "030-setup-wizard",
+    "040-agente",
+    "050-organizacao",
+    "060-dados",
+    "070-migracao-editor-cru"
+  ],
+  "dependencies": {
+    "001-fundacao-vocabulario-ux": [],
+    "010-navegacao-settings": [
+      "001-fundacao-vocabulario-ux"
+    ],
+    "020-integrations-catalogo": [
+      "001-fundacao-vocabulario-ux"
+    ],
+    "030-setup-wizard": [
+      "001-fundacao-vocabulario-ux",
+      "010-navegacao-settings"
+    ],
+    "040-agente": [
+      "010-navegacao-settings"
+    ],
+    "050-organizacao": [
+      "010-navegacao-settings"
+    ],
+    "060-dados": [
+      "010-navegacao-settings",
+      "020-integrations-catalogo"
+    ],
+    "070-migracao-editor-cru": [
+      "040-agente",
+      "050-organizacao",
+      "060-dados"
+    ]
+  },
+  "completed": [
+    {
+      "feature": "001-fundacao-vocabulario-ux",
+      "verdict": "PASS",
+      "verified_by": "orchestrator confrontation, recorded in CONFRONTO.md section 1",
+      "evidence": "make verify EXIT=0; pytest 14044 passed 0 failed 25 skipped; vitest 1967 in 127 files; playwright behaviour 85, visual 36 with 8 baselines deliberately recaptured",
+      "commits": [
+        "c03a18c",
+        "1e2cf04",
+        "41022c8"
+      ],
+      "branch": "feat/v5-001-fundacao-vocabulario-ux",
+      "merged_into_master": true,
+      "open_items": [
+        "23 CTAs in 9 files still point at /configuration — owned by 020/030/040/050/060",
+        "catalogue 'known gaps' block not folded into Reference — owned by 020",
+        "scroll budget measured against the 3-integration mock dataset, not the real scale — 020/050 populate it",
+        "state vocabulary consumed by the console only; CLI and notifications not swept",
+        "13 areas still carry a prose subtitle under the title (page.<area>.context) — predates the wave"
+      ]
+    },
+    {
+      "feature": "010-navegacao-settings",
+      "state": "DONE, COMMITTED and now on master — PASS conditional, delivered, verified, reconciled, committed on the operator's explicit instruction.",
+      "commit": "45d8f10 on branch feat/v5-010-navegacao-settings — 42 files, 2005 insertions, 223 deletions. master left untouched at 2f4a842. Pre-commit hooks passed (ruff lint, ruff format, import contracts, constants). Working tree clean; tsc --noEmit EXIT=0 on the committed state.",
+      "staging_incident": "At 00:24 something outside this session staged 27 files (the tracked-modified set only, no new files — the signature of `git add -u`). The orchestrator ran no `git add` before that point. It was reported rather than silently undone, because another session may have been mid-commit. Committing that set alone would not have built: staged administration/page.tsx and signals/page.tsx import @/shell/legacy-redirect, which was untracked. The operator then said to commit everything, so the five new paths were staged explicitly and the whole set went in as one commit.",
+      "final_pytest": "14051 passed, 25 skipped, 2 failed — both explained: test_the_untouched_baselines_still_match is the refused visual divergence, and test_exactly_one_fictional_deployment_exists_in_the_repository is a false positive from Playwright artefacts under console/test-results and console/playwright-report (9 passed once cleared). Neither is a product defect.",
+      "verdict": "PASS conditional (CONFRONTO.md section 2.6)",
+      "gates": {
+        "make verify": "EXIT=2 — the visual stage alone; every other stage green",
+        "pytest": "14051 passed, 1 failed (the visual divergence), 25 skipped",
+        "vitest": "1987 in 127 files (+20 over the 1967 baseline), statements 94.44%, floor 90",
+        "check-imports": "7 contracts kept, 0 broken",
+        "verify-integrations": "85 at full parity",
+        "playwright": "behaviour 82 passed + 6 skipped by design (88 collected), first-day 5 passed, visual 9 passed / 27 divergent"
+      },
+      "orchestrator_own_work": [
+        "FR-007/T012 implemented by the orchestrator, test-first with the red seen, after the implementer correctly reported it not started",
+        "nine forbidden identifiers removed across three sweeps (implementer found 4, orchestrator 3, verifier 2)",
+        "10 files formatted; a black 9,298-byte visual baseline restored twice",
+        "console/src/lib/swatch.tsx removed from the tree — unattributed, the implementer denies authoring it, kept in scratchpad"
+      ],
+      "screens_json_reconciled": "DONE — administration/administration-audit/autonomy repointed to their new /settings/* addresses; first-run and the three signals entries moved to status 'pending' with a pending_because, because their routes no longer show what their id promises. Entries kept rather than deleted: removing one orphans its committed PNG and test_no_baseline_belongs_to_a_screen_nobody_registered fails. No PNG was touched. Visual divergence went 27 -> 23; tests/contract/console/ all green.",
+      "baseline_blanking_hazard": "tests/contract/console/test_console_visual_regression.py deliberately writes a blank PNG over committed_baselines()[0] — alphabetically administration-1440-light.png — and restores it in a finally. Any KILLED pytest run (short timeout, Ctrl-C, OOM, cancelled CI) leaves the blank in the working tree and it looks like a baseline somebody corrupted. It was the orchestrator's own `timeout 300` that triggered it here, not a subagent. Worth a stronger guard than write-over-the-committed-file.",
+      "visual_baselines_final": "DECIDED 2026-08-15 — LEAVE OPEN, deliberately. The operator declined to accept the 23 remaining divergences and chose to carry them, because 040/050/060 will build the real screens behind these pages and most of these baselines change again then; accepting now buys two human reviews of the same pixel. THIS IS NOT A BUG TO INVESTIGATE. Expected steady state until then: make verify EXIT=2 at the visual stage with every earlier stage green, and pytest with exactly one failure, test_the_untouched_baselines_still_match. A second failure in tests/architecture/test_one_fictional_deployment.py means stale Playwright artefacts — rm -rf console/test-results console/playwright-report and it passes. No .png was ever touched in this feature; the 27->23 drop came from four entries leaving the capture set, not from four divergences being resolved. To close it later: review the diffs, run make console-visual-accept, commit the PNGs as a human-reviewed change — the registry is already reconciled, so none of the 23 photographs the wrong screen.",
+      "visual_baselines": "DECIDED 2026-08-14 — the operator refused acceptance of all 27. No console-visual-accept was ever run. The 27 PNGs stay as they are at HEAD and console/visual/ is clean in the working tree. make verify staying EXIT=2 on the visual stage is therefore the expected state, not a regression to chase; pytest fails alongside it only in test_the_untouched_baselines_still_match. Unblocking requires either reconciling screens.json with the redirects and then accepting under human review, or a deliberate accept knowing first-run-1440-light stops watching the wizard.",
+      "delegation_note": "the implementer hit the turn ceiling three times and an account limit once; each resume carried the exact findings back",
+      "branch_exists": "feat/v5-010-navegacao-settings (empty, points at master 2f4a842)",
+      "briefing": "specs_v5/briefings/COMUM.md + specs_v5/briefings/010.md",
+      "lead_decisions": [
+        "/settings/<page> is the real address from now on: enumerated in the manifest, permission-gated, rendering today's equivalent screen in this phase; the old route redirects into it. plan.md's sentence about the subnav pointing at old routes is stale residue and loses to T007+T010, which match FR-005 and FR-009.",
+        "/configuration keeps serving the current editor until 070.",
+        "A subnav page with no current equivalent screen gets a real permission-gated route that states plainly the screen arrives with its own feature. The worker does not invent screens 040/050/060 own."
+      ]
+    },
+    {
+      "feature": "020-integrations-catalogo",
+      "verdict": "PASS",
+      "verified_by": "spec-verifier in a fresh context, after two repair cycles — CONFRONTO.md section 3.9",
+      "commit": "058aa91 on master — 44 files, 8175 insertions, 322 deletions. Pre-commit hooks passed (ruff lint, ruff format, import contracts, constants). No committed .png was touched; console/visual/ carried only screens.json.",
+      "committed_on": "2026-08-15, on the operator's instruction to commit straight to master",
+      "operator_decision_fr006": "SIGNED 2026-08-15. The operator signed the orchestrator's reading: rendering the required permission per integration is the only honest option with the data that exists, because no field-to-permission mapping is declared anywhere (RequiredPermission.capabilities links a permission to a capability, never to a field) and building one would mean inventing it. The requirement is met in substance — label and acquisition instruction ARE per field (console/src/surfaces/credential.tsx:166-196); the permission is per integration (integration-panel.tsx:184-208), and 61 of 85 vendors have more than one credential field. Closing the letter would need a new per-vendor declaration of what each field covers: vendor work, a candidate for its own spec, and NOT a defect to reopen in this wave.",
+      "evidence": "pytest 14055 passed / 2 failed (both known and explained) / 25 skipped; vitest 2016 in 127 files; integrations.spec.ts + scroll-budget.spec.ts 19 passed; tests/contract/console 306 passed 0 failed; verify-integrations 85 at full parity; make verify EXIT=2 at the visual stage only",
+      "both_gaps_resolved": "Scroll restoration implemented (console/src/surfaces/scroll-memory.ts, restored on unmount so button, Escape and navigation take one path) with the test asserting rather than measuring. The minimum scope turned out to be already declared and probed for all 85 vendors in IntegrationProfile.permissions — the fix was wiring, not research (CONFRONTO.md 3.8).",
+      "open_items": [
+        "FR-006's letter — signed as above; needs a per-vendor field-to-permission declaration to close literally, which is a candidate for its own spec",
+        "the e2e scroll test exercises only the close button; Escape and navigation converge on the same onClose and were verified by reading, not by test"
+      ]
+    },
+    {
+      "feature": "030-setup-wizard",
+      "verdict": "PASS",
+      "verified_by": "spec-verifier in a fresh context — PASS with two findings, neither functional; both resolved by the orchestrator before the commit",
+      "commit": "fbd0130 on master — 16 files, 1039 insertions, 55 deletions. Pre-commit hooks passed (ruff lint, ruff format, import contracts, constants).",
+      "the_spec_described_a_screen_that_no_longer_existed": "030's spec.md was written 2026-08-14 against the pre-001 first-run screen. 001 already rebuilt it as a wizard: WIZARD_STEPS, stepDone, currentStep, hrefFor, planFor, readSetup and outstanding all live in console/src/surfaces/first-run/plan.ts; the stepper with per-step links and data-testids is in screens/first-run.tsx:371-423; the per-item verify with retry, remedy and findings is in first-run/verify.tsx:139-199; and setup-hero.tsx is the dashboard invite already consuming the single source and vanishing at zero. The feature is the DELTA, and the briefing enumerates it with file:line. Reading the spec literally would rebuild half of it and create the second step model this feature exists to kill.",
+      "lead_decisions": [
+        "The dual count is live and is the feature's central defect. On one panel: the title at first-run.tsx:322-325 computes checklistTitle(plan.filter(done).length, WIZARD_STEPS.length) — a client-only 7-based tally — while the body at :365-370 renders outstanding(setup) over setup.steps.length, the server-served single source. setup.steps does not have seven elements. The two disagree by construction, which is exactly the '2 of 7' beside '3 outstanding' the success criterion names, and it survived 001. tests/contract/console/test_console_first_run.py:181 guards only the BODY of outstanding() by regex, so the title escapes it — extending that test is the feature's first red.",
+        "The wizard's redirect does not go in SETTINGS_REDIRECTS. routes.ts:686 says so in as many words: 010 deliberately left /first-run out because the redirect depends on whether the checklist is complete, 'so its own route file reads it directly'. It belongs in console/src/app/(shell)/first-run/page.tsx.",
+        "010 retired /signals (routes.ts:701 redirects it to /settings/alert-intake), but HANDOVER.alerts (first-run.tsx:79) still points at /signals, so the last step's handover currently travels through a redirect. The real destinations are /resources and /settings/alert-intake.",
+        "The model-fix CTA lands on hrefFor('model') while 040 does not exist — read through hrefFor, never a string literal, so 040 changes one place.",
+        "Blocking-or-not is declared per step, as data beside WIZARD_STEPS in plan.ts, not as an if scattered through the screen."
+      ],
+      "gates": {
+        "vitest": "2043 passed in 128 files (baseline 2016/127) — measured by the orchestrator after every fix",
+        "tsc --noEmit": "EXIT=0",
+        "pytest full, isolated": "1 failed, 14057 passed, 25 skipped, 610s — the single failure is test_the_untouched_baselines_still_match, the deliberate visual divergence",
+        "tests/contract/console": "308 passed (baseline 306), 280s, visual-regression module excluded",
+        "playwright behaviour": "98 passed, 6 skipped",
+        "playwright setup-wizard.spec.ts": "2 passed",
+        "playwright first-day, first-run scenario": "7 passed (5 pre-existing + 2 new)",
+        "prettier": "clean"
+      },
+      "orchestrator_own_work": [
+        "Swept two requirement identifiers out of committable files (first-run.tsx and first-run.test.tsx) — my own sweep found exactly the two the verifier found. The rule was stated twice to the implementer and violated twice anyway; 010 needed three sweeps for nine.",
+        "Closed the verifier’s second finding: the new contract test guarded the dual count by slicing source text up to the next semicolon, which `const total = WIZARD_STEPS.length; checklistTitle(x, total)` would walk straight through. Added a vitest assertion on the RENDERED heading (first-run.test.tsx, \"heads the panel from the deployment’s own steps\"), and saw the red for real by reverting the fix, running it, and restoring — not by inference.",
+        "Corrected controle.md’s SC-003 cell, which claimed the destination screens carry the re-test button. They do not: that button renders only when here === ‘verify’. The property holds on the correct reading; the sentence misled.",
+        "Swept seven European Portuguese strings out of pt-BR.ts. My first sweep found five, the second found seven — the same escalation 010 saw. Checked no test or source depended on the strings before changing them.",
+        "Ran every gate independently rather than accepting the implementer’s numbers."
+      ],
+      "verifier_findings": [
+        "Two requirement identifiers in committable comments — CONFIRMED by my own independent sweep, fixed.",
+        "The FR-002 regression guard was a source-text slice, bypassable by trivial indirection — the same class of weakness as the test it was written to complement. Fixed with a rendered assertion.",
+        "controle.md’s SC-003 citation imprecise — corrected.",
+        "Informational: established and setup-complete-summary render the same array twice on the final screen. Not the duplicate-state defect class (one array, cannot drift), so not fixed."
+      ],
+      "open_items": [
+        "The live reproduction of the \"model without tool calling\" failure is impossible against the mock plane: fixtures/scenarios/first-run/provider-verify.json holds one record with empty arguments, so every provider_id falls back to the same canonical response. Verified independently against tools/mockplane/. Covered at component level instead. Owner: whoever maintains tools/mockplane/.",
+        "The live \"continue anyway\" test is impossible for the same class of reason: MockPlane._apply_write (tools/mockplane/server.py) has no case for credential-write or setup-checklist, so a live credential PUT never moves the next checklist read. Verified independently.",
+        "SC-001 is a human usability criterion and is not verifiable by an agent — correctly not claimed.",
+        "The \"two simultaneous operators\" edge case has no dedicated test; the property is architecturally guaranteed (no client-side session state) and was verified by reading, not by test."
+      ]
+    },
+    {
+      "feature": "040-agente",
+      "verdict": "PASS",
+      "verified_by": "spec-verifier in a fresh context, after four implementer turn-ceilings and one session-limit death; four findings, none falsifying a functional claim",
+      "state": "DONE and COMMITTED on master, on the operator's instruction.",
+      "gates_measured_by_the_orchestrator": {
+        "tsc --noEmit": "EXIT=0",
+        "eslint .": "EXIT=0 — the ten errors that were red are gone",
+        "prettier --check .": "clean",
+        "vitest run": "2091 passed, 132 files (baseline 2043/128)",
+        "i18n parity": "en 1282 = pt-BR 1282, no orphan either side, no European-Portuguese forms",
+        "lint-imports": "7 contracts kept, 0 broken",
+        "check_constants": "EXIT=0",
+        "pytest tests/contract/ tests/architecture/": "5374 passed, 1 failed, 18 skipped, 478s — the single failure is test_the_untouched_baselines_still_match, the deliberate visual divergence",
+        "playwright behaviour, settings-agent.spec.ts": "9 passed (mock backing, populated scenario, real production build) — run by the verifier",
+        "visual comparison": "23 divergent / 9 passing — the SAME split recorded after 030. 040 introduced zero new visual regressions; models-providers and notifications are not registered visual screens at all",
+        "make verify": "NOT RUN as a composite target — every stage run individually instead; owed at the wave's end"
+      },
+      "the_second_pytest_failure_was_the_orchestrators_own": "test_exactly_one_fictional_deployment_exists_in_the_repository failed in the full run because I started pytest while the verifier's browser validation was writing console/test-results and console/playwright-report. Re-run alone after the artefacts were cleared: 9 passed. Not a defect. This is the third time in this wave that running a working-tree-writing suite concurrently produced a phantom failure.",
+      "root_caused_across_tiers_by_the_implementer": [
+        "A function passed as a prop from a server component to a client one (integrationsHref). It passed tsc, eslint and all 2091 vitest tests and broke ONLY in a real production build; console_e2e against the standalone build is what caught it. Fixed by keeping the function inside the client module (models-editor.tsx:106), which the source comment there had already prescribed.",
+        "Promise.all over nine parallel /v1/providers/{id} reads made one failure take down the whole panel — changed to Promise.allSettled (models.tsx:125-149).",
+        "console/src/app/api/{config,preview}/route.ts silently dropped `remove`, breaking 'return to inheritance'. Red seen before the fix; tests now assert the wire body.",
+        "resolution-preview.tsx is 'use client', so pure functions a server needs to CALL cannot live there — extracted to values.ts."
+      ],
+      "verifier_findings": [
+        "SCOPE: three ADRs (0012/0013/0014) plus docs/adr/README.md and docs/roadmap.md sit in the same working tree with no owning line in 040. CORRECT AND MINE — orchestrator work on the operator's explicit request, unrelated to this feature. They must be a separate commit; they are not 040's.",
+        "SC-003's literal 100% is not met, and controle.md says so. Confirmed against the schema, not the claim: AutonomyPolicySettings has 8 top-level fields, 5 covered; string-list fields are unreachable through the reused ConfigEditor (preview.tsx EDITABLE_TYPES), an inherited limitation 040 did not introduce. Feeds 070.",
+        "FR-004(c): approvals threshold is free text because ApprovalPolicySettings.threshold is ConfiguredStr with no Literal, so the fields endpoint cannot report a closed set. The constitutional invariant still holds server-side (_within_the_article, policies.py:296-307). UX does not pre-empt a doomed edit; persistence refuses it.",
+        "US1 AC3 deviation is real and bounded: only save-and-verify and test-without-saving exist, no third control was invented."
+      ],
+      "independently_confirmed_no_discrepancy": [
+        "FR-002 tri-state reaches rendered text: models.test.tsx:231-255 renders supports_tools null and asserts the badge never says 'does not support'. Mock plane regenerated from default_registry(), not hand-edited.",
+        "FR-003: the deleted 609-line screen versus the new 772-line one — glossary, resolution-order rules table, four bounds panels, override grant/revoke, seeded FIRST_RULE and the permanent propose-only footer all present and unweakened. configurationHref gone entirely.",
+        "The migrated suite is a SUPERSET: all 15 original it() bodies preserved plus 6 new (335 -> 518 lines). Coverage was not reduced by the deletion.",
+        "SCOPE_KINDS matches AUTONOMY_SCOPE_KINDS (config/constants/autonomy.py:96-104) byte for byte, read from the declared enum.",
+        "SetupReturnBanner renders on all three pages — the 030 handover survived.",
+        "No forbidden identifier in any of the 34 changed paths; no committed .png touched; no accept ever run."
+      ],
+      "open_items": [
+        "T004 — contract test for the config/preview payloads; tests/contract/console/test_console_gate_configuration.py confirmed untouched",
+        "T011 — concurrent-edit conflict, not started",
+        "T015b — a rule naming a resource that does not exist should warn in the list, not started",
+        "node-scope selector for >1 node: absent from all three pages and from the absorbed screen; reported as unverified rather than claimed",
+        "policies.autonomy.{allow_unverifiable_actions,recurrence_threshold,recurrence_window_seconds} have no control — feeds 070",
+        "string-list fields (guardrails.disabled_rules, approvals.autonomous_capabilities) not editable through the reused editor — inherited, feeds 070",
+        "US1 AC3's third clause ('save without verifying') deliberately not built; the mockup and tasks.md say 'test without saving' and were followed as DoD. The operator owns closing this sentence.",
+        "vocabulary sweep covered only the 28+ new pt-BR entries, not the whole catalogue"
+      ],
+      "commit": "ec3726e on master — 36 files, 4399 insertions, 181 deletions. Pre-commit hooks passed (ruff lint, ruff format, import contracts, constants). No committed .png touched.",
+      "committed_on": "2026-08-15"
+    },
+    {
+      "feature": "050-organizacao",
+      "verdict": "PASS",
+      "verified_by": "spec-verifier in a fresh context, after one FAIL and one repair cycle — CONFRONTO.md section 6.3",
+      "state": "DONE, COMMITTED on master as af0bc2b, on the operator instruction to commit straight to master.",
+      "gates_measured_by_the_orchestrator": {
+        "tsc --noEmit": "EXIT=0",
+        "eslint .": "EXIT=0",
+        "prettier --check .": "EXIT=0",
+        "vitest run": "2176 passed, 137 files (wave baseline 2091/132)",
+        "spec_validation browser settings-org.spec.ts": "6 passed against a real production build, re-run after the repair cycle",
+        "requirement-identifier sweep on added lines": "clean — the first feature in this wave with no leak",
+        "i18n parity": "en 1315 = pt-BR 1315, no new European-Portuguese forms",
+        "palette and baselines": "console/src/design/tokens.ts untouched; administration-1440-light.png intact at 151336 bytes; console/visual/ clean in git",
+        "visual comparison": "DELIBERATELY NOT RUN — both registered screens are among the 32 baselines diverging from the palette change in e5a8c24, so a compare would be dominated by that known confound. console-visual-accept never run by anyone.",
+        "make verify": "NOT RUN as a composite target — still owed at the wave's end"
+      },
+      "the_confrontation_paid_for_itself": "The next-lead note said to verify 050's two claimed Audit defects before building. Both existed, but one was not where the spec put it and the other was worse. The period defect had become 'every filter control abandons the page' (audit.tsx hard-coded /administration in six places; on /settings/audit-log the tab-less redirect landed on /settings/members-roles). The count defect was not 'two queries' as the plan said — it was the same repository and window with a NARROWER FILTER SET on count(), whose signature came from the port itself. A second, client-side contributor produced the exact quoted symptom. Building the spec's literal fix would have fixed the wrong thing twice.",
+      "three_stale_spec_claims_caught_before_delegation": [
+        "The last-administrator guard was NOT absent — remove_grant already called require_owner_retained. The work was surfacing the refusal, not building the guard.",
+        "The token accumulation cause was NOT the issue form — bring_up already reuses a live credential; the bootstrap credential lives one hour and the superseded one was never revoked, only expired. Right location, wrong trigger.",
+        "The SSO server contract was already complete — digest-bound verification, verified derived not stored, problems in operator language. The feature was console-side restructuring, not a new invariant."
+      ],
+      "process_lessons_that_worked": [
+        "Demanding the console gate (tsc, eslint, prettier, vitest) BEFORE the report, not inside it: for the first time in the wave all four numbers arrived with the delivery and matched my independent measurement exactly.",
+        "That same demand produced the most valuable finding: the Playwright behaviour tests did not exist. Four tasks asked for them explicitly and plan.md named settings-org.spec.ts; vitest had been written instead. Pushed three times, the file was created — and on its first run revealed a defect tsc, eslint and 2155 unit tests all missed: sso.tsx, a server component, called SSO_FIELDS.map() imported from a 'use client' module. Broke only against a real production build."
+      ],
+      "six_stops": "The implementer stopped six times — two account session limits and four turn ceilings, always mid-sentence. The FIRST death left NOTHING on disk (git status --porcelain returned 0 lines); resuming without saying so would have made it re-derive a state that did not exist. Every resume carried the state I measured, not what the worker remembered. NEAR-MISS: at one stop it announced it would run ruff/mypy in parallel with a background pytest, reasoning that ruff and mypy do not write to the tree. The reasoning misses the target — the pytest is the writer, and it died mid-run. The baseline survived (151336 bytes, console/visual/ clean). That was luck, and it was said in those words.",
+      "verifier_first_pass_FAIL": "One HIGH finding: granting an administrative role asked for no confirmation, though the spec requires it in US1 AC2 and FR-007. The implementer had disclosed the gap honestly but justified it as 'risk to a shared component'. The justification did not survive evidence: GrantPanel had exactly ONE production consumer — the members.tsx written in the same session — because the 'shared' consumer was PeopleTab, which that same diff deleted; and ConfirmDestructive was already imported and used in the same file for grant removal. The real reason was time, which the implementer acknowledged in the repair cycle.",
+      "verifier_finding_the_orchestrator_would_have_missed": "controle.md section 5 accounted for two of the three deleted test files and NEVER audited sso.test.tsx, the largest. Its arithmetic was wrong on two of three (audit.test.tsx had 12 tests, not 16; sso.test.tsx had 17, not 10 — real total 37, not 34). I had named 2 lost assertions; the full trace found 7. A rising total was hiding a genuine coverage regression.",
+      "open_items": [
+        "/autonomy exceeds its scroll budget by 48px — pre-existing, diff-confirmed untouched by 050. Owner: whoever maintains the 040 screen.",
+        "SC-002 (SSO usable without external documentation) is a human usability criterion — structure built and tested, correctly not claimed.",
+        "The pt-BR wording test for the service-account identity line was not recreated; the string is correct and covered by catalogue parity.",
+        "The 070 schema-parity input (policies.sso, policies.sso.claims) is recorded in prose in controle.md — no checklist file exists in the tree to update.",
+        "Two pre-existing europeanisms in pt-BR.ts ('signIn.username': 'Utilizador' line 392, 'transcript.kind.objective': 'Objectivo' line 447), both already in HEAD, in namespaces 050 does not touch. Reported rather than silently left."
+      ],
+      "a_preexisting_bug_fixed_in_passing": "TokenService was constructed with no AuditRecorder in gateway/http/asgi.py, so EVERY token issue and revoke was silently unaudited regardless of what any caller asked for. Found while chasing the accumulation root cause; fixed at asgi.py:192-196.",
+      "commit": "af0bc2b on master — 53 files changed, 4745 insertions, 1390 deletions. Pre-commit hooks passed (ruff lint, ruff format, import contracts, constants). Staged by explicit path, never git add -A. No committed .png touched; console/visual/ carried nothing. Git detected 2 renames (screens/audit.tsx -> settings/audit.tsx at 69%, surfaces/audit.test.tsx -> settings-audit.test.tsx at 54%), which is why 55 status entries became 53 commit entries.",
+      "committed_on": "2026-08-16",
+      "branch_check_before_committing": "git branch --no-merged master returned EMPTY — no branch carried a commit missing from master. Single worktree, no stash. Verified on the operator request before committing."
+    }
+  ],
+  "completed_060": {
+    "feature": "060-dados",
+    "verdict": "PASS — spec-verifier in a fresh context, no repair cycle needed. Three findings, NONE in the product: two were citation/overclaim errors in controle.md (both mine, both corrected), one was a lost assertion from the migration audit.",
+    "verifier_findings": [
+      "The CTA-fix row cited schedules-destinations.tsx:227-230,248-253. The lines had shifted eight positions when I inserted the frequencyText labels above that region, and one cited range was the OPPOSITE branch — the one that still points at /configuration on purpose. The behaviour was always right (the reproduction test proves it); the citation pointed at the wrong place. Corrected to :235-238 and :256-261. Lesson: re-read a file:line AFTER the last edit to that file, not before.",
+      "The 'silence != refusal' row credited three things as new; two were not. The recent_rejections block in the danger role with testid 'rejections' existed byte-for-byte in the deleted screens/data.tsx (HEAD lines 193-204), and the grafana-refused fixture already existed in served.py — the diff of that file adds zero rejection lines. Genuinely new: the Badge on last_outcome at alert-intake.tsx:209, which gives the outcome a colour role where before 'accepted' and 'rejected' were identical muted text. Row split and corrected. My own briefing slightly overstated this gap too.",
+      "One assertion lost in migration with no replacement: detectors.test.tsx's 'explains what the section is for' over schedules.caption. The copy still renders (schedules-destinations.tsx:129-131), so nothing regressed behaviourally — but my §3 audit traced ingress.test.tsx property-by-property and did not give detectors.test.tsx the same rigour. A gap in my audit, not in the product."
+    ],
+    "verifier_confirmed_independently": [
+      "Deletion arithmetic exact: 31 + 6 = 37 removed, 27 + 15 + 13 = 55 added, recounted from git show HEAD:<path>. All six ingress.test.tsx properties genuinely covered, the http:// guard now with two dedicated cases plus a real browser assertion.",
+      "FR-002 PARTIAL reasoning is correct at the source: delivery_permission is a field on the list-level IngressSourceListView, not on the per-source view (gateway/http/routes/ingress.py:43-48) — there is no per-receiver permission to expose, so a per-receiver token would be fiction.",
+      "frequencyOfCron survived a deliberate attempt to break it: leading zeros, Sunday as 7, named weekdays, ranges other than 1-5, steps, lists, a restricted month, and the classic day-of-month/day-of-week ambiguity case all return null rather than a misleading sentence, because it requires dayField === '*' before reading weekField and weekField === '*' before treating dayField === '1' as monthly — the two ambiguous paths are mutually exclusive by construction.",
+      "resend_delivery explicitly refuses anything but an already-FAILED delivery (transit.py:456-460), so it cannot be repurposed as a test-send. The US3 scope decision is sound and was declared, not silently dropped, and no fake control was invented.",
+      "Every gate number in controle.md §2 reproduced exactly, including 308 contract tests run solo.",
+      "No requirement-identifier leaks, i18n parity exact at 24 keys each side, no .png touched, signals-observation-1440-light untouched, no other feature directory or gate config touched."
+    ],
+    "verifier_own_side_effect_disclosed_and_corrected": "It ran tools.mockplane build to check the destinations fixture was generated rather than hand-edited (it was — byte-identical), which rewrote fixtures/scenarios/populated/tokens.json through unrelated wall-clock nondeterminism in that generator. It restored the file and said so. I confirmed tokens.json is clean and the tree still holds the same 29 paths.",
+    "state": "PASS, verified, controle.md reconciled, and COMMITTED as d91b51a on master — 28 files, 2341 insertions, 1200 deletions. The sentence below was written before that commit and is kept for the record. Implementer died twice (turn ceiling, then account session limit at 06:50 UTC reset, mid-sentence both times); the orchestrator measured the tree at each stop and finished the remainder. controle.md written. spec-verifier running in a fresh context. NOTHING COMMITTED — HEAD still af0bc2b, ~28 paths in the working tree.",
+    "who_wrote_what": "Implementer: both surfaces, both page files, the two unit suites, the preset generator and selector, the CTA fix, the degraded-destination link, the fixtures, the i18n, the signals reduction, the scroll-budget registration. Orchestrator after the second death: both Playwright specs (tests/e2e/settings-data.spec.ts and tests/first-day/settings-data-empty.spec.ts), the readable-frequency work (frequencyOfCron/readableFrequency + 10 tests), the visual registry repointing, the requirement-identifier sweep, controle.md.",
+    "gates_measured_by_the_orchestrator": {
+      "tsc --noEmit": "EXIT=0",
+      "eslint .": "EXIT=0",
+      "prettier --check .": "EXIT=0",
+      "vitest run": "2205 passed, 138 files (wave baseline 2176/137)",
+      "playwright behaviour settings-data.spec.ts": "12 passed against a real production build",
+      "playwright first-day settings-data-empty.spec.ts": "3 passed; RED CONFIRMED by reintroducing href '/configuration' and watching 2 of 3 fail, then restoring and diffing against a backup to prove the file came back identical",
+      "scroll-budget": "both new routes within budget, MEASURED not estimated; the one failure is /autonomy at 2208px vs 2160px — pre-existing, the same 48px already recorded as a 040 open item",
+      "pytest tests/contract/console": "308 passed (visual-regression excluded)",
+      "make verify": "NOT RUN as a composite target — still owed at the wave's end"
+    },
+    "two_gate_failures_were_the_orchestrators_own": "First: 4 failures in test_console_gate.py, from my two new Playwright specs — prettier formatting, and eslint refusing a literal 'http://' in my test, which is the very property that test exists to prove. Rewrote it with the same built-from-parts construction the screen itself uses. Second: 1 failure in test_a_seeded_failure_fails_its_check_and_says_where[lint0], because I launched tests/contract/console in the background and then started a second run in the foreground without waiting. test_console_gate.py seeds failure files into the working tree; two runs collide. Run alone: 16 passed. FOURTH time in this wave that a concurrently-run tree-writing suite produced a phantom failure — and this time the orchestrator caused it, with the rule already written down. The useful form of the rule is not 'do not run in parallel' but 'do not start the second run without confirming the first finished'.",
+    "the_confrontation_paid_for_itself_again": "Seven stale statements, three of which would have caused real damage: (1) T009 ordered screens/signals.tsx deleted, which would have dropped continuous observation and broken the one accepted baseline of the four signals entries — the spec's own Assumptions contradict its own task; (2) plan.md claimed the cron preview should come from a local library, when it already existed and was already server-derived, so following the letter would have created a second, competing opinion about cron semantics in the client; (3) the CTA target ?category=chat does not exist — the enum member is COMMUNICATION — so the 'fixed' CTA would have landed on an empty filter, and that CTA is the feature's own success criterion.",
+    "the_gap_the_orchestrator_found_after_delivery": "FR-005's readable frequency in the LIST was not built — the list still showed the raw cron expression while the presets existed only in the create form. This is precisely the comma-is-a-requirement-boundary failure COMUM.md warns about, except it was the FIRST noun of the enumeration that was dropped while the other three were delivered. Built by the orchestrator test-first: frequencyOfCron (schedules.tsx:164-192) and readableFrequency (:194-211), red seen as 'TypeError: frequencyOfCron is not a function' across 5 cases, plus 5 rendered-output tests in schedules.test.tsx because a correct generator wired to nothing looks identical to a correct screen from the unit test's side. Deliberately partial: it recognises only the four shapes the presets write and returns null for everything else, because a confidently wrong sentence about when an investigation runs is worse than the raw expression it replaced.",
+    "dependencies_met": [
+      "010-navegacao-settings",
+      "020-integrations-catalogo"
+    ],
+    "confrontation_2026_08_16": {
+      "verdict": "The spec was written 2026-08-14, before 010-050. SEVEN statements no longer describe the repository. This is the fourth wave feature in a row with a stale spec (030, 040, 050, now 060) — the pre-delegation confrontation has now paid for itself four times.",
+      "the_cta_defect_is_real_and_confirmed_at_its_root": "config/constants/transit.py:170-173 (NO_DELIVERY_CHANNEL_REASON) literally says 'Connect a chat or notification integration IN THE CATALOGUE, then declare a destination here'. That sentence reaches the screen as unconfigurable_reason and is rendered as the empty-state body at console/src/surfaces/screens/data.tsx:410-415 with href '/configuration' — the schema editor. The text and the button contradict each other. Both empty-state paths carry it: data.tsx:406 (via emptyBecause) and data.tsx:414 (via unconfigurable_reason). This is a genuine, small, fully verifiable fix.",
+      "category_chat_does_not_exist": "spec.md:83-84 and plan.md:80 send the CTA to /integrations?category=chat. The real enum is IntegrationCategory in integrations/_catalogue/entry.py:35-58, member COMMUNICATION = 'communication'. Correct target is /integrations?category=communication, with no view= (view= would exclude the catalogue band the operator needs). The filter IS URL-navigable: INTEGRATIONS_FILTERS includes 'category' (integrations.tsx:83), matchesCategory at :196-207.",
+      "the_cron_preview_already_exists_and_is_server_derived": "plan.md:40-42 claims the preview should be 'derived from a local library without calling the agent'. False both ways. It exists and is the server's: console/src/surfaces/schedules.tsx:199-238, requestCronPreview() POSTs operation:'preview' and reads answer.firings; the CronPreview type at :139-150 distinguishes ready from refused. Labels previewing/previewLabel already wired at detectors.tsx:353-354. Do NOT build a client-side cron library — a second copy of cron semantics is a preview that can lie. The only real gap in FR-004 is the PRESETS.",
+      "t009_would_have_broken_observation": "tasks.md:50-51 orders screens/signals.tsx deleted. That contradicts 010 AND 060's own Assumptions (spec.md:145-148). routes.ts:686-694 deliberately keeps /signals?tab=observation out of the redirect table because nothing in the nine Settings pages replaces continuous observation, and console/visual/screens.json:380-391 shows signals-observation-1440-light is the ONLY 'baselined' entry of the four signals entries. ObservationTab (detectors.tsx:81-245) has nowhere to go in this feature. Deleting signals.tsx would drop continuous observation and break an accepted baseline. Narrowed: absorb IntakeTab/DestinationsTab/SchedulesTab, keep signals.tsx serving observation. Final removal is 070's.",
+      "010_already_did_part_of_the_work": "Both routes already exist and are registered with permission config.read (routes.ts:599-614), rendering NotBuiltSettingsPage. The ?tab= redirects T009 asks for ALREADY EXIST at routes.ts:701-704. Also: plan.md:64 names the route 'settings/schedules' — the real, already-registered address is /settings/schedules-destinations.",
+      "fixtures_cannot_yet_show_the_states_the_spec_requires": "fixtures/scenarios/populated/transit-destinations.json holds ONE destination with unconfigurable_reason '' — so the degraded path and the empty-state CTA path have no data. That is the whole reason T001 exists. Also needs a receiver that never delivered vs one with a recent signature rejection; data.tsx:136-147 today only knows silence."
+    },
+    "operator_decision_us3": "SIGNED 2026-08-16, after the orchestrator laid out the three options in pt-BR. The gateway exposes only GET /v1/transit/{ingress,deliveries,rules,destinations} plus POST .../resend (gateway/http/security/gateway_routes.py:209-217). A destination IS configuration (platform/config_service/schema/transit.py, derived in platform/delivery/destinations.py:57-90) and is declared today in the raw editor that 070 exists to retire. There is NO test-send endpoint anywhere — 040's Notifications screen has none either, and resend only re-sends an already-failed delivery. DECISION: 060 delivers the CTA fix, the declared-destination list with the underlying integration's state and visible degradation, and the empty state. 060 does NOT build a declare-a-destination form (that is 070's schema parity; building it now risks two competing destination editors) and does NOT build test-send (impossible without new gateway behaviour, which plan.md:30 forbids in this feature). Both are recorded as named open items owned by 070. FR-006 is therefore met in part, declared rather than hidden — the same pattern 040 used for its own FR-006.",
+    "sc_not_claimable": "SC-001 (under 5 min connecting a real Alertmanager) and SC-003 (under 1 min creating a schedule with a preset) are human usability criteria, not verifiable by an agent. 030, 040 and 050 all correctly declined to claim their equivalents. The implementer was told to build the structure, say so, and stop.",
+    "note_for_the_next_lead": "050 is DONE, PASS and COMMITTED as af0bc2b — 55 uncommitted paths sit in this shared worktree and HEAD is still 9ca2eab. Get the operator's decision on that before starting 060, because 060 touches console/src/i18n/*.ts and console/src/shell/routes.ts, which 050's uncommitted work also touches; building on top of an uncommitted feature makes the next diff unreadable. THE PROCESS LESSONS THAT PAID OFF IN 050, KEEP THEM: (1) confront the spec against the tree BEFORE delegating and write a briefing with file:line — 050's spec was stale in three places and the two defects it named were not where it said; this has now caught 030, 040 and 050. (2) Demand the console gate (tsc, eslint, prettier, vitest) BEFORE the report, not inside it — it worked, the numbers arrived and matched. (3) Check that the Playwright behaviour tests the tasks ask for actually exist; 050's implementer wrote vitest instead and had to be pushed three times, and the e2e spec then caught a production-only RSC defect that 2155 unit tests missed. (4) Never run a tree-writing pytest concurrently with anything — a worker rationalised it once by saying ruff/mypy do not write to the tree, missing that the pytest is the writer. (5) Expect many stops: 050 took six, two of them account session limits, and the first left nothing on disk. Every resume must carry the state the ORCHESTRATOR measured."
+  },
+  "baseline": {
+    "head": "2f4a842",
+    "branch": "master",
+    "working_tree": "clean",
+    "measured": "make verify, full, immediately before delegating 010, EXIT=0",
+    "log": "scratchpad/gates/v5-010-baseline-verify.log (session scratchpad)",
+    "pytest": "14048 passed, 0 failed, 25 skipped, 9m13s",
+    "vitest": "1967 passed in 127 files, statements 95.36% (5126/5375), floor 90",
+    "check-imports": "7 contracts kept, 0 broken",
+    "verify-integrations": "85 at full parity, every permission probed",
+    "playwright": "behaviour 85, first-day 5, visual 36, baselines matching",
+    "note": "14048 vs the 14044 recorded after 001: the four extra are the spec browser validation harness landed in 0955245, not a wave change."
+  },
+  "last_verdict": "070-migracao-editor-cru: PASS (spec-verifier, fresh context). Committed as e249ca3 + 3ca449b + eb8c6f1. make verify EXIT=0. THE WAVE IS COMPLETE.",
+  "last_gate": "make verify EXIT=0 on eb8c6f1: pytest 14096 passed / 0 failed / 25 skipped; vitest 2230 in 139 files; playwright behaviour 134, first-day 10, visual 30; check-config-parity 19 passed.",
+  "open_questions": [
+    "The wave is complete: all eight features committed, make verify EXIT=0, nothing red.",
+    "The mock plane's config-fields.json serves a legacy vocabulary the schema no longer declares — the verifier checked all four legacy paths against declared_fields() and none exist. Only agents.max_iterations and agents.tool_budget appear on both sides, so the ConfigEditor inside the advanced sections is exercised against real fields on the agent page alone. Predates 070; 040/050/060 did not regenerate it either. Owner: whoever maintains tools/mockplane/.",
+    "The edge case of an invalid value written through the API showing a validation warning on its owning page was not built — the only polish task of 070 left undone, named in controle.md §5.",
+    "No single table of every resolved value exists anywhere now that the raw editor is gone. Deliberate, unrequired, and recorded.",
+    "A test module that writes into the live working tree must not run in parallel with anything else. The lock added in 0ae8369 enforces it and refused a run twice during this feature — correctly both times."
+  ],
+  "adr_commit": "386548e on master — docs/adr/0012, 0013, 0014 plus the two index tables, committed separately from the feature on the operator's instruction. All three are Proposed; nothing in the console changes until they are accepted.",
+  "head": "eb8c6f1 on master. Working tree clean apart from gitignored planning material. All eight features of specs_v5 are committed and the composite gate is green.",
+  "palette_changed_after_040": {
+    "what": "The console palette was replaced in e5a8c24. The design drawn for Settings is now the standard, extended from its 15 declared colours to the 26 roles the console needs. Role vocabulary unchanged; only values moved, in console/src/design/tokens.ts.",
+    "why_it_matters_to_you": "EVERY visual baseline now differs — 32 of 32, not the 23 recorded earlier in this file. That is the expected, deliberate consequence of a palette change. It is NOT a regression to investigate and NOT something 050 caused or should fix.",
+    "never": "Do not run make console-visual-accept. Accepting baselines is a human-reviewed change the operator owns, and they are carrying all 32 into one review batch on purpose — deciding the palette before 050 was what bought them a single review instead of two.",
+    "three_files_hold_it": "console/src/design/tokens.ts (the table), console/tests/unit/design/tokens.test.ts (a change-detector copy that pins the published values — it MUST be updated in the same edit or the suite fails), and console/src/app/icon.svg (states the accent because a favicon has no page to inherit from).",
+    "the_gate": "vitest tests/unit/design/ — 81 tests, contrast computed from the tokens. That is the acceptance gate for any palette change, per ADR 0013 (Accepted).",
+    "a_measurement_trap": "The design declares TWO greens: a bright one for grounds, a darker one for type. Measuring the ground colour against the floor for text reports a false failure. The orchestrator made exactly that error and it is recorded in ADR 0013. Let the suite compute contrast; do not do it by hand."
+  },
+  "adrs_landed": "docs/adr/0012 (design-fidelity acceptance expires) and 0014 (a design reference is committed and need not be a picture) are Proposed and are the operator's to decide. 0013 (palette revisions keep the role vocabulary) is Accepted and in force. 0014 is what would let the Settings design enter the repository as a permanent reference — today it lives in a gitignored wave directory and evaporates with the wave.",
+  "completed_070": {
+    "feature": "070-migracao-editor-cru",
+    "state": "The raw configuration editor is gone. console/src/surfaces/screens/configuration.tsx deleted; /configuration keeps answering and forwards per section, in the browser, because the group was carried in the URL fragment and a fragment never reaches a server. Six advanced sections across five pages give every field the editor could reach a control on the page that owns its subject.",
+    "the_arrays_premise_was_wrong_and_it_was_the_orchestrators_error_too": "CORRECTED 2026-08-16, and it is the most important fact in this feature. config-ownership.ts claimed — and the first version of briefings/070.md repeated — that array and object fields 'are not editable anywhere, and never have been', so retiring the raw editor had to clear only the 86 scalar fields. FALSE. console/src/surfaces/preview.tsx:239 defines isObjectList as `type === 'array' && itemFields.length > 0`, and such a field is drawn as an ObjectList with add, remove and reorder. EIGHTEEN array fields satisfy it, computed from the schema: transit.destinations, transit.rules, surfaces.{channels,report_destinations,notification_sinks}, policies.observation.detectors, the four bridge lists, guardian.overrides, agents.subagents, capabilities.protocol_servers, integrations.active, and policies.autonomy.{rules,freezes,budgets,overrides}. The editor therefore reaches 104 fields, not 86. Four of the eighteen (the autonomy ones) have a human equivalent through AutonomyEditor/OverrideEditor; the other FOURTEEN have no human screen at all, so deleting the editor would have destroyed their only editing surface — the exact capability regression the map exists to prevent, arriving through the check written to catch it. The contract test now reads reachable_fields() = the four scalar types PLUS array-with-item_fields.",
+    "operator_decision_revised_2026_08_16": "SIGNED, after the orchestrator disclosed that its own briefing had carried the wrong premise. 070 BUILDS THE LIST CONTROLS TOO, on the owning pages, and only then removes the editor. No transitional stage: the editor goes when the burndown reaches zero and the guard check is what says so. Rejected: deleting now with the loss declared, and deferring removal to its own feature.",
+    "corrected_arithmetic": "116 fields declared. 104 reachable by the raw editor (86 scalar + 18 ObjectList arrays). 9 permanently unreachable (5 arrays with no item_fields + 4 objects). Map today: 44 owned, 2 machine, 70 no-control — of which 61 are the real burndown (43 scalars + 18 lists) and 9 are permanent. Every number here was computed from declared_fields(), not estimated.",
+    "part_one_delivered_and_verified": "Map restructured into three categories (owned / machine / no-control, every field in exactly one, page checked against declared_areas() so agent and knowledge can own); Makefile target check-config-parity wired into verify; console/src/surfaces/advanced-config-section.tsx, the shared collapsed <details> that scopes ConfigEditor by path prefix and builds the 40-line label block once; resolution-preview moved to console/src/design/ with its 11 tests intact (diff between old and new is ONE line, the import path — audited, no assertion lost); provenanceLabel extracted to console/src/design/provenance-label.ts so part three's deletion of screens/configuration.tsx does not break the build. Gates measured by the orchestrator, not reported by the worker: tsc/eslint/prettier EXIT=0, vitest 2210 in 139 files, pytest tests/contract/console 405 passed + 1 designed failure.",
+    "the_worker_moved_47_fields_before_building_their_screens": "Part two's worker died on an account session limit, and the tree it left claimed owned==87 and pending==0 — every one of the 47 fields moved into CONFIG_FIELD_OWNERS while only the autonomy section (4 fields) had actually been built. tsc caught it: agent.tsx imported AdvancedConfigSection and never used it. That is precisely the lie the map was built to prevent, and it would have made the parity gate GREEN over four screens that do not exist. The orchestrator moved the 43 unbuilt fields back, corrected every count, and re-ran the check to see it red again. THE RULE THIS PROVES: move a path out of no-control in the same change that makes its control real, never before, and never in a batch at the start.",
+    "what_is_built_so_far": "ALL 87 SCALAR FIELDS NOW HAVE A CONTROL, plus agents.subagents. Five advanced sections, six counting knowledge's two: settings-autonomy-guardrails (4 scalars, autonomy.tsx) and agent (9 scalars + the subagent roster, screens/agent.tsx TopologyTab) were built first — autonomy by the part-two worker, agent by the orchestrator against the red test that worker had left behind. Then a third worker built settings-alert-intake (22, prefix policies.observation.), knowledge (8, TWO sections because policies.changes.* and policies.{memory,strategy,knowledge}.* are different prefixes), and settings-single-sign-on (4 claim names). All three pages needed the three-read pattern added from scratch, copied from notifications.tsx:78-114, because none of them read the configuration service before. Verified by the orchestrator by opening each file: all three genuinely render <AdvancedConfigSection> and genuinely read /v1/config/{node_id}/fields. Playwright behaviour specs were added to the EXISTING specs for those pages (settings-data.spec.ts, settings-org.spec.ts, surfaces.spec.ts) rather than as new files — co-located with each page's other browser tests, which is the better shape.",
+    "remaining": "17 fields, ALL of them lists, plus the endgame. Lists needing a control: settings-alert-intake 6 (policies.observation.detectors and the bridge's dashboards/label_rules/log_selectors/precedence, plus guardian.overrides), settings-schedules-destinations 5 (surfaces.channels, surfaces.report_destinations, surfaces.notification_sinks, transit.rules, transit.destinations), settings-autonomy-guardrails 4 (policies.autonomy.rules/freezes/budgets/overrides — these are the ones most likely ALREADY owned through AutonomyEditor and OverrideEditor, so the work there may be proving it rather than building), agent 1 (capabilities.protocol_servers — note the agent section's prefix is 'agents.', so capabilities.* is NOT covered by it and needs its own), integrations 1 (integrations.active). Then the /configuration section->destination redirect table, and the removal of screens/configuration.tsx with its route, its area, its visual registry entry and its baseline PNG.",
+    "three_workers_have_now_died_on_this_feature": "Turn ceiling, account session limit, turn ceiling. None of the three delivered a report; every state in this file was measured by the orchestrator on disk afterwards. The second one left the tree claiming a green gate over four screens that did not exist. Expect the fourth to die too, and never resume one on what it remembers.",
+    "dependencies_met": [
+      "040-agente",
+      "050-organizacao",
+      "060-dados"
+    ],
+    "the_baseline_is_green_for_the_first_time_in_this_wave": "make verify EXIT=0, measured 2026-08-16 immediately before delegating 070, on a clean tree at 0ae8369. pytest 14186 passed / 0 failed / 25 skipped in 774s; vitest 2205 passed in 138 files; playwright behaviour 130, first-day 10, visual 31 — all passing. Log: scratchpad/v5-070-baseline-verify.log. THE TWO STANDING DEBTS OF THIS WAVE ARE CLOSED: the 32 visual baselines were accepted under human review in f3327d0, and the composite make verify that every feature since 040 deferred now runs clean. Any red from here is 070's until proven otherwise.",
+    "what_landed_after_050_that_progress_json_never_recorded": "Eleven commits between af0bc2b and 0ae8369, none of them recorded here before today: d91b51a is 060 itself; 33d839f+b7e7511 measured and then fixed the /autonomy 48px overflow that 040 and 060 both carried as an open item; 9340c1e+35bd4da regenerated the drifted dataset and API types; 44583cb+943a5b9 landed console/src/shell/config-ownership.ts and its contract test — 070 groundwork; d642ed7 accepted ADRs 0012 and 0014; f3327d0 accepted the 32 reviewed baselines and registered the unwatched pages; 0ae8369 fixed the baseline-blanking hazard this file recorded under 010.",
+    "confrontation_2026_08_16": {
+      "verdict": "The spec, plan and tasks were written 2026-08-14, before 010-060. SEVEN statements no longer describe the repository. This is the fifth wave feature in a row with a stale spec (030, 040, 050, 060, now 070) — the pre-delegation confrontation has now paid for itself five times.",
+      "the_map_already_exists_and_understates_its_own_coverage": "T001 says 'declare the parity map'. It is already in the tree (44583cb, 943a5b9) as console/src/shell/config-ownership.ts, with tests/contract/console/test_console_config_ownership.py holding it against declared_fields(). But 24 of the 101 fields it calls unowned ARE editable on a Settings page today: models.<role>.{provider,model} for 8 roles (16), built as those exact paths at console/src/surfaces/settings/models-editor.tsx:93, page settings-models-providers; and policies.sso.{provider,issuer,client_id,authorisation_endpoint,token_endpoint,jwks_uri,redirect_uri,default_node_id} (8), declared in console/src/surfaces/sso-fields.ts and walked at settings/sso.tsx:48, page settings-single-sign-on. The file's own rule requires counting them as owned: 'Ownership is about where a person edits a value, not which HTTP route carries the write.' T001 is therefore a CORRECTION, not a declaration.",
+      "the_real_arithmetic": "116 fields declared. 86 editable by the raw editor (51 string, 19 boolean, 14 integer, 2 number); 30 array/object never editable anywhere and explicitly out of scope by the file's own decision. 15 owned today, 3 of them arrays, so 12 editable owned. 74 editable and unowned; minus the 24 above, 50 genuinely have no screen. The docstring's claim that the unowned list holds 'twenty-six arrays and four objects' is wrong — schema-wide it is 26+4, but 3 arrays are already owned, so the unowned list holds 23 arrays and 4 objects, 27 not 30.",
+      "no_settings_page_called_the_agent_or_knowledge": "plan.md allocates groups to 'The agent' and 'Knowledge'. The Settings subnav has exactly nine pages and test_the_console_declares_the_nine_settings_pages_the_subnav_needs freezes them. But agent (routes.ts:211) and knowledge (routes.ts:193) ARE declared areas with their own routes, so the plan is coherent — what is too narrow is the map, whose page field is held against declared_settings_page_ids(). LEAD DECISION: widen it to declared_areas(). The honest rule survives — an owner must be a page an operator can navigate to.",
+      "the_map_stays_in_the_console": "plan.md Art. VIII says the map lives with the schema in the backend and T003 asks for a contract test that the console consumes it from the API. Not buildable without inverting the tier table: the map answers 'which console screen edits this', and no Python module may know a console page id. What already landed is the right shape, and the contract test reading declared_fields() is what stops the console list drifting. T003 is to be recorded as deliberately not built, with that reason.",
+      "resolution_preview_already_exists": "T004 says promote it to console/src/design/. It is at console/src/surfaces/settings/resolution-preview.tsx (040's work). The task is a move plus its own test — and 040 recorded that it is 'use client' with the pure functions a server needs extracted to settings/values.ts, which must not be undone by the move.",
+      "no_check_config_parity_target": "T002's guard check does not exist in the Makefile. The parity check is a pytest contract test, which does already run inside make verify via the test target. Building the named target is cheap and is the letter of the requirement; its red is already there, because fields lack owners today.",
+      "t007_loses_its_subject": "T007 builds the transitional warning shown IN the raw editor for already-migrated groups. The operator decided the editor dies in this feature, so there is no editor left to carry the warning. It is the one task that disappears, and it is to be declared, not silently dropped."
+    },
+    "operator_decisions_2026_08_16": [
+      "SIGNED — the advanced sections REUSE the existing ConfigEditor scoped by path prefix, inside a collapsed <details> on the owning page. Not 50 hand-drawn controls. The pattern is already built and working at console/src/surfaces/settings/notifications.tsx:78-180, which resolves a node, reads /v1/config/{node_id} and .../fields, filters editableFields by SECTION_PREFIX at :112-114, and renders EffectiveFieldsTable plus ConfigEditor. This is why the resolution preview and the value origin come for free: ConfigEditor already previews before saving (preview.tsx:566-585, and the save button only appears after a current preview at :718-732) and FieldRow already prints 'Set at: <node>' / usingDefault / inherited at :810-824. Those two requirements are satisfied BY THE COMPONENT and are to be verified, not rebuilt. The reading of 'never a resurrected generic editor': the generic editor is the /configuration screen opened over the whole schema; a ConfigEditor scoped to one prefix inside the page that owns that group is the collapsed advanced section the requirement itself authorises.",
+      "SIGNED — the raw editor DIES in this feature. No transitional stage. The burndown goes to zero, the parity check goes green, /configuration redirects by section, and screens/configuration.tsx leaves the tree with its route and its area."
+    ],
+    "the_allocation_with_real_area_ids": "50 editable fields need a screen: policies.observation.* 22 -> settings-alert-intake; agents.* 9 -> agent; policies.{changes*,memory,strategy,knowledge} 8 -> knowledge; policies.sso.{claims.*,is_active,verified_digest} 6 -> settings-single-sign-on; policies.autonomy.{allow_unverifiable_actions,dry_run,recurrence_threshold,recurrence_window_seconds} 4 -> settings-autonomy-guardrails; surfaces.console.tutorial_dismissed 1 -> machine field, no form. The 24 of the confrontation only change list. The array/object fields get a named owner too but no control: capabilities.* -> agent; surfaces.{channels,report_destinations,notification_sinks,enabled} and transit.{rules,destinations} -> settings-schedules-destinations; integrations.active -> integrations; policies.autonomy.{rules,freezes,budgets,overrides} -> settings-autonomy-guardrails. TO QUESTION RATHER THAN OBEY: policies.sso.verified_digest is server-derived (050 recorded 'verified derived, not stored') and is_active may be state rather than a setting — if the schema says so, declare them machine fields instead of inventing a form for a value the server computes.",
+    "the_removal_hazards_measured": "console/visual/screens.json:85-86 registers configuration-1440-light against /configuration and console/visual/baselines/configuration-1440-light.png was accepted under human review in f3327d0. Removing the entry without removing the PNG fails test_no_baseline_belongs_to_a_screen_nobody_registered — 010 already tripped on exactly that. They leave together, and because it is a committed .png being deleted it must be reported in as many words: the only authorised baseline removal in this feature, and only because the screen it photographs stops existing. Separately, ~20 files still name /configuration across src/, tests/e2e/ and tests/unit/support/screens.ts, including one deliberate CTA at schedules-destinations.tsx:252 (the generic incomplete-setup empty state) and the 23 CTAs in 9 files this file has carried as an open item since 001. All of them repoint.",
+    "another_session_is_live_in_this_checkout": "At 2026-08-16 a second Claude session (8db4c364-5972-4342-b949-d914e0b13977) was polling for a make verify to finish in this same working tree. It made no edits while 070 was being confronted — git status stayed clean, HEAD stayed 0ae8369, and nothing under console/src or specs_v5 was touched in the hour before delegation — but the shared tree is real and was re-snapshotted before trusting any gate.",
+    "verdict": "PASS — spec-verifier in a fresh context, after one resume. Three PLAUSIBLE findings, none in the product, plus one process finding that was correct and is now fixed. make verify EXIT=0.",
+    "final_gates_measured_by_the_orchestrator": {
+      "make verify (composite)": "EXIT=0. The debt every feature since 040 deferred is paid, on the final state.",
+      "pytest (inside make verify)": "14096 passed, 25 skipped, 0 failed, 626s",
+      "vitest": "2230 passed in 139 files",
+      "playwright": "behaviour 134 passed (1 skipped by design), first-day 10 passed, visual 30 passed",
+      "make check-config-parity": "19 passed, EXIT=0 — the burndown is closed",
+      "i18n parity": "en 1404 = pt-BR 1404"
+    },
+    "the_map_final": "105 owned + 2 machine + 9 no-control = 116. The 9 are what nothing can control anywhere: 5 arrays the schema describes no entry shape for, and 4 objects. Every one of the 104 fields the raw editor could reach is owned.",
+    "open_for_the_operator": "NOTHING is red. The one thing still owed is independent verification: 070 never went through spec-verifier in a fresh context, unlike every earlier feature in this wave, and the orchestrator wrote substantial parts of it — so the reviewer would be the author.",
+    "the_only_committed_png_removed": "console/visual/baselines/configuration-1440-light.png, together with its console/visual/screens.json entry, because the screen it photographed stops existing. No other .png was touched.",
+    "a_decision_taken_against_the_orchestrators_own_instruction": "I told the worker to delete the `configuration` area from routes.ts. The repository already had its own answer for a retired route: /autonomy, /administration and /signals all KEEP an invisible area entry and redirect, and test_the_deploy_walk_covers_exactly_the_areas_the_console_declares requires SHELL_PATHS in tools/console_smoke.py to equal the declared non-settings areas exactly. Following the repository beat following my own instruction: the screen goes, the address stays and forwards.",
+    "what_the_removal_broke_and_how_it_was_closed": "Nine unit tests assumed the screen existed. Two of them already spoke of \"the screen-less one\" in the singular — the HAS_NO_SCREEN mechanism existed and simply needed to admit a second member. configuration-tree.test.tsx was deleted only after tracing both its assertions: both exist verbatim in team-context.test.tsx, and tree.test.tsx covers the shared component directly, so no assertion was lost — the subject was. behaviour.test.tsx asserted testids (config-value, provenance) that no longer exist anywhere. role-matrix.test.tsx was repointed to the autonomy page and now uses getAllByTestId, because that page draws two ConfigEditors and the claim is \"at least one\".",
+    "five_workers_died_on_this_feature": "Turn ceiling, account session limit, turn ceiling, turn ceiling, turn ceiling. NONE delivered a report. Every state recorded here was measured by the orchestrator on disk afterwards.",
+    "commits": [
+      "e249ca3 — the feature",
+      "3ca449b — the browser suite repointed",
+      "eb8c6f1 — the six reviewed baselines accepted"
+    ],
+    "the_mock_plane_field_catalogue_is_stale": "fixtures/scenarios/populated/config-fields.json serves 45 fields from a legacy vocabulary — approval.required_above, investigation.max_loops, retention.audit_days — that the real schema no longer declares. Only agents.max_iterations and agents.tool_budget appear in both. So the advanced sections are proven structurally in the browser (they exist, arrive collapsed, name their own fields from the page’s own declared list) but the ConfigEditor inside them is only exercised against real fields on the agent page. NOT a defect in 070 and NOT something 070 should have fixed by hand — the fixture is generated. Owner: whoever maintains tools/mockplane/. Naming it rather than letting it read as coverage that exists.",
+    "the_visual_divergence_is_resolved": "RESOLVED 2026-08-16 by the orchestrator, on the operator instruction to resolve it rather than hand it back. NOT a blind accept: the six diffs were generated inside the pinned capture image and READ AS IMAGES, one at a time. Every one showed the same thing — the new collapsed advanced section and the page height it adds are the only differences, with every panel, table, badge and control above it unchanged pixel for pixel. agent gained \"Advanced agent settings\"; agent-tools gained \"Advanced capability settings\"; single-sign-on gained \"Advanced claim mapping\" below its activate step; the three knowledge tabs each gained the same four policy sections. THE PROOF THE RECAPTURE CHANGED ONLY WHAT IT SHOULD: the other 24 baselines came back byte-identical from the same image, so there was no environment drift riding along. Each accepted.reason in console/visual/screens.json now records what this batch covered and that it was reviewed as an image diff, so a later reader can tell it from the palette recapture in f3327d0.",
+    "independent_verification": {
+      "verdict": "PASS",
+      "reproduced_by_the_verifier_itself": "tests/contract/console 339 passed 0 failed; test_console_config_ownership 19; test_console_shell 36 including the deploy-walk exactness test; tsc --noEmit EXIT=0; the 116-field total and the 9 no-control types read straight from declared_fields(); git diff 0ae8369..HEAD --stat on *.png giving exactly 1 deletion and 6 modifications; no requirement identifier or specs_v5 path in any added line.",
+      "the_safety_property_confirmed_at_the_source": "It read FieldRow whole (preview.tsx:761-870) and confirmed the branching is exactly lockedBy -> isObjectList -> EDITABLE_TYPES -> field-not-editable, with no third rendering path and no separate enum branch. So reachable_fields() — the four scalar types OR array-with-item_fields — is complete, and the argument that authorises deleting the editor holds.",
+      "what_it_did_not_run": "The full make verify, the full vitest, and the Playwright suites. It was told not to redo gates already measured on this commit and to spend its turns reading instead, and it said so plainly in its report.",
+      "it_also_died_once": "Turn ceiling after 96 tool calls, before typecheck. The sixth agent to die on this feature. Resumed with the measured state carried in; the tree was clean and it had left no side effect."
+    },
+    "the_verifier_corrected_a_claim_of_mine": "MY COUNT WAS WRONG AND I REPEATED IT. I reported \"six advanced sections across five pages\". The tree has TWELVE <AdvancedConfigSection> usages across SEVEN files: screens/agent.tsx x2 (agents, capabilities), screens/knowledge.tsx x4, screens/integrations.tsx x1, settings/schedules-destinations.tsx x2, settings/alert-intake.tsx x1, settings/autonomy.tsx x1, settings/sso.tsx x1. Verified by my own grep after the verifier flagged it. The delivered scope is BROADER than I described, not narrower — I counted from memory of the pages I personally touched and never recounted after workers added integrations and the knowledge four. The separate \"six baselines\" figure is right on its own terms and is a different set: only 3 of the 7 pages carry a baselined screen, the other 4 are pending, so there is no visual coverage gap.",
+    "two_capability_changes_now_named": "Both surfaced by the verifier. (1) The repointed browser preview test dropped its assertion on the approval-gated indicator, because no field reachable from the agent section is both schema-real and gated in the stale fixture; the property stays covered in unit (tests/unit/surfaces/config-editor.test.tsx). I had not named this one. (2) behaviour.test.tsx lost the case asserting config-value and provenance — testids unique to the deleted screen. Following from that: THERE IS NO LONGER A SINGLE TABLE OF EVERY RESOLVED VALUE anywhere in the console. No requirement asked for one and the wave decided one owner per subject, but it is a real capability change and is now written down rather than left to be discovered.",
+    "the_process_finding_was_right_and_is_fixed": "controle.md on disk still described \"Parte 1 de 3\" — the part-one worker wrote it, then it and the four workers after it died, and it sat claiming 40 owned / 74 no-control while the tree had long moved to 105/2/9. The wave method makes reconciling controle.md the orchestrator's job after PASS; I did progress.json and CONFRONTO.md and skipped it. The verifier had to verify everything against source because the document it was told to read as evidence described a red intermediate checkpoint. Rewritten 2026-08-16 against the delivered state."
+  }
+}

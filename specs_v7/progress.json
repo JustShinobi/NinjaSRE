@@ -1,0 +1,234 @@
+{
+  "wave": "specs_v7",
+  "updated": "2026-08-23",
+  "orchestrator": "Opus 5 lead session (/spec-wave specs_v7)",
+  "execution": "pares paralelos por slot conforme EXECUCAO.md — S0: 000 | S1: 001+020 | S2: 010+040 | S3: 030+070 | S4: 050+060 | S5: 080. Worktrees isoladas por implementer; single-write com dono por slot (EXECUCAO.md §2); deploy-stg + acceptance contra staging no fim de cada slot (EXECUCAO.md §3); checkpoint do laço mínimo no fim do S2.",
+  "feature_order": [
+    "000-regras-e-governanca",
+    "001-registro-do-que-o-agente-fez",
+    "020-identidade-enderecavel",
+    "030-uma-fonte-por-fato",
+    "040-decisao-composta",
+    "010-leitura-do-relato",
+    "070-confianca-de-certificado",
+    "050-primeiro-administrador",
+    "060-o-catalogo-ensina",
+    "080-incidente-fecha-o-laco"
+  ],
+  "slots": {
+    "S0": [
+      "000-regras-e-governanca"
+    ],
+    "S1": [
+      "001-registro-do-que-o-agente-fez",
+      "020-identidade-enderecavel"
+    ],
+    "S2": [
+      "030-uma-fonte-por-fato",
+      "040-decisao-composta"
+    ],
+    "S3": [
+      "010-leitura-do-relato",
+      "070-confianca-de-certificado"
+    ],
+    "S4": [
+      "050-primeiro-administrador",
+      "060-o-catalogo-ensina"
+    ],
+    "S5": [
+      "080-incidente-fecha-o-laco"
+    ]
+  },
+  "single_write_owner_by_slot": {
+    "S1": "020-identidade-enderecavel",
+    "S2": "030-uma-fonte-por-fato",
+    "S3": "010-leitura-do-relato",
+    "S4": "060-o-catalogo-ensina"
+  },
+  "dependencies": {
+    "000-regras-e-governanca": [],
+    "001-registro-do-que-o-agente-fez": [
+      "000-regras-e-governanca"
+    ],
+    "020-identidade-enderecavel": [
+      "000-regras-e-governanca"
+    ],
+    "010-leitura-do-relato": [
+      "001-registro-do-que-o-agente-fez"
+    ],
+    "040-decisao-composta": [
+      "001-registro-do-que-o-agente-fez"
+    ],
+    "030-uma-fonte-por-fato": [
+      "020-identidade-enderecavel"
+    ],
+    "070-confianca-de-certificado": [
+      "000-regras-e-governanca"
+    ],
+    "050-primeiro-administrador": [
+      "000-regras-e-governanca"
+    ],
+    "060-o-catalogo-ensina": [
+      "010-leitura-do-relato"
+    ],
+    "080-incidente-fecha-o-laco": [
+      "001-registro-do-que-o-agente-fez",
+      "010-leitura-do-relato",
+      "020-identidade-enderecavel",
+      "030-uma-fonte-por-fato",
+      "040-decisao-composta",
+      "070-confianca-de-certificado"
+    ]
+  },
+  "spec_generation": {
+    "status": "complete",
+    "started": "2026-08-23",
+    "finished": "2026-08-23",
+    "method": "10 agentes de geração paralelos (Opus), um por feature, escrevendo direto de .specify/templates/ na forma da casa (exemplar specs_v6/001), a partir de specs_v7/briefings/{COMUM,000..080}.md — mesmo método da v6; caminho scriptado do spec-kit segue abandonado",
+    "totals": "10 features, 40 arquivos, ~14.700 linhas em spec/plan/tasks/checklists; controle.md deliberadamente ausente (implementer escreve)"
+  },
+  "completed": [
+    "000-regras-e-governanca",
+    "001-registro-do-que-o-agente-fez",
+    "020-identidade-enderecavel"
+  ],
+  "current_feature": null,
+  "last_verdict": "S1: 001 PASS e 020 PASS, ambos por verifier independente em contexto limpo.",
+  "decisions_taken_during_generation": [
+    "Vocabulário de status: a enumeração do STORE (run_trace_store.py:30) é a servida por summary_of; o console aprende (010) e o gate bidirecional + purga das fixtures ('succeeded', 'awaiting_approval') é da 030 (Phase 2b, T060-T069, ordem rígida). Unificar runtime×store NÃO é desta onda (recusa registrada no plan da 030).",
+    "Canônico de runtime: ReActLoop; build_pipeline declara-se dormente nomeando o harness (040). zero_integration_outcome vira função com dois chamadores.",
+    "OpenAPI/cliente TS: regenerados pelo orquestrador no merge de cada slot, nunca mergeados textualmente (EXECUCAO.md).",
+    "first-run.tsx no S4: dono 050; as duas edições da 060 aplicadas no merge (EXECUCAO.md).",
+    "000 recupera a governança committed-e-perdida de 6d1ede6 (revertida por 19431fc) em vez de reescrever (REGRAS.md §1).",
+    "060 releu o alvo min_scope: obrigatório nos 21 campos secretos, proibido nos 19 não-secretos (endpoint() nem aceita); guide_url nos 40.",
+    "050: CLI ninjasre setup admin canônico + credencial de boot promovida a convite; tela de first-run que cria conta RECUSADA (nenhuma rota não autenticada cria administrador).",
+    "070: aceitação por endereço (não por vendor); permissão nova integration.trust_unverified admin+; PEM cobre cluster, fingerprint nó único; três mensagens de falha distintas.",
+    "080: dois roteiros (laço de leitura reexecutável + laço inteiro com aprovação humana); vítima CT122/redis (CT139/CT103 são invisíveis às regras — não disparam alerta)."
+  ],
+  "operator_answers_2026-08-23": [
+    "080: CT122 (redis) AUTORIZADA — fora de uso no momento; pode ficar fora. Janela da demo: a combinar no dispatch do S5. Privilégio VM.PowerMgmt do token Proxmox: segue em aberto até a E9 — o ramo 'não-exercida com decisão registrada' cobre.",
+    "070: pve01/pve02 alcançados por IP (confirmado pelo operador; consistente com a skill debug-k3s) ⇒ fingerprint-first é o caminho; PEM só se um dia houver nome+cluster.",
+    "030: DECIDIDO pelo orquestrador (delegado): o 4º valor 'failing' ENTRA — um check registrado que falhou aparecendo como 'Stored' é a mesma classe de mentira que a feature existe para matar; a varredura de leitores do plan cobre o risco.",
+    "020: prefixo 'inc_' CONFIRMADO.",
+    "040: perfil de sandbox do staging = KUBERNETES (k3s disponível) ⇒ o balcão compõe inteiro no staging; ligação real de control-plane genérico fica pós-onda.",
+    "060: DECIDIDO pelo orquestrador (delegado): vendors cujo token não tem modelo de escopo no vendor (pushover/telegram/signoz/redis) usam a frase explícita 'este token não carrega escopo — trate como acesso pleno'; gate aceita essa forma. Hermes aponta a documentação do próprio pacote.",
+    "050: DECIDIDO pelo orquestrador (delegado): aviso 'sem administrador' sempre visível no estado sem dono (não dá forma de entrar — abrir a porta exige shell); rotação de passphrase REVOGA sessões vivas (o motivo de rotacionar é desconfiar da credencial; sessão que sobrevive anula a rotação).",
+    "ops-1/2/3: DECIDIDO pelo orquestrador (delegado): NÃO bloqueiam a demo — entram no backlog novo com estado real (a demo usa Gemini e alertas que já chegam; nenhuma das três é pré-condição do laço). Se sobrar folga no S5, ops-3 (chave Ollama) é a única com valor imediato."
+  ],
+  "backlog_candidates_discovered": [
+    "Guardrails engine não registrado nos hooks do laço de serving (investigation_hooks só registra o guarda de janela; GatewayState.guardrails + trust_controls.py sabem registrar) — mesmo formato de seam, sem feature dona nesta onda (achado da 040).",
+    "readSetupState lê /v1/config/{node_id} como stub Promise.resolve({}) — zera modelChosen/providerName nas 9 telas que usam a causa (achado da 030).",
+    "Divergência docs.md × schema por vendor (tabela de Setup duplicada) — vira tela mentindo agora que docs.md é servido (achado da 060).",
+    "Fixtures não exercitam todos os estados do domínio — T069 da 030 registra a lacuna; preencher é trabalho posterior.",
+    "surfaces/console (sign-in próprio) sem estatuto decidido — REGRAS.md §4; a 050 só exige não-contradição.",
+    "bans.ts COMPOSITE_ID: o aperto que removeu o falso positivo em relogio (23:41:02) abriu um falso negativo estreito — composto de segmentos todos numericos nao e pego. Sem alcance no dominio hoje (o unico composto em tela Now e alert:alertmanager:<hash>, segmentos alfabeticos por construcao). Severidade baixa; travado por teste permanente no fechamento do S0."
+  ],
+  "model_strategy": "spec-implementer segue Sonnet effort max como default (as specs foram escritas para tornar a implementação mecânica: 50-75 tarefas/feature com file:line). Exceção recomendada: 040 e 070 — as duas features de fronteira (composition roots com ordem entre elas; TLS no credential proxy) — implementadas com Opus, OU Sonnet com verifier em Opus. O orquestrador do /spec-wave permanece Opus+ (os merges, a regeneração de artefatos e os gates de staging são onde mora o julgamento agora).",
+  "notes": "Ler EXECUCAO.md antes de dispatchar qualquer slot: é o opt-in de paralelismo e staging que a skill spec-wave exige — inclui a regra de artefatos gerados, a de arquivos fora do índice em worktrees, e a de merge que recusa hunk revertendo arquivo alheio (precedente 6d1ede6→19431fc). Constituição alvo pós-000: 2.2.0. Confronto final ganha a coluna 'quem constrói isso em produção?'.",
+  "current_slot": "S1 fechado; S2 (010 ∥ 040) e o proximo",
+  "baseline_commit": "abbc418",
+  "baseline_tree": "limpa (git status --short vazio) no dispatch do S0",
+  "staging_access": {
+    "env_file": ".env na raiz do repositorio — gitignored (.gitignore:10), modo 600, LF, NOME=valor, sourceable com 'set -a; . ./.env; set +a'",
+    "variables": [
+      "NINJASRE_STAGING_URL",
+      "NINJASRE_STAGING_USERNAME",
+      "NINJASRE_STAGING_CREDENTIAL"
+    ],
+    "shape": "NINJASRE_STAGING_CREDENTIAL e SENHA, nao token de sessao. Verificado 2026-08-23 pelo orquestrador.",
+    "exchange": "POST {url}/api/session form-encoded username+password+returnTo -> 303 + Set-Cookie ninjasre_session=<token>. O handler (console/src/app/api/session/route.ts:73) repassa para POST {api}/auth/sign-in e devolve {token}.",
+    "why_it_matters": "console/tests/e2e/session.ts:26 le NINJASRE_CONSOLE_E2E_CREDENTIAL e poe o valor DIRETO como cookie ninjasre_session. Senha nesse cookie nao autentica: guard.ts:55 so confere presenca, e a shell redireciona com reason=expired depois que a API recusa. O backing de staging precisa do passo de troca, como o backing compose ja faz.",
+    "gateway_reachability": "GET /v1/* no host do console cai em 307 para /sign-in mesmo com Bearer — a troca tem de passar pelo /api/session do proprio console.",
+    "declared_deviations_handed_to_000": [
+      "T035: a credencial nao e repassada crua; e trocada por token antes de virar NINJASRE_CONSOLE_E2E_CREDENTIAL.",
+      "T032: a lista de constantes ganha uma quarta variavel (usuario), declarada no mesmo tier."
+    ]
+  },
+  "last_gate": "make verify exit 0 — 12278 passed / 27 skipped, na arvore mergeada do S1",
+  "slot_results": {
+    "S0": {
+      "feature": "000-regras-e-governanca",
+      "verdict": "PASS",
+      "gates": {
+        "make_verify": "exit 0 — 12223 passed / 27 skipped (base 12210/27)",
+        "transversal_deterministico": "35 passed / 17 skipped",
+        "transversal_staging": "exit 0 — 10 passed / 10 skipped, contra https://stg-ninjasre.lan.kyo.ninja",
+        "evidencia": "10 capturas full-page em specs_v7/000-regras-e-governanca/evidence/, produzidas pela flag --evidence-dir documentada",
+        "credencial": "ausente do log completo (conferido com comparacao embutida do shell, nunca grep com o segredo em argv)"
+      },
+      "entregue": [
+        "Constituicao 2.0.0 -> 2.2.0, duas emendas: clausula de paridade no artigo de capacidades, e artigo novo 'composto ou nao foi entregue'.",
+        "ADR 0016 novo, self-contained; ADR 0009 com exatamente uma linha alterada (Superseded by 0015).",
+        "Indice de ADRs e traceability do roadmap fechando os dois em 16, mesmo conjunto, sem reescrever as preexistentes.",
+        "Cinco regras transversais novas com o vermelho capturado antes de qualquer allowlist, e dez entradas de allowlist (nove previstas + uma descoberta).",
+        "Backing 'staging' na validacao de navegador: nao sobe nada, troca usuario+senha por token, captura evidencia no mesmo run."
+      ],
+      "allowlist_entries": 10,
+      "allowlist_nota": "e o numero que cada slot seguinte precisa fazer cair",
+      "reparos": [
+        "Ciclo 1 (achado pelo orquestrador): --evidence-dir nao chegava em quem captura — chegava ao Playwright so como --output=, e a captura le a variavel de ambiente. Zero capturas com exit 0. Corrigido exportando a variavel no ambiente do subprocesso e removendo o --output inteiramente.",
+        "Ciclo 2 (achado pelo verifier): cinco linhas de tests/unit/tools/test_console_e2e.py citavam numero de tarefa e papel de fluxo — arquivo committed dependendo de arquivo que nao vai no clone. Reescritas em substancia. E controle.md citava 79 passed ao lado de um comando que devolve 54; o numero estava certo, faltava um terceiro arquivo na citacao."
+      ]
+    }
+  },
+  "licoes_de_execucao": [
+    "O spec-implementer bateu o teto de turnos TRES vezes na 000 (154, 275, 391 chamadas). A model_strategy presume tarefas mecanicas de file:line; as da 000 nao eram (auditar artigos, capturar cinco vermelhos reais, implementar um backing). Para features de forma parecida, fatiar o dispatch por fase em vez de por feature — vale especialmente para 040 e 070.",
+    "O implementer nao escreveu controle.md ate ser mandado escreve-lo primeiro e incrementalmente. Nas proximas features, exigir o controle.md como primeira entrega e nao como ultima.",
+    "Escrever log de run DENTRO do --evidence-dir invalida o resultado: a ferramenta limpa o diretorio. Log sempre fora.",
+    "Nunca conferir vazamento de segredo com 'grep -F -- \"$SEGREDO\"': o proprio grep nasce com o segredo em argv e o ps seguinte o encontra. Usar comparacao embutida do shell (case)."
+  ],
+  "s1_state": {
+    "001": {
+      "status": "implementer fechou — 17 commits, arvore limpa, relatorio completo",
+      "branch": "worktree-agent-afb5dc9d0a0d01793",
+      "head": "58fcc99"
+    },
+    "020": {
+      "status": "em execucao — 4o teto de turnos; nucleo entregue",
+      "branch": "worktree-agent-a7470b9f74733948a",
+      "head": "d35449e"
+    },
+    "merge_ensaiado": "git merge-tree: UM conflito, platform/persistence/postgres/models.py — puramente aditivo dos dois lados (001 acrescenta AgentRun.headline e um indice GIN em incidents.run_ids; 020 acrescenta Incident.public_id e um indice unico org_id+public_id). Manter os dois hunks. NAO e a classe de hunk que o EXECUCAO.md manda recusar (nenhum reverte conteudo alheio). transversal-rules.spec.ts automerge limpo apesar de ambas o tocarem."
+  },
+  "achados_estruturais_do_S1": [
+    "A lista de escrita unica do EXECUCAO.md esta incompleta. Ela cobre console/src/i18n/*.ts, console/src/shell/routes.ts e console/visual/screens.json — e deixa de fora dois arquivos que o S1 provou serem compartilhados: platform/persistence/postgres/models.py (guarda o modelo de TODA tabela, entao qualquer feature que acrescente coluna colide) e fixtures/scenarios/** (a 001 mexeu nos arquivos de runs, a 020 nos de incidents; deu disjunto por coincidencia de dominio, nao por desenho). Para o S3 em diante, ou a lista inclui os dois, ou o dispatch declara quais tabelas e quais cenarios cada lado possui.",
+    "A declaracao de interseccao 'nenhuma' entre 001 e 020 estava errada na letra e certa no espirito: houve interseccao real em models.py e em transversal-rules.spec.ts, mas ambas aditivas e resolviveis. O que salvou foi as duas features mexerem em dominios diferentes dentro dos mesmos arquivos.",
+    "Correcao de leitura do orquestrador: eu atribui a 001 a derrubada de cinco entradas de allowlist. Errado. As entradas descrevem o que a TELA imprime; a 001 e backend e so PRODUZ os campos novos (headline/report). Quem CONSOME e a 010. As dez entradas continuam de pe ao fim do S1, e a conta cai no S2. A allowlist e uma divida do console, e so uma feature de console a paga."
+  ],
+  "allowlist_transversal": {
+    "inicio": 10,
+    "agora": 8,
+    "caiu_no_S1": [
+      "/incidents/{id} identifier-as-name",
+      "/incidents/{id} negative-assertion"
+    ],
+    "nota": "a conta e divida do console; so uma feature de console a paga. A 010 no S2 e dona das quatro entradas de markdown cru e id-como-nome em /runs, /runs/{id} e /."
+  },
+  "tese_provada_no_ambiente_real": "Staging, apos o deploy do S1: run_turns=5, tool_calls=4, evidence=1 (base da onda era 0/0/0 com 37 runs). Processo subiu 21:03:41Z, turnos gravados 21:23:23Z-21:23:39Z. Investigacao veio de alerta real pelo caminho de producao, nao foi disparada para a prova. headline e sentenca limpa; summary segue comecando com ###.",
+  "regras_novas_para_o_S2": [
+    "Recursos compartilhados que o EXECUCAO.md nao previa e que o S1 provou: numeros de revisao de migracao, platform/persistence/postgres/models.py, fixtures/scenarios/**, e a propria transversal-rules.spec.ts. Regra geral: todo recurso que ambos os lados podem editar precisa de passo de reconciliacao declarado no merge.",
+    "Commit por fase e condicao de entrada no dispatch, nao lembrete depois. A feature que commitava por fase transformava teto de turnos em recado; a que acumulava, em risco de perda.",
+    "Aquecimento entre o Argo Synced+Healthy e a aceitacao. Synced+Healthy nao significa que o console renderizou; sem isso a aceitacao pega a pagina fria e produz falso defeito.",
+    "Evidencia de ambiente real sai do tasks.md das features e vira etapa declarada do orquestrador no fim do slot: worktree nao alcanca cluster nem banco.",
+    "Dispatch fatiado por fase para features de julgamento (040 e 070 em especial), nao por feature inteira."
+  ],
+  "divida_para_a_010": "O dataset simulado nao carrega custo por turno: derivar era impossivel sem dado real, e inventar cifra era o padrao a evitar. Todo turno fica 'sem custo', entao a tela sempre dira 'nao registrado'. A 010 promete 'transcript e custo reais' e vai precisar de turnos com custo no cenario — pre-requisito dela, nao descoberta no meio.",
+  "bloqueio_descoberto_no_S1": {
+    "o_que": "O console serve /incidents e /runs inteiramente do cache de rota do Next: carregar as duas paginas produz ZERO requisicoes a /v1/incidents e /v1/runs no servico, que registra as suas requisicoes. A lista de incidentes desenha 19 links todos vazios, embora banco, API e o pacote compilado do console todos carreguem o campo.",
+    "de_quem_e": "Defeito pre-existente, ja registrado no diagnostico da onda e atribuido a 030 (listas dinamicas, fim do Full Route Cache congelado). NAO e regressao do S1.",
+    "consequencia": "Enquanto durar, nenhuma tela de lista pode ser validada contra staging — o que se mede la e uma pagina que nao consultou o produto. Duas regras transversais falham contra staging por isso, e a falha e verdadeira.",
+    "alcanca_o_checkpoint": "O checkpoint do laco minimo declarado para o fim do S2 exige alerta real virando investigacao legivel no ambiente real. Com listas congeladas ele nao tem como passar."
+  },
+  "troca_S2_S3": {
+    "decidido": "2026-08-23, pelo orquestrador, apos o achado do cache congelado no S1.",
+    "o_que_mudou": "030 sobe para o S2 (com a 040); 010 desce para o S3 (com a 070). Nada mais muda.",
+    "porque": "030 desfaz o cache de rota congelado. Enquanto ele durar, nenhuma tela de lista pode ser validada contra staging — carregar /incidents e /runs produz zero requisicoes ao servico. A 010 e a feature cuja tese e 'o console le o registro'; valida-la contra paginas que nao leem nada nao prova nada. 030 e pre-condicao de prova das outras no ambiente real.",
+    "pareamento_preservado": "A regra do EXECUCAO.md e um lado console x um lado backend. 030 e console e 040 e backend, entao S2 continua disjunto. No S3, 010 e console e 070 e credential proxy mais integracao — tambem disjunto. Parear 010 com 030 teria colidido: as duas sao console.",
+    "dependencias_conferidas": "030 depende de 020 (feita). 040 depende de 001 (feita). 010 depende de 001 (feita). 070 depende de 000 (feita). 060 depende de 010, que agora fecha no S3 — S4 segue valido. 080 depende de 001,010,020,030,040,070, todas fechadas ate o fim do S3.",
+    "consequencia": "O checkpoint do laco minimo, declarado para o fim do S2, move para o fim do S3: ele exige investigacao LEGIVEL, e legibilidade e da 010."
+  },
+  "achados_de_infraestrutura": [
+    "PROVISIONAMENTO DE WORKTREE: as tres worktrees da onda (001, 020, 030) nasceram no commit RAIZ do repositorio (c789c2d, 'Add initial README') em vez da ponta da master. Cada implementer consertou sozinho com fast-forward ou reset e relatou como nota de rodape, entao passou duas vezes como curiosidade. Tres de tres e defeito sistematico do isolation: worktree. Custo por ocorrencia: o implementer gasta turnos diagnosticando uma arvore sem codigo antes de comecar. Mitigacao ate haver conserto: o dispatch deve mandar conferir 'git log --oneline -1' antes de qualquer trabalho e corrigir para a ponta se necessario.",
+    "RELATORIO DE AGENTE PODE VOLTAR VAZIO: o relatorio de um verifier voltou sem conteudo apos 118 chamadas de ferramenta. Mitigacao adotada no S2 e obrigatoria daqui em diante: todo implementer grava o controle.md incrementalmente num arquivo em /tmp/.../scratchpad/controle/<feature>.md, fora do repositorio e da worktree, ao fim de cada fase junto com o commit. Provou-se no mesmo dia: a 030 bateu o teto sem relatorio e o arquivo em disco tinha o ledger inteiro."
+  ]
+}

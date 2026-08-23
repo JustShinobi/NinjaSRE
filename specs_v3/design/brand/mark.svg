@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NinjaSRE">
+  <!--
+    Shuriken. Oito pontas iguais e furo central.
+
+    Oito, e não quatro, por uma razão que só apareceu quando as duas foram
+    desenhadas lado a lado: quatro pontas em diagonal são a forma que virou
+    padrão de "produto com IA", e reduzi-la a 16px devolve exatamente esse
+    brilho. Oito pontas com furo não se confunde com brilho em tamanho nenhum —
+    é um objeto, e o furo é o que o torna um objeto e não um enfeite.
+
+    Geometria: raio externo 30, interno 14,5 (razão 0,48), pontas a cada 45°.
+    A razão foi calibrada renderizando .36, .44 e .52 lado a lado. Entalhe fundo
+    vira o clichê; entalhe raso vira losango.
+
+    `currentColor` de propósito: a marca herda o tema em que está desenhada, e
+    nunca traz cor própria para dentro de uma página.
+  -->
+  <path fill="currentColor" fill-rule="evenodd"
+        d="M32 2 L37.55 18.6 L53.21 10.79 L45.4 26.45 L62 32 L45.4 37.55
+           L53.21 53.21 L37.55 45.4 L32 62 L26.45 45.4 L10.79 53.21 L18.6 37.55
+           L2 32 L18.6 26.45 L10.79 10.79 L26.45 18.6 Z
+           M32 26.5 A5.5 5.5 0 1 0 32 37.5 A5.5 5.5 0 1 0 32 26.5 Z"/>
+</svg>

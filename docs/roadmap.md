@@ -245,3 +245,4 @@ Every spec cross-references:
 | [0014](adr/0014-a-design-reference-is-committed.md) | A design reference is a committed, self-contained document a reviewer can open, not a picture in an uncommitted directory |
 | [0015](adr/0015-parity-per-embedded-integration.md) | Parity per embedded integration, unchanged in form; breadth staged by validatable environment rather than asserted as a total |
 | [0016](adr/0016-composed-or-it-is-not-shipped.md) | A merged mechanism is reachable from a serving composition root or declares itself dormant; a symbol only tests construct is not a delivery |
+| [0017](adr/0017-everything-but-a-credential.md) | Everything is committed except a credential; the clause forbidding a committed file from depending on an uncommitted one is replaced |
