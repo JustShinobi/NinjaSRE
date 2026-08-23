@@ -3574,6 +3574,21 @@
             ],
             "title": "Finished At"
           },
+          "headline": {
+            "default": "",
+            "title": "Headline",
+            "type": "string"
+          },
+          "incident_id": {
+            "default": "",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "report": {
+            "default": "",
+            "title": "Report",
+            "type": "string"
+          },
           "run_id": {
             "title": "Run Id",
             "type": "string"
@@ -3603,6 +3618,13 @@
               }
             ],
             "title": "Summary"
+          },
+          "touched_resources": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Touched Resources",
+            "type": "array"
           },
           "trigger": {
             "title": "Trigger",
@@ -6205,12 +6227,17 @@
             },
             "title": "Turns",
             "type": "array"
+          },
+          "unpriced_turns": {
+            "title": "Unpriced Turns",
+            "type": "integer"
           }
         },
         "required": [
           "run_id",
           "turns",
           "total_cost",
+          "unpriced_turns",
           "total_tokens",
           "is_interrupted"
         ],
@@ -7224,6 +7251,22 @@
             "title": "Calls",
             "type": "array"
           },
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
           "index": {
             "title": "Index",
             "type": "integer"
@@ -7232,6 +7275,11 @@
             "default": "",
             "title": "Model",
             "type": "string"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
           },
           "selection_rationale": {
             "default": "",

@@ -4676,6 +4676,21 @@ export interface components {
         InvestigationSummary: {
             /** Finished At */
             finished_at?: string | null;
+            /**
+             * Headline
+             * @default
+             */
+            headline: string;
+            /**
+             * Incident Id
+             * @default
+             */
+            incident_id: string;
+            /**
+             * Report
+             * @default
+             */
+            report: string;
             /** Run Id */
             run_id: string;
             /** Started At */
@@ -4684,6 +4699,8 @@ export interface components {
             status: string;
             /** Summary */
             summary?: string | null;
+            /** Touched Resources */
+            touched_resources?: string[];
             /** Trigger */
             trigger: string;
         };
@@ -6013,6 +6030,8 @@ export interface components {
             total_tokens: number;
             /** Turns */
             turns: components["schemas"]["ThreadTurnView"][];
+            /** Unpriced Turns */
+            unpriced_turns: number;
         };
         /**
          * SampleView
@@ -6584,6 +6603,13 @@ export interface components {
         ThreadTurnView: {
             /** Calls */
             calls: components["schemas"]["ThreadCallView"][];
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /** Cost */
+            cost?: number | null;
             /** Index */
             index: number;
             /**
@@ -6591,6 +6617,11 @@ export interface components {
              * @default
              */
             model: string;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
             /**
              * Selection Rationale
              * @default
