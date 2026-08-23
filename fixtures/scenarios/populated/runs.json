@@ -6,50 +6,74 @@
         "runs": [
           {
             "finished_at": "2026-08-05T11:33:00+00:00",
+            "headline": "Guest disk usage hit its own volume ceiling",
+            "incident_id": "",
+            "report": "A guest reached the ceiling of its own volume while the datastore under it still read comfortable.",
             "run_id": "run-0001",
             "started_at": "2026-08-05T11:19:00+00:00",
             "status": "succeeded",
             "summary": "A guest reached the ceiling of its own volume while the datastore under it still read comfortable.",
+            "touched_resources": [],
             "trigger": "alert"
           },
           {
             "finished_at": "2026-08-06T09:12:00+00:00",
+            "headline": "Cluster quorum has no margin left",
+            "incident_id": "",
+            "report": "Quorum has no margin: two of two required votes, and the device in the membership view carries none.",
             "run_id": "run-0002",
             "started_at": "2026-08-06T09:00:00+00:00",
             "status": "succeeded",
             "summary": "Quorum has no margin: two of two required votes, and the device in the membership view carries none.",
+            "touched_resources": [],
             "trigger": "schedule"
           },
           {
             "finished_at": null,
+            "headline": "",
+            "incident_id": "",
+            "report": "",
             "run_id": "run-0003",
             "started_at": "2026-08-07T11:56:00+00:00",
             "status": "running",
             "summary": null,
+            "touched_resources": [],
             "trigger": "alert"
           },
           {
             "finished_at": "2026-08-04T06:09:00+00:00",
+            "headline": "Investigation could not reach the metrics agent",
+            "incident_id": "",
+            "report": "The investigation could not reach the metrics agent; it is one of the failed units on the primary.",
             "run_id": "run-0004",
             "started_at": "2026-08-04T06:00:00+00:00",
             "status": "failed",
             "summary": "The investigation could not reach the metrics agent; it is one of the failed units on the primary.",
+            "touched_resources": [],
             "trigger": "manual"
           },
           {
             "finished_at": null,
+            "headline": "A remediation is proposed and awaiting approval",
+            "incident_id": "",
+            "report": "A remediation is proposed and is waiting for a decision.",
             "run_id": "run-0005",
             "started_at": "2026-08-07T11:38:00+00:00",
             "status": "awaiting_approval",
             "summary": "A remediation is proposed and is waiting for a decision.",
+            "touched_resources": [],
             "trigger": "alert"
           },
           {
             "finished_at": "2026-08-02T11:02:00+00:00",
+            "headline": "Cancelled after the operator found the cause by hand",
+            "incident_id": "",
+            "report": "Cancelled by the operator after the cause was identified by hand.",
             "run_id": "run-0006",
             "started_at": "2026-08-02T11:00:00+00:00",
             "status": "cancelled",
             "summary": "Cancelled by the operator after the cause was identified by hand.",
+            "touched_resources": [],
             "trigger": "manual"
           }
         ]

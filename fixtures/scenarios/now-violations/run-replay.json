@@ -9,7 +9,8 @@
         "run_id": "e19e882a1c9b4d5e8f6a2b3c7d0e1f24",
         "total_cost": 0,
         "total_tokens": 0,
-        "turns": []
+        "turns": [],
+        "unpriced_turns": 0
       },
       "contract_version": "1.0.0",
       "provenance": "gateway",
