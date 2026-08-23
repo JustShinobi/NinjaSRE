@@ -13,9 +13,14 @@ immutable once accepted — a reversal is a new ADR that supersedes it.
 | [0006](0006-read-only-by-default.md) | Read-only by default, with approval and rollback for writes | Accepted | III |
 | [0007](0007-no-external-telemetry.md) | No first-party telemetry | Accepted | X |
 | [0008](0008-full-provider-parity.md) | Full parity across all supported LLM providers | Accepted | VI, XII |
-| [0009](0009-full-integration-parity.md) | Full parity across all ~85 integrations | Accepted | IX, XII |
+| [0009](0009-full-integration-parity.md) | Full parity across all ~85 integrations | Superseded by 0015 | IX, XII |
 | [0010](0010-english-only.md) | English-only codebase and documentation | Accepted | XIII |
 | [0011](0011-attribution-in-readme-only.md) | Attribution lives in README and NOTICE only | Accepted | XIII |
+| [0012](0012-design-fidelity-expires.md) | A design-fidelity acceptance expires | Accepted | acceptance expiring when its design reference changes |
+| [0013](0013-palette-revisions-keep-the-role-vocabulary.md) | A palette revision changes values, never the role vocabulary | Accepted | a palette revision preserving the role vocabulary |
+| [0014](0014-a-design-reference-is-committed.md) | A design reference is a committed artefact, and need not be a picture | Accepted | a design reference being a committed, self-contained document |
+| [0015](0015-parity-per-embedded-integration.md) | Parity per embedded integration, breadth staged by validatable environment | Accepted | capabilities: parity per embedded integration, breadth staged by validatable environment |
+| [0016](0016-composed-or-it-is-not-shipped.md) | Composed or it is not shipped | Accepted | composition and delivery: a merged mechanism is reachable from a serving composition root or declares itself dormant |
 
 ## Writing a new ADR
 
