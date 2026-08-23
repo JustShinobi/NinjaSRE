@@ -66,7 +66,10 @@ import { signIn } from './session';
  * timeline — both the internal key (asserted never to leak as a name) and
  * the public address the console now navigates by.
  */
-function detailedIncident(): { readonly incidentId: string; readonly publicId: string } {
+function detailedIncident(): {
+  readonly incidentId: string;
+  readonly publicId: string;
+} {
   const source = readFileSync(
     fileURLToPath(
       new URL(
