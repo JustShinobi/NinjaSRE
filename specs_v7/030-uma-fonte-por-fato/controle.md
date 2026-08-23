@@ -201,3 +201,98 @@ deixado num comentário; corrigidos antes do commit).
 Próximo: implementar a correção do chip (o que já está provado vermelho
 acima) — é o item mais concreto e de maior valor que resta, e fecha 2 das
 próprias falhas deste arquivo.
+
+---
+
+## Atualização — correção do chip + subtítulo, allowlist 8 → 7, provado contra build real
+
+**Commits 5, 6, 7:**
+- `8562dd7` feat(console): the investigation chip says Unknown, not nothing
+- `66a8918` docs(030): commit the running controle.md for this feature
+- `dc61443` fix(console): stop repeating one placeholder across an incident's whole subtitle
+
+### O que mudou
+
+1. **`console/src/surfaces/read.ts`**: nova função `existenceOf(data, present)`,
+   ao lado de `stateOf`/`dependencyOf`/`dataOf` — devolve `{kind:'unknown',
+   dependency}` quando a leitura falhou, `{kind:'present'}` /
+   `{kind:'absent'}` quando teve sucesso. Testada (2 casos novos em
+   `behaviour.test.tsx`, vermelho real confirmado antes — `TypeError:
+   existenceOf is not a function` — depois verde, 36/36).
+2. **`console/src/components/status.tsx`**: `ResolvedChip` ganhou `title?`
+   opcional (mesma técnica que `StatusChip` já usa para o texto "Unknown").
+3. **`console/src/surfaces/screens/incident-detail.tsx`**: o chip de
+   investigação agora deriva de `existenceOf(detail, hasInvestigation)` — 4
+   estados reais (`running`/`finished`/`none`/`unknown`), o chip nunca mais
+   é `null`. Estado `unknown` nomeia a dependência (`/v1/incidents/{incident_id}`)
+   no tooltip (`title`). **E**: o parágrafo de subtítulo inteiro
+   (`data-testid="incident-subtitle"`) some quando a leitura falha, em vez
+   de cair no mesmo placeholder genérico em 2+ campos ao mesmo tempo.
+4. **`console/src/i18n/en.ts` e `pt-BR.ts`**: `incident.chip.investigation.unknown`
+   e `.unknown.explain`, nos dois catálogos.
+5. **`console/tests/unit/surfaces/incident-detail.test.tsx`**: o teste que
+   antes travava a garantia "só 1 chip quando a leitura falha" (a decisão
+   antiga) foi **reescrito** para travar a nova: 2 chips, o segundo diz
+   "Unknown", nomeia a dependência no `title`; mais um teste novo travando
+   que o subtítulo não renderiza mais nada. 9/9 passam.
+6. **`console/tests/e2e/transversal-rules.spec.ts`**: removida a entrada de
+   `EXCEPTIONS` para `/incidents/{id}` × `two-placeholders`; comentário
+   explicativo do bloco atualizado (contava "oito entradas", agora "sete";
+   a frase sobre `/incidents/{id}` agora diz que a rota não carrega
+   nenhuma das três regras).
+
+### Prova contra o produto de verdade, não inferência
+
+Rebuild de produção real (`pnpm run build`, confirmado `ƒ Dynamic` em toda
+rota, gate `dynamic-routes` verde), servido localmente contra mock real
+(portas 8996/8997, como nas rodadas anteriores). Rodei:
+
+- `pnpm exec playwright test tests/e2e/transversal-rules.spec.ts --project=behaviour`
+  → **38 passed, 14 skipped, 0 failed**. Os 14 pulados: 7 são a delegação de
+  scroll-budget para `scroll-budget.spec.ts` (não é allowlist), **7 são as
+  entradas de allowlist restantes** (confirmado contando os `test.fixme`
+  pulados um a um: 3 markdown em `/`,`/runs`,`/runs/{id}`; 2
+  identifier-as-name em `/runs`,`/runs/{id}`; 1 two-placeholders em `/runs`;
+  1 live-control em `/runs/{id}`) — **nenhuma delas tocada por mim**, todas
+  continuam vermelhas pela própria causa original, não maquiadas.
+- Os 4 testes de `/incidents/{id}` (markdown, identifier-as-name,
+  two-placeholders, negative-assertion) **passam, e três deles já não têm
+  mais `test.fixme` nenhum guardando a passagem** — rodam de verdade.
+- `pnpm exec playwright test tests/e2e/030-uma-fonte-por-fato.acceptance.spec.ts`
+  → **11 passed, 8 skipped (motivo nomeado cada um), 0 failed** — as 2
+  falhas do chip que eu tinha capturado antes agora passam.
+- `pnpm exec vitest run` (suíte inteira do console) → **159 arquivos, 2672
+  testes, todos passando.**
+
+### A conta da allowlist, exatamente como o orquestrador pediu
+
+**Estava em 8. Está em 7. Caiu exatamente 1: `/incidents/{id}` ×
+`two-placeholders`.**
+
+Prova de que caiu por conserto e não por cenário enfraquecido:
+- O cenário que a viola é o mesmo de sempre — um id de incidente que não
+  existe no fixture, a leitura de detalhe recusada pelo mock com 404. Não
+  toquei no fixture, no dataset, nem no mecanismo de falha.
+- O que mudou foi o **produto**: o subtítulo inteiro deixou de renderizar
+  quando a leitura falha, em vez de cair no mesmo fallback em duas ou mais
+  posições. O teste antigo (`test.fixme`) foi trocado por uma execução real
+  que passa porque o defeito não existe mais, não porque o teste ficou mais
+  fraco — o `twoPlaceholders()` detector em si não mudou uma linha.
+- As outras 2 regras que já tinham caído nessa mesma rota (S1: identifier-
+  as-name e negative-assertion) continuam caídas, e a entrada que sobrava
+  citava (incorretamente, eu descobri e corrigi o comentário) que o
+  conserto delas removeria esta também — não removeu; corrigi a causa raiz
+  de verdade agora.
+
+### Instrumentação de contagem — reconfirmado nesta rodada também
+
+Os mesmos servidores locais (build de produção + mock real) usados para o
+teste acima também serviram para reconfirmar, nesta rodada, os blocos
+`loading /incidents / /runs / an incident detail emits at least one
+request` do acceptance spec — **passam, contagem sobe de verdade a cada
+load**, contra o build mais recente (com as correções desta rodada).
+
+Nada mudou na conclusão já reportada: localmente, com este build, as
+listas **não** estão congeladas — o defeito observado em staging precisa
+de uma causa que só existe lá (proxy/CDN de borda é a hipótese mais forte,
+não verificada).
