@@ -405,7 +405,26 @@ describe('the redirect table from a retired route to its live address', () => {
     expect(legacyRouteTarget('/setup', null)).toBe('/first-run');
   });
 
+  it('falls back to the bare route\'s own destination when the tab named does not match any entry', () => {
+    // /signals carries a tab-less entry as well as three tab-specific ones —
+    // an unrecognised tab must fall through to that bare-route destination
+    // rather than resolving to nothing, the same way a bookmarked but
+    // outdated variant of the address should still land somewhere true to
+    // what a visitor had.
+    expect(legacyRouteTarget('/signals', 'not-a-real-tab')).toBe(
+      '/settings/alert-intake',
+    );
+  });
+
   it('answers nothing for a route the table does not retire', () => {
     expect(legacyRouteTarget('/incidents', null)).toBeUndefined();
+  });
+
+  it('answers nothing for a tab-only route asked about with an unmatched tab and no bare entry', () => {
+    // /investigations and /setup carry only a bare (tab-less) entry each, so
+    // asking with a tab nothing recognises still falls through to that one
+    // destination — proving the fallback holds for a table row that has
+    // nothing else to fall back to.
+    expect(legacyRouteTarget('/investigations', 'anything')).toBe('/runs');
   });
 });
