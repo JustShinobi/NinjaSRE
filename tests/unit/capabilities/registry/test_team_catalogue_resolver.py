@@ -18,7 +18,13 @@ import pytest
 
 from capabilities.registry.catalogue import Registry, resolve_for
 from capabilities.registry.planning import TeamCatalogueResolver
-from core.capability.metadata import EvidenceSource, EvidenceType, Requirements, ToolMetadata
+from core.capability.metadata import (
+    EvidenceSource,
+    EvidenceType,
+    Requirements,
+    SideEffectLevel,
+    ToolMetadata,
+)
 from core.capability.ports import ConfiguredIntegrations
 from core.capability.registered import build_registration
 
@@ -32,8 +38,10 @@ def _tool(name: str, *, needs: tuple[str, ...] = ()) -> object:
             display_name=name,
             description=f"the {name} capability, declared for this test",
             domain="testing",
-            evidence_source=EvidenceSource.METRICS,
-            evidence_type=EvidenceType.MEASUREMENT,
+            evidence_source=EvidenceSource.REASONING,
+            evidence_type=EvidenceType.METRIC,
+            side_effect_level=SideEffectLevel.READ,
+            parallel_safe=True,
             requires=Requirements(integrations=needs),
         ),
         call=lambda: None,
@@ -89,7 +97,7 @@ async def test_the_state_shaped_entry_agrees_with_the_stateless_one() -> None:
     from core.state.types import TeamContext
 
     registry = _registry()
-    team = TeamContext(node_id="acme/payments", integrations=("prometheus",))
+    team = TeamContext(team_id="acme/payments", integrations=("prometheus",))
     state = initial_state(RawAlert(payload={"status": "firing"}), team, run_id="run-1")
 
     with_state = await TeamCatalogueResolver(registry).resolve(state)
