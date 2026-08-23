@@ -96,13 +96,20 @@ class ReplayedTurn:
     model: str = ""
     prompt_tokens: int = 0
     completion_tokens: int = 0
-    cost: float = 0.0
+    #: ``None`` when no price was recorded for this turn — a provider with no
+    #: published price, never a fabricated ``0.0``.
+    cost: float | None = None
     duration_ms: int = 0
     selection_rationale: str = ""
     offered_capabilities: tuple[str, ...] = ()
     started_at: datetime | None = None
     finished_at: datetime | None = None
     calls: tuple[ReplayedCall, ...] = ()
+
+    @property
+    def is_priced(self) -> bool:
+        """Return whether this turn carries a recorded cost."""
+        return self.cost is not None
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,8 +128,17 @@ class ReplayedRun:
 
     @property
     def total_cost(self) -> float:
-        """Return what every turn of this run cost, added up."""
-        return sum(turn.cost for turn in self.turns)
+        """Return what the priced turns of this run cost, added up.
+
+        Read this with ``unpriced_turn_count``. On its own it is a floor, not
+        a total — an unpriced provider must never look free by omission.
+        """
+        return sum(turn.cost for turn in self.turns if turn.cost is not None)
+
+    @property
+    def unpriced_turn_count(self) -> int:
+        """Return how many turns carried no recorded cost."""
+        return sum(1 for turn in self.turns if turn.cost is None)
 
     @property
     def total_tokens(self) -> int:
@@ -185,7 +201,7 @@ def replay_trace(
             model=str(record.usage.get(TURN_USAGE_MODEL, "")),
             prompt_tokens=int(record.usage.get(TURN_USAGE_PROMPT_TOKENS, 0) or 0),
             completion_tokens=int(record.usage.get(TURN_USAGE_COMPLETION_TOKENS, 0) or 0),
-            cost=float(record.usage.get(TURN_USAGE_COST, 0.0) or 0.0),
+            cost=_optional_cost(record.usage.get(TURN_USAGE_COST)),
             duration_ms=int(record.usage.get(TURN_USAGE_DURATION_MS, 0) or 0),
             selection_rationale=str(record.payload.get(TURN_PAYLOAD_RATIONALE, "")),
             offered_capabilities=_names(record.payload.get(TURN_PAYLOAD_CAPABILITIES)),
@@ -228,6 +244,16 @@ def _names(value: Any) -> tuple[str, ...]:
     if isinstance(value, Sequence) and not isinstance(value, str | bytes):
         return tuple(str(item) for item in value)
     return ()
+
+
+def _optional_cost(value: Any) -> float | None:
+    """Return a turn's recorded cost, or ``None`` when the key was never written.
+
+    The key is absent, not ``0.0``, for a turn the recorder could not price
+    (FR-017) — coercing a missing key to zero here would be the exact
+    fabrication the write side refuses to produce.
+    """
+    return None if value is None else float(value)
 
 
 def _optional_str(value: Any) -> str | None:

@@ -100,7 +100,11 @@ class RecordedTurn:
     model: str
     prompt_tokens: int = 0
     completion_tokens: int = 0
-    cost: float = 0.0
+    #: ``None`` when the provider publishes no price for this model — never a
+    #: stand-in zero. A turn that cost nothing to run does not exist; a turn
+    #: nobody can price is the fact this field exists to keep distinguishable
+    #: from one.
+    cost: float | None = None
     duration_ms: int = 0
     selection_rationale: str = ""
     offered_capabilities: Sequence[str] = ()
@@ -326,6 +330,16 @@ class RunRecorder:
                 TURN_PAYLOAD_CAPABILITIES: list(turn.offered_capabilities),
             }
         )
+        usage: dict[str, Any] = {
+            TURN_USAGE_MODEL: turn.model,
+            TURN_USAGE_PROMPT_TOKENS: turn.prompt_tokens,
+            TURN_USAGE_COMPLETION_TOKENS: turn.completion_tokens,
+            TURN_USAGE_DURATION_MS: turn.duration_ms,
+        }
+        # The key itself is absent for an unpriced turn — never present with a
+        # fabricated ``0.0`` standing in for "the provider publishes no price".
+        if turn.cost is not None:
+            usage[TURN_USAGE_COST] = turn.cost
         record = await self.store.record_turn(
             TurnRecord(
                 turn_id=self.ids(),
@@ -334,13 +348,7 @@ class RunRecorder:
                 started_at=turn.started_at,
                 finished_at=turn.finished_at,
                 payload=payload,
-                usage={
-                    TURN_USAGE_MODEL: turn.model,
-                    TURN_USAGE_PROMPT_TOKENS: turn.prompt_tokens,
-                    TURN_USAGE_COMPLETION_TOKENS: turn.completion_tokens,
-                    TURN_USAGE_COST: turn.cost,
-                    TURN_USAGE_DURATION_MS: turn.duration_ms,
-                },
+                usage=usage,
             )
         )
         await self.record_event(
