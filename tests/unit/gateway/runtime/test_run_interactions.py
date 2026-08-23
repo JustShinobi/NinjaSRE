@@ -243,3 +243,45 @@ async def test_a_run_this_process_is_not_driving_has_no_questions() -> None:
 
     assert await runner.pending_interactions("never-started") == ()
     assert await runner.find_interaction("never-raised") is None
+
+
+async def test_a_question_asking_for_a_credential_never_reaches_a_person() -> None:
+    """Refused at the desk, before anything is raised.
+
+    The cheapest way around a credential proxy is to ask a person to paste a
+    token into a chat thread, where it would then live in the trace, the episode
+    and the channel's retention for ever. So the refusal has to happen before the
+    question appears anywhere — a question refused after being shown has already
+    been asked of somebody, whether or not an answer came back.
+    """
+    llm = _AskingLLM(question="what is the API token for the metrics system?")
+    runner = ReActInvestigationRunner(llm=llm, registry=_registry())  # type: ignore[arg-type]
+
+    summary = await runner.investigate(_start("run-1"))
+
+    assert await runner.pending_interactions("run-1") == (), (
+        "a question asking for a credential was raised on the run's queue, so it "
+        "reached whoever is watching it."
+    )
+    assert summary, "the run did not finish after the refusal"
+    read = " ".join(repr(message) for request in llm.requests for message in request.messages)
+    assert "token" not in read.lower() or "refus" in read.lower(), (
+        "the model was not told its question was refused, so it will ask again."
+    )
+
+
+async def test_the_desk_a_run_gets_carries_the_shipped_window() -> None:
+    """The window is the product's, not a per-run choice this composition makes.
+
+    Asserted rather than exercised: shortening it from here would need a seam
+    this composition does not have, and the behaviour at expiry — a refusal
+    saying nobody answered, never a plausible guess — belongs to the desk and is
+    covered where the desk is.
+    """
+    from config.constants.investigation import HANDOFF_TIMEOUT_SECONDS
+
+    runner = ReActInvestigationRunner(llm=_AskingLLM(), registry=_registry())  # type: ignore[arg-type]
+    desk = runner._handoff_for(_start("run-1"))
+
+    assert desk.timeout_seconds == HANDOFF_TIMEOUT_SECONDS
+    assert desk.run_id == "run-1"
