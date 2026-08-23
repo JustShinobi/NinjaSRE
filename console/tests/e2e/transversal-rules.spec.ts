@@ -278,14 +278,14 @@ const EXCEPTIONS: readonly Exception[] = [
     reason:
       'confirmed against a run whose own status is already terminal ' +
       '("succeeded") in the fixture: the control panel still offers to stop ' +
-      'it. The badge is not reading the run\'s status at all — it is a label ' +
+      "it. The badge is not reading the run's status at all — it is a label " +
       'for the live-connection state, and shows regardless of whether the ' +
       'run underneath it has settled. Composing the recorder in production ' +
       '(so a run really does close with a terminal status and a logged end ' +
       'event) does not touch this: that fact was already true of a ' +
       'completed run before and remains true after, and this screen simply ' +
       'is not conditioning the control on it — removed by the console ' +
-      'gating the control on the run\'s own status alongside the connection ' +
+      "gating the control on the run's own status alongside the connection " +
       'state, not on the connection state alone',
   },
 ];
