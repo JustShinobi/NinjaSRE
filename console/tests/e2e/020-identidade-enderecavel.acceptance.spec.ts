@@ -118,7 +118,7 @@ function investigatedIncidentTitle(): string {
 
 test.describe('identity: an alert-sourced incident opens', () => {
   test(
-    'AN-01/AN-02: the H1 is the incident title, and it is never an identifier',
+    'the H1 is the incident title, and it is never an identifier',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openAlertIncident(page);
@@ -131,7 +131,7 @@ test.describe('identity: an alert-sourced incident opens', () => {
   );
 
   test(
-    'AN-03: the tab title names the incident, and is never an identifier',
+    'the tab title names the incident, and is never an identifier',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openAlertIncident(page);
@@ -143,7 +143,7 @@ test.describe('identity: an alert-sourced incident opens', () => {
   );
 
   test(
-    'AN-04: the address bar carries no percent-encoded reserved character',
+    'the address bar carries no percent-encoded reserved character',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openAlertIncident(page);
@@ -159,7 +159,7 @@ test.describe('identity: an alert-sourced incident opens', () => {
   );
 
   test(
-    'AN-05: the address bar carries no reserved character literally either',
+    'the address bar carries no reserved character literally either',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openAlertIncident(page);
@@ -174,7 +174,7 @@ test.describe('identity: an alert-sourced incident opens', () => {
   );
 
   test(
-    'AN-06: the Investigation panel is not in a failed-dependency state',
+    'the Investigation panel is not in a failed-dependency state',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openAlertIncident(page);
@@ -186,7 +186,7 @@ test.describe('identity: an alert-sourced incident opens', () => {
   );
 
   test(
-    'AN-07: the Evidence trail panel is not in a failed-dependency state',
+    'the Evidence trail panel is not in a failed-dependency state',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openAlertIncident(page);
@@ -198,7 +198,7 @@ test.describe('identity: an alert-sourced incident opens', () => {
   );
 
   test(
-    'AN-08: the timeline renders one entry per reasoning step the gateway returned',
+    'the timeline renders one entry per reasoning step the gateway returned',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await openAlertIncident(page);
@@ -218,7 +218,7 @@ test.describe('identity: an alert-sourced incident opens', () => {
 
 test.describe('routes answering by the name the product already uses', () => {
   test(
-    'AN-09: /investigations does not end in "there is no such page"',
+    '/investigations does not end in "there is no such page"',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await page.goto('/investigations');
@@ -227,7 +227,7 @@ test.describe('routes answering by the name the product already uses', () => {
   );
 
   test(
-    'AN-10: /setup does not end in "there is no such page"',
+    '/setup does not end in "there is no such page"',
     { tag: STAGING_SAFE_TAG },
     async ({ page }) => {
       await page.goto('/setup');
@@ -242,18 +242,18 @@ test.describe('routes answering by the name the product already uses', () => {
    * this dataset's own checklist is complete), which answers a different
    * question than the one this claim asks.
    */
-  test('AN-11: /investigations ends in /runs', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+  test('/investigations ends in /runs', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
     const response = await page.request.get('/investigations', { maxRedirects: 0 });
     expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(300);
     expect(response.status()).toBeLessThan(400);
-    expect(response.headers()['location'] ?? '').toBe('/runs');
+    expect(response.headers().location ?? '').toBe('/runs');
   });
 
-  test('AN-12: /setup ends in /first-run', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
+  test('/setup ends in /first-run', { tag: STAGING_SAFE_TAG }, async ({ page }) => {
     const response = await page.request.get('/setup', { maxRedirects: 0 });
     expect(response.status(), 'expected a redirect response').toBeGreaterThanOrEqual(300);
     expect(response.status()).toBeLessThan(400);
-    expect(response.headers()['location'] ?? '').toBe('/first-run');
+    expect(response.headers().location ?? '').toBe('/first-run');
   });
 });
 
@@ -261,7 +261,7 @@ test.describe('routes answering by the name the product already uses', () => {
 // on this dataset's own shape rather than on data staging cannot control) --
 
 test.describe('one address, every surface', () => {
-  test('AN-13: a search result for an incident points to the same address the list row does', async ({
+  test('a search result for an incident points to the same address the list row does', async ({
     page,
   }) => {
     const row = await alertIncidentRow(page);
@@ -282,7 +282,7 @@ test.describe('one address, every surface', () => {
     expect(fromSearch, `search opened ${fromSearch}, the list opens ${fromList}`).toBe(fromList);
   });
 
-  test('AN-14: the incident link on a run detail page points to the same address the list row does', async ({
+  test('the incident link on a run detail page points to the same address the list row does', async ({
     page,
   }) => {
     const title = investigatedIncidentTitle();
@@ -299,9 +299,10 @@ test.describe('one address, every surface', () => {
     await expect(incidentLink).toBeVisible();
     const fromRunHref = await incidentLink.getAttribute('href');
 
-    expect(fromRunHref, `run detail links to ${fromRunHref}, the list opens ${fromListHref}`).toBe(
-      fromListHref,
-    );
+    expect(
+      fromRunHref,
+      `run detail links to ${String(fromRunHref)}, the list opens ${String(fromListHref)}`,
+    ).toBe(fromListHref);
   });
 });
 
@@ -311,7 +312,7 @@ test.describe('one address, every surface', () => {
 test.describe('a detail read that failed', () => {
   const UNKNOWN_PUBLIC_ADDRESS = '/incidents/inc_0000000000000000';
 
-  test('AN-15: the page does not assert the negative about the investigation', async ({
+  test('the page does not assert the negative about the investigation', async ({
     page,
   }) => {
     await page.goto(UNKNOWN_PUBLIC_ADDRESS);
@@ -323,7 +324,7 @@ test.describe('a detail read that failed', () => {
     }
   });
 
-  test('AN-16: the header says the incident could not be read, and invents no name', async ({
+  test('the header says the incident could not be read, and invents no name', async ({
     page,
   }) => {
     await page.goto(UNKNOWN_PUBLIC_ADDRESS);
