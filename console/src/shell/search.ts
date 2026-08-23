@@ -131,9 +131,12 @@ export function incidentsMatching(
     .map((record) => ({
       id: `incident:${textOf(record, 'incident_id')}`,
       group: 'incidents' as const,
-      label: textOf(record, 'title') || textOf(record, 'incident_id'),
+      label: textOf(record, 'title') || textOf(record, 'public_id'),
       hint: haystackOf([textOf(record, 'severity'), textOf(record, 'state')]),
-      href: `/incidents/${encodeURIComponent(textOf(record, 'incident_id'))}`,
+      // The public address, not encoded: it is built to need no escaping,
+      // and encoding it here would be exactly the extra encoding this
+      // feature exists to remove — see `bind()` in `src/lib/api.ts`.
+      href: `/incidents/${textOf(record, 'public_id')}`,
     }));
 }
 

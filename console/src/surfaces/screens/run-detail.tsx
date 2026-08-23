@@ -469,7 +469,10 @@ export async function RunDetailScreen(
                     {message(locale, 'run.links.incident')}
                   </dt>
                   <dd className="ml-auto min-w-0 truncate">
-                    <Link href={`/incidents/${text(incident, 'incident_id')}`}>
+                    <Link
+                      data-testid="run-incident-link"
+                      href={`/incidents/${text(incident, 'public_id')}`}
+                    >
                       {text(incident, 'title')}
                     </Link>
                   </dd>
