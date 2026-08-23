@@ -32,6 +32,15 @@ NINJASRE_CONSOLE_BASE_URL_ENV: Final = "NINJASRE_CONSOLE_BASE_URL"
 #: gateway behind its own proxy.
 NINJASRE_CONSOLE_API_URL_ENV: Final = "NINJASRE_CONSOLE_API_URL"
 
+#: Where the browser *test process itself* may ask the backing directly —
+#: distinct from ``NINJASRE_CONSOLE_API_URL_ENV``, which points the console
+#: server at the backing. A Playwright spec that wants to know whether a page
+#: load actually reached the backing has no other way to ask it: the console
+#: proxies every request server-side, so nothing about that traffic is
+#: observable from the browser. Set by the harness only against the ``mock``
+#: backing, which is the only one that answers this question at all.
+NINJASRE_CONSOLE_BACKING_URL_ENV: Final = "NINJASRE_CONSOLE_BACKING_URL"
+
 #: A real credential for the browser suite to sign in with, set by the harness
 #: only against the ``compose`` backing. The mock data plane accepts any
 #: credential (see ``console/tests/e2e/session.ts``), so a run against it leaves
@@ -366,6 +375,7 @@ __all__ = [
     "CONSOLE_VISUAL_MAX_DIFFERING_PIXELS",
     "CONSOLE_WARM_VERIFY_BUDGET_SECONDS",
     "NINJASRE_CONSOLE_API_URL_ENV",
+    "NINJASRE_CONSOLE_BACKING_URL_ENV",
     "NINJASRE_CONSOLE_BASE_PATH_ENV",
     "NINJASRE_CONSOLE_BASE_URL_ENV",
     "NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV",

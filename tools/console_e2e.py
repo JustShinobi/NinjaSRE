@@ -65,6 +65,7 @@ from config.constants.console import (
     CONSOLE_STAGING_SAFE_TAG,
     DEFAULT_STAGING_URL,
     NINJASRE_CONSOLE_API_URL_ENV,
+    NINJASRE_CONSOLE_BACKING_URL_ENV,
     NINJASRE_CONSOLE_BASE_URL_ENV,
     NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV,
     NINJASRE_STAGING_CREDENTIAL_ENV,
@@ -519,6 +520,7 @@ def playwright(
     base_url: str,
     *,
     credential: str | None = None,
+    backing_url: str | None = None,
     evidence_dir: Path | None = None,
     extra: Sequence[str] = (),
 ) -> int:
@@ -527,6 +529,13 @@ def playwright(
     ``credential``, when given, is what ``console/tests/e2e/session.ts`` signs
     into the browser instead of the mock-plane value it otherwise falls back
     to — see ``NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV``.
+
+    ``backing_url``, when given, is exported under
+    ``NINJASRE_CONSOLE_BACKING_URL_ENV`` — the address a spec asks directly,
+    never through the console, whether a page load actually reached the
+    backing. Left unset for a backing that cannot answer that question, so a
+    spec that reads it fails by naming the missing variable rather than by
+    reading a stale address a previous run left behind.
 
     ``evidence_dir``, when given, is exported under
     ``NINJASRE_STAGING_EVIDENCE_DIR_ENV`` — the one variable
@@ -541,6 +550,8 @@ def playwright(
     env[NINJASRE_CONSOLE_BASE_URL_ENV] = base_url
     if credential is not None:
         env[NINJASRE_CONSOLE_E2E_CREDENTIAL_ENV] = credential
+    if backing_url is not None:
+        env[NINJASRE_CONSOLE_BACKING_URL_ENV] = backing_url
     if evidence_dir is not None:
         # Absolute, always. The browser runs with the console package as its
         # working directory, so a relative path the caller meant against the
@@ -587,7 +598,13 @@ def run(
 
     mock_port, console_port = ports(CONSOLE_E2E_MOCK_PORT, CONSOLE_E2E_PORT)
     backing_context = compose_stack() if backing == "compose" else mock_plane(scenario, mock_port)
+    # Only the mock plane answers `/__mockplane__/requests`; a spec that asked
+    # a real gateway for it would get an ordinary 404 rather than a count, so
+    # the address is handed over only where the question has an answer.
+    backing_url = None
     with backing_context as target, console(toolchain, target.api_url, console_port) as base_url:
+        if backing != "compose":
+            backing_url = target.api_url
         # Named, because under concurrency these are not the pinned ports and a
         # reader of the log should not have to guess which console was driven.
         print(f"driving the console at {base_url} against {target.api_url}", flush=True)
@@ -595,7 +612,12 @@ def run(
             if repeat > 1:
                 print(f"--- run {attempt} of {repeat} ---", flush=True)
             status = playwright(
-                toolchain, project, base_url, credential=target.credential, extra=extra
+                toolchain,
+                project,
+                base_url,
+                credential=target.credential,
+                backing_url=backing_url,
+                extra=extra,
             )
             if status != 0:
                 return status
